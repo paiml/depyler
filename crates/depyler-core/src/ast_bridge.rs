@@ -641,14 +641,18 @@ impl AstBridge {
         let mut methods = Vec::new();
         let mut fields = Vec::new();
         let mut init_method = None;
+        // DEPYLER-0603: Collect ALL methods for field inference (not just __init__)
+        let mut all_methods: Vec<&ast::StmtFunctionDef> = Vec::new();
 
         for stmt in &class.body {
             match stmt {
                 ast::Stmt::FunctionDef(method) => {
                     if method.name.as_str() == "__init__" {
-                        // Store __init__ for field inference
+                        // Store __init__ for field inference (takes priority for type info)
                         init_method = Some(method);
                     }
+                    // DEPYLER-0603: Store all methods for comprehensive field detection
+                    all_methods.push(method);
                     if let Some(hir_method) = self.convert_method(method, false)? {
                         methods.push(hir_method);
                     }
@@ -725,15 +729,36 @@ impl AstBridge {
             }
         }
 
-        // Infer instance fields from __init__ if no explicit instance fields are defined
+        // DEPYLER-0603: Infer instance fields from ALL methods, not just __init__
         // Check if we have any instance fields (non-class-var fields)
         let has_instance_fields = fields.iter().any(|f| !f.is_class_var);
 
         if !has_instance_fields && !is_dataclass {
+            // First try __init__ (has parameter type info)
             if let Some(init) = init_method {
-                // Infer instance fields and add them to the existing fields (which may contain class vars)
                 let inferred_fields = self.infer_fields_from_init(init)?;
                 fields.extend(inferred_fields);
+            }
+
+            // DEPYLER-0603: Also scan ALL other methods for self.field assignments
+            // This catches fields assigned in __enter__, __exit__, and other methods
+            let existing_field_names: std::collections::HashSet<String> =
+                fields.iter().map(|f| f.name.clone()).collect();
+
+            for method in &all_methods {
+                // Skip __init__ since we already processed it
+                if method.name.as_str() == "__init__" {
+                    continue;
+                }
+                let method_fields = self.infer_fields_from_method(method)?;
+                for field in method_fields {
+                    // Deduplicate: only add if not already present
+                    if !existing_field_names.contains(&field.name)
+                        && !fields.iter().any(|f| f.name == field.name)
+                    {
+                        fields.push(field);
+                    }
+                }
             }
         }
 
@@ -1094,8 +1119,11 @@ impl AstBridge {
             }
         }
 
-        // Look for self.field assignments in __init__
-        for stmt in &init.body {
+        // DEPYLER-0637: Recursively collect all statements from body including nested blocks
+        let all_stmts = Self::collect_all_statements_recursive(&init.body);
+
+        // Look for self.field assignments in __init__ (including nested blocks)
+        for stmt in all_stmts {
             // DEPYLER-0609: Handle both Assign and AnnAssign (annotated assignment)
             // Python: self._size: int = size  (AnnAssign)
             // Python: self._size = size       (Assign)
@@ -1107,6 +1135,11 @@ impl AstBridge {
                             if let ast::Expr::Name(name) = attr.value.as_ref() {
                                 if name.id.as_str() == "self" {
                                     let field_name = attr.attr.to_string();
+
+                                    // Deduplicate: skip if field already exists
+                                    if fields.iter().any(|f: &HirField| f.name == field_name) {
+                                        continue;
+                                    }
 
                                     // Try to infer type from the assigned value
                                     let field_type =
@@ -1140,6 +1173,11 @@ impl AstBridge {
                             if name.id.as_str() == "self" {
                                 let field_name = attr.attr.to_string();
 
+                                // Deduplicate: skip if field already exists
+                                if fields.iter().any(|f: &HirField| f.name == field_name) {
+                                    continue;
+                                }
+
                                 // Use the annotation for the type
                                 let field_type =
                                     TypeExtractor::extract_type(&ann_assign.annotation)
@@ -1160,6 +1198,143 @@ impl AstBridge {
         }
 
         Ok(fields)
+    }
+
+    /// DEPYLER-0637: Recursively collect all statements from a body,
+    /// including statements inside if/else/for/while/with/try blocks.
+    /// This allows field inference to find self.X assignments in nested code.
+    fn collect_all_statements_recursive(body: &[ast::Stmt]) -> Vec<&ast::Stmt> {
+        let mut all_stmts = Vec::new();
+
+        for stmt in body {
+            // Add the statement itself
+            all_stmts.push(stmt);
+
+            // Recursively collect from nested blocks
+            match stmt {
+                ast::Stmt::If(if_stmt) => {
+                    all_stmts.extend(Self::collect_all_statements_recursive(&if_stmt.body));
+                    all_stmts.extend(Self::collect_all_statements_recursive(&if_stmt.orelse));
+                }
+                ast::Stmt::For(for_stmt) => {
+                    all_stmts.extend(Self::collect_all_statements_recursive(&for_stmt.body));
+                    all_stmts.extend(Self::collect_all_statements_recursive(&for_stmt.orelse));
+                }
+                ast::Stmt::While(while_stmt) => {
+                    all_stmts.extend(Self::collect_all_statements_recursive(&while_stmt.body));
+                    all_stmts.extend(Self::collect_all_statements_recursive(&while_stmt.orelse));
+                }
+                ast::Stmt::With(with_stmt) => {
+                    all_stmts.extend(Self::collect_all_statements_recursive(&with_stmt.body));
+                }
+                ast::Stmt::Try(try_stmt) => {
+                    all_stmts.extend(Self::collect_all_statements_recursive(&try_stmt.body));
+                    // Note: handlers have a nested structure (ast::ExceptHandler enum variants)
+                    // For simplicity, we skip handler bodies since field assignments in
+                    // exception handlers are rare. We can extend this later if needed.
+                    all_stmts.extend(Self::collect_all_statements_recursive(&try_stmt.orelse));
+                    all_stmts.extend(Self::collect_all_statements_recursive(&try_stmt.finalbody));
+                }
+                _ => {}
+            }
+        }
+
+        all_stmts
+    }
+
+    /// DEPYLER-0603: Infer fields from any method (not just __init__)
+    /// This is simpler than infer_fields_from_init because we don't have
+    /// parameter type information from the method signature.
+    /// Fields inferred from non-__init__ methods get a synthetic default value
+    /// so they don't become constructor parameters.
+    fn infer_fields_from_method(&self, method: &ast::StmtFunctionDef) -> Result<Vec<HirField>> {
+        let mut fields = Vec::new();
+
+        // DEPYLER-0637: Recursively collect all statements including nested blocks
+        let all_stmts = Self::collect_all_statements_recursive(&method.body);
+
+        // Look for self.field assignments in method body (including nested blocks)
+        for stmt in all_stmts {
+            match stmt {
+                ast::Stmt::Assign(assign) => {
+                    // Check if it's a self.field assignment
+                    if assign.targets.len() == 1 {
+                        if let ast::Expr::Attribute(attr) = &assign.targets[0] {
+                            if let ast::Expr::Name(name) = attr.value.as_ref() {
+                                if name.id.as_str() == "self" {
+                                    let field_name = attr.attr.to_string();
+
+                                    // Infer type from the assigned value
+                                    let field_type = self
+                                        .infer_type_from_expr(assign.value.as_ref())
+                                        .unwrap_or(Type::Unknown);
+
+                                    // DEPYLER-0603: Create a default value based on the type
+                                    // so this field doesn't become a constructor parameter
+                                    let default_value =
+                                        self.create_default_value_for_type(&field_type);
+
+                                    // Deduplicate within this method
+                                    if !fields.iter().any(|f: &HirField| f.name == field_name) {
+                                        fields.push(HirField {
+                                            name: field_name,
+                                            field_type,
+                                            default_value,
+                                            is_class_var: false,
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                ast::Stmt::AnnAssign(ann_assign) => {
+                    // Handle annotated assignment: self.field: int = value
+                    if let ast::Expr::Attribute(attr) = ann_assign.target.as_ref() {
+                        if let ast::Expr::Name(name) = attr.value.as_ref() {
+                            if name.id.as_str() == "self" {
+                                let field_name = attr.attr.to_string();
+
+                                // Use the annotation for the type
+                                let field_type = TypeExtractor::extract_type(&ann_assign.annotation)
+                                    .unwrap_or(Type::Unknown);
+
+                                // DEPYLER-0603: Create a default value based on the type
+                                let default_value =
+                                    self.create_default_value_for_type(&field_type);
+
+                                // Deduplicate within this method
+                                if !fields.iter().any(|f: &HirField| f.name == field_name) {
+                                    fields.push(HirField {
+                                        name: field_name,
+                                        field_type,
+                                        default_value,
+                                        is_class_var: false,
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        Ok(fields)
+    }
+
+    /// DEPYLER-0603: Create a default value for a type.
+    /// Used for fields inferred from non-__init__ methods.
+    fn create_default_value_for_type(&self, ty: &Type) -> Option<HirExpr> {
+        match ty {
+            Type::Int => Some(HirExpr::Literal(crate::hir::Literal::Int(0))),
+            Type::Float => Some(HirExpr::Literal(crate::hir::Literal::Float(0.0))),
+            Type::Bool => Some(HirExpr::Literal(crate::hir::Literal::Bool(false))),
+            Type::String => Some(HirExpr::Literal(crate::hir::Literal::String(String::new()))),
+            // For unknown types, use Int default (0) as fallback
+            Type::Unknown => Some(HirExpr::Literal(crate::hir::Literal::Int(0))),
+            _ => Some(HirExpr::Literal(crate::hir::Literal::Int(0))),
+        }
     }
 
     fn infer_type_from_expr(&self, expr: &ast::Expr) -> Option<Type> {
