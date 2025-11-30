@@ -109,6 +109,10 @@ pub struct CodeGenContext<'a> {
     /// Maps function name -> Vec of booleans (true if param is &mut, false if &)
     /// Used to determine whether to add &mut when passing arguments
     pub function_param_muts: HashMap<String, Vec<bool>>,
+    /// DEPYLER-0621: Track function parameter default values
+    /// Maps function name -> Vec of Option<HirExpr> (None if no default, Some if has default)
+    /// Used to supply default arguments at call sites when fewer args are passed
+    pub function_param_defaults: HashMap<String, Vec<Option<crate::hir::HirExpr>>>,
     /// DEPYLER-0307 Fix #9: Track variables that iterate over tuples (from zip())
     /// Used to generate tuple field access syntax (tuple.0, tuple.1) instead of vector indexing
     pub tuple_iter_vars: HashSet<String>,
