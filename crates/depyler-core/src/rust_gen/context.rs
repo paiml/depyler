@@ -235,6 +235,10 @@ pub struct CodeGenContext<'a> {
     /// Maps original variable name to unwrapped name (e.g., "override" -> "override_val")
     /// Used inside if-let blocks to substitute variable references
     pub option_unwrap_map: HashMap<String, String>,
+
+    /// DEPYLER-0627: Track if subprocess.run is used (needs CompletedProcess struct)
+    /// When True, generate a CompletedProcess struct in the output
+    pub needs_completed_process: bool,
 }
 
 impl<'a> CodeGenContext<'a> {

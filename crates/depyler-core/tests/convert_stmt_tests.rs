@@ -617,6 +617,7 @@ fn test_with_no_target() {
             context: HirExpr::Var("file".to_string()),
             target: None,
             body: vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(1)))],
+            is_async: false,
         }],
     ));
 
@@ -635,6 +636,7 @@ fn test_with_target() {
             context: HirExpr::Var("file".to_string()),
             target: Some("f".to_string()),
             body: vec![HirStmt::Expr(HirExpr::Var("f".to_string()))],
+            is_async: false,
         }],
     ));
 

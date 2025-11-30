@@ -3052,6 +3052,10 @@ pub(crate) fn codegen_return_type(
             } else {
                 quote! { -> Result<#ty, #error_type> }
             }
+        } else if func.name == "main" && matches!(func.ret_type, Type::Int) {
+            // DEPYLER-0617: main() can only return () or Result<(), E>
+            // Convert i32 return to () for non-fallible main
+            quote! {}  // No return type annotation (defaults to ())
         } else {
             quote! { -> #ty }
         }
