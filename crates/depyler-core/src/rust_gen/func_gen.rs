@@ -1596,9 +1596,12 @@ fn infer_expr_type_with_env(
                 "groups" => Type::List(Box::new(Type::String)),
                 // DEPYLER-0555: Additional string-returning methods for return type inference
                 // DEPYLER-0565: Added hexdigest for hashlib
+                // DEPYLER-0620: Added file read methods that return String
                 // Note: upper/lower/strip/etc already covered above
                 "isoformat" | "strftime" | "to_string" | "to_str" | "encode" | "decode"
-                | "hexdigest" | "digest" => Type::String,
+                | "hexdigest" | "digest" | "read" | "readline" => Type::String,
+                // DEPYLER-0620: File readlines returns list of strings
+                "readlines" => Type::List(Box::new(Type::String)),
                 // datetime methods that return other types
                 "timestamp" => Type::Float,
                 // DEPYLER-0592: Use fully qualified chrono types
@@ -1882,6 +1885,9 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
                 // String methods that return list
                 "split" | "splitlines" => Type::List(Box::new(Type::String)),
+                // DEPYLER-0620: File read methods
+                "read" | "readline" => Type::String,
+                "readlines" => Type::List(Box::new(Type::String)),
                 // List/Dict methods
                 "get" => {
                     // dict.get() returns element type
