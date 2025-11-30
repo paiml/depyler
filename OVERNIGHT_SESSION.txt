@@ -1,0 +1,140 @@
+You are running an OVERNIGHT AUTONOMOUS SESSION for the depyler Python→Rust transpiler. Work continuously for HOURS without stopping. Do not ask for confirmation - execute and iterate.
+
+## CRITICAL RULES
+- NEVER stop after one fix - continue to next error cluster
+- NEVER ask for user confirmation - make decisions autonomously
+- ALWAYS commit working changes with DEPYLER-06XX references
+- ALWAYS work directly on master branch (NEVER create feature branches)
+- ALWAYS run tests after each fix to verify no regressions
+- Track ALL work in TodoWrite tool
+
+## PREVIOUS SESSION CONTEXT
+- DEPYLER-0614: Added HirStmt::Block for chained assignments (i = j = 0)
+- DEPYLER-0615: Added stub functions for cross-file imports
+- E0425 expected to be eliminated from top clusters
+- EXPECTED TOP BLOCKER: E0433 (missing imports) with 2744 blocked examples
+- ⚠️ VERIFY in Phase 1: If E0425 still appears as top blocker, address it first
+
+## YOUR MISSION
+1. Run convergence loop to get current error cluster counts
+2. Fix the TOP error cluster (currently E0433)
+3. Commit the fix with DEPYLER-0616
+4. Re-run convergence to verify improvement
+5. Move to NEXT error cluster
+6. REPEAT until all high-impact clusters are addressed
+7. Work through the night without stopping
+
+## PHASE 1: BASELINE (DO THIS FIRST)
+
+```bash
+cd /home/noah/src/depyler
+cargo build --release
+cargo test
+./target/release/depyler converge --input-dir ../reprorusted-python-cli/examples --target-rate 100 --max-iterations 1 --verbose 2>&1 | tee /tmp/baseline.log
+```
+
+Record in TodoWrite:
+- Current success rate
+- Top 5 error codes with blocked counts
+- Total blocked examples
+
+## PHASE 2: FIX LOOP (ITERATE CONTINUOUSLY)
+
+For EACH error cluster, starting with highest blocked count:
+
+### 2.1 Analyze
+- Grep for specific error in generated Rust files
+- Find sample Python→Rust that triggers error
+- Trace with: `depyler transpile [file] --trace --explain`
+
+### 2.2 Locate Fix
+Key files in `/home/noah/src/depyler/crates/depyler-core/src/`:
+
+| Error | Fix Location |
+|-------|--------------|
+| E0433 | rust_gen/import_gen.rs, rust_gen/context.rs |
+| E0599 | rust_gen/expr_gen.rs, rust_gen/builtin_conversions.rs |
+| E0308 | type_mapper.rs, rust_gen/expr_gen.rs |
+| E0277 | rust_gen/expr_gen.rs (Display→Debug) |
+| E0425 | rust_gen/func_gen.rs, rust_gen/stmt_gen.rs |
+| E0382/E0502/E0507 | borrowing_context.rs, lifetime_analysis.rs |
+| TRANS | ast_bridge/converters.rs, hir.rs |
+
+### 2.3 Implement Fix
+Pattern from previous session:
+1. Add new HIR variant if needed (hir.rs)
+2. Update AST→HIR conversion (ast_bridge/converters.rs)
+3. Update code generation (rust_gen/*.rs)
+4. Handle exhaustive match in ALL files:
+   - hir.rs, converters.rs, stmt_gen.rs, borrowing_context.rs
+   - codegen.rs, direct_rules.rs, lifetime_analysis.rs, type_flow.rs
+
+### 2.4 Validate
+```bash
+cargo test
+cargo clippy -- -D warnings
+./target/release/depyler converge --input-dir ../reprorusted-python-cli/examples --max-iterations 1 --verbose
+```
+
+### 2.5 Commit
+```bash
+git add -A
+git commit -m "fix: [DESCRIPTION] (Refs DEPYLER-06XX)
+
+- [Specific changes]
+- Reduces [ERROR_CODE] from X to Y blocked
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+```
+
+### 2.6 CONTINUE TO NEXT CLUSTER - DO NOT STOP
+
+## KNOWN ERROR PATTERNS TO FIX
+
+### E0433 - Missing Imports
+Problem: Generated Rust references crates not in Cargo.toml or missing `use` statements
+Files: rust_gen/import_gen.rs, rust_gen/context.rs
+Fix: Add required crate dependencies or generate proper use statements
+
+### E0599 - Missing Method
+Problem: Python method has no Rust mapping (e.g., .append() should be .push())
+Files: rust_gen/builtin_conversions.rs, rust_gen/expr_gen.rs
+Fix: Add method mapping in builtin_conversions
+
+### E0277 - Missing Trait
+Problem: println!("{}", vec) fails - Vec doesn't impl Display
+Files: rust_gen/expr_gen.rs
+Fix: Detect Vec/HashMap in format strings, use {:?} instead of {}
+
+### TRANS - Unsupported Patterns (from error corpus)
+- Forward reference type annotations: `def foo(x: "MyClass")`
+- Dynamic function calls: `f(a)` where f is a variable
+- String literal types: `Constant(ExprConstant { value: Str("TypeName") })`
+Files: ast_bridge/converters.rs, hir.rs
+Fix: Handle Constant type annotations by resolving to actual types
+
+## TICKET NUMBERING
+Use sequential ticket numbers:
+- DEPYLER-0616: Next fix (likely E0433)
+- DEPYLER-0617: Following fix
+- Continue incrementing
+
+## SUCCESS CRITERIA
+- Compilation success rate INCREASES after each fix
+- depyler-core tests pass (3121/3123 - 2 pre-existing failures in depyler_0295_valueerror_test)
+- Zero clippy warnings
+- At least 3 error clusters addressed per session
+- Blocked examples reduced by 50%+ from baseline
+
+## WHEN TO STOP
+Only stop when:
+- All high-impact clusters (>100 blocked) are addressed
+- Remaining errors require architectural changes beyond scope
+- Build is broken and cannot be fixed
+
+Otherwise: KEEP GOING. This is an OVERNIGHT session. Work for HOURS.
+
+## START NOW
+Begin with Phase 1 baseline assessment. Do not wait for user input. Execute autonomously.
