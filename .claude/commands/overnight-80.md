@@ -1,11 +1,38 @@
 # Overnight: Reach 80% Single-Shot Compile
 
-Autonomous improvement loop designed to run all night. Handles multi-layer errors, tracks incremental progress, recovers from failures.
+Autonomous improvement loop designed to run all night. Handles ANY starting condition.
+
+## Pre-Flight: Handle Any State
+
+```bash
+cd /home/noah/src/depyler
+
+# Check for uncommitted work - commit it first
+if [ -n "$(git status --porcelain)" ]; then
+    echo "Found uncommitted changes - committing first"
+    cargo test -p depyler-core --quiet
+    if [ $? -eq 0 ]; then
+        git add -A
+        git commit -m "wip: Uncommitted changes from previous session (Refs #193)"
+    else
+        echo "Tests fail with uncommitted changes - stashing"
+        git stash push -m "overnight-stash-$(date +%H%M%S)"
+    fi
+fi
+
+# Ensure we have latest code
+git pull --rebase origin main 2>/dev/null || true
+
+# Ensure depyler is built and installed
+cargo build --release -p depyler 2>/dev/null
+cargo install --path crates/depyler --force 2>/dev/null
+```
 
 ## Setup
 ```bash
 export LOG="/tmp/depyler-overnight-$(date +%Y%m%d).log"
 echo "=== Started $(date) ===" >> $LOG
+echo "Git HEAD: $(git rev-parse --short HEAD)" >> $LOG
 ```
 
 ## Main Loop (max 50 iterations)
