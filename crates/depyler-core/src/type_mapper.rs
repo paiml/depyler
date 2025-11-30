@@ -205,6 +205,11 @@ impl TypeMapper {
                         "Any" | "typing.Any" | "any" => {
                             RustType::Custom("serde_json::Value".to_string())
                         }
+                        // DEPYLER-0628: Python object type maps to serde_json::Value
+                        // Python's base object type needs dynamic typing in Rust
+                        "object" | "builtins.object" => {
+                            RustType::Custom("serde_json::Value".to_string())
+                        }
                         // DEPYLER-0592: Python datetime module types map to chrono types
                         // This fixes E0412 errors where 'date', 'datetime', 'time' are unknown types
                         "date" | "datetime.date" => {
