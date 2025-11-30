@@ -473,6 +473,13 @@ pub enum HirExpr {
         element: Box<HirExpr>,
         generators: Vec<HirComprehension>,
     },
+    // Walrus operator / Named expression (Python: x := expr)
+    // DEPYLER-0188: Assignment expression that evaluates to the assigned value
+    // Rust equivalent: { let x = expr; x } or inline assignment in patterns
+    NamedExpr {
+        target: Symbol,
+        value: Box<HirExpr>,
+    },
 }
 
 /// Comprehension generator (used in list/set/dict/generator comprehensions)
