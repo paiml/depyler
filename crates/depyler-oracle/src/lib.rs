@@ -33,6 +33,7 @@ pub mod patterns;
 pub mod self_supervised;
 pub mod synthetic;
 pub mod tfidf;
+pub mod hybrid_retrieval;
 pub mod training;
 pub mod tuning;
 pub mod unified_training;
@@ -65,6 +66,7 @@ pub use hybrid::{
 pub use ngram::{FixPattern, FixSuggestion, NgramFixPredictor};
 pub use patterns::{CodeTransform, FixTemplate, FixTemplateRegistry};
 pub use tfidf::{CombinedFeatureExtractor, TfidfConfig, TfidfFeatureExtractor};
+pub use hybrid_retrieval::{Bm25Scorer, HybridRetriever, RrfResult, reciprocal_rank_fusion};
 pub use training::{TrainingDataset, TrainingSample};
 
 // MoE Oracle exports
