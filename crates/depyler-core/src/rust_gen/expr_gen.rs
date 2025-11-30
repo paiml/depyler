@@ -3041,6 +3041,48 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
                 .collect();
 
+            // DEPYLER-0621: Complete missing arguments with default values
+            // When Python calls `f()` but `def f(x=None)`, we need to generate `f(None)` in Rust
+            // Look up registered defaults and append any missing arguments
+            let mut completed_args = borrowed_args;
+            if let Some(defaults) = self.ctx.function_param_defaults.get(func) {
+                let num_provided = completed_args.len();
+                let num_params = defaults.len();
+
+                if num_provided < num_params {
+                    // Need to fill in missing arguments from defaults
+                    for i in num_provided..num_params {
+                        if let Some(Some(default_expr)) = defaults.get(i) {
+                            // Handle common default values directly without calling to_rust_expr
+                            // (to_rust_expr requires &mut ctx which we don't have in &self)
+                            use crate::hir::{HirExpr, Literal};
+                            let default_syn: syn::Expr = match default_expr {
+                                HirExpr::Literal(Literal::None) => parse_quote! { None },
+                                HirExpr::Literal(Literal::Int(n)) => {
+                                    let n = *n;
+                                    parse_quote! { #n }
+                                }
+                                HirExpr::Literal(Literal::Float(f)) => {
+                                    let f = *f;
+                                    parse_quote! { #f }
+                                }
+                                HirExpr::Literal(Literal::Bool(b)) => {
+                                    let b = *b;
+                                    parse_quote! { #b }
+                                }
+                                HirExpr::Literal(Literal::String(s)) => {
+                                    parse_quote! { #s.to_string() }
+                                }
+                                // For complex defaults, skip - function definition should handle
+                                _ => continue,
+                            };
+                            completed_args.push(default_syn);
+                        }
+                    }
+                }
+            }
+            let borrowed_args = completed_args;
+
             // DEPYLER-0422 Fix #6: Remove automatic `?` operator for function calls
             // DEPYLER-0287 was too broad - it added `?` to ALL function calls when inside a Result-returning function.
             // This caused E0277 errors (279 errors!) when calling functions that return plain types (i32, Vec, etc.).

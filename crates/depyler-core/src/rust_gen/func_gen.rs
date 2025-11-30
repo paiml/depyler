@@ -301,6 +301,23 @@ fn stmt_always_returns(stmt: &HirStmt) -> bool {
             // If there are no handlers, the try doesn't guarantee a return
             body_returns && handlers_return && orelse_returns
         }
+        // DEPYLER-0622: With block always returns if its body always returns
+        // Example: `with open(f) as file: return file.read()` always returns
+        HirStmt::With { body, .. } => body.iter().any(stmt_always_returns),
+        // DEPYLER-0622: If statement always returns if both branches always return
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
+            let then_returns = then_body.iter().any(stmt_always_returns);
+            let else_returns = else_body
+                .as_ref()
+                .map(|stmts| stmts.iter().any(stmt_always_returns))
+                .unwrap_or(false); // No else = might fall through
+            then_returns && else_returns
+        }
+        // DEPYLER-0622: For/While loops don't guarantee return (loop might not execute)
         _ => false,
     }
 }
@@ -2955,6 +2972,16 @@ impl RustCodeGen for HirFunction {
         // This enables tracking `result = merge(&a, &b)` where merge returns list[int]
         ctx.function_return_types
             .insert(self.name.clone(), self.ret_type.clone());
+
+        // DEPYLER-0621: Track parameter defaults for call-site argument completion
+        // When a function like `def f(x=None)` is called as `f()`, we need to supply `None`
+        let param_defaults: Vec<Option<crate::hir::HirExpr>> = self
+            .params
+            .iter()
+            .map(|p| p.default.clone())
+            .collect();
+        ctx.function_param_defaults
+            .insert(self.name.clone(), param_defaults);
 
         // Perform generic type inference
         let mut generic_registry = crate::generic_inference::TypeVarRegistry::new();
