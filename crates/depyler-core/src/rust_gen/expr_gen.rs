@@ -1328,7 +1328,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 type_based || name_based
             }
-            HirExpr::List(_) | HirExpr::Dict(_) | HirExpr::Set(_) | HirExpr::FrozenSet(_) => true,
+            // DEPYLER-0600 Bug #6: Added comprehension types - they produce collections too
+            HirExpr::List(_)
+            | HirExpr::Dict(_)
+            | HirExpr::Set(_)
+            | HirExpr::FrozenSet(_)
+            | HirExpr::ListComp { .. }
+            | HirExpr::DictComp { .. }
+            | HirExpr::SetComp { .. } => true,
             // DEPYLER-0497: Function calls that return Result need {:?}
             HirExpr::Call { func, .. } => self.ctx.result_returning_functions.contains(func),
             _ => false,
@@ -2873,8 +2880,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
 
+                    // DEPYLER-0600: First check if function explicitly requires &mut at this position
+                    // This enables borrowing for types like File that aren't in the standard borrow list
+                    let func_requires_mut = self.ctx
+                        .function_param_muts
+                        .get(func)
+                        .and_then(|muts| muts.get(param_idx))
+                        .copied()
+                        .unwrap_or(false);
+
                     // Check if this param should be borrowed by looking up function signature
-                    let should_borrow = match hir_arg {
+                    let should_borrow = if func_requires_mut {
+                        // If function explicitly needs &mut, we must borrow
+                        true
+                    } else {
+                        match hir_arg {
                         HirExpr::Var(var_name) => {
                             // Check if variable has List, Dict, Set, String, or Custom type
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
@@ -2970,7 +2990,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             let expr_string = quote! { #arg_expr }.to_string();
                             expr_string.contains("to_vec")
                         }
-                    };
+                    }
+                    }; // Close the if func_requires_mut else block
 
                     // DEPYLER-0515: Let Rust's type inference determine integer types
                     // from function signatures, rather than blindly casting to i64.
@@ -10595,6 +10616,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0536: Handle Option<String> arguments by unwrapping
         // Python: f.write(string) → Rust: f.write_all(bytes).unwrap()
         if method == "write" && arg_exprs.len() == 1 {
+            // DEPYLER-0605: Set needs_io_write flag for Write trait import
+            self.ctx.needs_io_write = true;
             let content = &arg_exprs[0];
             // Check if content might be an Option type based on HIR expression
             // If it's a variable that's known to be Option, unwrap it first
@@ -12261,6 +12284,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut has_int_literal = false;
         let mut has_float_literal = false;
         let mut has_string_literal = false;
+        // DEPYLER-0601: Also track list element types for heterogeneous detection
+        let mut has_list_of_int = false;
+        let mut has_list_of_string = false;
+        let mut has_list_of_bool = false;
+        let mut has_list_of_float = false;
 
         for (_key, value) in items {
             match value {
@@ -12268,12 +12296,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 HirExpr::Literal(Literal::Int(_)) => has_int_literal = true,
                 HirExpr::Literal(Literal::Float(_)) => has_float_literal = true,
                 HirExpr::Literal(Literal::String(_)) => has_string_literal = true,
+                // DEPYLER-0601: Check list element types for heterogeneous detection
+                HirExpr::List(elems) if !elems.is_empty() => {
+                    // Determine list element type from first element
+                    match &elems[0] {
+                        HirExpr::Literal(Literal::Int(_)) => has_list_of_int = true,
+                        HirExpr::Literal(Literal::String(_)) => has_list_of_string = true,
+                        HirExpr::Literal(Literal::Bool(_)) => has_list_of_bool = true,
+                        HirExpr::Literal(Literal::Float(_)) => has_list_of_float = true,
+                        _ => {}
+                    }
+                }
                 _ => {}
             }
         }
 
         // Count how many distinct literal types we have
-        let distinct_types = [
+        let distinct_literal_types = [
             has_bool_literal,
             has_int_literal,
             has_float_literal,
@@ -12283,9 +12322,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         .filter(|&&b| b)
         .count();
 
-        // Only use json! if we have 2+ distinct literal types
-        // This avoids false positives from dicts with uniform types but variable values
-        Ok(distinct_types >= 2)
+        // DEPYLER-0601: Count how many distinct list element types we have
+        let distinct_list_types = [
+            has_list_of_int,
+            has_list_of_string,
+            has_list_of_bool,
+            has_list_of_float,
+        ]
+        .iter()
+        .filter(|&&b| b)
+        .count();
+
+        // Use json! if we have 2+ distinct literal types OR 2+ distinct list types
+        // This handles both {"a": 1, "b": "str"} and {"items": [1,2], "tags": ["a"]}
+        Ok(distinct_literal_types >= 2 || distinct_list_types >= 2)
     }
 
     /// DEPYLER-0461: Recursively check if dict contains any nested dicts
@@ -12952,6 +13002,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             } else if self.is_numpy_array_expr(&gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
+            } else if self.is_json_value_iteration(&gen.iter) {
+                // DEPYLER-0607: JSON Value iteration in list comprehension
+                // serde_json::Value doesn't implement IntoIterator, must convert first
+                parse_quote! { #iter_expr.as_array().unwrap_or(&vec![]).iter().cloned() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
@@ -13128,6 +13182,59 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // Recursive: binary op on vector yields vector
             HirExpr::Binary { left, .. } => self.is_numpy_array_expr(left),
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0607: Check if expression yields serde_json::Value that needs iteration conversion
+    ///
+    /// serde_json::Value doesn't implement IntoIterator, so we need to detect when
+    /// the iteration expression is a JSON Value and wrap it with .as_array().
+    ///
+    /// Returns true for:
+    /// - Variables with dict/JSON Value types in context
+    /// - Method chains like data.get("items").cloned().unwrap_or_default()
+    /// - Dict index expressions like data["items"]
+    fn is_json_value_iteration(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Variable - check if it has a JSON/dict type in context
+            HirExpr::Var(name) => {
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    matches!(var_type, Type::Dict(_, v) if
+                        matches!(v.as_ref(), Type::Unknown) ||
+                        matches!(v.as_ref(), Type::Custom(n) if n.contains("Value") || n.contains("json")))
+                } else {
+                    // Heuristic: if needs_serde_json is set, variables may be JSON Values
+                    self.ctx.needs_serde_json
+                }
+            }
+            // Dict index expression - likely yields JSON Value
+            HirExpr::Index { base, .. } => {
+                match base.as_ref() {
+                    HirExpr::Var(var_name) => {
+                        if let Some(t) = self.ctx.var_types.get(var_name) {
+                            matches!(t, Type::Dict(_, v) if
+                                matches!(v.as_ref(), Type::Unknown) ||
+                                matches!(v.as_ref(), Type::Custom(n) if n.contains("Value") || n.contains("json")))
+                        } else {
+                            self.ctx.needs_serde_json
+                        }
+                    }
+                    HirExpr::Dict(_) => true, // Dict literal
+                    _ => false,
+                }
+            }
+            // Method chains that yield JSON Value
+            HirExpr::MethodCall { object, method, .. } => {
+                let is_chain_method = matches!(method.as_str(),
+                    "get" | "cloned" | "unwrap_or_default" | "unwrap_or" | "unwrap"
+                );
+                if is_chain_method {
+                    self.is_json_value_iteration(object.as_ref())
+                } else {
+                    false
+                }
+            }
             _ => false,
         }
     }
@@ -14256,6 +14363,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             } else if self.is_numpy_array_expr(&gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
+            } else if self.is_json_value_iteration(&gen.iter) {
+                // DEPYLER-0607: JSON Value iteration in generator expression
+                // serde_json::Value doesn't implement IntoIterator, must convert first
+                parse_quote! { #iter_expr.as_array().unwrap_or(&vec![]).iter().cloned() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
                 // Variable iteration - likely borrowed, use .iter().copied()
                 parse_quote! { #iter_expr.iter().copied() }
