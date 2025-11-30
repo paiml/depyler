@@ -29,10 +29,37 @@ fn generate_state_fields(
             // DEPYLER-0562: Use safe_ident to escape keywords like 'match'
             let field_name = safe_ident(&var.name);
             let rust_type = ctx.type_mapper.map_type(&var.ty);
-            let field_type = rust_type_to_syn(&rust_type)?;
+            // DEPYLER-0188: Box impl Trait types for struct fields
+            let field_rust_type = box_impl_trait_for_field(&rust_type);
+            let field_type = rust_type_to_syn(&field_rust_type)?;
             Ok(quote! { #field_name: #field_type })
         })
         .collect()
+}
+
+/// Convert impl Trait types to boxed trait objects for struct fields
+///
+/// DEPYLER-0188: Rust doesn't allow `impl Trait` in struct field positions,
+/// so we convert them to `Box<dyn Trait>` for dynamic dispatch.
+///
+/// # Complexity
+/// 2 (string ops)
+fn box_impl_trait_for_field(rust_type: &crate::type_mapper::RustType) -> crate::type_mapper::RustType {
+    use crate::type_mapper::RustType;
+
+    match rust_type {
+        RustType::Custom(s) if s.starts_with("impl Iterator") => {
+            // impl Iterator<Item=T> -> Box<dyn Iterator<Item=T>>
+            let boxed = s.replace("impl Iterator", "Box<dyn Iterator");
+            RustType::Custom(format!("{}>", boxed))
+        }
+        RustType::Custom(s) if s.starts_with("impl IntoIterator") => {
+            // impl IntoIterator<Item=T> -> Box<dyn IntoIterator<Item=T>>
+            let boxed = s.replace("impl IntoIterator", "Box<dyn IntoIterator");
+            RustType::Custom(format!("{}>", boxed))
+        }
+        other => other.clone(),
+    }
 }
 
 /// Generate struct fields for captured parameters
@@ -54,7 +81,9 @@ fn generate_param_fields(
             // DEPYLER-0562: Use safe_ident to escape keywords like 'match'
             let field_name = safe_ident(&param.name);
             let rust_type = ctx.type_mapper.map_type(&param.ty);
-            let field_type = rust_type_to_syn(&rust_type)?;
+            // DEPYLER-0188: Box impl Trait types for struct fields
+            let field_rust_type = box_impl_trait_for_field(&rust_type);
+            let field_type = rust_type_to_syn(&field_rust_type)?;
             Ok(quote! { #field_name: #field_type })
         })
         .collect()
