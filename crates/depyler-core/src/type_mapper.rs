@@ -247,6 +247,22 @@ impl TypeMapper {
                         Box::new(self.map_type(&params[0])),
                         Box::new(self.map_type(&params[1])),
                     ),
+                    // DEPYLER-0188: Generator[YieldType, SendType, ReturnType] -> impl Iterator<Item=YieldType>
+                    // Python generators map to Rust iterators for idiomatic code
+                    "Generator" if !params.is_empty() => {
+                        let yield_type = self.map_type(&params[0]);
+                        RustType::Custom(format!("impl Iterator<Item={}>", yield_type.to_rust_string()))
+                    }
+                    // DEPYLER-0188: Iterator[YieldType] -> impl Iterator<Item=YieldType>
+                    "Iterator" if params.len() == 1 => {
+                        let yield_type = self.map_type(&params[0]);
+                        RustType::Custom(format!("impl Iterator<Item={}>", yield_type.to_rust_string()))
+                    }
+                    // DEPYLER-0188: Iterable[T] -> impl IntoIterator<Item=T>
+                    "Iterable" if params.len() == 1 => {
+                        let item_type = self.map_type(&params[0]);
+                        RustType::Custom(format!("impl IntoIterator<Item={}>", item_type.to_rust_string()))
+                    }
                     _ => RustType::Generic {
                         base: base.clone(),
                         params: params.iter().map(|t| self.map_type(t)).collect(),
