@@ -810,6 +810,15 @@ fn generate_constant_tokens(
 
     for constant in constants {
         let name_ident = syn::Ident::new(&constant.name, proc_macro2::Span::call_site());
+
+        // DEPYLER-0188: Lambdas at module level should become functions, not consts
+        // Closures cannot be assigned to const in Rust
+        if let HirExpr::Lambda { params, body } = &constant.value {
+            let token = generate_lambda_as_function(&constant.name, params, body, ctx)?;
+            items.push(token);
+            continue;
+        }
+
         let value_expr = constant.value.to_rust_expr(ctx)?;
 
         // DEPYLER-REARCH-001: Complex types need runtime initialization (Lazy)
@@ -828,6 +837,40 @@ fn generate_constant_tokens(
     }
 
     Ok(items)
+}
+
+/// DEPYLER-0188: Convert module-level lambda to a function
+///
+/// Python: `f = lambda x: x * 2`
+/// Rust: `pub fn f(x: i32) -> i32 { x * 2 }`
+///
+/// Complexity: 5 (param mapping + body conversion)
+fn generate_lambda_as_function(
+    name: &str,
+    params: &[String],
+    body: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Result<proc_macro2::TokenStream> {
+    use crate::rust_gen::context::ToRustExpr;
+
+    let fn_name = syn::Ident::new(name, proc_macro2::Span::call_site());
+
+    // Generate parameters - use i32 as default type (can be improved with type inference)
+    let param_tokens: Vec<proc_macro2::TokenStream> = params
+        .iter()
+        .map(|p| {
+            let param_ident = syn::Ident::new(p, proc_macro2::Span::call_site());
+            quote! { #param_ident: i32 }
+        })
+        .collect();
+
+    let body_expr = body.to_rust_expr(ctx)?;
+
+    Ok(quote! {
+        pub fn #fn_name(#(#param_tokens),*) -> i32 {
+            #body_expr
+        }
+    })
 }
 
 /// DEPYLER-0615: Generate stub functions for unresolved local imports
