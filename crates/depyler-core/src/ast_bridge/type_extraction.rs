@@ -43,6 +43,11 @@ impl TypeExtractor {
             ast::Expr::Subscript(s) => Self::extract_generic_type(s),
             // Handle None constant (used in -> None return annotations)
             ast::Expr::Constant(c) if matches!(c.value, ast::Constant::None) => Ok(Type::None),
+            // DEPYLER-0188: Handle Ellipsis in type annotations (used in tuple[int, ...], Generator[T, None, None])
+            ast::Expr::Constant(c) if matches!(c.value, ast::Constant::Ellipsis) => {
+                // Ellipsis in type context means "variable length" - map to Unknown for now
+                Ok(Type::Unknown)
+            }
             // DEPYLER-0273: Handle PEP 604 union syntax (int | None)
             ast::Expr::BinOp(b) if matches!(b.op, ast::Operator::BitOr) => {
                 Self::extract_union_from_binop(b)
