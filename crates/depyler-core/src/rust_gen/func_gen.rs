@@ -2639,6 +2639,74 @@ fn detect_returns_nested_function(
     None
 }
 
+/// DEPYLER-0626: Check if function returns heterogeneous IO types (File vs Stdout)
+/// Returns true if function has return statements that return both file and stdio types
+fn function_returns_heterogeneous_io(func: &HirFunction) -> bool {
+    let mut has_file_return = false;
+    let mut has_stdio_return = false;
+
+    collect_io_return_types(&func.body, &mut has_file_return, &mut has_stdio_return);
+
+    has_file_return && has_stdio_return
+}
+
+/// DEPYLER-0626: Helper to collect IO return types from statements
+fn collect_io_return_types(stmts: &[HirStmt], has_file: &mut bool, has_stdio: &mut bool) {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Return(Some(expr)) => {
+                if is_file_creating_return_expr(expr) {
+                    *has_file = true;
+                }
+                if is_stdio_return_expr(expr) {
+                    *has_stdio = true;
+                }
+            }
+            HirStmt::If { then_body, else_body, .. } => {
+                collect_io_return_types(then_body, has_file, has_stdio);
+                if let Some(else_stmts) = else_body {
+                    collect_io_return_types(else_stmts, has_file, has_stdio);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                collect_io_return_types(body, has_file, has_stdio);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// DEPYLER-0626: Check if expression creates a File (open() or File::create())
+fn is_file_creating_return_expr(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Call { func, .. } => func == "open",
+        HirExpr::MethodCall { object, method, .. } => {
+            if method == "create" || method == "open" {
+                if let HirExpr::Var(name) = object.as_ref() {
+                    return name == "File";
+                }
+                if let HirExpr::Attribute { attr, .. } = object.as_ref() {
+                    return attr == "File";
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// DEPYLER-0626: Check if expression is sys.stdout or sys.stderr
+fn is_stdio_return_expr(expr: &HirExpr) -> bool {
+    if let HirExpr::Attribute { value, attr } = expr {
+        if attr == "stdout" || attr == "stderr" {
+            if let HirExpr::Var(name) = value.as_ref() {
+                return name == "sys";
+            }
+        }
+    }
+    false
+}
+
 /// Generate return type with Result wrapper and lifetime handling
 ///
 /// DEPYLER-0310: Now returns ErrorType (4th tuple element) for raise statement wrapping
@@ -2678,6 +2746,35 @@ pub(crate) fn codegen_return_type(
             crate::type_mapper::RustType::Custom("BoxedFn".to_string()),
             false, // can_fail
             None,  // error_type
+        ));
+    }
+
+    // DEPYLER-0626: Check if function returns heterogeneous IO types (File vs Stdout)
+    // If so, return type should be Box<dyn std::io::Write>
+    if function_returns_heterogeneous_io(func) {
+        use quote::quote;
+        ctx.function_returns_boxed_write = true;
+        ctx.needs_io_write = true;
+
+        // Check if function can fail (uses open() which can fail)
+        let can_fail = func.properties.can_fail;
+        let error_type = if can_fail {
+            Some(crate::rust_gen::context::ErrorType::Concrete("std::io::Error".to_string()))
+        } else {
+            None
+        };
+
+        let return_type = if can_fail {
+            quote! { -> Result<Box<dyn std::io::Write>, std::io::Error> }
+        } else {
+            quote! { -> Box<dyn std::io::Write> }
+        };
+
+        return Ok((
+            return_type,
+            crate::type_mapper::RustType::Custom("BoxedWrite".to_string()),
+            can_fail,
+            error_type,
         ));
     }
 

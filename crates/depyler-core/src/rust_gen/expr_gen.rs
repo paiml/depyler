@@ -92,6 +92,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         matches!(name, "self" | "Self" | "super" | "crate")
     }
 
+    /// DEPYLER-0633: Check if expression looks like it returns Option
+    /// Used to detect `Option or default` patterns that should become `.unwrap_or()`
+    ///
+    /// Detection heuristics:
+    /// - Method call ending in `.ok()` → definitely Option (e.g., env::var().ok())
+    /// - Method call `.get()` with 1 arg → Option (dict.get(key) without default)
+    /// - Chained method calls where inner is Option → Option
+    fn looks_like_option_expr(expr: &HirExpr) -> bool {
+        match expr {
+            // Method call ending in .ok() → definitely Option
+            HirExpr::MethodCall { method, .. } if method == "ok" => true,
+            // .get() only returns Option when no default value provided
+            HirExpr::MethodCall { method, args, .. } if method == "get" => {
+                args.len() == 1 // Only 1 arg (key) = Option, 2 args (key + default) = concrete
+            }
+            // Check for chained calls like std::env::var(...).ok()
+            HirExpr::MethodCall { object, method, args, .. } => {
+                if method == "ok" {
+                    true
+                } else if method == "get" {
+                    args.len() == 1
+                } else {
+                    Self::looks_like_option_expr(object)
+                }
+            }
+            _ => false,
+        }
+    }
+
     /// DEPYLER-0582: Wrap expression in parentheses if it's a binary operation with lower precedence
     /// This preserves Python's parenthesized expressions in Rust output
     /// e.g., (1 - beta1) * x should become (1.0 - beta1) * x, not 1.0 - beta1 * x
@@ -243,6 +272,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
+        // DEPYLER-0627: Check if variable is an unwrapped Option (inside if-let body)
+        // When we're inside `if let Some(ref x_val) = x { ... }`, references to `x`
+        // should use `x_val` (the unwrapped inner value) instead
+        if let Some(unwrapped_name) = self.ctx.option_unwrap_map.get(name) {
+            let ident = if Self::is_rust_keyword(unwrapped_name) {
+                syn::Ident::new_raw(unwrapped_name, proc_macro2::Span::call_site())
+            } else {
+                syn::Ident::new(unwrapped_name, proc_macro2::Span::call_site())
+            };
+            // Return the unwrapped variable name with .clone() since it's a reference
+            return Ok(parse_quote! { #ident.clone() });
+        }
+
         // DEPYLER-0624: Handle Python's magic dunder variables
         // __file__ gives the path to the current file → file!() macro
         // __name__ gives the module name → "__main__" for main module
@@ -496,6 +538,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Python: `if a and b:` where a, b are strings/lists/etc.
             // Rust: `if (!a.is_empty()) && (!b.is_empty())`
             BinOp::And | BinOp::Or => {
+                // DEPYLER-0633: For Option or default pattern, use unwrap_or instead of ||
+                // Python: path = env.get("KEY") or "default"
+                // Rust: path = env.get("KEY").unwrap_or("default")
+                if matches!(op, BinOp::Or) && Self::looks_like_option_expr(left) {
+                    // The right side is the default value - convert to unwrap_or
+                    return Ok(parse_quote! { #left_expr.unwrap_or(#right_expr.to_string()) });
+                }
+
                 // Apply truthiness conversion to both operands
                 let left_converted = Self::apply_truthiness_conversion(left, left_expr, self.ctx);
                 let right_converted =
@@ -3036,6 +3086,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             parse_quote! { &#arg_expr }
                         }
                     } else {
+                        // DEPYLER-0635: String literal args need type-aware conversion
+                        // - If function param expects &str (borrowed), pass literal directly
+                        // - If function param expects String (owned), add .to_string()
+                        // Check function_param_borrows to determine expected type
+                        if matches!(hir_arg, HirExpr::Literal(Literal::String(_))) {
+                            // Check if function expects borrowed string (&str) at this position
+                            let param_expects_borrowed = self.ctx
+                                .function_param_borrows
+                                .get(func)
+                                .and_then(|borrows| borrows.get(param_idx))
+                                .copied()
+                                .unwrap_or(false);
+
+                            if param_expects_borrowed {
+                                // Param is &str - string literal works directly
+                                return arg_expr.clone();
+                            } else {
+                                // Param is String - need .to_string() conversion
+                                let expr_str = quote::quote! { #arg_expr }.to_string();
+                                if !expr_str.contains("to_string") {
+                                    return parse_quote! { #arg_expr.to_string() };
+                                }
+                            }
+                        }
                         arg_expr.clone()
                     }
                 })
@@ -3056,8 +3130,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // Handle common default values directly without calling to_rust_expr
                             // (to_rust_expr requires &mut ctx which we don't have in &self)
                             use crate::hir::{HirExpr, Literal};
+                            // DEPYLER-0629: Check if parameter needs borrowing
+                            // If the parameter type is &Option<T>, we need &None instead of None
+                            let param_needs_borrow = self
+                                .ctx
+                                .function_param_borrows
+                                .get(func)
+                                .and_then(|borrows| borrows.get(i).copied())
+                                .unwrap_or(false);
+
                             let default_syn: syn::Expr = match default_expr {
-                                HirExpr::Literal(Literal::None) => parse_quote! { None },
+                                HirExpr::Literal(Literal::None) => {
+                                    if param_needs_borrow {
+                                        parse_quote! { &None }
+                                    } else {
+                                        parse_quote! { None }
+                                    }
+                                }
                                 HirExpr::Literal(Literal::Int(n)) => {
                                     let n = *n;
                                     parse_quote! { #n }
@@ -9431,8 +9520,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // Owned String or unknown - borrow to prevent move
                             parse_quote! { &#key }
                         }
+                    } else if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.first() {
+                        // DEPYLER-0634: String literal key - use bare literal, not .to_string()
+                        // HashMap.get() expects &Q where Q: Borrow<K>. A &str literal works
+                        // directly with Borrow<String> because String implements Borrow<str>.
+                        // Using "key".to_string() creates owned String which doesn't match &Q.
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
                     } else {
-                        // String literal or expression - borrow
+                        // Other expression - borrow to prevent move
                         parse_quote! { &#key }
                     };
 
@@ -9441,7 +9537,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
-                    // DEPYLER-0542: Always borrow keys for dict.get()
+                    // DEPYLER-0542: Borrow keys for dict.get() (but not string literals)
                     let key_expr: syn::Expr = if let Some(HirExpr::Var(var_name)) = hir_args.first()
                     {
                         if self.is_borrowed_str_param(var_name) {
@@ -9449,10 +9545,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else {
                             parse_quote! { &#key }
                         }
+                    } else if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.first() {
+                        // DEPYLER-0634: String literal key - use bare literal, not .to_string()
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
                     } else {
                         parse_quote! { &#key }
                     };
-                    Ok(parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) })
+                    // DEPYLER-0631: For string literal defaults, use directly without .to_string()
+                    // HashMap<String, &str>.get() returns Option<&&str>, .cloned() gives Option<&str>
+                    // unwrap_or expects &str, not String
+                    let result = if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(_)))) {
+                        // String literal default - use bare literal (already &str)
+                        if let HirExpr::Literal(Literal::String(s)) = &hir_args[1] {
+                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#lit) }
+                        } else {
+                            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) }
+                        }
+                    } else {
+                        // Non-literal default - use as-is
+                        parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) }
+                    };
+                    Ok(result)
                 } else {
                     bail!("get() requires 1 or 2 arguments");
                 }
