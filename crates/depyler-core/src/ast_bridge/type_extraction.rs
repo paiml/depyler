@@ -48,6 +48,12 @@ impl TypeExtractor {
                 // Ellipsis in type context means "variable length" - map to Unknown for now
                 Ok(Type::Unknown)
             }
+            // DEPYLER-0188: Handle string literal forward references (-> "ClassName")
+            // PEP 484: Forward references use string literals containing type names
+            ast::Expr::Constant(ast::ExprConstant {
+                value: ast::Constant::Str(s),
+                ..
+            }) => Self::extract_simple_type(s.as_str()),
             // DEPYLER-0273: Handle PEP 604 union syntax (int | None)
             ast::Expr::BinOp(b) if matches!(b.op, ast::Operator::BitOr) => {
                 Self::extract_union_from_binop(b)
