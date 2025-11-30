@@ -602,6 +602,13 @@ impl LifetimeInference {
             HirExpr::NamedExpr { value, .. } => {
                 self.analyze_expr_for_param(param, value, usage, in_loop, in_return);
             }
+            // DEPYLER-0188: Dynamic call - analyze callee and arguments
+            HirExpr::DynamicCall { callee, args, .. } => {
+                self.analyze_expr_for_param(param, callee, usage, in_loop, in_return);
+                for arg in args {
+                    self.analyze_expr_for_param(param, arg, usage, in_loop, in_return);
+                }
+            }
         }
     }
 
