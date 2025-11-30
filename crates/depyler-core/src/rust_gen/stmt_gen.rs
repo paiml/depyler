@@ -1457,6 +1457,62 @@ fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> std::collections::Has
     symbols
 }
 
+/// DEPYLER-0188: Extract NamedExpr (walrus operator) assignments from a condition expression
+/// Returns: (hoisted_lets, simplified_condition)
+/// - hoisted_lets: Vec of (name, value_expr) for let statements to emit before the if
+/// - simplified_condition: The condition with NamedExpr replaced by simple Var references
+fn extract_walrus_from_condition(condition: &HirExpr) -> (Vec<(String, HirExpr)>, HirExpr) {
+    let mut walrus_assigns = Vec::new();
+    let simplified = extract_walrus_recursive(condition, &mut walrus_assigns);
+    (walrus_assigns, simplified)
+}
+
+/// Recursive helper to extract NamedExpr from expression tree
+fn extract_walrus_recursive(expr: &HirExpr, assigns: &mut Vec<(String, HirExpr)>) -> HirExpr {
+    match expr {
+        // DEPYLER-0188: When we find a walrus operator, extract it and replace with Var
+        HirExpr::NamedExpr { target, value } => {
+            // Recursively process the value in case it contains nested walrus
+            let simplified_value = extract_walrus_recursive(value, assigns);
+            assigns.push((target.clone(), simplified_value));
+            // Replace with just a variable reference
+            HirExpr::Var(target.clone())
+        }
+        // Recursively process binary expressions
+        HirExpr::Binary { op, left, right } => HirExpr::Binary {
+            op: *op,
+            left: Box::new(extract_walrus_recursive(left, assigns)),
+            right: Box::new(extract_walrus_recursive(right, assigns)),
+        },
+        // Recursively process unary expressions
+        HirExpr::Unary { op, operand } => HirExpr::Unary {
+            op: *op,
+            operand: Box::new(extract_walrus_recursive(operand, assigns)),
+        },
+        // Recursively process call arguments
+        HirExpr::Call { func, args, kwargs } => HirExpr::Call {
+            func: func.clone(),
+            args: args.iter().map(|a| extract_walrus_recursive(a, assigns)).collect(),
+            kwargs: kwargs
+                .iter()
+                .map(|(k, v)| (k.clone(), extract_walrus_recursive(v, assigns)))
+                .collect(),
+        },
+        // Recursively process method call arguments
+        HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
+            object: Box::new(extract_walrus_recursive(object, assigns)),
+            method: method.clone(),
+            args: args.iter().map(|a| extract_walrus_recursive(a, assigns)).collect(),
+            kwargs: kwargs
+                .iter()
+                .map(|(k, v)| (k.clone(), extract_walrus_recursive(v, assigns)))
+                .collect(),
+        },
+        // For other expressions, return as-is (walrus is rare in other contexts)
+        _ => expr.clone(),
+    }
+}
+
 /// Generate code for If statement with optional else clause
 ///
 /// DEPYLER-0379: Implements variable hoisting for if/else blocks to fix scope issues.
@@ -1499,7 +1555,21 @@ pub(crate) fn codegen_if_stmt(
         }
     }
 
-    let mut cond = condition.to_rust_expr(ctx)?;
+    // DEPYLER-0188: Extract walrus operator assignments from condition
+    // Python: if (n := len(text)) > 5: -> Rust: let n = text.len(); if n > 5 {
+    let (walrus_assigns, simplified_condition) = extract_walrus_from_condition(condition);
+
+    // Generate let statements for walrus operator assignments
+    let mut walrus_lets = Vec::new();
+    for (name, value_expr) in &walrus_assigns {
+        let var_ident = safe_ident(name);
+        let value_tokens = value_expr.to_rust_expr(ctx)?;
+        walrus_lets.push(quote! { let #var_ident = #value_tokens; });
+        // Register the variable in context so it's available in the if body
+        ctx.declare_var(name);
+    }
+
+    let mut cond = simplified_condition.to_rust_expr(ctx)?;
 
     // DEPYLER-0308: Auto-unwrap Result<bool> in if conditions
     // When a function returns Result<bool, E> (like is_even with modulo),
@@ -1593,6 +1663,7 @@ pub(crate) fn codegen_if_stmt(
             .collect::<Result<Vec<_>>>()?;
         ctx.exit_scope();
         Ok(quote! {
+            #(#walrus_lets)*
             #(#hoisted_decls)*
             if #cond {
                 #(#then_stmts)*
@@ -1602,6 +1673,7 @@ pub(crate) fn codegen_if_stmt(
         })
     } else {
         Ok(quote! {
+            #(#walrus_lets)*
             if #cond {
                 #(#then_stmts)*
             }

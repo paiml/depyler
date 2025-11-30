@@ -51,6 +51,10 @@ impl Optimizer {
 
     /// Run all optimization passes on a HIR program
     pub fn optimize_program(&mut self, mut program: HirProgram) -> HirProgram {
+        // Pass 0: DEPYLER-0188 Walrus operator hoisting
+        // Must run BEFORE CSE to properly hoist (n := expr) to let n = expr
+        program = self.hoist_walrus_operators(program);
+
         // Pass 1: Constant propagation
         if self.config.propagate_constants {
             program = self.propagate_constants_program(program);
@@ -72,6 +76,163 @@ impl Optimizer {
         }
 
         program
+    }
+
+    /// DEPYLER-0188: Hoist walrus operator (NamedExpr) assignments to separate statements
+    ///
+    /// Transforms: if (n := len(text)) > 5: return n
+    /// Into:       n = len(text); if n > 5: return n
+    ///
+    /// This must run before CSE to avoid CSE creating temps for the entire condition.
+    fn hoist_walrus_operators(&self, mut program: HirProgram) -> HirProgram {
+        for func in &mut program.functions {
+            func.body = self.hoist_walrus_in_body(&func.body);
+        }
+        program
+    }
+
+    /// Process a statement body for walrus hoisting
+    fn hoist_walrus_in_body(&self, body: &[HirStmt]) -> Vec<HirStmt> {
+        let mut new_body = Vec::new();
+
+        for stmt in body {
+            match stmt {
+                HirStmt::If {
+                    condition,
+                    then_body,
+                    else_body,
+                } => {
+                    // Extract walrus operators from condition
+                    let (walrus_assigns, simplified_condition) =
+                        self.extract_walrus_from_expr(condition);
+
+                    // Add hoisted let statements
+                    for (name, value) in walrus_assigns {
+                        new_body.push(HirStmt::Assign {
+                            target: AssignTarget::Symbol(name),
+                            value,
+                            type_annotation: None,
+                        });
+                    }
+
+                    // Recursively process then/else bodies
+                    let new_then = self.hoist_walrus_in_body(then_body);
+                    let new_else = else_body.as_ref().map(|stmts| self.hoist_walrus_in_body(stmts));
+
+                    new_body.push(HirStmt::If {
+                        condition: simplified_condition,
+                        then_body: new_then,
+                        else_body: new_else,
+                    });
+                }
+                HirStmt::While { condition, body: while_body } => {
+                    // Extract walrus from while condition
+                    let (walrus_assigns, simplified_condition) =
+                        self.extract_walrus_from_expr(condition);
+
+                    // For while loops, walrus needs special handling - hoist once before
+                    for (name, value) in walrus_assigns {
+                        new_body.push(HirStmt::Assign {
+                            target: AssignTarget::Symbol(name),
+                            value,
+                            type_annotation: None,
+                        });
+                    }
+
+                    let new_while_body = self.hoist_walrus_in_body(while_body);
+                    new_body.push(HirStmt::While {
+                        condition: simplified_condition,
+                        body: new_while_body,
+                    });
+                }
+                HirStmt::For { target, iter, body: for_body } => {
+                    // Recursively process for body
+                    let new_for_body = self.hoist_walrus_in_body(for_body);
+                    new_body.push(HirStmt::For {
+                        target: target.clone(),
+                        iter: iter.clone(),
+                        body: new_for_body,
+                    });
+                }
+                HirStmt::Try { body: try_body, handlers, orelse, finalbody } => {
+                    // Recursively process try/except blocks
+                    let new_try_body = self.hoist_walrus_in_body(try_body);
+                    let new_handlers: Vec<_> = handlers.iter().map(|h| {
+                        crate::hir::ExceptHandler {
+                            exception_type: h.exception_type.clone(),
+                            name: h.name.clone(),
+                            body: self.hoist_walrus_in_body(&h.body),
+                        }
+                    }).collect();
+                    let new_orelse = orelse.as_ref().map(|stmts| self.hoist_walrus_in_body(stmts));
+                    let new_finalbody = finalbody.as_ref().map(|stmts| self.hoist_walrus_in_body(stmts));
+                    new_body.push(HirStmt::Try {
+                        body: new_try_body,
+                        handlers: new_handlers,
+                        orelse: new_orelse,
+                        finalbody: new_finalbody,
+                    });
+                }
+                HirStmt::With { context, target, body: with_body } => {
+                    let new_with_body = self.hoist_walrus_in_body(with_body);
+                    new_body.push(HirStmt::With {
+                        context: context.clone(),
+                        target: target.clone(),
+                        body: new_with_body,
+                    });
+                }
+                _ => new_body.push(stmt.clone()),
+            }
+        }
+
+        new_body
+    }
+
+    /// Extract NamedExpr from an expression, returning hoisted assignments and simplified expr
+    fn extract_walrus_from_expr(&self, expr: &HirExpr) -> (Vec<(String, HirExpr)>, HirExpr) {
+        let mut assigns = Vec::new();
+        let simplified = self.extract_walrus_recursive(expr, &mut assigns);
+        (assigns, simplified)
+    }
+
+    /// Recursively extract NamedExpr from expression tree
+    fn extract_walrus_recursive(&self, expr: &HirExpr, assigns: &mut Vec<(String, HirExpr)>) -> HirExpr {
+        match expr {
+            HirExpr::NamedExpr { target, value } => {
+                // Recursively process value first (handle nested walrus)
+                let simplified_value = self.extract_walrus_recursive(value, assigns);
+                assigns.push((target.clone(), simplified_value));
+                // Replace with variable reference
+                HirExpr::Var(target.clone())
+            }
+            HirExpr::Binary { op, left, right } => HirExpr::Binary {
+                op: *op,
+                left: Box::new(self.extract_walrus_recursive(left, assigns)),
+                right: Box::new(self.extract_walrus_recursive(right, assigns)),
+            },
+            HirExpr::Unary { op, operand } => HirExpr::Unary {
+                op: *op,
+                operand: Box::new(self.extract_walrus_recursive(operand, assigns)),
+            },
+            HirExpr::Call { func, args, kwargs } => HirExpr::Call {
+                func: func.clone(),
+                args: args.iter().map(|a| self.extract_walrus_recursive(a, assigns)).collect(),
+                kwargs: kwargs.iter().map(|(k, v)| (k.clone(), self.extract_walrus_recursive(v, assigns))).collect(),
+            },
+            HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
+                object: Box::new(self.extract_walrus_recursive(object, assigns)),
+                method: method.clone(),
+                args: args.iter().map(|a| self.extract_walrus_recursive(a, assigns)).collect(),
+                kwargs: kwargs.iter().map(|(k, v)| (k.clone(), self.extract_walrus_recursive(v, assigns))).collect(),
+            },
+            HirExpr::IfExpr { test, body, orelse } => HirExpr::IfExpr {
+                test: Box::new(self.extract_walrus_recursive(test, assigns)),
+                body: Box::new(self.extract_walrus_recursive(body, assigns)),
+                orelse: Box::new(self.extract_walrus_recursive(orelse, assigns)),
+            },
+            // Other expressions - just clone (walrus rare in these contexts)
+            _ => expr.clone(),
+        }
     }
 
     /// Propagate constant values through the program

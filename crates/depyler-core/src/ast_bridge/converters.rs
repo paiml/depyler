@@ -419,6 +419,9 @@ impl ExprConverter {
             // DEPYLER-0382: Handle starred expressions (e.g., *args in function calls)
             // When used as a regular argument, just unwrap and pass the inner expression
             ast::Expr::Starred(s) => Self::convert(*s.value),
+            // DEPYLER-0188: Walrus operator (assignment expression)
+            // Python: (n := len(text)) evaluates to len(text) and assigns to n
+            ast::Expr::NamedExpr(ne) => Self::convert_named_expr(ne),
             _ => bail!("Expression type not yet supported"),
         }
     }
@@ -1135,6 +1138,23 @@ impl ExprConverter {
         let body = Box::new(Self::convert(*i.body)?);
         let orelse = Box::new(Self::convert(*i.orelse)?);
         Ok(HirExpr::IfExpr { test, body, orelse })
+    }
+
+    /// Convert walrus operator (named expression)
+    /// Python: (n := len(text)) assigns len(text) to n and evaluates to len(text)
+    /// DEPYLER-0188: Support assignment expressions in various contexts
+    fn convert_named_expr(ne: ast::ExprNamedExpr) -> Result<HirExpr> {
+        // Extract the target variable name
+        let target = if let ast::Expr::Name(n) = *ne.target {
+            n.id.to_string()
+        } else {
+            bail!("Walrus operator target must be a simple variable name");
+        };
+
+        // Convert the value expression
+        let value = Box::new(Self::convert(*ne.value)?);
+
+        Ok(HirExpr::NamedExpr { target, value })
     }
 }
 

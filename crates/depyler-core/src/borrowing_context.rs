@@ -566,6 +566,10 @@ impl BorrowingContext {
                     }
                 }
             }
+            // DEPYLER-0188: Walrus operator - analyze the value expression
+            HirExpr::NamedExpr { value, .. } => {
+                self.analyze_expression(value, borrow_depth);
+            }
         }
     }
 
