@@ -1214,6 +1214,20 @@ pub fn generate_rust_file(
     // Add error type definitions if needed
     items.extend(generate_error_type_definitions(&ctx));
 
+    // DEPYLER-0627: Add CompletedProcess struct if subprocess.run is used
+    if ctx.needs_completed_process {
+        let completed_process_struct = quote::quote! {
+            /// Result of subprocess.run()
+            #[derive(Debug, Clone)]
+            pub struct CompletedProcess {
+                pub returncode: i32,
+                pub stdout: String,
+                pub stderr: String,
+            }
+        };
+        items.push(completed_process_struct);
+    }
+
     // Add generated union enums
     items.extend(ctx.generated_enums.clone());
 
