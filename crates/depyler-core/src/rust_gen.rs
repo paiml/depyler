@@ -841,10 +841,34 @@ fn generate_constant_tokens(
     ctx: &mut CodeGenContext,
 ) -> Result<Vec<proc_macro2::TokenStream>> {
     use crate::rust_gen::context::ToRustExpr;
+    use std::collections::HashMap;
+
+    // DEPYLER-0201: Deduplicate constants by name, keeping LAST occurrence (Python semantics)
+    // Python allows reassignment at module level: NAME = "old"; NAME = "new"
+    // We must emit only the last value to avoid Rust error E0428 (duplicate definitions)
+    let mut last_by_name: HashMap<&str, &HirConstant> = HashMap::new();
+    for constant in constants {
+        last_by_name.insert(&constant.name, constant);
+    }
 
     let mut items = Vec::new();
 
+    // Process in original order but only emit constants that are the "last" for each name
+    let mut emitted: std::collections::HashSet<&str> = std::collections::HashSet::new();
     for constant in constants {
+        // Skip if we already emitted this name or if this isn't the last occurrence
+        if emitted.contains(constant.name.as_str()) {
+            continue;
+        }
+        // Check if this is the last occurrence of this name
+        if let Some(&last) = last_by_name.get(constant.name.as_str()) {
+            if !std::ptr::eq(constant, last) {
+                // Not the last occurrence, skip
+                continue;
+            }
+        }
+        emitted.insert(&constant.name);
+
         let name_ident = syn::Ident::new(&constant.name, proc_macro2::Span::call_site());
 
         // DEPYLER-0188: Lambdas at module level should become functions, not consts
@@ -1067,6 +1091,7 @@ pub fn generate_rust_file(
         needs_bufread: false,   // DEPYLER-0522
         needs_once_cell: false, // DEPYLER-REARCH-001
         needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+        needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
         current_return_type: None,
@@ -1301,6 +1326,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -1604,7 +1630,7 @@ mod tests {
         let target = Some("file".to_string());
         let body = vec![HirStmt::Pass];
 
-        let result = codegen_with_stmt(&context, &target, &body, &mut ctx).unwrap();
+        let result = codegen_with_stmt(&context, &target, &body, false, &mut ctx).unwrap();
         assert!(result.to_string().contains("let mut file"));
     }
 
@@ -1616,7 +1642,7 @@ mod tests {
         let context = HirExpr::Literal(Literal::Int(42));
         let body = vec![HirStmt::Pass];
 
-        let result = codegen_with_stmt(&context, &None, &body, &mut ctx).unwrap();
+        let result = codegen_with_stmt(&context, &None, &body, false, &mut ctx).unwrap();
         // DEPYLER-0602: Context variable is mutable for __enter__()
         assert!(result.to_string().contains("let mut _context"));
     }

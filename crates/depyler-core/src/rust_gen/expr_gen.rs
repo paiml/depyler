@@ -4047,6 +4047,134 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 }
             }
+            // DEPYLER-0196: os.unlink(path) → std::fs::remove_file(path)?
+            // Python's os.unlink() removes a file
+            "unlink" | "remove" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.{}() requires exactly 1 argument", method);
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { std::fs::remove_file(#path)? }
+            }
+            // DEPYLER-0196: os.mkdir(path) → std::fs::create_dir(path)?
+            "mkdir" => {
+                if arg_exprs.is_empty() {
+                    bail!("os.mkdir() requires at least 1 argument");
+                }
+                let path = &arg_exprs[0];
+                // Ignore mode argument (arg_exprs[1]) as Rust uses system defaults
+                parse_quote! { std::fs::create_dir(#path)? }
+            }
+            // DEPYLER-0196: os.makedirs(path) → std::fs::create_dir_all(path)?
+            "makedirs" => {
+                if arg_exprs.is_empty() {
+                    bail!("os.makedirs() requires at least 1 argument");
+                }
+                let path = &arg_exprs[0];
+                // Ignore mode and exist_ok arguments as create_dir_all handles both
+                parse_quote! { std::fs::create_dir_all(#path)? }
+            }
+            // DEPYLER-0196: os.rmdir(path) → std::fs::remove_dir(path)?
+            "rmdir" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.rmdir() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { std::fs::remove_dir(#path)? }
+            }
+            // DEPYLER-0196: os.rename(src, dst) → std::fs::rename(src, dst)?
+            "rename" => {
+                if arg_exprs.len() != 2 {
+                    bail!("os.rename() requires exactly 2 arguments");
+                }
+                let src = &arg_exprs[0];
+                let dst = &arg_exprs[1];
+                parse_quote! { std::fs::rename(#src, #dst)? }
+            }
+            // DEPYLER-0196: os.getcwd() → std::env::current_dir()?.to_string_lossy().to_string()
+            "getcwd" => {
+                if !arg_exprs.is_empty() {
+                    bail!("os.getcwd() takes no arguments");
+                }
+                parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() }
+            }
+            // DEPYLER-0196: os.chdir(path) → std::env::set_current_dir(path)?
+            "chdir" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.chdir() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { std::env::set_current_dir(#path)? }
+            }
+            // DEPYLER-0196: os.listdir(path) → std::fs::read_dir(path)?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect()
+            "listdir" => {
+                if arg_exprs.is_empty() {
+                    // os.listdir() with no args uses current directory
+                    parse_quote! {
+                        std::fs::read_dir(".")?
+                            .filter_map(|e| e.ok())
+                            .map(|e| e.file_name().to_string_lossy().to_string())
+                            .collect::<Vec<_>>()
+                    }
+                } else {
+                    let path = &arg_exprs[0];
+                    parse_quote! {
+                        std::fs::read_dir(#path)?
+                            .filter_map(|e| e.ok())
+                            .map(|e| e.file_name().to_string_lossy().to_string())
+                            .collect::<Vec<_>>()
+                    }
+                }
+            }
+            // DEPYLER-0200: os.walk(path) → walkdir::WalkDir::new(path)
+            // Returns iterator of (root, dirs, files) tuples like Python
+            "walk" => {
+                if arg_exprs.is_empty() {
+                    bail!("os.walk() requires at least 1 argument");
+                }
+                let path = &arg_exprs[0];
+                // Use walkdir crate - returns Vec<(String, Vec<String>, Vec<String>)>
+                parse_quote! {
+                    walkdir::WalkDir::new(#path)
+                        .into_iter()
+                        .filter_map(|e| e.ok())
+                        .filter(|e| e.file_type().is_dir())
+                        .map(|dir_entry| {
+                            let root = dir_entry.path().to_string_lossy().to_string();
+                            let mut dirs = vec![];
+                            let mut files = vec![];
+                            if let Ok(entries) = std::fs::read_dir(dir_entry.path()) {
+                                for entry in entries.filter_map(|e| e.ok()) {
+                                    let name = entry.file_name().to_string_lossy().to_string();
+                                    if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                                        dirs.push(name);
+                                    } else {
+                                        files.push(name);
+                                    }
+                                }
+                            }
+                            (root, dirs, files)
+                        })
+                        .collect::<Vec<_>>()
+                }
+            }
+            // DEPYLER-0200: os.urandom(n) → rand crate for cryptographic random bytes
+            "urandom" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.urandom() requires exactly 1 argument");
+                }
+                let n = &arg_exprs[0];
+                // Use rand crate to generate random bytes
+                parse_quote! {
+                    {
+                        use rand::Rng;
+                        let mut rng = rand::thread_rng();
+                        let mut bytes = vec![0u8; #n as usize];
+                        rng.fill(&mut bytes[..]);
+                        bytes
+                    }
+                }
+            }
             _ => {
                 return Ok(None);
             }
@@ -4200,12 +4328,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         //   }
         // }
 
+        // DEPYLER-0627: subprocess.run() returns CompletedProcess struct (not tuple)
+        // Python's subprocess.run() returns CompletedProcess with .returncode, .stdout, .stderr
+        // We generate a struct to match Python's API semantics.
+        self.ctx.needs_completed_process = true;
+
         // DEPYLER-0517: Handle Option<String> for cwd parameter
         // When cwd is a runtime variable (e.g., function parameter with default None),
         // it may be Option<String>. Use if-let to safely handle this case.
-        //
-        // Return a tuple (i32, String, String) instead of a struct to avoid
-        // type mismatch issues when the result is used in different branches.
         let result = if capture_output {
             // Use .output() to capture stdout/stderr
             if let Some(cwd) = cwd_expr {
@@ -4218,11 +4348,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             cmd.current_dir(dir);
                         }
                         let output = cmd.output().expect("subprocess.run() failed");
-                        (
-                            output.status.code().unwrap_or(-1),
-                            String::from_utf8_lossy(&output.stdout).to_string(),
-                            String::from_utf8_lossy(&output.stderr).to_string()
-                        )
+                        CompletedProcess {
+                            returncode: output.status.code().unwrap_or(-1),
+                            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                        }
                     }
                 }
             } else {
@@ -4232,11 +4362,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let mut cmd = std::process::Command::new(&cmd_list[0]);
                         cmd.args(&cmd_list[1..]);
                         let output = cmd.output().expect("subprocess.run() failed");
-                        (
-                            output.status.code().unwrap_or(-1),
-                            String::from_utf8_lossy(&output.stdout).to_string(),
-                            String::from_utf8_lossy(&output.stderr).to_string()
-                        )
+                        CompletedProcess {
+                            returncode: output.status.code().unwrap_or(-1),
+                            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                        }
                     }
                 }
             }
@@ -4252,11 +4382,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             cmd.current_dir(dir);
                         }
                         let status = cmd.status().expect("subprocess.run() failed");
-                        (
-                            status.code().unwrap_or(-1),
-                            String::new(),
-                            String::new()
-                        )
+                        CompletedProcess {
+                            returncode: status.code().unwrap_or(-1),
+                            stdout: String::new(),
+                            stderr: String::new(),
+                        }
                     }
                 }
             } else {
@@ -4266,11 +4396,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let mut cmd = std::process::Command::new(&cmd_list[0]);
                         cmd.args(&cmd_list[1..]);
                         let status = cmd.status().expect("subprocess.run() failed");
-                        (
-                            status.code().unwrap_or(-1),
-                            String::new(),
-                            String::new()
-                        )
+                        CompletedProcess {
+                            returncode: status.code().unwrap_or(-1),
+                            stdout: String::new(),
+                            stderr: String::new(),
+                        }
                     }
                 }
             }
@@ -9580,8 +9710,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) }
                     };
                     Ok(result)
+                } else if arg_exprs.is_empty() {
+                    // DEPYLER-0188: 0-arg get() is NOT dict.get() - fall through to generic handler
+                    // This supports asyncio.Queue.get(), multiprocessing.Queue.get(), etc.
+                    let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                    Ok(parse_quote! { #object_expr.#method_ident() })
                 } else {
-                    bail!("get() requires 1 or 2 arguments");
+                    bail!("get() requires 1 or 2 arguments (or 0 for Queue.get())");
                 }
             }
             "keys" => {
@@ -9872,6 +10007,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     )
                 } else {
                     bail!("split() accepts at most 2 arguments (separator, maxsplit)");
+                }
+            }
+            // DEPYLER-0202: str.rsplit(sep[, maxsplit]) - reverse split with Pattern trait fix
+            // Must extract bare string literals for Pattern trait compatibility
+            "rsplit" => {
+                if arg_exprs.is_empty() {
+                    // Python's rsplit() without args splits on whitespace
+                    Ok(
+                        parse_quote! { #obj.split_whitespace().rev().map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
+                } else if arg_exprs.len() == 1 {
+                    // DEPYLER-0202: Extract bare string literal for Pattern trait compatibility
+                    let sep = match &hir_args[0] {
+                        HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                        _ => arg_exprs[0].clone(),
+                    };
+                    Ok(
+                        parse_quote! { #obj.rsplit(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
+                } else if arg_exprs.len() == 2 {
+                    // DEPYLER-0202: str.rsplit(sep, maxsplit) → rsplitn(maxsplit+1, sep)
+                    // Python's maxsplit is the max number of splits; Rust's rsplitn takes n parts
+                    let sep = match &hir_args[0] {
+                        HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                        _ => arg_exprs[0].clone(),
+                    };
+                    let maxsplit = &arg_exprs[1];
+                    Ok(
+                        parse_quote! { #obj.rsplitn((#maxsplit + 1) as usize, #sep).map(|s| s.to_string()).collect::<Vec<String>>() },
+                    )
+                } else {
+                    bail!("rsplit() accepts at most 2 arguments (separator, maxsplit)");
                 }
             }
             "join" => {
@@ -12605,54 +12772,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        // DEPYLER-0517: Handle subprocess result attributes
-        // When accessing .returncode/.stdout/.stderr on a subprocess.run() result,
-        // convert to tuple indexing since subprocess.run() returns (i32, String, String)
+        // DEPYLER-0627: subprocess.run() now returns CompletedProcess struct
+        // with .returncode, .stdout, .stderr fields - no conversion needed,
+        // struct field access works directly
+
+        // DEPYLER-0200: Handle os.environ direct access
+        // os.environ → std::env::vars() as a HashMap-like collection
         if let HirExpr::Var(var_name) = value {
-            // Check if this variable holds a subprocess result tuple (Int, String, String)
-            let is_subprocess_tuple = matches!(
-                self.ctx.var_types.get(var_name),
-                Some(Type::Tuple(types)) if types.len() == 3
-                    && matches!(types[0], Type::Int)
-                    && matches!(types[1], Type::String)
-                    && matches!(types[2], Type::String)
-            );
-            if is_subprocess_tuple {
-                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-                match attr {
-                    "returncode" => {
-                        return Ok(parse_quote! { #var_ident.0 });
-                    }
-                    "stdout" => {
-                        return Ok(parse_quote! { #var_ident.1 });
-                    }
-                    "stderr" => {
-                        return Ok(parse_quote! { #var_ident.2 });
-                    }
-                    _ => {} // Fall through to regular attribute handling
-                }
+            if var_name == "os" && attr == "environ" {
+                // os.environ returns an environment dict-like object
+                // Convert to HashMap<String, String> for dict-like operations
+                return Ok(parse_quote! {
+                    std::env::vars().collect::<std::collections::HashMap<String, String>>()
+                });
             }
+        }
 
-            // DEPYLER-0517: Convert subprocess-specific attributes to tuple indexing
-            // These attributes ONLY exist on subprocess.CompletedProcess, so when we see them
-            // on any variable, it's safe to convert to tuple indexing
-            let is_subprocess_attr = attr == "returncode" || attr == "stdout" || attr == "stderr";
-            if is_subprocess_attr {
-                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-                match attr {
-                    "returncode" => {
-                        return Ok(parse_quote! { #var_ident.0 });
-                    }
-                    "stdout" => {
-                        return Ok(parse_quote! { #var_ident.1 });
-                    }
-                    "stderr" => {
-                        return Ok(parse_quote! { #var_ident.2 });
-                    }
-                    _ => {} // Fall through to regular attribute handling
-                }
-            }
-
+        if let HirExpr::Var(var_name) = value {
             // DEPYLER-0517: Handle exception variable attributes
             // Python: `except CalledProcessError as e: e.returncode`
             // Rust: Box<dyn Error> doesn't have returncode, use fallback
