@@ -1546,10 +1546,10 @@ fn infer_expr_type_with_env(
                         )));
                     }
                     ("csv", "writer") | ("csv", "DictWriter") => return Type::Unknown,
-                    // DEPYLER-0517: subprocess.run() returns CompletedProcess-like struct
-                    // with .returncode: int, .stdout: str, .stderr: str
+                    // DEPYLER-0517: subprocess.run() returns tuple (returncode, stdout, stderr)
+                    // Generated code produces (i32, String, String) tuple
                     ("subprocess", "run") => {
-                        return Type::Custom("SubprocessResult".to_string());
+                        return Type::Tuple(vec![Type::Int, Type::String, Type::String]);
                     }
                     // DEPYLER-0532: regex module methods
                     ("re", "findall") | ("regex", "findall") => {
@@ -1663,13 +1663,17 @@ fn infer_expr_type_with_env(
             // Get the base type using the environment
             let base_type = infer_expr_type_with_env(value, var_types);
 
-            // Handle SubprocessResult attributes
-            if matches!(base_type, Type::Custom(ref s) if s == "SubprocessResult") {
-                return match attr.as_str() {
-                    "returncode" => Type::Int,
-                    "stdout" | "stderr" => Type::String,
-                    _ => Type::Unknown,
-                };
+            // Handle subprocess.run() result tuple attributes (returncode, stdout, stderr)
+            // Type is now Tuple([Int, String, String]), attributes map to tuple indices
+            if let Type::Tuple(ref types) = base_type {
+                if types.len() == 3 {
+                    return match attr.as_str() {
+                        "returncode" => Type::Int,    // .0
+                        "stdout" => Type::String,     // .1
+                        "stderr" => Type::String,     // .2
+                        _ => Type::Unknown,
+                    };
+                }
             }
 
             // Common attributes with known types
