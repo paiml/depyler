@@ -1036,6 +1036,9 @@ pub fn generate_rust_file(
         subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
         hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
         is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
+        boxed_dyn_write_vars: HashSet::new(), // DEPYLER-0625: Track vars needing Box<dyn Write>
+        function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
+        option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
     };
 
     // Analyze all functions first for string optimization
@@ -1267,6 +1270,10 @@ mod tests {
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields in match arm
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
+            boxed_dyn_write_vars: HashSet::new(), // DEPYLER-0625: Track vars needing Box<dyn Write>
+            function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
+            option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
+            function_param_defaults: HashMap::new(), // Track function parameter defaults
         }
     }
 

@@ -249,13 +249,28 @@ impl StmtConverter {
     }
 
     fn convert_with(w: ast::StmtWith) -> Result<HirStmt> {
-        // For now, only support single context manager
-        if w.items.len() != 1 {
-            bail!("Multiple context managers not yet supported");
+        // Handle multiple context managers by recursive nesting:
+        // `with A as a, B as b: body` becomes `with A as a: with B as b: body`
+        if w.items.is_empty() {
+            bail!("Empty with statement");
         }
 
-        let item = &w.items[0];
-        let context = super::convert_expr(item.context_expr.clone())?;
+        // Convert items to a Vec we can consume
+        let items: Vec<_> = w.items.into_iter().collect();
+        let body_stmts = w.body;
+
+        // Build nested With from inside out (last item wraps the body)
+        Self::build_nested_with(items, body_stmts)
+    }
+
+    /// Helper to build nested With statements from multiple context managers
+    fn build_nested_with(
+        mut items: Vec<ast::WithItem>,
+        body_stmts: Vec<ast::Stmt>,
+    ) -> Result<HirStmt> {
+        // Take the first item
+        let item = items.remove(0);
+        let context = super::convert_expr(item.context_expr)?;
 
         // Extract optional target variable
         let target = item.optional_vars.as_ref().and_then(|vars| {
@@ -265,12 +280,18 @@ impl StmtConverter {
             }
         });
 
-        // Convert body
-        let body = w
-            .body
-            .into_iter()
-            .map(super::convert_stmt)
-            .collect::<Result<Vec<_>>>()?;
+        // Determine body: if more items, recurse; otherwise use original body
+        let body = if items.is_empty() {
+            // Base case: no more context managers, use the original body
+            body_stmts
+                .into_iter()
+                .map(super::convert_stmt)
+                .collect::<Result<Vec<_>>>()?
+        } else {
+            // Recursive case: wrap remaining items
+            let inner_with = Self::build_nested_with(items, body_stmts)?;
+            vec![inner_with]
+        };
 
         Ok(HirStmt::With {
             context,
