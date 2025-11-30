@@ -1884,6 +1884,8 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 "range" => Type::List(Box::new(Type::Int)),
                 "sum" | "min" | "max" => Type::Int, // Common numeric aggregations
                 "zeros" | "ones" | "full" => Type::List(Box::new(Type::Int)),
+                // DEPYLER-0623: open() returns a file handle (owned std::fs::File)
+                "open" => Type::Custom("std::fs::File".to_string()),
                 _ => Type::Unknown,
             }
         }
