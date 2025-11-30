@@ -683,14 +683,18 @@ fn generate_lazy_constant(
 
 /// DEPYLER-0107: Infer type for Lazy constants based on value expression
 ///
-/// All complex constants default to serde_json::Value for compatibility.
-/// The value expression must be wrapped with json!() when it returns HashMap.
+/// Most complex constants default to serde_json::Value for compatibility.
+/// DEPYLER-0188: Path expressions return std::path::PathBuf.
 fn infer_lazy_constant_type(
-    _value: &HirExpr,
+    value: &HirExpr,
     ctx: &mut CodeGenContext,
 ) -> proc_macro2::TokenStream {
-    // Always use serde_json::Value for Lazy constants
-    // The convert_dict function already wraps values with json!() in json context
+    // DEPYLER-0188: Path expressions should be typed as PathBuf
+    if is_path_constant_expr(value) {
+        return quote! { std::path::PathBuf };
+    }
+
+    // Default: use serde_json::Value for Lazy constants
     ctx.needs_serde_json = true;
     quote! { serde_json::Value }
 }
@@ -746,11 +750,43 @@ fn infer_constant_type(value: &HirExpr, ctx: &mut CodeGenContext) -> proc_macro2
         // DEPYLER-0516: Unary operations preserve type (helper extracts unary logic)
         HirExpr::Unary { op, operand } => infer_unary_type(op, operand, ctx),
 
+        // DEPYLER-0188: Path expressions should be typed as PathBuf
+        // Detect Path() calls, .parent, .join method chains, and path / segment division
+        _ if is_path_constant_expr(value) => {
+            quote! { : std::path::PathBuf }
+        }
+
         // Default fallback
         _ => {
             ctx.needs_serde_json = true;
             quote! { : serde_json::Value }
         }
+    }
+}
+
+/// DEPYLER-0188: Check if expression is a pathlib Path constant
+///
+/// Detects Path expressions for correct type inference in module-level constants.
+fn is_path_constant_expr(value: &HirExpr) -> bool {
+    match value {
+        // Path() or pathlib.Path() call
+        HirExpr::Call { func, .. } => {
+            matches!(func.as_str(), "Path" | "PurePath" | "PathBuf")
+        }
+        // .parent, .join, etc. method calls return paths
+        HirExpr::MethodCall { method, object, .. } => {
+            matches!(method.as_str(), "parent" | "join" | "resolve" | "absolute" |
+                     "with_name" | "with_suffix" | "to_path_buf")
+                || is_path_constant_expr(object)
+        }
+        // .parent attribute access
+        HirExpr::Attribute { attr, value, .. } => {
+            matches!(attr.as_str(), "parent" | "root" | "anchor")
+                || is_path_constant_expr(value)
+        }
+        // path / segment division
+        HirExpr::Binary { left, op: BinOp::Div, .. } => is_path_constant_expr(left),
+        _ => false,
     }
 }
 
@@ -822,10 +858,11 @@ fn generate_constant_tokens(
         let value_expr = constant.value.to_rust_expr(ctx)?;
 
         // DEPYLER-REARCH-001: Complex types need runtime initialization (Lazy)
+        // DEPYLER-0188: PathBuf expressions also need runtime init (not const-evaluable)
         let needs_runtime_init = matches!(
             &constant.value,
             HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_)
-        );
+        ) || is_path_constant_expr(&constant.value);
 
         let token = if needs_runtime_init {
             generate_lazy_constant(constant, name_ident, value_expr, ctx)?
