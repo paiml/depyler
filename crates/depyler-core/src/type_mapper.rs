@@ -172,7 +172,8 @@ impl TypeMapper {
                             Box::new(RustType::String), // Default to String keys
                             Box::new(RustType::Custom("serde_json::Value".to_string())), // Default to JSON Value
                         ),
-                        "List" => RustType::Vec(Box::new(RustType::Custom(
+                        // DEPYLER-0609: Handle both "List" (typing import) and "list" (builtin)
+                        "List" | "list" => RustType::Vec(Box::new(RustType::Custom(
                             "serde_json::Value".to_string(),
                         ))),
                         "Set" => RustType::HashSet(Box::new(RustType::String)),
