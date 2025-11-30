@@ -69,7 +69,13 @@ impl AnnotationAwareTypeMapper {
         inner: &PythonType,
         annotations: &TranspilationAnnotations,
     ) -> RustType {
-        let inner_rust = self.map_type_with_annotations(inner, annotations);
+        // DEPYLER-0609: List[Unknown] should map to Vec<serde_json::Value>
+        // This handles untyped list annotations like `-> list`
+        let inner_rust = if matches!(inner, PythonType::Unknown) {
+            RustType::Custom("serde_json::Value".to_string())
+        } else {
+            self.map_type_with_annotations(inner, annotations)
+        };
 
         match annotations.ownership_model {
             OwnershipModel::Borrowed => RustType::Reference {
