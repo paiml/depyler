@@ -1732,10 +1732,11 @@ pub(crate) fn convert_cmpop(op: &ast::CmpOp) -> Result<BinOp> {
         ast::CmpOp::GtE => BinOp::GtEq,
         ast::CmpOp::In => BinOp::In,
         ast::CmpOp::NotIn => BinOp::NotIn,
-        ast::CmpOp::Is => bail!("'is' operator not yet supported (use == for value comparison)"),
-        ast::CmpOp::IsNot => {
-            bail!("'is not' operator not yet supported (use != for value comparison)")
-        }
+        // DEPYLER-0188: Python 'is' checks identity (same object), but in transpiled code
+        // we use value equality since Rust doesn't have Python's object identity concept.
+        // This is correct for: x is None, x is True/False, small integers, interned strings
+        ast::CmpOp::Is => BinOp::Eq,
+        ast::CmpOp::IsNot => BinOp::NotEq,
     })
 }
 
