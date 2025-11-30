@@ -598,6 +598,10 @@ impl LifetimeInference {
                     }
                 }
             }
+            // DEPYLER-0188: Walrus operator - analyze the value expression
+            HirExpr::NamedExpr { value, .. } => {
+                self.analyze_expr_for_param(param, value, usage, in_loop, in_return);
+            }
         }
     }
 

@@ -14642,6 +14642,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             Ok(parse_quote! { #ident })
         }
     }
+
+    /// DEPYLER-0188: Convert walrus operator (assignment expression)
+    /// Python: (x := expr) assigns expr to x and evaluates to expr
+    /// Rust: { let x = expr; x } - block expression that assigns and returns
+    fn convert_named_expr(&mut self, target: &str, value: &HirExpr) -> Result<syn::Expr> {
+        let ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+        let value_expr = value.to_rust_expr(self.ctx)?;
+
+        // Generate: { let target = value; target }
+        // This assigns the value and returns it, matching Python's walrus semantics
+        Ok(parse_quote! {
+            {
+                let #ident = #value_expr;
+                #ident
+            }
+        })
+    }
 }
 
 impl ToRustExpr for HirExpr {
@@ -14754,6 +14771,10 @@ impl ToRustExpr for HirExpr {
                 element,
                 generators,
             } => converter.convert_generator_expression(element, generators),
+            // DEPYLER-0188: Walrus operator (assignment expression)
+            // Python: (x := expr) evaluates to expr and assigns to x
+            // Rust: { let x = expr; x } or { let x = expr; x.clone() }
+            HirExpr::NamedExpr { target, value } => converter.convert_named_expr(target, value),
         }
     }
 }

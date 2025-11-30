@@ -1043,7 +1043,8 @@ fn contains_owned_string_method(expr: &HirExpr) -> bool {
         | HirExpr::Await { .. }
         | HirExpr::Yield { .. }
         | HirExpr::SortByKey { .. }
-        | HirExpr::GeneratorExp { .. } => false,
+        | HirExpr::GeneratorExp { .. }
+        | HirExpr::NamedExpr { .. } => false,
     }
 }
 
