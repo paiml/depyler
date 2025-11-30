@@ -505,6 +505,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
             }
             BinOp::Div => {
+                // DEPYLER-0188: Check if this is pathlib Path division (path / "segment")
+                // Python: Path(__file__).parent / "file.py"
+                // Rust: PathBuf::from(file!()).parent().unwrap().join("file.py")
+                if self.is_path_expr(left) {
+                    // Convert division to .join() for path concatenation
+                    return Ok(parse_quote! { #left_expr.join(#right_expr) });
+                }
+
                 // v3.16.0 Phase 2: Python's `/` always returns float
                 // Rust's `/` does integer division when both operands are integers
                 // Check if we need to cast to float based on return type context
@@ -13338,6 +13346,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // Recursive: binary op on vector yields vector
             HirExpr::Binary { left, .. } => self.is_numpy_array_expr(left),
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0188: Check if expression is a pathlib Path (std::path::PathBuf)
+    ///
+    /// Python's pathlib.Path uses `/` operator (via __truediv__) for path concatenation.
+    /// Rust's PathBuf doesn't implement Div, so we convert to .join().
+    fn is_path_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Path() or pathlib.Path() call
+            HirExpr::Call { func, .. } => {
+                matches!(func.as_str(), "Path" | "PurePath" | "PurePosixPath" | "PureWindowsPath")
+            }
+            // Method calls that return paths
+            HirExpr::MethodCall { method, .. } => {
+                matches!(method.as_str(), "parent" | "resolve" | "absolute" | "expanduser" |
+                         "with_name" | "with_suffix" | "with_stem" | "joinpath")
+            }
+            // Attribute access like Path(__file__).parent
+            HirExpr::Attribute { attr, .. } => {
+                matches!(attr.as_str(), "parent" | "root" | "anchor")
+            }
+            // Variable named 'path' or with path-like semantics
+            HirExpr::Var(name) => {
+                let n = name.as_str();
+                matches!(n, "path" | "filepath" | "dir_path" | "file_path" | "base_path" | "root_path")
+                    || n.starts_with("path_") || n.ends_with("_path")
+                    || n.starts_with("dir_") || n.ends_with("_dir")
+            }
+            // Recursive: path / segment is still a path
+            HirExpr::Binary { left, op: BinOp::Div, .. } => self.is_path_expr(left),
             _ => false,
         }
     }
