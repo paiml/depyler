@@ -118,7 +118,7 @@ impl CorpusCITL {
         use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
         use std::fs::File;
 
-        let file = File::open(path).map_err(|e| OracleError::Io(e))?;
+        let file = File::open(path).map_err(OracleError::Io)?;
         let builder = ParquetRecordBatchReaderBuilder::try_new(file)
             .map_err(|e| OracleError::Model(format!("Parquet read error: {}", e)))?;
 
@@ -161,16 +161,15 @@ impl CorpusCITL {
                         Some(c.value(i).to_string())
                     }
                 });
-                let has_rust = has_rust_col.map_or(false, |c| c.value(i));
+                let has_rust = has_rust_col.is_some_and(|c| c.value(i));
 
                 categories_seen.insert(category.clone());
                 self.stats.total_pairs += 1;
 
-                if has_rust && rust_code.is_some() {
+                if let (true, Some(rust)) = (has_rust, rust_code) {
                     // Successful transpilation - record as success session
                     self.stats.success_pairs += 1;
 
-                    let rust = rust_code.unwrap();
                     let traces = self.extract_decision_traces(&python_code, &rust);
                     let outcome = CompilationOutcome::success();
 
