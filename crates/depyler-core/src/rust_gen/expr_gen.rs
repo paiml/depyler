@@ -11196,6 +11196,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-0188: Convert dynamic/subscript function call
+    /// E.g., `handlers[name](args)` → `(handlers[&name])(args)`
+    fn convert_dynamic_call(
+        &mut self,
+        callee: &HirExpr,
+        args: &[HirExpr],
+    ) -> Result<syn::Expr> {
+        let callee_expr = callee.to_rust_expr(self.ctx)?;
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        if arg_exprs.is_empty() {
+            Ok(parse_quote! { (#callee_expr)() })
+        } else {
+            Ok(parse_quote! { (#callee_expr)(#(#arg_exprs),*) })
+        }
+    }
+
     fn convert_method_call(
         &mut self,
         object: &HirExpr,
@@ -14821,6 +14841,10 @@ impl ToRustExpr for HirExpr {
             // Python: (x := expr) evaluates to expr and assigns to x
             // Rust: { let x = expr; x } or { let x = expr; x.clone() }
             HirExpr::NamedExpr { target, value } => converter.convert_named_expr(target, value),
+            // DEPYLER-0188: Dynamic call: handlers[name](args) → (handlers[name])(args)
+            HirExpr::DynamicCall { callee, args, .. } => {
+                converter.convert_dynamic_call(callee, args)
+            }
         }
     }
 }
