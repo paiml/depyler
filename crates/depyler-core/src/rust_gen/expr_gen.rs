@@ -12577,36 +12577,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // When accessing .returncode/.stdout/.stderr on a subprocess.run() result,
         // convert to tuple indexing since subprocess.run() returns (i32, String, String)
         if let HirExpr::Var(var_name) = value {
-            // Check if this variable holds a subprocess result (tracked via type system)
-            if let Some(Type::Custom(type_name)) = self.ctx.var_types.get(var_name) {
-                if type_name == "SubprocessResult" {
-                    let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-                    match attr {
-                        "returncode" => {
-                            return Ok(parse_quote! { #var_ident.0 });
-                        }
-                        "stdout" => {
-                            return Ok(parse_quote! { #var_ident.1 });
-                        }
-                        "stderr" => {
-                            return Ok(parse_quote! { #var_ident.2 });
-                        }
-                        _ => {} // Fall through to regular attribute handling
+            // Check if this variable holds a subprocess result tuple (Int, String, String)
+            let is_subprocess_tuple = matches!(
+                self.ctx.var_types.get(var_name),
+                Some(Type::Tuple(types)) if types.len() == 3
+                    && matches!(types[0], Type::Int)
+                    && matches!(types[1], Type::String)
+                    && matches!(types[2], Type::String)
+            );
+            if is_subprocess_tuple {
+                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                match attr {
+                    "returncode" => {
+                        return Ok(parse_quote! { #var_ident.0 });
                     }
+                    "stdout" => {
+                        return Ok(parse_quote! { #var_ident.1 });
+                    }
+                    "stderr" => {
+                        return Ok(parse_quote! { #var_ident.2 });
+                    }
+                    _ => {} // Fall through to regular attribute handling
                 }
             }
 
-            // DEPYLER-0517: Heuristic fallback for subprocess result variables
-            // Common pattern: `result = subprocess.run(...)` then `result.returncode`
-            // Variable names "result", "proc", "process", "completed" are likely subprocess results
-            let is_likely_subprocess_result = var_name == "result"
-                || var_name == "proc"
-                || var_name == "process"
-                || var_name == "completed"
-                || var_name.ends_with("_result")
-                || var_name.ends_with("_process");
-
-            if is_likely_subprocess_result {
+            // DEPYLER-0517: Convert subprocess-specific attributes to tuple indexing
+            // These attributes ONLY exist on subprocess.CompletedProcess, so when we see them
+            // on any variable, it's safe to convert to tuple indexing
+            let is_subprocess_attr = attr == "returncode" || attr == "stdout" || attr == "stderr";
+            if is_subprocess_attr {
                 let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
                 match attr {
                     "returncode" => {
