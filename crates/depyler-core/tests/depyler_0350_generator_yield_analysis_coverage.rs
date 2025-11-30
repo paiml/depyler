@@ -470,6 +470,7 @@ fn test_depyler_0350_with_statement_yield() {
             body: vec![HirStmt::Expr(HirExpr::Yield {
                 value: Some(Box::new(HirExpr::Var("f".to_string()))),
             })],
+            is_async: false,
         }],
         properties: FunctionProperties {
             is_generator: true,
@@ -504,7 +505,9 @@ fn test_depyler_0350_nested_with_statements() {
                 body: vec![HirStmt::Expr(HirExpr::Yield {
                     value: Some(Box::new(HirExpr::Var("c2".to_string()))),
                 })],
+                is_async: false,
             }],
+            is_async: false,
         }],
         properties: FunctionProperties {
             is_generator: true,

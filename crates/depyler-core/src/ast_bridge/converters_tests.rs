@@ -612,6 +612,7 @@ fn test_convert_with() {
             context,
             target,
             body,
+            is_async: _,
         } => {
             assert!(matches!(context, HirExpr::Call { .. }));
             assert_eq!(target, Some("f".to_string()));
