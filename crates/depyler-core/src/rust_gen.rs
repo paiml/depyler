@@ -38,6 +38,10 @@ use stmt_gen::{
 
 // Public re-exports for external modules (union_enum_gen, etc.)
 pub use argparse_transform::ArgParserTracker; // DEPYLER-0384: Export for testing
+pub use argparse_transform::{
+    ArgParserArgument, ArgParserInfo, SubcommandInfo, SubparserInfo,
+    generate_args_struct, generate_commands_enum,
+}; // Coverage tests
 pub use context::{CodeGenContext, RustCodeGen, ToRustExpr};
 pub use type_gen::rust_type_to_syn;
 
@@ -849,18 +853,47 @@ fn generate_stub_functions(
         let func_ident = keywords::safe_ident(&import.item_name);
         let _module_name = &import.module; // Stored for potential doc comment use
 
-        // Generate a stub function that accepts any args and returns a generic type
-        // Using variadic-like pattern with impl trait for flexibility
-        let stub = quote! {
-            /// Stub for local import from module: #module_name
-            /// DEPYLER-0615: Generated to allow standalone compilation
-            #[allow(dead_code, unused_variables)]
-            pub fn #func_ident<T: Default>(_args: impl std::any::Any) -> T {
-                Default::default()
+        // Generate a stub function that accepts any args
+        // DEPYLER-0600: Use () return type for contextlib functions to avoid type inference issues
+        let stub = if import.module == "contextlib" {
+            quote! {
+                /// Stub for local import from module: #module_name
+                /// DEPYLER-0615: Generated to allow standalone compilation
+                #[allow(dead_code, unused_variables)]
+                pub fn #func_ident(_args: impl std::any::Any) -> () {
+                }
+            }
+        } else {
+            quote! {
+                /// Stub for local import from module: #module_name
+                /// DEPYLER-0615: Generated to allow standalone compilation
+                #[allow(dead_code, unused_variables)]
+                pub fn #func_ident<T: Default>(_args: impl std::any::Any) -> T {
+                    Default::default()
+                }
             }
         };
 
         stubs.push(stub);
+
+        // DEPYLER-0600: If importing from contextlib (e.g., suppress), add Python exception stubs
+        // These are commonly used as arguments to suppress()
+        if import.module == "contextlib" {
+            let exception_stubs = quote! {
+                /// Python FileNotFoundError stub for contextlib.suppress()
+                #[allow(dead_code)]
+                pub struct FileNotFoundError;
+
+                /// Python PermissionError stub for contextlib.suppress()
+                #[allow(dead_code)]
+                pub struct PermissionError;
+
+                /// Python OSError stub for contextlib.suppress()
+                #[allow(dead_code)]
+                pub struct OSError;
+            };
+            stubs.push(exception_stubs);
+        }
     }
 
     stubs
@@ -1496,7 +1529,8 @@ mod tests {
         let body = vec![HirStmt::Pass];
 
         let result = codegen_with_stmt(&context, &None, &body, &mut ctx).unwrap();
-        assert!(result.to_string().contains("let _context"));
+        // DEPYLER-0602: Context variable is mutable for __enter__()
+        assert!(result.to_string().contains("let mut _context"));
     }
 
     // Phase 3b tests - Assign handler tests
