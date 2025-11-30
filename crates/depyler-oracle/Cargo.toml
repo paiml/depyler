@@ -32,8 +32,8 @@ entrenar = { path = "../../../entrenar", features = ["citl"] }
 
 # Data loading and versioning
 alimentar = { path = "../../../alimentar" }
-arrow = { version = "53", default-features = false, features = ["prettyprint"] }
-parquet = { version = "53", default-features = false, features = ["arrow", "snap"] }
+arrow = { version = "54", default-features = false, features = ["prettyprint"] }
+parquet = { version = "54", default-features = false, features = ["arrow", "snap"] }
 
 # Serialization
 serde.workspace = true
