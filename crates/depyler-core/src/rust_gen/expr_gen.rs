@@ -13657,7 +13657,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Used to distinguish string.contains() from HashMap.contains_key()
     ///
     /// # Complexity
-    /// 3 (match + type lookup + variant check)
+    /// 4 (match + type lookup + variant check + attribute check)
     fn is_string_type(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Literal(Literal::String(_)) => true,
@@ -13669,6 +13669,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Fallback to heuristic for cases without type info
                     self.is_string_base(expr)
                 }
+            }
+            // DEPYLER-0649: Handle attribute access for known string fields
+            HirExpr::Attribute { attr, .. } => {
+                // Known string attributes from common types:
+                // - CompletedProcess.stdout, CompletedProcess.stderr
+                // - Exception.args (often treated as string)
+                // - argparse Namespace string fields
+                matches!(
+                    attr.as_str(),
+                    "stdout" | "stderr" | "text" | "output" | "message" | "name"
+                )
             }
             _ => false,
         }
