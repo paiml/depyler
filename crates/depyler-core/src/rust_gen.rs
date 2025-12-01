@@ -453,10 +453,12 @@ fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[H
 fn convert_classes_to_rust(
     classes: &[HirClass],
     type_mapper: &crate::type_mapper::TypeMapper,
+    vararg_functions: &std::collections::HashSet<String>, // DEPYLER-0648: Track vararg functions
 ) -> Result<Vec<proc_macro2::TokenStream>> {
     let mut class_items = Vec::new();
     for class in classes {
-        let items = crate::direct_rules::convert_class_to_struct(class, type_mapper)?;
+        // DEPYLER-0648: Pass vararg_functions for proper call site generation in methods
+        let items = crate::direct_rules::convert_class_to_struct(class, type_mapper, vararg_functions)?;
         for item in items {
             let tokens = item.to_token_stream();
             class_items.push(tokens);
@@ -1144,6 +1146,7 @@ pub fn generate_rust_file(
         needs_once_cell: false, // DEPYLER-REARCH-001
         needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
         needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
+        vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
         current_return_type: None,
@@ -1237,8 +1240,18 @@ pub fn generate_rust_file(
         }
     }
 
+    // DEPYLER-0648: Pre-populate vararg functions before codegen
+    // Python *args functions become fn(args: &[String]) in Rust
+    // Call sites need to wrap arguments in &[...] slices
+    for func in &module.functions {
+        if func.params.iter().any(|p| p.is_vararg) {
+            ctx.vararg_functions.insert(func.name.clone());
+        }
+    }
+
     // Convert classes first (they might be used by functions)
-    let classes = convert_classes_to_rust(&module.classes, ctx.type_mapper)?;
+    // DEPYLER-0648: Pass vararg_functions for proper call site generation
+    let classes = convert_classes_to_rust(&module.classes, ctx.type_mapper, &ctx.vararg_functions)?;
 
     // Convert all functions to detect what imports we need
     let functions = convert_functions_to_rust(&module.functions, &mut ctx)?;
@@ -1398,6 +1411,7 @@ mod tests {
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
+            vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
