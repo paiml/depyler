@@ -2123,7 +2123,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "str" => self.convert_str_conversion(&all_hir_args, &arg_exprs),
             "bool" => self.convert_bool_cast(&all_hir_args, &arg_exprs),
             // Other built-in functions
-            "len" => self.convert_len_call(&arg_exprs),
+            // DEPYLER-0659: Handle len() on serde_json::Value
+            "len" => self.convert_len_call_with_type(&all_hir_args, &arg_exprs),
             "range" => self.convert_range_call(&arg_exprs),
             "zeros" | "ones" | "full" => {
                 self.convert_array_init_call(func, &all_hir_args, &arg_exprs)
@@ -2250,6 +2251,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
     fn convert_len_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         builtin_conversions::convert_len_call(args)
+    }
+
+    /// DEPYLER-0659: Handle len() with type awareness for serde_json::Value
+    /// serde_json::Value doesn't have a direct .len() method
+    /// - Arrays: use .as_array().map(|a| a.len()).unwrap_or(0)
+    /// - Objects: use .as_object().map(|o| o.len()).unwrap_or(0)
+    /// - Strings: use .as_str().map(|s| s.len()).unwrap_or(0)
+    fn convert_len_call_with_type(
+        &self,
+        hir_args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if arg_exprs.len() != 1 || hir_args.is_empty() {
+            return builtin_conversions::convert_len_call(arg_exprs);
+        }
+
+        let arg = &arg_exprs[0];
+        let hir_arg = &hir_args[0];
+
+        // Check if the argument is a JSON Value
+        if self.is_serde_json_value_expr(hir_arg) || self.is_dict_expr(hir_arg) {
+            // For JSON arrays: .as_array().map(|a| a.len()).unwrap_or(0)
+            // This also works for objects and is the most common case
+            Ok(parse_quote! {
+                #arg.as_array().map(|a| a.len()).unwrap_or_else(||
+                    #arg.as_object().map(|o| o.len()).unwrap_or(0)
+                ) as i32
+            })
+        } else {
+            // Default behavior for other types
+            builtin_conversions::convert_len_call(arg_exprs)
+        }
     }
 
     /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
