@@ -10837,6 +10837,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // DEPYLER-0638: stdin.readlines() → collect all lines from stdin
+            // Python: lines = sys.stdin.readlines()
+            // Rust: std::io::stdin().lock().lines().collect::<Result<Vec<_>, _>>().unwrap()
+            ("stdin", "readlines") => {
+                parse_quote! {
+                    {
+                        use std::io::BufRead;
+                        #stream_fn.lock().lines().collect::<Result<Vec<_>, _>>().unwrap()
+                    }
+                }
+            }
+
             _ => bail!("{}.{}() is not yet supported", stream, method),
         };
 
