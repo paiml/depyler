@@ -56,9 +56,10 @@ pub fn convert_int_cast(
     let arg = &arg_exprs[0];
 
     // Handle int(string, base) with from_str_radix
+    // DEPYLER-0653: Add & to convert String to &str
     if arg_exprs.len() == 2 {
         let base = &arg_exprs[1];
-        return Ok(parse_quote! { i64::from_str_radix(#arg, #base).unwrap() });
+        return Ok(parse_quote! { i64::from_str_radix(&#arg, #base).unwrap() });
     }
 
     if !hir_args.is_empty() {
@@ -111,6 +112,24 @@ pub fn convert_int_cast(
                 return Ok(parse_quote! { (#arg) as i32 });
             }
 
+            // DEPYLER-0654: Check attribute access for string-like attribute names
+            HirExpr::Attribute { attr, .. } => {
+                let attr_name = attr.as_str();
+                let looks_like_string = attr_name.ends_with("_str")
+                    || attr_name.ends_with("_string")
+                    || attr_name == "text"
+                    || attr_name == "string"
+                    || attr_name == "word"
+                    || attr_name == "line"
+                    || attr_name == "input"
+                    || attr_name == "name"
+                    || attr_name == "message";
+                if looks_like_string {
+                    return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
+                }
+                return Ok(parse_quote! { (#arg) as i32 });
+            }
+
             // Check if it's a known bool expression
             expr => {
                 if let Some(is_bool) = is_bool_expr_fn(expr) {
@@ -119,6 +138,44 @@ pub fn convert_int_cast(
                     }
                 }
                 return Ok(parse_quote! { (#arg) as i32 });
+            }
+        }
+    }
+
+    // DEPYLER-0654: Fallback - check syn::Expr for string-like variable names
+    // This handles cases where hir_args is empty but variable name suggests string type
+    let check_ident = |ident: &syn::Ident| -> bool {
+        let name = ident.to_string();
+        name.ends_with("_str")
+            || name.ends_with("_string")
+            || name == "s"
+            || name == "string"
+            || name == "text"
+            || name == "word"
+            || name == "line"
+            || name == "input"
+            || name == "value_str"
+            || name.starts_with("str_")
+            || name.starts_with("string_")
+    };
+
+    // Check direct path
+    if let syn::Expr::Path(path) = arg {
+        if let Some(ident) = path.path.get_ident() {
+            if check_ident(ident) {
+                return Ok(parse_quote! { #arg.parse::<i32>().unwrap_or_default() });
+            }
+        }
+    }
+
+    // Check parenthesized expression like (text)
+    if let syn::Expr::Paren(paren) = arg {
+        if let syn::Expr::Path(path) = paren.expr.as_ref() {
+            if let Some(ident) = path.path.get_ident() {
+                if check_ident(ident) {
+                    let inner = &paren.expr;
+                    return Ok(parse_quote! { #inner.parse::<i32>().unwrap_or_default() });
+                }
             }
         }
     }
