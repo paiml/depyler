@@ -467,3 +467,57 @@ fn test_DEPYLER_0432_11_stream_processor_integration() {
         );
     }
 }
+
+// ====================================================================================
+// Test 12: sys.stdin.readlines() (DEPYLER-0638)
+// ====================================================================================
+
+#[test]
+fn test_DEPYLER_0638_01_stdin_readlines() {
+    let python = r#"
+import sys
+
+def read_all_lines():
+    lines = sys.stdin.readlines()
+    return lines
+"#;
+
+    let result = transpile_python(python);
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
+
+    let rust_code = result.unwrap();
+
+    // Should use std::io::stdin().lock().lines().collect()
+    assert_contains(&rust_code, "std::io::stdin()");
+    assert_contains(&rust_code, ".lock()");
+    assert_contains(&rust_code, ".lines()");
+    assert_contains(&rust_code, ".collect");
+
+    // Should NOT use sys.stdin directly
+    assert_not_contains(&rust_code, "sys.stdin");
+    // Should NOT use readlines method (should be transpiled to .lines().collect())
+    assert_not_contains(&rust_code, "readlines");
+}
+
+#[test]
+fn test_DEPYLER_0638_02_stdin_readlines_process() {
+    let python = r#"
+import sys
+
+def process_log_lines():
+    lines = sys.stdin.readlines()
+    for line in lines:
+        if line.startswith("ERROR"):
+            print(line.strip())
+"#;
+
+    let result = transpile_python(python);
+    assert!(result.is_ok(), "Transpilation failed: {:?}", result.err());
+
+    let rust_code = result.unwrap();
+
+    // Should properly handle readlines
+    assert_contains(&rust_code, "std::io::stdin()");
+    assert_contains(&rust_code, ".lines()");
+    assert_contains(&rust_code, ".collect");
+}

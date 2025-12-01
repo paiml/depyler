@@ -1737,4 +1737,28 @@ roadmap:
   - acceleration
   - integration
   - pipeline
-  notes: 'Wires DEPYLER-0631 through 0636 into unified pipeline for transpiler use'
+  notes: Wires DEPYLER-0631 through 0636 into unified pipeline for transpiler use
+- id: DEPYLER-0638
+  github_issue: null
+  item_type: feature
+  title: 'Add sys.stdin.readlines() support (Action Item A2)'
+  status: completed
+  priority: high
+  assigned_to: Claude
+  created: 2025-12-01T08:51:05.235401053+00:00
+  updated: 2025-12-01T08:55:00+00:00
+  spec: null
+  acceptance_criteria:
+  - 'sys.stdin.readlines() transpiles to std::io::stdin().lock().lines().collect()'
+  - No panic on empty stdin (returns empty Vec)
+  - Test coverage for readlines in depyler_0432_stream_handling.rs
+  - Unblocks log_parser corpus example
+  phases: []
+  subtasks: []
+  estimated_effort: 30m
+  labels:
+  - P0-critical
+  - quick-win
+  - stdlib
+  - io
+  notes: 'Action Item A2 from single-shot-80-percentage-review.md: Quick win that unblocks log_parser corpus example'
