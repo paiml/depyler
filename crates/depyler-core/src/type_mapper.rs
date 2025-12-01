@@ -224,6 +224,12 @@ impl TypeMapper {
                         "timedelta" | "datetime.timedelta" => {
                             RustType::Custom("chrono::Duration".to_string())
                         }
+                        // DEPYLER-197: Python Path types map to std::path::PathBuf
+                        // pathlib.Path → PathBuf (owned path, can be modified)
+                        // Path alone also maps to PathBuf for consistency
+                        "Path" | "pathlib.Path" | "PurePath" | "pathlib.PurePath" => {
+                            RustType::Custom("std::path::PathBuf".to_string())
+                        }
                         // DEPYLER-0597: Python exception types map to Rust error types
                         // OSError maps to std::io::Error for file/system operations
                         "OSError" | "IOError" | "FileNotFoundError" | "PermissionError" => {
