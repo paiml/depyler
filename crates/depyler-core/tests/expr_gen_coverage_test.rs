@@ -1076,3 +1076,32 @@ def nested_comp():
         "Nested comprehension should have multiple .map() and .collect()"
     );
 }
+
+// ============================================================================
+// DEPYLER-0649: String attribute containment - use .contains() not .get()
+// ============================================================================
+
+#[test]
+fn test_DEPYLER_0649_string_attribute_containment_uses_contains() {
+    // Bug: "string" in result.stdout generates .get().is_some() (dict style)
+    // Expected: "string" in result.stdout generates .contains() (string style)
+    let pipeline = DepylerPipeline::new();
+    let python_code = r#"
+def check_output(result):
+    """Check if output contains expected text"""
+    return "expected" in result.stdout
+"#;
+
+    let rust_code = pipeline.transpile(python_code).unwrap();
+    println!("Generated string attribute containment code:\n{}", rust_code);
+
+    // Should use .contains() for string containment, NOT .get().is_some()
+    assert!(
+        !rust_code.contains(".get("),
+        "DEPYLER-0649: String attribute containment should NOT use .get() (dict style)"
+    );
+    assert!(
+        rust_code.contains(".contains("),
+        "DEPYLER-0649: String attribute containment should use .contains() (string style)"
+    );
+}
