@@ -1741,7 +1741,7 @@ roadmap:
 - id: DEPYLER-0638
   github_issue: null
   item_type: feature
-  title: 'Add sys.stdin.readlines() support (Action Item A2)'
+  title: Add sys.stdin.readlines() support (Action Item A2)
   status: completed
   priority: high
   assigned_to: Claude
@@ -1749,7 +1749,7 @@ roadmap:
   updated: 2025-12-01T08:55:00+00:00
   spec: null
   acceptance_criteria:
-  - 'sys.stdin.readlines() transpiles to std::io::stdin().lock().lines().collect()'
+  - sys.stdin.readlines() transpiles to std::io::stdin().lock().lines().collect()
   - No panic on empty stdin (returns empty Vec)
   - Test coverage for readlines in depyler_0432_stream_handling.rs
   - Unblocks log_parser corpus example
@@ -1762,3 +1762,26 @@ roadmap:
   - stdlib
   - io
   notes: 'Action Item A2 from single-shot-80-percentage-review.md: Quick win that unblocks log_parser corpus example'
+- id: DEPYLER-0639
+  github_issue: null
+  item_type: documentation
+  title: 'Walrus Operator Support Verification (Action Item A3) - Already Implemented'
+  status: completed
+  priority: high
+  assigned_to: Claude
+  created: 2025-12-01T08:55:20.063813641+00:00
+  updated: 2025-12-01T09:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - 'Walrus operator (:=) transpiles correctly (verified: DEPYLER-0188)'
+  - 'if (n := len(text)) > 5: generates let n = ... before if block'
+  - 'All 7 walrus tests pass in walrus_operator_test.rs'
+  - Remove stale #[ignore] from expr_gen_struct_coverage_test.rs
+  phases: []
+  subtasks: []
+  estimated_effort: 15m
+  labels:
+  - verification
+  - documentation
+  - quick-win
+  notes: 'Action Item A3 from single-shot-80-percentage-review.md: Already implemented in DEPYLER-0188. Removed stale ignore marker from test.'
