@@ -5156,7 +5156,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let n = &arg_exprs[0];
 
                 // secrets.randbelow(n) → rand::thread_rng().gen_range(0..n)
-                parse_quote! { rand::thread_rng().gen_range(0..#n) }
+                // DEPYLER-0656: Add use rand::Rng for gen_range method
+                parse_quote! {
+                    {
+                        use rand::Rng;
+                        rand::thread_rng().gen_range(0..#n)
+                    }
+                }
             }
 
             "choice" => {
@@ -5166,7 +5172,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let seq = &arg_exprs[0];
 
                 // secrets.choice(seq) → seq.choose(&mut rand::thread_rng()).unwrap()
-                parse_quote! { *#seq.choose(&mut rand::thread_rng()).unwrap() }
+                // DEPYLER-0656: Add use rand::seq::SliceRandom for choose method
+                parse_quote! {
+                    {
+                        use rand::seq::SliceRandom;
+                        *#seq.choose(&mut rand::thread_rng()).unwrap()
+                    }
+                }
             }
 
             // Token generation
@@ -8271,6 +8283,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // Integer range functions
+            // DEPYLER-0656: Add use rand::Rng for gen_range method
             "randint" => {
                 if arg_exprs.len() != 2 {
                     bail!("random.randint() requires exactly 2 arguments");
@@ -8279,9 +8292,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let b = &arg_exprs[1];
                 // random.randint(a, b) → rand::thread_rng().gen_range(a..=b)
                 // Python's randint is inclusive on both ends
-                parse_quote! { rand::thread_rng().gen_range(#a..=#b) }
+                parse_quote! {
+                    {
+                        use rand::Rng;
+                        rand::thread_rng().gen_range(#a..=#b)
+                    }
+                }
             }
 
+            // DEPYLER-0656: Add use rand::Rng for gen_range method
             "randrange" => {
                 // randrange can take 1, 2, or 3 arguments (like range)
                 if arg_exprs.is_empty() || arg_exprs.len() > 3 {
@@ -8291,12 +8310,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() == 1 {
                     // randrange(stop) → gen_range(0..stop)
                     let stop = &arg_exprs[0];
-                    parse_quote! { rand::thread_rng().gen_range(0..#stop) }
+                    parse_quote! {
+                        {
+                            use rand::Rng;
+                            rand::thread_rng().gen_range(0..#stop)
+                        }
+                    }
                 } else if arg_exprs.len() == 2 {
                     // randrange(start, stop) → gen_range(start..stop)
                     let start = &arg_exprs[0];
                     let stop = &arg_exprs[1];
-                    parse_quote! { rand::thread_rng().gen_range(#start..#stop) }
+                    parse_quote! {
+                        {
+                            use rand::Rng;
+                            rand::thread_rng().gen_range(#start..#stop)
+                        }
+                    }
                 } else {
                     // randrange(start, stop, step) - complex, need to generate stepped range
                     let start = &arg_exprs[0];
@@ -8304,6 +8333,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let step = &arg_exprs[2];
                     parse_quote! {
                         {
+                            use rand::Rng;
                             let start = #start;
                             let stop = #stop;
                             let step = #step;
@@ -8316,6 +8346,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // Float range function
+            // DEPYLER-0656: Add use rand::Rng for gen_range method
             "uniform" => {
                 if arg_exprs.len() != 2 {
                     bail!("random.uniform() requires exactly 2 arguments");
@@ -8323,17 +8354,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let a = &arg_exprs[0];
                 let b = &arg_exprs[1];
                 // random.uniform(a, b) → rand::thread_rng().gen_range(a..b)
-                parse_quote! { rand::thread_rng().gen_range((#a as f64)..=(#b as f64)) }
+                parse_quote! {
+                    {
+                        use rand::Rng;
+                        rand::thread_rng().gen_range((#a as f64)..=(#b as f64))
+                    }
+                }
             }
 
             // Sequence functions
+            // DEPYLER-0656: Add use rand::seq::SliceRandom for choose/shuffle
             "choice" => {
                 if arg_exprs.len() != 1 {
                     bail!("random.choice() requires exactly 1 argument");
                 }
                 let seq = &arg_exprs[0];
                 // random.choice(seq) → *seq.choose(&mut rand::thread_rng()).unwrap()
-                parse_quote! { *#seq.choose(&mut rand::thread_rng()).unwrap() }
+                parse_quote! {
+                    {
+                        use rand::seq::SliceRandom;
+                        *#seq.choose(&mut rand::thread_rng()).unwrap()
+                    }
+                }
             }
 
             "shuffle" => {
@@ -8343,9 +8385,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let seq = &arg_exprs[0];
                 // random.shuffle(seq) → seq.shuffle(&mut rand::thread_rng())
                 // Note: This mutates in place like Python
-                parse_quote! { #seq.shuffle(&mut rand::thread_rng()) }
+                parse_quote! {
+                    {
+                        use rand::seq::SliceRandom;
+                        #seq.shuffle(&mut rand::thread_rng())
+                    }
+                }
             }
 
+            // DEPYLER-0656: Add use rand::seq::SliceRandom for choose_multiple
             "sample" => {
                 if arg_exprs.len() != 2 {
                     bail!("random.sample() requires exactly 2 arguments");
@@ -8354,9 +8402,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let k = &arg_exprs[1];
                 // random.sample(seq, k) → seq.choose_multiple(&mut rand::thread_rng(), k).cloned().collect()
                 parse_quote! {
-                    #seq.choose_multiple(&mut rand::thread_rng(), #k as usize)
-                        .cloned()
-                        .collect::<Vec<_>>()
+                    {
+                        use rand::seq::SliceRandom;
+                        #seq.choose_multiple(&mut rand::thread_rng(), #k as usize)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                    }
                 }
             }
 
