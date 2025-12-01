@@ -3249,6 +3249,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Python: run_cli("--help") where def run_cli(*args)
             // Rust: run_cli(&["--help".to_string()]) where fn run_cli(args: &[String])
             if self.ctx.vararg_functions.contains(func) && !borrowed_args.is_empty() {
+                // DEPYLER-0660: Check if single arg is already a Vec (from starred unpacking)
+                // Python: join_paths(*args.parts) where args.parts is List[str]
+                // Should become: join_paths(&parts) not join_paths(&[parts])
+                if borrowed_args.len() == 1 && hir_args.len() == 1 {
+                    let hir_arg = &hir_args[0];
+                    let arg_is_collection = match hir_arg {
+                        // Attribute access to plural-named field (likely Vec)
+                        HirExpr::Attribute { value, attr } => {
+                            if let HirExpr::Var(v) = value.as_ref() {
+                                v == "args" && (attr.ends_with('s') || attr == "parts" || attr == "items" || attr == "values" || attr == "keys" || attr == "args")
+                            } else {
+                                false
+                            }
+                        }
+                        // Variable that's known to be a list
+                        HirExpr::Var(v) => v.ends_with('s') || v == "parts" || v == "items" || v == "args",
+                        // List literal
+                        HirExpr::List(_) => true,
+                        _ => false,
+                    };
+
+                    if arg_is_collection {
+                        let arg = &borrowed_args[0];
+                        return Ok(parse_quote! { #func_ident(&#arg) });
+                    }
+                }
                 // Wrap all arguments in a slice literal
                 return Ok(parse_quote! { #func_ident(&[#(#borrowed_args),*]) });
             }
