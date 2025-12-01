@@ -199,7 +199,7 @@ jobs:
           echo "Modules documented: $MODULE_COUNT"
 
           # Example count
-          EXAMPLE_COUNT=$(grep -r "```python" src/modules/ | wc -l)
+          EXAMPLE_COUNT=$(grep -r '\`\`\`python' src/modules/ | wc -l)
           echo "Python examples: $EXAMPLE_COUNT"
 
           echo ""
