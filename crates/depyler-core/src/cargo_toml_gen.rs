@@ -190,6 +190,22 @@ pub fn generate_cargo_toml(
     toml
 }
 
+/// Generate Cargo.toml with automatic crate type selection (DEPYLER-0629)
+///
+/// Selects [lib] for test files (test_*) and [[bin]] for regular files.
+/// This ensures CI enforcement of test files → [lib] is handled consistently.
+pub fn generate_cargo_toml_auto(
+    package_name: &str,
+    source_file_path: &str,
+    dependencies: &[Dependency],
+) -> String {
+    if package_name.starts_with("test_") {
+        generate_cargo_toml_lib(package_name, source_file_path, dependencies)
+    } else {
+        generate_cargo_toml(package_name, source_file_path, dependencies)
+    }
+}
+
 /// Generate Cargo.toml for library crates (DEPYLER-0600)
 ///
 /// Used by oracle improve loop where generated code has no main function.

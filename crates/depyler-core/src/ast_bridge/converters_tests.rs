@@ -759,12 +759,17 @@ fn test_is_not_none_converts_to_is_some() {
 }
 
 #[test]
-fn test_is_with_non_none_fails() {
-    // 'is' operator with non-None values should fail (not supported)
+fn test_is_with_non_none_converts_to_eq() {
+    // DEPYLER-0188: 'is' operator with non-None values converts to equality check
+    // Python 'is' checks identity, but transpiled code uses value equality
     let expr = parse_expr("x is y");
-    let result = ExprConverter::convert(expr);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("is"));
+    let result = ExprConverter::convert(expr).unwrap();
+    match result {
+        HirExpr::Binary { op, .. } => {
+            assert_eq!(op, BinOp::Eq);
+        }
+        _ => panic!("Expected Binary expression with Eq operator"),
+    }
 }
 
 #[test]
