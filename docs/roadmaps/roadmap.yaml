@@ -1701,3 +1701,40 @@ roadmap:
   - oip-integration
   - citl
   notes: 'Delta from existing github_corpus.rs: Export pipeline (vs import-only), ErrorCodeClass for GNN, alimentar Parquet. OIP→Depyler import already exists.'
+- id: DEPYLER-0637
+  github_issue: null
+  item_type: feature
+  title: 'Strategy Integration Pipeline: Wire 6 Strategies into Transpiler'
+  status: inprogress
+  priority: high
+  assigned_to: Claude
+  created: 2025-12-01T08:40:32.544990419+00:00
+  updated: 2025-12-01T08:40:32.544990419+00:00
+  spec: docs/specifications/single-shot-80-percentage-review.md#109-integration-architecture
+  acceptance_criteria:
+  - Create AccelerationPipeline struct combining all 6 strategies
+  - Implement analyze_and_suggest() method using Tarantula + ErrorPatterns
+  - Implement prioritize_fixes() using CurriculumScheduler
+  - Wire to OracleQueryLoop for auto-fix integration
+  - Add integration tests with sample errors
+  phases:
+  - name: Phase 1 - AccelerationPipeline struct
+    status: planned
+    estimated_effort: 2h
+    completion: 0
+  - name: Phase 2 - Wire to OracleQueryLoop
+    status: planned
+    estimated_effort: 2h
+    completion: 0
+  - name: Phase 3 - Integration tests
+    status: planned
+    estimated_effort: 1h
+    completion: 0
+  subtasks: []
+  estimated_effort: 5h
+  labels:
+  - P0-critical
+  - acceleration
+  - integration
+  - pipeline
+  notes: 'Wires DEPYLER-0631 through 0636 into unified pipeline for transpiler use'
