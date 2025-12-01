@@ -11702,6 +11702,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-0663: Handle serde_json::Value method calls
+        // serde_json::Value doesn't have direct .len(), .iter(), .is_none(), .is_some() methods
+        // We need to convert them to the appropriate serde_json::Value method chains
+        if self.is_serde_json_value_expr(object) || self.is_serde_json_value(object) {
+            let object_expr = object.to_rust_expr(self.ctx)?;
+            match method {
+                // value.len() → value.as_array().map(|a| a.len()).unwrap_or_else(|| value.as_object().map(|o| o.len()).unwrap_or(0))
+                "len" if args.is_empty() => {
+                    return Ok(parse_quote! {
+                        #object_expr.as_array().map(|a| a.len()).unwrap_or_else(||
+                            #object_expr.as_object().map(|o| o.len()).unwrap_or(0)
+                        ) as i32
+                    });
+                }
+                // value.iter() → value.as_array().into_iter().flatten()
+                "iter" if args.is_empty() => {
+                    return Ok(parse_quote! {
+                        #object_expr.as_array().into_iter().flatten()
+                    });
+                }
+                // value.is_none() → value.is_null()
+                "is_none" if args.is_empty() => {
+                    return Ok(parse_quote! { #object_expr.is_null() });
+                }
+                // value.is_some() → !value.is_null()
+                "is_some" if args.is_empty() => {
+                    return Ok(parse_quote! { !#object_expr.is_null() });
+                }
+                _ => {} // Fall through to other handlers
+            }
+        }
+
         // DEPYLER-0558: Handle hasher methods (hexdigest, update) for incremental hashing
         if method == "hexdigest" {
             self.ctx.needs_hex = true;
