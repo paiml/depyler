@@ -1756,6 +1756,14 @@ fn codegen_option_if_let(
     let unwrapped_name = format!("{}_val", var_name);
     let unwrapped_ident = safe_ident(&unwrapped_name);
 
+    // DEPYLER-0645: Inside generators, state variables need self. prefix
+    let var_expr: proc_macro2::TokenStream =
+        if ctx.in_generator && ctx.generator_state_vars.contains(var_name) {
+            quote! { self.#var_ident }
+        } else {
+            quote! { #var_ident }
+        };
+
     // Add mapping so variable references inside body use unwrapped name
     ctx.option_unwrap_map
         .insert(var_name.to_string(), unwrapped_name.clone());
@@ -1781,7 +1789,7 @@ fn codegen_option_if_let(
         ctx.exit_scope();
 
         quote! {
-            if let Some(ref #unwrapped_ident) = #var_ident {
+            if let Some(ref #unwrapped_ident) = #var_expr {
                 #(#then_stmts)*
             } else {
                 #(#else_tokens)*
@@ -1789,7 +1797,7 @@ fn codegen_option_if_let(
         }
     } else {
         quote! {
-            if let Some(ref #unwrapped_ident) = #var_ident {
+            if let Some(ref #unwrapped_ident) = #var_expr {
                 #(#then_stmts)*
             }
         }
