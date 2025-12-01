@@ -10179,6 +10179,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_alphabetic()) })
             }
+            "isspace" => {
+                // DEPYLER-0650: str.isspace() → .chars().all(|c| c.is_whitespace())
+                if !arg_exprs.is_empty() {
+                    bail!("isspace() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.chars().all(|c| c.is_whitespace()) })
+            }
             "lstrip" => {
                 // DEPYLER-0302/0595: str.lstrip([chars]) → .trim_start_matches
                 if arg_exprs.is_empty() {
@@ -11354,7 +11361,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Note: "index" handled in list methods above (lists take precedence)
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
             | "split" | "rsplit" | "splitlines" | "join" | "replace" | "find" | "rfind" | "rindex"
-            | "isdigit" | "isalpha" | "isalnum" | "title" | "center" | "ljust" | "rjust"
+            | "isdigit" | "isalpha" | "isalnum" | "isspace" | "title" | "center" | "ljust" | "rjust"
             | "zfill" | "hex" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
