@@ -243,6 +243,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn borrow_path_with_option_check(&self, path_expr: &syn::Expr, hir_arg: &HirExpr) -> syn::Expr {
         // Check if the HIR arg is a variable that might be Option-typed
         if let HirExpr::Var(var_name) = hir_arg {
+            // DEPYLER-0644: Check if variable is already unwrapped (inside if-let body)
+            // If so, the variable is already a concrete String, not Option<String>
+            if self.ctx.option_unwrap_map.contains_key(var_name) {
+                // Variable was already unwrapped, just borrow it
+                return Self::borrow_if_needed(path_expr);
+            }
             // Check if variable is Option-typed
             if let Some(var_type) = self.ctx.var_types.get(var_name) {
                 // DEPYLER-0571: PathBuf/Path types are NOT Optional, just borrow them
@@ -4217,7 +4223,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // If key is an &Option<String> or Option<String>, unwrap it first
                     let key = &arg_exprs[0];
                     let key_with_unwrap = if let HirExpr::Var(var_name) = &args[0] {
-                        if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        // DEPYLER-0644: Check if variable is already unwrapped (inside if-let body)
+                        // If so, the key is already a concrete String, not Option<String>
+                        if self.ctx.option_unwrap_map.contains_key(var_name) {
+                            // Variable was already unwrapped, don't add .as_ref().unwrap()
+                            key.clone()
+                        } else if let Some(var_type) = self.ctx.var_types.get(var_name) {
                             if matches!(var_type, Type::Optional(_)) {
                                 // Key is an Option type - unwrap it
                                 parse_quote! { #key.as_ref().unwrap() }
