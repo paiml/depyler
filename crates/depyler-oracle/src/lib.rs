@@ -49,6 +49,7 @@ pub mod tarantula;
 pub mod tarantula_bridge;
 pub mod tarantula_corpus;
 pub mod oip_export;
+pub mod acceleration_pipeline;
 
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
@@ -152,6 +153,11 @@ pub use gnn_encoder::{
 pub use oip_export::{
     BatchExporter, DepylerExport, ErrorCodeClass, ExportStats,
     SpanInfo, SuggestionInfo, export_to_jsonl,
+};
+
+// Acceleration Pipeline (DEPYLER-0637) - Unified strategy integration
+pub use acceleration_pipeline::{
+    AccelerationPipeline, AnalysisResult, FixSource, PipelineConfig, PipelineStats,
 };
 
 /// Error types for the oracle.
