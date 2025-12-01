@@ -13807,10 +13807,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             HirExpr::List(_) => true,
             HirExpr::Call { func, .. } if func == "list" => true,
-            HirExpr::Var(_name) => {
-                // For rust_gen, we're more conservative since we don't have type info
-                // Only treat explicit list literals and calls as lists
-                false
+            HirExpr::Var(name) => {
+                // DEPYLER-169: Check var_types for List type
+                // This enables proper `item in list_var` detection
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    matches!(var_type, Type::List(_))
+                } else {
+                    // Fall back to conservative: only treat explicit list literals as lists
+                    false
+                }
             }
             _ => false,
         }
