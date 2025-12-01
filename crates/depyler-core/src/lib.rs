@@ -966,6 +966,30 @@ impl DepylerPipeline {
         // DEPYLER-0575: Cross-function type propagation from call sites
         propagate_call_site_types(&mut hir);
 
+        // DEPYLER-0202: Constraint-based type inference via Hindley-Milner
+        // Collect constraints from HIR and solve for unknown types
+        {
+            use type_system::{ConstraintCollector, TypeConstraintSolver};
+
+            let mut collector = ConstraintCollector::new();
+            collector.collect_module(&hir);
+
+            let constraints = collector.constraints();
+            if !constraints.is_empty() {
+                let mut solver = TypeConstraintSolver::new();
+                for constraint in constraints {
+                    solver.add_constraint(constraint.clone());
+                }
+
+                if let Ok(solution) = solver.solve() {
+                    let applied = collector.apply_substitutions(&mut hir, &solution);
+                    if applied > 0 {
+                        eprintln!("HM inference: applied {} type substitutions", applied);
+                    }
+                }
+            }
+        }
+
         // Apply optimization passes based on annotations
         optimization::optimize_module(&mut hir);
 
@@ -1106,6 +1130,30 @@ impl DepylerPipeline {
 
         // DEPYLER-0575: Cross-function type propagation from call sites
         propagate_call_site_types(&mut hir);
+
+        // DEPYLER-0202: Constraint-based type inference via Hindley-Milner
+        // Collect constraints from HIR and solve for unknown types
+        {
+            use type_system::{ConstraintCollector, TypeConstraintSolver};
+
+            let mut collector = ConstraintCollector::new();
+            collector.collect_module(&hir);
+
+            let constraints = collector.constraints();
+            if !constraints.is_empty() {
+                let mut solver = TypeConstraintSolver::new();
+                for constraint in constraints {
+                    solver.add_constraint(constraint.clone());
+                }
+
+                if let Ok(solution) = solver.solve() {
+                    let applied = collector.apply_substitutions(&mut hir, &solution);
+                    if applied > 0 {
+                        eprintln!("HM inference: applied {} type substitutions", applied);
+                    }
+                }
+            }
+        }
 
         // Apply optimization passes based on annotations
         optimization::optimize_module(&mut hir);
