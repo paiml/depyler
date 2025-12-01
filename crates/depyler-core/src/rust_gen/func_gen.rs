@@ -2794,8 +2794,10 @@ pub(crate) fn codegen_return_type(
     // DEPYLER-0460: Also infer when ret_type is None, because that could be:
     // 1. A function returning None in all paths → () in Rust
     // 2. A function returning None|T (Optional pattern) → Option<T> in Rust
+    // DEPYLER-0662: Also infer when ret_type is empty tuple (from `-> tuple` annotation)
+    // Python `-> tuple` without type params should be inferred from return statements
     let should_infer = matches!(func.ret_type, Type::Unknown | Type::None)
-        || matches!(&func.ret_type, Type::Tuple(elems) if elems.iter().any(|t| matches!(t, Type::Unknown)))
+        || matches!(&func.ret_type, Type::Tuple(elems) if elems.is_empty() || elems.iter().any(|t| matches!(t, Type::Unknown)))
         || matches!(&func.ret_type, Type::List(elem) if matches!(**elem, Type::Unknown));
 
     let effective_ret_type = if should_infer {

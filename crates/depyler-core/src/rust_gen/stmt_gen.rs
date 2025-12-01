@@ -3610,7 +3610,15 @@ pub(crate) fn codegen_assign_index(
             )
         } else {
             // HashMap.insert(key, value)
-            Ok(quote! { #base_expr.insert(#final_index, #final_value_expr); })
+            // DEPYLER-0661: Clone variable keys to avoid move-after-use errors
+            // When key is a variable like `word_lower`, it may be used elsewhere
+            // (e.g., words.push(word_lower)) so we clone to prevent move
+            let needs_clone = matches!(index, HirExpr::Var(_));
+            if needs_clone {
+                Ok(quote! { #base_expr.insert(#final_index.clone(), #final_value_expr); })
+            } else {
+                Ok(quote! { #base_expr.insert(#final_index, #final_value_expr); })
+            }
         }
     } else {
         // Nested assignment: build chain of get_mut calls
@@ -3633,7 +3641,13 @@ pub(crate) fn codegen_assign_index(
             )
         } else {
             // HashMap.insert(key, value)
-            Ok(quote! { #chain.insert(#final_index, #final_value_expr); })
+            // DEPYLER-0661: Clone variable keys to avoid move-after-use errors
+            let needs_clone = matches!(index, HirExpr::Var(_));
+            if needs_clone {
+                Ok(quote! { #chain.insert(#final_index.clone(), #final_value_expr); })
+            } else {
+                Ok(quote! { #chain.insert(#final_index, #final_value_expr); })
+            }
         }
     }
 }
