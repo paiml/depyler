@@ -533,6 +533,7 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
         (ctx.needs_rc, quote! { use std::rc::Rc; }),
         (ctx.needs_cow, quote! { use std::borrow::Cow; }),
         (ctx.needs_serde_json, quote! { use serde_json; }),
+        (ctx.needs_base64, quote! { use base64::Engine; }), // DEPYLER-0664: Engine trait needed for .encode()/.decode() methods
         (ctx.needs_io_read, quote! { use std::io::Read; }), // DEPYLER-0458
         (ctx.needs_io_write, quote! { use std::io::Write; }), // DEPYLER-0458
         (ctx.needs_bufread, quote! { use std::io::BufRead; }), // DEPYLER-0522
