@@ -23,15 +23,15 @@ path = "src/bin/extract_training_data.rs"
 # Depyler core for error types
 depyler-core = { path = "../depyler-core" }
 
-# ML models from aprender (local dev)
+# ML models from aprender
 # Features: parallel (rayon), gpu (wgpu via trueno)
-aprender = { path = "../../../aprender", default-features = true }
+aprender = { version = "0.14.0", default-features = true }
 
 # CITL training framework for pattern store (Issue #172)
-entrenar = { path = "../../../entrenar", features = ["citl"] }
+entrenar = { version = "0.2.2", features = ["citl"] }
 
 # Data loading and versioning
-alimentar = { path = "../../../alimentar" }
+alimentar = "0.2.2"
 arrow = { version = "54", default-features = false, features = ["prettyprint"] }
 parquet = { version = "54", default-features = false, features = ["arrow", "snap"] }
 
@@ -75,4 +75,4 @@ tempfile.workspace = true
 proptest.workspace = true
 
 # Synthetic data factory for corpus generation
-verificar = "0.3"
+verificar = "0.5.0"
