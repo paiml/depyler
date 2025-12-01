@@ -735,7 +735,126 @@ let similar = oracle.search_k_nearest(&embedding, k: 5);
 | Training time | 2 hours | 8 hours |
 | Validation set | 100 | 400 |
 
-### 10.7 Implementation Priority Matrix
+### 10.7 Strategy #6: OIP CITL Bidirectional Integration (P1)
+
+**Ticket:** DEPYLER-0636
+
+**Purpose:** Enable closed-loop training between Depyler and organizational-intelligence-plugin (OIP).
+
+#### Why OIP Integration?
+
+OIP's CITL module provides:
+1. **Mature category mappings**: `rustc_to_defect_category()` maps E-codes to 18 DefectCategories
+2. **Feature extraction**: `ErrorCodeClass` (Type/Borrow/Name/Trait/Other) for GNN input
+3. **Parquet batch loading**: `alimentar::ArrowDataset` for large corpus handling
+4. **Confidence scoring**: Pre-computed confidence per error code
+
+#### Bidirectional Data Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                DEPYLER → OIP (Export)                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Depyler Transpile Errors                                   │
+│       │                                                     │
+│       ▼                                                     │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Export to DepylerExport format (JSONL/Parquet)     │   │
+│  │  - source_file, error_code, clippy_lint             │   │
+│  │  - message, confidence, span, suggestion            │   │
+│  │  - oip_category (pre-mapped)                        │   │
+│  └─────────────────────────────────────────────────────┘   │
+│       │                                                     │
+│       ▼                                                     │
+│  OIP import_depyler_corpus() → TrainingExample              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────┐
+│                OIP → DEPYLER (Import)                       │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  OIP Git History Mining                                     │
+│       │                                                     │
+│       ▼                                                     │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  CitlDataLoader.load_parquet()                       │   │
+│  │  - Batch loading via alimentar                       │   │
+│  │  - Confidence filtering (min 0.75)                   │   │
+│  └─────────────────────────────────────────────────────┘   │
+│       │                                                     │
+│       ▼                                                     │
+│  convert_to_training_examples()                             │
+│       │                                                     │
+│       ▼                                                     │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │  Depyler KnowledgeDistiller.collect_example()        │   │
+│  │  - Maps DefectCategory → ErrorCategory               │   │
+│  │  - Uses ErrorCodeClass for GNN features              │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+#### Category Mapping Table
+
+| OIP DefectCategory | Depyler ErrorCategory | ErrorCodeClass |
+|-------------------|----------------------|----------------|
+| TypeErrors | TypeMismatch | Type |
+| TypeAnnotationGaps | TypeMismatch | Type |
+| TraitBounds | TraitBound | Trait |
+| OwnershipBorrow | BorrowChecker | Borrow |
+| MemorySafety | BorrowChecker | Borrow |
+| StdlibMapping | MissingImport | Name |
+| ASTTransform | MissingImport | Name |
+| ApiMisuse | Other | Other |
+| IteratorChain | Other | Other |
+
+#### Implementation
+
+```rust
+use organizational_intelligence_plugin::citl::{
+    CitlDataLoader, DepylerExport, ErrorCodeClass,
+    rustc_to_defect_category, get_error_code_class
+};
+use depyler_oracle::{KnowledgeDistiller, LlmFixExample};
+
+// Import OIP training data
+let loader = CitlDataLoader::new()
+    .min_confidence(0.75)
+    .batch_size(128);
+
+let (examples, stats) = loader.load_jsonl("oip_training.jsonl")?;
+
+// Feed into distillation pipeline
+let mut distiller = KnowledgeDistiller::new(Default::default());
+
+for example in examples {
+    let llm_example = LlmFixExample {
+        error_code: example.error_code.unwrap_or_default(),
+        error_message: example.message.clone(),
+        llm_confidence: example.confidence as f64,
+        validated: true,
+        ..Default::default()
+    };
+    distiller.collect_example(llm_example);
+}
+
+// Use ErrorCodeClass for GNN features
+let class = get_error_code_class("E0308"); // ErrorCodeClass::Type
+let features = [class.as_u8() as f32, 0.0, 0.0, 0.0]; // One-hot encoding
+```
+
+#### Expected Impact
+
+| Metric | Before | After |
+|--------|--------|-------|
+| Training corpus size | 3,812 | 10,000+ |
+| Category coverage | 70% | 95% |
+| Cross-project learning | No | Yes |
+
+### 10.8 Implementation Priority Matrix
 
 | Strategy | Impact | Effort | Dependencies | Priority | Timeline |
 |----------|--------|--------|--------------|----------|----------|
@@ -744,8 +863,9 @@ let similar = oracle.search_k_nearest(&embedding, k: 5);
 | **#3 Curriculum Learning** | MEDIUM | LOW | aprender | **P1** | Week 2-3 |
 | **#4 Knowledge Distillation** | HIGH | HIGH | entrenar+decy | **P1** | Ongoing |
 | **#5 GNN Encoder** | MEDIUM | HIGH | aprender | **P2** | Week 4-6 |
+| **#6 OIP CITL Integration** | HIGH | LOW | OIP | **P1** | Week 2 |
 
-### 10.8 Integration Architecture
+### 10.9 Integration Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -807,7 +927,7 @@ let similar = oracle.search_k_nearest(&embedding, k: 5);
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 10.9 Dependency Graph
+### 10.10 Dependency Graph
 
 ```
 decy-oracle ─────────┐
@@ -821,7 +941,7 @@ entrenar::distill ───────► depyler-distill (new crate)
 aprender::citl::GNN ─────► depyler-encoder (new crate, P2)
 ```
 
-### 10.10 Success Criteria
+### 10.11 Success Criteria
 
 | Milestone | Single-Shot Rate | LLM Calls/1000 | Timeline |
 |-----------|------------------|----------------|----------|
