@@ -3165,6 +3165,12 @@ impl RustCodeGen for HirFunction {
         ctx.function_param_muts
             .insert(self.name.clone(), param_muts);
 
+        // DEPYLER-0648: Track if function has vararg parameter (*args in Python)
+        // These become &[T] in Rust, so call sites need to wrap args in &[...]
+        if self.params.iter().any(|p| p.is_vararg) {
+            ctx.vararg_functions.insert(self.name.clone());
+        }
+
         // Generate return type with Result wrapper and lifetime handling
         let (return_type, rust_ret_type, can_fail, error_type) =
             codegen_return_type(self, &lifetime_result, ctx)?;

@@ -239,6 +239,10 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0627: Track if subprocess.run is used (needs CompletedProcess struct)
     /// When True, generate a CompletedProcess struct in the output
     pub needs_completed_process: bool,
+
+    /// DEPYLER-0648: Track functions that have vararg parameters (*args in Python)
+    /// These functions expect &[T] slice arguments, so call sites need to wrap args in &[...]
+    pub vararg_functions: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {

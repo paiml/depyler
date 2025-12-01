@@ -279,8 +279,11 @@ pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::
     }
 
     // Convert classes to structs
+    // Use empty vararg_functions for backward compatibility in this code path
+    static EMPTY_VARARGS: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    let empty_varargs = EMPTY_VARARGS.get_or_init(std::collections::HashSet::new);
     for class in &module.classes {
-        let struct_items = convert_class_to_struct(class, type_mapper)?;
+        let struct_items = convert_class_to_struct(class, type_mapper, empty_varargs)?;
         items.extend(struct_items);
     }
 
@@ -427,6 +430,7 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
 pub fn convert_class_to_struct(
     class: &HirClass,
     type_mapper: &TypeMapper,
+    vararg_functions: &std::collections::HashSet<String>, // DEPYLER-0648: Track vararg functions
 ) -> Result<Vec<syn::Item>> {
     let mut items = Vec::new();
     let struct_name = make_ident(&class.name);
@@ -510,10 +514,12 @@ pub fn convert_class_to_struct(
     if has_init {
         for method in &class.methods {
             if method.name == "__init__" {
-                let new_method = convert_init_to_new(method, class, &struct_name, type_mapper)?;
+                // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
+                let new_method = convert_init_to_new(method, class, &struct_name, type_mapper, vararg_functions)?;
                 impl_items.push(syn::ImplItem::Fn(new_method));
             } else {
-                let rust_method = convert_method_to_impl_item(method, type_mapper)?;
+                // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
+                let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions)?;
                 impl_items.push(syn::ImplItem::Fn(rust_method));
             }
         }
@@ -531,7 +537,8 @@ pub fn convert_class_to_struct(
 
         // Add other methods
         for method in &class.methods {
-            let rust_method = convert_method_to_impl_item(method, type_mapper)?;
+            // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
+            let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions)?;
             impl_items.push(syn::ImplItem::Fn(rust_method));
         }
     }
@@ -645,6 +652,7 @@ fn convert_init_to_new(
     class: &HirClass,
     _struct_name: &syn::Ident,
     type_mapper: &TypeMapper,
+    _vararg_functions: &std::collections::HashSet<String>,
 ) -> Result<syn::ImplItemFn> {
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
@@ -884,6 +892,7 @@ fn infer_expr_type(expr: &HirExpr) -> Type {
 fn convert_method_to_impl_item(
     method: &HirMethod,
     type_mapper: &TypeMapper,
+    vararg_functions: &std::collections::HashSet<String>,
 ) -> Result<syn::ImplItemFn> {
     // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
     let method_name = if is_rust_keyword(&method.name) {
@@ -956,7 +965,8 @@ fn convert_method_to_impl_item(
         parse_quote! { {} }
     } else {
         // Convert the method body statements with classmethod context
-        convert_block_with_context(&method.body, type_mapper, method.is_classmethod)?
+        // DEPYLER-0648: Pass vararg_functions for proper slice wrapping at call sites
+        convert_block_with_context(&method.body, type_mapper, method.is_classmethod, vararg_functions)?
     };
 
     Ok(syn::ImplItemFn {
@@ -1430,17 +1440,20 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
 }
 
 fn convert_body(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<Vec<syn::Stmt>> {
-    convert_body_with_context(stmts, type_mapper, false)
+    // Use empty vararg_functions for backward compatibility
+    static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    convert_body_with_context(stmts, type_mapper, false, EMPTY.get_or_init(std::collections::HashSet::new))
 }
 
 fn convert_body_with_context(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,
     is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
 ) -> Result<Vec<syn::Stmt>> {
     stmts
         .iter()
-        .map(|stmt| convert_stmt_with_context(stmt, type_mapper, is_classmethod))
+        .map(|stmt| convert_stmt_with_context(stmt, type_mapper, is_classmethod, vararg_functions))
         .collect()
 }
 
@@ -1678,23 +1691,26 @@ fn convert_assign_stmt_with_expr(
 
 #[allow(dead_code)]
 fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
-    convert_stmt_with_context(stmt, type_mapper, false)
+    // Use empty vararg_functions for backward compatibility
+    static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    convert_stmt_with_context(stmt, type_mapper, false, EMPTY.get_or_init(std::collections::HashSet::new))
 }
 
 fn convert_stmt_with_context(
     stmt: &HirStmt,
     type_mapper: &TypeMapper,
     is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
 ) -> Result<syn::Stmt> {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
             // For assignments, we need to convert the value expression with classmethod context
-            let value_expr = convert_expr_with_context(value, type_mapper, is_classmethod)?;
+            let value_expr = convert_expr_with_context(value, type_mapper, is_classmethod, vararg_functions)?;
             convert_assign_stmt_with_expr(target, value_expr, type_mapper)
         }
         HirStmt::Return(expr) => {
             let ret_expr = if let Some(e) = expr {
-                convert_expr_with_context(e, type_mapper, is_classmethod)?
+                convert_expr_with_context(e, type_mapper, is_classmethod, vararg_functions)?
             } else {
                 parse_quote! { () }
             };
@@ -1708,12 +1724,12 @@ fn convert_stmt_with_context(
             then_body,
             else_body,
         } => {
-            let cond = convert_expr_with_context(condition, type_mapper, is_classmethod)?;
-            let then_block = convert_block_with_context(then_body, type_mapper, is_classmethod)?;
+            let cond = convert_expr_with_context(condition, type_mapper, is_classmethod, vararg_functions)?;
+            let then_block = convert_block_with_context(then_body, type_mapper, is_classmethod, vararg_functions)?;
 
             let if_expr = if let Some(else_stmts) = else_body {
                 let else_block =
-                    convert_block_with_context(else_stmts, type_mapper, is_classmethod)?;
+                    convert_block_with_context(else_stmts, type_mapper, is_classmethod, vararg_functions)?;
                 parse_quote! {
                     if #cond #then_block else #else_block
                 }
@@ -1726,8 +1742,8 @@ fn convert_stmt_with_context(
             Ok(syn::Stmt::Expr(if_expr, Some(Default::default())))
         }
         HirStmt::While { condition, body } => {
-            let cond = convert_expr_with_context(condition, type_mapper, is_classmethod)?;
-            let body_block = convert_block_with_context(body, type_mapper, is_classmethod)?;
+            let cond = convert_expr_with_context(condition, type_mapper, is_classmethod, vararg_functions)?;
+            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions)?;
 
             let while_expr = parse_quote! {
                 while #cond #body_block
@@ -1757,8 +1773,8 @@ fn convert_stmt_with_context(
                 _ => panic!("Unsupported for loop target type"),
             };
 
-            let iter_expr = convert_expr_with_context(iter, type_mapper, is_classmethod)?;
-            let body_block = convert_block_with_context(body, type_mapper, is_classmethod)?;
+            let iter_expr = convert_expr_with_context(iter, type_mapper, is_classmethod, vararg_functions)?;
+            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions)?;
 
             let for_expr = parse_quote! {
                 for #target_pattern in #iter_expr #body_block
@@ -1767,7 +1783,7 @@ fn convert_stmt_with_context(
             Ok(syn::Stmt::Expr(for_expr, Some(Default::default())))
         }
         HirStmt::Expr(expr) => {
-            let rust_expr = convert_expr_with_context(expr, type_mapper, is_classmethod)?;
+            let rust_expr = convert_expr_with_context(expr, type_mapper, is_classmethod, vararg_functions)?;
             Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
         }
         HirStmt::Raise {
@@ -1776,7 +1792,7 @@ fn convert_stmt_with_context(
         } => {
             // Convert to Rust panic for direct rules
             let panic_expr = if let Some(exc) = exception {
-                let exc_expr = convert_expr_with_context(exc, type_mapper, is_classmethod)?;
+                let exc_expr = convert_expr_with_context(exc, type_mapper, is_classmethod, vararg_functions)?;
                 parse_quote! { panic!("Exception: {}", #exc_expr) }
             } else {
                 parse_quote! { panic!("Exception raised") }
@@ -1810,10 +1826,10 @@ fn convert_stmt_with_context(
             ..
         } => {
             // Convert context expression
-            let context_expr = convert_expr_with_context(context, type_mapper, is_classmethod)?;
+            let context_expr = convert_expr_with_context(context, type_mapper, is_classmethod, vararg_functions)?;
 
             // Convert body to a block
-            let body_block = convert_block_with_context(body, type_mapper, is_classmethod)?;
+            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions)?;
 
             // Generate a scope block with optional variable binding
             let block_expr = if let Some(var_name) = target {
@@ -1842,18 +1858,18 @@ fn convert_stmt_with_context(
             finalbody,
         } => {
             // Convert try body
-            let try_stmts = convert_block_with_context(body, type_mapper, is_classmethod)?;
+            let try_stmts = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions)?;
 
             // Convert finally block if present
             let finally_block = finalbody
                 .as_ref()
-                .map(|fb| convert_block_with_context(fb, type_mapper, is_classmethod))
+                .map(|fb| convert_block_with_context(fb, type_mapper, is_classmethod, vararg_functions))
                 .transpose()?;
 
             // Convert except handlers (use first handler for simplicity)
             if let Some(handler) = handlers.first() {
                 let handler_block =
-                    convert_block_with_context(&handler.body, type_mapper, is_classmethod)?;
+                    convert_block_with_context(&handler.body, type_mapper, is_classmethod, vararg_functions)?;
 
                 let block_expr = if let Some(finally_stmts) = finally_block {
                     parse_quote! {
@@ -1899,9 +1915,9 @@ fn convert_stmt_with_context(
         }
         HirStmt::Assert { test, msg } => {
             // Generate assert! macro call
-            let test_expr = convert_expr_with_context(test, type_mapper, is_classmethod)?;
+            let test_expr = convert_expr_with_context(test, type_mapper, is_classmethod, vararg_functions)?;
             let assert_macro: syn::Stmt = if let Some(message) = msg {
-                let msg_expr = convert_expr_with_context(message, type_mapper, is_classmethod)?;
+                let msg_expr = convert_expr_with_context(message, type_mapper, is_classmethod, vararg_functions)?;
                 parse_quote! { assert!(#test_expr, "{}", #msg_expr); }
             } else {
                 parse_quote! { assert!(#test_expr); }
@@ -1918,7 +1934,7 @@ fn convert_stmt_with_context(
             if stmts.is_empty() {
                 Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
             } else {
-                convert_stmt_with_context(&stmts[0], type_mapper, is_classmethod)
+                convert_stmt_with_context(&stmts[0], type_mapper, is_classmethod, vararg_functions)
             }
         }
         // DEPYLER-0427: Nested function support - delegate to main rust_gen module
@@ -1932,15 +1948,18 @@ fn convert_stmt_with_context(
 
 #[allow(dead_code)]
 fn convert_block(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<syn::Block> {
-    convert_block_with_context(stmts, type_mapper, false)
+    // Use empty vararg_functions for backward compatibility
+    static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    convert_block_with_context(stmts, type_mapper, false, EMPTY.get_or_init(std::collections::HashSet::new))
 }
 
 fn convert_block_with_context(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,
     is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
 ) -> Result<syn::Block> {
-    let rust_stmts = convert_body_with_context(stmts, type_mapper, is_classmethod)?;
+    let rust_stmts = convert_body_with_context(stmts, type_mapper, is_classmethod, vararg_functions)?;
     Ok(syn::Block {
         brace_token: Default::default(),
         stmts: rust_stmts,
@@ -1950,16 +1969,20 @@ fn convert_block_with_context(
 /// Convert HIR expressions to Rust expressions using strategy pattern
 #[allow(dead_code)]
 fn convert_expr(expr: &HirExpr, type_mapper: &TypeMapper) -> Result<syn::Expr> {
-    convert_expr_with_context(expr, type_mapper, false)
+    // Use empty vararg_functions for backward compatibility
+    static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    convert_expr_with_context(expr, type_mapper, false, EMPTY.get_or_init(std::collections::HashSet::new))
 }
 
-/// Convert HIR expressions with classmethod context
+/// Convert HIR expressions with classmethod context and vararg tracking
 fn convert_expr_with_context(
     expr: &HirExpr,
     type_mapper: &TypeMapper,
     is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
 ) -> Result<syn::Expr> {
-    let converter = ExprConverter::with_classmethod(type_mapper, is_classmethod);
+    // DEPYLER-0648: Use with_varargs to track functions that need slice wrapping
+    let converter = ExprConverter::with_varargs(type_mapper, is_classmethod, vararg_functions);
     converter.convert(expr)
 }
 
@@ -1968,21 +1991,44 @@ struct ExprConverter<'a> {
     #[allow(dead_code)]
     type_mapper: &'a TypeMapper,
     is_classmethod: bool,
+    /// DEPYLER-0648: Track functions that have vararg parameters (*args in Python)
+    /// Call sites need to wrap arguments in &[...] slices
+    vararg_functions: &'a std::collections::HashSet<String>,
 }
 
 impl<'a> ExprConverter<'a> {
     #[allow(dead_code)]
     fn new(type_mapper: &'a TypeMapper) -> Self {
+        // Use empty static HashSet for backwards compatibility
+        static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
         Self {
             type_mapper,
             is_classmethod: false,
+            vararg_functions: EMPTY.get_or_init(std::collections::HashSet::new),
         }
     }
 
+    #[allow(dead_code)]
     fn with_classmethod(type_mapper: &'a TypeMapper, is_classmethod: bool) -> Self {
+        // Use empty static HashSet for backwards compatibility
+        static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
         Self {
             type_mapper,
             is_classmethod,
+            vararg_functions: EMPTY.get_or_init(std::collections::HashSet::new),
+        }
+    }
+
+    /// DEPYLER-0648: Create converter with vararg function tracking
+    fn with_varargs(
+        type_mapper: &'a TypeMapper,
+        is_classmethod: bool,
+        vararg_functions: &'a std::collections::HashSet<String>,
+    ) -> Self {
+        Self {
+            type_mapper,
+            is_classmethod,
+            vararg_functions,
         }
     }
 
@@ -2514,7 +2560,14 @@ impl<'a> ExprConverter<'a> {
         } else {
             // Regular function call
             let func_ident = make_ident(func);
-            Ok(parse_quote! { #func_ident(#(#args),*) })
+
+            // DEPYLER-0648: Check if this is a vararg function
+            // If so, wrap arguments in a slice: func(a, b) → func(&[a, b])
+            if self.vararg_functions.contains(func) && !args.is_empty() {
+                Ok(parse_quote! { #func_ident(&[#(#args),*]) })
+            } else {
+                Ok(parse_quote! { #func_ident(#(#args),*) })
+            }
         }
     }
 
