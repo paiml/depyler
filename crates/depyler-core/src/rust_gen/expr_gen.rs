@@ -10982,15 +10982,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // If it's a variable that's known to be Option, unwrap it first
             // DEPYLER-0536: Detect Option type for write() content argument
             // Priority: type system > name heuristics (only use heuristics when no type info)
+            // DEPYLER-0647: Check option_unwrap_map first - if already unwrapped, not Option
             let is_option_content = if let HirExpr::Var(var_name) = &hir_args[0] {
-                match self.ctx.var_types.get(var_name) {
-                    Some(Type::Optional(_)) => true,
-                    Some(_) => false, // Known non-Option type - don't use name heuristic
-                    None => {
-                        // No type info - fall back to name heuristic
-                        var_name == "content"
-                            || var_name.ends_with("_content")
-                            || var_name.ends_with("_text")
+                // Check if variable is already unwrapped (inside if-let body)
+                if self.ctx.option_unwrap_map.contains_key(var_name) {
+                    false // Already unwrapped, not Option
+                } else {
+                    match self.ctx.var_types.get(var_name) {
+                        Some(Type::Optional(_)) => true,
+                        Some(_) => false, // Known non-Option type - don't use name heuristic
+                        None => {
+                            // No type info - fall back to name heuristic
+                            var_name == "content"
+                                || var_name.ends_with("_content")
+                                || var_name.ends_with("_text")
+                        }
                     }
                 }
             } else {
