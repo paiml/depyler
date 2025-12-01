@@ -548,6 +548,58 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
     imports
 }
 
+/// DEPYLER-197: Generate Rust type aliases from Python type aliases
+///
+/// Maps Python type aliases like `EventHandler = Callable[[str], None]`
+/// to Rust type aliases like `type EventHandler = Box<dyn Fn(String)>;`
+///
+/// # Arguments
+/// * `type_aliases` - Vector of TypeAlias structs from HIR
+/// * `type_mapper` - TypeMapper for converting Python types to Rust types
+///
+/// # Returns
+/// Vector of TokenStreams containing type alias declarations
+fn generate_type_alias_tokens(
+    type_aliases: &[TypeAlias],
+    type_mapper: &crate::type_mapper::TypeMapper,
+) -> Vec<proc_macro2::TokenStream> {
+    let mut items = Vec::new();
+
+    for type_alias in type_aliases {
+        // Get the Rust type for this alias
+        let rust_type = type_mapper.map_type(&type_alias.target_type);
+        let target_type = match type_gen::rust_type_to_syn(&rust_type) {
+            Ok(ty) => ty,
+            Err(_) => continue, // Skip if type conversion fails
+        };
+
+        // Create identifier for the alias name
+        let alias_name = if keywords::is_rust_keyword(&type_alias.name) {
+            syn::Ident::new_raw(&type_alias.name, proc_macro2::Span::call_site())
+        } else {
+            syn::Ident::new(&type_alias.name, proc_macro2::Span::call_site())
+        };
+
+        // Generate either a newtype struct or a type alias
+        let alias_item = if type_alias.is_newtype {
+            // Generate a NewType struct: pub struct UserId(pub i32);
+            quote! {
+                #[derive(Debug, Clone, PartialEq)]
+                pub struct #alias_name(pub #target_type);
+            }
+        } else {
+            // Generate a type alias: pub type UserId = i32;
+            quote! {
+                pub type #alias_name = #target_type;
+            }
+        };
+
+        items.push(alias_item);
+    }
+
+    items
+}
+
 /// Generate import token streams from Python imports
 ///
 /// Maps Python imports to Rust use statements.
@@ -1197,6 +1249,11 @@ pub fn generate_rust_file(
     // Add module imports (create new mapper for token generation)
     let import_mapper = crate::module_mapper::ModuleMapper::new();
     items.extend(generate_import_tokens(&module.imports, &import_mapper));
+
+    // DEPYLER-197: Add type aliases (before constants, after imports)
+    // Python type aliases like `EventHandler = Callable[[str], None]`
+    // must be transpiled as Rust type aliases
+    items.extend(generate_type_alias_tokens(&module.type_aliases, ctx.type_mapper));
 
     // Add interned string constants
     items.extend(generate_interned_string_tokens(&ctx.string_optimizer));

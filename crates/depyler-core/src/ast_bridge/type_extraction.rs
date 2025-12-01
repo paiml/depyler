@@ -58,19 +58,25 @@ impl TypeExtractor {
             ast::Expr::BinOp(b) if matches!(b.op, ast::Operator::BitOr) => {
                 Self::extract_union_from_binop(b)
             }
-            // DEPYLER-0501: Handle Callable[[Any], Any] - parameter list is ExprList
+            // DEPYLER-0501/DEPYLER-197: Handle Callable[[T1, T2], R] - parameter list is ExprList
+            // Python Callable uses a list for parameters: Callable[[int, str], bool]
+            // Extract as Tuple so type mapper can build Box<dyn Fn(i32, String) -> bool>
             ast::Expr::List(list) => {
-                // For now, treat list of types as tuple-like (used in Callable)
-                // Map to Unknown for simplicity
                 if list.elts.is_empty() {
+                    // Empty list [] -> no parameters
                     Ok(Type::Unknown)
                 } else if list.elts.len() == 1 {
-                    // Single element list - extract that type
+                    // Single element list [T] - extract that type directly
                     Self::extract_type(&list.elts[0])
                 } else {
-                    // Multiple elements - for Callable[[T1, T2], R], map to Unknown
-                    // Full Callable support would need function pointer types
-                    Ok(Type::Unknown)
+                    // Multiple elements [T1, T2, ...] -> extract as Tuple for Callable params
+                    // This allows Callable[[int, str], bool] to correctly map parameters
+                    let types = list
+                        .elts
+                        .iter()
+                        .map(Self::extract_type)
+                        .collect::<Result<Vec<_>>>()?;
+                    Ok(Type::Tuple(types))
                 }
             }
             // DEPYLER-0512: Handle module-qualified types (module.Class)
