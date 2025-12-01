@@ -268,6 +268,39 @@ impl TypeMapper {
                         let item_type = self.map_type(&params[0]);
                         RustType::Custom(format!("impl IntoIterator<Item={}>", item_type.to_rust_string()))
                     }
+                    // DEPYLER-197: Callable[[T1, T2, ...], R] -> Box<dyn Fn(T1, T2, ...) -> R>
+                    // Python Callable types map to boxed trait objects for dynamic dispatch
+                    // This enables type aliases like `EventHandler = Callable[[str], None]`
+                    "Callable" if params.len() == 2 => {
+                        // params[0] is the parameter list type (may be Tuple, List, or single type)
+                        // params[1] is the return type
+                        let param_types = match &params[0] {
+                            PythonType::Tuple(inner) => {
+                                inner.iter().map(|t| self.map_type(t).to_rust_string()).collect::<Vec<_>>()
+                            }
+                            PythonType::List(inner) => {
+                                // Single param list: [[T]] -> [T]
+                                vec![self.map_type(inner).to_rust_string()]
+                            }
+                            PythonType::None => vec![], // Empty param list
+                            PythonType::Unknown => vec![], // Empty param list from []
+                            _ => vec![self.map_type(&params[0]).to_rust_string()],
+                        };
+                        let return_type = self.map_type(&params[1]);
+                        let return_str = return_type.to_rust_string();
+
+                        // Format: Box<dyn Fn(T1, T2) -> R> or Box<dyn Fn()> for None return
+                        let fn_str = if return_str == "()" || matches!(params[1], PythonType::None) {
+                            format!("Box<dyn Fn({})>", param_types.join(", "))
+                        } else {
+                            format!("Box<dyn Fn({}) -> {}>", param_types.join(", "), return_str)
+                        };
+                        RustType::Custom(fn_str)
+                    }
+                    "Callable" if params.is_empty() => {
+                        // Bare Callable without parameters -> Box<dyn Fn()>
+                        RustType::Custom("Box<dyn Fn()>".to_string())
+                    }
                     _ => RustType::Generic {
                         base: base.clone(),
                         params: params.iter().map(|t| self.map_type(t)).collect(),
