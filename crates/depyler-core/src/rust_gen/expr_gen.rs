@@ -10513,6 +10513,73 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     #object_expr.chars().all(|c| !c.is_control() || c == '\t' || c == '\n' || c == '\r')
                 })
             }
+            // DEPYLER-0652: Additional is* string methods
+            "isupper" => {
+                if !arg_exprs.is_empty() {
+                    bail!("isupper() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) })
+            }
+            "islower" => {
+                if !arg_exprs.is_empty() {
+                    bail!("islower() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()) })
+            }
+            "istitle" => {
+                if !arg_exprs.is_empty() {
+                    bail!("istitle() takes no arguments");
+                }
+                // Title case: first char of each word is uppercase, rest lowercase
+                Ok(parse_quote! {
+                    {
+                        let s = #object_expr;
+                        let mut prev_is_cased = false;
+                        s.chars().all(|c| {
+                            let is_upper = c.is_uppercase();
+                            let is_lower = c.is_lowercase();
+                            let result = if c.is_alphabetic() {
+                                if prev_is_cased { is_lower } else { is_upper }
+                            } else { true };
+                            prev_is_cased = c.is_alphabetic();
+                            result
+                        })
+                    }
+                })
+            }
+            "isnumeric" => {
+                if !arg_exprs.is_empty() {
+                    bail!("isnumeric() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.chars().all(|c| c.is_numeric()) })
+            }
+            "isascii" => {
+                if !arg_exprs.is_empty() {
+                    bail!("isascii() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.chars().all(|c| c.is_ascii()) })
+            }
+            "isdecimal" => {
+                if !arg_exprs.is_empty() {
+                    bail!("isdecimal() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.chars().all(|c| c.is_ascii_digit()) })
+            }
+            "isidentifier" => {
+                if !arg_exprs.is_empty() {
+                    bail!("isidentifier() takes no arguments");
+                }
+                // Python identifier: starts with letter/underscore, followed by alphanumeric/underscore
+                Ok(parse_quote! {
+                    {
+                        let s = #object_expr;
+                        !s.is_empty() && s.chars().enumerate().all(|(i, c)| {
+                            if i == 0 { c.is_alphabetic() || c == '_' }
+                            else { c.is_alphanumeric() || c == '_' }
+                        })
+                    }
+                })
+            }
 
             // DEPYLER-0538: str/bytes.hex() - convert bytes to hexadecimal string
             "hex" => {
@@ -11379,8 +11446,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Note: "index" handled in list methods above (lists take precedence)
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
             | "split" | "rsplit" | "splitlines" | "join" | "replace" | "find" | "rfind" | "rindex"
-            | "isdigit" | "isalpha" | "isalnum" | "isspace" | "title" | "center" | "ljust" | "rjust"
-            | "zfill" | "hex" => {
+            | "isdigit" | "isalpha" | "isalnum" | "isspace" | "isupper" | "islower" | "istitle"
+            | "isnumeric" | "isascii" | "isdecimal" | "isidentifier" | "isprintable"
+            | "title" | "capitalize" | "swapcase" | "casefold" | "center" | "ljust" | "rjust"
+            | "zfill" | "hex" | "encode" | "decode" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
