@@ -1670,11 +1670,11 @@ roadmap:
   github_issue: null
   item_type: feature
   title: 'Strategy #6: OIP CITL Export + ErrorCodeClass Integration'
-  status: planned
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-12-01T00:00:00+00:00
-  updated: 2025-12-01T00:00:00+00:00
+  updated: 2025-12-01T08:27:31.035653132+00:00
   spec: docs/specifications/single-shot-80-percentage-review.md#107-strategy-6-oip-citl-bidirectional-integration-p1
   acceptance_criteria:
   - Export Depyler CITL corpus to OIP DepylerExport format (NEW - reverse direction)
