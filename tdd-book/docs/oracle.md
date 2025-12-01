@@ -907,6 +907,323 @@ fn doctest_to_training_signal(result: &DoctestResult) -> TrainingSignal {
 
 ---
 
+## 80% Single-Shot Compile Rate: Acceleration Strategies
+
+To achieve 80% single-shot compilation success (up from ~24%), the Oracle implements 5 acceleration strategies using ML and fault localization techniques.
+
+### Strategy #1: Tarantula-Guided Codegen Hotfixes (DEPYLER-0631)
+
+**Fault localization** using spectrum-based suspiciousness scoring from the `tarantula` crate.
+
+```rust
+use depyler_oracle::{TarantulaIntegration, TarantulaConfig, TarantulaCorpus};
+
+// Configure fault localization
+let config = TarantulaConfig {
+    suspiciousness_threshold: 0.5,
+    min_coverage: 0.1,
+    max_suspects: 10,
+    ..Default::default()
+};
+
+let mut integration = TarantulaIntegration::new(config);
+
+// Register test results
+integration.register_pass("test_type_inference", &covered_lines);
+integration.register_fail("test_borrow_check", &covered_lines, "E0382");
+
+// Get suspicious locations
+let suspects = integration.get_suspects();
+for suspect in suspects {
+    println!("Line {}: suspiciousness={:.2}", suspect.line, suspect.suspiciousness);
+}
+```
+
+**Components**:
+- `TarantulaIntegration`: Core fault localization engine
+- `TarantulaBridge`: Connects to external tarantula crate
+- `TarantulaCorpus`: Manages test coverage data with deduplication
+
+### Strategy #2: CITL Error-Pattern Library (DEPYLER-0632)
+
+**Compiler-In-The-Loop** pattern matching for error classification.
+
+```rust
+use depyler_oracle::{ErrorPatternLibrary, ErrorPattern, PatternMatch};
+
+// Create library
+let mut library = ErrorPatternLibrary::new()?;
+
+// Add patterns
+let pattern = ErrorPattern::new(
+    "E0308",
+    "type_mismatch_i32_string",
+    r"expected `i32`, found `(String|&str)`",
+    "Use .parse::<i32>() for String→i32 conversion",
+    0.85,
+);
+library.add_pattern(pattern)?;
+
+// Match errors
+let matches = library.match_error("E0308", "expected `i32`, found `String`");
+for m in matches {
+    println!("Pattern: {} (similarity={:.2})", m.pattern_id, m.similarity);
+    println!("Fix: {}", m.suggested_fix);
+}
+
+// Persistence
+library.save_json(Path::new("patterns.json"))?;
+library.save_binary(Path::new("patterns.bin"))?;
+```
+
+**Features**:
+- Levenshtein similarity scoring
+- Category-based filtering
+- JSON/binary serialization
+- Pattern normalization
+
+### Strategy #3: Curriculum Learning (DEPYLER-0633)
+
+**Progressive difficulty ordering** for transpilation training.
+
+```rust
+use depyler_oracle::{CurriculumScheduler, CurriculumConfig, LearningItem};
+
+let config = CurriculumConfig {
+    initial_difficulty: 0.2,
+    difficulty_increment: 0.1,
+    success_threshold: 0.8,
+    window_size: 10,
+    ..Default::default()
+};
+
+let mut scheduler = CurriculumScheduler::new(config);
+
+// Add items with complexity scores
+scheduler.add_item(LearningItem {
+    id: "simple_add".to_string(),
+    complexity: 0.1,   // Very simple
+    features: vec!["arithmetic".to_string()],
+    ..Default::default()
+});
+
+scheduler.add_item(LearningItem {
+    id: "generic_trait".to_string(),
+    complexity: 0.8,   // Complex
+    features: vec!["generics".to_string(), "traits".to_string()],
+    ..Default::default()
+});
+
+// Get next batch (ordered by difficulty)
+let batch = scheduler.next_batch(5);
+
+// Record results
+scheduler.record_success("simple_add");
+scheduler.record_failure("generic_trait", "E0277");
+
+// Scheduler adapts difficulty based on success rate
+```
+
+**Complexity Scoring**:
+| Feature | Weight |
+|---------|--------|
+| Nested loops | +0.15 |
+| Generic types | +0.20 |
+| Async/await | +0.25 |
+| Trait bounds | +0.20 |
+| Lifetime annotations | +0.30 |
+
+### Strategy #4: Knowledge Distillation (DEPYLER-0634)
+
+**LLM-to-Oracle knowledge transfer** using temperature-scaled soft targets.
+
+```rust
+use depyler_oracle::{KnowledgeDistiller, DistillationConfig, LlmFixExample};
+
+let config = DistillationConfig {
+    temperature: 3.0,          // Soft target temperature
+    alpha: 0.7,                // Balance hard/soft loss
+    min_confidence: 0.8,       // Minimum LLM confidence
+    promotion_threshold: 10,   // Applications before promotion
+    max_patterns: 1000,
+};
+
+let mut distiller = KnowledgeDistiller::new(config);
+
+// Collect LLM fix examples
+distiller.collect_example(LlmFixExample {
+    error_code: "E0308".to_string(),
+    error_message: "expected i32, found String".to_string(),
+    original_code: "let x: i32 = s;".to_string(),
+    fixed_code: "let x: i32 = s.parse().unwrap();".to_string(),
+    diff: "+.parse().unwrap()".to_string(),
+    explanation: Some("String needs parsing".to_string()),
+    llm_confidence: 0.92,
+    validated: true,
+});
+
+// Extract patterns from examples
+let patterns = distiller.extract_patterns();
+
+// Get promotion candidates (high success rate)
+let candidates = distiller.get_promotion_candidates();
+
+// Export to pattern library
+let mut library = ErrorPatternLibrary::new()?;
+let promoted = distiller.export_to_library(&mut library);
+println!("Promoted {} patterns to library", promoted);
+
+// Soft classification (temperature-scaled)
+let soft_labels = distiller.classify_soft("E0308", "expected i32");
+for (category, prob) in soft_labels {
+    println!("{:?}: {:.2}%", category, prob * 100.0);
+}
+```
+
+**Integration with `entrenar`**:
+```rust
+use entrenar::distill::{soft_target_loss, DistillationConfig as EntrenarConfig};
+
+// Temperature-scaled KL divergence loss
+let loss = soft_target_loss(&teacher_logits, &student_logits, temperature);
+```
+
+### Strategy #5: GNN Error Encoder (DEPYLER-0635)
+
+**Graph Neural Network** for structural error pattern matching based on [Yasunaga & Liang 2020](https://arxiv.org/abs/2005.10636).
+
+```rust
+use depyler_oracle::{DepylerGnnEncoder, GnnEncoderConfig, ErrorPattern};
+
+let config = GnnEncoderConfig {
+    hidden_dim: 64,
+    output_dim: 256,
+    similarity_threshold: 0.7,
+    max_similar: 5,
+    use_hnsw: true,  // Hierarchical Navigable Small World index
+};
+
+let mut encoder = DepylerGnnEncoder::new(config)?;
+
+// Index patterns from library
+let pattern = ErrorPattern::new("E0308", "type_mismatch", "...", "...", 0.9);
+encoder.index_pattern(&pattern, "fn foo(x: i32) { let s: String = x; }");
+
+// Find similar patterns for new error
+let similar = encoder.find_similar(
+    "E0308",
+    "expected String, found i32",
+    "fn bar(y: i32) { let t: String = y; }"
+);
+
+for s in similar {
+    println!("Pattern: {} (similarity={:.2})", s.pattern_id, s.similarity);
+    println!("Success rate: {:.1}%", s.success_rate * 100.0);
+}
+
+// Raw embedding for custom similarity search
+let embedding = encoder.encode_error("E0308", "type mismatch", "source code");
+```
+
+**Integration with `aprender`**:
+```rust
+use aprender::citl::{GNNErrorEncoder, ProgramFeedbackGraph, NodeType};
+
+// Build program-error graph
+let graph = ProgramFeedbackGraph::new();
+graph.add_node(NodeType::Error, "E0308");
+graph.add_node(NodeType::Location, "line 42");
+graph.add_edge(0, 1, "at");
+
+// Encode with GNN
+let encoder = GNNErrorEncoder::new(hidden_dim, output_dim);
+let embedding = encoder.encode(&graph);
+```
+
+### Combined Pipeline
+
+All 5 strategies work together:
+
+```
+Python Source
+     │
+     ▼
+┌─────────────┐
+│  Transpile  │
+└─────────────┘
+     │
+     ▼
+┌─────────────┐
+│   rustc     │───── Success ─────► Done (80% target)
+└─────────────┘
+     │
+   Error
+     │
+     ├──► Strategy #2: Pattern Library Match
+     │         │
+     │         ├──► Found → Apply fix template
+     │         │
+     │         └──► Not found ──┐
+     │                          │
+     ├──► Strategy #5: GNN Similar Search ◄─┘
+     │         │
+     │         └──► Find structurally similar fixes
+     │
+     ├──► Strategy #3: Curriculum Adjustment
+     │         │
+     │         └──► Record failure, adjust difficulty
+     │
+     ├──► Strategy #1: Tarantula Localization
+     │         │
+     │         └──► Identify suspicious transpiler lines
+     │
+     └──► Strategy #4: LLM Distillation (fallback)
+               │
+               └──► Query LLM, extract pattern, promote if validated
+```
+
+### Configuration
+
+```rust
+use depyler_oracle::{
+    OracleConfig, TarantulaConfig, CurriculumConfig,
+    DistillationConfig, GnnEncoderConfig
+};
+
+let oracle_config = OracleConfig {
+    tarantula: TarantulaConfig {
+        suspiciousness_threshold: 0.5,
+        ..Default::default()
+    },
+    curriculum: CurriculumConfig {
+        initial_difficulty: 0.2,
+        success_threshold: 0.8,
+        ..Default::default()
+    },
+    distillation: DistillationConfig {
+        temperature: 3.0,
+        promotion_threshold: 10,
+        ..Default::default()
+    },
+    gnn: GnnEncoderConfig {
+        similarity_threshold: 0.7,
+        ..Default::default()
+    },
+    ..Default::default()
+};
+```
+
+### Expected Impact
+
+| Metric | Before | Target | Mechanism |
+|--------|--------|--------|-----------|
+| Single-shot compile | 24% | 80% | All strategies |
+| Error classification | 70% | 95% | GNN + Pattern Library |
+| Fix suggestion accuracy | 50% | 85% | Distillation + CITL |
+| Debug cycle time | 5 min | 30 sec | Tarantula localization |
+
+---
+
 ## Summary
 
 The Oracle is a compile-error classification system that:
@@ -915,5 +1232,6 @@ The Oracle is a compile-error classification system that:
 - Supports custom training for bespoke codebases
 - Detects model drift for retraining triggers
 - **Uses doctest transpilation for highest-fidelity training signals**
+- **Implements 5 acceleration strategies for 80% single-shot compile rate**
 
 It's internal infrastructure that helps maintainers fix transpiler bugs faster by providing structured feedback on error patterns.
