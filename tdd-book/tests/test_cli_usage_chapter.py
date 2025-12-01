@@ -10,13 +10,13 @@ from pathlib import Path
 
 def test_cli_usage_chapter_exists():
     """Test that cli-usage.md exists in the book"""
-    chapter_path = Path(__file__).parent.parent / "docs" / "cli-usage.md"
+    chapter_path = Path(__file__).parent.parent / "src" / "cli-usage.md"
     assert chapter_path.exists(), "cli-usage.md chapter must exist"
 
 
 def test_cli_usage_has_compile_command():
     """Test that the chapter documents the compile command"""
-    chapter_path = Path(__file__).parent.parent / "docs" / "cli-usage.md"
+    chapter_path = Path(__file__).parent.parent / "src" / "cli-usage.md"
     content = chapter_path.read_text()
 
     assert "depyler compile" in content, "Must document 'depyler compile' command"
@@ -26,7 +26,7 @@ def test_cli_usage_has_compile_command():
 
 def test_cli_usage_has_examples():
     """Test that the chapter has working examples"""
-    chapter_path = Path(__file__).parent.parent / "docs" / "cli-usage.md"
+    chapter_path = Path(__file__).parent.parent / "src" / "cli-usage.md"
     content = chapter_path.read_text()
 
     # Must have code blocks with examples
@@ -36,7 +36,7 @@ def test_cli_usage_has_examples():
 
 def test_cli_usage_has_all_commands():
     """Test that all major CLI commands are documented"""
-    chapter_path = Path(__file__).parent.parent / "docs" / "cli-usage.md"
+    chapter_path = Path(__file__).parent.parent / "src" / "cli-usage.md"
     content = chapter_path.read_text()
 
     commands = [
@@ -53,7 +53,7 @@ def test_cli_usage_has_all_commands():
 
 def test_cli_usage_in_summary():
     """Test that cli-usage.md is linked in SUMMARY.md"""
-    summary_path = Path(__file__).parent.parent / "docs" / "SUMMARY.md"
+    summary_path = Path(__file__).parent.parent / "src" / "SUMMARY.md"
     content = summary_path.read_text()
 
     assert "cli-usage.md" in content, "cli-usage.md must be linked in SUMMARY.md"
@@ -62,7 +62,7 @@ def test_cli_usage_in_summary():
 
 def test_cli_usage_has_installation():
     """Test that installation instructions are present"""
-    chapter_path = Path(__file__).parent.parent / "docs" / "cli-usage.md"
+    chapter_path = Path(__file__).parent.parent / "src" / "cli-usage.md"
     content = chapter_path.read_text()
 
     assert "cargo install" in content, "Must document installation"
@@ -71,7 +71,7 @@ def test_cli_usage_has_installation():
 
 def test_cli_usage_has_troubleshooting():
     """Test that troubleshooting section exists"""
-    chapter_path = Path(__file__).parent.parent / "docs" / "cli-usage.md"
+    chapter_path = Path(__file__).parent.parent / "src" / "cli-usage.md"
     content = chapter_path.read_text()
 
     assert "troubleshooting" in content.lower() or "common issues" in content.lower(), \
