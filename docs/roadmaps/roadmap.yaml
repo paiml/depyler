@@ -1788,7 +1788,7 @@ roadmap:
 - id: DEPYLER-0640
   github_issue: null
   item_type: feature
-  title: 'Add --auto-fix --async mode (Action Item A1)'
+  title: Add --auto-fix --async mode (Action Item A1)
   status: completed
   priority: high
   assigned_to: Claude
@@ -1796,10 +1796,10 @@ roadmap:
   updated: 2025-12-01T09:10:00+00:00
   spec: null
   acceptance_criteria:
-  - 'New --async flag added (requires --auto-fix)'
-  - 'Fast path outputs immediately, Oracle runs in background thread'
-  - 'Oracle results written to <file>.autofix.rs when complete'
-  - 'Clippy passes with no warnings'
+  - New --async flag added (requires --auto-fix)
+  - Fast path outputs immediately, Oracle runs in background thread
+  - Oracle results written to <file>.autofix.rs when complete
+  - Clippy passes with no warnings
   phases: []
   subtasks: []
   estimated_effort: 1h
@@ -1809,3 +1809,26 @@ roadmap:
   - performance
   - async
   notes: 'Action Item A1 from single-shot-80-percentage-review.md: Eliminates Waste of Waiting by making Oracle async'
+- id: DEPYLER-0641
+  github_issue: null
+  item_type: documentation
+  title: 'Generator Expression Support Verification (Action Item A6) - Already Implemented'
+  status: completed
+  priority: high
+  assigned_to: Claude
+  created: 2025-12-01T09:03:58.530127179+00:00
+  updated: 2025-12-01T09:15:00+00:00
+  spec: null
+  acceptance_criteria:
+  - 'Generator expressions transpile to iterator chains (verified)'
+  - 'All 20 tests pass in generator_expression_test.rs'
+  - 'Single generators use .into_iter().map()'
+  - 'Multiple generators use .flat_map()'
+  phases: []
+  subtasks: []
+  estimated_effort: 15m
+  labels:
+  - verification
+  - documentation
+  - iterator
+  notes: 'Action Item A6 from single-shot-80-percentage-review.md: Already implemented with full test coverage'
