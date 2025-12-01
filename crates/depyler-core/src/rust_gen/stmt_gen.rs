@@ -5829,8 +5829,21 @@ pub(crate) fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro
             quote! { Option<#inner_ty> }
         }
         Type::Custom(name) => {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-            quote! { #ident }
+            // DEPYLER-169: Map special Python types to their Rust equivalents
+            let mapped_name = match name.as_str() {
+                // Python's base object type needs dynamic typing in Rust
+                "object" | "builtins.object" => "serde_json::Value",
+                // Python Any type also maps to dynamic Value
+                "Any" | "typing.Any" | "any" => "serde_json::Value",
+                // Preserve other custom types as-is
+                _ => name.as_str(),
+            };
+            // Parse as a full type path (handles `::` separators like serde_json::Value)
+            let ty: syn::Type = syn::parse_str(mapped_name).unwrap_or_else(|_| {
+                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                syn::parse_quote! { #ident }
+            });
+            quote! { #ty }
         }
         _ => quote! { () }, // Fallback for other types (Set, Function, Generic, Union, Array, etc.)
     }
