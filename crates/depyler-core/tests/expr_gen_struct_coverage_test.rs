@@ -481,7 +481,7 @@ def in_range(x: int, lo: int, hi: int) -> bool:
 // ============================================================================
 
 #[test]
-#[ignore] // Walrus operator (:=) not yet supported
+// DEPYLER-0639: Walrus operator (:=) fully supported since DEPYLER-0188
 fn test_walrus_operator() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
