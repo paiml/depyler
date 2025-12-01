@@ -195,11 +195,11 @@ jobs:
           echo "Total tests: $TEST_COUNT"
 
           # Module coverage
-          MODULE_COUNT=$(ls docs/modules/*.md | wc -l)
+          MODULE_COUNT=$(ls src/modules/*.md | wc -l)
           echo "Modules documented: $MODULE_COUNT"
 
           # Example count
-          EXAMPLE_COUNT=$(grep -r "```python" docs/modules/ | wc -l)
+          EXAMPLE_COUNT=$(grep -r "```python" src/modules/ | wc -l)
           echo "Python examples: $EXAMPLE_COUNT"
 
           echo ""
