@@ -41,6 +41,13 @@ pub mod unified_training;
 pub mod verificar_integration;
 pub mod query_loop;
 pub mod corpus_extract;
+pub mod curriculum;
+pub mod distillation;
+pub mod error_patterns;
+pub mod gnn_encoder;
+pub mod tarantula;
+pub mod tarantula_bridge;
+pub mod tarantula_corpus;
 
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
@@ -96,6 +103,48 @@ pub use github_corpus::{
 pub use unified_training::{
     build_unified_corpus, build_default_unified_corpus, build_unified_corpus_with_oip,
     print_merge_stats, UnifiedTrainingConfig, UnifiedTrainingResult, MergeStats,
+};
+
+// Tarantula fault localization (Strategy #1 - DEPYLER-0631)
+pub use tarantula::{
+    FixPriority, SuspiciousTranspilerDecision, TarantulaAnalyzer, TarantulaResult,
+    TranspilerDecision, TranspilerDecisionRecord,
+};
+
+// Tarantula corpus analysis for batch processing
+pub use tarantula_corpus::{
+    CorpusAnalysisReport, CorpusAnalyzer, TranspilationResult,
+};
+
+// Tarantula bridge for depyler-core decision trace integration
+pub use tarantula_bridge::{
+    category_to_decision, decision_to_record, decisions_to_records,
+    infer_decisions_from_error, synthetic_decisions_from_errors,
+};
+
+// Error Pattern Library (Strategy #2 - DEPYLER-0632)
+pub use error_patterns::{
+    CorpusEntry, ErrorPattern, ErrorPatternConfig, ErrorPatternLibrary,
+    ErrorPatternStats, GoldenTraceEntry,
+};
+
+// Curriculum Learning (Strategy #3 - DEPYLER-0633)
+pub use curriculum::{
+    classify_error_difficulty, classify_from_category, CurriculumEntry,
+    CurriculumScheduler, CurriculumStats, DifficultyLevel,
+};
+
+// Knowledge Distillation (Strategy #4 - DEPYLER-0634)
+pub use distillation::{
+    DistillationConfig, DistillationStats, ExtractedPattern,
+    KnowledgeDistiller, LlmFixExample,
+};
+
+// GNN Error Encoder (Strategy #5 - DEPYLER-0635)
+pub use gnn_encoder::{
+    DepylerGnnEncoder, GnnEncoderConfig, GnnEncoderStats,
+    SimilarPattern, StructuralPattern, infer_decision_from_match,
+    map_error_category,
 };
 
 /// Error types for the oracle.

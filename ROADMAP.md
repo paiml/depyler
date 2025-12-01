@@ -269,6 +269,30 @@ This YAML file contains:
 
 ---
 
+### 🎯 PRIORITY #3: Review Response Implementation (v3.21.0 - 4 weeks)
+
+**Goal**: Implement efficiency and interop recommendations from the 80/20 Review
+**Status**: 🚀 ACTIVE - Planning Phase
+**Specification**: See [docs/specifications/single-shot-80-percentage-review.md](docs/specifications/single-shot-80-percentage-review.md)
+
+**Action Items**:
+- [ ] **Async Jidoka** (A1): Implement `--auto-fix` async mode
+  - Decouple Oracle lookup from main compilation path
+  - Add CLI flag for background repair
+- [ ] **Hybrid Execution** (A4): `pyo3` stub generation
+  - Generate `#[pyfunction]` stubs for out-of-scope functions
+  - Enable partial migration (Rust calling Python fallback)
+- [ ] **Patch Governance** (A5): Process implementation
+  - Establish monthly review cadence for `rule_patch.json`
+  - Implement patch deduplication logic
+
+**Success Criteria**:
+- ✅ Single-shot compile rate > 40% (via quick wins + stubs)
+- ✅ `depyler compile` remains fast (<500ms) even with Oracle enabled
+- ✅ Hybrid projects can compile and run (using Python fallback)
+
+---
+
 ### Short Term (v3.21.0 - v3.22.0) - DEFERRED until Matrix-Testing Complete
 
 **Advanced Stdlib Methods** (Priority: P2 - deferred)
