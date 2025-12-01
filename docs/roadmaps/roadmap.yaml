@@ -1450,7 +1450,7 @@ roadmap:
   - cargo-toml
   - test-files
   - codegen
-  notes: 'CI enforces test files -> [lib]. Fixed in cargo_toml_gen.rs, lib.rs, compilation_trainer.rs'
+  notes: CI enforces test files -> [lib]. Fixed in cargo_toml_gen.rs, lib.rs, compilation_trainer.rs
 - id: DEPYLER-0630
   github_issue: null
   item_type: bug
@@ -1481,4 +1481,188 @@ roadmap:
   - codegen
   - parameter-names
   - raw-identifiers
-  notes: 'Rust does not allow r#self or r#Self - they are special identifiers'
+  notes: Rust does not allow r#self or r#Self - they are special identifiers
+- id: DEPYLER-0631
+  github_issue: null
+  item_type: feature
+  title: 'Strategy #1: Tarantula-Guided Codegen Hotfixes'
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2025-12-01T00:00:00+00:00
+  updated: 2025-12-01T07:44:04.982915307+00:00
+  spec: docs/specifications/single-shot-80-percentage-review.md#102-strategy-1-tarantula-guided-codegen-hotfixes-p0
+  acceptance_criteria:
+  - Decision tracing added to HIR lowering
+  - Tarantula fault localization identifies top 5 suspicious decisions
+  - Top 5 codegen rules fixed based on analysis
+  - Single-shot compile rate improves by +12%
+  phases:
+  - name: Phase 1 - Add decision tracing (RED)
+    status: planned
+    estimated_effort: 2d
+    completion: 0
+  - name: Phase 2 - Implement Tarantula analysis (GREEN)
+    status: planned
+    estimated_effort: 1d
+    completion: 0
+  - name: Phase 3 - Fix top suspicious decisions (REFACTOR)
+    status: planned
+    estimated_effort: 2d
+    completion: 0
+  subtasks: []
+  estimated_effort: 5d
+  labels:
+  - P0-critical
+  - acceleration
+  - tarantula
+  - fault-localization
+  notes: 'Source: entrenar::citl::DecisionCITL. Impact: +10-15% single-shot rate'
+- id: DEPYLER-0632
+  github_issue: null
+  item_type: feature
+  title: 'Strategy #2: CITL Error-Pattern Library from Decy Oracle'
+  status: completed
+  priority: critical
+  assigned_to: null
+  created: 2025-12-01T00:00:00+00:00
+  updated: 2025-12-01T07:50:34.506378713+00:00
+  spec: docs/specifications/single-shot-80-percentage-review.md#103-strategy-2-citl-error-pattern-library-from-decy-oracle-p0
+  acceptance_criteria:
+  - HNSW index for error embeddings implemented
+  - Bootstrap from 50 Golden Traces
+  - Bootstrap from 473 corpus successes
+  - Oracle query integrated into transpile pipeline
+  - Jidoka feedback loop captures LLM fixes
+  phases:
+  - name: Phase 1 - Port decy-oracle pattern storage (RED)
+    status: planned
+    estimated_effort: 3d
+    completion: 0
+  - name: Phase 2 - Implement HNSW index (GREEN)
+    status: planned
+    estimated_effort: 2d
+    completion: 0
+  - name: Phase 3 - Integrate into pipeline (REFACTOR)
+    status: planned
+    estimated_effort: 2d
+    completion: 0
+  subtasks: []
+  estimated_effort: 7d
+  labels:
+  - P0-critical
+  - acceleration
+  - oracle
+  - pattern-library
+  notes: 'Source: decy-oracle. Impact: +15-20% single-shot rate'
+- id: DEPYLER-0633
+  github_issue: null
+  item_type: feature
+  title: 'Strategy #3: Curriculum Learning for Error Categories'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2025-12-01T00:00:00+00:00
+  updated: 2025-12-01T07:53:53.301744880+00:00
+  spec: docs/specifications/single-shot-80-percentage-review.md#104-strategy-3-curriculum-learning-for-error-categories-p1
+  acceptance_criteria:
+  - Error difficulty classification (EASY/MEDIUM/HARD/EXPERT)
+  - Curriculum scheduler processes easy errors first
+  - Rule-based fixes for EASY errors
+  - Oracle lookup for MEDIUM errors
+  - 2.3x faster convergence per StepCoder paper
+  phases:
+  - name: Phase 1 - Difficulty classification (RED)
+    status: planned
+    estimated_effort: 1d
+    completion: 0
+  - name: Phase 2 - Curriculum scheduler (GREEN)
+    status: planned
+    estimated_effort: 2d
+    completion: 0
+  - name: Phase 3 - Integrate with fix pipeline (REFACTOR)
+    status: planned
+    estimated_effort: 2d
+    completion: 0
+  subtasks: []
+  estimated_effort: 5d
+  labels:
+  - P1-high
+  - acceleration
+  - curriculum-learning
+  - stepcoder
+  notes: 'Source: aprender::citl. Impact: +8-12% single-shot rate'
+- id: DEPYLER-0634
+  github_issue: null
+  item_type: feature
+  title: 'Strategy #4: Knowledge Distillation from LLM to Local Oracle'
+  status: completed
+  priority: high
+  assigned_to: null
+  created: 2025-12-01T00:00:00+00:00
+  updated: 2025-12-01T08:14:21.658612237+00:00
+  spec: docs/specifications/single-shot-80-percentage-review.md#105-strategy-4-knowledge-distillation-from-llm-to-local-oracle-p1
+  acceptance_criteria:
+  - LLM fix collection from production logs
+  - Temperature-scaled KD training
+  - Local decision model export to Oracle
+  - Pattern retirement to HIR lowering
+  - LLM calls reduced from 200+ to <20 per 1000 files
+  phases:
+  - name: Phase 1 - LLM fix collection (RED)
+    status: planned
+    estimated_effort: 2d
+    completion: 0
+  - name: Phase 2 - Distillation trainer (GREEN)
+    status: planned
+    estimated_effort: 5d
+    completion: 0
+  - name: Phase 3 - Pattern retirement (REFACTOR)
+    status: planned
+    estimated_effort: 3d
+    completion: 0
+  subtasks: []
+  estimated_effort: 10d
+  labels:
+  - P1-high
+  - acceleration
+  - distillation
+  - jidoka
+  notes: 'Source: entrenar::distill + decy-oracle. Impact: +10-15% long-term'
+- id: DEPYLER-0635
+  github_issue: null
+  item_type: feature
+  title: 'Strategy #5: GNN Error Encoder for Structural Pattern Matching'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-01T00:00:00+00:00
+  updated: 2025-12-01T08:14:21.728850597+00:00
+  spec: docs/specifications/single-shot-80-percentage-review.md#106-strategy-5-gnn-error-encoder-for-structural-pattern-matching-p2
+  acceptance_criteria:
+  - Program-feedback graph construction
+  - GNN encoder with message passing
+  - Error embedding generation (256-dim)
+  - HNSW search for similar patterns
+  - Structural similarity detection across error types
+  phases:
+  - name: Phase 1 - Graph construction (RED)
+    status: planned
+    estimated_effort: 5d
+    completion: 0
+  - name: Phase 2 - GNN encoder training (GREEN)
+    status: planned
+    estimated_effort: 7d
+    completion: 0
+  - name: Phase 3 - Integration with Oracle (REFACTOR)
+    status: planned
+    estimated_effort: 3d
+    completion: 0
+  subtasks: []
+  estimated_effort: 15d
+  labels:
+  - P2-medium
+  - acceleration
+  - gnn
+  - research
+  notes: 'Source: aprender::citl::GNNErrorEncoder. Impact: +5-10% (research track)'
