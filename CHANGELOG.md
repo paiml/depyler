@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 📚 Documentation & Infrastructure (2025-12-01)
+
+#### TDD Book mdBook Conversion (DEPYLER-0643)
+**Impact**: Book now builds and deploys with standard mdbook structure
+**Status**: ✅ Deployed to GitHub Pages
+
+**Changes**:
+- Restructured `tdd-book/docs/` → `tdd-book/src/` for mdbook compatibility
+- Updated `book.toml` with cleaner configuration (aprender style)
+- Added `introduction.md` as proper book landing page
+- Fixed `SUMMARY.md` links and removed external references
+- Added `__init__.py` files to fix pytest namespace collision
+- Updated test paths in `test_cli_usage_chapter.py`
+
+#### CI/CD Dependency Fixes
+**Impact**: All GitHub Actions workflows now use crates.io dependencies
+
+**Crates.io Updates**:
+- `verificar`: path → 0.5.0
+- `trueno-viz`: path → 0.1.2
+- `entrenar`: path → 0.2.2
+- `alimentar`: path → 0.2.2
+- `aprender`: path → 0.14.0
+
 ### 🧪 Testing & Coverage (2025-11-29)
 
 #### annotation_analyzer.rs - Pure Analysis Logic Module
