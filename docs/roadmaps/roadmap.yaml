@@ -1666,3 +1666,41 @@ roadmap:
   - gnn
   - research
   notes: 'Source: aprender::citl::GNNErrorEncoder. Impact: +5-10% (research track)'
+- id: DEPYLER-0636
+  github_issue: null
+  item_type: feature
+  title: 'Strategy #6: OIP CITL Bidirectional Integration'
+  status: planned
+  priority: high
+  assigned_to: null
+  created: 2025-12-01T00:00:00+00:00
+  updated: 2025-12-01T00:00:00+00:00
+  spec: docs/specifications/single-shot-80-percentage-review.md#107-strategy-6-oip-citl-bidirectional-integration-p1
+  acceptance_criteria:
+  - Export Depyler CITL corpus to OIP DepylerExport format
+  - Import OIP training data into Oracle distillation pipeline
+  - Map DefectCategory to ErrorCategory bidirectionally
+  - Use ErrorCodeClass for GNN feature extraction
+  - Parquet batch loading via alimentar DataLoader
+  - Confidence-based filtering (min 0.75)
+  phases:
+  - name: Phase 1 - Export pipeline (RED)
+    status: planned
+    estimated_effort: 2d
+    completion: 0
+  - name: Phase 2 - Import pipeline (GREEN)
+    status: planned
+    estimated_effort: 2d
+    completion: 0
+  - name: Phase 3 - Bidirectional sync (REFACTOR)
+    status: planned
+    estimated_effort: 1d
+    completion: 0
+  subtasks: []
+  estimated_effort: 5d
+  labels:
+  - P1-high
+  - acceleration
+  - oip-integration
+  - citl
+  notes: 'Source: organizational-intelligence-plugin::citl. Enables closed-loop training between Depyler and OIP.'
