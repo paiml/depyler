@@ -481,8 +481,8 @@ impl ConstraintCollector {
             }
 
             HirExpr::Unary { operand, .. } => {
-                let operand_var = self.collect_expr(operand);
-                operand_var // Unary ops preserve type
+                // Unary ops preserve type
+                self.collect_expr(operand)
             }
 
             HirExpr::IfExpr {
