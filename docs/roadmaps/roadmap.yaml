@@ -1840,7 +1840,56 @@ roadmap:
   priority: medium
   assigned_to: null
   created: 2025-12-01T09:26:46.430187469+00:00
-  updated: 2025-12-01T09:31:28.639836223+00:00
+  updated: 2025-12-01T10:21:38.444516737+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-197
+  github_issue: 197
+  item_type: task
+  title: 'feat: Map Callable type to fn() pointer'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-01T10:38:25.006134718+00:00
+  updated: 2025-12-01T11:13:29.838675934+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - enhancement
+  notes: null
+- id: GH-195
+  github_issue: 195
+  item_type: task
+  title: 'Issue #195'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-01T11:35:32.677958187+00:00
+  updated: 2025-12-01T11:35:32.677958187+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-169
+  github_issue: 169
+  item_type: task
+  title: 'Issue #169'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-01T11:36:47.634451144+00:00
+  updated: 2025-12-01T11:36:47.634451144+00:00
   spec: null
   acceptance_criteria: []
   phases: []

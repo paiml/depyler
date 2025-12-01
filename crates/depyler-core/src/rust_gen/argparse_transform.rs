@@ -56,6 +56,12 @@ fn type_to_rust_string(ty: &Type) -> String {
         Type::String => "String".to_string(),
         Type::Bool => "bool".to_string(),
         Type::Custom(name) if name == "PathBuf" => "PathBuf".to_string(),
+        // DEPYLER-169: Map special Python types to their Rust equivalents
+        Type::Custom(name)
+            if name == "object" || name == "builtins.object" || name == "Any" || name == "any" =>
+        {
+            "serde_json::Value".to_string()
+        }
         Type::Custom(name) => name.clone(),
         Type::List(inner) => format!("Vec<{}>", type_to_rust_string(inner)),
         Type::Optional(inner) => format!("Option<{}>", type_to_rust_string(inner)),
