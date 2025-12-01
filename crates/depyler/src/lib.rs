@@ -135,6 +135,11 @@ pub enum Commands {
         #[arg(long)]
         auto_fix: bool,
 
+        /// Run auto-fix asynchronously (DEPYLER-0640)
+        /// Output fast path immediately, run Oracle in background
+        #[arg(long, requires = "auto_fix")]
+        r#async: bool,
+
         /// Show suggested fixes without applying (Issue #105)
         #[arg(long)]
         suggest_fixes: bool,
@@ -790,6 +795,7 @@ pub fn transpile_command(
     trace: bool,
     explain: bool,
     auto_fix: bool,
+    async_mode: bool,
     suggest_fixes: bool,
     fix_confidence: f64,
     oracle: bool,
@@ -932,8 +938,53 @@ pub fn transpile_command(
     // Suppress unused variable warning until Phase 2 integration
     let _ = &mut query_loop;
 
-    // ML-powered auto-fix / suggest-fixes (Issue #105)
-    let rust_code = if auto_fix || suggest_fixes {
+    // DEPYLER-0640: Async mode for auto-fix
+    // When async_mode is enabled, output fast path immediately and run Oracle in background
+    let rust_code = if async_mode && auto_fix {
+        pb.set_message("Fast path (async Oracle pending)...");
+        println!("\n⚡ Async mode: Fast path output, Oracle running in background");
+
+        // Spawn background thread for ML Oracle analysis
+        let python_source_clone = python_source.clone();
+        let output_path_clone = output.clone().unwrap_or_else(|| {
+            let mut path = input.clone();
+            path.set_extension("rs");
+            path
+        });
+        let fix_confidence_clone = fix_confidence;
+
+        std::thread::spawn(move || {
+            let autofix_path = {
+                let mut p = output_path_clone.clone();
+                let stem = p.file_stem().unwrap_or_default().to_string_lossy();
+                p.set_file_name(format!("{}.autofix.rs", stem));
+                p
+            };
+
+            let mut hybrid = HybridTranspiler::new();
+            match hybrid.transpile(&python_source_clone) {
+                Ok(result) => {
+                    if result.confidence >= fix_confidence_clone as f32 {
+                        if let Err(e) = std::fs::write(&autofix_path, &result.rust_code) {
+                            eprintln!("⚠ Async auto-fix write failed: {}", e);
+                        } else {
+                            eprintln!(
+                                "\n✅ Async auto-fix complete: {} ({:.1}% confidence)",
+                                autofix_path.display(),
+                                result.confidence * 100.0
+                            );
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("⚠ Async auto-fix failed: {}", e);
+                }
+            }
+        });
+
+        rust_code // Return fast path immediately
+    } else if auto_fix || suggest_fixes {
+        // ML-powered auto-fix / suggest-fixes (Issue #105) - Synchronous mode
         pb.set_message("Running ML oracle...");
 
         // Try hybrid transpiler first (uses ML when AST fails)
