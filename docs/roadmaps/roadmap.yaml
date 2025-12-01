@@ -1416,3 +1416,69 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-0629
+  github_issue: null
+  item_type: bug
+  title: Test files (test_*.py) should generate [lib] Cargo.toml instead of [[bin]]
+  status: completed
+  priority: high
+  assigned_to: Claude
+  created: 2025-12-01T06:30:00+00:00
+  updated: 2025-12-01T07:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - Test files (test_*) generate [lib] section in Cargo.toml
+  - Non-test files generate [[bin]] section as before
+  - Added generate_cargo_toml_auto() function for centralized logic
+  - rsplit method routed to convert_string_method (was falling through)
+  phases:
+  - name: Phase 1 - Identify issue
+    status: completed
+    estimated_effort: 15m
+    completion: 100
+  - name: Phase 2 - Add auto-select function
+    status: completed
+    estimated_effort: 30m
+    completion: 100
+  - name: Phase 3 - Add rsplit to dispatch
+    status: completed
+    estimated_effort: 10m
+    completion: 100
+  subtasks: []
+  estimated_effort: 1h
+  labels:
+  - cargo-toml
+  - test-files
+  - codegen
+  notes: 'CI enforces test files -> [lib]. Fixed in cargo_toml_gen.rs, lib.rs, compilation_trainer.rs'
+- id: DEPYLER-0630
+  github_issue: null
+  item_type: bug
+  title: self/Self parameters cannot be raw identifiers - must rename
+  status: completed
+  priority: medium
+  assigned_to: Claude
+  created: 2025-12-01T06:45:00+00:00
+  updated: 2025-12-01T07:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - Parameters named 'self' renamed to 'self_' in generated code
+  - Parameters named 'Self' renamed to 'Self_' in generated code
+  - Other Rust keywords still use raw identifiers (r#keyword)
+  - test_unsupported_python_features passes
+  phases:
+  - name: Phase 1 - Identify raw identifier panic
+    status: completed
+    estimated_effort: 10m
+    completion: 100
+  - name: Phase 2 - Add self/Self special handling
+    status: completed
+    estimated_effort: 15m
+    completion: 100
+  subtasks: []
+  estimated_effort: 30m
+  labels:
+  - codegen
+  - parameter-names
+  - raw-identifiers
+  notes: 'Rust does not allow r#self or r#Self - they are special identifiers'

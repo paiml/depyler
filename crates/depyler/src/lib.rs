@@ -1021,8 +1021,8 @@ pub fn transpile_command(
             .and_then(|s| s.to_str())
             .unwrap_or("main.rs");
 
-        // Generate Cargo.toml content
-        let cargo_toml_content = depyler_core::cargo_toml_gen::generate_cargo_toml(
+        // DEPYLER-0629: Use auto-select function that chooses [lib] for test files
+        let cargo_toml_content = depyler_core::cargo_toml_gen::generate_cargo_toml_auto(
             package_name,
             source_file_name,
             &dependencies,

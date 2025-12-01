@@ -794,11 +794,13 @@ impl CompilationTrainer {
                                 fs::create_dir_all(&project_dir).map_err(|e| format!("mkdir: {}", e))?;
                                 // DEPYLER-0606: Check if code has fn main() to determine crate type
                                 // CLIs with argparse have main(), pure libraries don't
-                                let is_binary = rust_code.contains("fn main()") || rust_code.contains("pub fn main()");
+                                // DEPYLER-0629: Test files (test_*.py) always use [lib] via auto-select
+                                let is_test_file = file_stem.starts_with("test_");
+                                let is_binary = !is_test_file && (rust_code.contains("fn main()") || rust_code.contains("pub fn main()"));
                                 let (rs_filename, cargo_toml) = if is_binary {
-                                    ("main.rs", cargo_toml_gen::generate_cargo_toml(&file_stem, "main.rs", &dependencies))
+                                    ("main.rs", cargo_toml_gen::generate_cargo_toml_auto(&file_stem, "main.rs", &dependencies))
                                 } else {
-                                    ("lib.rs", cargo_toml_gen::generate_cargo_toml_lib(&file_stem, "lib.rs", &dependencies))
+                                    ("lib.rs", cargo_toml_gen::generate_cargo_toml_auto(&file_stem, "lib.rs", &dependencies))
                                 };
                                 let rs_file = project_dir.join(rs_filename);
                                 fs::write(&rs_file, &rust_code).map_err(|e| format!("Write: {}", e))?;

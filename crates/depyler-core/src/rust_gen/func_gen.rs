@@ -650,8 +650,12 @@ fn codegen_single_param(
     // DEPYLER-0357: Removed underscore prefixing logic that was causing compilation errors
     // Parameter names in signature must match exactly how they're referenced in function body
     // DEPYLER-0611: Use raw identifiers for parameter names that are Rust keywords (e.g., override)
+    // DEPYLER-0630: self/Self cannot be raw identifiers, rename to self_ instead
     let param_name = param.name.clone();
-    let param_ident = if is_rust_keyword(&param_name) {
+    let param_ident = if param_name == "self" || param_name == "Self" {
+        // self/Self are special - they cannot be raw identifiers, rename them
+        syn::Ident::new(&format!("{}_", param_name), proc_macro2::Span::call_site())
+    } else if is_rust_keyword(&param_name) {
         syn::Ident::new_raw(&param_name, proc_macro2::Span::call_site())
     } else {
         syn::Ident::new(&param_name, proc_macro2::Span::call_site())
