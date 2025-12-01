@@ -11316,7 +11316,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Note: "count" handled separately above with disambiguation logic
             // Note: "index" handled in list methods above (lists take precedence)
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
-            | "split" | "splitlines" | "join" | "replace" | "find" | "rfind" | "rindex"
+            | "split" | "rsplit" | "splitlines" | "join" | "replace" | "find" | "rfind" | "rindex"
             | "isdigit" | "isalpha" | "isalnum" | "title" | "center" | "ljust" | "rjust"
             | "zfill" | "hex" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
