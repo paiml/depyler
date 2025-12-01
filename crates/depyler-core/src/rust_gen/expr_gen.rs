@@ -3187,6 +3187,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             let borrowed_args = completed_args;
 
+            // DEPYLER-0648: Handle vararg functions - wrap arguments in slice
+            // Python: run_cli("--help") where def run_cli(*args)
+            // Rust: run_cli(&["--help".to_string()]) where fn run_cli(args: &[String])
+            if self.ctx.vararg_functions.contains(func) && !borrowed_args.is_empty() {
+                // Wrap all arguments in a slice literal
+                return Ok(parse_quote! { #func_ident(&[#(#borrowed_args),*]) });
+            }
+
             // DEPYLER-0422 Fix #6: Remove automatic `?` operator for function calls
             // DEPYLER-0287 was too broad - it added `?` to ALL function calls when inside a Result-returning function.
             // This caused E0277 errors (279 errors!) when calling functions that return plain types (i32, Vec, etc.).
