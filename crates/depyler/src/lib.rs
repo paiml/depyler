@@ -3163,7 +3163,7 @@ mod tests {
         let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
 
         let result = transpile_command(
-            input_path, None, false, false, false, false, false, false, false, false, 0.8,
+            input_path, None, false, false, false, false, false, false, false, false, false, 0.8,
             false, None, 3, false,  // oracle, patterns, max_retries, llm_fallback
         );
         assert!(result.is_ok());
@@ -3184,6 +3184,7 @@ mod tests {
             false,
             false,
             false,  // auto_fix
+            false,  // async_mode
             false,  // suggest_fixes
             0.8,    // fix_confidence
             false,  // oracle
@@ -3574,7 +3575,7 @@ mod tests {
         let result = transpile_command(
             input_path, None, false, false, false, false,
             true,   // trace enabled
-            false, false, false, 0.8, false, None, 3, false,
+            false, false, false, false, 0.8, false, None, 3, false,
         );
         assert!(result.is_ok());
     }
@@ -3586,7 +3587,7 @@ mod tests {
             input_path, None, false, false, false, false,
             false,
             true,   // explain enabled
-            false, false, 0.8, false, None, 3, false,
+            false, false, false, 0.8, false, None, 3, false,
         );
         assert!(result.is_ok());
     }
@@ -3597,7 +3598,7 @@ mod tests {
         let result = transpile_command(
             input_path, None, false, false,
             true,   // debug enabled
-            false, false, false, false, false, 0.8, false, None, 3, false,
+            false, false, false, false, false, false, 0.8, false, None, 3, false,
         );
         assert!(result.is_ok());
     }
