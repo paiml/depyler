@@ -1765,7 +1765,7 @@ roadmap:
 - id: DEPYLER-0639
   github_issue: null
   item_type: documentation
-  title: 'Walrus Operator Support Verification (Action Item A3) - Already Implemented'
+  title: Walrus Operator Support Verification (Action Item A3) - Already Implemented
   status: completed
   priority: high
   assigned_to: Claude
@@ -1775,8 +1775,8 @@ roadmap:
   acceptance_criteria:
   - 'Walrus operator (:=) transpiles correctly (verified: DEPYLER-0188)'
   - 'if (n := len(text)) > 5: generates let n = ... before if block'
-  - 'All 7 walrus tests pass in walrus_operator_test.rs'
-  - Remove stale #[ignore] from expr_gen_struct_coverage_test.rs
+  - All 7 walrus tests pass in walrus_operator_test.rs
+  - Remove stale
   phases: []
   subtasks: []
   estimated_effort: 15m
@@ -1785,3 +1785,27 @@ roadmap:
   - documentation
   - quick-win
   notes: 'Action Item A3 from single-shot-80-percentage-review.md: Already implemented in DEPYLER-0188. Removed stale ignore marker from test.'
+- id: DEPYLER-0640
+  github_issue: null
+  item_type: feature
+  title: 'Add --auto-fix --async mode (Action Item A1)'
+  status: completed
+  priority: high
+  assigned_to: Claude
+  created: 2025-12-01T08:57:24.089992077+00:00
+  updated: 2025-12-01T09:10:00+00:00
+  spec: null
+  acceptance_criteria:
+  - 'New --async flag added (requires --auto-fix)'
+  - 'Fast path outputs immediately, Oracle runs in background thread'
+  - 'Oracle results written to <file>.autofix.rs when complete'
+  - 'Clippy passes with no warnings'
+  phases: []
+  subtasks: []
+  estimated_effort: 1h
+  labels:
+  - P0-critical
+  - cli
+  - performance
+  - async
+  notes: 'Action Item A1 from single-shot-80-percentage-review.md: Eliminates Waste of Waiting by making Oracle async'
