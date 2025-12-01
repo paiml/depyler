@@ -519,6 +519,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return Ok(parse_quote! { #left_expr.join(#right_expr) });
                 }
 
+                // DEPYLER-0658: Check if either operand is a float
+                // Rust can't divide i32 by f64 or vice versa - need to cast both to f64
+                let left_is_float = self.expr_returns_float(left);
+                let right_is_float = self.expr_returns_float(right);
+                let has_float_operand = left_is_float || right_is_float;
+
                 // v3.16.0 Phase 2: Python's `/` always returns float
                 // Rust's `/` does integer division when both operands are integers
                 // Check if we need to cast to float based on return type context
@@ -529,8 +535,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .map(return_type_expects_float)
                     .unwrap_or(false);
 
-                if needs_float_division {
+                if needs_float_division || has_float_operand {
                     // Cast both operands to f64 for Python float division semantics
+                    // or for mixed int/float operations
                     Ok(parse_quote! { (#left_expr as f64) / (#right_expr as f64) })
                 } else {
                     // Regular division (int/int → int, float/float → float)
@@ -4527,18 +4534,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("np.mean() requires 1 argument");
                 }
             }
+            // DEPYLER-0657: Scalar vs Vector numpy methods
+            // f64::sqrt()/abs() returns f64 directly (no Result)
+            // Vector::sqrt()/abs() returns Result (needs unwrap)
             "sqrt" => {
-                if let Some(arr) = arg_exprs.first() {
+                if args.is_empty() {
+                    bail!("np.sqrt() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
                     parse_quote! { #arr.sqrt().unwrap() }
                 } else {
-                    bail!("np.sqrt() requires 1 argument");
+                    parse_quote! { #arr.sqrt() }
                 }
             }
             "abs" => {
-                if let Some(arr) = arg_exprs.first() {
+                if args.is_empty() {
+                    bail!("np.abs() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
                     parse_quote! { #arr.abs().unwrap() }
                 } else {
-                    bail!("np.abs() requires 1 argument");
+                    // f64 uses .abs() directly
+                    parse_quote! { #arr.abs() }
                 }
             }
             "min" | "amin" => {
@@ -4555,32 +4574,52 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("np.max() requires 1 argument");
                 }
             }
+            // DEPYLER-0657: exp/log/sin/cos scalar vs vector
             "exp" => {
-                if let Some(arr) = arg_exprs.first() {
+                if args.is_empty() {
+                    bail!("np.exp() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
                     parse_quote! { #arr.exp().unwrap() }
                 } else {
-                    bail!("np.exp() requires 1 argument");
+                    parse_quote! { #arr.exp() }
                 }
             }
             "log" => {
-                if let Some(arr) = arg_exprs.first() {
+                if args.is_empty() {
+                    bail!("np.log() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
                     parse_quote! { #arr.ln().unwrap() }
                 } else {
-                    bail!("np.log() requires 1 argument");
+                    // f64 uses .ln() for natural log
+                    parse_quote! { #arr.ln() }
                 }
             }
             "sin" => {
-                if let Some(arr) = arg_exprs.first() {
+                if args.is_empty() {
+                    bail!("np.sin() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
                     parse_quote! { #arr.sin().unwrap() }
                 } else {
-                    bail!("np.sin() requires 1 argument");
+                    // f64::sin() returns f64 directly
+                    parse_quote! { #arr.sin() }
                 }
             }
             "cos" => {
-                if let Some(arr) = arg_exprs.first() {
+                if args.is_empty() {
+                    bail!("np.cos() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
                     parse_quote! { #arr.cos().unwrap() }
                 } else {
-                    bail!("np.cos() requires 1 argument");
+                    // f64::cos() returns f64 directly
+                    parse_quote! { #arr.cos() }
                 }
             }
             "clip" => {
