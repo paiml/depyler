@@ -1586,8 +1586,8 @@ fn infer_expr_type_with_env(
                 "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
                 | "capitalize" | "join" | "format" => Type::String,
                 // String methods that return bool
-                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isupper"
-                | "islower" => Type::Bool,
+                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace"
+                | "isupper" | "islower" => Type::Bool,
                 // String methods that return int
                 "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
                 // String methods that return list
@@ -1908,8 +1908,8 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
                 | "capitalize" | "join" | "format" => Type::String,
                 // String methods that return bool
-                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isupper"
-                | "islower" => Type::Bool,
+                "startswith" | "endswith" | "isdigit" | "isalpha" | "isalnum" | "isspace"
+                | "isupper" | "islower" => Type::Bool,
                 // String methods that return int
                 "find" | "rfind" | "index" | "rindex" | "count" => Type::Int,
                 // String methods that return list
