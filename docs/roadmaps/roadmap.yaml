@@ -1669,38 +1669,35 @@ roadmap:
 - id: DEPYLER-0636
   github_issue: null
   item_type: feature
-  title: 'Strategy #6: OIP CITL Bidirectional Integration'
+  title: 'Strategy #6: OIP CITL Export + ErrorCodeClass Integration'
   status: planned
-  priority: high
+  priority: medium
   assigned_to: null
   created: 2025-12-01T00:00:00+00:00
   updated: 2025-12-01T00:00:00+00:00
   spec: docs/specifications/single-shot-80-percentage-review.md#107-strategy-6-oip-citl-bidirectional-integration-p1
   acceptance_criteria:
-  - Export Depyler CITL corpus to OIP DepylerExport format
-  - Import OIP training data into Oracle distillation pipeline
-  - Map DefectCategory to ErrorCategory bidirectionally
-  - Use ErrorCodeClass for GNN feature extraction
-  - Parquet batch loading via alimentar DataLoader
-  - Confidence-based filtering (min 0.75)
+  - Export Depyler CITL corpus to OIP DepylerExport format (NEW - reverse direction)
+  - Use ErrorCodeClass (Type/Borrow/Name/Trait/Other) for GNN feature extraction (NEW)
+  - Parquet batch loading via alimentar DataLoader (NEW)
   phases:
-  - name: Phase 1 - Export pipeline (RED)
+  - name: Phase 1 - DepylerExport format implementation
     status: planned
-    estimated_effort: 2d
+    estimated_effort: 1d
     completion: 0
-  - name: Phase 2 - Import pipeline (GREEN)
+  - name: Phase 2 - ErrorCodeClass GNN integration
     status: planned
-    estimated_effort: 2d
+    estimated_effort: 1d
     completion: 0
-  - name: Phase 3 - Bidirectional sync (REFACTOR)
+  - name: Phase 3 - alimentar Parquet support
     status: planned
     estimated_effort: 1d
     completion: 0
   subtasks: []
-  estimated_effort: 5d
+  estimated_effort: 3d
   labels:
-  - P1-high
+  - P2-medium
   - acceleration
   - oip-integration
   - citl
-  notes: 'Source: organizational-intelligence-plugin::citl. Enables closed-loop training between Depyler and OIP.'
+  notes: 'Delta from existing github_corpus.rs: Export pipeline (vs import-only), ErrorCodeClass for GNN, alimentar Parquet. OIP→Depyler import already exists.'
