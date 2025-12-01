@@ -735,19 +735,28 @@ let similar = oracle.search_k_nearest(&embedding, k: 5);
 | Training time | 2 hours | 8 hours |
 | Validation set | 100 | 400 |
 
-### 10.7 Strategy #6: OIP CITL Bidirectional Integration (P1)
+### 10.7 Strategy #6: OIP CITL Export + ErrorCodeClass (P2)
 
 **Ticket:** DEPYLER-0636
 
-**Purpose:** Enable closed-loop training between Depyler and organizational-intelligence-plugin (OIP).
+**Purpose:** Complete bidirectional integration between Depyler and OIP (export direction + new features).
 
-#### Why OIP Integration?
+#### Existing vs New
 
-OIP's CITL module provides:
-1. **Mature category mappings**: `rustc_to_defect_category()` maps E-codes to 18 DefectCategories
-2. **Feature extraction**: `ErrorCodeClass` (Type/Borrow/Name/Trait/Other) for GNN input
+| Feature | Status | Location |
+|---------|--------|----------|
+| OIP→Depyler import | ✅ EXISTS | `github_corpus.rs` |
+| DefectCategory mapping | ✅ EXISTS | `OipDefectCategory::to_error_category()` |
+| Depyler→OIP export | **NEW** | `DepylerExport` format |
+| ErrorCodeClass for GNN | **NEW** | Type/Borrow/Name/Trait/Other |
+| Parquet batch loading | **NEW** | `alimentar::ArrowDataset` |
+
+#### New Features Only
+
+OIP's CITL module adds:
+1. **Export format**: `DepylerExport` struct for Depyler → OIP data flow
+2. **ErrorCodeClass**: Categorical feature for GNN input (5 classes)
 3. **Parquet batch loading**: `alimentar::ArrowDataset` for large corpus handling
-4. **Confidence scoring**: Pre-computed confidence per error code
 
 #### Bidirectional Data Flow
 
@@ -863,7 +872,7 @@ let features = [class.as_u8() as f32, 0.0, 0.0, 0.0]; // One-hot encoding
 | **#3 Curriculum Learning** | MEDIUM | LOW | aprender | **P1** | Week 2-3 |
 | **#4 Knowledge Distillation** | HIGH | HIGH | entrenar+decy | **P1** | Ongoing |
 | **#5 GNN Encoder** | MEDIUM | HIGH | aprender | **P2** | Week 4-6 |
-| **#6 OIP CITL Integration** | HIGH | LOW | OIP | **P1** | Week 2 |
+| **#6 OIP CITL Export** | MEDIUM | LOW | OIP | **P2** | Week 4 |
 
 ### 10.9 Integration Architecture
 
