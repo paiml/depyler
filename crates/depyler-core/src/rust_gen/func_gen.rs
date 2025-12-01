@@ -1551,10 +1551,10 @@ fn infer_expr_type_with_env(
                         )));
                     }
                     ("csv", "writer") | ("csv", "DictWriter") => return Type::Unknown,
-                    // DEPYLER-0517: subprocess.run() returns tuple (returncode, stdout, stderr)
-                    // Generated code produces (i32, String, String) tuple
+                    // DEPYLER-0646: subprocess.run() returns CompletedProcess struct
+                    // Updated from tuple to struct per DEPYLER-0627
                     ("subprocess", "run") => {
-                        return Type::Tuple(vec![Type::Int, Type::String, Type::String]);
+                        return Type::Custom("CompletedProcess".to_string());
                     }
                     // DEPYLER-0532: regex module methods
                     ("re", "findall") | ("regex", "findall") => {
