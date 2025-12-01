@@ -48,6 +48,7 @@ pub mod gnn_encoder;
 pub mod tarantula;
 pub mod tarantula_bridge;
 pub mod tarantula_corpus;
+pub mod oip_export;
 
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
@@ -145,6 +146,12 @@ pub use gnn_encoder::{
     DepylerGnnEncoder, GnnEncoderConfig, GnnEncoderStats,
     SimilarPattern, StructuralPattern, infer_decision_from_match,
     map_error_category,
+};
+
+// OIP CITL Export (Strategy #6 - DEPYLER-0636)
+pub use oip_export::{
+    BatchExporter, DepylerExport, ErrorCodeClass, ExportStats,
+    SpanInfo, SuggestionInfo, export_to_jsonl,
 };
 
 /// Error types for the oracle.
