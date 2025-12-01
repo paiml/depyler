@@ -131,6 +131,9 @@ impl TypeExtractor {
             "list" => Type::List(Box::new(Type::Unknown)),
             "dict" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
             "set" => Type::Set(Box::new(Type::Unknown)),
+            // DEPYLER-0662: Handle bare `tuple` annotation without type params
+            // Python `-> tuple` should be inferred from return statements
+            "tuple" => Type::Tuple(vec![]),
             _ => return None,
         })
     }
