@@ -1812,7 +1812,7 @@ roadmap:
 - id: DEPYLER-0641
   github_issue: null
   item_type: documentation
-  title: 'Generator Expression Support Verification (Action Item A6) - Already Implemented'
+  title: Generator Expression Support Verification (Action Item A6) - Already Implemented
   status: completed
   priority: high
   assigned_to: Claude
@@ -1820,10 +1820,10 @@ roadmap:
   updated: 2025-12-01T09:15:00+00:00
   spec: null
   acceptance_criteria:
-  - 'Generator expressions transpile to iterator chains (verified)'
-  - 'All 20 tests pass in generator_expression_test.rs'
-  - 'Single generators use .into_iter().map()'
-  - 'Multiple generators use .flat_map()'
+  - Generator expressions transpile to iterator chains (verified)
+  - All 20 tests pass in generator_expression_test.rs
+  - Single generators use .into_iter().map()
+  - Multiple generators use .flat_map()
   phases: []
   subtasks: []
   estimated_effort: 15m
@@ -1832,3 +1832,19 @@ roadmap:
   - documentation
   - iterator
   notes: 'Action Item A6 from single-shot-80-percentage-review.md: Already implemented with full test coverage'
+- id: DEPYLER-0643
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0643'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-01T09:26:46.430187469+00:00
+  updated: 2025-12-01T09:31:28.639836223+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
