@@ -2129,7 +2129,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "defaultdict" if !is_user_class => self.convert_defaultdict_builtin(&arg_exprs),
             "dict" if !is_user_class => self.convert_dict_builtin(&arg_exprs),
             "deque" if !is_user_class => self.convert_deque_builtin(&arg_exprs),
-            "list" if !is_user_class => self.convert_list_builtin(&arg_exprs),
+            "list" if !is_user_class => self.convert_list_builtin(&all_hir_args, &arg_exprs),
             // DEPYLER-STDLIB-BUILTINS: Additional builtin functions
             "all" => self.convert_all_builtin(&arg_exprs),
             "any" => self.convert_any_builtin(&arg_exprs),
@@ -2328,7 +2328,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         collection_constructors::convert_deque_builtin(self.ctx, args)
     }
 
-    fn convert_list_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_list_builtin(
+        &mut self,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        // DEPYLER-0651: Handle list(string) → string.chars().collect()
+        // String doesn't implement IntoIterator, need to use .chars()
+        if hir_args.len() == 1 && args.len() == 1 {
+            let hir_arg = &hir_args[0];
+            let is_string = self.is_string_type(hir_arg)
+                || matches!(
+                    hir_arg,
+                    HirExpr::Var(name) if self.ctx.var_types.get(name).map_or(false, |t| matches!(t, Type::String))
+                );
+            if is_string {
+                let arg = &args[0];
+                return Ok(parse_quote! { #arg.chars().collect::<Vec<_>>() });
+            }
+        }
         collection_constructors::convert_list_builtin(self.ctx, args)
     }
 
