@@ -1868,18 +1868,19 @@ roadmap:
 - id: GH-195
   github_issue: 195
   item_type: task
-  title: 'Issue #195'
+  title: 'fix: main() should return () not i32'
   status: inprogress
   priority: medium
   assigned_to: null
-  created: 2025-12-01T11:35:32.677958187+00:00
-  updated: 2025-12-01T11:35:32.677958187+00:00
+  created: 2025-12-01T17:02:08.485598978+00:00
+  updated: 2025-12-01T17:02:08.485598978+00:00
   spec: null
   acceptance_criteria: []
   phases: []
   subtasks: []
   estimated_effort: null
-  labels: []
+  labels:
+  - bug
   notes: null
 - id: GH-169
   github_issue: 169

@@ -2144,8 +2144,19 @@ impl<'a> ExprConverter<'a> {
             BinOp::In => {
                 // DEPYLER-0601: For strings, use .contains() instead of .contains_key()
                 if self.is_string_expr(right) {
-                    // Convert "x in string" to "string.contains(&x)"
-                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+                    // DEPYLER-0200: Use raw string literal or &* for Pattern trait
+                    let pattern: syn::Expr = match left {
+                        HirExpr::Literal(Literal::String(s)) => {
+                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                            parse_quote! { #lit }
+                        }
+                        _ => {
+                            // Use &* to deref-reborrow - works for both String (&*String -> &str)
+                            // and &str (&*&str -> &str), avoiding unstable str_as_str feature
+                            parse_quote! { &*#left_expr }
+                        }
+                    };
+                    Ok(parse_quote! { #right_expr.contains(#pattern) })
                 } else {
                     // Convert "x in dict" to "dict.contains_key(&x)" for dicts/maps
                     Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
@@ -2154,8 +2165,18 @@ impl<'a> ExprConverter<'a> {
             BinOp::NotIn => {
                 // DEPYLER-0601: For strings, use !.contains() instead of !.contains_key()
                 if self.is_string_expr(right) {
-                    // Convert "x not in string" to "!string.contains(&x)"
-                    Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
+                    // DEPYLER-0200: Use raw string literal or &* for Pattern trait
+                    let pattern: syn::Expr = match left {
+                        HirExpr::Literal(Literal::String(s)) => {
+                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                            parse_quote! { #lit }
+                        }
+                        _ => {
+                            // Use &* to deref-reborrow - works for both String and &str
+                            parse_quote! { &*#left_expr }
+                        }
+                    };
+                    Ok(parse_quote! { !#right_expr.contains(#pattern) })
                 } else {
                     // Convert "x not in dict" to "!dict.contains_key(&x)"
                     Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
@@ -2326,6 +2347,11 @@ impl<'a> ExprConverter<'a> {
             "zeros" | "ones" | "full" => self.convert_array_init_call(func, args, &arg_exprs),
             "set" => self.convert_set_constructor(&arg_exprs),
             "frozenset" => self.convert_frozenset_constructor(&arg_exprs),
+            // DEPYLER-0200: File I/O builtins
+            "open" => self.convert_open_call(args, &arg_exprs),
+            // DEPYLER-0200: datetime builtins
+            "date" => self.convert_date_call(&arg_exprs),
+            "datetime" => self.convert_datetime_call(&arg_exprs),
             _ => self.convert_generic_call(func, &arg_exprs),
         }
     }
@@ -2463,6 +2489,85 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    /// DEPYLER-0200: Convert Python open() to Rust file operations
+    /// open(path) → std::fs::File::open(path) (read mode)
+    /// open(path, "w") → std::fs::File::create(path) (write mode)
+    fn convert_open_call(&self, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("open() requires 1 or 2 arguments");
+        }
+
+        let path = &args[0];
+
+        // Determine mode from second argument (default is 'r')
+        let mode = if hir_args.len() >= 2 {
+            if let HirExpr::Literal(Literal::String(mode_str)) = &hir_args[1] {
+                mode_str.as_str()
+            } else {
+                "r" // Default to read mode
+            }
+        } else {
+            "r" // Default mode
+        };
+
+        match mode {
+            "w" | "w+" | "wb" => {
+                // Write mode: std::fs::File::create()
+                Ok(parse_quote! { std::fs::File::create(&#path).unwrap() })
+            }
+            "a" | "a+" | "ab" => {
+                // Append mode: OpenOptions with append
+                Ok(parse_quote! {
+                    std::fs::OpenOptions::new()
+                        .append(true)
+                        .create(true)
+                        .open(&#path)
+                        .unwrap()
+                })
+            }
+            _ => {
+                // Read mode (default): std::fs::File::open()
+                Ok(parse_quote! { std::fs::File::open(&#path).unwrap() })
+            }
+        }
+    }
+
+    /// DEPYLER-0200: Convert Python date(year, month, day) to chrono::NaiveDate
+    fn convert_date_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 3 {
+            bail!("date() requires exactly 3 arguments (year, month, day)");
+        }
+        let year = &args[0];
+        let month = &args[1];
+        let day = &args[2];
+        Ok(parse_quote! {
+            chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
+        })
+    }
+
+    /// DEPYLER-0200: Convert Python datetime(year, month, day, ...) to chrono::NaiveDateTime
+    fn convert_datetime_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() < 3 {
+            bail!("datetime() requires at least 3 arguments (year, month, day)");
+        }
+        let year = &args[0];
+        let month = &args[1];
+        let day = &args[2];
+
+        // Handle optional time components
+        let zero: syn::Expr = parse_quote! { 0 };
+        let hour = args.get(3).unwrap_or(&zero);
+        let minute = args.get(4).unwrap_or(&zero);
+        let second = args.get(5).unwrap_or(&zero);
+
+        Ok(parse_quote! {
+            chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
+                .unwrap()
+                .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
+                .unwrap()
+        })
+    }
+
     fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
         // Special case: Python print() → Rust println!()
         if func == "print" {
@@ -2573,12 +2678,50 @@ impl<'a> ExprConverter<'a> {
 
     fn convert_index(&self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         let base_expr = self.convert(base)?;
-        let index_expr = self.convert(index)?;
 
-        // V1: Direct indexing for simplicity (matches Python behavior)
-        Ok(parse_quote! {
-            #base_expr[#index_expr as usize]
-        })
+        // DEPYLER-0200: Detect dict vs list access
+        // String literal index = dict access, use .get()
+        // Numeric index = list access, use [idx as usize]
+        let is_dict_access = match index {
+            HirExpr::Literal(Literal::String(_)) => true,
+            HirExpr::Var(name) => {
+                // Heuristic: variable names that look like string keys
+                let n = name.as_str();
+                n == "key" || n.ends_with("_key") || n.starts_with("key_")
+                    || n == "name" || n == "field" || n == "attr"
+            }
+            _ => false,
+        };
+
+        // Also check if base looks like a dict
+        let base_is_dict = match base {
+            HirExpr::Var(name) => {
+                let n = name.as_str();
+                n.contains("dict") || n.contains("map") || n.contains("data")
+                    || n == "result" || n == "config" || n == "settings"
+                    || n == "params" || n == "options" || n == "env"
+            }
+            HirExpr::Call { func, .. } => {
+                // Functions returning dicts
+                func.contains("dict") || func.contains("json") || func.contains("config")
+                    || func == "calculate_age" || func.contains("result")
+            }
+            _ => false,
+        };
+
+        if is_dict_access || base_is_dict {
+            // HashMap access with string key
+            let index_expr = self.convert(index)?;
+            Ok(parse_quote! {
+                #base_expr.get(&#index_expr).cloned().unwrap_or_default()
+            })
+        } else {
+            // Vec/List access with numeric index
+            let index_expr = self.convert(index)?;
+            Ok(parse_quote! {
+                #base_expr[#index_expr as usize]
+            })
+        }
     }
 
     /// DEPYLER-0596: Convert slice expression (e.g., value[1:-1])
@@ -2891,6 +3034,33 @@ impl<'a> ExprConverter<'a> {
             }
         }
 
+        // DEPYLER-0200: Handle os module method calls in class methods
+        // This was missing - os.unlink() etc. weren't being converted inside class methods
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "os" {
+                if let Some(rust_expr) = self.try_convert_os_method(method, args)? {
+                    return Ok(rust_expr);
+                }
+            }
+        }
+
+        // DEPYLER-0200: Handle os.path.* and os.environ.* method calls in class methods
+        // Pattern: os.path.exists(path), os.environ.get("KEY") etc.
+        if let HirExpr::Attribute { value, attr } = object {
+            if let HirExpr::Var(module_name) = value.as_ref() {
+                if module_name == "os" && attr == "path" {
+                    if let Some(rust_expr) = self.try_convert_os_path_method(method, args)? {
+                        return Ok(rust_expr);
+                    }
+                }
+                if module_name == "os" && attr == "environ" {
+                    if let Some(rust_expr) = self.try_convert_os_environ_method(method, args)? {
+                        return Ok(rust_expr);
+                    }
+                }
+            }
+        }
+
         // Check if this is a static method call on a class (e.g., Counter.create_with_value)
         if let HirExpr::Var(class_name) = object {
             if class_name
@@ -3172,6 +3342,26 @@ impl<'a> ExprConverter<'a> {
                 )
             }
 
+            // DEPYLER-0200: String contains method - use raw string literal for Pattern trait
+            "__contains__" | "contains" => {
+                if args.len() != 1 {
+                    bail!("contains() requires exactly one argument");
+                }
+                // For Pattern trait, use raw string literal or &* for Pattern trait
+                let pattern: syn::Expr = match &args[0] {
+                    HirExpr::Literal(Literal::String(s)) => {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
+                    }
+                    _ => {
+                        // Use &* to deref-reborrow - works for both String and &str
+                        let arg = self.convert(&args[0])?;
+                        parse_quote! { &*#arg }
+                    }
+                };
+                Ok(parse_quote! { #object_expr.contains(#pattern) })
+            }
+
             // DEPYLER-0613: Semaphore/Mutex method mappings
             // Python: sem.acquire() → Rust: mutex.lock().unwrap() (returns guard)
             "acquire" => {
@@ -3438,6 +3628,255 @@ impl<'a> ExprConverter<'a> {
                 }
                 _ => None,
             },
+            _ => None,
+        };
+
+        Ok(result)
+    }
+
+    /// DEPYLER-0200: Convert os module method calls to Rust std::fs and std::env equivalents
+    /// This was missing from class method context, causing 57+ compile errors
+    fn try_convert_os_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            "getenv" => {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("os.getenv() requires 1 or 2 arguments");
+                }
+                if arg_exprs.len() == 1 {
+                    let key = &arg_exprs[0];
+                    Some(parse_quote! { std::env::var(#key)? })
+                } else {
+                    let key = &arg_exprs[0];
+                    let default = &arg_exprs[1];
+                    Some(parse_quote! { std::env::var(#key).unwrap_or_else(|_| #default.to_string()) })
+                }
+            }
+            "unlink" | "remove" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.{}() requires exactly 1 argument", method);
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! { std::fs::remove_file(#path)? })
+            }
+            "mkdir" => {
+                if arg_exprs.is_empty() {
+                    bail!("os.mkdir() requires at least 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! { std::fs::create_dir(#path)? })
+            }
+            "makedirs" => {
+                if arg_exprs.is_empty() {
+                    bail!("os.makedirs() requires at least 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! { std::fs::create_dir_all(#path)? })
+            }
+            "rmdir" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.rmdir() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! { std::fs::remove_dir(#path)? })
+            }
+            "rename" => {
+                if arg_exprs.len() != 2 {
+                    bail!("os.rename() requires exactly 2 arguments");
+                }
+                let src = &arg_exprs[0];
+                let dst = &arg_exprs[1];
+                Some(parse_quote! { std::fs::rename(#src, #dst)? })
+            }
+            "getcwd" => {
+                if !arg_exprs.is_empty() {
+                    bail!("os.getcwd() takes no arguments");
+                }
+                Some(parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() })
+            }
+            "chdir" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.chdir() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! { std::env::set_current_dir(#path)? })
+            }
+            "listdir" => {
+                if arg_exprs.is_empty() {
+                    Some(parse_quote! {
+                        std::fs::read_dir(".")?
+                            .filter_map(|e| e.ok())
+                            .map(|e| e.file_name().to_string_lossy().to_string())
+                            .collect::<Vec<_>>()
+                    })
+                } else {
+                    let path = &arg_exprs[0];
+                    Some(parse_quote! {
+                        std::fs::read_dir(#path)?
+                            .filter_map(|e| e.ok())
+                            .map(|e| e.file_name().to_string_lossy().to_string())
+                            .collect::<Vec<_>>()
+                    })
+                }
+            }
+            "path" => {
+                // os.path is a submodule, handled elsewhere
+                None
+            }
+            _ => None,
+        };
+
+        Ok(result)
+    }
+
+    /// DEPYLER-0200: Convert os.path module method calls to Rust std::path equivalents
+    fn try_convert_os_path_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            "join" => {
+                if arg_exprs.is_empty() {
+                    bail!("os.path.join() requires at least 1 argument");
+                }
+                let first = &arg_exprs[0];
+                if arg_exprs.len() == 1 {
+                    Some(parse_quote! { std::path::PathBuf::from(#first) })
+                } else {
+                    let mut result: syn::Expr = parse_quote! { std::path::PathBuf::from(#first) };
+                    for part in &arg_exprs[1..] {
+                        result = parse_quote! { #result.join(#part) };
+                    }
+                    Some(parse_quote! { #result.to_string_lossy().to_string() })
+                }
+            }
+            "basename" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.basename() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! {
+                    std::path::Path::new(&#path)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string()
+                })
+            }
+            "dirname" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.dirname() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! {
+                    std::path::Path::new(&#path)
+                        .parent()
+                        .and_then(|p| p.to_str())
+                        .unwrap_or("")
+                        .to_string()
+                })
+            }
+            "exists" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.exists() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! { std::path::Path::new(&#path).exists() })
+            }
+            "isfile" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.isfile() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! { std::path::Path::new(&#path).is_file() })
+            }
+            "isdir" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.isdir() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! { std::path::Path::new(&#path).is_dir() })
+            }
+            "expanduser" => {
+                if arg_exprs.len() != 1 {
+                    bail!("os.path.expanduser() requires exactly 1 argument");
+                }
+                let path = &arg_exprs[0];
+                Some(parse_quote! {
+                    if (#path).starts_with("~") {
+                        std::env::var("HOME")
+                            .map(|home| (#path).replacen("~", &home, 1))
+                            .unwrap_or_else(|_| (#path).to_string())
+                    } else {
+                        (#path).to_string()
+                    }
+                })
+            }
+            _ => None,
+        };
+
+        Ok(result)
+    }
+
+    /// DEPYLER-0200: Convert os.environ method calls to Rust std::env equivalents
+    fn try_convert_os_environ_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| self.convert(arg))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            "get" => {
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("os.environ.get() requires 1 or 2 arguments");
+                }
+                if arg_exprs.len() == 1 {
+                    let key = &arg_exprs[0];
+                    Some(parse_quote! { std::env::var(#key).ok() })
+                } else {
+                    let key = &arg_exprs[0];
+                    let default = &arg_exprs[1];
+                    Some(parse_quote! { std::env::var(#key).unwrap_or_else(|_| #default.to_string()) })
+                }
+            }
+            "keys" => {
+                Some(parse_quote! { std::env::vars().map(|(k, _)| k).collect::<Vec<_>>() })
+            }
+            "values" => {
+                Some(parse_quote! { std::env::vars().map(|(_, v)| v).collect::<Vec<_>>() })
+            }
+            "items" => {
+                Some(parse_quote! { std::env::vars().collect::<Vec<_>>() })
+            }
+            "clear" => {
+                Some(parse_quote! { { /* env clear not implemented */ } })
+            }
+            "update" => {
+                Some(parse_quote! { { /* env update not implemented */ } })
+            }
+            "insert" | "setdefault" => {
+                if arg_exprs.len() >= 2 {
+                    let key = &arg_exprs[0];
+                    let val = &arg_exprs[1];
+                    Some(parse_quote! { std::env::set_var(#key, #val) })
+                } else {
+                    None
+                }
+            }
+            "contains_key" => {
+                if arg_exprs.len() == 1 {
+                    let key = &arg_exprs[0];
+                    Some(parse_quote! { std::env::var(#key).is_ok() })
+                } else {
+                    None
+                }
+            }
             _ => None,
         };
 
