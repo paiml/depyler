@@ -14879,14 +14879,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Add the map transformation (to key-value tuple)
             chain = parse_quote! { #chain.map(|#target_pat| (#key_expr, #value_expr)) };
 
-            // Collect into HashMap
-            return Ok(parse_quote! { #chain.collect::<HashMap<_, _>>() });
+            // DEPYLER-0685: Use fully qualified path for HashMap to avoid import issues
+            return Ok(parse_quote! { #chain.collect::<std::collections::HashMap<_, _>>() });
         }
 
         // Multiple generators case (nested iteration with flat_map)
         // Build nested chain that generates (key, value) tuples
         let chain = self.convert_nested_generators_for_dict_comp(key, value, generators)?;
-        Ok(parse_quote! { #chain.collect::<HashMap<_, _>>() })
+        // DEPYLER-0685: Use fully qualified path for HashMap
+        Ok(parse_quote! { #chain.collect::<std::collections::HashMap<_, _>>() })
     }
 
     fn convert_nested_generators_for_dict_comp(
