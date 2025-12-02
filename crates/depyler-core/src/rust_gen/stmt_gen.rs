@@ -2165,39 +2165,27 @@ pub(crate) fn codegen_for_stmt(
         confidence = 0.88
     );
 
-    // DEPYLER-0272: Check if loop variable(s) are used in body
-    // If unused, prefix with _ to avoid unused variable warnings with -D warnings
+    // DEPYLER-0683: Do NOT prefix loop variables with underscore
+    // The underscore prefix was causing E0425 errors because body statements reference
+    // the original variable name, but the loop declares `_name` instead of `name`.
+    // Solution: Always use the original variable name. Rust will warn about unused
+    // variables, but this is better than compilation failure.
 
     // Generate target pattern based on AssignTarget type
     let target_pattern: syn::Pat = match target {
         AssignTarget::Symbol(name) => {
-            // Check if this variable is used in the loop body
-            let is_used = body.iter().any(|stmt| is_var_used_in_stmt(name, stmt));
-
-            // If unused, prefix with underscore
-            let var_name = if is_used {
-                name.clone()
-            } else {
-                format!("_{}", name)
-            };
-
-            let ident = safe_ident(&var_name); // DEPYLER-0023
+            // DEPYLER-0683: Always use original variable name to match body references
+            let ident = safe_ident(name); // DEPYLER-0023
             parse_quote! { #ident }
         }
         AssignTarget::Tuple(targets) => {
-            // For tuple unpacking, check each variable individually
+            // For tuple unpacking, use original variable names
             let idents: Vec<syn::Ident> = targets
                 .iter()
                 .map(|t| match t {
                     AssignTarget::Symbol(s) => {
-                        // Check if this specific tuple element is used
-                        let is_used = body.iter().any(|stmt| is_var_used_in_stmt(s, stmt));
-                        let var_name = if is_used {
-                            s.clone()
-                        } else {
-                            format!("_{}", s)
-                        };
-                        safe_ident(&var_name) // DEPYLER-0023
+                        // DEPYLER-0683: Always use original variable name
+                        safe_ident(s) // DEPYLER-0023
                     }
                     _ => safe_ident("_nested"), // Nested tuple unpacking - use placeholder
                 })
@@ -2699,14 +2687,18 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
-    // DEPYLER-0440: Skip None-placeholder assignments
+    // DEPYLER-0440 / DEPYLER-0684: Handle None-placeholder assignments
     // When a variable is initialized with None and later reassigned in if-elif-else,
-    // skip the initial None assignment to avoid Option<T> type mismatch.
-    // The hoisting logic (DEPYLER-0439) will handle the declaration with correct type.
+    // we need to declare it in the outer scope so it's accessible after the if block.
+    // Python pattern: var = None; if cond: var = x; use(var)
+    // Rust pattern: let mut var = None; if cond { var = Some(x); } use(var)
     if let AssignTarget::Symbol(var_name) = target {
         if matches!(value, HirExpr::Literal(Literal::None)) && ctx.mutable_vars.contains(var_name) {
-            // This is a None placeholder that will be reassigned - skip it
-            return Ok(quote! {});
+            // DEPYLER-0684: Generate let mut var = None; to declare in outer scope
+            // This ensures the variable is accessible after if blocks
+            let var_ident = safe_ident(var_name);
+            ctx.declare_var(var_name);
+            return Ok(quote! { let mut #var_ident = None; });
         }
     }
 
