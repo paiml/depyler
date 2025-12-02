@@ -934,6 +934,15 @@ fn generate_constant_tokens(
             continue;
         }
 
+        // DEPYLER-0673: Skip TypeVar calls - they're for type checking, not runtime code
+        // Python: T = TypeVar("T")
+        // This is only used for static type checking, skip in Rust code generation
+        if let HirExpr::Call { func, .. } = &constant.value {
+            if func == "TypeVar" {
+                continue;
+            }
+        }
+
         let value_expr = constant.value.to_rust_expr(ctx)?;
 
         // DEPYLER-REARCH-001: Complex types need runtime initialization (Lazy)
