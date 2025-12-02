@@ -1250,9 +1250,11 @@ fn apply_truthiness_conversion(
 
                         // Argument is an Option<T> if: not required AND no default value AND not positional
                         // Positional arguments are always required (Vec for nargs)
+                        // DEPYLER-0678: Exclude nargs='+' and nargs='*' which are Vec, not Option
                         !arg.is_positional
                             && !arg.required.unwrap_or(false)
                             && arg.default.is_none()
+                            && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
                     })
                 });
 
@@ -1267,6 +1269,25 @@ fn apply_truthiness_conversion(
                     }
                     // Convert Option<T> to boolean using .is_some()
                     return parse_quote! { #cond_expr.is_some() };
+                }
+
+                // DEPYLER-0678: Check if this field is a Vec from nargs='+' or nargs='*'
+                // Python: if args.files (where files has nargs='+')
+                // Rust: if !args.files.is_empty() (Vec truthiness = non-empty)
+                let is_vec_field = ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                    parser_info.arguments.iter().any(|arg| {
+                        let field_name = arg.rust_field_name();
+                        if field_name != *attr {
+                            return false;
+                        }
+                        // nargs='+' or nargs='*' creates Vec<T>
+                        matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+                    })
+                });
+
+                if is_vec_field {
+                    // Convert Vec<T> to boolean using !.is_empty()
+                    return parse_quote! { !#cond_expr.is_empty() };
                 }
 
                 // DEPYLER-0455 Bug 8: Check if this field is a String with a default value
