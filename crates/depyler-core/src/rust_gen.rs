@@ -1017,6 +1017,29 @@ fn generate_stub_functions(
             continue;
         }
 
+        // DEPYLER-0680: Handle imports that are used as types, not functions
+        // These need type aliases, not function stubs
+        let is_type_import =
+            (import.module == "collections.abc" || import.module == "typing")
+                && import.item_name == "AsyncIterator";
+
+        if is_type_import {
+            // Generate type alias + related stubs instead of function
+            let async_stubs = quote! {
+                /// AsyncIterator type alias for Python async iteration
+                /// DEPYLER-0680: Generated to allow standalone compilation
+                #[allow(dead_code)]
+                pub type AsyncIterator<T> = std::iter::Once<T>;
+
+                /// StopAsyncIteration exception for Python async iteration
+                /// DEPYLER-0680: Generated to allow standalone compilation
+                #[allow(dead_code)]
+                pub struct StopAsyncIteration;
+            };
+            stubs.push(async_stubs);
+            continue; // Skip function stub generation
+        }
+
         // Create a valid Rust identifier (escape if keyword)
         let func_ident = keywords::safe_ident(&import.item_name);
         let _module_name = &import.module; // Stored for potential doc comment use
