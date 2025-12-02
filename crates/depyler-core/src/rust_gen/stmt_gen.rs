@@ -1165,11 +1165,11 @@ fn apply_truthiness_conversion(
         // DEPYLER-0517: Heuristic fallback for common string variable names
         // This handles variables from tuple unpacking that aren't tracked in var_types
         // e.g., `let (returncode, stdout, stderr) = run_command(...)`
+        // DEPYLER-0668: Remove "result" from heuristic - too general, often used for bools
         let var_str = var_name.as_str();
         if var_str == "stdout"
             || var_str == "stderr"
             || var_str == "output"
-            || var_str == "result"
             || var_str.ends_with("_output")
             || var_str.ends_with("_result")
             || var_str.ends_with("_str")
@@ -3311,16 +3311,33 @@ pub(crate) fn codegen_assign_symbol(
             // DEPYLER-0464: When initializing from a borrowed dict/json parameter
             // that will be reassigned with .cloned() later, clone it to create an owned value
             // Pattern: `let mut value = config` where config is a parameter
+            // DEPYLER-0644: Also handle field access like `args.text` from ref pattern matching
+            // DEPYLER-0665: Also handle ref-pattern bindings from match arms (e.g., `ref text`)
             let needs_clone = if let syn::Expr::Path(ref path) = value_expr {
                 // Check if this is a simple path (single identifier)
                 if path.path.segments.len() == 1 {
                     let ident = &path.path.segments[0].ident;
                     let var_name = ident.to_string();
                     // Check if:
-                    // 1. Source is already declared (it's a parameter)
-                    // 2. Source name != target name (assigning to a new variable)
-                    // This is the pattern: `let mut value = param` which will later be reassigned
-                    ctx.is_declared(&var_name) && var_name != symbol
+                    // 1. Source is a ref-pattern binding from match arm (subcommand_match_fields)
+                    // 2. OR source is already declared and different from target
+                    // This handles `let mut result = text` where `text` is from `ref text`
+                    ctx.subcommand_match_fields.contains(&var_name)
+                        || (ctx.is_declared(&var_name) && var_name != symbol)
+                } else {
+                    false
+                }
+            } else if let syn::Expr::Field(ref field) = value_expr {
+                // Handle field access like `args.text` from ref pattern matching
+                // These are typically &String that need to be cloned for ownership
+                if let syn::Expr::Path(ref base_path) = *field.base {
+                    if base_path.path.segments.len() == 1 {
+                        let base_name = base_path.path.segments[0].ident.to_string();
+                        // If the base (e.g., `args`) is declared, the field is borrowed
+                        ctx.is_declared(&base_name)
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 }
@@ -5352,10 +5369,15 @@ fn try_generate_subcommand_match(
             // DEPYLER-0608: Set context flags for handler call transformation
             // When in a subcommand match arm that calls a handler, expr_gen will
             // transform cmd_X(args) → cmd_X(field1, field2, ...)
+            // DEPYLER-0665: Always set subcommand_match_fields for ref-pattern bindings
+            // This allows clone detection in stmt_gen when assigning mutable vars from refs
             let was_in_match_arm = ctx.in_subcommand_match_arm;
             let old_match_fields = std::mem::take(&mut ctx.subcommand_match_fields);
             if calls_cmd_handler {
                 ctx.in_subcommand_match_arm = true;
+            }
+            // Always track ref-pattern bindings, not just when calling handler
+            if !accessed_fields.is_empty() {
                 ctx.subcommand_match_fields = accessed_fields.clone();
             }
 
