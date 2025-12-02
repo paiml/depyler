@@ -6042,16 +6042,17 @@ fn codegen_nested_function_def(
     let fn_name = syn::Ident::new(name, proc_macro2::Span::call_site());
 
     // GH-70: Use inferred parameters from context if available
-    let effective_params = ctx
+    // DEPYLER-0687: Clone params to avoid borrow conflicts with ctx.declare_var
+    let effective_params: Vec<HirParam> = ctx
         .nested_function_params
         .get(name)
-        .map(|inferred| inferred.as_slice())
-        .unwrap_or(params);
+        .map(|inferred| inferred.clone())
+        .unwrap_or_else(|| params.to_vec());
 
     // GH-70: Populate ctx.var_types with inferred param types so that
     // expressions in body (like item[0]) can use proper type info
     // to decide between tuple syntax (.0) and array syntax ([0])
-    for param in effective_params {
+    for param in &effective_params {
         ctx.var_types.insert(param.name.clone(), param.ty.clone());
     }
 
@@ -6083,11 +6084,25 @@ fn codegen_nested_function_def(
     let saved_can_fail = ctx.current_function_can_fail;
     ctx.current_function_can_fail = false;
 
+    // DEPYLER-0687: Enter new scope for nested function body
+    // This isolates variable declarations so they don't leak between closures.
+    // Without this, a variable like `result` declared in one closure would be
+    // considered "already declared" in sibling closures, causing E0425 errors.
+    ctx.enter_scope();
+
+    // Declare parameters in this scope
+    for param in &effective_params {
+        ctx.declare_var(&param.name);
+    }
+
     // Generate body
     let body_tokens: Vec<proc_macro2::TokenStream> = body
         .iter()
         .map(|stmt| stmt.to_rust_tokens(ctx))
         .collect::<Result<Vec<_>>>()?;
+
+    // Exit scope before restoring can_fail
+    ctx.exit_scope();
 
     // Restore can_fail flag
     ctx.current_function_can_fail = saved_can_fail;
