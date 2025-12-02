@@ -196,6 +196,8 @@ impl TypeMapper {
                         }
                         // DEPYLER-0584: Python bytes type maps to Vec<u8>
                         "bytes" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
+                        // DEPYLER-0674: Python bytearray type maps to Vec<u8>
+                        "bytearray" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
                         // DEPYLER-0584: Python Callable type maps to Box<dyn Fn>
                         "Callable" | "typing.Callable" | "callable" => {
                             RustType::Custom("Box<dyn Fn()>".to_string())
