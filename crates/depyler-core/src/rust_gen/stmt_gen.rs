@@ -4239,6 +4239,33 @@ pub(crate) fn codegen_try_stmt(
         confidence = 0.80
     );
 
+    // DEPYLER-0681: Variable hoisting for try/except blocks
+    // Variables assigned in try/except blocks need to be accessible after the block.
+    // In Python, variables defined in try/except escape their scope. In Rust, they don't.
+    // We hoist variable declarations before the try block to fix this.
+    let try_vars = extract_toplevel_assigned_symbols(body);
+    let handler_vars: std::collections::HashSet<String> = handlers
+        .iter()
+        .flat_map(|h| extract_toplevel_assigned_symbols(&h.body))
+        .collect();
+
+    // Variables assigned in try body that might be assigned in handlers too (common pattern)
+    // or any variable assigned in try that's not just a loop variable
+    let hoisted_try_vars: Vec<String> = try_vars
+        .union(&handler_vars)
+        .filter(|v| !ctx.is_declared(v))
+        .cloned()
+        .collect();
+
+    // Generate hoisted variable declarations
+    let mut hoisted_decls = Vec::new();
+    for var_name in &hoisted_try_vars {
+        let var_ident = safe_ident(var_name);
+        // Declare variable in outer scope so it's accessible after try block
+        ctx.declare_var(var_name);
+        hoisted_decls.push(quote! { let mut #var_ident; });
+    }
+
     // DEPYLER-0578: Detect json.load(sys.stdin) pattern with exit handler
     // Pattern: try { data = json.load(sys.stdin) } except JSONDecodeError as e: { print; exit }
     // This pattern assigns a variable that must be accessible AFTER the try/except block
@@ -4442,14 +4469,18 @@ pub(crate) fn codegen_try_stmt(
         // Try/finally without except
         if let Some(finally_code) = finally_stmts {
             Ok(quote! {
+                #(#hoisted_decls)*
                 {
                     #(#try_stmts)*
                     #finally_code
                 }
             })
         } else {
-            // Just try block
-            Ok(quote! { #(#try_stmts)* })
+            // DEPYLER-0681: Include hoisted declarations for try block variables
+            Ok(quote! {
+                #(#hoisted_decls)*
+                #(#try_stmts)*
+            })
         }
     } else {
         // DEPYLER-0437/0429: Generate proper match expressions for parse() patterns
@@ -4661,9 +4692,11 @@ pub(crate) fn codegen_try_stmt(
                         }
                     } else {
                         // No binding needed - simple concatenation
+                        // DEPYLER-0681: Include hoisted declarations for try block variables
                         let handler_code = quote! { #(#handler_tokens)* };
                         if let Some(finally_code) = finally_stmts {
                             quote! {
+                                #(#hoisted_decls)*
                                 {
                                     #(#try_stmts)*
                                     #handler_code
@@ -4672,6 +4705,7 @@ pub(crate) fn codegen_try_stmt(
                             }
                         } else {
                             quote! {
+                                #(#hoisted_decls)*
                                 {
                                     #(#try_stmts)*
                                     #handler_code
@@ -4759,21 +4793,28 @@ pub(crate) fn codegen_try_stmt(
                     if has_exception_binding {
                         // Skip handler code - it would reference unbound exception variable
                         // NOTE: This means exception handlers are not fully implemented (tracked in DEPYLER-0424)
+                        // DEPYLER-0681: Include hoisted declarations for try block variables
                         if let Some(finally_code) = finally_stmts {
                             Ok(quote! {
+                                #(#hoisted_decls)*
                                 {
                                     #(#try_stmts)*
                                     #finally_code
                                 }
                             })
                         } else {
-                            Ok(quote! { #(#try_stmts)* })
+                            Ok(quote! {
+                                #(#hoisted_decls)*
+                                #(#try_stmts)*
+                            })
                         }
                     } else {
                         let handler_code = &handler_tokens[0];
 
+                        // DEPYLER-0681: Include hoisted declarations for try block variables
                         if let Some(finally_code) = finally_stmts {
                             Ok(quote! {
+                                #(#hoisted_decls)*
                                 {
                                     #(#try_stmts)*
                                     #handler_code
@@ -4785,6 +4826,7 @@ pub(crate) fn codegen_try_stmt(
                             // NOTE: This executes both unconditionally - need proper conditional logic (tracked in DEPYLER-0424)
                             // based on which operations can panic (ZeroDivisionError, IndexError, etc.)
                             Ok(quote! {
+                                #(#hoisted_decls)*
                                 {
                                     #(#try_stmts)*
                                     #handler_code
@@ -4882,23 +4924,29 @@ pub(crate) fn codegen_try_stmt(
                 let has_error_handling = try_code_str.contains("unwrap_or_default")
                     || try_code_str.contains("unwrap_or(");
 
+                // DEPYLER-0681: Include hoisted declarations for try block variables
                 if has_error_handling {
                     // Try block has built-in error handling, don't add handlers
                     if let Some(finally_code) = finally_stmts {
                         Ok(quote! {
+                            #(#hoisted_decls)*
                             {
                                 #(#try_stmts)*
                                 #finally_code
                             }
                         })
                     } else {
-                        Ok(quote! { #(#try_stmts)* })
+                        Ok(quote! {
+                            #(#hoisted_decls)*
+                            #(#try_stmts)*
+                        })
                     }
                 } else {
                     // DEPYLER-0359: Multiple handlers - include them all
                     // Note: Floor division with ZeroDivisionError is handled earlier (line 1366)
                     if let Some(finally_code) = finally_stmts {
                         Ok(quote! {
+                            #(#hoisted_decls)*
                             {
                                 #(#try_stmts)*
                                 #(#handler_tokens)*
@@ -4907,6 +4955,7 @@ pub(crate) fn codegen_try_stmt(
                         })
                     } else {
                         Ok(quote! {
+                            #(#hoisted_decls)*
                             {
                                 #(#try_stmts)*
                                 #(#handler_tokens)*
