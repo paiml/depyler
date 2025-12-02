@@ -14387,6 +14387,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "stdout" | "stderr" | "text" | "output" | "message" | "name"
                 )
             }
+            // DEPYLER-0675: Handle str() function call - returns String
+            // Python: list(str(num)) → Rust: num.to_string().chars().collect()
+            HirExpr::Call { func, .. } => {
+                // str() builtin returns a string
+                func == "str"
+            }
+            // DEPYLER-0676: Handle method calls that return strings
+            // Python: list(num.to_string()) → Rust: num.to_string().chars().collect()
+            HirExpr::MethodCall { method, .. } => {
+                // Methods that return strings
+                matches!(
+                    method.as_str(),
+                    "to_string" | "format" | "upper" | "lower" | "strip" | "replace" | "join"
+                )
+            }
             _ => false,
         }
     }

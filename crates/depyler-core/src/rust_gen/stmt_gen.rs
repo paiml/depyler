@@ -5722,8 +5722,9 @@ fn try_generate_subcommand_match(
                                     // Convert to owned String
                                     quote! { let #field_ident = #field_ident.to_string(); }
                                 } else if needs_numeric_unwrap {
-                                    // DEPYLER-0576: Likely numeric Option<f64> field, unwrap with default
-                                    quote! { let #field_ident = #field_ident.unwrap_or(0.0); }
+                                    // DEPYLER-0576: Likely numeric Option<T> field, unwrap with default
+                                    // DEPYLER-0677: Use Default::default() for type-safe numeric defaults
+                                    quote! { let #field_ident = #field_ident.unwrap_or_default(); }
                                 } else {
                                     // Unknown: keep as reference (safer default)
                                     quote! {}
