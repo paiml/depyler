@@ -1098,11 +1098,12 @@ fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
             // Handle special case for &Self (method returning self)
             if name == "&Self" {
                 parse_quote! { &Self }
-            } else if name.contains("::") {
-                // Handle qualified paths like "serde_json::Value"
-                let path: syn::Path = syn::parse_str(name)
-                    .unwrap_or_else(|_| panic!("Failed to parse type path: {}", name));
-                parse_quote! { #path }
+            } else if name.contains("::") || name.contains('<') || name.contains('(') {
+                // DEPYLER-0686: Handle complex type syntax like "Box<dyn Fn()>"
+                // Also handles qualified paths like "serde_json::Value"
+                let ty: syn::Type = syn::parse_str(name)
+                    .unwrap_or_else(|_| panic!("Failed to parse type: {}", name));
+                parse_quote! { #ty }
             } else {
                 let ident = make_ident(name);
                 parse_quote! { #ident }
@@ -1186,9 +1187,10 @@ fn convert_container_type(rust_type: &RustType) -> Result<syn::Type> {
             parse_quote! { Vec<#inner_type> }
         }
         HashMap(key, value) => {
+            // DEPYLER-0686: Use fully qualified path to avoid import issues
             let key_type = rust_type_to_syn_type(key)?;
             let value_type = rust_type_to_syn_type(value)?;
-            parse_quote! { HashMap<#key_type, #value_type> }
+            parse_quote! { std::collections::HashMap<#key_type, #value_type> }
         }
         Option(inner) => {
             let inner_type = rust_type_to_syn_type(inner)?;
@@ -1200,8 +1202,9 @@ fn convert_container_type(rust_type: &RustType) -> Result<syn::Type> {
             parse_quote! { Result<#ok_type, #err_type> }
         }
         HashSet(inner) => {
+            // DEPYLER-0686: Use fully qualified path to avoid import issues
             let inner_type = rust_type_to_syn_type(inner)?;
-            parse_quote! { HashSet<#inner_type> }
+            parse_quote! { std::collections::HashSet<#inner_type> }
         }
         _ => unreachable!("convert_container_type called with non-container type"),
     })
