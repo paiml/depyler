@@ -426,9 +426,15 @@ impl TypeExtractor {
                 "Semaphore" => Some(Type::Custom("tokio::sync::Semaphore".to_string())),
                 _ => Some(Type::Custom("serde_json::Value".to_string())),
             },
+            // DEPYLER-0679: subprocess module types
+            "subprocess" => match type_name {
+                "CompletedProcess" => Some(Type::Custom("CompletedProcess".to_string())),
+                "Popen" => Some(Type::Custom("std::process::Child".to_string())),
+                _ => Some(Type::Custom("serde_json::Value".to_string())),
+            },
             // Catch-all for other stdlib modules
             "collections" | "collections.abc" | "typing" | "types" | "functools" | "itertools"
-            | "pathlib" | "os" | "sys" | "io" | "re" | "json" | "pickle" | "subprocess"
+            | "pathlib" | "os" | "sys" | "io" | "re" | "json" | "pickle"
             | "socket" | "ssl" | "http" | "urllib" => {
                 // For most stdlib types, use serde_json::Value as placeholder
                 Some(Type::Custom("serde_json::Value".to_string()))
