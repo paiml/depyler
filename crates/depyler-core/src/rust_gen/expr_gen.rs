@@ -933,17 +933,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #right_expr.iter().any(|s| s == #left_expr) })
                 }
             } else if is_string || is_set {
-                // String and Set use .contains(&value)
-                if negate {
-                    if needs_borrow {
-                        Ok(parse_quote! { !#right_expr.contains(&#left_expr) })
-                    } else {
-                        Ok(parse_quote! { !#right_expr.contains(#left_expr) })
+                // DEPYLER-0200: For string contains, use raw string literal or &* for Pattern trait
+                // String literals should not have .to_string() added when used as patterns
+                let pattern: syn::Expr = if is_string {
+                    match left {
+                        HirExpr::Literal(Literal::String(s)) => {
+                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                            parse_quote! { #lit }
+                        }
+                        _ => {
+                            // Use &* to deref-reborrow - works for both String (&*String -> &str)
+                            // and &str (&*&str -> &str), avoiding unstable str_as_str feature
+                            parse_quote! { &*#left_expr }
+                        }
                     }
                 } else if needs_borrow {
-                    Ok(parse_quote! { #right_expr.contains(&#left_expr) })
+                    parse_quote! { &#left_expr }
                 } else {
-                    Ok(parse_quote! { #right_expr.contains(#left_expr) })
+                    left_expr.clone()
+                };
+
+                // String and Set use .contains(&value)
+                if negate {
+                    Ok(parse_quote! { !#right_expr.contains(#pattern) })
+                } else {
+                    Ok(parse_quote! { #right_expr.contains(#pattern) })
                 }
             } else {
                 // Regular list contains
@@ -3986,6 +4000,125 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             _ => {
                 bail!("time.{} not implemented yet", method);
+            }
+        };
+
+        Ok(Some(result))
+    }
+
+    /// Try to convert shutil module method calls
+    /// DEPYLER-STDLIB-SHUTIL: Shell utilities for file operations
+    ///
+    /// Maps Python shutil module to Rust std::fs:
+    /// - shutil.copy(src, dst) → std::fs::copy(src, dst)
+    /// - shutil.copy2(src, dst) → std::fs::copy(src, dst) (simplified)
+    /// - shutil.move(src, dst) → std::fs::rename(src, dst)
+    /// - shutil.rmtree(path) → std::fs::remove_dir_all(path)
+    /// - shutil.copytree(src, dst) → fs_extra::dir::copy (simplified)
+    ///
+    /// # Complexity: 4
+    #[inline]
+    fn try_convert_shutil_method(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments first
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result = match method {
+            // shutil.copy(src, dst) → std::fs::copy(&src, &dst)
+            // Returns dst (the destination path)
+            "copy" | "copy2" => {
+                if arg_exprs.len() < 2 {
+                    bail!("shutil.{}() requires 2 arguments (src, dst)", method);
+                }
+                let src = &arg_exprs[0];
+                let dst = &arg_exprs[1];
+                // Returns the number of bytes copied as u64, but Python returns dst
+                // Use a block to match Python behavior
+                parse_quote! {
+                    {
+                        std::fs::copy(&#src, &#dst).unwrap();
+                        #dst.clone()
+                    }
+                }
+            }
+
+            // shutil.move(src, dst) → std::fs::rename(&src, &dst)
+            "move" | "r#move" => {
+                if arg_exprs.len() < 2 {
+                    bail!("shutil.move() requires 2 arguments (src, dst)");
+                }
+                let src = &arg_exprs[0];
+                let dst = &arg_exprs[1];
+                parse_quote! {
+                    {
+                        std::fs::rename(&#src, &#dst).unwrap();
+                        #dst.clone()
+                    }
+                }
+            }
+
+            // shutil.rmtree(path) → std::fs::remove_dir_all(&path)
+            "rmtree" => {
+                if arg_exprs.is_empty() {
+                    bail!("shutil.rmtree() requires 1 argument (path)");
+                }
+                let path = &arg_exprs[0];
+                parse_quote! { std::fs::remove_dir_all(&#path).unwrap() }
+            }
+
+            // shutil.copytree(src, dst) → simplified recursive copy
+            "copytree" => {
+                if arg_exprs.len() < 2 {
+                    bail!("shutil.copytree() requires 2 arguments (src, dst)");
+                }
+                let src = &arg_exprs[0];
+                let dst = &arg_exprs[1];
+                // Simplified: use a function that recursively copies
+                parse_quote! {
+                    {
+                        fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
+                            std::fs::create_dir_all(dst)?;
+                            for entry in std::fs::read_dir(src)? {
+                                let entry = entry?;
+                                let file_type = entry.file_type()?;
+                                if file_type.is_dir() {
+                                    copy_dir_all(&entry.path(), &dst.join(entry.file_name()))?;
+                                } else {
+                                    std::fs::copy(entry.path(), dst.join(entry.file_name()))?;
+                                }
+                            }
+                            Ok(())
+                        }
+                        copy_dir_all(std::path::Path::new(&#src), std::path::Path::new(&#dst)).unwrap();
+                        #dst.clone()
+                    }
+                }
+            }
+
+            // shutil.which(cmd) → std::process::Command to check if command exists
+            "which" => {
+                if arg_exprs.is_empty() {
+                    bail!("shutil.which() requires 1 argument (cmd)");
+                }
+                let cmd = &arg_exprs[0];
+                parse_quote! {
+                    std::process::Command::new("which")
+                        .arg(&#cmd)
+                        .output()
+                        .ok()
+                        .filter(|o| o.status.success())
+                        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+                }
+            }
+
+            _ => {
+                bail!("shutil.{} not implemented yet", method);
             }
         };
 
@@ -9309,6 +9442,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return self.try_convert_time_method(method, args);
             }
 
+            // DEPYLER-STDLIB-SHUTIL: Shell utilities for file operations
+            // shutil.copy(src, dst) → std::fs::copy(src, dst)
+            // shutil.copy2(src, dst) → std::fs::copy(src, dst)
+            // shutil.move(src, dst) → std::fs::rename(src, dst)
+            if module_name == "shutil" {
+                return self.try_convert_shutil_method(method, args);
+            }
+
             // DEPYLER-STDLIB-CSV: CSV file operations
             // DEPYLER-0426: Pass kwargs for DictWriter(file, fieldnames=...)
             if module_name == "csv" {
@@ -10326,9 +10467,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if hir_args.len() != 1 {
                     bail!("count() requires exactly one argument");
                 }
-                let substring = match &hir_args[0] {
+                let substring: syn::Expr = match &hir_args[0] {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                    _ => arg_exprs[0].clone(),
+                    _ => {
+                        // DEPYLER-0200: Use &* to deref-reborrow for Pattern trait compliance
+                        // Works for both String (&*String -> &str) and &str (&*&str -> &str)
+                        let arg = &arg_exprs[0];
+                        parse_quote! { &*#arg }
+                    }
                 };
                 Ok(parse_quote! { #object_expr.matches(#substring).count() as i32 })
             }
@@ -10382,7 +10528,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0594: bytes.decode([encoding]) → String::from_utf8_lossy()
                 // Python: b.decode() or b.decode('utf-8')
                 // Rust: String::from_utf8_lossy(bytes).to_string()
-                Ok(parse_quote! { String::from_utf8_lossy(&#object_expr).to_string() })
+
+                // DEPYLER-0200: base64.encode() already returns String - no decode needed
+                // Note: This is now handled in convert_method_call before reaching here
+                // Check if object is a base64 encode call (represented as MethodCall)
+                // base64.b64encode(...) is HIR MethodCall { object: Var("base64"), method: "b64encode", ... }
+                let is_base64_encode = match hir_object {
+                    HirExpr::MethodCall { object, method, .. } => {
+                        matches!(object.as_ref(), HirExpr::Var(module) if module.as_str() == "base64")
+                            && (method.as_str().contains("b64encode")
+                                || method.as_str().contains("urlsafe_b64encode"))
+                    }
+                    HirExpr::Call { func, .. } => {
+                        func.as_str().contains("b64encode")
+                            || func.as_str().contains("urlsafe_b64encode")
+                    }
+                    _ => false,
+                };
+
+                if is_base64_encode {
+                    // base64::encode() returns String - just return it directly
+                    Ok(object_expr.clone())
+                } else {
+                    Ok(parse_quote! { String::from_utf8_lossy(&#obj).to_string() })
+                }
             }
             "isalnum" => {
                 // DEPYLER-0302: str.isalnum() → .chars().all(|c| c.is_alphanumeric())
@@ -11828,6 +11997,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0426: Pass kwargs to module method converter
         if let Some(result) = self.try_convert_module_method(object, method, args, kwargs)? {
             return Ok(result);
+        }
+
+        // DEPYLER-0200: Handle .decode() on base64 encode calls
+        // base64.b64encode() in Rust returns String, not bytes - no decode needed
+        if method == "decode" {
+            if let HirExpr::MethodCall {
+                object: inner_obj,
+                method: inner_method,
+                ..
+            } = object
+            {
+                if let HirExpr::Var(module) = inner_obj.as_ref() {
+                    if module == "base64"
+                        && (inner_method.contains("b64encode")
+                            || inner_method.contains("urlsafe_b64encode"))
+                    {
+                        // base64::encode() returns String - just return the object expression
+                        return object.to_rust_expr(self.ctx);
+                    }
+                }
+            }
         }
 
         let object_expr = object.to_rust_expr(self.ctx)?;
@@ -13833,8 +14023,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 matches!(func.as_str(), "Path" | "PurePath" | "PurePosixPath" | "PureWindowsPath")
             }
             // Method calls that return paths
+            // Note: "resolve" and "absolute" are NOT included because they are converted
+            // with .to_string_lossy().to_string() and thus return String, not PathBuf
             HirExpr::MethodCall { method, .. } => {
-                matches!(method.as_str(), "parent" | "resolve" | "absolute" | "expanduser" |
+                matches!(method.as_str(), "parent" | "expanduser" |
                          "with_name" | "with_suffix" | "with_stem" | "joinpath")
             }
             // Attribute access like Path(__file__).parent
