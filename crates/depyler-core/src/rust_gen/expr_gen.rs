@@ -245,7 +245,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if let HirExpr::Var(var_name) = hir_arg {
             // DEPYLER-0644: Check if variable is already unwrapped (inside if-let body)
             // If so, the variable is already a concrete String, not Option<String>
-            if self.ctx.option_unwrap_map.contains_key(var_name) {
+            // DEPYLER-0666: Also check if var_name is an UNWRAPPED name (value in map)
+            // e.g., hash_algorithm_val from `if let Some(ref hash_algorithm_val) = hash_algorithm`
+            let is_unwrapped =
+                self.ctx.option_unwrap_map.contains_key(var_name)
+                    || self.ctx.option_unwrap_map.values().any(|v| v == var_name);
+            if is_unwrapped {
                 // Variable was already unwrapped, just borrow it
                 return Self::borrow_if_needed(path_expr);
             }
@@ -287,8 +292,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             } else {
                 syn::Ident::new(unwrapped_name, proc_macro2::Span::call_site())
             };
-            // Return the unwrapped variable name with .clone() since it's a reference
-            return Ok(parse_quote! { #ident.clone() });
+            // DEPYLER-0666: Return the unwrapped variable name directly
+            // The variable is &T from `if let Some(ref x_val) = x { ... }`
+            // Rust will auto-deref &String to &str when needed
+            // Don't add .clone() - let the caller handle ownership if needed
+            return Ok(parse_quote! { #ident });
         }
 
         // DEPYLER-0624: Handle Python's magic dunder variables
@@ -426,6 +434,76 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             } else if right_is_float && matches!(left, HirExpr::Literal(Literal::Int(n)) if *n == 0)
             {
                 left_expr = parse_quote! { 0.0 };
+            }
+
+            // DEPYLER-STRING-COMPARE: Handle string comparison type mismatches
+            // String >= &str doesn't work (PartialOrd not implemented)
+            // String == &String doesn't work directly
+            // Convert String operands to &str for comparison
+            let is_ordering_compare = matches!(
+                op,
+                BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
+            );
+
+            // Check if left is string index (produces String) and needs .as_str()
+            let left_is_string_index = matches!(left, HirExpr::Index { base, .. } if self.is_string_base(base));
+            // Check if right is string index (produces String) and needs .as_str()
+            let right_is_string_index = matches!(right, HirExpr::Index { base, .. } if self.is_string_base(base));
+
+            // Check if left is a String-typed variable
+            // First check var_types, then fall back to heuristics
+            // IMPORTANT: If var_types says it's NOT a string (e.g., Int), don't use heuristic
+            let left_is_string_var = if let HirExpr::Var(name) = left {
+                // Check explicit type info first
+                if let Some(ty) = self.ctx.var_types.get(name) {
+                    // If we have explicit type info, use it
+                    matches!(ty, Type::String)
+                } else {
+                    // No type info - use heuristic for char/string variable names
+                    // But be conservative: only match these names if right side is a string literal
+                    false // Don't use name heuristic alone - too error-prone
+                }
+            } else {
+                false
+            };
+
+            // Check if right side is a single-character string literal (like "a", "z")
+            // This indicates we're comparing a character variable against a char literal
+            let right_is_char_literal = matches!(
+                right,
+                HirExpr::Literal(Literal::String(s)) if s.len() == 1
+            );
+
+            // If comparing a variable with a single-char string literal in ordering comparison,
+            // the variable is likely a String that needs .as_str() conversion
+            let left_needs_as_str = is_ordering_compare
+                && matches!(left, HirExpr::Var(_))
+                && right_is_char_literal;
+
+            // For ordering comparisons with string expressions, convert to &str
+            // because String doesn't implement PartialOrd<&str>
+            if is_ordering_compare
+                && (left_is_string_index || left_is_string_var || left_needs_as_str)
+            {
+                left_expr = parse_quote! { (#left_expr).as_str() };
+            }
+            if is_ordering_compare && right_is_string_index {
+                right_expr = parse_quote! { (#right_expr).as_str() };
+            }
+
+            // For equality comparisons, handle String == &String case
+            // by dereferencing the &String side to get String
+            // Right side could be:
+            // - A variable (HirExpr::Var)
+            // - An attribute like args.target (HirExpr::Attribute)
+            let right_is_ref_pattern = matches!(right, HirExpr::Var(_))
+                || matches!(right, HirExpr::Attribute { .. });
+            if matches!(op, BinOp::Eq | BinOp::NotEq)
+                && left_is_string_index
+                && right_is_ref_pattern
+            {
+                // Right side might be &String from ref pattern - deref to String for comparison
+                right_expr = parse_quote! { *#right_expr };
             }
         }
 
@@ -801,10 +879,65 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let is_slice_concat =
             matches!(left, HirExpr::Slice { .. }) || matches!(right, HirExpr::Slice { .. });
 
-        // String detection
+        // DEPYLER-STRING-CONCAT: String variable detection for concatenation
+        // Check if either operand is a String-typed variable
+        let is_string_var = match (left, right) {
+            (HirExpr::Var(name), _) => self
+                .ctx
+                .var_types
+                .get(name)
+                .map(|t| matches!(t, Type::String))
+                .unwrap_or(false),
+            (_, HirExpr::Var(name)) => self
+                .ctx
+                .var_types
+                .get(name)
+                .map(|t| matches!(t, Type::String))
+                .unwrap_or(false),
+            _ => false,
+        };
+
+        // DEPYLER-STRING-CONCAT: Check for str() calls, .to_string(), and string indexing
+        let is_str_producing_expr = |expr: &HirExpr| -> bool {
+            match expr {
+                // str(x) call
+                HirExpr::Call { func, .. } if func == "str" => true,
+                // x.to_string() method call (not in HIR but detect common patterns)
+                HirExpr::MethodCall { method, .. }
+                    if method == "to_string" || method == "format" =>
+                {
+                    true
+                }
+                // String indexing: text[i] produces a character/String
+                // Check if base is a string type variable
+                HirExpr::Index { base, .. } => {
+                    if let HirExpr::Var(var_name) = base.as_ref() {
+                        // Check var_types for String type
+                        self.ctx
+                            .var_types
+                            .get(var_name)
+                            .map(|t| matches!(t, Type::String))
+                            .unwrap_or(false)
+                            || self.is_string_base(base)
+                    } else if let HirExpr::Attribute { attr, .. } = base.as_ref() {
+                        // args.text, args.prefix etc.
+                        self.is_string_base(base)
+                    } else {
+                        false
+                    }
+                }
+                _ => false,
+            }
+        };
+
+        // String detection - includes literals, variable types, str() calls, string indexing
+        // NOTE: Do NOT use current_return_type here - just because a function returns String
+        // doesn't mean all + operations are string concatenation (e.g., loop counter: i = i + 1)
         let is_definitely_string = matches!(left, HirExpr::Literal(Literal::String(_)))
             || matches!(right, HirExpr::Literal(Literal::String(_)))
-            || matches!(self.ctx.current_return_type, Some(Type::String));
+            || is_string_var
+            || is_str_producing_expr(left)
+            || is_str_producing_expr(right);
 
         if (is_definitely_list || is_slice_concat || is_list_var) && !is_definitely_string {
             // List/slice concatenation
@@ -3136,6 +3269,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0568: Handle PathBuf → String conversion for function arguments
                     // When passing a PathBuf to a function that expects String
                     if let HirExpr::Var(var_name) = hir_arg {
+                        // DEPYLER-0666: Check if variable was already unwrapped via if-let
+                        // If so, don't add .as_ref().unwrap() - the value is already concrete
+                        let is_unwrapped = self.ctx.option_unwrap_map.contains_key(var_name);
+
                         if let Some(var_type) = self.ctx.var_types.get(var_name) {
                             // PathBuf → String conversion
                             if matches!(var_type, Type::Custom(ref s) if s == "PathBuf" || s == "Path") {
@@ -3144,7 +3281,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 return parse_quote! { #arg_expr.display().to_string() };
                             }
                             // Option<String> → &str conversion when function expects &str
-                            if matches!(var_type, Type::Optional(ref inner) if matches!(inner.as_ref(), Type::String)) {
+                            // DEPYLER-0666: Skip if already unwrapped
+                            if !is_unwrapped && matches!(var_type, Type::Optional(ref inner) if matches!(inner.as_ref(), Type::String)) {
                                 // Unwrap the Option and pass reference
                                 return parse_quote! { #arg_expr.as_ref().unwrap() };
                             }
@@ -4450,7 +4588,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let key_with_unwrap = if let HirExpr::Var(var_name) = &args[0] {
                         // DEPYLER-0644: Check if variable is already unwrapped (inside if-let body)
                         // If so, the key is already a concrete String, not Option<String>
-                        if self.ctx.option_unwrap_map.contains_key(var_name) {
+                        // DEPYLER-0666: Also check if var_name is an UNWRAPPED name (value in map)
+                        let is_unwrapped =
+                            self.ctx.option_unwrap_map.contains_key(var_name)
+                                || self.ctx.option_unwrap_map.values().any(|v| v == var_name);
+                        if is_unwrapped {
                             // Variable was already unwrapped, don't add .as_ref().unwrap()
                             key.clone()
                         } else if let Some(var_type) = self.ctx.var_types.get(var_name) {
@@ -4870,7 +5012,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "norm" => {
                 if let Some(arr) = arg_exprs.first() {
                     // DEPYLER-0583: trueno uses norm_l2() for L2 (Euclidean) norm
-                    parse_quote! { #arr.norm_l2().unwrap() }
+                    // DEPYLER-0667: Wrap arg in parens so `a - b` becomes `(a - b).norm_l2()`
+                    // Without parens, `a - b.norm_l2()` parses as `a - (b.norm_l2())`
+                    parse_quote! { (#arr).norm_l2().unwrap() }
                 } else {
                     bail!("np.norm() requires 1 argument");
                 }
@@ -11401,9 +11545,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0536: Detect Option type for write() content argument
             // Priority: type system > name heuristics (only use heuristics when no type info)
             // DEPYLER-0647: Check option_unwrap_map first - if already unwrapped, not Option
+            // DEPYLER-0666: Also check if var_name is an UNWRAPPED name (value in map)
             let is_option_content = if let HirExpr::Var(var_name) = &hir_args[0] {
                 // Check if variable is already unwrapped (inside if-let body)
-                if self.ctx.option_unwrap_map.contains_key(var_name) {
+                let is_unwrapped =
+                    self.ctx.option_unwrap_map.contains_key(var_name)
+                        || self.ctx.option_unwrap_map.values().any(|v| v == var_name);
+                if is_unwrapped {
                     false // Already unwrapped, not Option
                 } else {
                     match self.ctx.var_types.get(var_name) {
@@ -12382,6 +12530,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || name == "timestamp"  // GH-70: Common string field (ISO 8601, etc.)
                     || name == "message"     // GH-70: Log messages are strings
                     || name == "level"       // GH-70: Log levels are strings ("INFO", "ERROR")
+                    || name == "prefix"      // String prefix for startswith operations
+                    || name == "suffix"      // String suffix for endswith operations
+                    || name == "pattern"     // String pattern for matching
+                    || name == "char"        // Single character string
+                    || name == "delimiter"   // String delimiter
+                    || name == "separator"   // String separator
                     || (name == "word" && is_singular)
                     || (name.starts_with("text") && is_singular)
                     || (name.starts_with("str") && is_singular)
@@ -12392,7 +12546,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || (name.ends_with("timestamp") && is_singular)  // GH-70: created_timestamp, etc.
                     || (name.ends_with("_message") && is_singular) // GH-70: error_message, etc.
             }
-            // DEPYLER-0577: Handle attribute access (e.g., args.text)
+            // DEPYLER-0577: Handle attribute access (e.g., args.text, args.prefix)
             HirExpr::Attribute { attr, .. } => {
                 let name = attr.as_str();
                 let is_singular = !name.ends_with('s');
@@ -12402,6 +12556,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || name == "line"
                     || name == "content"
                     || name == "message"
+                    || name == "prefix"      // String prefix for startswith operations
+                    || name == "suffix"      // String suffix for endswith operations
+                    || name == "pattern"     // String pattern for matching
+                    || name == "char"        // Single character string
+                    || name == "delimiter"   // String delimiter
+                    || name == "separator"   // String separator
+                    || name == "old"         // String replacement old value
+                    || name == "new"         // String replacement new value
                     || (name.starts_with("text") && is_singular)
                     || (name.ends_with("_text") && is_singular)
                     || (name.ends_with("_string") && is_singular)
@@ -14410,9 +14572,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return true;
                 }
                 // Common float result variable names from numpy operations
+                // DEPYLER-0668: Remove "result" - too general, often used for ints/bools
                 matches!(
                     name.as_str(),
-                    "mean" | "std" | "variance" | "sum" | "norm" | "result"
+                    "mean" | "std" | "variance" | "sum" | "norm"
                 )
             }
             // DEPYLER-0577: Attribute access (e.g., args.x) - check if attr is float type

@@ -172,8 +172,9 @@ pub fn generate_trueno_code(call: &NumpyCall) -> TokenStream {
         NumpyCall::Norm { arr } => {
             // DEPYLER-0583: trueno uses norm_l2() for L2 (Euclidean) norm
             // which is np.linalg.norm() default behavior
+            // DEPYLER-0667: Wrap arg in parens for correct precedence
             quote! {
-                #arr.norm_l2().unwrap()
+                (#arr).norm_l2().unwrap()
             }
         }
     }
