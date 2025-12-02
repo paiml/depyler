@@ -2551,6 +2551,59 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         collection_constructors::convert_list_builtin(self.ctx, args)
     }
 
+    /// DEPYLER-0674: Convert Python bytearray() constructor to Vec<u8>
+    /// bytearray() → Vec::new()
+    /// bytearray(n) → vec![0u8; n]
+    /// bytearray([1, 2, 3]) → vec![1u8, 2u8, 3u8]
+    /// bytearray(b"hello") → b"hello".to_vec()
+    fn convert_bytearray_builtin(
+        &mut self,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if args.is_empty() {
+            // bytearray() → Vec::<u8>::new()
+            return Ok(parse_quote! { Vec::<u8>::new() });
+        }
+
+        if args.len() == 1 {
+            let hir_arg = &hir_args[0];
+            let arg = &args[0];
+
+            // bytearray(n) where n is an int → vec![0u8; n as usize]
+            // Check for int literal or int variable
+            let is_int = matches!(hir_arg, HirExpr::Literal(crate::hir::Literal::Int(_)))
+                || matches!(
+                    hir_arg,
+                    HirExpr::Var(name) if self.ctx.var_types.get(name).map_or(false, |t| matches!(t, Type::Int))
+                );
+            if is_int {
+                return Ok(parse_quote! { vec![0u8; #arg as usize] });
+            }
+
+            // bytearray([1, 2, 3]) → list.into_iter() and collect as Vec<u8>
+            if matches!(hir_arg, HirExpr::List { .. }) {
+                return Ok(parse_quote! { #arg.into_iter().collect::<Vec<u8>>() });
+            }
+
+            // bytearray(string) → string.as_bytes().to_vec()
+            if self.is_string_type(hir_arg) {
+                return Ok(parse_quote! { #arg.as_bytes().to_vec() });
+            }
+
+            // Default: try to collect iterable directly as Vec<u8>
+            return Ok(parse_quote! { #arg.into_iter().collect::<Vec<u8>>() });
+        }
+
+        // bytearray with multiple args (source, encoding, errors) - just get bytes
+        if args.len() >= 2 {
+            let arg = &args[0];
+            return Ok(parse_quote! { #arg.as_bytes().to_vec() });
+        }
+
+        Ok(parse_quote! { Vec::<u8>::new() })
+    }
+
     // DEPYLER-STDLIB-BUILTINS: Additional builtin function converters
 
     fn convert_all_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -14018,8 +14071,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // serde_json::Value doesn't implement IntoIterator, must convert first
                 parse_quote! { #iter_expr.as_array().unwrap_or(&vec![]).iter().cloned() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
-                // Variable iteration - likely borrowed, use .iter().copied()
-                parse_quote! { #iter_expr.iter().copied() }
+                // DEPYLER-0674: Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
+                // .cloned() works for both Copy and Clone types, .copied() only works for Copy
+                parse_quote! { #iter_expr.iter().cloned() }
             } else {
                 // Direct expression (ranges, lists, etc.) - use .into_iter()
                 parse_quote! { #iter_expr.into_iter() }
@@ -14724,8 +14778,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
-                // Variable iteration - likely borrowed, use .iter().copied()
-                parse_quote! { #iter_expr.iter().copied() }
+                // DEPYLER-0674: Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
+                parse_quote! { #iter_expr.iter().cloned() }
             } else {
                 // Direct expression (ranges, lists, etc.) - use .into_iter()
                 parse_quote! { #iter_expr.into_iter() }
@@ -14783,8 +14837,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
                 parse_quote! { #iter_expr.as_slice().iter().copied() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
-                // Variable iteration - likely borrowed, use .iter().copied()
-                parse_quote! { #iter_expr.iter().copied() }
+                // DEPYLER-0674: Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
+                parse_quote! { #iter_expr.iter().cloned() }
             } else {
                 // Direct expression (ranges, lists, etc.) - use .into_iter()
                 parse_quote! { #iter_expr.into_iter() }
@@ -15436,8 +15490,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // serde_json::Value doesn't implement IntoIterator, must convert first
                 parse_quote! { #iter_expr.as_array().unwrap_or(&vec![]).iter().cloned() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
-                // Variable iteration - likely borrowed, use .iter().copied()
-                parse_quote! { #iter_expr.iter().copied() }
+                // DEPYLER-0674: Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
+                parse_quote! { #iter_expr.iter().cloned() }
             } else {
                 // Direct expression (ranges, lists, etc.) - use .into_iter()
                 parse_quote! { #iter_expr.into_iter() }
