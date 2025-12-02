@@ -806,7 +806,21 @@ impl Optimizer {
                     self.collect_used_vars_expr(c, used);
                 }
             }
-            // Other statements (Pass, Break, Continue, Return(None), Block, FunctionDef)
+            // DEPYLER-0688: Handle FunctionDef (nested functions) - must recurse into body
+            // Nested functions can capture variables from outer scope (closures)
+            // e.g., `cache = {}; def fib(): cache[x] = v` - `cache` is used in nested function
+            HirStmt::FunctionDef { body, .. } => {
+                for s in body {
+                    self.collect_truly_used_vars_stmt(s, used);
+                }
+            }
+            // DEPYLER-0688: Handle Block statements - must recurse into nested statements
+            HirStmt::Block(stmts) => {
+                for s in stmts {
+                    self.collect_truly_used_vars_stmt(s, used);
+                }
+            }
+            // Other statements (Pass, Break, Continue, Return(None))
             // don't reference variables that need tracking for DCE purposes
             _ => {}
         }
