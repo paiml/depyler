@@ -939,12 +939,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             || is_str_producing_expr(left)
             || is_str_producing_expr(right);
 
+        // DEPYLER-0672: Additional heuristic - check generated expressions for string patterns
+        // Detect CSE temp vars from format!() and .unwrap_or_default() patterns
+        let left_str = quote! { #left_expr }.to_string();
+        let right_str = quote! { #right_expr }.to_string();
+        let looks_like_string = left_str.contains("format !")
+            || right_str.contains("format !")
+            || (left_str.contains("_cse_temp_")
+                && (right_str.contains("unwrap_or_default")
+                    || right_str.contains("to_string")))
+            || (right_str.contains("_cse_temp_")
+                && (left_str.contains("unwrap_or_default")
+                    || left_str.contains("to_string")))
+            || (left_str.contains("unwrap_or_default") && right_str.contains("unwrap_or_default"));
+
         if (is_definitely_list || is_slice_concat || is_list_var) && !is_definitely_string {
             // List/slice concatenation
             Ok(parse_quote! {
                 #left_expr.iter().chain(#right_expr.iter()).cloned().collect::<Vec<_>>()
             })
-        } else if is_definitely_string {
+        } else if is_definitely_string || looks_like_string {
             // String concatenation
             Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
         } else {
@@ -13197,9 +13211,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let val_expr = value.to_rust_expr(self.ctx)?;
                 self.ctx.in_json_context = prev_json_context;
 
-                // Wrap each value in json!() to convert to serde_json::Value
+                // DEPYLER-0669: Check if val_expr is a HashMap block (can't go in json!())
+                let val_str = quote! { #val_expr }.to_string();
+                let wrapped_val = if val_str.contains("HashMap") || val_str.contains("let mut map") {
+                    // Use serde_json::to_value() for HashMap block expressions
+                    quote! { serde_json::to_value(#val_expr).unwrap() }
+                } else {
+                    // Wrap each value in json!() to convert to serde_json::Value
+                    quote! { serde_json::json!(#val_expr) }
+                };
+
                 insert_stmts.push(quote! {
-                    map.insert(#key_str.to_string(), serde_json::json!(#val_expr));
+                    map.insert(#key_str.to_string(), #wrapped_val);
                 });
             }
 

@@ -3589,6 +3589,11 @@ pub(crate) fn codegen_assign_index(
         if value_str.contains("serde_json :: json !") || value_str.contains("serde_json :: Value") {
             // Already wrapped, use as-is
             value_expr
+        } else if value_str.contains("HashMap") || value_str.contains("let mut map") {
+            // DEPYLER-0669: HashMap block expressions can't go in json!() macro
+            // Use serde_json::to_value() for proper conversion
+            ctx.needs_serde_json = true;
+            parse_quote! { serde_json::to_value(#value_expr).unwrap() }
         } else {
             // Need to wrap in serde_json::json!() for HashMap<String, Value>
             // Use json!() instead of to_value() for consistency with dict literals
@@ -3760,7 +3765,45 @@ pub(crate) fn codegen_assign_tuple(
                 // No generator state variables - original logic
                 let all_declared = symbols.iter().all(|s| ctx.is_declared(s));
 
-                if all_declared {
+                // DEPYLER-0671: Check if value_expr is a Vec from split/collect
+                // Can't destructure Vec directly - need iterator-based unpacking
+                let value_str = quote! { #value_expr }.to_string();
+                let is_vec_from_split = value_str.contains("collect ::<Vec")
+                    || value_str.contains("collect::< Vec")
+                    || value_str.contains(".collect ()")
+                    || (value_str.contains("splitn") && value_str.contains("collect"));
+
+                if is_vec_from_split {
+                    // DEPYLER-0671: Vec from split() can't be destructured directly
+                    // Strategy: Store in temp Vec, then index into it
+                    // From: let (a, b) = s.split(...).collect::<Vec<_>>()
+                    // To: let _parts = s.split(...).collect::<Vec<_>>();
+                    //     let a = _parts.get(0).cloned().unwrap_or_default();
+                    //     let b = _parts.get(1).cloned().unwrap_or_default();
+                    let parts_name =
+                        syn::Ident::new("_split_parts", proc_macro2::Span::call_site());
+
+                    let assignments: Vec<_> = symbols
+                        .iter()
+                        .enumerate()
+                        .map(|(idx, s)| {
+                            let ident = safe_ident(s);
+                            ctx.declare_var(s);
+                            let mut_token = if ctx.mutable_vars.contains(*s) {
+                                quote! { mut }
+                            } else {
+                                quote! {}
+                            };
+                            let idx_lit = syn::Index::from(idx);
+                            quote! { let #mut_token #ident = #parts_name.get(#idx_lit).cloned().unwrap_or_default(); }
+                        })
+                        .collect();
+
+                    Ok(quote! {
+                        let #parts_name = #value_expr;
+                        #(#assignments)*
+                    })
+                } else if all_declared {
                     // All variables exist, do reassignment
                     let idents: Vec<_> = symbols
                         .iter()
