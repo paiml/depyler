@@ -235,6 +235,27 @@ pub fn convert_float_cast(
                 return Ok(parse_quote! { (#arg) as f64 });
             }
 
+            // DEPYLER-0200: Detect method calls that return strings
+            // Expressions like out.split()[0], s.get(), etc. return String
+            HirExpr::MethodCall { method, .. } => {
+                let string_producing_methods = [
+                    "split", "get", "replace", "strip", "lstrip", "rstrip",
+                    "upper", "lower", "capitalize", "title", "join",
+                    "format", "trim", "read", "readline",
+                ];
+                if string_producing_methods.contains(&method.as_str()) {
+                    return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
+                }
+                return Ok(parse_quote! { (#arg) as f64 });
+            }
+
+            // DEPYLER-0200: Index on likely-string collections
+            // Expressions like words[0] where words is from split() return String
+            HirExpr::Index { .. } => {
+                // Use parse() for index operations - safer than as f64
+                return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
+            }
+
             // Default: cast for numeric types
             _ => return Ok(parse_quote! { (#arg) as f64 }),
         }
