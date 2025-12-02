@@ -180,14 +180,16 @@ fn collection_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<Op
             let inner_ty = rust_type_to_syn(inner)?;
             parse_quote! { Vec<#inner_ty> }
         }
+        // DEPYLER-0685: Use fully qualified path for HashMap to avoid import issues
         RustType::HashMap(k, v) => {
             let key_ty = rust_type_to_syn(k)?;
             let val_ty = rust_type_to_syn(v)?;
-            parse_quote! { HashMap<#key_ty, #val_ty> }
+            parse_quote! { std::collections::HashMap<#key_ty, #val_ty> }
         }
+        // DEPYLER-0685: Use fully qualified path for HashSet to avoid import issues
         RustType::HashSet(inner) => {
             let inner_ty = rust_type_to_syn(inner)?;
-            parse_quote! { HashSet<#inner_ty> }
+            parse_quote! { std::collections::HashSet<#inner_ty> }
         }
         RustType::Option(inner) => {
             let inner_ty = rust_type_to_syn(inner)?;
