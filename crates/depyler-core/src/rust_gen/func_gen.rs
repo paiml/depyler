@@ -552,27 +552,16 @@ pub(crate) fn codegen_function_body(
         }
     }
 
-    // Partition top-level functions from other statements
-    // We still emit top-level definitions first to keep things clean,
-    // but now they will be assignments instead of let bindings.
-    let (nested_fns, other_stmts): (Vec<_>, Vec<_>) = func
-        .body
-        .iter()
-        .partition(|stmt| matches!(stmt, HirStmt::FunctionDef { .. }));
-
-    // DEPYLER-0271: Convert body, marking final statement for expression-based returns
-    // First emit top-level nested function definitions (now assignments)
-    for stmt in &nested_fns {
-        body_stmts.push(stmt.to_rust_tokens(ctx)?);
-    }
-
-    // Then emit other statements with final statement tracking
-    // Any nested functions inside these statements will also be emitted as assignments
-    let other_len = other_stmts.len();
-    for (i, stmt) in other_stmts.iter().enumerate() {
+    // DEPYLER-0688: Emit statements in original order, preserving Python semantics
+    // Nested functions that capture outer variables must be emitted AFTER those variables
+    // are declared. Forward declarations (let mut fib;) are already emitted above.
+    let body_len = func.body.len();
+    for (i, stmt) in func.body.iter().enumerate() {
         // Mark final statement for idiomatic expression-based return
-        ctx.is_final_statement = i == other_len - 1;
-        body_stmts.push(stmt.to_rust_tokens(ctx)?);
+        // (only if it's not a FunctionDef, as those are assignments not returns)
+        ctx.is_final_statement = i == body_len - 1 && !matches!(stmt, HirStmt::FunctionDef { .. });
+        let tokens = stmt.to_rust_tokens(ctx)?;
+        body_stmts.push(tokens);
     }
 
     ctx.exit_scope();

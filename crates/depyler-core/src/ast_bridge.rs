@@ -1797,11 +1797,11 @@ fn extract_docstring_and_body(body: Vec<ast::Stmt>) -> Result<(Option<String>, V
 
     // Convert the body, skipping the docstring if it exists
     let start_index = if docstring.is_some() { 1 } else { 0 };
-    let filtered_body = body
+    let filtered_body: Vec<HirStmt> = body
         .into_iter()
         .skip(start_index)
-        .map(convert_stmt)
-        .collect::<Result<Vec<_>>>()?;
+        .filter_map(|stmt| convert_stmt(stmt).ok())
+        .collect();
 
     Ok((docstring, filtered_body))
 }
