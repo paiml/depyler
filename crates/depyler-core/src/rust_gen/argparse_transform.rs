@@ -35,6 +35,7 @@
 
 use crate::emit_decision;
 use crate::hir::{HirExpr, Type};
+use crate::rust_gen::keywords::safe_ident;
 use std::collections::HashMap;
 
 /// Convert HIR Type to Rust type string for argparse arguments
@@ -560,7 +561,8 @@ pub fn generate_commands_enum(tracker: &ArgParserTracker) -> proc_macro2::TokenS
                 .arguments
                 .iter()
                 .map(|arg| {
-                    let field_name = format_ident!("{}", arg.rust_field_name());
+                    // DEPYLER-0674: Use safe_ident to escape Rust keywords like 'type'
+                    let field_name = safe_ident(&arg.rust_field_name());
                     let type_str = arg.rust_type();
                     let field_type: syn::Type =
                         syn::parse_str(&type_str).unwrap_or_else(|_| syn::parse_quote! { String });

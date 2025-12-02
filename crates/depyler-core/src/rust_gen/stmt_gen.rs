@@ -5922,6 +5922,12 @@ pub(crate) fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro
                 "object" | "builtins.object" => "serde_json::Value",
                 // Python Any type also maps to dynamic Value
                 "Any" | "typing.Any" | "any" => "serde_json::Value",
+                // DEPYLER-0674: Python bytearray maps to Vec<u8>
+                "bytearray" => "Vec<u8>",
+                // DEPYLER-0674: Python bytes maps to Vec<u8>
+                "bytes" => "Vec<u8>",
+                // DEPYLER-0674: Python memoryview maps to &[u8]
+                "memoryview" => "&[u8]",
                 // Preserve other custom types as-is
                 _ => name.as_str(),
             };
