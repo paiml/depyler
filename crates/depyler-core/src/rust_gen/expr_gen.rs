@@ -13457,9 +13457,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_tuple(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        // DEPYLER-0682: Convert string literals in tuples to owned Strings
+        // When tuples are used in lists (e.g., Vec<(i32, i32, String)>), string
+        // elements need to be owned Strings, not &str references.
+        // This ensures type consistency across all tuple elements in a Vec.
         let elt_exprs: Vec<syn::Expr> = elts
             .iter()
-            .map(|e| e.to_rust_expr(self.ctx))
+            .map(|e| {
+                let mut expr = e.to_rust_expr(self.ctx)?;
+                // Convert string literals to .to_string() for owned String
+                if matches!(e, HirExpr::Literal(Literal::String(_))) {
+                    expr = parse_quote! { #expr.to_string() };
+                }
+                Ok(expr)
+            })
             .collect::<Result<Vec<_>>>()?;
         Ok(parse_quote! { (#(#elt_exprs),*) })
     }
