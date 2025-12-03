@@ -108,7 +108,7 @@ impl CSVParser {
             s.chars().skip(start).collect::<String>()
         } {
             let mut row_dict = {
-                let mut map = HashMap::new();
+                let mut map = std::collections::HashMap::new();
                 map
             };
             for (i, value) in enumerate(row) {
@@ -124,7 +124,7 @@ impl CSVParser {
     }
 }
 #[doc = "Calculate basic statistics for a numeric column in CSV"]
-pub fn calculate_column_stats<'b, 'a>(
+pub fn calculate_column_stats<'a, 'b>(
     csv_content: &'a str,
     column_name: &'b str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {

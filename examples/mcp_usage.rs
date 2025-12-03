@@ -1,7 +1,7 @@
 #[doc = "// NOTE: Map Python module 'asyncio'(tracked in DEPYLER-0424)"] use serde_json as json;
     use std::path::PathBuf;
-    const STR___1: &'static str = "\n";
-    const STR___2: &'static str = "=";
+    const STR___1: &'static str = "=";
+    const STR___2: &'static str = "\n";
     use std::collections::HashMap;
     use serde_json;
     #[derive(Debug, Clone)] pub struct ZeroDivisionError {
@@ -49,11 +49,11 @@ impl DepylerMCPClient {
 } pub async fn call_tool(&mut self, tool_name: String, arguments: HashMap<String, serde_json::Value>) -> HashMap<String, serde_json::Value>{
     self.request_id = self.request_id + 1;
     let mut request = {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("id".to_string(), self.request_id.to_string());
     map.insert("method".to_string(), "tools/call".to_string());
     map.insert("params".to_string(), {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("name".to_string(), tool_name);
     map.insert("arguments".to_string(), arguments);
     map });
@@ -67,11 +67,11 @@ impl DepylerMCPClient {
 pub async fn _mock_response(&self, tool_name: String, arguments: HashMap<String, serde_json::Value>) -> HashMap<String, serde_json::Value>{
     if tool_name == "transpile_python".to_string() {
     return {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("rust_code".to_string(), "pub fn add_numbers(a: i32, b: i32) -> i32 {\n    a + b\n}\n\nfn main () {\n    println!(\"{}\", add_numbers(5, 3));\n}".to_string());
     map.insert("compilation_command".to_string(), "rustc --edition 2021 output.rs".to_string());
     map.insert("metrics".to_string(), {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("lines_of_code".to_string(), 6);
     map.insert("cyclomatic_complexity".to_string(), 1);
     map.insert("estimated_performance_gain".to_string(), "15%".to_string());
@@ -79,7 +79,7 @@ pub async fn _mock_response(&self, tool_name: String, arguments: HashMap<String,
     map.insert("energy_efficiency_rating".to_string(), "A+".to_string());
     map });
     map.insert("verification_status".to_string(), {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("passed".to_string(), true);
     map.insert("warnings".to_string(), vec! []);
     map.insert("guarantees".to_string(), ["memory_safe".to_string(), "panic_free".to_string(), "terminates".to_string()]);
@@ -90,15 +90,15 @@ pub async fn _mock_response(&self, tool_name: String, arguments: HashMap<String,
 else {
     if tool_name == "analyze_migration_complexity".to_string() {
     return {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("complexity_score".to_string(), 6.8);
     map.insert("total_python_loc".to_string(), 1250);
     map.insert("estimated_rust_loc".to_string(), 980);
     map.insert("estimated_effort_hours".to_string(), 45);
     map.insert("risk_assessment".to_string(), {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("overall_risk".to_string(), "Medium".to_string());
-    map.insert("risk_factors".to_string(), vec! [{ let mut map = HashMap::new();
+    map.insert("risk_factors".to_string(), vec! [{ let mut map = std::collections::HashMap::new();
     map.insert("factor".to_string(), "Dynamic typing usage".to_string());
     map.insert("severity".to_string(), "Medium".to_string());
     map.insert("affected_files".to_string(), 8);
@@ -106,9 +106,9 @@ else {
     map }]);
     map });
     map.insert("migration_strategy".to_string(), {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("recommended_approach".to_string(), "incremental".to_string());
-    map.insert("phases".to_string(), vec! [{ let mut map = HashMap::new();
+    map.insert("phases".to_string(), vec! [{ let mut map = std::collections::HashMap::new();
     map.insert("phase".to_string(), 1);
     map.insert("description".to_string(), "Transpile utility functions".to_string());
     map.insert("estimated_hours".to_string(), 12);
@@ -116,7 +116,7 @@ else {
     map
 }
 , {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("phase".to_string(), 2);
     map.insert("description".to_string(), "Transpile core business logic".to_string());
     map.insert("estimated_hours".to_string(), 25);
@@ -124,7 +124,7 @@ else {
     map }]);
     map });
     map.insert("compatibility_report".to_string(), {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("supported_features".to_string(), 0.87);
     map.insert("unsupported_constructs".to_string(), ["eval statements".to_string(), "dynamic imports".to_string()]);
     map });
@@ -134,30 +134,30 @@ else {
 else {
     if tool_name == "verify_transpilation".to_string() {
     return {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("verification_passed".to_string(), true);
     map.insert("semantic_equivalence_score".to_string(), 0.95);
     map.insert("safety_guarantees".to_string(), ["memory_safe".to_string(), "panic_free".to_string(), "no_undefined_behavior".to_string(), "terminates".to_string()]);
     map.insert("performance_comparison".to_string(), {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("rust_faster_by".to_string(), "280%".to_string());
     map.insert("memory_usage_reduction".to_string(), "42%".to_string());
     map.insert("energy_efficiency_improvement".to_string(), "65%".to_string());
     map });
-    map.insert("property_verification_results".to_string(), vec! [{ let mut map = HashMap::new();
+    map.insert("property_verification_results".to_string(), vec! [{ let mut map = std::collections::HashMap::new();
     map.insert("property".to_string(), "termination".to_string());
     map.insert("status".to_string(), "proven".to_string());
     map.insert("method".to_string(), "structural_analysis".to_string());
     map
 }
 , {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("property".to_string(), "memory_safety".to_string());
     map.insert("status".to_string(), "proven".to_string());
     map.insert("method".to_string(), "borrow_checker".to_string());
     map }]);
     map.insert("test_results".to_string(), {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("total_tests".to_string(), 15);
     map.insert("passed".to_string(), 15);
     map.insert("failed".to_string(), 0);
@@ -168,14 +168,14 @@ else {
     };
     };
     return {
-    let mut map = HashMap::new();
+    let mut map = std::collections::HashMap::new();
     map.insert("error".to_string(), "Unknown tool".to_string());
     map };
    
 }
 } #[doc = "Example 1: Simple function transpilation with MCP."] pub async fn example_1_simple_transpilation() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 1: Simple Function Transpilation");
-    println!("{}", STR___2.repeat(50 as usize));
+    println!("{}", STR___1.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let python_code = "\ndef add_numbers(a: int, b: int) -> int:\n    \"\"\"Add two numbers together.\"\"\"\n    return a + b\n\nif __name__ == \"__main__\":\n    result = add_numbers(5, 3)\n    print(f\"Result: {result}\")\n";
     println!("{}", "🐍 Python Source:");
@@ -194,7 +194,7 @@ else {
     println!("{}", result.get("rust_code").cloned().unwrap_or_default());
     println!();
     println!("{}", "📊 Transpilation Metrics:");
-    for(key, value) in result.get("metrics").cloned().unwrap_or_default().iter().map(|(k, v) |(k.clone(), v.clone())).collect::<Vec<_>>() {
+    for(key, value) in result.get("metrics").cloned().unwrap_or_default().iter().map(|(k, v) |(k.clone(), v.clone())).collect::<Vec<_>>().as_array().unwrap_or(& vec! []).iter().cloned() {
     println!("{}", format!("  • {:?}: {:?}", key, value));
    
 }
@@ -203,7 +203,7 @@ println!();
 }
 #[doc = "Example 2: Analyze migration complexity for a project."] pub async fn example_2_project_analysis() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 2: Project Migration Analysis");
-    println!("{}", STR___2.repeat(50 as usize));
+    println!("{}", STR___1.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let result = client.call_tool("analyze_migration_complexity", {
     let mut map = std::collections::HashMap::new();
@@ -220,7 +220,7 @@ println!();
     println!("{}", "⚠\u{fe0f}  Risk Assessment:");
     let risk = result.get("risk_assessment").cloned().unwrap_or_default();
     println!("{}", format!("  • Overall Risk: {}", risk.get("overall_risk").cloned().unwrap_or_default()));
-    for factor in risk.get("risk_factors").cloned().unwrap_or_default() {
+    for factor in risk.get("risk_factors").cloned().unwrap_or_default().as_array().unwrap_or(& vec! []).iter().cloned() {
     println!("{}", format!("  • {}: {}({} files)", factor.get("factor").cloned().unwrap_or_default(), factor.get("severity").cloned().unwrap_or_default(), factor.get("affected_files").cloned().unwrap_or_default()));
     println!("{}", format!("    Mitigation: {}", factor.get("mitigation").cloned().unwrap_or_default()));
    
@@ -229,7 +229,7 @@ println!();
     println!("{}", "🗓\u{fe0f}  Migration Strategy:");
     let strategy = result.get("migration_strategy").cloned().unwrap_or_default();
     println!("{}", format!("  • Approach: {}", strategy.get("recommended_approach").cloned().unwrap_or_default()));
-    for phase in strategy.get("phases").cloned().unwrap_or_default() {
+    for phase in strategy.get("phases").cloned().unwrap_or_default().as_array().unwrap_or(& vec! []).iter().cloned() {
     println!("{}", format!("  • Phase {}: {}", phase.get("phase").cloned().unwrap_or_default(), phase.get("description").cloned().unwrap_or_default()));
     println!("{}", format!("    Effort: {} hours", phase.get("estimated_hours").cloned().unwrap_or_default()));
     println!("{}", format!("    Files: {}", phase.get("files").cloned().unwrap_or_default().join (", ")));
@@ -240,7 +240,7 @@ println!();
 }
 #[doc = "Example 3: Verify transpilation correctness."] pub async fn example_3_verification() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 3: Transpilation Verification");
-    println!("{}", STR___2.repeat(50 as usize));
+    println!("{}", STR___1.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let python_source = "\ndef factorial(n: int) -> int:\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n";
     let rust_source = "\nfn factorial(n: i32) -> i32 {\n    if n <= 1 {\n        1\n   
@@ -260,7 +260,7 @@ else {\n        n * factorial(n - 1)\n    }\n}\n";
     println!("{}", format!("  • Semantic Equivalence: {}", result.get("semantic_equivalence_score").cloned().unwrap_or_default()));
     println!();
     println!("{}", "🛡\u{fe0f}  Safety Guarantees:");
-    for guarantee in result.get("safety_guarantees").cloned().unwrap_or_default() {
+    for guarantee in result.get("safety_guarantees").cloned().unwrap_or_default().as_array().unwrap_or(& vec! []).iter().cloned() {
     println!("{}", format!("  • {:?}", guarantee));
    
 }
@@ -278,7 +278,7 @@ println!();
 }
 println!();
     println!("{}", "🧪 Property Verification:");
-    for prop in result.get("property_verification_results").cloned().unwrap_or_default() {
+    for prop in result.get("property_verification_results").cloned().unwrap_or_default().as_array().unwrap_or(& vec! []).iter().cloned() {
     println!("{}", format!("  • {}: {}({})", prop.get("property").cloned().unwrap_or_default(), prop.get("status").cloned().unwrap_or_default(), prop.get("method").cloned().unwrap_or_default()));
    
 }
@@ -287,13 +287,13 @@ println!();
 }
 #[doc = "Example 4: Batch processing multiple files."] pub async fn example_4_batch_processing() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 4: Batch Processing Workflow");
-    println!("{}", STR___2.repeat(50 as usize));
+    println!("{}", STR___1.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let python_files = vec! [("binary_search.py", "def binary_search(arr, target):...") ,("calculate_sum.py", "def calculate_sum(numbers):...") ,("classify_number.py", "def classify_number(n):...")];
     println!("{}", "🔄 Processing multiple files with MCP...");
     println!();
     let mut results = vec! [];
-    for(filename, _code_snippet) in python_files.iter().cloned() {
+    for(filename, code_snippet) in python_files.iter().cloned() {
     println!("{}", format!("📄 Processing {:?}...", filename));
     let transpile_result = client.call_tool("transpile_python", {
     let mut map = std::collections::HashMap::new();
@@ -332,7 +332,7 @@ println!();
 }
 #[doc = "Example 5: Integration pattern for AI assistants."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn example_5_ai_assistant_integration() {
     println!("{}", "🔬 Example 5: AI Assistant Integration Pattern");
-    println!("{}", STR___2.repeat(50 as usize));
+    println!("{}", STR___1.repeat(50 as usize));
     println!("{}", "🤖 AI Assistant Workflow:");
     println!();
     println!("{}", "1\u{fe0f}\u{20e3}  Analyze Python project complexity...");
@@ -369,7 +369,7 @@ println!();
 }
 #[doc = "Run all MCP usage examples."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn main () {
     println!("{}", "🚀 Depyler MCP Integration Examples");
-    println!("{}", STR___2.repeat(60 as usize));
+    println!("{}", STR___1.repeat(60 as usize));
     println!();
     println!("{}", "This script demonstrates various ways to use Depyler's");
     println!("{}", "Model Context Protocol(MCP) integration for AI-powered");
@@ -382,16 +382,16 @@ println!();
     println!("{}", "  4. Batch processing workflow");
     println!("{}", "  5. AI assistant integration patterns");
     println!();
-    println!("{}", STR___2.repeat(60 as usize));
+    println!("{}", STR___1.repeat(60 as usize));
     println!();
     example_1_simple_transpilation().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
+    println!("{}", format!("{}{}", format!("{}{}", STR___2, STR___1.repeat(60 as usize)), STR___2));
     example_2_project_analysis().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
+    println!("{}", format!("{}{}", format!("{}{}", STR___2, STR___1.repeat(60 as usize)), STR___2));
     example_3_verification().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
+    println!("{}", format!("{}{}", format!("{}{}", STR___2, STR___1.repeat(60 as usize)), STR___2));
     example_4_batch_processing().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
+    println!("{}", format!("{}{}", format!("{}{}", STR___2, STR___1.repeat(60 as usize)), STR___2));
     example_5_ai_assistant_integration().await;
     println!("{}", "🎉 All examples completed!");
     println!();

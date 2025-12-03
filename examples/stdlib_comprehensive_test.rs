@@ -122,7 +122,7 @@ pub fn test_dict_get() -> i32 {
         map.insert(STR_B.to_string(), 2);
         map
     };
-    let value = data.get(&STR_A).cloned();
+    let value = data.get("a").cloned();
     value
 }
 #[doc = "Test dict.get() with default"]
@@ -134,7 +134,7 @@ pub fn test_dict_get_default() -> i32 {
         map.insert(STR_A.to_string(), 1);
         map
     };
-    let value = data.get(&STR_B).cloned().unwrap_or(0);
+    let value = data.get("b").cloned().unwrap_or(0);
     value
 }
 #[doc = "Test dict.keys() method"]

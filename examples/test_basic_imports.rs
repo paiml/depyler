@@ -4,10 +4,7 @@ use std as sys;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_current_directory() -> String {
-    std::env::current_dir()
-        .unwrap()
-        .to_string_lossy()
-        .to_string()
+    std::env::current_dir()?.to_string_lossy().to_string()
 }
 #[doc = "Get command line arguments"]
 #[doc = " Depyler: verified panic-free"]

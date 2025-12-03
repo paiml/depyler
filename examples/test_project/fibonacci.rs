@@ -171,7 +171,8 @@ pub fn find_fibonacci_index(target: i32) -> Option<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn is_fibonacci_number(num: i32) -> bool {
-    let is_perfect_square = |x: i64| -> bool {
+    let mut is_perfect_square;
+    is_perfect_square = |x: i64| -> bool {
         let root = ((x as f64).powf(0.5 as f64)) as i32;
         root * root == x
     };
@@ -195,7 +196,11 @@ pub fn main() {
     );
     println!(
         "{}",
-        format!("Fibonacci({}) memoized: {:?}", n, fibonacci_memoized(n))
+        format!(
+            "Fibonacci({}) memoized: {:?}",
+            n,
+            fibonacci_memoized(n, None)
+        )
     );
     println!(
         "{}",

@@ -73,24 +73,28 @@ pub fn test_point() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_rectangle() {
+    let r = Rectangle::new(10, 20);
     assert!(r.area() == 200);
     assert!(r.perimeter() == 60);
     assert!(!r.is_square());
+    let square = Rectangle::new(15, 15);
     assert!(square.is_square());
 }
 #[doc = "Test Person dataclass functionality"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_person() {
+    let mut p = Person::new("Alice".to_string(), 25);
     assert!(
         p.file_name()
             .and_then(|n| n.to_str())
             .unwrap_or("")
             .to_string()
-            == "Alice".to_string()
+            == "Alice"
     );
     assert!(p.age == 25);
     assert!(p.is_adult());
     assert!(p.greet() == "Hello, my name is Alice".to_string());
+    let child = Person::new("Bob".to_string(), 10);
     assert!(!child.is_adult());
 }

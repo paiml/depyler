@@ -34,7 +34,7 @@ impl FileManager {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_simple_with() {
-    let _context = FileManager::new("test.txt".to_string().to_string());
+    let mut _context = FileManager::new("test.txt".to_string().to_string());
     let fm = _context.__enter__();
     let result = fm
         .write_all("Hello, World!".to_string().as_bytes())

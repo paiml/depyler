@@ -319,7 +319,7 @@ pub fn keep_alphanumeric(text: &str) -> String {
     result.to_string()
 }
 #[doc = "Simple template substitution"]
-pub fn template_substitute<'b, 'a>(
+pub fn template_substitute<'a, 'b>(
     template: &'a str,
     values: &'b HashMap<serde_json::Value, serde_json::Value>,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -343,8 +343,8 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, Box<dyn std::erro
     for _char in text.chars() {
         let char = _char.to_string();
         if char.chars().all(|c| c.is_alphabetic()) {
-            let mut base: i32;
             let mut shifted: i32;
+            let mut base: i32;
             let mut new_char: String;
             if char.isupper() {
                 base = "A".chars().next().unwrap() as i32;

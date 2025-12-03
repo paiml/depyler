@@ -29,7 +29,6 @@ pub fn numeric_operations(x: i32, y: i32) -> Result<i32, Box<dyn std::error::Err
     } else {
         Ok(product)
     }
-    Ok(())
 }
 #[doc = "Infers string type from string methods."]
 #[doc = " Depyler: verified panic-free"]
@@ -106,12 +105,7 @@ pub fn boolean_logic<'c, 'a, 'b>(a: bool, b: bool, c: bool) -> bool {
 pub fn dictionary_operations(mapping: &HashMap<String, String>) -> Option<serde_json::Value> {
     let _cse_temp_0 = mapping.get("key").is_some();
     if _cse_temp_0 {
-        return Some(
-            mapping
-                .get(&"key")
-                .cloned()
-                .unwrap_or("default".to_string()),
-        );
+        return Some(mapping.get("key").cloned().unwrap_or("default"));
     }
     None
 }
@@ -131,7 +125,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'a, 'b>(
+pub fn confidence_levels_demo<'b, 'a>(
     certain_str: &'a str,
     probable_num: i32,
     possible_container: &'b Vec<serde_json::Value>,

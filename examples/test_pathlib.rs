@@ -33,9 +33,9 @@ pub fn create_nested_path(
 ) -> Result<String, Box<dyn std::error::Error>> {
     let mut path = std::path::PathBuf::from(&base);
     for part in parts.iter().cloned() {
-        path = path / part;
+        path = path.join(part);
     }
-    Ok((path).to_string())
+    Ok((path).display().to_string())
 }
 #[doc = "Get file information"]
 #[doc = " Depyler: verified panic-free"]

@@ -7,8 +7,8 @@ struct Args {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn main() -> i32 {
+pub fn main() {
     let args = Args::parse();
     println!("{}", format!("Files: {:?}", args.files));
-    0
+    ()
 }

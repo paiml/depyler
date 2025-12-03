@@ -264,19 +264,19 @@ pub fn normalize_whitespace(text: &str) -> String {
 #[doc = "Check if text starts with pattern"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn starts_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
+pub fn starts_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
     text.starts_with(pattern)
 }
 #[doc = "Check if text ends with pattern"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn ends_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
+pub fn ends_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
     text.ends_with(pattern)
 }
 #[doc = "Case-insensitive pattern matching"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn case_insensitive_match<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
+pub fn case_insensitive_match<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
     let text_lower: String = text.to_lowercase();
     let pattern_lower: String = pattern.to_lowercase();
     let _cse_temp_0 = text_lower.contains(&pattern_lower);
@@ -286,7 +286,7 @@ pub fn case_insensitive_match<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
 #[doc = "Find text between two markers"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_between<'b, 'c, 'a>(
+pub fn find_between<'c, 'a, 'b>(
     text: &'a str,
     start_marker: &'b str,
     end_marker: &'c str,
@@ -297,7 +297,7 @@ pub fn find_between<'b, 'c, 'a>(
         return STR_EMPTY;
     }
     let _cse_temp_1 = start_marker.len() as i32;
-    start_pos = format!("{}{}", start_pos, _cse_temp_1);
+    start_pos = Some(format!("{}{}", start_pos, _cse_temp_1));
     let end_pos: i32 = text[start_pos as usize..]
         .find(end_marker)
         .map(|i| (i + start_pos as usize) as i32)
@@ -333,7 +333,7 @@ pub fn find_between<'b, 'c, 'a>(
     result.to_string()
 }
 #[doc = "Replace multiple patterns"]
-pub fn replace_multiple<'b, 'a>(
+pub fn replace_multiple<'a, 'b>(
     text: &'a str,
     replacements: &'b Vec<()>,
 ) -> Result<String, Box<dyn std::error::Error>> {

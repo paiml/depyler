@@ -1,3 +1,4 @@
+use serde_json;
 #[doc = "Recursive Fibonacci - will be identified as hot path."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -34,7 +35,7 @@ pub fn string_concatenation_in_loop(n: i32) -> String {
 }
 #[doc = "Function with many type checks that Rust can optimize away."]
 #[doc = " Depyler: verified panic-free"]
-pub fn type_check_heavy(values: &Vec<object>) -> i32 {
+pub fn type_check_heavy(values: &Vec<serde_json::Value>) -> i32 {
     let mut count = 0;
     for value in values.iter().cloned() {
         if true {

@@ -193,7 +193,7 @@ pub fn process_user_data(
     age: i32,
     scores: &Vec<f64>,
     metadata: Option<HashMap<String, String>>,
-) -> (String, f64) {
+) -> Result<(String, f64), Box<dyn std::error::Error>> {
     let mut total: f64 = 0.0;
     for score in scores.iter().cloned() {
         total = total + score;
@@ -204,10 +204,10 @@ pub fn process_user_data(
         0.0
     };
     let result: String = format!("{}({})", name, age);
-    (result, avg_score)
+    Ok((result, avg_score))
 }
 #[doc = "Test Dict parameters and return"]
-pub fn merge_data<'a, 'b>(
+pub fn merge_data<'b, 'a>(
     dict1: &'a HashMap<String, i32>,
     dict2: &'b HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
@@ -291,7 +291,7 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, Box<dyn std::error::Er
 }
 #[doc = "Safe dict access"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_value<'b, 'a>(
+pub fn get_value<'a, 'b>(
     data: &'a HashMap<String, i32>,
     key: &'b str,
 ) -> Result<Option<i32>, Box<dyn std::error::Error>> {

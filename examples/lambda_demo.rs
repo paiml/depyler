@@ -41,7 +41,15 @@ pub fn lambda_handler(
     }
     let mut processed_files = vec![];
     let mut total_size = 0;
-    for record in event.get("Records").cloned().unwrap_or_default() {
+    for record in event
+        .get("Records")
+        .cloned()
+        .unwrap_or_default()
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .cloned()
+    {
         if record.get("s3").is_some() {
             let bucket = record
                 .get("s3")
@@ -70,7 +78,7 @@ pub fn lambda_handler(
                 .get("object")
                 .cloned()
                 .unwrap_or_default()
-                .get(&"size".to_string())
+                .get("size")
                 .cloned()
                 .unwrap_or(0);
             let mut file_type = "unknown".to_string();

@@ -200,7 +200,7 @@ pub fn calculate_walk_distance(position: (i32, i32)) -> Result<f64, Box<dyn std:
 pub fn simulate_queue_system(
     num_customers: i32,
     service_time_range: (i32, i32),
-) -> HashMap<String, f64> {
+) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
     let mut wait_times: Vec<i32> = vec![];
     let mut queue_length: i32 = 0;
     let mut current_time: i32 = 0;
@@ -238,7 +238,7 @@ pub fn simulate_queue_system(
         map.insert("total_customers".to_string(), (num_customers) as f64);
         map
     };
-    stats
+    Ok(stats)
 }
 #[doc = "Simulate card game results"]
 #[doc = " Depyler: proven to terminate"]
@@ -425,7 +425,7 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     println!("{}", "\n5. Queue System Simulation");
-    let queue_stats: HashMap<String, f64> = simulate_queue_system(100, (1, 5));
+    let queue_stats: HashMap<String, f64> = simulate_queue_system(100, (1, 5))?;
     println!(
         "{}",
         format!(
