@@ -185,16 +185,41 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         hir_expr: &HirExpr,
         other_hir: &HirExpr,
     ) -> syn::Expr {
-        // Only coerce integer literals
+        // Check if other operand is float-typed
+        let other_is_float = self.expr_returns_float(other_hir) || self.is_float_var(other_hir);
+        if !other_is_float {
+            return expr;
+        }
+
+        // Coerce integer literals to float
         if let HirExpr::Literal(Literal::Int(val)) = hir_expr {
-            // Check if other operand is float-typed
-            if self.expr_returns_float(other_hir) || self.is_float_var(other_hir) {
-                // Convert integer to float literal
-                let float_val = *val as f64;
-                return parse_quote! { #float_val };
+            let float_val = *val as f64;
+            return parse_quote! { #float_val };
+        }
+
+        // DEPYLER-0694: Coerce integer variables to float when other operand is float
+        if self.is_int_var(hir_expr) {
+            return parse_quote! { (#expr as f64) };
+        }
+
+        expr
+    }
+
+    /// Check if expression is a variable with integer type
+    fn is_int_var(&self, expr: &HirExpr) -> bool {
+        if let HirExpr::Var(name) = expr {
+            if let Some(var_type) = self.ctx.var_types.get(name) {
+                if matches!(var_type, Type::Int) {
+                    return true;
+                }
+                if let Type::Custom(s) = var_type {
+                    if s == "i32" || s == "i64" || s == "usize" || s == "isize" {
+                        return true;
+                    }
+                }
             }
         }
-        expr
+        false
     }
 
     /// Check if expression is a variable with float type
@@ -14720,6 +14745,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     method.as_str(),
                     "mean" | "sum" | "std" | "stddev" | "var" | "variance" | "min" | "max" | "norm"
                 )
+            }
+            // DEPYLER-0694: Binary expression with float operand returns float
+            // This handles chained operations like (principal * rate) * years
+            HirExpr::Binary { left, right, .. } => {
+                self.expr_returns_float(left)
+                    || self.expr_returns_float(right)
+                    || self.is_float_var(left)
+                    || self.is_float_var(right)
             }
             _ => false,
         }
