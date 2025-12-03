@@ -5,6 +5,7 @@ const STR__: &'static str = "=";
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_parse_from_string() {
     let xml_string = "<root><child>Hello</child></root>";
+    let root = ET.fromstring(xml_string);
     assert!(root.tag == "root".to_string());
     assert!(root.find("child").map(|i| i as i32).unwrap_or(-1).text == "Hello".to_string());
     println!("{}", "PASS: test_xml_parse_from_string");
@@ -13,6 +14,7 @@ pub fn test_xml_parse_from_string() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_create_element() {
+    let root = ET.Element("root".to_string());
     assert!(root.tag == "root".to_string());
     assert!(root.text.is_none());
     println!("{}", "PASS: test_xml_create_element");
@@ -34,14 +36,10 @@ pub fn test_xml_create_subelement() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_element_attributes() {
     let xml_string = "<root id=\"123\" name=\"test\"></root>";
-    assert!(root.get(&"id".to_string()).cloned() == "123".to_string());
-    assert!(root.get(&"name".to_string()).cloned() == "test".to_string());
-    assert!(
-        root.get(&"missing".to_string())
-            .cloned()
-            .unwrap_or("default".to_string())
-            == "default".to_string()
-    );
+    let root = ET.fromstring(xml_string);
+    assert!(root.get("id").cloned() == "123".to_string());
+    assert!(root.get("name").cloned() == "test".to_string());
+    assert!(root.get("missing").cloned().unwrap_or("default") == "default".to_string());
     println!("{}", "PASS: test_xml_element_attributes");
 }
 #[doc = "Test setting attributes programmatically."]
@@ -51,8 +49,8 @@ pub fn test_xml_set_attribute() {
     let root = ET.Element("root".to_string());
     root.set("id".to_string(), "456".to_string());
     root.set("type".to_string(), "test".to_string());
-    assert!(root.get(&"id".to_string()).cloned() == "456".to_string());
-    assert!(root.get(&"type".to_string()).cloned() == "test".to_string());
+    assert!(root.get("id").cloned() == "456".to_string());
+    assert!(root.get("type").cloned() == "test".to_string());
     println!("{}", "PASS: test_xml_set_attribute");
 }
 #[doc = "Test finding elements by tag name."]
@@ -61,6 +59,7 @@ pub fn test_xml_set_attribute() {
 pub fn test_xml_find_element() {
     let xml_string = "\n    <root>\n        <person>\n            <name>Alice</name>\n            <age>30</age>\n        </person>\n        <person>\n            <name>Bob</name>\n            <age>25</age>\n        </person>\n    </root>\n    ";
     let root = ET.fromstring(xml_string);
+    let person = root.find("person").map(|i| i as i32).unwrap_or(-1);
     assert!(person.is_some());
     assert!(person.find("name").map(|i| i as i32).unwrap_or(-1).text == "Alice".to_string());
     println!("{}", "PASS: test_xml_find_element");
@@ -71,6 +70,10 @@ pub fn test_xml_find_element() {
 pub fn test_xml_findall_elements() {
     let xml_string = "\n    <root>\n        <item>First</item>\n        <item>Second</item>\n        <item>Third</item>\n    </root>\n    ";
     let root = ET.fromstring(xml_string);
+    let items = root
+        .find_iter("item".to_string())
+        .map(|m| m.as_str().to_string())
+        .collect::<Vec<String>>();
     assert!(items.len() as i32 == 3);
     assert!(items.get(0usize).cloned().unwrap_or_default().text == "First".to_string());
     assert!(items.get(1usize).cloned().unwrap_or_default().text == "Second".to_string());
@@ -84,6 +87,7 @@ pub fn test_xml_to_string() {
     let root = ET.Element("root".to_string());
     let mut child = ET.SubElement(root, "child".to_string());
     child.text = "Content";
+    let xml_bytes = ET.tostring(root);
     assert!(xml_bytes.get("<root>".to_string()).is_some());
     assert!(xml_bytes
         .get("<child>Content</child>".to_string())
@@ -97,8 +101,9 @@ pub fn test_xml_nested_structure() {
     let xml_string = "\n    <catalog>\n        <book id=\"1\">\n            <title>Python Guide</title>\n            <author>\n                <name>John Doe</name>\n                <email>john@example.com</email>\n            </author>\n            <price>29.99</price>\n        </book>\n    </catalog>\n    ";
     let root = ET.fromstring(xml_string);
     let book = root.find("book").map(|i| i as i32).unwrap_or(-1);
-    assert!(book.get(&"id".to_string()).cloned() == "1".to_string());
+    assert!(book.get("id").cloned() == "1".to_string());
     assert!(book.find("title").map(|i| i as i32).unwrap_or(-1).text == "Python Guide".to_string());
+    let author = book.find("author").map(|i| i as i32).unwrap_or(-1);
     assert!(author.find("name").map(|i| i as i32).unwrap_or(-1).text == "John Doe".to_string());
     assert!(
         author.find("email").map(|i| i as i32).unwrap_or(-1).text == "john@example.com".to_string()
@@ -151,7 +156,7 @@ pub fn test_xml_build_tree() {
             .get(0usize)
             .cloned()
             .unwrap_or_default()
-            .get(&"name".to_string())
+            .get("name")
             .cloned()
             == "Alice".to_string()
     );
@@ -160,7 +165,7 @@ pub fn test_xml_build_tree() {
             .get(1usize)
             .cloned()
             .unwrap_or_default()
-            .get(&"name".to_string())
+            .get("name")
             .cloned()
             == "Bob".to_string()
     );
@@ -172,6 +177,8 @@ pub fn test_xml_build_tree() {
 pub fn test_xml_empty_elements() {
     let xml_string = "<root><empty/><notempty>text</notempty></root>";
     let root = ET.fromstring(xml_string);
+    let empty = root.find("empty").map(|i| i as i32).unwrap_or(-1);
+    let notempty = root.find("notempty").map(|i| i as i32).unwrap_or(-1);
     assert!(empty.text.is_none());
     assert!(notempty.text == "text".to_string());
     println!("{}", "PASS: test_xml_empty_elements");

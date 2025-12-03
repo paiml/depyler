@@ -1898,3 +1898,27 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: GH-204
+  github_issue: 204
+  item_type: task
+  title: '[P0-CRITICAL] E0433 Systematic Import Resolution - Top Blocker (2744 examples)'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-03T07:19:30.405566504+00:00
+  updated: 2025-12-03T07:19:30.405566504+00:00
+  spec: null
+  acceptance_criteria:
+  - E0433 blocked count reduced from 2744 to <500
+  - All stdlib imports auto-generated correctly
+  - Cargo.toml includes all required dependencies
+  - +15-20% improvement in single-shot compile rate
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - bug
+  - P0-critical
+  - imports
+  - tarantula-verified
+  notes: null

@@ -70,5 +70,5 @@ pub fn main() {
     let point_result = test_point();
     let rect_result = test_rectangle();
     let static_result = test_static();
-    point_result + rect_result + static_result
+    ()
 }

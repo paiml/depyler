@@ -4,7 +4,7 @@
 }
 #[doc = " Depyler: verified panic-free"] pub async fn process_urls(urls: & Vec<String>) -> Vec<String>{
     let mut results = vec! [];
-    for _url in urls.iter().cloned() {
+    for url in urls.iter().cloned() {
     let data = fetch_data(& url).await;
     results.push(data);
    

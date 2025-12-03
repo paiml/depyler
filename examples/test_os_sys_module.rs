@@ -72,10 +72,7 @@ pub fn test_env_variable_exists() -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_current_directory() -> String {
-    let cwd: String = std::env::current_dir()
-        .unwrap()
-        .to_string_lossy()
-        .to_string();
+    let cwd: String = std::env::current_dir()?.to_string_lossy().to_string();
     cwd.to_string()
 }
 #[doc = "Test path joining"]
@@ -241,8 +238,8 @@ pub fn test_path_splitext() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     let _cse_temp_0 = last_dot > 0;
-    let mut ext: String;
     let mut name: String;
+    let mut ext: String;
     if _cse_temp_0 {
         name = {
             let base = &path;

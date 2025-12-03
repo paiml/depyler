@@ -28,7 +28,28 @@ pub fn get_file_info(path: String) -> (String, String, String) {
 #[doc = " Depyler: verified panic-free"]
 pub fn find_python_files(directory: &str) -> Vec<String> {
     let mut python_files = vec![];
-    for (root, _dirs, files) in os.walk(directory) {
+    for (root, _dirs, files) in walkdir::WalkDir::new(directory)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_dir())
+        .map(|dir_entry| {
+            let root = dir_entry.path().to_string_lossy().to_string();
+            let mut dirs = vec![];
+            let mut files = vec![];
+            if let Ok(entries) = std::fs::read_dir(dir_entry.path()) {
+                for entry in entries.filter_map(|e| e.ok()) {
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                        dirs.push(name);
+                    } else {
+                        files.push(name);
+                    }
+                }
+            }
+            (root, dirs, files)
+        })
+        .collect::<Vec<_>>()
+    {
         for file in files.iter().cloned() {
             if file.ends_with(".py") {
                 python_files.push(std::path::Path::join(root, file));
@@ -63,7 +84,7 @@ pub fn normalize_path(path: &str) -> String {
 #[doc = "Get relative path from start to path"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_relative_path<'a, 'b>(path: &'a str, start: &'b str) -> String {
+pub fn get_relative_path<'b, 'a>(path: &'a str, start: &'b str) -> String {
     {
         let path_obj = std::path::Path::new(path);
         let start_obj = std::path::Path::new(start);

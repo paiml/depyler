@@ -253,7 +253,7 @@ pub fn test_date_comparison() -> bool {
 }
 #[doc = "Calculate working days between two dates(excluding weekends)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn working_days_between<'b, 'a>(
+pub fn working_days_between<'a, 'b>(
     start: &'a chrono::NaiveDate,
     end: &'b chrono::NaiveDate,
 ) -> Result<i32, Box<dyn std::error::Error>> {

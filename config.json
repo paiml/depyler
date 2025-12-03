@@ -1,1 +1,0 @@
-{"database":{"host":"localhost","port":5432},"features":{"debug":false,"verbose":false},"logging":{"file":"app.log","level":"INFO"}}

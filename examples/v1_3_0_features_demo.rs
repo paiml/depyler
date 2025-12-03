@@ -58,7 +58,7 @@ impl Counter {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_with_statement() {
-    let _context = ResourceManager::new("test".to_string().to_string());
+    let mut _context = ResourceManager::new("test".to_string().to_string());
     let rm = _context.__enter__();
     let result = rm.use_resource();
     result
@@ -81,7 +81,7 @@ pub fn demo_iterator() -> i32 {
 pub fn main() {
     let with_result = demo_with_statement();
     let iter_result = demo_iterator();
-    with_result + iter_result
+    ()
 }
 #[cfg(test)]
 mod tests {

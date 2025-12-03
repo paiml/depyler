@@ -1,9 +1,0 @@
-[2m2025-11-19T04:56:52.350525Z[0m [32m INFO[0m [2mbashrs::cli::commands[0m[2m:[0m Linting ./publish.sh
-Issues found in ./publish.sh:
-
-⚠ 12:22-28 12:22-28 [warning] SC2086: Double quote to prevent globbing and word splitting on $crate
-  Fix: "$crate"
-
-ℹ 10:1-19 10:1-19 [info] SC2320: Positional parameter expands as single word. Quote to prevent word splitting: "$1"
-
-Summary: 0 error(s), 1 warning(s), 1 info(s)

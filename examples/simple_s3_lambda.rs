@@ -22,7 +22,15 @@ pub fn lambda_handler(
     event: &HashMap<String, serde_json::Value>,
     context: serde_json::Value,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    for record in event.get("Records").cloned().unwrap_or_default() {
+    for record in event
+        .get("Records")
+        .cloned()
+        .unwrap_or_default()
+        .as_array()
+        .unwrap_or(&vec![])
+        .iter()
+        .cloned()
+    {
         let bucket = record
             .get("s3")
             .cloned()

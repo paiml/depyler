@@ -17,6 +17,13 @@ impl IndexError {
         }
     }
 }
+#[doc = r" Result of subprocess.run()"]
+#[derive(Debug, Clone)]
+pub struct CompletedProcess {
+    pub returncode: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
 #[doc = "Test function with unannotated parameters.\n\n    Type inference should infer:\n    - cmd: Vec<String>(from subprocess.run signature)\n    - capture: bool(from default value False)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -28,22 +35,26 @@ pub fn run_command(cmd: &Vec<String>, capture: bool) -> (i32, String) {
             let mut cmd = std::process::Command::new(&cmd_list[0]);
             cmd.args(&cmd_list[1..]);
             let output = cmd.output().expect("subprocess.run() failed");
-            (
-                output.status.code().unwrap_or(-1),
-                String::from_utf8_lossy(&output.stdout).to_string(),
-                String::from_utf8_lossy(&output.stderr).to_string(),
-            )
+            CompletedProcess {
+                returncode: output.status.code().unwrap_or(-1),
+                stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            }
         };
-        (result.0, result.1)
+        (result.returncode, result.stdout)
     } else {
         result = {
             let cmd_list = cmd;
             let mut cmd = std::process::Command::new(&cmd_list[0]);
             cmd.args(&cmd_list[1..]);
             let status = cmd.status().expect("subprocess.run() failed");
-            (status.code().unwrap_or(-1), String::new(), String::new())
+            CompletedProcess {
+                returncode: status.code().unwrap_or(-1),
+                stdout: String::new(),
+                stderr: String::new(),
+            }
         };
-        result.0
+        result.returncode
     }
 }
 #[doc = "Test indexing constraint.\n\n    Type inference should infer:\n    - items: Vec<T>(from indexing operation)\n    "]
