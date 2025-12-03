@@ -663,7 +663,11 @@ fn generate_import_tokens(
         // DEPYLER-0593: Skip os/os.path module aliases
         // These modules are handled specially in expr_gen.rs (try_convert_os_path_method)
         // Generating `use std as os;` breaks the module recognition
-        if import.alias.as_deref() == Some("os") || import.alias.as_deref() == Some("os_path") {
+        // DEPYLER-0691: Also skip sys module aliases since we use fully qualified std::env, std::process paths
+        if import.alias.as_deref() == Some("os")
+            || import.alias.as_deref() == Some("os_path")
+            || import.alias.as_deref() == Some("sys")
+        {
             continue;
         }
 
