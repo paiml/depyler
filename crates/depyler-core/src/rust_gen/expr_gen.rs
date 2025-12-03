@@ -943,15 +943,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Detect CSE temp vars from format!() and .unwrap_or_default() patterns
         let left_str = quote! { #left_expr }.to_string();
         let right_str = quote! { #right_expr }.to_string();
-        let looks_like_string = left_str.contains("format !")
-            || right_str.contains("format !")
-            || (left_str.contains("_cse_temp_")
-                && (right_str.contains("unwrap_or_default")
-                    || right_str.contains("to_string")))
-            || (right_str.contains("_cse_temp_")
-                && (left_str.contains("unwrap_or_default")
-                    || left_str.contains("to_string")))
-            || (left_str.contains("unwrap_or_default") && right_str.contains("unwrap_or_default"));
+        // DEPYLER-0693: Be more precise about string detection
+        // unwrap_or_default on array indexing (get()) returns the element default, not necessarily string
+        // Only treat as string if we see string-producing patterns like to_string() or format!()
+        let has_to_string = left_str.contains("to_string") || right_str.contains("to_string");
+        let has_format = left_str.contains("format !") || right_str.contains("format !");
+        let looks_like_string = has_format
+            || (left_str.contains("_cse_temp_") && has_to_string)
+            || (right_str.contains("_cse_temp_") && has_to_string);
 
         if (is_definitely_list || is_slice_concat || is_list_var) && !is_definitely_string {
             // List/slice concatenation
@@ -4527,38 +4526,67 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let dst = &arg_exprs[1];
                 parse_quote! { std::fs::rename(#src, #dst)? }
             }
-            // DEPYLER-0196: os.getcwd() → std::env::current_dir()?.to_string_lossy().to_string()
+            // DEPYLER-0196: os.getcwd() → std::env::current_dir()...
+            // DEPYLER-0689: Use .expect() when not in Result-returning context
             "getcwd" => {
                 if !arg_exprs.is_empty() {
                     bail!("os.getcwd() takes no arguments");
                 }
-                parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() }
+                if self.ctx.current_function_can_fail {
+                    parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() }
+                } else {
+                    parse_quote! { std::env::current_dir().expect("Failed to get current directory").to_string_lossy().to_string() }
+                }
             }
-            // DEPYLER-0196: os.chdir(path) → std::env::set_current_dir(path)?
+            // DEPYLER-0196: os.chdir(path) → std::env::set_current_dir(path)...
+            // DEPYLER-0689: Use .expect() when not in Result-returning context
             "chdir" => {
                 if arg_exprs.len() != 1 {
                     bail!("os.chdir() requires exactly 1 argument");
                 }
                 let path = &arg_exprs[0];
-                parse_quote! { std::env::set_current_dir(#path)? }
+                if self.ctx.current_function_can_fail {
+                    parse_quote! { std::env::set_current_dir(#path)? }
+                } else {
+                    parse_quote! { std::env::set_current_dir(#path).expect("Failed to change directory") }
+                }
             }
-            // DEPYLER-0196: os.listdir(path) → std::fs::read_dir(path)?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect()
+            // DEPYLER-0196: os.listdir(path) → std::fs::read_dir(path)...
+            // DEPYLER-0689: Use .expect() when not in Result-returning context
             "listdir" => {
                 if arg_exprs.is_empty() {
                     // os.listdir() with no args uses current directory
-                    parse_quote! {
-                        std::fs::read_dir(".")?
-                            .filter_map(|e| e.ok())
-                            .map(|e| e.file_name().to_string_lossy().to_string())
-                            .collect::<Vec<_>>()
+                    if self.ctx.current_function_can_fail {
+                        parse_quote! {
+                            std::fs::read_dir(".")?
+                                .filter_map(|e| e.ok())
+                                .map(|e| e.file_name().to_string_lossy().to_string())
+                                .collect::<Vec<_>>()
+                        }
+                    } else {
+                        parse_quote! {
+                            std::fs::read_dir(".").expect("Failed to read directory")
+                                .filter_map(|e| e.ok())
+                                .map(|e| e.file_name().to_string_lossy().to_string())
+                                .collect::<Vec<_>>()
+                        }
                     }
                 } else {
                     let path = &arg_exprs[0];
-                    parse_quote! {
-                        std::fs::read_dir(#path)?
-                            .filter_map(|e| e.ok())
-                            .map(|e| e.file_name().to_string_lossy().to_string())
-                            .collect::<Vec<_>>()
+                    if self.ctx.current_function_can_fail {
+                        parse_quote! {
+                            std::fs::read_dir(#path)?
+                                .filter_map(|e| e.ok())
+                                .map(|e| e.file_name().to_string_lossy().to_string())
+                                .collect::<Vec<_>>()
+                        }
+                    } else {
+                        parse_quote! {
+                            std::fs::read_dir(#path).expect("Failed to read directory")
+                                .filter_map(|e| e.ok())
+                                .map(|e| e.file_name().to_string_lossy().to_string())
+                                .collect::<Vec<_>>()
+                        }
                     }
                 }
             }
