@@ -1657,6 +1657,29 @@ fn infer_expr_type_with_env(
         // This is needed to resolve types like `result.returncode` where `result`
         // is a subprocess.run() result stored in a variable
         HirExpr::Attribute { value, attr } => {
+            // DEPYLER-0690: Handle module attribute access (sys.argv, sys.path, etc.)
+            // Check if value is a module name and attr is a known module attribute
+            if let HirExpr::Var(module_name) = value.as_ref() {
+                match (module_name.as_str(), attr.as_str()) {
+                    // sys module attributes
+                    ("sys", "argv") => return Type::List(Box::new(Type::String)),
+                    ("sys", "path") => return Type::List(Box::new(Type::String)),
+                    ("sys", "version") => return Type::String,
+                    ("sys", "version_info") => {
+                        return Type::Tuple(vec![Type::Int, Type::Int, Type::Int])
+                    }
+                    ("sys", "maxsize") => return Type::Int,
+                    ("sys", "platform") => return Type::String,
+                    // os module attributes
+                    ("os", "environ") => {
+                        return Type::Dict(Box::new(Type::String), Box::new(Type::String))
+                    }
+                    ("os", "name") => return Type::String,
+                    ("os", "sep") | ("os", "pathsep") | ("os", "linesep") => return Type::String,
+                    _ => {} // Fall through to existing handling
+                }
+            }
+
             // Get the base type using the environment
             let base_type = infer_expr_type_with_env(value, var_types);
 
