@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::collections::IndexMap;
 use std::collections::VecDeque;
 const STR_B: &'static str = "b";
-const STR_APPLE: &'static str = "apple";
 const STR_A: &'static str = "a";
+const STR_APPLE: &'static str = "apple";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -252,7 +252,7 @@ pub fn test_ordereddict_move_to_end() -> Vec<String> {
 }
 #[doc = "Test ChainMap-like lookup(manual)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_chainmap<'a, 'b>(
+pub fn test_chainmap<'b, 'a>(
     dict1: &'a HashMap<String, i32>,
     dict2: &'b HashMap<String, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {

@@ -4,7 +4,7 @@
 }
 #[doc = "Process items asynchronously."] #[doc = " Depyler: verified panic-free"] pub async fn process_batch(items: & Vec<String>) -> Vec<String>{
     let mut results = vec! [];
-    for _item in items.iter().cloned() {
+    for item in items.iter().cloned() {
     let data = fetch_data(& item).await;
     results.push(data);
    

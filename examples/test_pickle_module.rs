@@ -10,12 +10,15 @@ use std::collections::HashSet;
 pub fn test_pickle_basic_types() {
     let mut data = 42;
     let mut pickled = { format!("{:?}", data).into_bytes() };
+    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == 42);
     data = "hello world";
     pickled = { format!("{:?}", data).into_bytes() };
+    unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == "hello world");
     data = 3.14159;
     pickled = { format!("{:?}", data).into_bytes() };
+    unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == 3.14159);
     println!("{}", "PASS: test_pickle_basic_types");
 }
@@ -25,6 +28,7 @@ pub fn test_pickle_basic_types() {
 pub fn test_pickle_list() {
     let mut data = vec![1, 2, 3, 4, 5];
     let mut pickled = { format!("{:?}", data).into_bytes() };
+    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == vec![1, 2, 3, 4, 5]);
     assert!(unpickled.len() as i32 == 5);
     println!("{}", "PASS: test_pickle_list");
@@ -41,6 +45,7 @@ pub fn test_pickle_dict() {
         map
     };
     let mut pickled = { format!("{:?}", data).into_bytes() };
+    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(
         unpickled == {
             let mut map = std::collections::HashMap::new();
@@ -70,6 +75,7 @@ pub fn test_pickle_nested_structure() {
         map
     };
     let mut pickled = { format!("{:?}", data).into_bytes() };
+    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == data);
     assert!(
         unpickled
@@ -108,6 +114,7 @@ pub fn test_pickle_nested_structure() {
 pub fn test_pickle_tuple() {
     let mut data = (1, "hello", 3.14, true);
     let mut pickled = { format!("{:?}", data).into_bytes() };
+    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled = = (1, "hello", 3.14, true));
     assert!(unpickled.get(1usize).cloned().unwrap_or_default() == "hello");
     println!("{}", "PASS: test_pickle_tuple");
@@ -126,6 +133,7 @@ pub fn test_pickle_set() {
         set
     };
     let mut pickled = { format!("{:?}", data).into_bytes() };
+    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(
         unpickled == {
             let mut set = HashSet::new();
@@ -145,6 +153,7 @@ pub fn test_pickle_set() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_none() {
     let mut pickled = { format!("{:?}", data).into_bytes() };
+    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == None);
     println!("{}", "PASS: test_pickle_none");
 }
@@ -154,9 +163,11 @@ pub fn test_pickle_none() {
 pub fn test_pickle_boolean() {
     let data_true = true;
     let pickled_true = { format!("{:?}", data_true).into_bytes() };
+    let unpickled_true = { String::from_utf8_lossy(pickled_true).to_string() };
     assert!(unpickled_true == true);
     let data_false = false;
     let pickled_false = { format!("{:?}", data_false).into_bytes() };
+    let unpickled_false = { String::from_utf8_lossy(pickled_false).to_string() };
     assert!(unpickled_false == false);
     println!("{}", "PASS: test_pickle_boolean");
 }
@@ -166,6 +177,7 @@ pub fn test_pickle_boolean() {
 pub fn test_pickle_bytes() {
     let mut data = b"hello bytes";
     let mut pickled = { format!("{:?}", data).into_bytes() };
+    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == b"hello bytes");
     println!("{}", "PASS: test_pickle_bytes");
 }
@@ -179,6 +191,7 @@ pub fn test_pickle_mixed_types() {
         map
     }];
     let mut pickled = { format!("{:?}", data).into_bytes() };
+    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == data);
     assert!(
         unpickled

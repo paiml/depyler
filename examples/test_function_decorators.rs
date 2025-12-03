@@ -3,7 +3,8 @@ use serde_json;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn timing_decorator(func: serde_json::Value) -> Box<dyn Fn(()) -> ()> {
-    let wrapper = |args: ()| {
+    let mut wrapper;
+    wrapper = |args: ()| {
         let result = func(args);
         return result;
     };
@@ -13,7 +14,8 @@ pub fn timing_decorator(func: serde_json::Value) -> Box<dyn Fn(()) -> ()> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn logging_decorator(func: serde_json::Value) -> Box<dyn Fn(()) -> ()> {
-    let wrapper = |args: ()| {
+    let mut wrapper;
+    wrapper = |args: ()| {
         let result = func(args);
         result
     };
@@ -39,8 +41,10 @@ pub fn important_calculation(x: i32, y: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn repeat(times: i32) -> Box<dyn Fn(()) -> ()> {
-    let decorator = |func: ()| {
-        let wrapper = |args: ()| {
+    let mut decorator;
+    let mut wrapper;
+    decorator = |func: ()| {
+        wrapper = |args: ()| {
             let result = None;
             for __sanitized in 0..times {
                 result = func(args);
@@ -48,13 +52,6 @@ pub fn repeat(times: i32) -> Box<dyn Fn(()) -> ()> {
             result
         };
         wrapper
-    };
-    let wrapper = |args: ()| {
-        result = None;
-        for __sanitized in 0..times {
-            result = func(args);
-        }
-        result
     };
     Box::new(decorator)
 }

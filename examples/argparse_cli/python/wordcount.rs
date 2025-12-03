@@ -44,7 +44,7 @@ pub fn count_file(filepath: &Path) -> Stats {
             .collect::<Vec<String>>()
             .len() as i32;
         let chars = content.len() as i32;
-        return Stats::new(lines, words, chars, (filepath).to_string());
+        return Stats::new(lines, words, chars, (filepath).display().to_string());
         Ok(Default::default())
     })() {
         Ok(_result) => {
@@ -52,7 +52,7 @@ pub fn count_file(filepath: &Path) -> Stats {
         }
         Err(e) => {
             eprintln!("{}", format!("Error reading {}: {:?}", filepath, e));
-            return Stats::new(0, 0, 0, (filepath).to_string());
+            return Stats::new(0, 0, 0, (filepath).display().to_string());
         }
     }
 }
@@ -69,7 +69,7 @@ pub fn format_stats(stats: Stats, show_filename: bool) -> String {
 }
 #[doc = "Main entry point"]
 #[doc = " Depyler: verified panic-free"]
-pub fn main() -> i32 {
+pub fn main() {
     let args = Args::parse();
     let mut total_lines = 0;
     let mut total_words = 0;
@@ -88,7 +88,7 @@ pub fn main() -> i32 {
                 if args.chars {
                     println!("{}", format!("{} {}", stats.chars, stats.filename));
                 } else {
-                    println!("{}", format_stats(stats));
+                    println!("{}", format_stats(stats, true));
                 }
             }
         }
@@ -99,5 +99,5 @@ pub fn main() -> i32 {
         let total_stats = Stats::new(total_lines, total_words, total_chars, "total".to_string());
         println!("{}", format_stats(total_stats, true));
     }
-    0
+    ()
 }

@@ -222,7 +222,7 @@ pub fn print_statistics(game: &MarcoPoloGame, rounds: i32) {
 #[doc = "Main entry point."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn main() -> i32 {
+pub fn main() {
     let args = parse_arguments();
     print_welcome();
     let game = MarcoPoloGame::new(args.difficulty, args.verbose);
@@ -244,5 +244,5 @@ pub fn main() -> i32 {
     }
     print_statistics(game, args.rounds);
     println!("{}", "\nThanks for playing! 👋");
-    0
+    ()
 }

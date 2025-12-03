@@ -110,3 +110,17 @@ models/
 proptest-regressions/
 training_corpus/
 lib.long-type-*.txt
+
+# Temporary session/analysis files
+OVERNIGHT_*.md
+OVERNIGHT_*.txt
+SESSION-*.md
+*.lint-report.txt
+*.purified
+*.backup
+
+# Python coverage
+.coverage
+
+# Orphan outputs
+None
