@@ -34,7 +34,7 @@ pub async fn _process(&self, request_id: i32) -> String {
 }
 #[doc = " Depyler: verified panic-free"] pub async fn process_batch(items: & Vec<i32>) -> Vec<String>{
     let mut results = vec! [];
-    for _item in items.iter().cloned() {
+    for item in items.iter().cloned() {
     let user = fetch_user(item).await;
     let result = format!("Processed {}", user.get("name").cloned().unwrap_or_default());
     results.push(result);

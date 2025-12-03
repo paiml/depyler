@@ -84,8 +84,8 @@ else {
     result
 }
 #[doc = "Create a greeting with optional title."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn greet(name: String, title: & Option<String>) -> String {
-    if title.is_some() {
-    format!("Hello, {:?} {}!", title, name)
+    if let Some(ref title_val) = title {
+    format!("Hello, {:?} {}!", title_val.clone(), name)
 }
 else {
     format!("Hello, {}!", name)
@@ -126,8 +126,8 @@ else {
     let numbers = vec! [1, - 2, 3, - 4, 5];
     let processed = process_data(& numbers);
     println!("{}", format!("Processed: {:?}", processed));
-    println!("{}", greet("Alice"));
-    println!("{}", greet("Bob", "Dr."));
+    println!("{}", greet("Alice".to_string(), & None));
+    println!("{}", greet("Bob".to_string(), "Dr."));
     let processor = DataProcessor::new(10);
     let data = vec! [5, 10, 15, 20, 25];
     let filtered = processor.filter_data(data);

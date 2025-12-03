@@ -79,13 +79,7 @@ pub fn test_configparser_get_methods() {
     let config_string = "\n[settings]\nport = 8080\ndebug = true\ntimeout = 30.5\n";
     let config = configparser.ConfigParser();
     config.read_string(config_string);
-    assert!(
-        config
-            .get(&"settings".to_string())
-            .cloned()
-            .unwrap_or("port".to_string())
-            == "8080".to_string()
-    );
+    assert!(config.get("settings").cloned().unwrap_or("port") == "8080".to_string());
     assert!(config.getint("settings".to_string(), "port".to_string()) == 8080);
     assert!(config.getboolean("settings".to_string(), "debug".to_string()) == true);
     assert!(config.getfloat("settings".to_string(), "timeout".to_string()) == 30.5);
@@ -99,6 +93,7 @@ pub fn test_configparser_sections() {
         "\n[section1]\nkey1 = value1\n\n[section2]\nkey2 = value2\n\n[section3]\nkey3 = value3\n";
     let config = configparser.ConfigParser();
     config.read_string(config_string);
+    let sections = config.sections();
     assert!(sections.len() as i32 == 3);
     assert!(sections.get("section1".to_string()).is_some());
     assert!(sections.get("section2".to_string()).is_some());
@@ -113,6 +108,7 @@ pub fn test_configparser_options() {
         "\n[database]\nhost = localhost\nport = 5432\nuser = admin\npassword = secret\n";
     let config = configparser.ConfigParser();
     config.read_string(config_string);
+    let options = config.options("database".to_string());
     assert!(options.get("host".to_string()).is_some());
     assert!(options.get("port".to_string()).is_some());
     assert!(options.get("user".to_string()).is_some());

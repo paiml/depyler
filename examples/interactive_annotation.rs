@@ -1,11 +1,12 @@
 use std::f64 as math;
-const STR_C: &'static str = "C";
 const STR_B: &'static str = "B";
-const STR_D: &'static str = "D";
 const STR_A: &'static str = "A";
+const STR_C: &'static str = "C";
+const STR_D: &'static str = "D";
 use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::io::Write;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -209,11 +210,16 @@ pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> 
         .filter(|x| x > pivot)
         .map(|x| x)
         .collect::<Vec<_>>();
-    Ok(quicksort(left)? + middle + quicksort(right)?)
+    Ok(quicksort(left)?
+        .iter()
+        .chain(middle.iter())
+        .cloned()
+        .collect::<Vec<_>>()
+        + quicksort(right)?)
 }
 #[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn safe_divide<'b, 'a>(
+pub fn safe_divide<'a, 'b>(
     numbers: &'a Vec<f64>,
     divisors: &'b Vec<f64>,
 ) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>> {
@@ -246,7 +252,7 @@ pub fn parallel_map(
     Ok(results)
 }
 #[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "]
-pub fn optimize_route<'b, 'c, 'a>(
+pub fn optimize_route<'c, 'a, 'b>(
     distances: &'a HashMap<String, HashMap<String, f64>>,
     start: &'b str,
     end: &'c str,

@@ -14,6 +14,7 @@ use std::collections::HashMap;
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlparse_basic() {
     let url = "https://example.com/path/page.html";
+    let result = url::Url::parse(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.netloc == "example.com".to_string());
     assert!(result.path == "/path/page.html".to_string());
@@ -24,6 +25,7 @@ pub fn test_urlparse_basic() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlparse_with_query() {
     let url = "https://example.com/search?q=python&lang=en";
+    let result = url::Url::parse(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.netloc == "example.com".to_string());
     assert!(result.path == "/search".to_string());
@@ -35,6 +37,7 @@ pub fn test_urlparse_with_query() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlparse_with_fragment() {
     let url = "https://example.com/page#section1";
+    let result = url::Url::parse(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.path == "/page".to_string());
     assert!(result.fragment == "section1".to_string());
@@ -45,6 +48,7 @@ pub fn test_urlparse_with_fragment() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlparse_full() {
     let url = "https://user:pass@example.com:8080/path?query=value#fragment";
+    let result = url::Url::parse(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.netloc == "user:pass@example.com:8080".to_string());
     assert!(result.path == "/path".to_string());
@@ -57,6 +61,7 @@ pub fn test_urlparse_full() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_parse_qs_basic() {
     let query = "name=John&age=30&city=NYC";
+    let result = parse_qs(query);
     assert!(
         result.get("name").cloned().unwrap_or_default() == vec!["John".to_string().to_string()]
     );
@@ -69,6 +74,7 @@ pub fn test_parse_qs_basic() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_parse_qs_multiple_values() {
     let query = "tag=python&tag=rust&tag=programming";
+    let result = parse_qs(query);
     assert!(result.get("tag").cloned().unwrap_or_default().len() as i32 == 3);
     assert!(result
         .get("tag")
@@ -89,6 +95,7 @@ pub fn test_parse_qs_multiple_values() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_parse_qsl_tuples() {
     let query = "a=1&b=2&c=3";
+    let result = parse_qsl(query);
     assert!(result.len() as i32 == 3);
     assert!(result.get(&("a".to_string(), "1".to_string())).is_some());
     assert!(result.get(&("b".to_string(), "2".to_string())).is_some());
@@ -105,6 +112,7 @@ pub fn test_urlencode_basic() {
         map.insert("age".to_string(), "30");
         map
     };
+    let result = urlencode(&params);
     assert!(
         (result.get("name=John+Doe".to_string()).is_some())
             || (result.get("name=John%20Doe".to_string()).is_some())
@@ -117,6 +125,7 @@ pub fn test_urlencode_basic() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_quote_string() {
     let text = "Hello World!";
+    let result = url::percent_encoding::percent_encode(text);
     assert!(result == "Hello%20World%21");
     println!("{}", "PASS: test_quote_string");
 }
@@ -125,6 +134,7 @@ pub fn test_quote_string() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_unquote_string() {
     let encoded = "Hello%20World%21";
+    let result = url::percent_encoding::percent_decode(encoded);
     assert!(result == "Hello World!");
     println!("{}", "PASS: test_unquote_string");
 }
@@ -133,6 +143,7 @@ pub fn test_unquote_string() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_quote_safe_chars() {
     let path = "/path/to/file";
+    let result = url::percent_encoding::percent_encode(path, "/".to_string());
     assert!(result == "/path/to/file");
     println!("{}", "PASS: test_quote_safe_chars");
 }
@@ -142,6 +153,7 @@ pub fn test_quote_safe_chars() {
 pub fn test_urljoin_basic() {
     let base = "https://example.com/dir/";
     let relative = "page.html";
+    let result = url::Url::join(base, relative);
     assert!(result == "https://example.com/dir/page.html".to_string());
     println!("{}", "PASS: test_urljoin_basic");
 }
@@ -151,6 +163,7 @@ pub fn test_urljoin_basic() {
 pub fn test_urljoin_absolute() {
     let base = "https://example.com/dir/";
     let absolute = "https://other.com/page.html";
+    let result = url::Url::join(base, absolute);
     assert!(result == "https://other.com/page.html");
     println!("{}", "PASS: test_urljoin_absolute");
 }
@@ -159,6 +172,7 @@ pub fn test_urljoin_absolute() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlsplit_basic() {
     let url = "https://example.com/path?query=value#fragment";
+    let result = urlsplit(url);
     assert!(result.scheme == "https".to_string());
     assert!(result.netloc == "example.com".to_string());
     assert!(result.path == "/path".to_string());

@@ -8,10 +8,7 @@ use std::path::Path::join as path_join;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_current_dir() -> String {
-    std::env::current_dir()
-        .unwrap()
-        .to_string_lossy()
-        .to_string()
+    std::env::current_dir()?.to_string_lossy().to_string()
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -19,7 +16,7 @@ pub fn parse_json(data: String) -> HashMap<String, serde_json::Value> {
     serde_json::from_str(data)
 }
 #[doc = " Depyler: verified panic-free"]
-pub fn join_paths<'a, 'b>(base: &'a str, paths: &[String]) -> String {
+pub fn join_paths<'b, 'a>(base: &'a str, paths: &[String]) -> String {
     let mut result = base.clone();
     for p in paths.iter().cloned() {
         result = std::path::Path::join(result, p);

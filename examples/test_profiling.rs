@@ -1,3 +1,4 @@
+use serde_json;
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -82,7 +83,7 @@ pub fn allocate_many_lists(n: i32) -> Vec<Vec<i32>> {
 }
 #[doc = "Function with many type checks that Rust can optimize away."]
 #[doc = " Depyler: verified panic-free"]
-pub fn type_check_heavy(values: &Vec<object>) -> i32 {
+pub fn type_check_heavy(values: &Vec<serde_json::Value>) -> i32 {
     let mut count = 0;
     for value in values.iter().cloned() {
         if true {
@@ -101,7 +102,7 @@ pub fn type_check_heavy(values: &Vec<object>) -> i32 {
 }
 #[doc = "Matrix multiplication - triple nested loop."]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'b, 'a>(
+pub fn matrix_multiply<'a, 'b>(
     a: &'a mut Vec<Vec<f64>>,
     b: &'b mut Vec<Vec<f64>>,
 ) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>> {

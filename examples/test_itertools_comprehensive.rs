@@ -249,7 +249,7 @@ pub fn test_groupby_manual(
 }
 #[doc = "Test compress() to filter data by selectors"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_compress<'a, 'b>(
+pub fn test_compress<'b, 'a>(
     data: &'a Vec<String>,
     selectors: &'b Vec<bool>,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {

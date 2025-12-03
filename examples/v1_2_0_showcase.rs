@@ -112,5 +112,5 @@ pub fn demo_all_features() {
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
     let r#final = demo_all_features();
-    r#final
+    ()
 }

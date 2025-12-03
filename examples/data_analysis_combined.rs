@@ -331,7 +331,7 @@ pub fn bin_data(
 }
 #[doc = "Calculate Pearson correlation coefficient"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_correlation<'b, 'a>(
+pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {

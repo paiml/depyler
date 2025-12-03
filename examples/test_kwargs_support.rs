@@ -1,10 +1,18 @@
 use serde_json;
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
-pub struct MyObject {}
+pub struct MyObject {
+    pub mode: serde_json::Value,
+    pub timeout: serde_json::Value,
+    pub retry: serde_json::Value,
+}
 impl MyObject {
     pub fn new() -> Self {
-        Self {}
+        Self {
+            mode: Default::default(),
+            timeout: Default::default(),
+            retry: Default::default(),
+        }
     }
     pub fn setup(&mut self, mode: String, timeout: i32, retry: bool) {
         self.mode = mode;
@@ -17,7 +25,7 @@ impl MyObject {
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_function_kwargs() -> (serde_json::Value, serde_json::Value, serde_json::Value) {
     let result1 = greet("Alice".to_string(), "Hello".to_string());
-    let result2 = calculate(10, 20, "add", true);
+    let result2 = calculate(10, 20, "add".to_string(), true);
     let result3 = configure(800, 600, "My App".to_string());
     (result1, result2, result3)
 }

@@ -151,17 +151,27 @@ pub const chained_calls: serde_json::Value =
     "  hello  ".to_string().trim().to_string().to_uppercase();
 pub const pi_value: serde_json::Value = std::f64::consts::PI;
 pub const module_function: serde_json::Value = (16 as f64).sqrt();
-pub const square: serde_json::Value = |x| {
-    if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-        (x as i32)
-            .checked_pow(2 as u32)
-            .expect("Power operation overflowed")
-    } else {
-        (x as f64).powf(2 as f64) as i32
+pub fn square(x: i32) -> i32 {
+    {
+        if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
+            (x as i32)
+                .checked_pow(2 as u32)
+                .expect("Power operation overflowed")
+        } else {
+            (x as f64).powf(2 as f64) as i32
+        }
     }
-};
-pub const add: serde_json::Value = |x, y| x + y;
-pub const conditional_lambda: serde_json::Value = |x| if x > 0 { x } else { -x };
+}
+pub fn add(x: i32, y: i32) -> i32 {
+    x + y
+}
+pub fn conditional_lambda(x: i32) -> i32 {
+    if x > 0 {
+        x
+    } else {
+        -x
+    }
+}
 use once_cell::sync::Lazy;
 use serde_json;
 use std::collections::HashMap;
@@ -319,7 +329,7 @@ pub fn demonstrate_advanced() -> Result<String, Box<dyn std::error::Error>> {
 #[doc = "Show various comprehension types."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn demonstrate_comprehensions() -> Vec<(serde_json::Value, i32, i32)> {
+pub fn demonstrate_comprehensions() -> Vec<(i32, i32, i32)> {
     let transformed = (0..5)
         .into_iter()
         .map(|x| {

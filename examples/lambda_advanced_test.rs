@@ -13,7 +13,8 @@ pub fn test_lambda_with_operations() -> (serde_json::Value, serde_json::Value, s
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_lambda_as_argument() -> (serde_json::Value, serde_json::Value) {
-    let apply_to_list = |lst: &Vec<i64>, func: ()| -> Vec<i64> {
+    let mut apply_to_list;
+    apply_to_list = |lst: &Vec<i64>, func: ()| -> Vec<i64> {
         let result = vec![];
         for item in lst.iter().cloned() {
             result.push(func(item));
