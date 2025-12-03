@@ -353,8 +353,14 @@ impl TypeMapper {
             },
             PythonType::Set(inner) => RustType::HashSet(Box::new(self.map_type(inner))),
             PythonType::UnificationVar(id) => {
-                // UnificationVar should never appear in type mapping
-                panic!("BUG: UnificationVar({}) encountered in type mapper. Type inference incomplete.", id)
+                // DEPYLER-0692: UnificationVar indicates incomplete type inference
+                // Instead of panicking, fall back to a generic type
+                // This allows compilation to proceed even when inference is incomplete
+                tracing::warn!(
+                    "UnificationVar({}) encountered in type mapper. Falling back to serde_json::Value.",
+                    id
+                );
+                RustType::Custom("serde_json::Value".to_string())
             }
         }
     }
