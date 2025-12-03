@@ -157,7 +157,7 @@ def main():
 /// Test: Method chain returning JSON Value
 #[test]
 fn test_method_chain_json_value() {
-    let python = r#"
+    let _python = r#"
 def main():
     data = {"items": [1, 2, 3]}
     for item in data.get("items").cloned().unwrap_or_default():

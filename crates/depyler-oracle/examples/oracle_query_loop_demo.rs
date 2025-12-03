@@ -102,13 +102,14 @@ fn main() {
     println!("  - Hit Rate: {:.1}%", stats.hit_rate() * 100.0);
 
     // Simulate some usage for metrics
-    let mut demo_stats = OracleStats::default();
-    demo_stats.queries = 100;
-    demo_stats.hits = 85;
-    demo_stats.misses = 15;
-    demo_stats.fixes_applied = 72;
-    demo_stats.fixes_verified = 68;
-    demo_stats.llm_fallbacks = 8;
+    let demo_stats = OracleStats {
+        queries: 100,
+        hits: 85,
+        misses: 15,
+        fixes_applied: 72,
+        fixes_verified: 68,
+        llm_fallbacks: 8,
+    };
 
     println!("\nPhase 6: Prometheus Metrics Export");
     let metrics = OracleMetrics::from_stats(&demo_stats);

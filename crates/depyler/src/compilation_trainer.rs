@@ -1659,7 +1659,7 @@ mod tests {
     #[test]
     fn test_diagnostic_tier_clone() {
         let tier = DiagnosticTier::Tier3;
-        let cloned = tier.clone();
+        let cloned = tier; // Copy type, clone() unnecessary
         assert_eq!(tier, cloned);
     }
 

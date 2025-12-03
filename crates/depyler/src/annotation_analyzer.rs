@@ -1121,7 +1121,7 @@ mod tests {
 
     #[test]
     fn test_default_trait() {
-        let analyzer = AnnotationAnalyzer::default();
+        let analyzer = AnnotationAnalyzer;
         assert!(!analyzer.has_loops(&[]));
     }
 
