@@ -703,7 +703,7 @@ def returns_none():
         let doctests = extractor.extract(source).unwrap();
 
         // First doctest has no output (None doesn't print), second has True
-        assert!(doctests.len() >= 1);
+        assert!(!doctests.is_empty());
         assert!(doctests.iter().any(|dt| dt.expected == "True"));
     }
 

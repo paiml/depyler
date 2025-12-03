@@ -975,7 +975,7 @@ mod tests {
 
     #[test]
     fn test_report_issues_by_severity() {
-        let mut report = HanseiReport {
+        let report = HanseiReport {
             report_id: "test".to_string(),
             total_attempts: 10,
             successes: 5,

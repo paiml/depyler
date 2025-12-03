@@ -6046,7 +6046,7 @@ fn codegen_nested_function_def(
     let effective_params: Vec<HirParam> = ctx
         .nested_function_params
         .get(name)
-        .map(|inferred| inferred.clone())
+        .cloned()
         .unwrap_or_else(|| params.to_vec());
 
     // GH-70: Populate ctx.var_types with inferred param types so that

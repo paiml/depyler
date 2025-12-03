@@ -778,7 +778,7 @@ mod tests {
     #[test]
     fn test_verification_level_clone() {
         let level = VerificationLevel::Full;
-        let cloned = level.clone();
+        let cloned = level; // Copy type, clone() unnecessary
         assert_eq!(level, cloned);
     }
 
@@ -854,7 +854,7 @@ mod tests {
     #[test]
     fn test_daemon_status_clone() {
         let status = DaemonStatus::Running;
-        let cloned = status.clone();
+        let cloned = status; // Copy type, clone() unnecessary
         assert_eq!(status, cloned);
     }
 

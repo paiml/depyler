@@ -162,7 +162,7 @@ fn test_impact_level_debug() {
 #[test]
 fn test_impact_level_clone() {
     let original = ImpactLevel::High;
-    let cloned = original.clone();
+    let cloned = original; // Copy type, clone() unnecessary
     assert_eq!(original, cloned);
 }
 
