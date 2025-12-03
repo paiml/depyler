@@ -456,12 +456,14 @@ mod tests {
 
     #[test]
     fn test_pipeline_stats_rates() {
-        let mut stats = PipelineStats::default();
-        stats.total_analyzed = 100;
-        stats.pattern_fixes = 40;
-        stats.gnn_fixes = 20;
-        stats.llm_fixes = 30;
-        stats.no_fix = 10;
+        let stats = PipelineStats {
+            total_analyzed: 100,
+            pattern_fixes: 40,
+            gnn_fixes: 20,
+            llm_fixes: 30,
+            no_fix: 10,
+            ..Default::default()
+        };
 
         assert!((stats.pattern_rate() - 0.4).abs() < 0.001);
         assert!((stats.local_fix_rate() - 0.6).abs() < 0.001);

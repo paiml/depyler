@@ -1573,7 +1573,7 @@ mod tests {
     #[test]
     fn test_remove_unused_let() {
         let optimizer = RuchyOptimizer::new();
-        let mut used = HashSet::new();
+        let used = HashSet::new();
         // x is not used
         let expr = RuchyExpr::Let {
             name: "x".to_string(),

@@ -52,6 +52,7 @@ fn transpile_with_dce(python: &str) -> Result<String, String> {
     Ok(rust_code)
 }
 
+#[allow(dead_code)]
 fn assert_compiles(rust_code: &str, test_name: &str) {
     let temp_dir = tempfile::tempdir().expect("Failed to create temp dir");
     let cargo_toml = temp_dir.path().join("Cargo.toml");

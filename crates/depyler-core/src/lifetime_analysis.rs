@@ -1245,7 +1245,7 @@ mod tests {
 
     #[test]
     fn test_analyze_stmt_for_param_assign() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let stmt = HirStmt::Assign {
@@ -1259,7 +1259,7 @@ mod tests {
 
     #[test]
     fn test_analyze_stmt_for_param_if() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let stmt = HirStmt::If {
@@ -1274,7 +1274,7 @@ mod tests {
 
     #[test]
     fn test_analyze_stmt_for_param_while() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let stmt = HirStmt::While {
@@ -1287,7 +1287,7 @@ mod tests {
 
     #[test]
     fn test_analyze_stmt_for_param_for() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let stmt = HirStmt::For {
@@ -1301,7 +1301,7 @@ mod tests {
 
     #[test]
     fn test_analyze_stmt_for_param_break_continue_pass() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         inference.analyze_stmt_for_param("x", &HirStmt::Break { label: None }, &mut usage, false);
@@ -1315,7 +1315,7 @@ mod tests {
 
     #[test]
     fn test_analyze_stmt_for_param_block() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let stmt = HirStmt::Block(vec![
@@ -1329,7 +1329,7 @@ mod tests {
 
     #[test]
     fn test_analyze_stmt_for_param_assert() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let stmt = HirStmt::Assert {
@@ -1342,7 +1342,7 @@ mod tests {
 
     #[test]
     fn test_analyze_stmt_for_param_raise() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let stmt = HirStmt::Raise {
@@ -1355,7 +1355,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_attribute() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Attribute {
@@ -1369,7 +1369,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_index() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Index {
@@ -1382,7 +1382,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_call() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Call {
@@ -1396,7 +1396,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_list() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::List(vec![
@@ -1410,7 +1410,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_dict() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Dict(vec![(
@@ -1423,7 +1423,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_binary() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Binary {
@@ -1437,7 +1437,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_unary() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Unary {
@@ -1450,7 +1450,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_method_call() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::MethodCall {
@@ -1465,7 +1465,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_slice() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Slice {
@@ -1480,7 +1480,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_borrow() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Borrow {
@@ -1493,7 +1493,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_list_comp() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::ListComp {
@@ -1510,7 +1510,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_set() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Set(vec![HirExpr::Var("x".to_string())]);
@@ -1520,7 +1520,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_if_expr() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::IfExpr {
@@ -1534,7 +1534,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_lambda() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Lambda {
@@ -1547,7 +1547,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_await() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Await {
@@ -1559,7 +1559,7 @@ mod tests {
 
     #[test]
     fn test_analyze_expr_for_param_yield() {
-        let mut inference = LifetimeInference::new();
+        let inference = LifetimeInference::new();
         let mut usage = ParamUsage::default();
 
         let expr = HirExpr::Yield {
