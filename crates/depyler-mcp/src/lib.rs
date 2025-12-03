@@ -206,7 +206,7 @@ mod lib_tests {
     #[test]
     fn test_style_level_clone() {
         let level = StyleLevel::Idiomatic;
-        let cloned = level.clone();
+        let cloned = level; // Copy type, clone() unnecessary
         assert!(matches!(cloned, StyleLevel::Idiomatic));
     }
 

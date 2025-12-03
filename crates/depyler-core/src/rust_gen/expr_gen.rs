@@ -944,7 +944,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .map(|t| matches!(t, Type::String))
                             .unwrap_or(false)
                             || self.is_string_base(base)
-                    } else if let HirExpr::Attribute { attr, .. } = base.as_ref() {
+                    } else if let HirExpr::Attribute { attr: _, .. } = base.as_ref() {
                         // args.text, args.prefix etc.
                         self.is_string_base(base)
                     } else {
@@ -2434,6 +2434,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
+    #[allow(dead_code)]
     fn convert_len_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         builtin_conversions::convert_len_call(args)
     }
@@ -2565,7 +2566,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let is_string = self.is_string_type(hir_arg)
                 || matches!(
                     hir_arg,
-                    HirExpr::Var(name) if self.ctx.var_types.get(name).map_or(false, |t| matches!(t, Type::String))
+                    HirExpr::Var(name) if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::String))
                 );
             if is_string {
                 let arg = &args[0];
@@ -2580,6 +2581,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// bytearray(n) → vec![0u8; n]
     /// bytearray([1, 2, 3]) → vec![1u8, 2u8, 3u8]
     /// bytearray(b"hello") → b"hello".to_vec()
+    #[allow(dead_code)]
     fn convert_bytearray_builtin(
         &mut self,
         hir_args: &[HirExpr],
@@ -2599,7 +2601,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let is_int = matches!(hir_arg, HirExpr::Literal(crate::hir::Literal::Int(_)))
                 || matches!(
                     hir_arg,
-                    HirExpr::Var(name) if self.ctx.var_types.get(name).map_or(false, |t| matches!(t, Type::Int))
+                    HirExpr::Var(name) if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::Int))
                 );
             if is_int {
                 return Ok(parse_quote! { vec![0u8; #arg as usize] });

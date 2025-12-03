@@ -1082,7 +1082,7 @@ def nested_comp():
 // ============================================================================
 
 #[test]
-fn test_DEPYLER_0649_string_attribute_containment_uses_contains() {
+fn test_depyler_0649_string_attribute_containment_uses_contains() {
     // Bug: "string" in result.stdout generates .get().is_some() (dict style)
     // Expected: "string" in result.stdout generates .contains() (string style)
     let pipeline = DepylerPipeline::new();

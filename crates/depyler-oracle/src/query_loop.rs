@@ -901,7 +901,7 @@ mod tests {
                 ..Default::default()
             };
             let rate = stats.hit_rate();
-            assert!(rate >= 0.0 && rate <= 1.0, "Hit rate out of bounds: {}", rate);
+            assert!((0.0..=1.0).contains(&rate), "Hit rate out of bounds: {}", rate);
         }
     }
 
