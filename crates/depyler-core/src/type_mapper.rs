@@ -131,9 +131,9 @@ impl TypeMapper {
         );
 
         match py_type {
-            // DEPYLER-0264: Map Unknown to serde_json::Value instead of undefined DynamicType
-            // This matches the pattern used for untyped Dict/List (lines 158-161)
-            PythonType::Unknown => RustType::Custom("serde_json::Value".to_string()),
+            // DEPYLER-0264: Map Unknown to generic type T instead of serde_json::Value
+            // DEPYLER-0705: Use generic T for single-shot compilation without external deps
+            PythonType::Unknown => RustType::TypeParam("T".to_string()),
             PythonType::Int => RustType::Primitive(match self.width_preference {
                 IntWidth::I32 => PrimitiveType::I32,
                 IntWidth::I64 => PrimitiveType::I64,
@@ -167,12 +167,16 @@ impl TypeMapper {
                     RustType::TypeParam(name.clone())
                 } else {
                     // Handle common typing imports when used without parameters
+                    // DEPYLER-0718: Use serde_json::Value for bare Dict/List to enable
+                    // single-shot compilation. TypeParam("V"/"T") requires generics declaration
+                    // which isn't generated, causing E0412 "cannot find type" errors.
                     match name.as_str() {
                         "Dict" => RustType::HashMap(
                             Box::new(RustType::String), // Default to String keys
-                            Box::new(RustType::Custom("serde_json::Value".to_string())), // Default to JSON Value
+                            Box::new(RustType::Custom("serde_json::Value".to_string())), // DEPYLER-0718: Use Value, not TypeParam
                         ),
                         // DEPYLER-0609: Handle both "List" (typing import) and "list" (builtin)
+                        // DEPYLER-0718: Use serde_json::Value for bare List (no type params)
                         "List" | "list" => RustType::Vec(Box::new(RustType::Custom(
                             "serde_json::Value".to_string(),
                         ))),
@@ -744,11 +748,12 @@ mod tests {
             "MyClass"
         );
 
+        // DEPYLER-0705: Unknown type now maps to TypeParam("T") for single-shot compilation
         let unknown_type = PythonType::Unknown;
-        if let RustType::Custom(name) = mapper.map_type(&unknown_type) {
-            assert_eq!(name, "serde_json::Value");
+        if let RustType::TypeParam(name) = mapper.map_type(&unknown_type) {
+            assert_eq!(name, "T");
         } else {
-            panic!("Expected custom type serde_json::Value for unknown type");
+            panic!("Expected TypeParam(T) for unknown type");
         }
     }
 
