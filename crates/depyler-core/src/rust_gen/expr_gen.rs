@@ -12541,6 +12541,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             })
         } else {
+            // DEPYLER-0701: Check if base is a tuple type with variable index
+            // Tuples don't have .get() method, so we convert to array for runtime indexing
+            // Python: t[idx] where t = (1, 2) → Rust: [t.0, t.1][idx as usize]
+            let is_tuple_base = self.is_tuple_base(base);
+
+            if is_tuple_base && !matches!(index, HirExpr::Literal(Literal::Int(_))) {
+                // Variable index on tuple - convert tuple to array
+                // Get tuple element count from type info if available
+                let tuple_size = self.get_tuple_size(base).unwrap_or(2);
+                let index_expr = index.to_rust_expr(self.ctx)?;
+
+                // Generate array from tuple elements: [t.0, t.1, ...]
+                let indices: Vec<syn::Index> =
+                    (0..tuple_size).map(|i| syn::Index::from(i)).collect();
+
+                return Ok(parse_quote! {
+                    [#(#base_expr.#indices),*][#index_expr as usize]
+                });
+            }
+
             // Vec/List access with numeric index
             let index_expr = index.to_rust_expr(self.ctx)?;
 
@@ -12836,6 +12856,53 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     // DEPYLER-REFACTOR-001: is_string_method_call moved to builtin_conversions module
+
+    /// DEPYLER-0701: Check if base expression is a tuple type
+    /// Used to detect tuple[idx] patterns that need special handling
+    fn is_tuple_base(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Tuple(_) => true,
+            HirExpr::Var(sym) => {
+                // Check type system for Tuple type
+                if let Some(ty) = self.ctx.var_types.get(sym) {
+                    matches!(ty, Type::Tuple(_))
+                } else {
+                    // Heuristic: common tuple variable names
+                    let name = sym.as_str();
+                    matches!(name, "pair" | "tuple" | "entry" | "item" | "elem" | "row" | "t")
+                }
+            }
+            // Method call returning tuple (e.g., dict.items() element)
+            HirExpr::MethodCall { object, method, .. } => {
+                // Enumerate returns (index, value) tuples
+                if method == "enumerate" {
+                    return true;
+                }
+                // Dict.items() returns (key, value) tuples
+                if method == "items" && self.is_dict_expr(object) {
+                    return true;
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0701: Get the size of a tuple type for array conversion
+    /// Returns the number of elements in the tuple, or None if unknown
+    fn get_tuple_size(&self, expr: &HirExpr) -> Option<usize> {
+        match expr {
+            HirExpr::Tuple(elements) => Some(elements.len()),
+            HirExpr::Var(sym) => {
+                if let Some(Type::Tuple(types)) = self.ctx.var_types.get(sym) {
+                    Some(types.len())
+                } else {
+                    None // Default will be used
+                }
+            }
+            _ => None,
+        }
+    }
 
     fn convert_slice(
         &mut self,
