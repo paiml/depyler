@@ -1,11 +1,11 @@
 [package]
-name = "type_extraction_demo"
+name = "repro_fix"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "type_extraction_demo"
-path = "type_extraction_demo.rs"
+[lib]
+name = "repro_fix"
+path = "repro_fix.rs"
 
 [dependencies]
 serde_json = "1.0"
