@@ -1,17 +1,12 @@
-# DEPYLER-0717: Parameter type leaking between functions
-# Python pattern: Two functions with same param name but different types
-# Problem: Type from first function (List[str]) leaks to second function (List[int])
-# Expected: Each function should have independent parameter types
+# DEPYLER-0718: Dict without type parameters generates undefined type V
+# Python pattern: Dict (bare annotation) or Dict[str, Any]
+# Problem: Generates HashMap<String, V> where V is undefined
+# Expected: HashMap<String, serde_json::Value> or similar
 
-from typing import List
+from typing import Dict
 
-def process_strings(items: List[str]) -> int:
-    """Process list of strings."""
-    return len(items)
-
-def process_integers(items: List[int]) -> int:
-    """Process list of integers."""
-    total: int = 0
-    for item in items:
-        total += item % 10  # This fails if item is String
-    return total
+def parse_data(text: str) -> Dict:
+    """Parse some data into a dictionary."""
+    result: Dict = {}
+    result["key"] = "value"
+    return result
