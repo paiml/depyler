@@ -1,6 +1,6 @@
-# Minimal repro: json.loads returns Result but function returns HashMap
-import json
-from typing import Dict, Any
-
-def parse_data(text: str) -> Dict[str, Any]:
-    return json.loads(text)
+# Minimal repro: loop reassigns str variable with concatenated result
+def build_path(base: str, parts: list) -> str:
+    result = base
+    for p in parts:
+        result = result + "/" + p
+    return result
