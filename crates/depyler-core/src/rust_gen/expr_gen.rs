@@ -3811,9 +3811,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("json.loads() requires exactly 1 argument");
                 }
                 let s = &arg_exprs[0];
-                // json.loads(s) → serde_json::from_str(&s).unwrap()
-                // Returns serde_json::Value (dynamic JSON value)
-                parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).unwrap() }
+                // DEPYLER-0703: Check if return type is Dict[str, Any] → HashMap<String, Value>
+                // In that case, deserialize directly to HashMap instead of Value
+                if self.return_type_needs_json_dict() {
+                    self.ctx.needs_hashmap = true;
+                    // json.loads(s) when returning Dict[str, Any]
+                    // → serde_json::from_str::<HashMap<String, Value>>(&s).unwrap()
+                    parse_quote! { serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#s).unwrap() }
+                } else {
+                    // json.loads(s) → serde_json::from_str::<Value>(&s).unwrap()
+                    // Returns serde_json::Value (dynamic JSON value)
+                    parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).unwrap() }
+                }
             }
 
             // File-based serialization/deserialization
