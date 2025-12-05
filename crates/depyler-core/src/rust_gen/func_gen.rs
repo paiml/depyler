@@ -3138,6 +3138,12 @@ pub(crate) fn codegen_return_type(
 
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
+        // DEPYLER-0717: Clear var_types at the start of each function to prevent type leaking
+        // Without this, parameter types from one function can leak to the next function
+        // when they share the same parameter name (e.g., both have `items` parameter)
+        ctx.var_types.clear();
+        ctx.type_substitutions.clear();
+
         // DEPYLER-0306 FIX: Use raw identifiers for function names that are Rust keywords
         let name = if is_rust_keyword(&self.name) {
             syn::Ident::new_raw(&self.name, proc_macro2::Span::call_site())
