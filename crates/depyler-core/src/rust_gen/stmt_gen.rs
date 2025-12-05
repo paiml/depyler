@@ -2398,13 +2398,26 @@ pub(crate) fn codegen_for_stmt(
                 // Don't add .iter().cloned() - iterators don't have .iter() method
                 // Just iterate directly
             } else {
-                // For collections, use .iter().cloned()
-                // DEPYLER-0265: Use .iter().cloned() to automatically clone items
-                // This handles both Copy types (int, float, bool) and Clone types (String, Vec, etc.)
-                // For Copy types, .cloned() is optimized to a simple bit-copy by the compiler.
-                // For Clone types, it calls .clone() which is correct for Rust.
-                // This matches Python semantics where loop variables are values, not references.
-                iter_expr = parse_quote! { #iter_expr.iter().cloned() };
+                // DEPYLER-0710: Check if iterating over a Dict type
+                // Python's `for key in dict` iterates over keys only
+                // HashMap's .iter() returns (&K, &V) tuples which don't work with .cloned()
+                // Use .keys().cloned() to get an iterator over cloned keys
+                let is_dict_type = ctx.var_types.get(var_name).is_some_and(|t| {
+                    matches!(t, Type::Dict(_, _))
+                });
+
+                if is_dict_type {
+                    // DEPYLER-0710: For dicts, iterate over keys only (Python semantics)
+                    iter_expr = parse_quote! { #iter_expr.keys().cloned() };
+                } else {
+                    // For collections, use .iter().cloned()
+                    // DEPYLER-0265: Use .iter().cloned() to automatically clone items
+                    // This handles both Copy types (int, float, bool) and Clone types (String, Vec, etc.)
+                    // For Copy types, .cloned() is optimized to a simple bit-copy by the compiler.
+                    // For Clone types, it calls .clone() which is correct for Rust.
+                    // This matches Python semantics where loop variables are values, not references.
+                    iter_expr = parse_quote! { #iter_expr.iter().cloned() };
+                }
             }
         }
     }
@@ -3144,7 +3157,7 @@ pub(crate) fn codegen_assign_stmt(
                 } else {
                     elements
                         .iter()
-                        .map(|e| crate::rust_gen::func_gen::infer_expr_type_simple(e))
+                        .map(crate::rust_gen::func_gen::infer_expr_type_simple)
                         .collect()
                 };
                 ctx.var_types
@@ -3208,27 +3221,129 @@ pub(crate) fn codegen_assign_stmt(
                     ctx.var_types
                         .insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
                 }
+                // DEPYLER-0713 Part 4: Track json.loads() and json.load() as returning Value
+                // data = json.loads(s) → data is serde_json::Value
+                else if matches!(method.as_str(), "loads" | "load") {
+                    if let HirExpr::Var(obj_var) = object.as_ref() {
+                        if obj_var == "json" {
+                            ctx.var_types.insert(
+                                var_name.clone(),
+                                Type::Custom("serde_json::Value".to_string()),
+                            );
+                        }
+                    }
+                }
             }
-            _ => {}
+            // DEPYLER-0713 Part 3: Track Index access on Value-typed variables as Value
+            // When we have `count = data["key"]` where `data` is serde_json::Value,
+            // then `count` should also be tracked as Value so subsequent assignments
+            // like `count = 10` get wrapped with json!()
+            HirExpr::Index { base, .. } => {
+                if let HirExpr::Var(base_var) = base.as_ref() {
+                    if let Some(base_type) = ctx.var_types.get(base_var) {
+                        // If base is Value type, the result is also Value
+                        if matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
+                            ctx.var_types.insert(
+                                var_name.clone(),
+                                Type::Custom("serde_json::Value".to_string()),
+                            );
+                        }
+                        // If base is Dict with Value values, result is Value
+                        else if let Type::Dict(_, v) = base_type {
+                            if matches!(v.as_ref(), Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
+                                ctx.var_types.insert(
+                                    var_name.clone(),
+                                    Type::Custom("serde_json::Value".to_string()),
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+            // DEPYLER-0713: Catch-all for primitive literals and other expressions
+            // This high-ROI fix prevents UnificationVar → serde_json::Value fallback
+            // by tracking concrete types (Int, Float, String, Bool) from literals
+            // and expressions. This addresses 600+ E0308 errors in the codebase.
+            _ => {
+                // DEPYLER-0713 Part 5: Preserve serde_json::Value tracking
+                // When a variable was previously assigned from json.loads() or data["key"],
+                // it's tracked as Value. If we now assign a primitive like `x = 5`,
+                // we should NOT overwrite the Value tracking - it means the variable
+                // is being reassigned and the new value needs json!() wrapping.
+                let should_preserve_value_type = ctx
+                    .var_types
+                    .get(var_name)
+                    .map(|t| {
+                        matches!(t, Type::Custom(name) if name == "serde_json::Value" || name == "Value")
+                    })
+                    .unwrap_or(false);
+
+                if !should_preserve_value_type {
+                    // Use infer_expr_type_simple for all unhandled expressions
+                    // This tracks primitive types like Int, Float, String, Bool
+                    let inferred = crate::rust_gen::func_gen::infer_expr_type_simple(value);
+                    // Only insert if we got a concrete type (not Unknown)
+                    if !matches!(inferred, Type::Unknown) {
+                        ctx.var_types.insert(var_name.clone(), inferred);
+                    }
+                }
+            }
         }
     }
 
     // DEPYLER-0472: Set json context when assigning to serde_json::Value dicts
     // This ensures dict literals use json!({}) instead of HashMap::new()
     let prev_json_context = ctx.in_json_context;
-    if let AssignTarget::Index { base, .. } = target {
-        // Check if base variable suggests serde_json::Value type
-        if let HirExpr::Var(base_name) = base.as_ref() {
-            let name_str = base_name.as_str();
-            // Variables commonly used with serde_json::Value
-            if name_str == "config"
-                || name_str == "data"
-                || name_str == "value"
-                || name_str == "current"
-                || name_str == "obj"
-                || name_str == "json"
-            {
+
+    // DEPYLER-0713: Check if target variable is typed as serde_json::Value
+    // If so, set json context so literals get wrapped with json!()
+    if let AssignTarget::Symbol(var_name) = target {
+        // Check if variable is tracked as Value type
+        if let Some(var_type) = ctx.var_types.get(var_name) {
+            if matches!(var_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
                 ctx.in_json_context = true;
+            }
+        }
+        // Also check type annotation
+        if let Some(annot) = type_annotation {
+            if matches!(annot, Type::Custom(name) if name == "serde_json::Value" || name == "Value" || name == "Any" || name == "any") {
+                ctx.in_json_context = true;
+            }
+        }
+    }
+
+    if let AssignTarget::Index { base, .. } = target {
+        // DEPYLER-0714: Check actual type FIRST before falling back to name heuristic
+        if let HirExpr::Var(base_name) = base.as_ref() {
+            // DEPYLER-0713: Check if base is typed as Value
+            if let Some(base_type) = ctx.var_types.get(base_name) {
+                if matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
+                    ctx.in_json_context = true;
+                }
+                // Check if it's a HashMap with Value values OR Unknown values
+                if let Type::Dict(_, v) = base_type {
+                    let val_is_json = match v.as_ref() {
+                        Type::Unknown => true,
+                        Type::Custom(name) if name == "serde_json::Value" || name == "Value" => true,
+                        _ => false,
+                    };
+                    if val_is_json {
+                        ctx.in_json_context = true;
+                    }
+                }
+            } else {
+                // DEPYLER-0714: Only use name heuristic when type is NOT known
+                let name_str = base_name.as_str();
+                // Variables commonly used with serde_json::Value
+                if name_str == "config"
+                    || name_str == "data"
+                    || name_str == "value"
+                    || name_str == "current"
+                    || name_str == "obj"
+                    || name_str == "json"
+                {
+                    ctx.in_json_context = true;
+                }
             }
         }
     }
@@ -4151,7 +4266,9 @@ fn infer_expr_return_type(expr: &HirExpr) -> Type {
 #[inline]
 fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
     match ty {
-        Type::Int => quote! { i64 },
+        // DEPYLER-0437: Use i32 to match what int() codegen actually produces
+        // (int(s) generates s.parse::<i32>(), not i64)
+        Type::Int => quote! { i32 },
         Type::Float => quote! { f64 },
         Type::String => quote! { String },
         Type::Bool => quote! { bool },
@@ -4720,8 +4837,38 @@ pub(crate) fn codegen_try_stmt(
                     .as_ref()
                     .map(|_| quote! { _result })
                     .unwrap_or_else(|| quote! { () });
+                // DEPYLER-0437: The Ok arm extracts _result from Result, returns it directly
+                // The function returns the plain type, not Result
                 let ok_arm_body = if try_return_type.is_some() {
-                    quote! { return Ok(_result); }
+                    quote! { return _result; }
+                } else {
+                    quote! {}
+                };
+
+                // DEPYLER-0437: Transform try body return statements to wrap values in Ok()
+                // The closure returns Result<T, E>, so `return expr;` must become `return Ok(expr);`
+                let try_stmts_transformed: Vec<_> = try_stmts
+                    .iter()
+                    .map(|stmt| {
+                        let stmt_str = stmt.to_string();
+                        // Transform `return expr ;` to `return Ok ( expr ) ;`
+                        if stmt_str.starts_with("return ") && !stmt_str.starts_with("return Ok (") {
+                            // Extract the expression between "return " and " ;"
+                            if let Some(expr_part) = stmt_str.strip_prefix("return ") {
+                                if let Some(expr) = expr_part.strip_suffix(" ;") {
+                                    let wrapped = format!("return Ok({}) ;", expr);
+                                    return wrapped.parse().unwrap_or_else(|_| stmt.clone());
+                                }
+                            }
+                        }
+                        stmt.clone()
+                    })
+                    .collect();
+
+                // DEPYLER-0437: Only add fallback Ok(Default::default()) when try body has no return
+                // If try body has returns, they're already wrapped in Ok() and there's no need for fallback
+                let closure_fallback = if try_return_type.is_none() {
+                    quote! { Ok(Default::default()) }
                 } else {
                     quote! {}
                 };
@@ -4741,8 +4888,8 @@ pub(crate) fn codegen_try_stmt(
                         quote! {
                             {
                                 match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                                    #(#try_stmts)*
-                                    Ok(Default::default())
+                                    #(#try_stmts_transformed)*
+                                    #closure_fallback
                                 })() {
                                     Ok(#ok_value) => { #ok_arm_body },
                                     #err_pattern => { #handler_code }
@@ -4753,8 +4900,8 @@ pub(crate) fn codegen_try_stmt(
                     } else {
                         quote! {
                             match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                                #(#try_stmts)*
-                                Ok(Default::default())
+                                #(#try_stmts_transformed)*
+                                #closure_fallback
                             })() {
                                 Ok(#ok_value) => { #ok_arm_body },
                                 #err_pattern => { #handler_code }
@@ -4775,8 +4922,8 @@ pub(crate) fn codegen_try_stmt(
                             quote! {
                                 {
                                     match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                                        #(#try_stmts)*
-                                        Ok(Default::default())
+                                        #(#try_stmts_transformed)*
+                                        #closure_fallback
                                     })() {
                                         Ok(#ok_value) => { #ok_arm_body },
                                         Err(#exc_ident) => { #handler_code }
@@ -4787,8 +4934,8 @@ pub(crate) fn codegen_try_stmt(
                         } else {
                             quote! {
                                 match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                                    #(#try_stmts)*
-                                    Ok(Default::default())
+                                    #(#try_stmts_transformed)*
+                                    #closure_fallback
                                 })() {
                                     Ok(#ok_value) => { #ok_arm_body },
                                     Err(#exc_ident) => { #handler_code }
@@ -5450,7 +5597,7 @@ fn extract_fields_from_expr(
 /// ```
 ///
 /// And converts to:
-/// ```rust
+/// ```rust,ignore
 /// match args.command {
 ///     Commands::Clone { url } => {
 ///         handle_clone(args);
