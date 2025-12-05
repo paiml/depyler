@@ -1,5 +1,6 @@
-# Minimal repro: from X.Y import Z generates invalid Rust import
-from os.path import join as path_join
+# Minimal repro: json.loads returns Result but function returns HashMap
+import json
+from typing import Dict, Any
 
-def combine_paths(base: str, suffix: str) -> str:
-    return path_join(base, suffix)
+def parse_data(text: str) -> Dict[str, Any]:
+    return json.loads(text)
