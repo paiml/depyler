@@ -353,9 +353,14 @@ pub(crate) fn codegen_generic_params(
                 .bounds
                 .iter()
                 .map(|b| {
-                    let bound: syn::Path =
-                        syn::parse_str(b).unwrap_or_else(|_| parse_quote! { Clone });
-                    quote! { #bound }
+                    // DEPYLER-0715: Parse as TypeParamBound to support HRTB like for<'a> PartialEq<&'a str>
+                    // First try as TypeParamBound (supports HRTB), then fall back to Path
+                    syn::parse_str::<syn::TypeParamBound>(b)
+                        .map(|bound| quote! { #bound })
+                        .or_else(|_| {
+                            syn::parse_str::<syn::Path>(b).map(|path| quote! { #path })
+                        })
+                        .unwrap_or_else(|_| quote! { Clone })
                 })
                 .collect();
             all_params.push(quote! { #param_name: #(#bounds)+* });
@@ -527,6 +532,11 @@ pub(crate) fn codegen_function_body(
             ctx.fn_str_params.insert(param.name.clone());
         }
     }
+
+    // DEPYLER-0690: Build var_types from local variable assignments BEFORE codegen
+    // This enables type-aware string concatenation detection (format! vs +)
+    // and other type-based code generation decisions
+    build_var_type_env(&func.body, &mut ctx.var_types);
 
     // DEPYLER-0312 NOTE: analyze_mutable_vars is now called in impl RustCodeGen BEFORE
     // codegen_function_params, so ctx.mutable_vars is already populated here
@@ -755,11 +765,18 @@ fn codegen_single_param(
 
     // Get the inferred parameter info
     if let Some(inferred) = lifetime_result.param_lifetimes.get(&param.name) {
-        let rust_type = &inferred.rust_type;
+        // DEPYLER-0716: Check if we have a substituted type from generic inference
+        // This overrides the type from lifetime analysis when T is inferred to be a concrete type
+        let rust_type = if let Some(substituted_ty) = ctx.var_types.get(&param.name) {
+            // Use substituted type from generic inference
+            ctx.type_mapper.map_type(substituted_ty)
+        } else {
+            inferred.rust_type.clone()
+        };
 
         // Handle Union type placeholders
         let actual_rust_type =
-            if let crate::type_mapper::RustType::Enum { name, variants: _ } = rust_type {
+            if let crate::type_mapper::RustType::Enum { name, variants: _ } = &rust_type {
                 if name == "UnionType" {
                     if let Type::Union(types) = &param.ty {
                         let enum_name = ctx.process_union_type(types);
@@ -798,9 +815,13 @@ fn codegen_single_param(
             quote! { #param_ident: #ty }
         })
     } else {
-        // DEPYLER-0524: Check if we have an inferred type from body usage analysis
+        // DEPYLER-0524/0716: Check if we have an inferred/substituted type from body usage analysis
         // This allows inferring String for parameters used with .endswith(), etc.
-        let effective_type = if matches!(param.ty, Type::Unknown) {
+        // DEPYLER-0716: Also check for type substitutions (e.g., List(Unknown) -> List(String))
+        let effective_type = if let Some(substituted) = ctx.var_types.get(&param.name) {
+            // Use substituted type from type inference (DEPYLER-0716)
+            substituted.clone()
+        } else if matches!(param.ty, Type::Unknown) {
             // DEPYLER-0607: Infer Args type for argparse command handler functions
             // When a function takes "args" parameter with Unknown type and it's a command handler,
             // the parameter should be &Args (reference to clap Args struct)
@@ -811,10 +832,7 @@ fn codegen_single_param(
             if param.name == "args" && is_cmd_handler {
                 Type::Custom("Args".to_string())
             } else {
-                ctx.var_types
-                    .get(&param.name)
-                    .cloned()
-                    .unwrap_or_else(|| param.ty.clone())
+                param.ty.clone()
             }
         } else {
             param.ty.clone()
@@ -1314,10 +1332,16 @@ fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collections::HashM
             HirStmt::Assign {
                 target: crate::hir::AssignTarget::Symbol(name),
                 value,
-                ..
+                type_annotation,
             } => {
-                // DEPYLER-0415: Use the environment we're building for lookups
-                let value_type = infer_expr_type_with_env(value, var_types);
+                // DEPYLER-0714: Prefer explicit type annotation over inferred type
+                // For `data: Dict[str, int] = {}`, use Dict(String, Int) not Dict(Unknown, Unknown)
+                let value_type = if let Some(annot) = type_annotation {
+                    annot.clone()
+                } else {
+                    // DEPYLER-0415: Use the environment we're building for lookups
+                    infer_expr_type_with_env(value, var_types)
+                };
                 if !matches!(value_type, Type::Unknown) {
                     var_types.insert(name.clone(), value_type);
                 }
@@ -1949,6 +1973,17 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 "keys" => Type::List(Box::new(Type::Unknown)),
                 "values" => Type::List(Box::new(Type::Unknown)),
                 "items" => Type::List(Box::new(Type::Tuple(vec![Type::Unknown, Type::Unknown]))),
+                // DEPYLER-0713: json.loads() and json.load() return serde_json::Value
+                // This is critical for type tracking: data = json.loads(s) → data is Value
+                "loads" | "load" => {
+                    // Check if this is json.loads() (object is Var("json"))
+                    if let HirExpr::Var(obj_var) = object.as_ref() {
+                        if obj_var == "json" {
+                            return Type::Custom("serde_json::Value".to_string());
+                        }
+                    }
+                    Type::Unknown
+                }
                 _ => Type::Unknown,
             }
         }
@@ -2824,6 +2859,17 @@ pub(crate) fn codegen_return_type(
         func.ret_type.clone()
     };
 
+    // DEPYLER-0716: Apply type substitutions to return type
+    // When generic parameters are substituted (e.g., T -> String), apply to return type too
+    let effective_ret_type = if !ctx.type_substitutions.is_empty() {
+        crate::generic_inference::TypeVarRegistry::apply_substitutions(
+            &effective_ret_type,
+            &ctx.type_substitutions,
+        )
+    } else {
+        effective_ret_type
+    };
+
     // Convert return type using annotation-aware mapping
     let mapped_ret_type = ctx
         .annotation_aware_mapper
@@ -3117,6 +3163,26 @@ impl RustCodeGen for HirFunction {
 
         // Perform generic type inference
         let mut generic_registry = crate::generic_inference::TypeVarRegistry::new();
+
+        // DEPYLER-0716: Infer type substitutions (e.g., T -> String when comparing to strings)
+        let type_substitutions = generic_registry.infer_type_substitutions(self)?;
+
+        // DEPYLER-0716: Apply substitutions to parameter types in var_types
+        // This ensures List(Unknown) becomes List(String) when elements are compared to strings
+        if !type_substitutions.is_empty() {
+            for param in &self.params {
+                let substituted_ty = crate::generic_inference::TypeVarRegistry::apply_substitutions(
+                    &param.ty,
+                    &type_substitutions,
+                );
+                if substituted_ty != param.ty {
+                    ctx.var_types.insert(param.name.clone(), substituted_ty);
+                }
+            }
+            // DEPYLER-0716: Store substitutions in context for return type processing
+            ctx.type_substitutions = type_substitutions;
+        }
+
         let type_params = generic_registry.infer_function_generics(self)?;
 
         // Perform lifetime analysis with automatic elision (DEPYLER-0275)
@@ -3239,6 +3305,29 @@ impl RustCodeGen for HirFunction {
 
         // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
+
+        // DEPYLER-0694: If function returns unit type (no return annotation in Python),
+        // ensure trailing expressions don't accidentally return a value.
+        // Add semicolon to discard the expression's value when not returning.
+        // DEPYLER-0702: Use `let _ = expr;` instead of `expr;` to avoid unused-must-use warnings
+        if matches!(rust_ret_type, crate::type_mapper::RustType::Unit) {
+            if let Some(last) = body_stmts.last_mut() {
+                let last_str = last.to_string();
+                // If statement doesn't end with semicolon or closing brace, it's an expression
+                // that would return a value - we need to discard it for Unit return types
+                // DEPYLER-0711: Skip empty tokens (e.g., from `pass` statement)
+                if !last_str.is_empty()
+                    && !last_str.trim_end().ends_with(';')
+                    && !last_str.trim_end().ends_with('}')
+                {
+                    use quote::quote;
+                    let tokens = std::mem::take(last);
+                    // Use `let _ = expr;` to discard the value without triggering
+                    // "unused arithmetic operation" or similar warnings
+                    *last = quote! { let _ = #tokens; };
+                }
+            }
+        }
 
         // DEPYLER-0617: Restore flag after body generation
         ctx.is_main_function = was_main;
