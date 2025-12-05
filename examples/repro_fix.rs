@@ -1,8 +1,9 @@
-use serde_json as json;
 use serde_json;
-use std::collections::HashMap;
 #[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn parse_data(text: &str) -> HashMap<String, serde_json::Value> {
-    serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&text).unwrap()
+pub fn build_path<'b, 'a>(base: &'a str, parts: &'b Vec<serde_json::Value>) -> String {
+    let mut result = base.to_string();
+    for p in parts.iter().cloned() {
+        result = format!("{}{}", format!("{}{}", result, "/"), p);
+    }
+    result.to_string()
 }

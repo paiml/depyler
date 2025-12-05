@@ -603,8 +603,43 @@ pub(crate) fn codegen_expr_stmt(
         }
     }
 
-    let expr_tokens = expr.to_rust_expr(ctx)?;
-    Ok(quote! { #expr_tokens; })
+    // DEPYLER-0701: Detect expressions without side effects and wrap with `let _ =`
+    // to avoid "path statement with no effect" and "unused arithmetic operation" warnings
+    if is_pure_expression(expr) {
+        let expr_tokens = expr.to_rust_expr(ctx)?;
+        Ok(quote! { let _ = #expr_tokens; })
+    } else {
+        let expr_tokens = expr.to_rust_expr(ctx)?;
+        Ok(quote! { #expr_tokens; })
+    }
+}
+
+/// DEPYLER-0701: Check if an expression is "pure" (has no side effects)
+/// Pure expressions used as statements need `let _ =` to silence warnings
+fn is_pure_expression(expr: &HirExpr) -> bool {
+    use crate::hir::HirExpr;
+    match expr {
+        // Bare variable references have no side effects
+        HirExpr::Var(_) => true,
+        // Literals have no side effects
+        HirExpr::Literal(_) => true,
+        // Attribute access (self.x) has no side effects
+        HirExpr::Attribute { .. } => true,
+        // Binary operations with pure operands are pure
+        HirExpr::Binary { left, right, .. } => {
+            is_pure_expression(left) && is_pure_expression(right)
+        }
+        // Unary operations with pure operands are pure
+        HirExpr::Unary { operand, .. } => is_pure_expression(operand),
+        // Index access (arr[i]) has no side effects
+        HirExpr::Index { base, index } => {
+            is_pure_expression(base) && is_pure_expression(index)
+        }
+        // Tuple access is pure
+        HirExpr::Tuple(elts) => elts.iter().all(is_pure_expression),
+        // Everything else (calls, method calls, etc.) may have side effects
+        _ => false,
+    }
 }
 
 // ============================================================================
@@ -735,11 +770,12 @@ pub(crate) fn codegen_return_stmt(
                         Ok(quote! { std::process::exit(#code) })
                     }
                 } else {
-                    // Other expressions in main - just return Ok(())
+                    // DEPYLER-0703: Other expressions in main - evaluate for side effects
+                    // and return Ok(()). Use explicit semicolon to prevent DEPYLER-0694 wrap.
                     if use_return_keyword {
-                        Ok(quote! { return Ok(()); })
+                        Ok(quote! { let _ = #expr_tokens; return Ok(()); })
                     } else {
-                        Ok(quote! { Ok(()) })
+                        Ok(quote! { let _ = #expr_tokens; Ok(()) })
                     }
                 }
             } else if use_return_keyword {
@@ -810,11 +846,14 @@ pub(crate) fn codegen_return_stmt(
                     Ok(quote! { std::process::exit(#code) })
                 }
             } else {
-                // Other expressions in main - just return ()
+                // DEPYLER-0703: Other expressions in main - evaluate for side effects
+                // and return (). Use explicit (); to prevent DEPYLER-0694 from wrapping again.
                 if use_return_keyword {
-                    Ok(quote! { return; })
+                    Ok(quote! { let _ = #expr_tokens; return; })
                 } else {
-                    Ok(quote! { () })
+                    // Note: Use explicit statement with semicolon to prevent
+                    // DEPYLER-0694 from adding another let _ =
+                    Ok(quote! { let _ = #expr_tokens; })
                 }
             }
         } else if use_return_keyword {
@@ -853,12 +892,29 @@ pub(crate) fn codegen_return_stmt(
 /// Generate code for While loop statement
 ///
 /// DEPYLER-0421: Applies Python truthiness conversion to the condition
+/// DEPYLER-0698: Converts `while True:` to `loop {}` for Rust idiom
 #[inline]
 pub(crate) fn codegen_while_stmt(
     condition: &HirExpr,
     body: &[HirStmt],
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0698: Convert `while True:` to `loop {}` for idiomatic Rust
+    // Rust warns: "denote infinite loops with `loop { ... }`"
+    if matches!(condition, HirExpr::Literal(Literal::Bool(true))) {
+        ctx.enter_scope();
+        let body_stmts: Vec<_> = body
+            .iter()
+            .map(|s| s.to_rust_tokens(ctx))
+            .collect::<Result<Vec<_>>>()?;
+        ctx.exit_scope();
+        return Ok(quote! {
+            loop {
+                #(#body_stmts)*
+            }
+        });
+    }
+
     let mut cond = condition.to_rust_expr(ctx)?;
 
     // DEPYLER-0421: Apply Python truthiness conversion for while loops
@@ -2165,27 +2221,41 @@ pub(crate) fn codegen_for_stmt(
         confidence = 0.88
     );
 
-    // DEPYLER-0683: Do NOT prefix loop variables with underscore
-    // The underscore prefix was causing E0425 errors because body statements reference
-    // the original variable name, but the loop declares `_name` instead of `name`.
-    // Solution: Always use the original variable name. Rust will warn about unused
-    // variables, but this is better than compilation failure.
+    // DEPYLER-0272: Prefix unused loop variables with underscore to avoid warnings
+    // DEPYLER-0683: But only if the variable is NOT used in the body
+    // If the variable IS used, we must keep the original name to match body references.
+    // This is the correct solution: check actual usage before deciding to prefix.
+
+    // Helper to check if a variable is used in the loop body
+    let is_used_in_body = |var_name: &str| -> bool {
+        body.iter().any(|stmt| is_var_used_in_stmt(var_name, stmt))
+    };
 
     // Generate target pattern based on AssignTarget type
     let target_pattern: syn::Pat = match target {
         AssignTarget::Symbol(name) => {
-            // DEPYLER-0683: Always use original variable name to match body references
-            let ident = safe_ident(name); // DEPYLER-0023
+            // DEPYLER-0272: Prefix with underscore if variable is not used in body
+            let var_name = if is_used_in_body(name) {
+                name.clone()
+            } else {
+                format!("_{}", name)
+            };
+            let ident = safe_ident(&var_name); // DEPYLER-0023
             parse_quote! { #ident }
         }
         AssignTarget::Tuple(targets) => {
-            // For tuple unpacking, use original variable names
+            // For tuple unpacking, check each variable individually
             let idents: Vec<syn::Ident> = targets
                 .iter()
                 .map(|t| match t {
                     AssignTarget::Symbol(s) => {
-                        // DEPYLER-0683: Always use original variable name
-                        safe_ident(s) // DEPYLER-0023
+                        // DEPYLER-0272: Prefix with underscore if not used in body
+                        let var_name = if is_used_in_body(s) {
+                            s.clone()
+                        } else {
+                            format!("_{}", s)
+                        };
+                        safe_ident(&var_name) // DEPYLER-0023
                     }
                     _ => safe_ident("_nested"), // Nested tuple unpacking - use placeholder
                 })
@@ -2687,18 +2757,17 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
-    // DEPYLER-0440 / DEPYLER-0684: Handle None-placeholder assignments
+    // DEPYLER-0440: Handle None-placeholder assignments
     // When a variable is initialized with None and later reassigned in if-elif-else,
-    // we need to declare it in the outer scope so it's accessible after the if block.
-    // Python pattern: var = None; if cond: var = x; use(var)
-    // Rust pattern: let mut var = None; if cond { var = Some(x); } use(var)
+    // Python uses None as a placeholder that will be overwritten.
+    // Python pattern: var = None; if cond: var = x; else: var = y; use(var)
+    // Rust pattern: Skip None assignment, let first real assignment be the declaration.
+    // The mutable_vars check ensures the variable WILL be assigned a real value later.
     if let AssignTarget::Symbol(var_name) = target {
         if matches!(value, HirExpr::Literal(Literal::None)) && ctx.mutable_vars.contains(var_name) {
-            // DEPYLER-0684: Generate let mut var = None; to declare in outer scope
-            // This ensures the variable is accessible after if blocks
-            let var_ident = safe_ident(var_name);
-            ctx.declare_var(var_name);
-            return Ok(quote! { let mut #var_ident = None; });
+            // Skip None placeholder assignment - the first real assignment will declare the var
+            // This avoids type mismatch: `let mut x = None; x = "yes"` (Option vs &str)
+            return Ok(quote! {});
         }
     }
 
@@ -2898,9 +2967,10 @@ pub(crate) fn codegen_assign_stmt(
         // DEPYLER-0272: Track type from type annotation for function return values
         // This enables correct {:?} vs {} selection in println! for collections
         // Example: result = merge(&a, &b) where merge returns Vec<i32>
+        // DEPYLER-0709: Also track Tuple types for correct field access (.0, .1)
         if let Some(annot_type) = type_annotation {
             match annot_type {
-                Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
+                Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_) => {
                     ctx.var_types.insert(var_name.clone(), annot_type.clone());
                 }
                 _ => {}
@@ -2977,8 +3047,9 @@ pub(crate) fn codegen_assign_stmt(
                 // DEPYLER-0269: Track user-defined function return types
                 // Lookup function return type and track it for Display trait selection
                 // Enables: result = merge(&a, &b) where merge returns list[int]
+                // DEPYLER-0709: Also track Tuple return types for correct field access (.0, .1)
                 else if let Some(ret_type) = ctx.function_return_types.get(func) {
-                    if matches!(ret_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_)) {
+                    if matches!(ret_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)) {
                         ctx.var_types.insert(var_name.clone(), ret_type.clone());
                     }
                 }
@@ -3063,6 +3134,21 @@ pub(crate) fn codegen_assign_stmt(
                 let elem_type = crate::rust_gen::func_gen::infer_expr_type_simple(element);
                 ctx.var_types
                     .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
+            }
+            // DEPYLER-0709: Track tuple type from literal for correct field access (.0, .1)
+            // Example: result = (1, 2) → result.0, not result.get(0)
+            HirExpr::Tuple(elements) => {
+                // Infer element types from tuple elements
+                let elem_types: Vec<Type> = if let Some(Type::Tuple(types)) = type_annotation {
+                    types.clone()
+                } else {
+                    elements
+                        .iter()
+                        .map(|e| crate::rust_gen::func_gen::infer_expr_type_simple(e))
+                        .collect()
+                };
+                ctx.var_types
+                    .insert(var_name.clone(), Type::Tuple(elem_types));
             }
             HirExpr::Slice { base, .. } => {
                 // DEPYLER-0301: Track sliced lists as owned Vec types
@@ -3358,7 +3444,24 @@ pub(crate) fn codegen_assign_symbol(
                 false
             };
 
-            let init_expr = if needs_clone {
+            // DEPYLER-0704: When initializing mutable var from &str param, use .to_string()
+            // instead of .clone() because &str.clone() returns &str, not String.
+            // This prevents type mismatch when the var is later assigned a String.
+            let is_str_param = if let syn::Expr::Path(ref path) = value_expr {
+                if path.path.segments.len() == 1 {
+                    let var_name = path.path.segments[0].ident.to_string();
+                    ctx.fn_str_params.contains(&var_name)
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            let init_expr = if is_str_param {
+                // Convert &str to owned String for mutable vars
+                parse_quote! { #value_expr.to_string() }
+            } else if needs_clone {
                 parse_quote! { #value_expr.clone() }
             } else {
                 value_expr
@@ -4552,24 +4655,33 @@ pub(crate) fn codegen_try_stmt(
                 // Parse back to token stream
                 let fixed_tokens: proc_macro2::TokenStream = fixed_code.parse().unwrap_or(try_code);
 
+                // DEPYLER-0437: Include hoisted variable declarations
                 if let Some(finally_code) = finally_stmts {
                     Ok(quote! {
                         {
+                            #(#hoisted_decls)*
                             #fixed_tokens
                             #finally_code
                         }
                     })
-                } else {
+                } else if hoisted_decls.is_empty() {
                     Ok(fixed_tokens)
+                } else {
+                    Ok(quote! {
+                        #(#hoisted_decls)*
+                        #fixed_tokens
+                    })
                 }
             } else {
                 // Pattern matched but no unwrap_or_default found
                 // This means it's not a parse operation, so fall through to normal concatenation
                 // to include the exception handler code
+                // DEPYLER-0437: Include hoisted variable declarations
                 let handler_code = &handler_tokens[0];
                 if let Some(finally_code) = finally_stmts {
                     Ok(quote! {
                         {
+                            #(#hoisted_decls)*
                             #(#try_stmts)*
                             #handler_code
                             #finally_code
@@ -4578,6 +4690,7 @@ pub(crate) fn codegen_try_stmt(
                 } else {
                     Ok(quote! {
                         {
+                            #(#hoisted_decls)*
                             #(#try_stmts)*
                             #handler_code
                         }
@@ -4767,15 +4880,22 @@ pub(crate) fn codegen_try_stmt(
 
                 if has_error_handling {
                     // Try block already handles errors, don't add handler
+                    // DEPYLER-0437: Include hoisted declarations for try block variables
                     if let Some(finally_code) = finally_stmts {
                         Ok(quote! {
                             {
+                                #(#hoisted_decls)*
                                 #(#try_stmts)*
                                 #finally_code
                             }
                         })
-                    } else {
+                    } else if hoisted_decls.is_empty() {
                         Ok(quote! { #(#try_stmts)* })
+                    } else {
+                        Ok(quote! {
+                            #(#hoisted_decls)*
+                            #(#try_stmts)*
+                        })
                     }
                 } else {
                     // DEPYLER-0444: Check if handler has exception variable binding
@@ -4974,33 +5094,40 @@ fn extract_parse_from_tokens(
     // Convert first statement to string (note: tokens have spaces between them)
     let first_stmt = try_stmts[0].to_string();
 
-    // Pattern: let var_name = something . parse :: < i32 > () . unwrap_or_default () ;
+    // Pattern 1: let var_name = something . parse :: < i32 > () . unwrap_or_default () ;
+    // Pattern 2: var_name = something . parse :: < i32 > () . unwrap_or_default () ;
     // Note: TokenStream.to_string() adds spaces between tokens
+    // DEPYLER-0437: Handle both declaration and assignment patterns
     if first_stmt.contains("parse") && first_stmt.contains("unwrap_or_default") {
-        // Extract variable name (after "let " and before " =")
-        if let Some(let_pos) = first_stmt.find("let ") {
-            if let Some(eq_pos) = first_stmt[let_pos..].find(" =") {
-                let var_name = first_stmt[let_pos + 4..let_pos + eq_pos].trim().to_string();
+        // Try to extract variable name from both patterns
+        let var_name = if let Some(let_pos) = first_stmt.find("let ") {
+            // Pattern: let var_name = ...
+            first_stmt[let_pos..].find(" =").map(|eq_pos| {
+                first_stmt[let_pos + 4..let_pos + eq_pos].trim().to_string()
+            })
+        } else {
+            // Pattern: var_name = ... (assignment without let, used with hoisted decls)
+            first_stmt.find(" = ").map(|eq_pos| first_stmt[..eq_pos].trim().to_string())
+        };
 
-                // Extract parse expression (between "= " and "unwrap_or_default")
-                // We need to find the start of unwrap_or_default and go back to find the parse call
-                if let Some(eq_start) = first_stmt.find(" = ") {
-                    if let Some(unwrap_pos) = first_stmt.find("unwrap_or_default") {
-                        // Go back from unwrap_pos to skip ". " before it
-                        let parse_end =
-                            if unwrap_pos >= 2 && &first_stmt[unwrap_pos - 2..unwrap_pos] == ". " {
-                                unwrap_pos - 2
-                            } else {
-                                unwrap_pos
-                            };
+        if let Some(var_name) = var_name {
+            // Extract parse expression (between "= " and "unwrap_or_default")
+            if let Some(eq_start) = first_stmt.find(" = ") {
+                if let Some(unwrap_pos) = first_stmt.find("unwrap_or_default") {
+                    // Go back from unwrap_pos to skip ". " before it
+                    let parse_end =
+                        if unwrap_pos >= 2 && &first_stmt[unwrap_pos - 2..unwrap_pos] == ". " {
+                            unwrap_pos - 2
+                        } else {
+                            unwrap_pos
+                        };
 
-                        let parse_expr = first_stmt[eq_start + 3..parse_end].trim().to_string();
+                    let parse_expr = first_stmt[eq_start + 3..parse_end].trim().to_string();
 
-                        // Collect remaining statements
-                        let remaining: Vec<_> = try_stmts[1..].to_vec();
+                    // Collect remaining statements
+                    let remaining: Vec<_> = try_stmts[1..].to_vec();
 
-                        return Some((var_name, parse_expr, remaining));
-                    }
+                    return Some((var_name, parse_expr, remaining));
                 }
             }
         }
