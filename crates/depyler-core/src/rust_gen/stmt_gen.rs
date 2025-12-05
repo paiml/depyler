@@ -2088,6 +2088,97 @@ fn is_var_used_in_assign_target(var_name: &str, target: &AssignTarget) -> bool {
     }
 }
 
+/// DEPYLER-0715: Check if a variable is used as a dictionary key
+/// Returns true if the variable appears as the index in dict[var] or as arg to dict.get(var)
+fn is_var_used_as_dict_key_in_expr(var_name: &str, expr: &HirExpr) -> bool {
+    match expr {
+        // Check dict[var] pattern - the variable is the INDEX, not the base
+        HirExpr::Index { base, index } => {
+            // If var_name is used as the index, check if base looks like a dict
+            if is_var_direct_or_simple_in_expr(var_name, index) {
+                // Check if base is likely a dict (variable or method call result)
+                matches!(base.as_ref(), HirExpr::Var(_) | HirExpr::MethodCall { .. })
+            } else {
+                // Recurse into both parts
+                is_var_used_as_dict_key_in_expr(var_name, base)
+                    || is_var_used_as_dict_key_in_expr(var_name, index)
+            }
+        }
+        // Check dict.get(var) pattern
+        HirExpr::MethodCall { method, args, object, .. } if method == "get" => {
+            if args.first().is_some_and(|arg| is_var_direct_or_simple_in_expr(var_name, arg)) {
+                true
+            } else {
+                is_var_used_as_dict_key_in_expr(var_name, object)
+                    || args.iter().any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
+            }
+        }
+        // Recurse into other expressions
+        HirExpr::Binary { left, right, .. } => {
+            is_var_used_as_dict_key_in_expr(var_name, left)
+                || is_var_used_as_dict_key_in_expr(var_name, right)
+        }
+        HirExpr::Unary { operand, .. } => is_var_used_as_dict_key_in_expr(var_name, operand),
+        HirExpr::Call { args, .. } => {
+            args.iter().any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
+        }
+        HirExpr::MethodCall { object, args, .. } => {
+            is_var_used_as_dict_key_in_expr(var_name, object)
+                || args.iter().any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
+        }
+        HirExpr::IfExpr { test, body, orelse } => {
+            is_var_used_as_dict_key_in_expr(var_name, test)
+                || is_var_used_as_dict_key_in_expr(var_name, body)
+                || is_var_used_as_dict_key_in_expr(var_name, orelse)
+        }
+        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => {
+            elements.iter().any(|e| is_var_used_as_dict_key_in_expr(var_name, e))
+        }
+        _ => false,
+    }
+}
+
+/// Helper to check if variable is directly referenced (not nested)
+fn is_var_direct_or_simple_in_expr(var_name: &str, expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Var(name) => name == var_name,
+        _ => false,
+    }
+}
+
+/// DEPYLER-0715: Check if a variable is used as a dict key in a statement
+fn is_var_used_as_dict_key_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Assign { target, value, .. } => {
+            // Check if var is used as key in target (e.g., dict[var] = x)
+            if let AssignTarget::Index { base, index } = target {
+                if is_var_direct_or_simple_in_expr(var_name, index) {
+                    if matches!(base.as_ref(), HirExpr::Var(_)) {
+                        return true;
+                    }
+                }
+            }
+            is_var_used_as_dict_key_in_expr(var_name, value)
+        }
+        HirStmt::If { condition, then_body, else_body } => {
+            is_var_used_as_dict_key_in_expr(var_name, condition)
+                || then_body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
+                || else_body.as_ref().is_some_and(|body| body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s)))
+        }
+        HirStmt::While { condition, body } => {
+            is_var_used_as_dict_key_in_expr(var_name, condition)
+                || body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
+        }
+        HirStmt::For { iter, body, .. } => {
+            is_var_used_as_dict_key_in_expr(var_name, iter)
+                || body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
+        }
+        HirStmt::Return(Some(expr)) => is_var_used_as_dict_key_in_expr(var_name, expr),
+        HirStmt::Expr(expr) => is_var_used_as_dict_key_in_expr(var_name, expr),
+        _ => false,
+    }
+}
+
 /// Check if a variable is used in a statement
 /// DEPYLER-0303 Phase 2: Fixed to check assignment targets too (for `d[k] = v`)
 fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
@@ -2566,18 +2657,21 @@ pub(crate) fn codegen_for_stmt(
 
     // DEPYLER-0317: Handle string iteration char→String conversion
     // When iterating over strings with .chars(), convert char to String for HashMap<String, _> compatibility
-    // Check if we're iterating over a string (will use .chars()) AND target is a simple symbol
-    let needs_char_to_string = matches!(iter, HirExpr::Var(name) if {
-        let n = name.as_str();
-        (n == "s" || n == "string" || n == "text" || n == "word" || n == "line")
-            || (n.starts_with("str") && !n.starts_with("strings"))
-            || (n.starts_with("word") && !n.starts_with("words"))
-            || (n.starts_with("text") && !n.starts_with("texts"))
-            || (n.ends_with("_str") && !n.ends_with("_strs"))
-            || (n.ends_with("_string") && !n.ends_with("_strings"))
-            || (n.ends_with("_word") && !n.ends_with("_words"))
-            || (n.ends_with("_text") && !n.ends_with("_texts"))
-    }) && matches!(target, AssignTarget::Symbol(_));
+    // DEPYLER-0715: Fixed to use USAGE-based detection instead of name heuristics
+    // DEPYLER-0716: Also ensure we're actually iterating over a STRING (not a range/list/etc.)
+    // Only convert char to String if:
+    // 1. We're iterating over a string variable (will become .chars())
+    // 2. NOT iterating over a range (range produces integers)
+    // 3. The loop variable is actually used as a dict key
+    let is_range_iteration = matches!(iter, HirExpr::Call { func, .. } if func == "range");
+    let is_var_iteration = matches!(iter, HirExpr::Var(_));
+    // Only consider string iteration if we're iterating over a variable (not range/enumerate/etc.)
+    let needs_char_to_string = !is_range_iteration && is_var_iteration && if let AssignTarget::Symbol(loop_var_name) = target {
+        // Check if the loop variable is used as a dictionary key in the body
+        body.iter().any(|stmt| is_var_used_as_dict_key_in_stmt(loop_var_name, stmt))
+    } else {
+        false
+    };
 
     if needs_enumerate_cast {
         // Get the first variable name from the tuple pattern (the index from enumerate)
