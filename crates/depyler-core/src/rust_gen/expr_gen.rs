@@ -3124,6 +3124,50 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 });
             }
 
+            // DEPYLER-0702: Special handling for os.path method imports
+            // `from os.path import join as path_join` → path_join(a, b) should generate
+            // PathBuf::from(a).join(b).to_string_lossy().to_string()
+            if rust_path == "std::path::Path::join" {
+                if args.is_empty() {
+                    bail!("path join requires at least 1 argument");
+                }
+                let first = &args[0];
+                if args.len() == 1 {
+                    return Ok(parse_quote! { std::path::PathBuf::from(#first).to_string_lossy().to_string() });
+                }
+                let mut result: syn::Expr = parse_quote! { std::path::PathBuf::from(#first) };
+                for part in &args[1..] {
+                    result = parse_quote! { #result.join(#part) };
+                }
+                return Ok(parse_quote! { #result.to_string_lossy().to_string() });
+            }
+
+            // DEPYLER-0702: Handle other os.path method imports
+            if rust_path == "std::path::Path::exists" && args.len() == 1 {
+                let path = &args[0];
+                return Ok(parse_quote! { std::path::Path::new(&#path).exists() });
+            }
+            if rust_path == "std::path::Path::file_name" && args.len() == 1 {
+                let path = &args[0];
+                return Ok(parse_quote! {
+                    std::path::Path::new(&#path)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("")
+                        .to_string()
+                });
+            }
+            if rust_path == "std::path::Path::parent" && args.len() == 1 {
+                let path = &args[0];
+                return Ok(parse_quote! {
+                    std::path::Path::new(&#path)
+                        .parent()
+                        .and_then(|p| p.to_str())
+                        .unwrap_or("")
+                        .to_string()
+                });
+            }
+
             // Parse the rust path and generate the call
             let path_parts: Vec<&str> = rust_path.split("::").collect();
             let mut path = quote! {};
