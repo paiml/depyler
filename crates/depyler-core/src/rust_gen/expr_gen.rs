@@ -730,19 +730,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             confidence = 0.82
         );
 
+        // DEPYLER-0699: Wrap expressions in explicit parentheses to ensure
+        // correct operator precedence when casting (as binds tighter than * and +)
+        let left_paren = Self::wrap_in_parens(left_expr.clone());
+        let right_paren = Self::wrap_in_parens(right_expr.clone());
+
         match (left, right) {
             // Integer literal base with integer literal exponent
             (HirExpr::Literal(Literal::Int(_)), HirExpr::Literal(Literal::Int(exp))) => {
                 if *exp < 0 {
                     // Negative exponent: convert to float
                     Ok(parse_quote! {
-                        (#left_expr as f64).powf(#right_expr as f64)
+                        (#left_paren as f64).powf(#right_paren as f64)
                     })
                 } else {
                     // Positive integer exponent: use checked_pow
                     // DEPYLER-0405: Cast to i32 for concrete type
                     Ok(parse_quote! {
-                        (#left_expr as i32).checked_pow(#right_expr as u32)
+                        (#left_paren as i32).checked_pow(#right_paren as u32)
                             .expect("Power operation overflowed")
                     })
                 }
@@ -750,11 +755,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Float literal base: always use .powf()
             // DEPYLER-0408: Cast to f64 for concrete type
             (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
-                (#left_expr as f64).powf(#right_expr as f64)
+                (#left_paren as f64).powf(#right_paren as f64)
             }),
             // Any base with float exponent: use .powf()
             (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
-                (#left_expr as f64).powf(#right_expr as f64)
+                (#left_paren as f64).powf(#right_paren as f64)
             }),
             // Variables or complex expressions: runtime type selection
             _ => {
@@ -773,15 +778,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! {
                     {
                         if #right_expr >= 0 && (#right_expr as i64) <= (u32::MAX as i64) {
-                            (#left_expr as i32).checked_pow(#right_expr as u32)
+                            (#left_paren as i32).checked_pow(#right_paren as u32)
                                 .expect("Power operation overflowed")
                         } else {
-                            (#left_expr as f64).powf(#right_expr as f64) as #target_type
+                            (#left_paren as f64).powf(#right_paren as f64) as #target_type
                         }
                     }
                 })
             }
         }
+    }
+
+    /// DEPYLER-0699: Wrap expression in explicit parentheses
+    /// This ensures correct operator precedence when casting
+    /// Uses a block expression { expr } which is guaranteed to not be optimized away
+    fn wrap_in_parens(expr: syn::Expr) -> syn::Expr {
+        // Using a block expression ensures the expression is evaluated first
+        // before the cast is applied. This avoids precedence issues where
+        // `a + b as f64` parses as `a + (b as f64)` instead of `(a + b) as f64`
+        parse_quote! { { #expr } }
     }
 
     /// DEPYLER-REFACTOR-001 Phase 2.8: Extracted multiplication operator helper
@@ -1493,15 +1508,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(items_expr) => {
                         if is_file_var {
                             // DEPYLER-0305: File iteration with enumerate
+                            // DEPYLER-0692: Convert usize index to i32 for Python compatibility
                             self.ctx.needs_bufread = true;
                             Some(Ok(parse_quote! {
                                 std::io::BufReader::new(#items_expr)
                                     .lines()
                                     .map(|l| l.unwrap_or_default())
                                     .enumerate()
+                                    .map(|(i, x)| (i as i32, x))
                             }))
                         } else {
-                            Some(Ok(parse_quote! { #items_expr.iter().cloned().enumerate() }))
+                            // DEPYLER-0692: Convert usize index to i32 for Python compatibility
+                            Some(Ok(parse_quote! { #items_expr.iter().cloned().enumerate().map(|(i, x)| (i as i32, x)) }))
                         }
                     }
                     Err(e) => Some(Err(e)),
@@ -2083,6 +2101,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DEPYLER-0178: Handle filter() with lambda → convert to Rust iterator pattern
+        // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
+        // because filter() receives &Item, but Python expects the value directly
         if func == "filter" && args.len() == 2 {
             if let HirExpr::Lambda { params, body } = &args[0] {
                 if params.len() != 1 {
@@ -2094,7 +2114,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let body_expr = body.to_rust_expr(self.ctx)?;
 
                 return Ok(parse_quote! {
-                    #iterable_expr.into_iter().filter(|#param_ident| #body_expr)
+                    #iterable_expr.into_iter().filter(|&#param_ident| #body_expr)
                 });
             }
         }
@@ -2456,8 +2476,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let arg = &arg_exprs[0];
         let hir_arg = &hir_args[0];
 
-        // Check if the argument is a JSON Value
-        if self.is_serde_json_value_expr(hir_arg) || self.is_dict_expr(hir_arg) {
+        // Check if the argument is a JSON Value (NOT a typed HashMap)
+        // DEPYLER-0689: Only use as_array/as_object for serde_json::Value, not typed dicts
+        // Typed dicts like dict[str, int] map to HashMap which has direct .len()
+        if self.is_serde_json_value_expr(hir_arg) {
             // For JSON arrays: .as_array().map(|a| a.len()).unwrap_or(0)
             // This also works for objects and is the most common case
             Ok(parse_quote! {
@@ -2728,6 +2750,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             bail!("filter() requires exactly 2 arguments");
         }
         // Check if first arg is lambda
+        // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
         if let HirExpr::Lambda { params, body } = &hir_args[0] {
             if params.len() != 1 {
                 bail!("filter() lambda must have exactly 1 parameter");
@@ -2737,7 +2760,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let body_expr = body.to_rust_expr(self.ctx)?;
             let iterable = &args[1];
             Ok(parse_quote! {
-                #iterable.into_iter().filter(|#param_ident| #body_expr)
+                #iterable.into_iter().filter(|&#param_ident| #body_expr)
             })
         } else {
             let predicate = &args[0];
@@ -10287,10 +10310,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         parse_quote! { &#key }
                     };
+
+                    // DEPYLER-0700: Check if dict has serde_json::Value values (heterogeneous dict)
+                    // If so, we need to wrap the default with serde_json::json!() for type compatibility
+                    let dict_has_json_values = self.dict_has_json_value_values(hir_object);
+
                     // DEPYLER-0631: For string literal defaults, use directly without .to_string()
                     // HashMap<String, &str>.get() returns Option<&&str>, .cloned() gives Option<&str>
                     // unwrap_or expects &str, not String
-                    let result = if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(_)))) {
+                    let result = if dict_has_json_values {
+                        // DEPYLER-0700: Dict has serde_json::Value values
+                        // For dict.get(key, default), we need to:
+                        // 1. Get the Value from dict
+                        // 2. Convert to the expected type (usually String)
+                        // Pattern: dict.get(key).and_then(|v| v.as_str()).unwrap_or(default).to_string()
+                        self.ctx.needs_serde_json = true;
+                        if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(s))) if !s.is_empty()) {
+                            // String default - extract as string with fallback
+                            if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.get(1) {
+                                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                                parse_quote! { #object_expr.get(#key_expr).and_then(|v| v.as_str()).unwrap_or(#lit).to_string() }
+                            } else {
+                                parse_quote! { #object_expr.get(#key_expr).and_then(|v| v.as_str()).unwrap_or(#default).to_string() }
+                            }
+                        } else {
+                            // Non-string default - use json!() and keep as Value
+                            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(serde_json::json!(#default)) }
+                        }
+                    } else if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(_)))) {
                         // String literal default - use bare literal (already &str)
                         if let HirExpr::Literal(Literal::String(s)) = &hir_args[1] {
                             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
@@ -11561,6 +11608,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         hir_args: &[HirExpr],
         kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
+
         // DEPYLER-0363: Handle parse_args() → Skip for now, will be replaced with Args::parse()
         // ArgumentParser.parse_args() requires full struct transformation
         // For now, return unit to allow compilation
@@ -11916,7 +11964,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             } else {
                 syn::Ident::new(method, proc_macro2::Span::call_site())
             };
-            return Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) });
+
+            // DEPYLER-0712: Auto-borrow class instance arguments when calling user-defined methods
+            // When calling obj.method(other) where both are class instances,
+            // the method signature likely expects &Self, so we borrow the argument.
+            let processed_args: Vec<syn::Expr> = hir_args
+                .iter()
+                .zip(arg_exprs.iter())
+                .map(|(hir_arg, arg_expr)| {
+                    // If argument is also a class instance, borrow it
+                    if self.is_class_instance(hir_arg) {
+                        parse_quote! { &#arg_expr }
+                    } else {
+                        arg_expr.clone()
+                    }
+                })
+                .collect();
+
+            return Ok(parse_quote! { #object_expr.#method_ident(#(#processed_args),*) });
         }
 
         // DEPYLER-0211 FIX: Check object type first for ambiguous methods like update()
@@ -12080,7 +12145,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     syn::Ident::new(method, proc_macro2::Span::call_site())
                 };
-                Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
+
+                // DEPYLER-0712: Auto-borrow class instance arguments when calling user-defined methods
+                // When calling obj.method(other) where both obj and other are class instances,
+                // the method signature likely expects &Self, so we borrow the argument.
+                // Use is_class_instance helper which checks both var_types and class_names.
+                let receiver_is_class = self.is_class_instance(object);
+
+                // Process arguments, adding & when receiver and argument are both class instances
+                let processed_args: Vec<syn::Expr> = hir_args
+                    .iter()
+                    .zip(arg_exprs.iter())
+                    .map(|(hir_arg, arg_expr)| {
+                        // If receiver is a class instance and argument is also a class instance,
+                        // the method likely expects &Self for the argument
+                        if receiver_is_class && self.is_class_instance(hir_arg) {
+                            return parse_quote! { &#arg_expr };
+                        }
+                        arg_expr.clone()
+                    })
+                    .collect();
+
+                Ok(parse_quote! { #object_expr.#method_ident(#(#processed_args),*) })
             }
         }
     }
@@ -13634,7 +13720,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
                 match attr {
                     "st_size" => {
-                        return Ok(parse_quote! { #var_ident.len() });
+                        // DEPYLER-0693: Cast file size to i64 (Python int can be large)
+                        return Ok(parse_quote! { #var_ident.len() as i64 });
                     }
                     "st_mtime" => {
                         return Ok(parse_quote! {
@@ -13664,8 +13751,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0551: Handle pathlib.Path attributes
             // Python: path.name → Rust: path.file_name().and_then(|n| n.to_str()).unwrap_or("")
             // Python: path.suffix → Rust: path.extension().map(|e| format!(".{}", e.to_str().unwrap())).unwrap_or_default()
-            let is_likely_path =
-                var_name == "path" || var_name.ends_with("_path") || var_name == "p";
+            // DEPYLER-0706: Removed `var_name == "p"` - too many false positives (e.g., Person p, Point p)
+            // Only use explicit path naming patterns to avoid confusing struct field access with path operations
+            let is_likely_path = var_name == "path" || var_name.ends_with("_path");
 
             if is_likely_path {
                 let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
@@ -14145,10 +14233,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { #iter_expr.into_iter() }
             };
 
-            // Add filters for each condition
+            // DEPYLER-0691: Add filters for each condition
+            // Use |&x| pattern to auto-dereference because filter() receives &Item
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
             }
 
             // Add the map transformation
@@ -14184,10 +14273,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let first_iter = self.wrap_range_in_parens(first_iter);
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
-        // Add filters for first generator's conditions
+        // DEPYLER-0691: Add filters for first generator's conditions
+        // Use |&x| pattern to auto-dereference because filter() receives &Item
         for cond in &first_gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|&#first_pat| #cond_expr) };
         }
 
         // Use flat_map for the first generator
@@ -14626,6 +14716,54 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         false
     }
 
+    /// DEPYLER-0700: Check if dict expression has serde_json::Value values
+    ///
+    /// Returns true if the dict maps to HashMap<String, serde_json::Value>,
+    /// which happens when:
+    /// - Dict has heterogeneous value types (e.g., {"name": "Alice", "age": 42})
+    /// - Dict value type is Unknown (untyped dict)
+    /// - Dict uses serde_json expressions
+    ///
+    /// This is used to wrap default values in dict.get(key, default) with json!()
+    /// for type compatibility.
+    fn dict_has_json_value_values(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Variable dict - check type info
+            HirExpr::Var(name) => {
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    // Dict with Unknown value type uses serde_json::Value
+                    if matches!(var_type, Type::Dict(_, ref v) if matches!(**v, Type::Unknown)) {
+                        return true;
+                    }
+                    // Custom type that is serde_json::Value or HashMap with Value
+                    if matches!(var_type, Type::Custom(ref s) if s.contains("serde_json::Value") || (s.contains("HashMap") && s.contains("Value"))) {
+                        return true;
+                    }
+                }
+                // If serde_json is already needed, this dict might use Value
+                // Conservative: if we're generating serde_json code, assume mixed types
+                self.ctx.needs_serde_json
+            }
+            // Dict literal - check if it has mixed value types
+            HirExpr::Dict(items) => {
+                if let Ok(has_mixed) = self.dict_has_mixed_types(items) {
+                    has_mixed
+                } else {
+                    // Error checking - assume needs json for safety
+                    self.ctx.needs_serde_json
+                }
+            }
+            // Method call on dict - check base object
+            HirExpr::MethodCall { object, .. } => self.dict_has_json_value_values(object),
+            // Index into another dict
+            HirExpr::Index { base, .. } => self.dict_has_json_value_values(base),
+            _ => {
+                // Fallback: if serde_json is in use, assume might be Value type
+                self.ctx.needs_serde_json
+            }
+        }
+    }
+
     fn is_list_expr(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::List(_) => true,
@@ -14796,14 +14934,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check var_types to see if this variable is a user-defined class
                 if let Some(Type::Custom(class_name)) = self.ctx.var_types.get(name) {
                     // Check if this is a user-defined class (not a builtin)
-                    self.ctx.class_names.contains(class_name)
+                    let result = self.ctx.class_names.contains(class_name);
+                    result
                 } else {
                     false
                 }
             }
             HirExpr::Call { func, .. } => {
                 // Direct constructor call like Calculator(10)
-                self.ctx.class_names.contains(func)
+                let result = self.ctx.class_names.contains(func);
+                result
             }
             _ => false,
         }
@@ -14874,10 +15014,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { #iter_expr.into_iter() }
             };
 
-            // Add filters for each condition
+            // DEPYLER-0691: Add filters for each condition
+            // Use |&x| pattern to auto-dereference because filter() receives &Item
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
             }
 
             // Add the map transformation
@@ -14933,10 +15074,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { #iter_expr.into_iter() }
             };
 
-            // Add filters for each condition
+            // DEPYLER-0691: Add filters for each condition
+            // Use |&x| pattern to auto-dereference because filter() receives &Item
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
             }
 
             // Add the map transformation (to key-value tuple)
@@ -14972,10 +15114,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let first_iter = self.wrap_range_in_parens(first_iter);
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
-        // Add filters for first generator's conditions
+        // DEPYLER-0691: Add filters for first generator's conditions
+        // Use |&x| pattern to auto-dereference because filter() receives &Item
         for cond in &first_gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|&#first_pat| #cond_expr) };
         }
 
         // Use flat_map for the first generator
@@ -15012,10 +15155,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Start with iterator
         let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
 
-        // Add filters for current generator's conditions
+        // DEPYLER-0691: Add filters for current generator's conditions
+        // Use |&x| pattern to auto-dereference because filter() receives &Item
         for cond in &gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
         }
 
         // Use flat_map to nest the inner chain
@@ -15587,10 +15731,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { #iter_expr.into_iter() }
             };
 
-            // Add filters for each condition
+            // DEPYLER-0691: Add filters for each condition
+            // Use |&x| pattern to auto-dereference because filter() receives &Item
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
             }
 
             // Add the map transformation
@@ -15624,10 +15769,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let first_iter = self.wrap_range_in_parens(first_iter);
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
-        // Add filters for first generator's conditions
+        // DEPYLER-0691: Add filters for first generator's conditions
+        // Use |&x| pattern to auto-dereference because filter() receives &Item
         for cond in &first_gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|&#first_pat| #cond_expr) };
         }
 
         // Use flat_map for the first generator
@@ -15661,10 +15807,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Build the chain for this level
         let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
 
-        // Add filters for this generator's conditions
+        // DEPYLER-0691: Add filters for this generator's conditions
+        // Use |&x| pattern to auto-dereference because filter() receives &Item
         for cond in &gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
         }
 
         // Use flat_map for intermediate generators, map for the last
