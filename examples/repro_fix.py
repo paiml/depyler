@@ -1,13 +1,17 @@
-# DEPYLER-0715: String iteration char comparison type mismatch
-# Python pattern: for char in string1: for p in string2: if char == p
-# Problem: Rust generates String vs char comparison which doesn't compile
-# Expected: Both iterators should yield same type (both char or both String)
+# DEPYLER-0717: Parameter type leaking between functions
+# Python pattern: Two functions with same param name but different types
+# Problem: Type from first function (List[str]) leaks to second function (List[int])
+# Expected: Each function should have independent parameter types
 
-def find_punctuation(text: str, punctuation: str) -> int:
-    """Count punctuation characters in text."""
-    count: int = 0
-    for char in text:
-        for p in punctuation:
-            if char == p:  # This comparison now works in Rust
-                count += 1
-    return count
+from typing import List
+
+def process_strings(items: List[str]) -> int:
+    """Process list of strings."""
+    return len(items)
+
+def process_integers(items: List[int]) -> int:
+    """Process list of integers."""
+    total: int = 0
+    for item in items:
+        total += item % 10  # This fails if item is String
+    return total
