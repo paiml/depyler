@@ -156,6 +156,11 @@ fn scan_expr_for_validators(expr: &HirExpr, ctx: &mut CodeGenContext) {
 ///
 /// Complexity: 7 (stmt loop + match + if + expr scan + method match)
 fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[HirParam]) {
+    // DEPYLER-0707: Clear mutable_vars before analyzing each function
+    // Without this, variables from previous functions leak to subsequent ones,
+    // causing false positives (e.g., `p` in test_point() leaking to test_person())
+    ctx.mutable_vars.clear();
+
     let mut declared = HashSet::new();
 
     // DEPYLER-0312: Pre-populate declared with function parameters
@@ -675,6 +680,13 @@ fn generate_import_tokens(
         let key = format!("{}:{:?}", import.path, import.alias);
         if !seen_paths.insert(key) {
             continue; // Skip duplicate
+        }
+
+        // DEPYLER-0702: Skip struct method imports that can't be valid `use` statements
+        // e.g., `from os.path import join` maps to `std::path::Path::join` which is invalid
+        // because Path is a struct, not a module. These are handled at call site.
+        if import.path.contains("::Path::") || import.path.contains("::File::") {
+            continue;
         }
 
         let path: syn::Path = syn::parse_str(&import.path).unwrap_or_else(|_| parse_quote! { std });
@@ -1674,7 +1686,9 @@ mod tests {
         let expr = HirExpr::Literal(Literal::Int(42));
 
         let result = codegen_expr_stmt(&expr, &mut ctx).unwrap();
-        assert_eq!(result.to_string(), "42 ;");
+        // DEPYLER-0701: Pure expressions are wrapped in `let _ =` to avoid
+        // "path statement with no effect" warnings
+        assert_eq!(result.to_string(), "let _ = 42 ;");
     }
 
     // ========================================================================
@@ -1709,7 +1723,9 @@ mod tests {
         let body = vec![HirStmt::Pass];
 
         let result = codegen_while_stmt(&condition, &body, &mut ctx).unwrap();
-        assert!(result.to_string().contains("while true"));
+        // DEPYLER-0698: `while True:` now generates idiomatic `loop {}`
+        // (Rust warns: "denote infinite loops with `loop { ... }`")
+        assert!(result.to_string().contains("loop"));
     }
 
     #[test]
