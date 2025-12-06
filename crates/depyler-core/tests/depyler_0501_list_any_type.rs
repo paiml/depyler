@@ -39,13 +39,13 @@ def get_data() -> List[Any]:
     assert_eq!(hir.functions.len(), 1, "Should have 1 function");
     assert_eq!(hir.functions[0].name, "get_data");
 
-    // List[Any] should map to List<Unknown> or List<serde_json::Value>
+    // DEPYLER-0725: List[Any] should map to List<Custom("Any")> which type_mapper converts to serde_json::Value
     match &hir.functions[0].ret_type {
         Type::List(inner) => {
             assert!(
                 matches!(inner.as_ref(), Type::Unknown)
-                    || matches!(inner.as_ref(), Type::Custom(s) if s == "serde_json::Value"),
-                "List[Any] should map to List<Unknown> or List<Value>, got: {:?}",
+                    || matches!(inner.as_ref(), Type::Custom(s) if s == "serde_json::Value" || s == "Any"),
+                "List[Any] should map to List<Unknown>, List<Any>, or List<Value>, got: {:?}",
                 inner
             );
         }
