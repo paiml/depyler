@@ -3516,6 +3516,24 @@ impl<'a> ExprConverter<'a> {
     fn convert_index(&self, base: &HirExpr, index: &HirExpr) -> Result<syn::Expr> {
         let base_expr = self.convert(base)?;
 
+        // DEPYLER-0735: Check if base is a tuple type (from param_types) and index is integer literal
+        // Rust tuples use .0, .1 syntax, not [0], [1]
+        if let HirExpr::Literal(Literal::Int(idx)) = index {
+            if *idx >= 0 {
+                // Check if base variable has tuple type from param_types
+                let is_tuple = if let HirExpr::Var(var_name) = base {
+                    matches!(self.param_types.get(var_name), Some(Type::Tuple(_)))
+                } else {
+                    false
+                };
+
+                if is_tuple {
+                    let field_idx = syn::Index::from(*idx as usize);
+                    return Ok(parse_quote! { #base_expr.#field_idx });
+                }
+            }
+        }
+
         // DEPYLER-0200: Detect dict vs list access
         // String literal index = dict access, use .get()
         // Numeric index = list access, use [idx as usize]
