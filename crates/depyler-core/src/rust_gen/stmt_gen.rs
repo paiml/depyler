@@ -3442,7 +3442,15 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
+    // DEPYLER-0727: Set assignment target type for dict literal Value wrapping
+    // This allows dict codegen to check if target is Dict[str, Any] → HashMap<String, Value>
+    let prev_assign_type = ctx.current_assign_type.take();
+    ctx.current_assign_type = type_annotation.clone();
+
     let mut value_expr = value.to_rust_expr(ctx)?;
+
+    // DEPYLER-0727: Restore previous assignment type
+    ctx.current_assign_type = prev_assign_type;
 
     // DEPYLER-0472: Restore previous json context
     ctx.in_json_context = prev_json_context;

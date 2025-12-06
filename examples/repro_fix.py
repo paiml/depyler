@@ -1,16 +1,17 @@
-# Repro case: E0308 - Dict literal values not wrapped in serde_json::Value
+# Repro case: E0599 - dict.keys() method not found on HashMap<String, Value>
 # Target: DEPYLER-204 (Hunt Mode single-shot compilation)
-# Pattern: {"a": 1} with Dict[str, Any] -> insert(1) instead of insert(Value::from(1))
+# Pattern: Dict[str, Any].keys() -> HashMap<String, Value> has no `.keys()` that returns iter
 
 from typing import Dict, Any
 
-def create_dict() -> Dict[str, Any]:
-    """Create a simple dict."""
-    return {"a": 1, "b": 2}
+def count_keys(data: Dict[str, Any]) -> int:
+    """Count number of keys in dict."""
+    return len(data.keys())
 
 def main() -> None:
-    d = create_dict()
-    print(f"Dict: {d:?}")
+    d: Dict[str, Any] = {"a": 1, "b": 2}
+    count = count_keys(d)
+    print(f"Keys: {count}")
 
 if __name__ == "__main__":
     main()
