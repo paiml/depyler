@@ -50,6 +50,7 @@ pub mod ast_bridge;
 pub mod backend;
 pub mod borrowing;
 pub mod borrowing_context;
+pub mod cargo_first;
 pub mod cargo_toml_gen;
 pub mod chaos;
 pub mod codegen;
