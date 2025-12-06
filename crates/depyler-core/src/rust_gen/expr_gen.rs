@@ -15086,10 +15086,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return true;
                 }
                 // Check class_field_types for self.X patterns
-                if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
-                    if matches!(self.ctx.class_field_types.get(attr), Some(Type::Float)) {
-                        return true;
-                    }
+                if matches!(value.as_ref(), HirExpr::Var(name) if name == "self")
+                    && matches!(self.ctx.class_field_types.get(attr), Some(Type::Float))
+                {
+                    return true;
                 }
                 false
             }

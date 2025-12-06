@@ -72,6 +72,46 @@ impl TypeVarRegistry {
         self.type_vars.insert(name, constraints);
     }
 
+    /// DEPYLER-0716: Infer type substitutions for a function (e.g., T -> String)
+    /// Returns substitutions that should be applied to parameter types before type mapping
+    pub fn infer_type_substitutions(&self, func: &HirFunction) -> Result<HashMap<String, Type>> {
+        let mut inference = TypeInference::new();
+        inference.analyze_function(func)?;
+        Ok(inference.substitutions)
+    }
+
+    /// DEPYLER-0716: Apply type substitutions to a Type
+    /// Replaces Unknown with the substituted type (e.g., if T -> String, Unknown becomes String)
+    pub fn apply_substitutions(ty: &Type, substitutions: &HashMap<String, Type>) -> Type {
+        // If we have a substitution for T, replace Unknown with the substituted type
+        let substituted = substitutions.get("T");
+
+        match ty {
+            Type::Unknown => {
+                // Replace Unknown with substituted type if available
+                substituted.cloned().unwrap_or(Type::Unknown)
+            }
+            Type::List(inner) => {
+                Type::List(Box::new(Self::apply_substitutions(inner, substitutions)))
+            }
+            Type::Dict(k, v) => Type::Dict(
+                Box::new(Self::apply_substitutions(k, substitutions)),
+                Box::new(Self::apply_substitutions(v, substitutions)),
+            ),
+            Type::Optional(inner) => {
+                Type::Optional(Box::new(Self::apply_substitutions(inner, substitutions)))
+            }
+            Type::Tuple(types) => Type::Tuple(
+                types
+                    .iter()
+                    .map(|t| Self::apply_substitutions(t, substitutions))
+                    .collect(),
+            ),
+            // For other types, return as-is
+            other => other.clone(),
+        }
+    }
+
     /// Infer generic type parameters for a function
     pub fn infer_function_generics(&mut self, func: &HirFunction) -> Result<Vec<TypeParameter>> {
         let mut collector = TypeVarCollector::new();
@@ -93,9 +133,27 @@ impl TypeVarRegistry {
         let mut inference = TypeInference::new();
         inference.analyze_function(func)?;
 
+        // DEPYLER-0716: Filter out type vars that have been substituted with concrete types
+        // If T is substituted with String, don't generate a type parameter for T
+        let filtered_type_vars: HashSet<String> = collector
+            .type_vars
+            .into_iter()
+            .filter(|tv| !inference.substitutions.contains_key(tv))
+            .collect();
+
+        // DEPYLER-0716: Also filter dict_key_type_vars to remove substituted ones
+        let filtered_dict_key_vars: HashSet<String> = collector
+            .dict_key_type_vars
+            .into_iter()
+            .filter(|tv| !inference.substitutions.contains_key(tv))
+            .collect();
+
         // Generate type parameters
-        let type_params =
-            self.generate_type_parameters(&collector.type_vars, &inference.constraints)?;
+        let type_params = self.generate_type_parameters(
+            &filtered_type_vars,
+            &inference.constraints,
+            &filtered_dict_key_vars,
+        )?;
 
         // Store for later use
         self.function_type_params
@@ -158,6 +216,7 @@ impl TypeVarRegistry {
         &self,
         type_vars: &HashSet<String>,
         constraints: &HashMap<String, Vec<TypeConstraint>>,
+        dict_key_type_vars: &HashSet<String>,
     ) -> Result<Vec<TypeParameter>> {
         let mut params = Vec::new();
 
@@ -180,6 +239,12 @@ impl TypeVarRegistry {
                         }
                     }
                 }
+            }
+
+            // DEPYLER-0716: Dict key type vars need Eq + Hash for HashMap
+            if dict_key_type_vars.contains(var) {
+                bounds.insert("Eq".to_string());
+                bounds.insert("std::hash::Hash".to_string());
             }
 
             // Add default bounds based on usage
@@ -209,16 +274,26 @@ impl TypeVarRegistry {
 /// Collects type variables from a function
 struct TypeVarCollector {
     type_vars: HashSet<String>,
+    /// DEPYLER-0716: Track type vars used as Dict keys - these need Eq + Hash bounds
+    dict_key_type_vars: HashSet<String>,
 }
 
 impl TypeVarCollector {
     fn new() -> Self {
         Self {
             type_vars: HashSet::new(),
+            dict_key_type_vars: HashSet::new(),
         }
     }
 
     fn collect_from_type(&mut self, ty: &Type) {
+        // Use nested=false for top-level types
+        self.collect_from_type_internal(ty, false);
+    }
+
+    /// DEPYLER-0271: Track nesting to only add generic T when Unknown is in a nested position
+    /// (like List[Unknown], Dict[str, Unknown]) but NOT for bare Unknown (function return type)
+    fn collect_from_type_internal(&mut self, ty: &Type, nested: bool) {
         match ty {
             Type::Custom(name) if name.chars().next().is_some_and(|c| c.is_uppercase()) => {
                 // Assume single uppercase letters are type variables
@@ -229,21 +304,38 @@ impl TypeVarCollector {
             Type::TypeVar(name) => {
                 self.type_vars.insert(name.clone());
             }
-            Type::List(inner) | Type::Optional(inner) => self.collect_from_type(inner),
+            // DEPYLER-0705 + DEPYLER-0271: Unknown type in NESTED position becomes type parameter T
+            // Only add T for Unknown in generic positions (List[Unknown], Dict[str, Unknown], etc.)
+            // NOT for bare Unknown at top level (which usually means "no return type annotation")
+            Type::Unknown => {
+                if nested {
+                    self.type_vars.insert("T".to_string());
+                }
+                // At top level, Unknown means "no type annotation" -> maps to () in Rust
+            }
+            // Collection types create nested context
+            Type::List(inner) | Type::Optional(inner) => {
+                self.collect_from_type_internal(inner, true);
+            }
             Type::Dict(k, v) => {
-                self.collect_from_type(k);
-                self.collect_from_type(v);
+                // DEPYLER-0716: Dict key type vars need Eq + Hash bounds for HashMap
+                // Track if the key type is Unknown (will become T)
+                if matches!(**k, Type::Unknown) {
+                    self.dict_key_type_vars.insert("T".to_string());
+                }
+                self.collect_from_type_internal(k, true);
+                self.collect_from_type_internal(v, true);
             }
             Type::Tuple(types) => {
                 for t in types {
-                    self.collect_from_type(t);
+                    self.collect_from_type_internal(t, true);
                 }
             }
             Type::Function { params, ret } => {
                 for p in params {
-                    self.collect_from_type(p);
+                    self.collect_from_type_internal(p, true);
                 }
-                self.collect_from_type(ret);
+                self.collect_from_type_internal(ret, true);
             }
             _ => {}
         }
@@ -332,9 +424,14 @@ impl TypeVarCollector {
 /// Type inference engine using Hindley-Milner style inference
 struct TypeInference {
     constraints: HashMap<String, Vec<TypeConstraint>>,
-    /// Type substitutions for unification (unused but reserved for future use)
-    #[allow(dead_code)]
+    /// DEPYLER-0716: Type substitutions - when we can infer a concrete type, substitute it
+    /// e.g., when T is compared to &str, substitute T with String
     substitutions: HashMap<String, Type>,
+    /// DEPYLER-0715: Parameter types for detecting string comparisons
+    param_types: HashMap<String, Type>,
+    /// DEPYLER-0715: Maps loop variables to their source type parameter
+    /// e.g., `for user in users` maps "user" -> "T" (if users is Vec<T>)
+    loop_var_to_type_param: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone)]
@@ -353,10 +450,17 @@ impl TypeInference {
         Self {
             constraints: HashMap::new(),
             substitutions: HashMap::new(),
+            param_types: HashMap::new(),
+            loop_var_to_type_param: HashMap::new(),
         }
     }
 
     fn analyze_function(&mut self, func: &HirFunction) -> Result<()> {
+        // DEPYLER-0715: Populate param_types for string comparison detection
+        for param in &func.params {
+            self.param_types.insert(param.name.clone(), param.ty.clone());
+        }
+
         // Analyze parameter usage to infer constraints
         for param in &func.params {
             match &param.ty {
@@ -369,6 +473,19 @@ impl TypeInference {
                 Type::TypeVar(type_var) => {
                     // This is explicitly a type variable
                     self.analyze_param_usage(&param.name, type_var, &func.body)?;
+                }
+                // DEPYLER-0715: Handle List(Unknown) - the element type becomes type var "T"
+                // This is common when Python has bare `list` without type params
+                Type::List(inner) if matches!(**inner, Type::Unknown) => {
+                    // The element type is T, analyze usage with param name and "T" type var
+                    self.analyze_param_usage(&param.name, "T", &func.body)?;
+                }
+                // DEPYLER-0715: Handle Dict with Unknown keys or values
+                Type::Dict(k, v)
+                    if matches!(**k, Type::Unknown) || matches!(**v, Type::Unknown) =>
+                {
+                    // Dict with unknown element types - T becomes the value type
+                    self.analyze_param_usage(&param.name, "T", &func.body)?;
                 }
                 _ => {}
             }
@@ -420,6 +537,31 @@ impl TypeInference {
                     }
                 }
             }
+            // DEPYLER-0715: Handle for-loops - traverse iter and body
+            // Track loop variable as derived from parameter's element type
+            HirStmt::For { target, iter, body } => {
+                self.analyze_expr_for_param(param_name, type_var, iter)?;
+                // If iterating over the parameter, the loop variable has type T
+                if let HirExpr::Var(iter_var) = iter {
+                    if iter_var == param_name {
+                        // Track that the loop variable has the element type (T)
+                        if let crate::hir::AssignTarget::Symbol(loop_var) = target {
+                            self.loop_var_to_type_param
+                                .insert(loop_var.clone(), type_var.to_string());
+                        }
+                    }
+                }
+                for s in body {
+                    self.analyze_stmt_for_param(param_name, type_var, s)?;
+                }
+            }
+            // DEPYLER-0715: Handle while-loops - traverse condition and body
+            HirStmt::While { condition, body } => {
+                self.analyze_expr_for_param(param_name, type_var, condition)?;
+                for s in body {
+                    self.analyze_stmt_for_param(param_name, type_var, s)?;
+                }
+            }
             _ => {}
         }
         Ok(())
@@ -446,6 +588,22 @@ impl TypeInference {
                 if let HirExpr::Var(var) = object.as_ref() {
                     if var == param_name {
                         self.add_method_constraint(type_var, method);
+                        // DEPYLER-0716: Detect dict key access with string argument
+                        // When dict.get(key) is called where key is string-typed,
+                        // substitute the key type T with String
+                        if (method == "get" || method == "__getitem__") && !args.is_empty() {
+                            let key_arg = &args[0];
+                            let key_is_string = match key_arg {
+                                HirExpr::Literal(crate::hir::Literal::String(_)) => true,
+                                HirExpr::Var(v) => self.is_string_typed(v),
+                                _ => false,
+                            };
+                            if key_is_string {
+                                // Dict key type should be String, not generic T
+                                self.substitutions
+                                    .insert(type_var.to_string(), Type::String);
+                            }
+                        }
                     }
                 }
                 self.analyze_expr_for_param(param_name, type_var, object)?;
@@ -487,10 +645,29 @@ impl TypeInference {
     ) -> Result<()> {
         use crate::hir::BinOp;
 
-        let uses_param = match (left, right) {
-            (HirExpr::Var(l), _) if l == param_name => true,
-            (_, HirExpr::Var(r)) if r == param_name => true,
-            _ => false,
+        // DEPYLER-0715: Detect which operand is the param (or loop var derived from param)
+        // and which is the comparison target
+        let (uses_param, other_operand) = match (left, right) {
+            (HirExpr::Var(l), other) if l == param_name => (true, Some(other)),
+            (other, HirExpr::Var(r)) if r == param_name => (true, Some(other)),
+            // DEPYLER-0715: Also check if either operand is a loop variable derived from param
+            (HirExpr::Var(l), other)
+                if self
+                    .loop_var_to_type_param
+                    .get(l)
+                    .is_some_and(|tv| tv == type_var) =>
+            {
+                (true, Some(other))
+            }
+            (other, HirExpr::Var(r))
+                if self
+                    .loop_var_to_type_param
+                    .get(r)
+                    .is_some_and(|tv| tv == type_var) =>
+            {
+                (true, Some(other))
+            }
+            _ => (false, None),
         };
 
         if uses_param {
@@ -498,9 +675,47 @@ impl TypeInference {
                 BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div => {
                     TypeConstraint::MustImplement("std::ops::Add".to_string())
                 }
-                BinOp::Eq | BinOp::NotEq => TypeConstraint::MustImplement("PartialEq".to_string()),
+                BinOp::Eq | BinOp::NotEq => {
+                    // DEPYLER-0716: Detect comparison target type
+                    // If comparing to a string, substitute T with String instead of adding complex trait bounds
+                    let target_is_string = other_operand.is_some_and(|op| match op {
+                        HirExpr::Literal(crate::hir::Literal::String(_)) => true,
+                        HirExpr::Var(v) => self.is_string_typed(v),
+                        _ => false,
+                    });
+                    if target_is_string {
+                        // DEPYLER-0716: Instead of complex PartialEq<&str> bound, substitute T with String
+                        // This is simpler and String naturally implements PartialEq<&str>
+                        self.substitutions
+                            .insert(type_var.to_string(), Type::String);
+                        // Still add basic PartialEq for the signature
+                        TypeConstraint::MustImplement("PartialEq".to_string())
+                    } else {
+                        TypeConstraint::MustImplement("PartialEq".to_string())
+                    }
+                }
                 BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq => {
                     TypeConstraint::MustImplement("PartialOrd".to_string())
+                }
+                BinOp::In | BinOp::NotIn => {
+                    // DEPYLER-0716: For "key in dict" pattern, if key is string-typed
+                    // and dict is the param, substitute T with String
+                    // Note: In "key in dict", left is key and right is dict
+                    // So if right is param_name and left is string-typed, substitute
+                    if let HirExpr::Var(r) = right {
+                        if r == param_name {
+                            let key_is_string = match left {
+                                HirExpr::Literal(crate::hir::Literal::String(_)) => true,
+                                HirExpr::Var(v) => self.is_string_typed(v),
+                                _ => false,
+                            };
+                            if key_is_string {
+                                self.substitutions
+                                    .insert(type_var.to_string(), Type::String);
+                            }
+                        }
+                    }
+                    return Ok(()); // No trait constraint needed
                 }
                 _ => return Ok(()),
             };
@@ -512,6 +727,14 @@ impl TypeInference {
         }
 
         Ok(())
+    }
+
+    /// DEPYLER-0715: Check if a variable is string-typed based on parameter types
+    fn is_string_typed(&self, var_name: &str) -> bool {
+        // Check if the variable matches a known string-typed parameter
+        self.param_types
+            .get(var_name)
+            .is_some_and(|ty| matches!(ty, Type::String))
     }
 }
 
