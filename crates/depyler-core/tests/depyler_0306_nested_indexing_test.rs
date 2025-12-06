@@ -34,10 +34,14 @@ def find_first_match(matrix: list[list[int]], target: int) -> tuple[int, int]:
         "Should use inline .get() for indexing"
     );
 
-    // Should have valid range expression
+    // Should have valid range expression - check for matrix.get() in the for loop context
+    // Note: Formatting may split this across lines, so check semantically
+    let has_valid_range = rust_code.contains("for j in 0..matrix")
+        && rust_code.contains(".get(i as usize)");
     assert!(
-        rust_code.contains("for j in 0..matrix.get"),
-        "Should have valid range expression starting with matrix.get"
+        has_valid_range,
+        "Should have valid range expression with matrix.get()\nGenerated:\n{}",
+        rust_code
     );
 
     println!("Generated Rust code:\n{}", rust_code);
