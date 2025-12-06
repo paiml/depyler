@@ -2152,10 +2152,10 @@ fn is_var_used_as_dict_key_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
         HirStmt::Assign { target, value, .. } => {
             // Check if var is used as key in target (e.g., dict[var] = x)
             if let AssignTarget::Index { base, index } = target {
-                if is_var_direct_or_simple_in_expr(var_name, index) {
-                    if matches!(base.as_ref(), HirExpr::Var(_)) {
-                        return true;
-                    }
+                if is_var_direct_or_simple_in_expr(var_name, index)
+                    && matches!(base.as_ref(), HirExpr::Var(_))
+                {
+                    return true;
                 }
             }
             is_var_used_as_dict_key_in_expr(var_name, value)
