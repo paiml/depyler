@@ -82,6 +82,15 @@ impl ModuleMapper {
                     ("exists".to_string(), "Path::exists".to_string()),
                     ("basename".to_string(), "Path::file_name".to_string()),
                     ("dirname".to_string(), "Path::parent".to_string()),
+                    // DEPYLER-0721: splitext is handled inline in expr_gen.rs
+                    // Mark as Path to suppress invalid use statement
+                    ("splitext".to_string(), "Path".to_string()),
+                    ("split".to_string(), "Path".to_string()),
+                    ("normpath".to_string(), "Path".to_string()),
+                    ("isfile".to_string(), "Path::is_file".to_string()),
+                    ("isdir".to_string(), "Path::is_dir".to_string()),
+                    ("isabs".to_string(), "Path::is_absolute".to_string()),
+                    ("abspath".to_string(), "Path::canonicalize".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
