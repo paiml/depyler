@@ -1,15 +1,12 @@
-# DEPYLER-0719: Bare tuple annotation maps to () instead of actual type
-# Python pattern: result: tuple = func_returning_tuple()
-# Problem: tuple → () but func returns (T1, T2, T3)
-# Expected: Infer tuple type from function return or usage
+# DEPYLER-0720: Integer literals in float comparisons
+# Python pattern: self.amount > 0 where amount is float
+# Problem: Rust expects 0.0 for f64 comparison, not 0
+# Expected: Integer literals should become float when compared with floats
 
-def get_point() -> tuple:
-    """Return a 2D point as tuple."""
-    x: float = 1.0
-    y: float = 2.0
-    return (x, y)
+class Account:
+    def __init__(self, balance: float) -> None:
+        self.balance: float = balance
 
-def use_point() -> float:
-    """Use the point tuple."""
-    point: tuple = get_point()
-    return point[0] + point[1]
+    def is_positive(self) -> bool:
+        """Check if balance is positive."""
+        return self.balance > 0
