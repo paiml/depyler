@@ -1,12 +1,16 @@
-# DEPYLER-0720: Integer literals in float comparisons
-# Python pattern: self.amount > 0 where amount is float
-# Problem: Rust expects 0.0 for f64 comparison, not 0
-# Expected: Integer literals should become float when compared with floats
+# Repro case: DEPYLER-0725 - Any type maps to serde_json::Value
+# Target: DEPYLER-204 (Hunt Mode single-shot compilation)
+# Verifies: Dict[str, Any] -> HashMap<String, serde_json::Value> (not generic T: Clone)
 
-class Account:
-    def __init__(self, balance: float) -> None:
-        self.balance: float = balance
+from typing import Dict, Any
 
-    def is_positive(self) -> bool:
-        """Check if balance is positive."""
-        return self.balance > 0
+def get_keys(data: Dict[str, Any]) -> int:
+    """Get number of keys in a dict."""
+    return len(data)
+
+def main() -> None:
+    count = get_keys({})
+    print(f"Keys: {count}")
+
+if __name__ == "__main__":
+    main()
