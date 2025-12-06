@@ -13683,11 +13683,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-0560: Check if function return type requires serde_json::Value for dicts
+    /// DEPYLER-0727: Also check assignment target type for inline dict literals
     ///
     /// Returns true if current function returns Dict[str, Any] or Dict[str, Unknown],
+    /// OR if assigning to a variable with Dict[str, Any] type annotation,
     /// which maps to HashMap<String, serde_json::Value>. In these cases, dict literals
     /// should use json!() to ensure type compatibility.
     fn return_type_needs_json_dict(&self) -> bool {
+        // DEPYLER-0727: Check assignment target type first (e.g., d: Dict[str, Any] = {...})
+        if let Some(ref assign_type) = self.ctx.current_assign_type {
+            match assign_type {
+                Type::Dict(_, value_type) => {
+                    if Self::is_json_value_type(value_type.as_ref()) {
+                        return true;
+                    }
+                }
+                Type::Custom(s) if s.contains("HashMap") && s.contains("Value") => return true,
+                _ => {}
+            }
+        }
+
+        // Check function return type
         if let Some(ref ret_type) = self.ctx.current_return_type {
             // Check if return type is Dict with Any/Unknown value type
             match ret_type {

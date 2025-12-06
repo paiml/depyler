@@ -113,6 +113,9 @@ pub struct CodeGenContext<'a> {
     /// Maps function name -> Vec of Option<HirExpr> (None if no default, Some if has default)
     /// Used to supply default arguments at call sites when fewer args are passed
     pub function_param_defaults: HashMap<String, Vec<Option<crate::hir::HirExpr>>>,
+    /// DEPYLER-0720: Track class field types for self.field attribute access
+    /// Maps field name -> Type, used to determine if self.X is float for int-to-float coercion
+    pub class_field_types: HashMap<String, Type>,
     /// DEPYLER-0307 Fix #9: Track variables that iterate over tuples (from zip())
     /// Used to generate tuple field access syntax (tuple.0, tuple.1) instead of vector indexing
     pub tuple_iter_vars: HashSet<String>,
@@ -243,6 +246,16 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0648: Track functions that have vararg parameters (*args in Python)
     /// These functions expect &[T] slice arguments, so call sites need to wrap args in &[...]
     pub vararg_functions: HashSet<String>,
+
+    /// DEPYLER-0716: Type substitutions for current function's generic inference
+    /// When a type parameter T can be inferred to a concrete type (e.g., String),
+    /// this maps "T" -> String. Used to substitute in return types.
+    pub type_substitutions: HashMap<String, Type>,
+
+    /// DEPYLER-0727: Track assignment target type for dict literal Value wrapping
+    /// When assigning to a variable with type annotation (e.g., `d: Dict[str, Any] = {...}`),
+    /// this stores the annotation so dict codegen can wrap values in serde_json::json!()
+    pub current_assign_type: Option<Type>,
 }
 
 impl<'a> CodeGenContext<'a> {
