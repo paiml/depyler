@@ -68,4 +68,6 @@
 # Development Guide
 
 - [Oracle: ML Error Classification](./oracle.md)
+- [Hunt Mode: Automated Calibration](./hunt-mode.md)
+- [Corpus Report: Scientific Analysis](./corpus-report.md)
 - [CITL Corpus Extraction](./citl-corpus-extraction.md)
