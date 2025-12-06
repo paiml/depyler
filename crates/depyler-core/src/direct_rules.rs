@@ -519,7 +519,8 @@ pub fn convert_class_to_struct(
                 impl_items.push(syn::ImplItem::Fn(new_method));
             } else {
                 // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
-                let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions)?;
+                // DEPYLER-0696: Pass class fields for return type inference
+                let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions, &class.fields)?;
                 impl_items.push(syn::ImplItem::Fn(rust_method));
             }
         }
@@ -538,7 +539,8 @@ pub fn convert_class_to_struct(
         // Add other methods
         for method in &class.methods {
             // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
-            let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions)?;
+            // DEPYLER-0696: Pass class fields for return type inference
+            let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions, &class.fields)?;
             impl_items.push(syn::ImplItem::Fn(rust_method));
         }
     }
@@ -654,11 +656,25 @@ fn convert_init_to_new(
     type_mapper: &TypeMapper,
     _vararg_functions: &std::collections::HashSet<String>,
 ) -> Result<syn::ImplItemFn> {
+    // DEPYLER-0697: Collect field names to determine which params are used
+    let field_names: std::collections::HashSet<&str> = class
+        .fields
+        .iter()
+        .filter(|f| !f.is_class_var)
+        .map(|f| f.name.as_str())
+        .collect();
+
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
 
     for param in &init_method.params {
-        let param_ident = make_ident(&param.name);
+        // DEPYLER-0697: Prefix unused constructor parameters with _ to avoid warnings
+        let param_name = if field_names.contains(param.name.as_str()) {
+            param.name.clone()
+        } else {
+            format!("_{}", param.name)
+        };
+        let param_ident = make_ident(&param_name);
         let rust_type = type_mapper.map_type(&param.ty);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
@@ -782,9 +798,10 @@ fn stmt_mutates_self(stmt: &HirStmt) -> bool {
 
 /// DEPYLER-0422 Fix #10: Infer return type from method body
 /// Similar to infer_return_type_from_body in func_gen.rs
-fn infer_method_return_type(body: &[HirStmt]) -> Option<Type> {
+/// DEPYLER-0696: Infer method return type with class field context
+fn infer_method_return_type(body: &[HirStmt], fields: &[HirField]) -> Option<Type> {
     let mut return_types = Vec::new();
-    collect_method_return_types(body, &mut return_types);
+    collect_method_return_types(body, fields, &mut return_types);
 
     if return_types.is_empty() {
         return None;
@@ -806,11 +823,12 @@ fn infer_method_return_type(body: &[HirStmt]) -> Option<Type> {
 }
 
 /// Collect return types from method body statements
-fn collect_method_return_types(stmts: &[HirStmt], types: &mut Vec<Type>) {
+/// DEPYLER-0696: Pass class fields to infer self.field types
+fn collect_method_return_types(stmts: &[HirStmt], fields: &[HirField], types: &mut Vec<Type>) {
     for stmt in stmts {
         match stmt {
             HirStmt::Return(Some(expr)) => {
-                types.push(infer_expr_type(expr));
+                types.push(infer_expr_type_with_fields(expr, fields));
             }
             HirStmt::Return(None) => {
                 types.push(Type::None);
@@ -820,21 +838,24 @@ fn collect_method_return_types(stmts: &[HirStmt], types: &mut Vec<Type>) {
                 else_body,
                 ..
             } => {
-                collect_method_return_types(then_body, types);
+                collect_method_return_types(then_body, fields, types);
                 if let Some(else_stmts) = else_body {
-                    collect_method_return_types(else_stmts, types);
+                    collect_method_return_types(else_stmts, fields, types);
                 }
             }
             HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
-                collect_method_return_types(body, types);
+                collect_method_return_types(body, fields, types);
             }
             _ => {}
         }
     }
 }
 
-/// Infer type from expression
-fn infer_expr_type(expr: &HirExpr) -> Type {
+/// DEPYLER-0696: Infer type from expression with class field context
+///
+/// When class fields are provided, attribute access like `self.field` can be
+/// resolved to the actual field type instead of returning Type::Unknown.
+fn infer_expr_type_with_fields(expr: &HirExpr, fields: &[HirField]) -> Type {
     match expr {
         HirExpr::Literal(lit) => match lit {
             Literal::Int(_) => Type::Int,
@@ -860,39 +881,122 @@ fn infer_expr_type(expr: &HirExpr) -> Type {
                 return Type::Bool;
             }
             // For arithmetic, infer from operands
-            let left_type = infer_expr_type(left);
+            let left_type = infer_expr_type_with_fields(left, fields);
             if !matches!(left_type, Type::Unknown) {
                 left_type
             } else {
-                infer_expr_type(right)
+                infer_expr_type_with_fields(right, fields)
             }
         }
         HirExpr::Unary { op, operand } => {
             if matches!(op, UnaryOp::Not) {
                 Type::Bool
             } else {
-                infer_expr_type(operand)
+                infer_expr_type_with_fields(operand, fields)
             }
         }
         HirExpr::List(elems) => {
             if elems.is_empty() {
                 Type::List(Box::new(Type::Unknown))
             } else {
-                Type::List(Box::new(infer_expr_type(&elems[0])))
+                Type::List(Box::new(infer_expr_type_with_fields(&elems[0], fields)))
             }
         }
         HirExpr::Tuple(elems) => {
-            let elem_types: Vec<Type> = elems.iter().map(infer_expr_type).collect();
+            let elem_types: Vec<Type> = elems
+                .iter()
+                .map(|e| infer_expr_type_with_fields(e, fields))
+                .collect();
             Type::Tuple(elem_types)
+        }
+        // DEPYLER-0696: Handle attribute access like self.field
+        HirExpr::Attribute { value, attr } => {
+            // Check if this is self.field access
+            if let HirExpr::Var(var_name) = value.as_ref() {
+                if var_name == "self" {
+                    // Look up field type
+                    if let Some(field) = fields.iter().find(|f| f.name == *attr) {
+                        return field.field_type.clone();
+                    }
+                }
+            }
+            Type::Unknown
         }
         _ => Type::Unknown,
     }
 }
 
+/// DEPYLER-0708: Check if a parameter should be typed as &Self based on usage
+/// If the parameter is used with attribute access that matches class fields,
+/// it's likely to be the same type as self, so we should use &Self instead of serde_json::Value.
+fn should_param_be_self_type(param_name: &str, body: &[HirStmt], fields: &[HirField]) -> bool {
+    // Collect all field names
+    let field_names: std::collections::HashSet<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+
+    // Check if the parameter is used with attribute access that matches a class field
+    fn check_expr(param_name: &str, expr: &HirExpr, field_names: &std::collections::HashSet<&str>) -> bool {
+        match expr {
+            HirExpr::Attribute { value, attr } => {
+                if let HirExpr::Var(var_name) = value.as_ref() {
+                    if var_name == param_name && field_names.contains(attr.as_str()) {
+                        return true;
+                    }
+                }
+                // Check nested expressions
+                check_expr(param_name, value, field_names)
+            }
+            HirExpr::Binary { left, right, .. } => {
+                check_expr(param_name, left, field_names) || check_expr(param_name, right, field_names)
+            }
+            HirExpr::Unary { operand, .. } => check_expr(param_name, operand, field_names),
+            HirExpr::Call { args, .. } => args.iter().any(|a| check_expr(param_name, a, field_names)),
+            HirExpr::MethodCall { object, args, .. } => {
+                check_expr(param_name, object, field_names)
+                    || args.iter().any(|a| check_expr(param_name, a, field_names))
+            }
+            HirExpr::Index { base, index } => {
+                check_expr(param_name, base, field_names) || check_expr(param_name, index, field_names)
+            }
+            HirExpr::List(items) | HirExpr::Tuple(items) => {
+                items.iter().any(|i| check_expr(param_name, i, field_names))
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                check_expr(param_name, test, field_names)
+                    || check_expr(param_name, body, field_names)
+                    || check_expr(param_name, orelse, field_names)
+            }
+            _ => false,
+        }
+    }
+
+    fn check_stmt(param_name: &str, stmt: &HirStmt, field_names: &std::collections::HashSet<&str>) -> bool {
+        match stmt {
+            HirStmt::Assign { value, .. } => check_expr(param_name, value, field_names),
+            HirStmt::Expr(expr) => check_expr(param_name, expr, field_names),
+            HirStmt::Return(Some(expr)) => check_expr(param_name, expr, field_names),
+            HirStmt::If { condition, then_body, else_body, .. } => {
+                check_expr(param_name, condition, field_names)
+                    || then_body.iter().any(|s| check_stmt(param_name, s, field_names))
+                    || else_body.as_ref().is_some_and(|eb| eb.iter().any(|s| check_stmt(param_name, s, field_names)))
+            }
+            HirStmt::While { condition, body, .. } => {
+                check_expr(param_name, condition, field_names)
+                    || body.iter().any(|s| check_stmt(param_name, s, field_names))
+            }
+            HirStmt::For { body, .. } => body.iter().any(|s| check_stmt(param_name, s, field_names)),
+            _ => false,
+        }
+    }
+
+    body.iter().any(|s| check_stmt(param_name, s, &field_names))
+}
+
+/// DEPYLER-0696: Accept class fields for return type inference
 fn convert_method_to_impl_item(
     method: &HirMethod,
     type_mapper: &TypeMapper,
     vararg_functions: &std::collections::HashSet<String>,
+    fields: &[HirField],
 ) -> Result<syn::ImplItemFn> {
     // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
     let method_name = if is_rust_keyword(&method.name) {
@@ -926,8 +1030,54 @@ fn convert_method_to_impl_item(
     // Add other parameters
     for param in &method.params {
         let param_ident = make_ident(&param.name);
-        let rust_type = type_mapper.map_type(&param.ty);
-        let param_syn_type = rust_type_to_syn_type(&rust_type)?;
+
+        // DEPYLER-0708: Infer &Self type for parameters with Unknown type that are used like self
+        // DEPYLER-0271: For method params with Unknown type, use () instead of T to avoid undeclared generic
+        let param_syn_type = if matches!(param.ty, Type::Unknown)
+            && should_param_be_self_type(&param.name, &method.body, fields)
+        {
+            // Parameter is used with attribute access matching class fields - use &Self
+            parse_quote! { &Self }
+        } else if matches!(param.ty, Type::Unknown) {
+            // DEPYLER-0271: Unknown type in method params should be () not TypeParam("T")
+            // This is especially important for __exit__(exc_type, exc_val, exc_tb) where
+            // the exception parameters are typically unused and should not create generic T
+            // Also prefix parameter name with _ to avoid unused warnings
+            let prefixed_name = if !param.name.starts_with('_') {
+                format!("_{}", param.name)
+            } else {
+                param.name.clone()
+            };
+            let prefixed_ident = make_ident(&prefixed_name);
+
+            // Add parameter with prefixed name and () type
+            inputs.push(syn::FnArg::Typed(syn::PatType {
+                attrs: vec![],
+                pat: Box::new(syn::Pat::Ident(syn::PatIdent {
+                    attrs: vec![],
+                    by_ref: None,
+                    mutability: None,
+                    ident: prefixed_ident,
+                    subpat: None,
+                })),
+                colon_token: syn::Token![:](proc_macro2::Span::call_site()),
+                ty: Box::new(parse_quote! { () }),
+            }));
+            continue; // Skip the normal parameter addition below
+        } else {
+            let rust_type = type_mapper.map_type(&param.ty);
+            let base_type = rust_type_to_syn_type(&rust_type)?;
+
+            // DEPYLER-0709: For class-typed parameters, use reference instead of owned value
+            // Python objects are passed by reference, so method signatures should take &ClassName
+            // This matches the call-site behavior in DEPYLER-0712 which adds & to class args
+            if matches!(&param.ty, Type::Custom(_)) {
+                // Wrap in reference: ClassName -> &ClassName
+                parse_quote! { &#base_type }
+            } else {
+                base_type
+            }
+        };
 
         inputs.push(syn::FnArg::Typed(syn::PatType {
             attrs: vec![],
@@ -950,14 +1100,28 @@ fn convert_method_to_impl_item(
     // 3. Why: convert_method_to_impl_item uses type_mapper.map_type directly
     // 4. Why: No return type inference is applied to class methods
     // 5. ROOT CAUSE: direct_rules.rs doesn't infer return type for methods
+    // DEPYLER-0696: Pass class fields for self.field type inference
     let effective_ret_type = if matches!(method.ret_type, Type::Unknown | Type::None) {
         // Try to infer from body - if we find a typed return, use it
-        infer_method_return_type(&method.body).unwrap_or_else(|| method.ret_type.clone())
+        infer_method_return_type(&method.body, fields).unwrap_or_else(|| method.ret_type.clone())
     } else {
         method.ret_type.clone()
     };
     let rust_ret_type = type_mapper.map_type(&effective_ret_type);
     let ret_type = rust_type_to_syn_type(&rust_ret_type)?;
+
+    // DEPYLER-0704: Extract parameter types for type coercion in binary operations
+    let param_types: std::collections::HashMap<String, Type> = method
+        .params
+        .iter()
+        .map(|p| (p.name.clone(), p.ty.clone()))
+        .collect();
+
+    // DEPYLER-0720: Build class field types map from fields
+    let class_field_types: std::collections::HashMap<String, Type> = fields
+        .iter()
+        .map(|f| (f.name.clone(), f.field_type.clone()))
+        .collect();
 
     // Convert method body
     let body = if method.body.is_empty() {
@@ -966,7 +1130,9 @@ fn convert_method_to_impl_item(
     } else {
         // Convert the method body statements with classmethod context
         // DEPYLER-0648: Pass vararg_functions for proper slice wrapping at call sites
-        convert_block_with_context(&method.body, type_mapper, method.is_classmethod, vararg_functions)?
+        // DEPYLER-0704: Pass param_types for type coercion
+        // DEPYLER-0720: Pass class_field_types for self.field float coercion
+        convert_method_body_block(&method.body, type_mapper, method.is_classmethod, vararg_functions, &param_types, &class_field_types)?
     };
 
     Ok(syn::ImplItemFn {
@@ -1443,35 +1609,212 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
 }
 
 fn convert_body(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<Vec<syn::Stmt>> {
-    // Use empty vararg_functions for backward compatibility
-    static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
-    convert_body_with_context(stmts, type_mapper, false, EMPTY.get_or_init(std::collections::HashSet::new))
+    // Use empty vararg_functions and param_types for backward compatibility
+    static EMPTY_SET: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    static EMPTY_MAP: std::sync::OnceLock<std::collections::HashMap<String, Type>> = std::sync::OnceLock::new();
+    convert_body_with_context(
+        stmts,
+        type_mapper,
+        false,
+        EMPTY_SET.get_or_init(std::collections::HashSet::new),
+        EMPTY_MAP.get_or_init(std::collections::HashMap::new),
+    )
 }
 
+/// DEPYLER-0713: Analyze which variables need to be mutable
+/// Variables are mutable if they are reassigned or have mutating method calls
+fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
+    let mut declared: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut mutable: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    fn analyze_stmt(
+        stmt: &HirStmt,
+        declared: &mut std::collections::HashSet<String>,
+        mutable: &mut std::collections::HashSet<String>,
+    ) {
+        match stmt {
+            HirStmt::Assign { target, value, .. } => {
+                // Check for mutating method calls in value
+                check_mutating_methods(value, mutable);
+
+                match target {
+                    AssignTarget::Symbol(name) => {
+                        if declared.contains(name) {
+                            // Reassignment - mark as mutable
+                            mutable.insert(name.clone());
+                        } else {
+                            declared.insert(name.clone());
+                        }
+                    }
+                    AssignTarget::Attribute { value: base, .. } |
+                    AssignTarget::Index { base, .. } => {
+                        // Attribute/index assignment requires base to be mutable
+                        if let HirExpr::Var(var_name) = base.as_ref() {
+                            mutable.insert(var_name.clone());
+                        }
+                    }
+                    AssignTarget::Tuple(targets) => {
+                        for t in targets {
+                            if let AssignTarget::Symbol(name) = t {
+                                if declared.contains(name) {
+                                    mutable.insert(name.clone());
+                                } else {
+                                    declared.insert(name.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            HirStmt::Expr(expr) => {
+                check_mutating_methods(expr, mutable);
+            }
+            HirStmt::If { condition, then_body, else_body } => {
+                check_mutating_methods(condition, mutable);
+                for s in then_body {
+                    analyze_stmt(s, declared, mutable);
+                }
+                if let Some(else_stmts) = else_body {
+                    for s in else_stmts {
+                        analyze_stmt(s, declared, mutable);
+                    }
+                }
+            }
+            HirStmt::While { condition, body } => {
+                check_mutating_methods(condition, mutable);
+                for s in body {
+                    analyze_stmt(s, declared, mutable);
+                }
+            }
+            HirStmt::For { body, .. } => {
+                for s in body {
+                    analyze_stmt(s, declared, mutable);
+                }
+            }
+            HirStmt::With { body, .. } => {
+                for s in body {
+                    analyze_stmt(s, declared, mutable);
+                }
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody, .. } => {
+                for s in body {
+                    analyze_stmt(s, declared, mutable);
+                }
+                for h in handlers {
+                    for s in &h.body {
+                        analyze_stmt(s, declared, mutable);
+                    }
+                }
+                if let Some(else_stmts) = orelse {
+                    for s in else_stmts {
+                        analyze_stmt(s, declared, mutable);
+                    }
+                }
+                if let Some(final_stmts) = finalbody {
+                    for s in final_stmts {
+                        analyze_stmt(s, declared, mutable);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn check_mutating_methods(expr: &HirExpr, mutable: &mut std::collections::HashSet<String>) {
+        match expr {
+            HirExpr::MethodCall { object, method, args, .. } => {
+                // Check if this is a mutating method
+                let is_mutating = matches!(
+                    method.as_str(),
+                    "append" | "extend" | "insert" | "remove" | "pop" | "clear" |
+                    "reverse" | "sort" | "update" | "setdefault" | "popitem" |
+                    "add" | "discard" | "write" | "write_all" | "writelines" | "flush"
+                );
+                if is_mutating {
+                    if let HirExpr::Var(var_name) = object.as_ref() {
+                        mutable.insert(var_name.clone());
+                    }
+                }
+                check_mutating_methods(object, mutable);
+                for arg in args {
+                    check_mutating_methods(arg, mutable);
+                }
+            }
+            HirExpr::Binary { left, right, .. } => {
+                check_mutating_methods(left, mutable);
+                check_mutating_methods(right, mutable);
+            }
+            HirExpr::Unary { operand, .. } => {
+                check_mutating_methods(operand, mutable);
+            }
+            HirExpr::Call { args, .. } => {
+                for arg in args {
+                    check_mutating_methods(arg, mutable);
+                }
+            }
+            HirExpr::List(items) | HirExpr::Tuple(items) | HirExpr::Set(items) => {
+                for item in items {
+                    check_mutating_methods(item, mutable);
+                }
+            }
+            HirExpr::Dict(pairs) => {
+                for (k, v) in pairs {
+                    check_mutating_methods(k, mutable);
+                    check_mutating_methods(v, mutable);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    for stmt in stmts {
+        analyze_stmt(stmt, &mut declared, &mut mutable);
+    }
+
+    mutable
+}
+
+/// DEPYLER-0704: Added param_types parameter for type coercion in binary operations
+/// DEPYLER-0713: Added mutable_vars analysis for proper mutability
 fn convert_body_with_context(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,
     is_classmethod: bool,
     vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
 ) -> Result<Vec<syn::Stmt>> {
+    // DEPYLER-0713: Pre-analyze which variables need to be mutable
+    let mutable_vars = find_mutable_vars_in_body(stmts);
+
     stmts
         .iter()
-        .map(|stmt| convert_stmt_with_context(stmt, type_mapper, is_classmethod, vararg_functions))
+        .map(|stmt| convert_stmt_with_mutable_vars(stmt, type_mapper, is_classmethod, vararg_functions, param_types, &mutable_vars))
         .collect()
 }
 
 /// Convert simple variable assignment: `x = value`
+/// DEPYLER-0713: Only add `mut` if variable is in mutable_vars set
 ///
-/// Complexity: 1 (no branching)
-fn convert_symbol_assignment(symbol: &str, value_expr: syn::Expr) -> Result<syn::Stmt> {
+/// Complexity: 2 (with branching for mutability)
+fn convert_symbol_assignment(
+    symbol: &str,
+    value_expr: syn::Expr,
+    mutable_vars: &std::collections::HashSet<String>,
+) -> Result<syn::Stmt> {
     let target_ident = make_ident(symbol);
+    // DEPYLER-0713: Only add mut if variable is reassigned or has mutating method calls
+    let mutability = if mutable_vars.contains(symbol) {
+        Some(Default::default())
+    } else {
+        None
+    };
     let stmt = syn::Stmt::Local(syn::Local {
         attrs: vec![],
         let_token: Default::default(),
         pat: syn::Pat::Ident(syn::PatIdent {
             attrs: vec![],
             by_ref: None,
-            mutability: Some(Default::default()),
+            mutability,
             ident: target_ident,
             subpat: None,
         }),
@@ -1563,8 +1906,20 @@ fn convert_assign_stmt_with_expr(
     value_expr: syn::Expr,
     type_mapper: &TypeMapper,
 ) -> Result<syn::Stmt> {
+    // Backward compatibility - use empty mutable_vars (all variables get mut)
+    static EMPTY_MUTABLE: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    convert_assign_stmt_with_mutable_vars(target, value_expr, type_mapper, EMPTY_MUTABLE.get_or_init(std::collections::HashSet::new))
+}
+
+/// DEPYLER-0713: Convert assignment with proper mutability tracking
+fn convert_assign_stmt_with_mutable_vars(
+    target: &AssignTarget,
+    value_expr: syn::Expr,
+    type_mapper: &TypeMapper,
+    mutable_vars: &std::collections::HashSet<String>,
+) -> Result<syn::Stmt> {
     match target {
-        AssignTarget::Symbol(symbol) => convert_symbol_assignment(symbol, value_expr),
+        AssignTarget::Symbol(symbol) => convert_symbol_assignment(symbol, value_expr, mutable_vars),
         AssignTarget::Index { base, index } => {
             convert_index_assignment(base, index, value_expr, type_mapper)
         }
@@ -1583,20 +1938,21 @@ fn convert_assign_stmt_with_expr(
 
             match all_symbols {
                 Some(symbols) => {
-                    let idents: Vec<_> = symbols
+                    // DEPYLER-0713: Only add mut if variable is in mutable_vars
+                    let idents_with_mut: Vec<_> = symbols
                         .iter()
-                        .map(|s| make_ident(s))
+                        .map(|s| (make_ident(s), mutable_vars.contains(*s)))
                         .collect();
                     let pat = syn::Pat::Tuple(syn::PatTuple {
                         attrs: vec![],
                         paren_token: syn::token::Paren::default(),
-                        elems: idents
+                        elems: idents_with_mut
                             .iter()
-                            .map(|ident| {
+                            .map(|(ident, needs_mut)| {
                                 syn::Pat::Ident(syn::PatIdent {
                                     attrs: vec![],
                                     by_ref: None,
-                                    mutability: Some(syn::token::Mut::default()),
+                                    mutability: if *needs_mut { Some(syn::token::Mut::default()) } else { None },
                                     ident: ident.clone(),
                                     subpat: None,
                                 })
@@ -1692,28 +2048,86 @@ fn convert_assign_stmt_with_expr(
     }
 }
 
-#[allow(dead_code)]
-fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
-    // Use empty vararg_functions for backward compatibility
-    static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
-    convert_stmt_with_context(stmt, type_mapper, false, EMPTY.get_or_init(std::collections::HashSet::new))
+/// DEPYLER-0701: Check if an expression is "pure" (has no side effects)
+/// Pure expressions used as statements need `let _ =` to silence warnings
+fn is_pure_expression_direct(expr: &HirExpr) -> bool {
+    match expr {
+        // Bare variable references have no side effects
+        HirExpr::Var(_) => true,
+        // Literals have no side effects
+        HirExpr::Literal(_) => true,
+        // Attribute access (self.x) has no side effects
+        HirExpr::Attribute { .. } => true,
+        // Binary operations with pure operands are pure
+        HirExpr::Binary { left, right, .. } => {
+            is_pure_expression_direct(left) && is_pure_expression_direct(right)
+        }
+        // Unary operations with pure operands are pure
+        HirExpr::Unary { operand, .. } => is_pure_expression_direct(operand),
+        // Index access (arr[i]) has no side effects
+        HirExpr::Index { base, index } => {
+            is_pure_expression_direct(base) && is_pure_expression_direct(index)
+        }
+        // Tuple access is pure
+        HirExpr::Tuple(elts) => elts.iter().all(is_pure_expression_direct),
+        // Everything else (calls, method calls, etc.) may have side effects
+        _ => false,
+    }
 }
 
+#[allow(dead_code)]
+fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
+    // Use empty vararg_functions and param_types for backward compatibility
+    static EMPTY_SET: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    static EMPTY_MAP: std::sync::OnceLock<std::collections::HashMap<String, Type>> = std::sync::OnceLock::new();
+    convert_stmt_with_context(
+        stmt,
+        type_mapper,
+        false,
+        EMPTY_SET.get_or_init(std::collections::HashSet::new),
+        EMPTY_MAP.get_or_init(std::collections::HashMap::new),
+    )
+}
+
+/// DEPYLER-0713: Convert statement with proper mutability tracking
+fn convert_stmt_with_mutable_vars(
+    stmt: &HirStmt,
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
+    mutable_vars: &std::collections::HashSet<String>,
+) -> Result<syn::Stmt> {
+    match stmt {
+        HirStmt::Assign { target, value, .. } => {
+            let value_expr = convert_expr_with_param_types(value, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            convert_assign_stmt_with_mutable_vars(target, value_expr, type_mapper, mutable_vars)
+        }
+        // For all other statement types, delegate to convert_stmt_with_context
+        // They don't generate new variable bindings so mutable_vars doesn't matter
+        _ => convert_stmt_with_context(stmt, type_mapper, is_classmethod, vararg_functions, param_types),
+    }
+}
+
+/// DEPYLER-0704: Added param_types parameter for type coercion in binary operations
 fn convert_stmt_with_context(
     stmt: &HirStmt,
     type_mapper: &TypeMapper,
     is_classmethod: bool,
     vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
 ) -> Result<syn::Stmt> {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
             // For assignments, we need to convert the value expression with classmethod context
-            let value_expr = convert_expr_with_context(value, type_mapper, is_classmethod, vararg_functions)?;
+            // DEPYLER-0704: Pass param_types for type coercion
+            let value_expr = convert_expr_with_param_types(value, type_mapper, is_classmethod, vararg_functions, param_types)?;
             convert_assign_stmt_with_expr(target, value_expr, type_mapper)
         }
         HirStmt::Return(expr) => {
             let ret_expr = if let Some(e) = expr {
-                convert_expr_with_context(e, type_mapper, is_classmethod, vararg_functions)?
+                // DEPYLER-0704: Pass param_types for type coercion in return expressions
+                convert_expr_with_param_types(e, type_mapper, is_classmethod, vararg_functions, param_types)?
             } else {
                 parse_quote! { () }
             };
@@ -1727,12 +2141,12 @@ fn convert_stmt_with_context(
             then_body,
             else_body,
         } => {
-            let cond = convert_expr_with_context(condition, type_mapper, is_classmethod, vararg_functions)?;
-            let then_block = convert_block_with_context(then_body, type_mapper, is_classmethod, vararg_functions)?;
+            let cond = convert_expr_with_param_types(condition, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let then_block = convert_block_with_context(then_body, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
             let if_expr = if let Some(else_stmts) = else_body {
                 let else_block =
-                    convert_block_with_context(else_stmts, type_mapper, is_classmethod, vararg_functions)?;
+                    convert_block_with_context(else_stmts, type_mapper, is_classmethod, vararg_functions, param_types)?;
                 parse_quote! {
                     if #cond #then_block else #else_block
                 }
@@ -1745,8 +2159,8 @@ fn convert_stmt_with_context(
             Ok(syn::Stmt::Expr(if_expr, Some(Default::default())))
         }
         HirStmt::While { condition, body } => {
-            let cond = convert_expr_with_context(condition, type_mapper, is_classmethod, vararg_functions)?;
-            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions)?;
+            let cond = convert_expr_with_param_types(condition, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
             let while_expr = parse_quote! {
                 while #cond #body_block
@@ -1776,8 +2190,8 @@ fn convert_stmt_with_context(
                 _ => panic!("Unsupported for loop target type"),
             };
 
-            let iter_expr = convert_expr_with_context(iter, type_mapper, is_classmethod, vararg_functions)?;
-            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions)?;
+            let iter_expr = convert_expr_with_param_types(iter, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
             let for_expr = parse_quote! {
                 for #target_pattern in #iter_expr #body_block
@@ -1786,8 +2200,28 @@ fn convert_stmt_with_context(
             Ok(syn::Stmt::Expr(for_expr, Some(Default::default())))
         }
         HirStmt::Expr(expr) => {
-            let rust_expr = convert_expr_with_context(expr, type_mapper, is_classmethod, vararg_functions)?;
-            Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
+            // DEPYLER-0701: Detect expressions without side effects and wrap with `let _ =`
+            // to avoid "path statement with no effect" and "unused arithmetic operation" warnings
+            if is_pure_expression_direct(expr) {
+                let rust_expr = convert_expr_with_param_types(expr, type_mapper, is_classmethod, vararg_functions, param_types)?;
+                Ok(syn::Stmt::Local(syn::Local {
+                    attrs: vec![],
+                    let_token: syn::Token![let](proc_macro2::Span::call_site()),
+                    pat: syn::Pat::Wild(syn::PatWild {
+                        attrs: vec![],
+                        underscore_token: syn::Token![_](proc_macro2::Span::call_site()),
+                    }),
+                    init: Some(syn::LocalInit {
+                        eq_token: syn::Token![=](proc_macro2::Span::call_site()),
+                        expr: Box::new(rust_expr),
+                        diverge: None,
+                    }),
+                    semi_token: syn::Token![;](proc_macro2::Span::call_site()),
+                }))
+            } else {
+                let rust_expr = convert_expr_with_param_types(expr, type_mapper, is_classmethod, vararg_functions, param_types)?;
+                Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
+            }
         }
         HirStmt::Raise {
             exception,
@@ -1795,7 +2229,7 @@ fn convert_stmt_with_context(
         } => {
             // Convert to Rust panic for direct rules
             let panic_expr = if let Some(exc) = exception {
-                let exc_expr = convert_expr_with_context(exc, type_mapper, is_classmethod, vararg_functions)?;
+                let exc_expr = convert_expr_with_param_types(exc, type_mapper, is_classmethod, vararg_functions, param_types)?;
                 parse_quote! { panic!("Exception: {}", #exc_expr) }
             } else {
                 parse_quote! { panic!("Exception raised") }
@@ -1829,10 +2263,10 @@ fn convert_stmt_with_context(
             ..
         } => {
             // Convert context expression
-            let context_expr = convert_expr_with_context(context, type_mapper, is_classmethod, vararg_functions)?;
+            let context_expr = convert_expr_with_param_types(context, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
             // Convert body to a block
-            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions)?;
+            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
             // Generate a scope block with optional variable binding
             let block_expr = if let Some(var_name) = target {
@@ -1861,18 +2295,18 @@ fn convert_stmt_with_context(
             finalbody,
         } => {
             // Convert try body
-            let try_stmts = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions)?;
+            let try_stmts = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
             // Convert finally block if present
             let finally_block = finalbody
                 .as_ref()
-                .map(|fb| convert_block_with_context(fb, type_mapper, is_classmethod, vararg_functions))
+                .map(|fb| convert_block_with_context(fb, type_mapper, is_classmethod, vararg_functions, param_types))
                 .transpose()?;
 
             // Convert except handlers (use first handler for simplicity)
             if let Some(handler) = handlers.first() {
                 let handler_block =
-                    convert_block_with_context(&handler.body, type_mapper, is_classmethod, vararg_functions)?;
+                    convert_block_with_context(&handler.body, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
                 let block_expr = if let Some(finally_stmts) = finally_block {
                     parse_quote! {
@@ -1918,9 +2352,9 @@ fn convert_stmt_with_context(
         }
         HirStmt::Assert { test, msg } => {
             // Generate assert! macro call
-            let test_expr = convert_expr_with_context(test, type_mapper, is_classmethod, vararg_functions)?;
+            let test_expr = convert_expr_with_param_types(test, type_mapper, is_classmethod, vararg_functions, param_types)?;
             let assert_macro: syn::Stmt = if let Some(message) = msg {
-                let msg_expr = convert_expr_with_context(message, type_mapper, is_classmethod, vararg_functions)?;
+                let msg_expr = convert_expr_with_param_types(message, type_mapper, is_classmethod, vararg_functions, param_types)?;
                 parse_quote! { assert!(#test_expr, "{}", #msg_expr); }
             } else {
                 parse_quote! { assert!(#test_expr); }
@@ -1937,7 +2371,7 @@ fn convert_stmt_with_context(
             if stmts.is_empty() {
                 Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
             } else {
-                convert_stmt_with_context(&stmts[0], type_mapper, is_classmethod, vararg_functions)
+                convert_stmt_with_context(&stmts[0], type_mapper, is_classmethod, vararg_functions, param_types)
             }
         }
         // DEPYLER-0427: Nested function support - delegate to main rust_gen module
@@ -1952,21 +2386,181 @@ fn convert_stmt_with_context(
 #[allow(dead_code)]
 fn convert_block(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<syn::Block> {
     // Use empty vararg_functions for backward compatibility
-    static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
-    convert_block_with_context(stmts, type_mapper, false, EMPTY.get_or_init(std::collections::HashSet::new))
+    static EMPTY_SET: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    static EMPTY_MAP: std::sync::OnceLock<std::collections::HashMap<String, Type>> = std::sync::OnceLock::new();
+    convert_block_with_context(
+        stmts,
+        type_mapper,
+        false,
+        EMPTY_SET.get_or_init(std::collections::HashSet::new),
+        EMPTY_MAP.get_or_init(std::collections::HashMap::new),
+    )
 }
 
+/// DEPYLER-0704: Added param_types parameter for type coercion in binary operations
 fn convert_block_with_context(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,
     is_classmethod: bool,
     vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
 ) -> Result<syn::Block> {
-    let rust_stmts = convert_body_with_context(stmts, type_mapper, is_classmethod, vararg_functions)?;
+    let rust_stmts = convert_body_with_context(stmts, type_mapper, is_classmethod, vararg_functions, param_types)?;
     Ok(syn::Block {
         brace_token: Default::default(),
         stmts: rust_stmts,
     })
+}
+
+/// DEPYLER-0720: Convert method body block with class field type awareness
+/// This is used for class methods where we know the field types
+fn convert_method_body_block(
+    stmts: &[HirStmt],
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
+    class_field_types: &std::collections::HashMap<String, Type>,
+) -> Result<syn::Block> {
+    let rust_stmts = convert_method_body_stmts(stmts, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+    Ok(syn::Block {
+        brace_token: Default::default(),
+        stmts: rust_stmts,
+    })
+}
+
+/// DEPYLER-0720: Convert method body statements with class field type awareness
+fn convert_method_body_stmts(
+    stmts: &[HirStmt],
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
+    class_field_types: &std::collections::HashMap<String, Type>,
+) -> Result<Vec<syn::Stmt>> {
+    // DEPYLER-0713: Pre-analyze which variables need to be mutable
+    let mutable_vars = find_mutable_vars_in_body(stmts);
+
+    stmts
+        .iter()
+        .map(|stmt| convert_method_stmt(stmt, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, &mutable_vars))
+        .collect()
+}
+
+/// DEPYLER-0720: Convert a single statement with class field type awareness
+fn convert_method_stmt(
+    stmt: &HirStmt,
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
+    class_field_types: &std::collections::HashMap<String, Type>,
+    mutable_vars: &std::collections::HashSet<String>,
+) -> Result<syn::Stmt> {
+    match stmt {
+        HirStmt::Assign { target, value, .. } => {
+            let value_expr = convert_expr_with_class_fields(value, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+            convert_assign_stmt_with_mutable_vars(target, value_expr, type_mapper, mutable_vars)
+        }
+        HirStmt::Return(expr) => {
+            let ret_expr = if let Some(e) = expr {
+                convert_expr_with_class_fields(e, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?
+            } else {
+                parse_quote! { () }
+            };
+            Ok(syn::Stmt::Expr(
+                parse_quote! { return #ret_expr },
+                Some(Default::default()),
+            ))
+        }
+        HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
+            let cond = convert_expr_with_class_fields(condition, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+            let then_block = convert_method_body_block(then_body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+
+            let if_expr = if let Some(else_stmts) = else_body {
+                let else_block =
+                    convert_method_body_block(else_stmts, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+                parse_quote! {
+                    if #cond #then_block else #else_block
+                }
+            } else {
+                parse_quote! {
+                    if #cond #then_block
+                }
+            };
+
+            Ok(syn::Stmt::Expr(if_expr, Some(Default::default())))
+        }
+        HirStmt::While { condition, body } => {
+            let cond = convert_expr_with_class_fields(condition, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+
+            let while_expr = parse_quote! {
+                while #cond #body_block
+            };
+
+            Ok(syn::Stmt::Expr(while_expr, Some(Default::default())))
+        }
+        HirStmt::For { target, iter, body } => {
+            // Generate target pattern based on AssignTarget type
+            let target_pattern: syn::Pat = match target {
+                AssignTarget::Symbol(name) => {
+                    let ident = make_ident(name);
+                    parse_quote! { #ident }
+                }
+                AssignTarget::Tuple(targets) => {
+                    let idents: Vec<syn::Ident> = targets
+                        .iter()
+                        .map(|t| match t {
+                            AssignTarget::Symbol(s) => {
+                                make_ident(s)
+                            }
+                            _ => panic!("Nested tuple unpacking not supported in for loops"),
+                        })
+                        .collect();
+                    parse_quote! { (#(#idents),*) }
+                }
+                _ => panic!("Unsupported for loop target type"),
+            };
+
+            let iter_expr = convert_expr_with_class_fields(iter, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+
+            let for_expr = parse_quote! {
+                for #target_pattern in #iter_expr #body_block
+            };
+
+            Ok(syn::Stmt::Expr(for_expr, Some(Default::default())))
+        }
+        HirStmt::Expr(expr) => {
+            if is_pure_expression_direct(expr) {
+                let rust_expr = convert_expr_with_class_fields(expr, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+                Ok(syn::Stmt::Local(syn::Local {
+                    attrs: vec![],
+                    let_token: syn::Token![let](proc_macro2::Span::call_site()),
+                    pat: syn::Pat::Wild(syn::PatWild {
+                        attrs: vec![],
+                        underscore_token: syn::Token![_](proc_macro2::Span::call_site()),
+                    }),
+                    init: Some(syn::LocalInit {
+                        eq_token: syn::Token![=](proc_macro2::Span::call_site()),
+                        expr: Box::new(rust_expr),
+                        diverge: None,
+                    }),
+                    semi_token: syn::Token![;](proc_macro2::Span::call_site()),
+                }))
+            } else {
+                let rust_expr = convert_expr_with_class_fields(expr, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+                Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
+            }
+        }
+        // For other statement types, fall back to existing conversion
+        _ => convert_stmt_with_context(stmt, type_mapper, is_classmethod, vararg_functions, param_types),
+    }
 }
 
 /// Convert HIR expressions to Rust expressions using strategy pattern
@@ -1989,6 +2583,42 @@ fn convert_expr_with_context(
     converter.convert(expr)
 }
 
+/// DEPYLER-0704: Convert HIR expressions with parameter type information for type coercion
+fn convert_expr_with_param_types(
+    expr: &HirExpr,
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
+) -> Result<syn::Expr> {
+    let converter = ExprConverter::with_param_types(
+        type_mapper,
+        is_classmethod,
+        vararg_functions,
+        param_types.clone(),
+    );
+    converter.convert(expr)
+}
+
+/// DEPYLER-0720: Convert HIR expressions with class field types for self.field coercion
+fn convert_expr_with_class_fields(
+    expr: &HirExpr,
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
+    class_field_types: &std::collections::HashMap<String, Type>,
+) -> Result<syn::Expr> {
+    let converter = ExprConverter::with_class_fields(
+        type_mapper,
+        is_classmethod,
+        vararg_functions,
+        param_types.clone(),
+        class_field_types.clone(),
+    );
+    converter.convert(expr)
+}
+
 /// Expression converter using strategy pattern to reduce complexity
 struct ExprConverter<'a> {
     #[allow(dead_code)]
@@ -1997,6 +2627,11 @@ struct ExprConverter<'a> {
     /// DEPYLER-0648: Track functions that have vararg parameters (*args in Python)
     /// Call sites need to wrap arguments in &[...] slices
     vararg_functions: &'a std::collections::HashSet<String>,
+    /// DEPYLER-0704: Parameter types for type coercion in binary operations
+    param_types: std::collections::HashMap<String, Type>,
+    /// DEPYLER-0720: Class field types for self.field attribute access
+    /// Maps field name -> Type, used to determine if self.X is float for int-to-float coercion
+    class_field_types: std::collections::HashMap<String, Type>,
 }
 
 impl<'a> ExprConverter<'a> {
@@ -2008,6 +2643,8 @@ impl<'a> ExprConverter<'a> {
             type_mapper,
             is_classmethod: false,
             vararg_functions: EMPTY.get_or_init(std::collections::HashSet::new),
+            param_types: std::collections::HashMap::new(),
+            class_field_types: std::collections::HashMap::new(),
         }
     }
 
@@ -2019,6 +2656,8 @@ impl<'a> ExprConverter<'a> {
             type_mapper,
             is_classmethod,
             vararg_functions: EMPTY.get_or_init(std::collections::HashSet::new),
+            param_types: std::collections::HashMap::new(),
+            class_field_types: std::collections::HashMap::new(),
         }
     }
 
@@ -2032,6 +2671,87 @@ impl<'a> ExprConverter<'a> {
             type_mapper,
             is_classmethod,
             vararg_functions,
+            param_types: std::collections::HashMap::new(),
+            class_field_types: std::collections::HashMap::new(),
+        }
+    }
+
+    /// DEPYLER-0704: Create converter with parameter types for type coercion
+    fn with_param_types(
+        type_mapper: &'a TypeMapper,
+        is_classmethod: bool,
+        vararg_functions: &'a std::collections::HashSet<String>,
+        param_types: std::collections::HashMap<String, Type>,
+    ) -> Self {
+        Self {
+            type_mapper,
+            is_classmethod,
+            vararg_functions,
+            param_types,
+            class_field_types: std::collections::HashMap::new(),
+        }
+    }
+
+    /// DEPYLER-0720: Create converter with class field types for self.field access
+    fn with_class_fields(
+        type_mapper: &'a TypeMapper,
+        is_classmethod: bool,
+        vararg_functions: &'a std::collections::HashSet<String>,
+        param_types: std::collections::HashMap<String, Type>,
+        class_field_types: std::collections::HashMap<String, Type>,
+    ) -> Self {
+        Self {
+            type_mapper,
+            is_classmethod,
+            vararg_functions,
+            param_types,
+            class_field_types,
+        }
+    }
+
+    /// DEPYLER-0704: Check if expression returns a float type
+    /// DEPYLER-0720: Extended to check class field types for self.field patterns
+    fn expr_returns_float_direct(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Literal(Literal::Float(_)) => true,
+            HirExpr::Var(name) => {
+                // Check param_types
+                matches!(self.param_types.get(name), Some(Type::Float))
+            }
+            // DEPYLER-0720: Check class field types for self.field attribute access
+            HirExpr::Attribute { value, attr } => {
+                // Check if this is self.field pattern where field is a float
+                if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                    if matches!(self.class_field_types.get(attr), Some(Type::Float)) {
+                        return true;
+                    }
+                }
+                false
+            }
+            HirExpr::Binary { left, right, .. } => {
+                // Binary with float operand returns float
+                self.expr_returns_float_direct(left) || self.expr_returns_float_direct(right)
+            }
+            HirExpr::MethodCall { method, .. } => {
+                // Common float-returning methods
+                matches!(
+                    method.as_str(),
+                    "mean" | "sum" | "std" | "norm" | "variance"
+                )
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0704: Check if expression is an integer type
+    fn is_int_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Literal(Literal::Int(_)) => true,
+            HirExpr::Var(name) => {
+                // Check param_types
+                matches!(self.param_types.get(name), Some(Type::Int))
+            }
+            _ => false,
         }
     }
 
@@ -2253,7 +2973,24 @@ impl<'a> ExprConverter<'a> {
                     // Default multiplication
                     _ => {
                         let rust_op = convert_binop(op)?;
-                        Ok(parse_quote! { #left_expr #rust_op #right_expr })
+                        // DEPYLER-0704: Type coercion for mixed int/float multiplication
+                        // Rust doesn't auto-coerce, so we need explicit casts
+                        let left_is_float = self.expr_returns_float_direct(left);
+                        let right_is_float = self.expr_returns_float_direct(right);
+                        let left_is_int = self.is_int_expr(left);
+                        let right_is_int = self.is_int_expr(right);
+
+                        let final_left = if right_is_float && left_is_int {
+                            parse_quote! { (#left_expr as f64) }
+                        } else {
+                            left_expr
+                        };
+                        let final_right = if left_is_float && right_is_int {
+                            parse_quote! { (#right_expr as f64) }
+                        } else {
+                            right_expr
+                        };
+                        Ok(parse_quote! { #final_left #rust_op #final_right })
                     }
                 }
             }
@@ -2263,6 +3000,23 @@ impl<'a> ExprConverter<'a> {
                 // For floats: use .powf() with f64 exponent
                 // For negative integer exponents: convert to float
 
+                // DEPYLER-0699: Wrap expressions in block to ensure correct operator precedence
+                // Without this, `a + b as f64` parses as `a + (b as f64)` instead of `(a + b) as f64`
+                // DEPYLER-0707: Construct block directly instead of using parse_quote!
+                // parse_quote! re-parses tokens which can fail with complex expressions
+                fn wrap_expr_in_block(expr: syn::Expr) -> syn::Expr {
+                    syn::Expr::Block(syn::ExprBlock {
+                        attrs: vec![],
+                        label: None,
+                        block: syn::Block {
+                            brace_token: syn::token::Brace::default(),
+                            stmts: vec![syn::Stmt::Expr(expr, None)],
+                        },
+                    })
+                }
+                let left_paren = wrap_expr_in_block(left_expr.clone());
+                let right_paren = wrap_expr_in_block(right_expr.clone());
+
                 // Check if we have literals to determine types
                 match (left, right) {
                     // Integer literal base with integer literal exponent
@@ -2270,7 +3024,7 @@ impl<'a> ExprConverter<'a> {
                         if *exp < 0 {
                             // Negative exponent: convert to float operation
                             Ok(parse_quote! {
-                                (#left_expr as f64).powf(#right_expr as f64)
+                                (#left_paren as f64).powf(#right_paren as f64)
                             })
                         } else {
                             // Positive integer exponent: use .pow() with u32
@@ -2284,12 +3038,12 @@ impl<'a> ExprConverter<'a> {
                     // Float literal base: always use .powf()
                     // DEPYLER-0408: Cast float literal to f64 for concrete type
                     (HirExpr::Literal(Literal::Float(_)), _) => Ok(parse_quote! {
-                        (#left_expr as f64).powf(#right_expr as f64)
+                        (#left_paren as f64).powf(#right_paren as f64)
                     }),
                     // Any base with float exponent: use .powf()
                     // DEPYLER-0408: Cast float literal exponent to f64 for concrete type
                     (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
-                        (#left_expr as f64).powf(#right_expr as f64)
+                        (#left_paren as f64).powf(#right_paren as f64)
                     }),
                     // Variables or complex expressions: generate type-safe code
                     _ => {
@@ -2300,17 +3054,44 @@ impl<'a> ExprConverter<'a> {
                             {
                                 // Try integer power first if exponent can be u32
                                 if #right_expr >= 0 && (#right_expr as i64) <= (u32::MAX as i64) {
-                                    (#left_expr as i32).checked_pow(#right_expr as u32)
+                                    (#left_paren as i32).checked_pow(#right_paren as u32)
                                         .expect("Power operation overflowed")
                                 } else {
                                     // Fall back to float power for negative or large exponents
                                     // DEPYLER-0401: Use i32 to match common Python int mapping
-                                    (#left_expr as f64).powf(#right_expr as f64) as i32
+                                    (#left_paren as f64).powf(#right_paren as f64) as i32
                                 }
                             }
                         })
                     }
                 }
+            }
+            // DEPYLER-0720: Handle comparison operators with int-to-float coercion
+            BinOp::Gt | BinOp::GtEq | BinOp::Lt | BinOp::LtEq | BinOp::Eq | BinOp::NotEq => {
+                let rust_op = convert_binop(op)?;
+
+                // Check if either side is float
+                let left_is_float = self.expr_returns_float_direct(left);
+                let right_is_float = self.expr_returns_float_direct(right);
+
+                // If left is float and right is integer literal, convert right to float
+                if left_is_float {
+                    if let HirExpr::Literal(Literal::Int(n)) = right {
+                        let float_val = *n as f64;
+                        return Ok(parse_quote! { #left_expr #rust_op #float_val });
+                    }
+                }
+
+                // If right is float and left is integer literal, convert left to float
+                if right_is_float {
+                    if let HirExpr::Literal(Literal::Int(n)) = left {
+                        let float_val = *n as f64;
+                        return Ok(parse_quote! { #float_val #rust_op #right_expr });
+                    }
+                }
+
+                // No coercion needed
+                Ok(parse_quote! { #left_expr #rust_op #right_expr })
             }
             _ => {
                 let rust_op = convert_binop(op)?;
@@ -2364,7 +3145,9 @@ impl<'a> ExprConverter<'a> {
             bail!("len() requires exactly one argument");
         }
         let arg = &args[0];
-        Ok(parse_quote! { #arg.len() })
+        // DEPYLER-0693: Cast len() to i32 for Python compatibility
+        // Python int maps to Rust i32, and len() in Python returns int
+        Ok(parse_quote! { #arg.len() as i32 })
     }
 
     fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -2397,64 +3180,25 @@ impl<'a> ExprConverter<'a> {
             bail!("{} requires at least one argument", func);
         }
 
-        // Extract size from first argument if it's a literal
-        if let HirExpr::Literal(Literal::Int(size)) = &args[0] {
-            if *size > 0 && *size <= 32 {
-                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                match func {
-                    "zeros" => Ok(parse_quote! { [0; #size_lit] }),
-                    "ones" => Ok(parse_quote! { [1; #size_lit] }),
-                    "full" => {
-                        if args.len() >= 2 {
-                            let value = self.convert(&args[1])?;
-                            Ok(parse_quote! { [#value; #size_lit] })
-                        } else {
-                            bail!("full() requires a value argument");
-                        }
-                    }
-                    _ => unreachable!(),
-                }
-            } else {
-                // For large arrays or dynamic sizes, fall back to vec!
-                match func {
-                    "zeros" => {
-                        let size_expr = self.convert(&args[0])?;
-                        Ok(parse_quote! { vec![0; #size_expr as usize] })
-                    }
-                    "ones" => {
-                        let size_expr = self.convert(&args[0])?;
-                        Ok(parse_quote! { vec![1; #size_expr as usize] })
-                    }
-                    "full" => {
-                        if args.len() >= 2 {
-                            let size_expr = self.convert(&args[0])?;
-                            let value = self.convert(&args[1])?;
-                            Ok(parse_quote! { vec![#value; #size_expr as usize] })
-                        } else {
-                            bail!("full() requires a value argument");
-                        }
-                    }
-                    _ => unreachable!(),
+        // DEPYLER-0695: Always use vec![] for zeros/ones/full to ensure consistent
+        // Vec<T> return type. Using fixed arrays [0; N] causes type mismatches when
+        // functions return Vec<T> (Python lists are always dynamically sized).
+        let size_expr = self.convert(&args[0])?;
+        match func {
+            "zeros" => Ok(parse_quote! { vec![0; #size_expr as usize] }),
+            "ones" => Ok(parse_quote! { vec![1; #size_expr as usize] }),
+            "full" => {
+                if args.len() >= 2 {
+                    let value = self.convert(&args[1])?;
+                    Ok(parse_quote! { vec![#value; #size_expr as usize] })
+                } else {
+                    bail!("full() requires a value argument");
                 }
             }
-        } else {
-            // Dynamic size - use vec!
-            let size_expr = self.convert(&args[0])?;
-            match func {
-                "zeros" => Ok(parse_quote! { vec![0; #size_expr as usize] }),
-                "ones" => Ok(parse_quote! { vec![1; #size_expr as usize] }),
-                "full" => {
-                    if args.len() >= 2 {
-                        let value = self.convert(&args[1])?;
-                        Ok(parse_quote! { vec![#value; #size_expr as usize] })
-                    } else {
-                        bail!("full() requires a value argument");
-                    }
-                }
-                _ => unreachable!(),
-            }
+            _ => unreachable!(),
         }
     }
+
 
     fn convert_set_constructor(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
@@ -2612,9 +3356,10 @@ impl<'a> ExprConverter<'a> {
                 return Ok(parse_quote! { !#arg.is_empty() });
             }
             "len" if args.len() == 1 => {
-                // len(x) → x.len()
+                // len(x) → x.len() as i32
+                // DEPYLER-0693: Cast len() to i32 for Python compatibility
                 let arg = &args[0];
-                return Ok(parse_quote! { #arg.len() });
+                return Ok(parse_quote! { #arg.len() as i32 });
             }
             "abs" if args.len() == 1 => {
                 // abs(x) → x.abs()
@@ -3436,11 +4181,13 @@ impl<'a> ExprConverter<'a> {
 
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
+            // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
+            // because filter() receives &Item, but Python expects the value directly
             let cond_expr = self.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|#target_pat| #cond_expr)
+                    .filter(|&#target_pat| #cond_expr)
                     .map(|#target_pat| #element_expr)
                     .collect::<Vec<_>>()
             })
@@ -3468,11 +4215,12 @@ impl<'a> ExprConverter<'a> {
 
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
+            // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
             let cond_expr = self.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|#target_pat| #cond_expr)
+                    .filter(|&#target_pat| #cond_expr)
                     .map(|#target_pat| #element_expr)
                     .collect::<HashSet<_>>()
             })
@@ -3901,11 +4649,12 @@ impl<'a> ExprConverter<'a> {
 
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
+            // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
             let cond_expr = self.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|#target_pat| #cond_expr)
+                    .filter(|&#target_pat| #cond_expr)
                     .map(|#target_pat| (#key_expr, #value_expr))
                     .collect::<HashMap<_, _>>()
             })
@@ -4233,8 +4982,9 @@ mod tests {
         };
 
         let result = converter.convert(&call_expr).unwrap();
-        // Should generate a method call expression
-        assert!(matches!(result, syn::Expr::MethodCall(_)));
+        // DEPYLER-0693: len() generates `arg.len() as i32` for Python compatibility
+        // This is a Cast expression containing a MethodCall
+        assert!(matches!(result, syn::Expr::Cast(_)));
     }
 
     #[test]
@@ -4292,7 +5042,7 @@ mod tests {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
 
-        // zeros(5) should generate [0; 5]
+        // DEPYLER-0695: zeros(5) generates vec![0; 5] for consistent Vec<T> return type
         let zeros_call = HirExpr::Call {
             func: "zeros".to_string(),
             args: vec![HirExpr::Literal(Literal::Int(5))],
@@ -4300,7 +5050,8 @@ mod tests {
         };
 
         let result = converter.convert(&zeros_call).unwrap();
-        assert!(matches!(result, syn::Expr::Repeat(_)));
+        // vec![] generates a Macro expression
+        assert!(matches!(result, syn::Expr::Macro(_)));
     }
 
     #[test]
