@@ -7,8 +7,9 @@ use depyler::{
     lambda_analyze_command, lambda_build_command, lambda_convert_command, lambda_deploy_command,
     lambda_test_command, lsp_command, oracle_classify_command, oracle_export_oip_command,
     oracle_improve_command, oracle_optimize_command, oracle_show_command, oracle_train_command,
-    profile_cmd::handle_profile_command, quality_check_command, transpile_command, AgentCommands,
-    Cli, Commands, LambdaCommands, OracleCommands,
+    profile_cmd::handle_profile_command, quality_check_command,
+    report_cmd::{handle_report_command, ReportArgs},
+    transpile_command, AgentCommands, Cli, Commands, LambdaCommands, OracleCommands,
 };
 use std::path::PathBuf;
 
@@ -393,6 +394,22 @@ async fn handle_command(command: Commands) -> Result<()> {
             include_classes,
             include_pytest,
         } => extract_doctests_command(input, output, module_prefix, include_classes, include_pytest),
+        Commands::Report {
+            corpus,
+            format,
+            output,
+            skip_clean,
+            target_rate,
+        } => {
+            let args = ReportArgs {
+                corpus,
+                format,
+                output,
+                skip_clean,
+                target_rate,
+            };
+            handle_report_command(args)
+        }
     }
 }
 
