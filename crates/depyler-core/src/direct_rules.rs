@@ -922,6 +922,33 @@ fn infer_expr_type_with_fields(expr: &HirExpr, fields: &[HirField]) -> Type {
             }
             Type::Unknown
         }
+        // DEPYLER-0736: Handle constructor calls like Point(...) or Self::new(...)
+        // In static methods, return ClassName(...) should infer return type as ClassName
+        HirExpr::Call { func, .. } => {
+            // Check if func looks like a constructor (capitalized name or Self::new)
+            let class_name = if func.starts_with("Self::") || func == "Self" {
+                // Self::new() or Self() - return Self type
+                // Note: We can't know the actual class name here, but Type::Custom("Self")
+                // will be mapped correctly when generating code
+                Some("Self".to_string())
+            } else if func.chars().next().is_some_and(|c| c.is_uppercase()) {
+                // Capitalized name like Point, MyClass - likely a constructor
+                // Handle both Point and Point::new patterns
+                let base_name = func.split("::").next().unwrap_or(func);
+                Some(base_name.to_string())
+            } else if func == "cls" {
+                // cls() in classmethod - return Self
+                Some("Self".to_string())
+            } else {
+                None
+            };
+
+            if let Some(name) = class_name {
+                Type::Custom(name)
+            } else {
+                Type::Unknown
+            }
+        }
         _ => Type::Unknown,
     }
 }
