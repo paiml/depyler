@@ -2745,9 +2745,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         let iterable = &args[0];
         // Simplified: ignore key/reverse parameters for now
+        // DEPYLER-0733: Use .iter().cloned() instead of .into_iter() to produce Vec<T> not Vec<&T>
+        // When iterable is &Vec<T>, .into_iter() yields &T references, causing type mismatch.
+        // .iter().cloned() properly clones elements to produce owned Vec<T>.
         Ok(parse_quote! {
             {
-                let mut sorted_vec = #iterable.into_iter().collect::<Vec<_>>();
+                let mut sorted_vec = #iterable.iter().cloned().collect::<Vec<_>>();
                 sorted_vec.sort();
                 sorted_vec
             }
