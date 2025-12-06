@@ -2,8 +2,12 @@
 //!
 //! Handles parallel compilation of Python examples through the transpiler
 //! and collects structured error information.
+//!
+//! Uses Cargo-First compilation strategy (DEPYLER-CARGO-FIRST) to ensure
+//! proper dependency resolution for all generated Rust code.
 
 use anyhow::Result;
+use depyler_core::cargo_first;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -229,40 +233,73 @@ impl BatchCompiler {
         }
     }
 
-    /// Compile using rustc directly (for standalone files without dependencies)
+    /// Compile using Cargo-First approach (DEPYLER-CARGO-FIRST)
+    ///
+    /// Uses ephemeral Cargo workspace for accurate verification with
+    /// proper dependency resolution. This eliminates false-positive
+    /// "missing crate" errors that plagued bare rustc.
     async fn compile_with_rustc(
         &self,
         rust_file: &Path,
     ) -> std::result::Result<(), Vec<CompilationError>> {
-        use std::process::Command;
+        // Read the Rust source code
+        let rust_code = std::fs::read_to_string(rust_file).map_err(|e| {
+            vec![CompilationError {
+                code: "IO".to_string(),
+                message: e.to_string(),
+                file: rust_file.to_path_buf(),
+                line: 0,
+                column: 0,
+            }]
+        })?;
 
-        let output = Command::new("rustc")
-            .arg("--crate-type")
-            .arg("lib")
-            .arg("--edition")
-            .arg("2021")
-            .arg("--deny")
-            .arg("warnings")
-            .arg(rust_file)
-            .arg("-o")
-            .arg("/dev/null")
-            .output()
-            .map_err(|e| {
-                vec![CompilationError {
-                    code: "IO".to_string(),
-                    message: e.to_string(),
-                    file: rust_file.to_path_buf(),
-                    line: 0,
-                    column: 0,
-                }]
-            })?;
+        // Use Cargo-First compilation strategy
+        let name = rust_file
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("verification_target");
 
-        if output.status.success() {
-            Ok(())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let errors = self.parse_rustc_errors(&stderr, rust_file);
-            Err(errors)
+        match cargo_first::compile_with_cargo(name, &rust_code, None) {
+            Ok(result) if result.success => Ok(()),
+            Ok(result) => {
+                // Convert CompilerError to CompilationError
+                let errors = result
+                    .errors
+                    .into_iter()
+                    .filter(|e| e.is_semantic) // Only report semantic errors
+                    .map(|e| CompilationError {
+                        code: e.code.unwrap_or_else(|| "E????".to_string()),
+                        message: e.message,
+                        file: rust_file.to_path_buf(),
+                        line: e.span.as_ref().map(|s| s.line_start as usize).unwrap_or(0),
+                        column: e
+                            .span
+                            .as_ref()
+                            .map(|s| s.column_start as usize)
+                            .unwrap_or(0),
+                    })
+                    .collect::<Vec<_>>();
+
+                if errors.is_empty() {
+                    // All errors were dependency-related (shouldn't happen with Cargo-First)
+                    Err(vec![CompilationError {
+                        code: "CARGO".to_string(),
+                        message: result.stderr,
+                        file: rust_file.to_path_buf(),
+                        line: 0,
+                        column: 0,
+                    }])
+                } else {
+                    Err(errors)
+                }
+            }
+            Err(e) => Err(vec![CompilationError {
+                code: "CARGO".to_string(),
+                message: e.to_string(),
+                file: rust_file.to_path_buf(),
+                line: 0,
+                column: 0,
+            }]),
         }
     }
 

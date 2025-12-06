@@ -4,10 +4,14 @@
 //! Provides immediate visibility into system state and automatic
 //! escalation on failure.
 //!
+//! Uses Cargo-First compilation strategy (DEPYLER-CARGO-FIRST) for
+//! accurate verification with proper dependency resolution.
+//!
 //! Reference: Baudin, M. (2007). Working with Machines
 
 use super::isolator::ReproCase;
 use super::repair::Fix;
+use crate::cargo_first;
 
 /// Result of verification
 #[derive(Debug, Clone)]
@@ -135,7 +139,7 @@ impl AndonVerifier {
     /// Verify a fix and commit if successful
     ///
     /// Andon: Immediate visibility and escalation on failure.
-    pub fn verify_and_commit(&mut self, fix: &Fix, repro: &ReproCase) -> anyhow::Result<VerifyResult> {
+    pub fn verify_and_commit(&mut self, fix: &Fix, _repro: &ReproCase) -> anyhow::Result<VerifyResult> {
         self.total_verified += 1;
 
         // Step 1: Compile the fixed output
@@ -190,22 +194,18 @@ impl AndonVerifier {
         }
     }
 
-    /// Try to compile Rust code
+    /// Try to compile Rust code using Cargo-First approach
+    ///
+    /// DEPYLER-CARGO-FIRST: Uses ephemeral Cargo workspace for accurate
+    /// verification with proper dependency resolution. This eliminates
+    /// false-positive "missing crate" errors that plagued bare rustc.
     fn try_compile(&self, rust_code: &str) -> Result<(), String> {
-        // In real implementation:
-        // 1. Write rust_code to temp file
-        // 2. Run rustc --crate-type lib --edition 2021
-        // 3. Check exit code
-
-        // For now, simulate compilation
         if rust_code.is_empty() {
-            // Empty code always "passes" (would be filled in real impl)
-            Ok(())
-        } else if rust_code.contains("COMPILE_ERROR") {
-            Err("Simulated compilation error".to_string())
-        } else {
-            Ok(())
+            return Ok(());
         }
+
+        // Use Cargo-First compilation strategy
+        cargo_first::quick_check("verification_target", rust_code, None)
     }
 
     /// Run property tests
@@ -296,7 +296,6 @@ impl Default for AndonVerifier {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::super::repair::PatchLocation;
 
     fn create_test_fix() -> Fix {
         Fix {
