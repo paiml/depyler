@@ -10424,10 +10424,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(serde_json::json!(#default)) }
                         }
                     } else if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(_)))) {
-                        // String literal default - use bare literal (already &str)
+                        // DEPYLER-0729: String literal default
+                        // Check if dict value type is String (needs .to_string()) or &str (bare literal ok)
+                        let dict_value_is_string = self.dict_value_type_is_string(hir_object);
                         if let HirExpr::Literal(Literal::String(s)) = &hir_args[1] {
                             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                            parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#lit) }
+                            if dict_value_is_string {
+                                // HashMap<K, String>.get().cloned() returns Option<String>
+                                // unwrap_or needs String, so convert literal
+                                parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#lit.to_string()) }
+                            } else {
+                                // HashMap<K, &str> or unknown - use bare literal
+                                parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#lit) }
+                            }
                         } else {
                             parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(#default) }
                         }
@@ -13640,16 +13649,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Homogeneous dict: use HashMap
         self.ctx.needs_hashmap = true;
 
+        // DEPYLER-0729: Check if target dict value type is String
+        // If so, string literal values need .to_string() conversion
+        let value_type_is_string = self
+            .ctx
+            .current_assign_type
+            .as_ref()
+            .map(|t| matches!(t, Type::Dict(_, v) if matches!(v.as_ref(), Type::String)))
+            .unwrap_or(false);
+
         let mut insert_stmts = Vec::new();
         for (key, value) in items {
             let mut key_expr = key.to_rust_expr(self.ctx)?;
-            let val_expr = value.to_rust_expr(self.ctx)?;
+            let mut val_expr = value.to_rust_expr(self.ctx)?;
 
             // DEPYLER-0270 FIX: ALWAYS convert string literal keys to owned Strings
             // Dict literals should use HashMap<String, V> not HashMap<&str, V>
             // This ensures they can be passed to functions expecting HashMap<String, V>
             if matches!(key, HirExpr::Literal(Literal::String(_))) {
                 key_expr = parse_quote! { #key_expr.to_string() };
+            }
+
+            // DEPYLER-0729: Convert string literal values to String when target type requires it
+            // HashMap<K, String> needs String values, not &str literals
+            if value_type_is_string && matches!(value, HirExpr::Literal(Literal::String(_))) {
+                val_expr = parse_quote! { #val_expr.to_string() };
             }
 
             insert_stmts.push(quote! { map.insert(#key_expr, #val_expr); });
@@ -14984,6 +15008,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Fallback: if serde_json is in use, assume might be Value type
                 self.ctx.needs_serde_json
             }
+        }
+    }
+
+    /// DEPYLER-0729: Check if dict value type is String (not &str)
+    /// Used to determine if string literal defaults in dict.get() need .to_string()
+    fn dict_value_type_is_string(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Var(name) => {
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    matches!(var_type, Type::Dict(_, ref v) if matches!(**v, Type::String))
+                } else {
+                    false
+                }
+            }
+            HirExpr::MethodCall { object, .. } => self.dict_value_type_is_string(object),
+            HirExpr::Index { base, .. } => self.dict_value_type_is_string(base),
+            _ => false,
         }
     }
 
