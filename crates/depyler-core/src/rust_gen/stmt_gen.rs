@@ -3481,6 +3481,25 @@ pub(crate) fn codegen_assign_stmt(
             _ => (target_type, false),
         };
 
+        // DEPYLER-0719: When type annotation is bare `tuple` (empty tuple), infer from
+        // function call return type. Python `x: tuple = func()` should use func's return type.
+        let actual_type = if matches!(actual_type, Type::Tuple(elems) if elems.is_empty()) {
+            // Check if value is a function call
+            if let HirExpr::Call { func, .. } = value {
+                // Look up function return type
+                if let Some(ret_type) = ctx.function_return_types.get(func) {
+                    // Use the function's actual return type instead of empty tuple
+                    ret_type
+                } else {
+                    actual_type
+                }
+            } else {
+                actual_type
+            }
+        } else {
+            actual_type
+        };
+
         let target_rust_type = ctx.type_mapper.map_type(actual_type);
         let target_syn_type = rust_type_to_syn(&target_rust_type)?;
 
