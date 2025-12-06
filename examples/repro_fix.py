@@ -1,16 +1,16 @@
-# Repro case: DEPYLER-0725 - Any type maps to serde_json::Value
+# Repro case: E0308 - Dict literal values not wrapped in serde_json::Value
 # Target: DEPYLER-204 (Hunt Mode single-shot compilation)
-# Verifies: Dict[str, Any] -> HashMap<String, serde_json::Value> (not generic T: Clone)
+# Pattern: {"a": 1} with Dict[str, Any] -> insert(1) instead of insert(Value::from(1))
 
 from typing import Dict, Any
 
-def get_keys(data: Dict[str, Any]) -> int:
-    """Get number of keys in a dict."""
-    return len(data)
+def create_dict() -> Dict[str, Any]:
+    """Create a simple dict."""
+    return {"a": 1, "b": 2}
 
 def main() -> None:
-    count = get_keys({})
-    print(f"Keys: {count}")
+    d = create_dict()
+    print(f"Dict: {d:?}")
 
 if __name__ == "__main__":
     main()
