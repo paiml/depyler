@@ -6479,6 +6479,18 @@ fn codegen_nested_function_def(
     let saved_can_fail = ctx.current_function_can_fail;
     ctx.current_function_can_fail = false;
 
+    // DEPYLER-0731: Save and restore return type for nested functions
+    // Without this, nested function body uses outer function's return type,
+    // causing `return x * 2` to become `return;` when outer returns None
+    let saved_return_type = ctx.current_return_type.take();
+    ctx.current_return_type = Some(ret_type.clone());
+
+    // DEPYLER-0731: Save and restore is_main_function for nested functions
+    // Without this, nested function inside main() would trigger main-specific
+    // return handling (DEPYLER-0617) that discards the return value
+    let saved_is_main = ctx.is_main_function;
+    ctx.is_main_function = false;
+
     // DEPYLER-0687: Enter new scope for nested function body
     // This isolates variable declarations so they don't leak between closures.
     // Without this, a variable like `result` declared in one closure would be
@@ -6496,11 +6508,15 @@ fn codegen_nested_function_def(
         .map(|stmt| stmt.to_rust_tokens(ctx))
         .collect::<Result<Vec<_>>>()?;
 
-    // Exit scope before restoring can_fail
+    // Exit scope before restoring context
     ctx.exit_scope();
 
     // Restore can_fail flag
     ctx.current_function_can_fail = saved_can_fail;
+
+    // DEPYLER-0731: Restore outer function's return type and is_main flag
+    ctx.current_return_type = saved_return_type;
+    ctx.is_main_function = saved_is_main;
 
     // GH-70 FIX: Generate as closure instead of fn item
     // Closures can be returned as values and have better type inference
