@@ -202,9 +202,9 @@ impl TypeMapper {
                         "bytes" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
                         // DEPYLER-0674: Python bytearray type maps to Vec<u8>
                         "bytearray" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
-                        // DEPYLER-0584: Python Callable type maps to Box<dyn Fn>
+                        // DEPYLER-0734: Python Callable type maps to impl Fn
                         "Callable" | "typing.Callable" | "callable" => {
-                            RustType::Custom("Box<dyn Fn()>".to_string())
+                            RustType::Custom("impl Fn()".to_string())
                         }
                         // DEPYLER-0589: Python Any type maps to serde_json::Value
                         // Both typing.Any and bare 'any' need to be handled
@@ -280,9 +280,9 @@ impl TypeMapper {
                         let item_type = self.map_type(&params[0]);
                         RustType::Custom(format!("impl IntoIterator<Item={}>", item_type.to_rust_string()))
                     }
-                    // DEPYLER-197: Callable[[T1, T2, ...], R] -> Box<dyn Fn(T1, T2, ...) -> R>
-                    // Python Callable types map to boxed trait objects for dynamic dispatch
-                    // This enables type aliases like `EventHandler = Callable[[str], None]`
+                    // DEPYLER-0734: Callable[[T1, T2, ...], R] -> impl Fn(T1, T2, ...) -> R
+                    // Python Callable types map to impl Fn for ergonomic closures without boxing
+                    // This allows passing closures directly without Box::new() wrapping
                     "Callable" if params.len() == 2 => {
                         // params[0] is the parameter list type (may be Tuple, List, or single type)
                         // params[1] is the return type
@@ -301,17 +301,18 @@ impl TypeMapper {
                         let return_type = self.map_type(&params[1]);
                         let return_str = return_type.to_rust_string();
 
-                        // Format: Box<dyn Fn(T1, T2) -> R> or Box<dyn Fn()> for None return
+                        // DEPYLER-0734: Format: impl Fn(T1, T2) -> R or impl Fn() for None return
+                        // Using impl Fn allows closures to be passed without Box::new()
                         let fn_str = if return_str == "()" || matches!(params[1], PythonType::None) {
-                            format!("Box<dyn Fn({})>", param_types.join(", "))
+                            format!("impl Fn({})", param_types.join(", "))
                         } else {
-                            format!("Box<dyn Fn({}) -> {}>", param_types.join(", "), return_str)
+                            format!("impl Fn({}) -> {}", param_types.join(", "), return_str)
                         };
                         RustType::Custom(fn_str)
                     }
                     "Callable" if params.is_empty() => {
-                        // Bare Callable without parameters -> Box<dyn Fn()>
-                        RustType::Custom("Box<dyn Fn()>".to_string())
+                        // DEPYLER-0734: Bare Callable without parameters -> impl Fn()
+                        RustType::Custom("impl Fn()".to_string())
                     }
                     _ => RustType::Generic {
                         base: base.clone(),
@@ -804,14 +805,15 @@ mod tests {
     }
 
     #[test]
-    fn test_depyler_0589_callable_type_mapping() {
-        // DEPYLER-0589: Python `callable` and `Callable` should map to Box<dyn Fn()>
+    fn test_depyler_0734_callable_type_mapping() {
+        // DEPYLER-0734: Python `callable` and `Callable` should map to impl Fn()
+        // Using impl Fn allows closures to be passed directly without Box::new()
         let mapper = TypeMapper::new();
 
         // Lowercase 'callable'
         let callable_lower = PythonType::Custom("callable".to_string());
         if let RustType::Custom(name) = mapper.map_type(&callable_lower) {
-            assert_eq!(name, "Box<dyn Fn()>");
+            assert_eq!(name, "impl Fn()");
         } else {
             panic!("Expected Custom type for 'callable'");
         }
@@ -819,7 +821,7 @@ mod tests {
         // Uppercase 'Callable'
         let callable_upper = PythonType::Custom("Callable".to_string());
         if let RustType::Custom(name) = mapper.map_type(&callable_upper) {
-            assert_eq!(name, "Box<dyn Fn()>");
+            assert_eq!(name, "impl Fn()");
         } else {
             panic!("Expected Custom type for 'Callable'");
         }
