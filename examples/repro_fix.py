@@ -1,12 +1,15 @@
-# DEPYLER-0718: Dict without type parameters generates undefined type V
-# Python pattern: Dict (bare annotation) or Dict[str, Any]
-# Problem: Generates HashMap<String, V> where V is undefined
-# Expected: HashMap<String, serde_json::Value> or similar
+# DEPYLER-0719: Bare tuple annotation maps to () instead of actual type
+# Python pattern: result: tuple = func_returning_tuple()
+# Problem: tuple → () but func returns (T1, T2, T3)
+# Expected: Infer tuple type from function return or usage
 
-from typing import Dict
+def get_point() -> tuple:
+    """Return a 2D point as tuple."""
+    x: float = 1.0
+    y: float = 2.0
+    return (x, y)
 
-def parse_data(text: str) -> Dict:
-    """Parse some data into a dictionary."""
-    result: Dict = {}
-    result["key"] = "value"
-    return result
+def use_point() -> float:
+    """Use the point tuple."""
+    point: tuple = get_point()
+    return point[0] + point[1]

@@ -2859,6 +2859,14 @@ pub(crate) fn codegen_return_type(
         func.ret_type.clone()
     };
 
+    // DEPYLER-0719: Update function_return_types with inferred type
+    // When a function's return type is inferred (e.g., `-> tuple` → `(f64, f64)`),
+    // update the map so callers like `point: tuple = get_point()` can use the inferred type
+    if should_infer && effective_ret_type != func.ret_type {
+        ctx.function_return_types
+            .insert(func.name.clone(), effective_ret_type.clone());
+    }
+
     // DEPYLER-0716: Apply type substitutions to return type
     // When generic parameters are substituted (e.g., T -> String), apply to return type too
     let effective_ret_type = if !ctx.type_substitutions.is_empty() {
