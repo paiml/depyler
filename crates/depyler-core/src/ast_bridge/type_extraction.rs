@@ -86,9 +86,10 @@ impl TypeExtractor {
     }
 
     pub fn extract_simple_type(name: &str) -> Result<Type> {
-        // DEPYLER-0501: Handle Any type (maps to Unknown)
+        // DEPYLER-0725: Handle Any type - keep as Custom("Any") so type_mapper produces serde_json::Value
+        // Previously mapped to Unknown which caused generic_inference to emit T: Clone
         if name == "Any" {
-            return Ok(Type::Unknown);
+            return Ok(Type::Custom("Any".to_string()));
         }
 
         // Try builtin types first (complexity 5)
@@ -348,9 +349,9 @@ impl TypeExtractor {
         // Extract module name for special handling
         let module_name = Self::extract_module_name(&attr.value);
 
-        // Special case: typing.Any → Unknown
+        // DEPYLER-0725: typing.Any → Custom("Any") → serde_json::Value via type_mapper
         if type_name == "Any" {
-            return Ok(Type::Unknown);
+            return Ok(Type::Custom("Any".to_string()));
         }
 
         // Check if it's a known builtin type (e.g., typing.List → list[T])
