@@ -630,6 +630,19 @@ impl BorrowingContext {
             "int",
             "float",
             "bool",
+            // DEPYLER-0732: Aggregate functions that iterate without taking ownership
+            // In Rust, these use .iter() which borrows the collection
+            "sum",
+            "min",
+            "max",
+            "any",
+            "all",
+            "sorted",
+            "reversed",
+            "enumerate",
+            "zip",
+            "map",
+            "filter",
         ];
 
         // Known functions that take ownership
@@ -640,8 +653,11 @@ impl BorrowingContext {
         } else if ownership_functions.contains(&func_name) {
             true
         } else {
-            // Conservative default: assume ownership transfer
-            true
+            // DEPYLER-0732: Python semantics - function calls pass references, not ownership
+            // In Python, passing a value to a function doesn't transfer ownership.
+            // The caller can still use the value after the call.
+            // Default to borrowing to match Python semantics and prevent E0382 errors.
+            false
         }
     }
 
