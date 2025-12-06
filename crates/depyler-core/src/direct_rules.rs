@@ -2721,10 +2721,10 @@ impl<'a> ExprConverter<'a> {
             // DEPYLER-0720: Check class field types for self.field attribute access
             HirExpr::Attribute { value, attr } => {
                 // Check if this is self.field pattern where field is a float
-                if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
-                    if matches!(self.class_field_types.get(attr), Some(Type::Float)) {
-                        return true;
-                    }
+                if matches!(value.as_ref(), HirExpr::Var(name) if name == "self")
+                    && matches!(self.class_field_types.get(attr), Some(Type::Float))
+                {
+                    return true;
                 }
                 false
             }
@@ -3136,6 +3136,14 @@ impl<'a> ExprConverter<'a> {
             // DEPYLER-0200: datetime builtins
             "date" => self.convert_date_call(&arg_exprs),
             "datetime" => self.convert_datetime_call(&arg_exprs),
+            // DEPYLER-0721: os.path functions imported via `from os.path import X`
+            "splitext" => self.convert_splitext_call(&arg_exprs),
+            "basename" => self.convert_basename_call(&arg_exprs),
+            "dirname" => self.convert_dirname_call(&arg_exprs),
+            "split" => self.convert_path_split_call(&arg_exprs),
+            "exists" => self.convert_path_exists_call(&arg_exprs),
+            "isfile" => self.convert_path_isfile_call(&arg_exprs),
+            "isdir" => self.convert_path_isdir_call(&arg_exprs),
             _ => self.convert_generic_call(func, &arg_exprs),
         }
     }
@@ -3234,6 +3242,87 @@ impl<'a> ExprConverter<'a> {
                 args.len()
             )
         }
+    }
+
+    /// DEPYLER-0721: os.path.splitext(path) → (stem, extension) tuple
+    fn convert_splitext_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("splitext() requires exactly 1 argument");
+        }
+        let path = &args[0];
+        Ok(parse_quote! {
+            {
+                let p = std::path::Path::new(&#path);
+                let stem = p.file_stem().and_then(|s| s.to_str()).unwrap_or("").to_string();
+                let ext = p.extension().and_then(|e| e.to_str()).map(|e| format!(".{}", e)).unwrap_or_default();
+                (stem, ext)
+            }
+        })
+    }
+
+    /// DEPYLER-0721: os.path.basename(path) → Path::file_name
+    fn convert_basename_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("basename() requires exactly 1 argument");
+        }
+        let path = &args[0];
+        Ok(parse_quote! {
+            std::path::Path::new(&#path).file_name().and_then(|n| n.to_str()).unwrap_or("").to_string()
+        })
+    }
+
+    /// DEPYLER-0721: os.path.dirname(path) → Path::parent
+    fn convert_dirname_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("dirname() requires exactly 1 argument");
+        }
+        let path = &args[0];
+        Ok(parse_quote! {
+            std::path::Path::new(&#path).parent().and_then(|p| p.to_str()).unwrap_or("").to_string()
+        })
+    }
+
+    /// DEPYLER-0721: os.path.split(path) → (dirname, basename)
+    fn convert_path_split_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("split() requires exactly 1 argument");
+        }
+        let path = &args[0];
+        Ok(parse_quote! {
+            {
+                let p = std::path::Path::new(&#path);
+                let dirname = p.parent().and_then(|p| p.to_str()).unwrap_or("").to_string();
+                let basename = p.file_name().and_then(|n| n.to_str()).unwrap_or("").to_string();
+                (dirname, basename)
+            }
+        })
+    }
+
+    /// DEPYLER-0721: os.path.exists(path) → Path::exists
+    fn convert_path_exists_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("exists() requires exactly 1 argument");
+        }
+        let path = &args[0];
+        Ok(parse_quote! { std::path::Path::new(&#path).exists() })
+    }
+
+    /// DEPYLER-0721: os.path.isfile(path) → Path::is_file
+    fn convert_path_isfile_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("isfile() requires exactly 1 argument");
+        }
+        let path = &args[0];
+        Ok(parse_quote! { std::path::Path::new(&#path).is_file() })
+    }
+
+    /// DEPYLER-0721: os.path.isdir(path) → Path::is_dir
+    fn convert_path_isdir_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("isdir() requires exactly 1 argument");
+        }
+        let path = &args[0];
+        Ok(parse_quote! { std::path::Path::new(&#path).is_dir() })
     }
 
     /// DEPYLER-0200: Convert Python open() to Rust file operations
