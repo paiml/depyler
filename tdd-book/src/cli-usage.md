@@ -14,7 +14,7 @@ Verify installation:
 
 ```bash
 depyler --version
-# Output: depyler 3.20.0
+# Output: depyler 3.21.0
 ```
 
 ## Quick Start
@@ -38,6 +38,16 @@ depyler compile script.py
 | `analyze` | Migration complexity | `depyler analyze script.py` |
 | `check` | Type safety validation | `depyler check script.py` |
 | `interactive` | REPL mode | `depyler interactive` |
+
+### Running Library Examples
+
+```bash
+# List all available examples
+cargo run --example
+
+# Run a specific example
+cargo run --example direct_rules_demo
+```
 
 ---
 
@@ -341,6 +351,85 @@ depyler quality-check example.py \
 
 ---
 
+## `depyler report` - Corpus Analysis Report
+
+**NEW in v3.21.0** - Generate deterministic corpus analysis reports following Toyota Way methodology.
+
+### Basic Usage
+
+```bash
+# Analyze default corpus
+depyler report
+
+# Analyze custom corpus
+depyler report --corpus /path/to/python/project
+
+# Generate JSON report
+depyler report --format json --output report.json
+```
+
+### Options
+
+**`-c, --corpus <PATH>`** - Path to Python corpus
+```bash
+depyler report --corpus ./my_python_project
+```
+
+**`-f, --format <FORMAT>`** - Output format (terminal, json, markdown)
+```bash
+depyler report --format markdown --output report.md
+```
+
+**`-o, --output <PATH>`** - Output file path
+```bash
+depyler report --output /tmp/analysis.json
+```
+
+**`--skip-clean`** - Skip clean phase (reuse previous transpilation)
+```bash
+depyler report --skip-clean
+```
+
+**`--target-rate <RATE>`** - Target success rate (default: 0.8)
+```bash
+depyler report --target-rate 0.9
+```
+
+### Example Output
+
+```
+================================================================================
+                         CORPUS COMPILATION REPORT
+================================================================================
+
+📊 Executive Summary
+────────────────────────────────────────────────────────────────────────────────
+  Corpus:           /path/to/corpus
+  Total Files:      244
+  Compiled:         84
+  Failed:           160
+  Success Rate:     34.4%
+  Andon Status:     🔴 RED (< 50%)
+
+📋 Error Taxonomy (by Impact)
+────────────────────────────────────────────────────────────────────────────────
+  #1  E0425 (cannot find value)      - 45 files (28.1%)
+  #2  E0412 (cannot find type)       - 32 files (20.0%)
+  #3  E0308 (mismatched types)       - 28 files (17.5%)
+```
+
+### Andon Status
+
+| Status | Rate | Meaning |
+|--------|------|---------|
+| 🟢 GREEN | ≥80% | Proceed to release |
+| 🟡 YELLOW | 50-80% | Focus on P0/P1 items |
+| 🔴 RED | <50% | Stop the line |
+
+See [Corpus Report Documentation](./corpus-report.md) for complete details.
+
+---
+
 ## Debug Commands
 
 ### `depyler debug` - Debug Information
@@ -560,6 +649,90 @@ cargo install lld      # Cross-platform
 
 ---
 
+## Running Examples
+
+Depyler includes several example programs demonstrating various features.
+
+### List Available Examples
+
+```bash
+cargo run --example
+```
+
+### Available Examples
+
+| Example | Description |
+|---------|-------------|
+| `corpus_extract_demo` | Extract training corpus from Python codebases |
+| `direct_rules_demo` | Demonstrate direct transpilation rules |
+| `migration_suggestions_demo` | Show migration complexity analysis |
+| `oracle_query_loop_demo` | Interactive Oracle error classification |
+| `train_moe_on_real_corpus` | Train mixture-of-experts model |
+| `train_unified_corpus` | Train unified corpus model |
+
+### Running Examples
+
+**Basic execution:**
+```bash
+# Run corpus extraction demo
+cargo run --example corpus_extract_demo
+
+# Run direct rules demonstration
+cargo run --example direct_rules_demo
+
+# Run migration suggestions
+cargo run --example migration_suggestions_demo
+```
+
+**With release optimizations:**
+```bash
+cargo run --release --example oracle_query_loop_demo
+```
+
+**With arguments:**
+```bash
+cargo run --example corpus_extract_demo -- --help
+```
+
+### Example: Oracle Query Loop
+
+Interactive error classification using the ML Oracle:
+
+```bash
+cargo run --example oracle_query_loop_demo
+
+# Enter Python code snippets and get error predictions
+# Type 'quit' to exit
+```
+
+### Example: Migration Suggestions
+
+Analyze Python code for migration complexity:
+
+```bash
+cargo run --example migration_suggestions_demo
+
+# Shows:
+# - Complexity score
+# - Supported features
+# - Migration recommendations
+```
+
+### Example: Direct Rules Demo
+
+See how Python constructs map to Rust:
+
+```bash
+cargo run --example direct_rules_demo
+
+# Demonstrates:
+# - Type mappings
+# - Control flow translation
+# - Collection handling
+```
+
+---
+
 ## Environment Variables
 
 - `DEPYLER_LOG=debug` - Enable debug logging
@@ -592,3 +765,4 @@ depyler --version
 - [Contributing Guide](../../CONTRIBUTING.md) - How to contribute
 - [Quality Standards](../../CLAUDE.md) - Code quality requirements
 - [GitHub Repository](https://github.com/paiml/depyler) - Source code
+- [Examples Directory](../../examples/) - Python/Rust example files

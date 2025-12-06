@@ -83,6 +83,7 @@ pub mod debug_cmd;
 pub mod docs_cmd;
 pub mod interactive;
 pub mod profile_cmd;
+pub mod report_cmd;
 pub mod training_monitor;
 
 #[derive(Parser)]
@@ -443,6 +444,33 @@ pub enum Commands {
         /// Also extract simple assertions from test_*.py files (GH-174)
         #[arg(long)]
         include_pytest: bool,
+    },
+
+    /// Generate deterministic corpus analysis report
+    ///
+    /// Scientific analysis of transpilation quality using Toyota Way methodology.
+    /// Runs a 5-phase pipeline: Clean → Transpile → Compile → Analyze → Report.
+    /// Produces actionable error taxonomy with prioritized fix recommendations.
+    Report {
+        /// Path to corpus directory (defaults to reprorusted-python-cli)
+        #[arg(short, long)]
+        corpus: Option<PathBuf>,
+
+        /// Output format (terminal, json, markdown)
+        #[arg(short, long, default_value = "terminal")]
+        format: String,
+
+        /// Output directory for reports
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Skip artifact cleaning phase (5S)
+        #[arg(long)]
+        skip_clean: bool,
+
+        /// Target single-shot compilation rate (0.0-1.0)
+        #[arg(long, default_value = "0.8")]
+        target_rate: f64,
     },
 }
 
