@@ -167,14 +167,17 @@ fn test_unnecessary_move_detection() {
     let mut ctx = BorrowingContext::new(None);
     let type_mapper = TypeMapper::new();
 
-    // Function that passes string to a function that could borrow
+    // DEPYLER-0732: With the change to default to borrowing for unknown functions,
+    // we now test UnnecessaryMove detection using a known ownership function (append).
+    // The parameter is passed to append() which takes ownership, but since the value
+    // doesn't escape through return or get stored, it's an "unnecessary" move.
     let func = HirFunction {
-        name: "print_message".to_string(),
-        params: smallvec![HirParam::new("msg".to_string(), PythonType::String)],
+        name: "add_to_list".to_string(),
+        params: smallvec![HirParam::new("item".to_string(), PythonType::String)],
         ret_type: PythonType::None,
         body: vec![HirStmt::Expr(HirExpr::Call {
-            func: "unknown_function".to_string(), // Conservative: assumes ownership
-            args: vec![HirExpr::Var("msg".to_string())],
+            func: "append".to_string(), // Known ownership function (list mutation)
+            args: vec![HirExpr::Var("item".to_string())],
             kwargs: vec![],
         })],
         properties: FunctionProperties::default(),
@@ -184,7 +187,7 @@ fn test_unnecessary_move_detection() {
 
     let result = ctx.analyze_function(&func, &type_mapper);
 
-    // Should detect unnecessary move
+    // Should detect unnecessary move - append takes ownership but value doesn't escape
     assert!(result.insights.iter().any(|insight| {
         matches!(
             insight,
