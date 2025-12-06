@@ -1347,6 +1347,7 @@ pub fn generate_rust_file(
         function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
         option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
         type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions for generic inference
+        current_assign_type: None, // DEPYLER-0727: Track assignment target type for dict Value wrapping
     };
 
     // Analyze all functions first for string optimization
@@ -1624,6 +1625,7 @@ mod tests {
             function_param_defaults: HashMap::new(), // Track function parameter defaults
             class_field_types: HashMap::new(), // DEPYLER-0720: Track class field types
             type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions
+            current_assign_type: None, // DEPYLER-0727: Track assignment target type
         }
     }
 
