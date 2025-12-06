@@ -12684,10 +12684,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0357: Check if index is a positive integer literal
             // For literal indices like p[0], generate simple inline code: .get(0)
             // This avoids unnecessary temporary variables and runtime checks
+            // DEPYLER-0730: Use .expect() instead of .unwrap_or_default() to:
+            //   1. Match Python semantics (IndexError on out of bounds, not default)
+            //   2. Avoid requiring Default trait bound on generic T
             if let HirExpr::Literal(Literal::Int(n)) = index {
                 let idx_value = *n as usize;
                 return Ok(parse_quote! {
-                    #base_expr.get(#idx_value).cloned().unwrap_or_default()
+                    #base_expr.get(#idx_value).cloned().expect("IndexError: list index out of range")
                 });
             }
 
@@ -12699,12 +12702,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             if is_simple_var {
                 // Simple variable index - use inline expression (works in range contexts)
                 // This avoids block expressions that break in `for j in 0..matrix[i].len()`
+                // DEPYLER-0730: Use .expect() for Python IndexError semantics
                 Ok(parse_quote! {
-                    #base_expr.get(#index_expr as usize).cloned().unwrap_or_default()
+                    #base_expr.get(#index_expr as usize).cloned().expect("IndexError: list index out of range")
                 })
             } else {
                 // Complex expression - use block with full negative index handling
                 // DEPYLER-0288: Explicitly type idx as i32 to support negation
+                // DEPYLER-0730: Use .expect() for Python IndexError semantics
                 Ok(parse_quote! {
                     {
                         // DEPYLER-0307 Fix #11: Use borrow to avoid moving the base expression
@@ -12717,7 +12722,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             idx as usize
                         };
                         // DEPYLER-0267: Use .cloned() instead of .copied() for non-Copy types (String, Vec, etc.)
-                        base.get(actual_idx).cloned().unwrap_or_default()
+                        base.get(actual_idx).cloned().expect("IndexError: list index out of range")
                     }
                 })
             }
