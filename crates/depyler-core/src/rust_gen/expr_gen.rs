@@ -10502,12 +10502,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("update() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                // DEPYLER-0304 Phase 2B: Fix iterator reference handling
-                // DEPYLER-0357: When iterating over owned HashMap<K, V>, iterator yields (K, V)
-                // insert() expects (K, V), so we just use the values directly
+                // DEPYLER-0728: When iterating over borrowed HashMap<K, V>, iterator yields (&K, &V)
+                // insert() expects (K, V), so we need to clone the references
+                // Using .iter() explicitly handles both owned and borrowed dicts correctly
                 Ok(parse_quote! {
-                    for (k, v) in #arg {
-                        #object_expr.insert(k, v);
+                    for (k, v) in (#arg).iter() {
+                        #object_expr.insert(k.clone(), v.clone());
                     }
                 })
             }
@@ -12354,7 +12354,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 hex::encode(#object_expr.finalize())
             });
         }
-        if method == "update" && !args.is_empty() {
+        // DEPYLER-0728: hasher.update() handler should NOT intercept dict/set.update()
+        // Only apply to hash objects (Sha256, Md5, etc.), not collections
+        if method == "update" && !args.is_empty() && !self.is_dict_expr(object) && !self.is_set_expr(object) {
             let object_expr = object.to_rust_expr(self.ctx)?;
             let arg_exprs: Vec<syn::Expr> = args
                 .iter()
