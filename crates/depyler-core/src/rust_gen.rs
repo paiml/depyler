@@ -685,7 +685,12 @@ fn generate_import_tokens(
         // DEPYLER-0702: Skip struct method imports that can't be valid `use` statements
         // e.g., `from os.path import join` maps to `std::path::Path::join` which is invalid
         // because Path is a struct, not a module. These are handled at call site.
-        if import.path.contains("::Path::") || import.path.contains("::File::") {
+        // DEPYLER-0721: Also skip bare struct types like `std::path::Path` for inline-handled
+        // functions (splitext, normpath, etc.) that don't need imports
+        if import.path.contains("::Path::")
+            || import.path.contains("::File::")
+            || import.path.ends_with("::Path")
+        {
             continue;
         }
 
@@ -735,11 +740,17 @@ fn generate_lazy_constant(
     };
 
     // DEPYLER-0107: Dict/List literals return HashMap/Vec, convert to Value type
+    // DEPYLER-0714: Function calls may return Result, unwrap them
     let final_expr = if constant.type_annotation.is_none() {
         match &constant.value {
             HirExpr::Dict(_) | HirExpr::List(_) => {
                 ctx.needs_serde_json = true;
                 quote! { serde_json::to_value(#value_expr).unwrap() }
+            }
+            HirExpr::Call { .. } => {
+                // DEPYLER-0714: Function calls may return Result - unwrap them
+                // Python semantics expect the value, not Result
+                quote! { #value_expr.unwrap() }
             }
             _ => quote! { #value_expr }
         }
@@ -756,6 +767,7 @@ fn generate_lazy_constant(
 ///
 /// Most complex constants default to serde_json::Value for compatibility.
 /// DEPYLER-0188: Path expressions return std::path::PathBuf.
+/// DEPYLER-0714: Function calls use the function's return type (unwrapped if Result).
 fn infer_lazy_constant_type(
     value: &HirExpr,
     ctx: &mut CodeGenContext,
@@ -763,6 +775,19 @@ fn infer_lazy_constant_type(
     // DEPYLER-0188: Path expressions should be typed as PathBuf
     if is_path_constant_expr(value) {
         return quote! { std::path::PathBuf };
+    }
+
+    // DEPYLER-0714: Function calls - look up return type
+    // For Unknown return types, fall through to serde_json::Value default
+    if let HirExpr::Call { func, .. } = value {
+        if let Some(ret_type) = ctx.function_return_types.get(func) {
+            // Skip Unknown - fall through to default
+            if !matches!(ret_type, crate::hir::Type::Unknown) {
+                if let Ok(syn_type) = type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(ret_type)) {
+                    return quote! { #syn_type };
+                }
+            }
+        }
     }
 
     // Default: use serde_json::Value for Lazy constants
@@ -784,9 +809,15 @@ fn generate_simple_constant(
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     let type_annotation = if let Some(ref ty) = constant.type_annotation {
-        let rust_type = ctx.type_mapper.map_type(ty);
-        let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
-        quote! { : #syn_type }
+        // DEPYLER-0714: Skip Unknown type annotation - would generate TypeParam("T")
+        // which is undefined. Fall through to inference to get proper type.
+        if matches!(ty, crate::hir::Type::Unknown) {
+            infer_constant_type(&constant.value, ctx)
+        } else {
+            let rust_type = ctx.type_mapper.map_type(ty);
+            let syn_type = type_gen::rust_type_to_syn(&rust_type)?;
+            quote! { : #syn_type }
+        }
     } else {
         infer_constant_type(&constant.value, ctx)
     };
@@ -827,10 +858,75 @@ fn infer_constant_type(value: &HirExpr, ctx: &mut CodeGenContext) -> proc_macro2
             quote! { : std::path::PathBuf }
         }
 
+        // DEPYLER-0713: Function calls - look up return type from function signatures
+        // This prevents fallback to serde_json::Value for typed function results
+        HirExpr::Call { func, .. } => {
+            if let Some(ret_type) = ctx.function_return_types.get(func) {
+                // DEPYLER-0714: Skip Unknown return type - would generate TypeParam("T")
+                // Fall through to inference instead
+                if matches!(ret_type, crate::hir::Type::Unknown) {
+                    ctx.needs_serde_json = true;
+                    quote! { : serde_json::Value }
+                } else {
+                    // Use the function's return type
+                    match type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(ret_type)) {
+                        Ok(syn_type) => quote! { : #syn_type },
+                        Err(_) => {
+                            ctx.needs_serde_json = true;
+                            quote! { : serde_json::Value }
+                        }
+                    }
+                }
+            } else {
+                // DEPYLER-0713: Try infer_expr_type_simple for builtin calls
+                let inferred = func_gen::infer_expr_type_simple(value);
+                if !matches!(inferred, crate::hir::Type::Unknown) {
+                    match type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(&inferred)) {
+                        Ok(syn_type) => quote! { : #syn_type },
+                        Err(_) => {
+                            ctx.needs_serde_json = true;
+                            quote! { : serde_json::Value }
+                        }
+                    }
+                } else {
+                    ctx.needs_serde_json = true;
+                    quote! { : serde_json::Value }
+                }
+            }
+        }
+
+        // DEPYLER-0713: Variable references - look up tracked type
+        HirExpr::Var(name) => {
+            if let Some(var_type) = ctx.var_types.get(name) {
+                match type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(var_type)) {
+                    Ok(syn_type) => quote! { : #syn_type },
+                    Err(_) => {
+                        ctx.needs_serde_json = true;
+                        quote! { : serde_json::Value }
+                    }
+                }
+            } else {
+                ctx.needs_serde_json = true;
+                quote! { : serde_json::Value }
+            }
+        }
+
         // Default fallback
         _ => {
-            ctx.needs_serde_json = true;
-            quote! { : serde_json::Value }
+            // DEPYLER-0713: Try infer_expr_type_simple before falling back to Value
+            let inferred = func_gen::infer_expr_type_simple(value);
+            if !matches!(inferred, crate::hir::Type::Unknown) {
+                match type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(&inferred)) {
+                    Ok(syn_type) => quote! { : #syn_type },
+                    Err(_) => {
+                        ctx.needs_serde_json = true;
+                        quote! { : serde_json::Value }
+                    }
+                }
+            } else {
+                ctx.needs_serde_json = true;
+                quote! { : serde_json::Value }
+            }
         }
     }
 }
@@ -963,9 +1059,10 @@ fn generate_constant_tokens(
 
         // DEPYLER-REARCH-001: Complex types need runtime initialization (Lazy)
         // DEPYLER-0188: PathBuf expressions also need runtime init (not const-evaluable)
+        // DEPYLER-0714: Function calls also need runtime init - can't be const
         let needs_runtime_init = matches!(
             &constant.value,
-            HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_)
+            HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_) | HirExpr::Call { .. }
         ) || is_path_constant_expr(&constant.value);
 
         let token = if needs_runtime_init {
@@ -1218,7 +1315,8 @@ pub fn generate_rust_file(
         function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
         function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
         function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
-        function_param_defaults: std::collections::HashMap::new(), // DEPYLER-0621: Track default param values
+        function_param_defaults: std::collections::HashMap::new(),
+            class_field_types: std::collections::HashMap::new(), // DEPYLER-0621: Track default param values
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
@@ -1248,6 +1346,7 @@ pub fn generate_rust_file(
         boxed_dyn_write_vars: HashSet::new(), // DEPYLER-0625: Track vars needing Box<dyn Write>
         function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
         option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
+        type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions for generic inference
     };
 
     // Analyze all functions first for string optimization
@@ -1295,6 +1394,15 @@ pub fn generate_rust_file(
     for func in &module.functions {
         if func.params.iter().any(|p| p.is_vararg) {
             ctx.vararg_functions.insert(func.name.clone());
+        }
+    }
+
+    // DEPYLER-0720: Pre-populate class field types for self.X attribute access
+    // This enables expr_returns_float() to recognize self.balance as float
+    for class in &module.classes {
+        for field in &class.fields {
+            ctx.class_field_types
+                .insert(field.name.clone(), field.field_type.clone());
         }
     }
 
@@ -1514,6 +1622,8 @@ mod tests {
             function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
             option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
             function_param_defaults: HashMap::new(), // Track function parameter defaults
+            class_field_types: HashMap::new(), // DEPYLER-0720: Track class field types
+            type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions
         }
     }
 

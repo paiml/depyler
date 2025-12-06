@@ -450,15 +450,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-0575: Coerce integer literal to float when comparing with float expression
-            // Example: `std > 0` -> `std > 0.0` when std is f32
+            // DEPYLER-0720: Extended to ALL integer literals, not just 0
+            // Example: `self.balance > 0` -> `self.balance > 0.0` when balance is f64
             let left_is_float = self.expr_returns_float(left);
             let right_is_float = self.expr_returns_float(right);
 
-            if left_is_float && matches!(right, HirExpr::Literal(Literal::Int(n)) if *n == 0) {
-                right_expr = parse_quote! { 0.0 };
-            } else if right_is_float && matches!(left, HirExpr::Literal(Literal::Int(n)) if *n == 0)
-            {
-                left_expr = parse_quote! { 0.0 };
+            if left_is_float {
+                if let HirExpr::Literal(Literal::Int(n)) = right {
+                    let float_val = *n as f64;
+                    right_expr = parse_quote! { #float_val };
+                }
+            } else if right_is_float {
+                if let HirExpr::Literal(Literal::Int(n)) = left {
+                    let float_val = *n as f64;
+                    left_expr = parse_quote! { #float_val };
+                }
             }
 
             // DEPYLER-STRING-COMPARE: Handle string comparison type mismatches
@@ -793,10 +799,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// This ensures correct operator precedence when casting
     /// Uses a block expression { expr } which is guaranteed to not be optimized away
     fn wrap_in_parens(expr: syn::Expr) -> syn::Expr {
-        // Using a block expression ensures the expression is evaluated first
-        // before the cast is applied. This avoids precedence issues where
-        // `a + b as f64` parses as `a + (b as f64)` instead of `(a + b) as f64`
-        parse_quote! { { #expr } }
+        // DEPYLER-0707: Construct block directly instead of using parse_quote!
+        // parse_quote! re-parses tokens which can fail with complex expressions
+        // that have unusual token spacing (e.g., "u32 :: MAX" instead of "u32::MAX")
+        syn::Expr::Block(syn::ExprBlock {
+            attrs: vec![],
+            label: None,
+            block: syn::Block {
+                brace_token: syn::token::Brace::default(),
+                stmts: vec![syn::Stmt::Expr(expr, None)],
+            },
+        })
     }
 
     /// DEPYLER-REFACTOR-001 Phase 2.8: Extracted multiplication operator helper
@@ -3165,6 +3178,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         .and_then(|p| p.to_str())
                         .unwrap_or("")
                         .to_string()
+                });
+            }
+
+            // DEPYLER-0721: Handle os.path.splitext import
+            // splitext(path) → (stem, extension) tuple
+            if rust_path == "std::path::Path" && func == "splitext" && args.len() == 1 {
+                let path_arg = &args[0];
+                return Ok(parse_quote! {
+                    {
+                        let __path = std::path::Path::new(&#path_arg);
+                        let __stem = __path.file_stem()
+                            .and_then(|s| s.to_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let __ext = __path.extension()
+                            .and_then(|e| e.to_str())
+                            .map(|e| format!(".{}", e))
+                            .unwrap_or_default();
+                        (__stem, __ext)
+                    }
                 });
             }
 
@@ -12607,7 +12640,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // Generate array from tuple elements: [t.0, t.1, ...]
                 let indices: Vec<syn::Index> =
-                    (0..tuple_size).map(|i| syn::Index::from(i)).collect();
+                    (0..tuple_size).map(syn::Index::from).collect();
 
                 return Ok(parse_quote! {
                     [#(#base_expr.#indices),*][#index_expr as usize]
@@ -13444,6 +13477,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let has_fstring = elts.iter().any(|e| matches!(e, HirExpr::FString { .. }));
         let needs_string_unify = has_dict_access && has_fstring;
 
+        // DEPYLER-0711: Detect heterogeneous list literals (mixed primitive types)
+        // Rust's vec![] requires all elements to be the same type
+        // For mixed types like [1, "hello", 3.14, true], use Vec<serde_json::Value>
+        let has_mixed_types = self.list_has_mixed_types(elts);
+
+        if has_mixed_types {
+            // DEPYLER-0711: Convert to Vec<serde_json::Value> for heterogeneous lists
+            self.ctx.needs_serde_json = true;
+
+            let elt_exprs: Vec<syn::Expr> = elts
+                .iter()
+                .map(|e| {
+                    let expr = e.to_rust_expr(self.ctx)?;
+                    // Wrap each element in serde_json::json!()
+                    Ok(parse_quote! { serde_json::json!(#expr) })
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            return Ok(parse_quote! { vec![#(#elt_exprs),*] });
+        }
+
         let elt_exprs: Vec<syn::Expr> = elts
             .iter()
             .map(|e| {
@@ -13463,6 +13517,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Always use vec! for now to ensure mutability works
         // In the future, we should analyze if the list is mutated before deciding
         Ok(parse_quote! { vec![#(#elt_exprs),*] })
+    }
+
+    /// DEPYLER-0711: Check if list has heterogeneous element types
+    /// Returns true if elements have different primitive types (int, string, float, bool)
+    fn list_has_mixed_types(&self, elts: &[HirExpr]) -> bool {
+        if elts.len() <= 1 {
+            return false; // Single element or empty - no mixing possible
+        }
+
+        let mut has_bool_literal = false;
+        let mut has_int_literal = false;
+        let mut has_float_literal = false;
+        let mut has_string_literal = false;
+
+        for elem in elts {
+            match elem {
+                HirExpr::Literal(Literal::Bool(_)) => has_bool_literal = true,
+                HirExpr::Literal(Literal::Int(_)) => has_int_literal = true,
+                HirExpr::Literal(Literal::Float(_)) => has_float_literal = true,
+                HirExpr::Literal(Literal::String(_)) => has_string_literal = true,
+                _ => {}
+            }
+        }
+
+        // Count how many distinct literal types we have
+        let distinct_types = [has_bool_literal, has_int_literal, has_float_literal, has_string_literal]
+            .iter()
+            .filter(|&&b| b)
+            .count();
+
+        // Mixed types if we have more than one distinct type
+        distinct_types > 1
     }
 
     fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
@@ -14776,12 +14862,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if matches!(var_type, Type::Custom(ref s) if s == "serde_json::Value") {
                     return true;
                 }
-                // Check for Dict with Unknown value type (often mapped to Value)
-                if matches!(var_type, Type::Dict(_, ref v) if matches!(**v, Type::Unknown)) {
-                    return true;
-                }
-                // DEPYLER-0543: If we have type info and it's a typed Dict (non-Unknown),
-                // it's a regular HashMap, NOT serde_json::Value
+                // DEPYLER-0708: Removed overly aggressive check for Dict(_, Unknown)
+                // A plain `dict` annotation creates Dict(Unknown, Unknown) but should NOT
+                // trigger serde_json::Value treatment. Only explicit serde_json::Value should.
+                // Dict types use regular HashMap.iter(), not .as_object().
                 if matches!(var_type, Type::Dict(_, _)) {
                     return false;
                 }
@@ -14995,9 +15079,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 )
             }
             // DEPYLER-0577: Attribute access (e.g., args.x) - check if attr is float type
-            HirExpr::Attribute { attr, .. } => {
-                // Only use var_types lookup - no heuristics, as "x" could be int or float
-                matches!(self.ctx.var_types.get(attr), Some(Type::Float))
+            // DEPYLER-0720: Also check class_field_types for self.X attribute access
+            HirExpr::Attribute { attr, value, .. } => {
+                // Check var_types first (for non-self attributes)
+                if matches!(self.ctx.var_types.get(attr), Some(Type::Float)) {
+                    return true;
+                }
+                // Check class_field_types for self.X patterns
+                if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                    if matches!(self.ctx.class_field_types.get(attr), Some(Type::Float)) {
+                        return true;
+                    }
+                }
+                false
             }
             // NumPy/trueno methods that return f32
             HirExpr::MethodCall { method, .. } => {
@@ -15054,16 +15148,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check var_types to see if this variable is a user-defined class
                 if let Some(Type::Custom(class_name)) = self.ctx.var_types.get(name) {
                     // Check if this is a user-defined class (not a builtin)
-                    let result = self.ctx.class_names.contains(class_name);
-                    result
+                    self.ctx.class_names.contains(class_name)
                 } else {
                     false
                 }
             }
             HirExpr::Call { func, .. } => {
                 // Direct constructor call like Calculator(10)
-                let result = self.ctx.class_names.contains(func);
-                result
+                self.ctx.class_names.contains(func)
             }
             _ => false,
         }
@@ -15201,8 +15293,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
             }
 
-            // Add the map transformation (to key-value tuple)
-            chain = parse_quote! { #chain.map(|#target_pat| (#key_expr, #value_expr)) };
+            // DEPYLER-0706: Add the map transformation (to key-value tuple)
+            // Compute value before key to avoid borrow-after-move when value_expr
+            // references the key variable (e.g., {word: len(word) for word in words})
+            chain = parse_quote! { #chain.map(|#target_pat| { let _v = #value_expr; (#key_expr, _v) }) };
 
             // DEPYLER-0685: Use fully qualified path for HashMap to avoid import issues
             return Ok(parse_quote! { #chain.collect::<std::collections::HashMap<_, _>>() });
@@ -15258,7 +15352,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Base case: no more generators, return (key, value) tuple
             let key_expr = key.to_rust_expr(self.ctx)?;
             let value_expr = value.to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { std::iter::once((#key_expr, #value_expr)) });
+            // DEPYLER-0706: Compute value before key to avoid borrow-after-move
+            return Ok(parse_quote! { std::iter::once({ let _v = #value_expr; (#key_expr, _v) }) });
         }
 
         // Recursive case: process current generator
@@ -15449,11 +15544,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         HirExpr::Var(var_name) => {
                             if let Some(var_type) = self.ctx.var_types.get(var_name) {
                                 // Known type: check if it needs Debug formatting
+                                // DEPYLER-0712: Added Tuple - tuples don't implement Display
                                 matches!(
                                     var_type,
                                     Type::List(_)
                                         | Type::Dict(_, _)
                                         | Type::Set(_)
+                                        | Type::Tuple(_)     // DEPYLER-0712: Tuples need {:?}
                                         | Type::Optional(_) // DEPYLER-0497: Options need {:?}
                                 )
                             } else {
@@ -15999,6 +16096,24 @@ impl ToRustExpr for HirExpr {
                         ctx.needs_cow = true;
                     }
                 }
+
+                // DEPYLER-0713 Part 2: When in JSON context, wrap NUMERIC/BOOL literals with json!()
+                // This fixes "expected Value, found i32" errors when Value is legitimately needed
+                // NOTE: String literals are NOT wrapped because:
+                // 1. They may be arguments to functions expecting &str (like json.loads())
+                // 2. String→Value conversion happens via serde_json::Value::from() or .into()
+                if ctx.in_json_context {
+                    // Only wrap numeric and boolean literals, not strings
+                    let should_wrap = matches!(
+                        lit,
+                        Literal::Int(_) | Literal::Float(_) | Literal::Bool(_)
+                    );
+                    if should_wrap {
+                        ctx.needs_serde_json = true;
+                        return Ok(parse_quote! { serde_json::json!(#expr) });
+                    }
+                }
+
                 Ok(expr)
             }
             HirExpr::Var(name) => converter.convert_variable(name),
