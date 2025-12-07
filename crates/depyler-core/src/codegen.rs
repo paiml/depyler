@@ -235,7 +235,8 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
             let param_types: Vec<_> = params.iter().map(type_to_rust_type).collect();
             quote! { #base_ident<#(#param_types),*> }
         }
-        Type::Union(_) => quote! { UnionType }, // Placeholder, will be handled by enum generation
+        // DEPYLER-0765: Resolve union types to valid Rust types
+        Type::Union(types) => resolve_union_type(types),
         Type::Array { element_type, size } => {
             let element = type_to_rust_type(element_type);
             match size {
@@ -268,6 +269,78 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
             )
         }
     }
+}
+
+/// DEPYLER-0765: Resolve Python union types to valid Rust types
+///
+/// Strategy:
+/// 1. `int | float` → `f64` (widest numeric type)
+/// 2. `T | None` → `Option<T>` (optional type)
+/// 3. All same type → that type
+/// 4. Complex unions → `serde_json::Value` (catch-all)
+fn resolve_union_type(types: &[Type]) -> proc_macro2::TokenStream {
+    // Helper to check if type is None (including Custom("None"))
+    let is_none_type = |t: &Type| -> bool {
+        matches!(t, Type::None) || matches!(t, Type::Custom(n) if n == "None" || n == "NoneType")
+    };
+
+    // Helper to check if type is numeric (including Custom variants)
+    let is_numeric = |t: &Type| -> bool {
+        matches!(t, Type::Int | Type::Float)
+            || matches!(t, Type::Custom(n) if n == "int" || n == "float" || n == "i64" || n == "f64")
+    };
+
+    // Helper to check if type is float-like
+    let is_float_like = |t: &Type| -> bool {
+        matches!(t, Type::Float) || matches!(t, Type::Custom(n) if n == "float" || n == "f64")
+    };
+
+    // Helper to check if type is string-like
+    let is_string_like = |t: &Type| -> bool {
+        matches!(t, Type::String) || matches!(t, Type::Custom(n) if n == "str" || n == "String")
+    };
+
+    // Filter out duplicates and check for None
+    let has_none = types.iter().any(|t| is_none_type(t));
+    let non_none_types: Vec<&Type> = types.iter().filter(|t| !is_none_type(t)).collect();
+
+    // Case 1: T | None → Option<T>
+    if has_none && non_none_types.len() == 1 {
+        let inner = type_to_rust_type(non_none_types[0]);
+        return quote! { Option<#inner> };
+    }
+
+    // Case 2: Only None → ()
+    if non_none_types.is_empty() {
+        return quote! { () };
+    }
+
+    // Case 3: All numeric types → use widest (f64)
+    let all_numeric = non_none_types.iter().all(|t| is_numeric(t));
+    if all_numeric {
+        // If float present, use f64; if only int, use i64
+        let has_float = non_none_types.iter().any(|t| is_float_like(t));
+        if has_float {
+            return quote! { f64 };
+        } else {
+            return quote! { i64 };
+        }
+    }
+
+    // Case 4: All string types → String
+    let all_string = non_none_types.iter().all(|t| is_string_like(t));
+    if all_string {
+        return quote! { String };
+    }
+
+    // Case 5: All same type → that type
+    if non_none_types.len() == 1 {
+        return type_to_rust_type(non_none_types[0]);
+    }
+
+    // Case 6: Check for int | str or other common patterns → use serde_json::Value
+    // This is the safest catch-all for heterogeneous unions
+    quote! { serde_json::Value }
 }
 
 #[allow(dead_code)]
@@ -836,11 +909,13 @@ fn list_comp_to_rust_tokens(
 
     if let Some(cond) = condition {
         // With condition: iter().filter().map().collect()
+        // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
+        // because filter() receives &Item, but Python expects the value directly
         let cond_tokens = expr_to_rust_tokens(cond)?;
         Ok(quote! {
             #iter_tokens
                 .into_iter()
-                .filter(|#target_ident| #cond_tokens)
+                .filter(|&#target_ident| #cond_tokens)
                 .map(|#target_ident| #element_tokens)
                 .collect::<Vec<_>>()
         })
@@ -923,11 +998,12 @@ fn set_comp_to_rust_tokens(
 
     if let Some(cond) = condition {
         // With condition: iter().filter().map().collect()
+        // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
         let cond_tokens = expr_to_rust_tokens(cond)?;
         Ok(quote! {
             #iter_tokens
                 .into_iter()
-                .filter(|#target_ident| #cond_tokens)
+                .filter(|&#target_ident| #cond_tokens)
                 .map(|#target_ident| #element_tokens)
                 .collect::<HashSet<_>>()
         })
@@ -958,11 +1034,12 @@ fn dict_comp_to_rust_tokens(
 
     if let Some(cond) = condition {
         // With condition: iter().filter().map().collect()
+        // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
         let cond_tokens = expr_to_rust_tokens(cond)?;
         Ok(quote! {
             #iter_tokens
                 .into_iter()
-                .filter(|#target_ident| #cond_tokens)
+                .filter(|&#target_ident| #cond_tokens)
                 .map(|#target_ident| (#key_tokens, #value_tokens))
                 .collect::<HashMap<_, _>>()
         })
