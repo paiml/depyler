@@ -7,51 +7,32 @@ Bug: safe_ident() not called for closure ASSIGNMENT parameter names.
 The bug occurs when a nested function is RETURNED (becoming a closure assignment).
 
 Pattern that triggers the bug:
-    def outer() -> Callable:
-        def inner(fn: Callable) -> Callable:  # 'fn' param on returned inner func
-            ...
-        return inner  # <- This causes inner to become a closure assignment
+    def outer():
+        def inner(fn: int) -> int:  # 'fn' param - Rust keyword
+            return fn * 2
+        return inner
 
-Expected: once_wrapper = | r#fn: ... | -> ... {
-Actual:   once_wrapper = | fn: ... | -> ... {
+Expected: wrapper = | r#fn: i32 | -> i32 {
+Actual:   wrapper = | fn: i32 | -> i32 {
 """
-from typing import Callable
 
 
-def make_once() -> Callable[[Callable[[], int]], Callable[[], int]]:
-    """Create function that runs inner function only once.
+def make_doubler() -> int:
+    """Create a function that doubles its input.
 
-    The inner 'once_wrapper' function takes 'fn' as a parameter.
-    When returned, it becomes a closure assignment with 'fn' parameter.
+    The inner 'wrapper' function takes 'fn' as a parameter name.
+    'fn' is a Rust keyword and must be escaped as 'r#fn'.
     """
 
-    def once_wrapper(fn: Callable[[], int]) -> Callable[[], int]:
-        called = [False]
-        result: list[int] = []
+    def wrapper(fn: int) -> int:
+        return fn * 2
 
-        def wrapped() -> int:
-            if not called[0]:
-                called[0] = True
-                result.append(fn())
-            return result[0]
-
-        return wrapped
-
-    return once_wrapper
+    return wrapper(21)
 
 
 def main() -> None:
-    once = make_once()
-
-    counter = [0]
-    def get_value() -> int:
-        counter[0] += 1
-        return counter[0]
-
-    cached = once(get_value)
-    print(f"First call: {cached()}")
-    print(f"Second call: {cached()}")
-    print(f"Third call: {cached()}")
+    result = make_doubler()
+    print(f"Result: {result}")
 
 
 if __name__ == "__main__":
