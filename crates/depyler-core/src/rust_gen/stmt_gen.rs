@@ -6012,9 +6012,10 @@ fn try_generate_subcommand_match(
                     .max_by_key(|sc| sc.arguments.len())
                 {
                     for arg in &subcommand.arguments {
-                        let field_name = arg.long.as_ref()
-                            .map(|s| s.trim_start_matches('-').to_string())
-                            .unwrap_or_else(|| arg.name.clone());
+                        // DEPYLER-0762: Use rust_field_name() to properly sanitize flag names
+                        // This strips leading dashes and converts hyphens to underscores
+                        // e.g., "--format" → "format", "--no-color" → "no_color"
+                        let field_name = arg.rust_field_name();
                         accessed_fields.push(field_name);
                     }
                 }
