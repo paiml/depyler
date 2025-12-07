@@ -1,19 +1,15 @@
-<p align="center">
+<div align="center">
   <img src="docs/hero.svg" alt="depyler" width="800">
-</p>
 
-<h1 align="center">depyler</h1>
+  # depyler
 
-<p align="center">
-  <b>A Python-to-Rust transpiler with semantic verification and memory safety analysis.</b>
-</p>
+  **A Python-to-Rust transpiler with semantic verification and memory safety analysis.**
 
-<p align="center">
-  <a href="https://crates.io/crates/depyler"><img src="https://img.shields.io/crates/v/depyler.svg" alt="Crates.io"></a>
-  <a href="https://docs.rs/depyler"><img src="https://docs.rs/depyler/badge.svg" alt="Documentation"></a>
-  <a href="https://github.com/paiml/depyler/actions/workflows/ci.yml"><img src="https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="License"></a>
-</p>
+  [![Crates.io](https://img.shields.io/crates/v/depyler.svg)](https://crates.io/crates/depyler)
+  [![Documentation](https://docs.rs/depyler/badge.svg)](https://docs.rs/depyler)
+  [![CI](https://github.com/paiml/depyler/actions/workflows/ci.yml/badge.svg)](https://github.com/paiml/depyler/actions/workflows/ci.yml)
+  [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+</div>
 
 ---
 
