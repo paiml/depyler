@@ -102,8 +102,19 @@ impl AnnotationAwareTypeMapper {
         value: &PythonType,
         annotations: &TranspilationAnnotations,
     ) -> RustType {
-        let key_rust = self.map_type_with_annotations(key, annotations);
-        let value_rust = self.map_type_with_annotations(value, annotations);
+        // DEPYLER-0776: Dict with Unknown key/value should map to concrete types for single-shot compilation
+        // Using String for keys and serde_json::Value for values to avoid requiring generic T declaration
+        // This matches common Python usage patterns: bare `dict` annotation → Dict(Unknown, Unknown)
+        let key_rust = if matches!(key, PythonType::Unknown) {
+            RustType::String
+        } else {
+            self.map_type_with_annotations(key, annotations)
+        };
+        let value_rust = if matches!(value, PythonType::Unknown) {
+            RustType::Custom("serde_json::Value".to_string())
+        } else {
+            self.map_type_with_annotations(value, annotations)
+        };
 
         // DEPYLER-0278: Always use std::HashMap for standalone file transpilation
         // FnvHashMap and AHashMap require external crate dependencies that may not be available
