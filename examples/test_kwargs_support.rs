@@ -52,7 +52,7 @@ pub fn demo_builtin_kwargs() -> Result<HashMap<serde_json::Value, serde_json::Va
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_nested_kwargs() {
     let result = outer(inner(10, 20), 2.0, inner(5, 5));
-    result
+    let _ = result;
 }
 #[doc = "Test kwargs with complex expressions"]
 #[doc = " Depyler: verified panic-free"]
@@ -64,7 +64,7 @@ pub fn demo_complex_kwargs() {
         (true) && (!false),
         format!("{}{}", "App ".to_string(), (42).to_string()),
     );
-    settings
+    let _ = settings;
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -82,7 +82,7 @@ pub fn calculate(a: i32, b: i32, operation: &str, verbose: bool) -> i32 {
         result = a - b;
     }
     if verbose {
-        println!("{}", format!("Result: {:?}", result));
+        println!("{}", format!("Result: {}", result));
     }
     result
 }
@@ -103,7 +103,7 @@ pub fn configure(
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn outer<'b, 'a>(inner_result: i32, scale: f64, offset: &'b Option<String>) -> f64 {
+pub fn outer<'a, 'b>(inner_result: i32, scale: f64, offset: &'b Option<String>) -> f64 {
     inner_result * scale + offset
 }
 #[doc = " Depyler: verified panic-free"]

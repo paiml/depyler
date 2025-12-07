@@ -1,5 +1,4 @@
 use clap::Parser;
-use std as sys;
 use std::path::PathBuf;
 #[derive(Debug, Clone)]
 pub struct Stats {
@@ -30,20 +29,20 @@ struct Args {
 #[doc = "Count statistics for a single file"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn count_file(filepath: &Path) -> Stats {
+pub fn count_file(filepath: &std::path::PathBuf) -> Stats {
     match (|| -> Result<(), Box<dyn std::error::Error>> {
-        let content = std::fs::read_to_string(filepath).unwrap();
-        let lines = content
+        content = std::fs::read_to_string(filepath).unwrap();
+        lines = content
             .lines()
             .map(|s| s.to_string())
             .collect::<Vec<String>>()
             .len() as i32;
-        let words = content
+        words = content
             .split_whitespace()
             .map(|s| s.to_string())
             .collect::<Vec<String>>()
             .len() as i32;
-        let chars = content.len() as i32;
+        chars = content.len() as i32;
         return Stats::new(lines, words, chars, (filepath).display().to_string());
         Ok(Default::default())
     })() {

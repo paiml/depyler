@@ -531,6 +531,8 @@ impl TypeHintProvider {
         match value {
             HirExpr::List(elems) => self.infer_list_type(var_name, elems),
             HirExpr::Dict(items) => self.infer_dict_type(var_name, items),
+            HirExpr::Set(elems) => self.infer_set_type(var_name, elems),
+            HirExpr::Tuple(elems) => self.infer_tuple_type(var_name, elems),
             _ => {}
         }
     }
@@ -542,12 +544,83 @@ impl TypeHintProvider {
     }
 
     fn infer_dict_type(&mut self, var_name: &str, items: &[(HirExpr, HirExpr)]) {
-        if let Some((k, v)) = items.first() {
-            let key_type = self.infer_expr_type(k);
-            let val_type = self.infer_expr_type(v);
-            let dict_type = Type::Dict(Box::new(key_type), Box::new(val_type));
-            self.add_compatible_constraint(var_name, dict_type);
+        if items.is_empty() {
+            return;
         }
+
+        // DEPYLER-0740: Check if any value is None
+        let has_none_value = items
+            .iter()
+            .any(|(_, v)| matches!(v, HirExpr::Literal(crate::hir::Literal::None)));
+
+        // Get key type from first item
+        let key_type = self.infer_expr_type(&items[0].0);
+
+        // Get value type from first non-None value
+        let base_val_type = items
+            .iter()
+            .filter(|(_, v)| !matches!(v, HirExpr::Literal(crate::hir::Literal::None)))
+            .map(|(_, v)| self.infer_expr_type(v))
+            .find(|t| !matches!(t, Type::None | Type::Unknown))
+            .unwrap_or_else(|| self.infer_expr_type(&items[0].1));
+
+        // If any value is None, wrap value type in Option
+        let val_type = if has_none_value && !matches!(base_val_type, Type::None) {
+            Type::Optional(Box::new(base_val_type))
+        } else {
+            base_val_type
+        };
+
+        let dict_type = Type::Dict(Box::new(key_type), Box::new(val_type));
+        self.add_compatible_constraint(var_name, dict_type);
+    }
+
+    // DEPYLER-0742: Infer set type for variable assignment, handling None values
+    fn infer_set_type(&mut self, var_name: &str, elems: &[HirExpr]) {
+        if elems.is_empty() {
+            return;
+        }
+
+        // Check if any element is None
+        let has_none = elems
+            .iter()
+            .any(|e| matches!(e, HirExpr::Literal(crate::hir::Literal::None)));
+
+        // Get element type from first non-None element
+        let base_elem_type = elems
+            .iter()
+            .filter(|e| !matches!(e, HirExpr::Literal(crate::hir::Literal::None)))
+            .map(|e| self.infer_expr_type(e))
+            .find(|t| !matches!(t, Type::None | Type::Unknown))
+            .unwrap_or_else(|| self.infer_expr_type(&elems[0]));
+
+        // If any element is None, wrap element type in Option
+        let elem_type = if has_none && !matches!(base_elem_type, Type::None) {
+            Type::Optional(Box::new(base_elem_type))
+        } else {
+            base_elem_type
+        };
+
+        let set_type = Type::Set(Box::new(elem_type));
+        self.add_compatible_constraint(var_name, set_type);
+    }
+
+    // DEPYLER-0743: Infer tuple type for variable assignment, handling None values
+    fn infer_tuple_type(&mut self, var_name: &str, elems: &[HirExpr]) {
+        let elem_types: Vec<Type> = elems
+            .iter()
+            .map(|e| {
+                let ty = self.infer_expr_type(e);
+                // For None elements in tuple, use Option<()>
+                if matches!(ty, Type::None) {
+                    Type::Optional(Box::new(Type::Custom("()".to_string())))
+                } else {
+                    ty
+                }
+            })
+            .collect();
+        let tuple_type = Type::Tuple(elem_types);
+        self.add_compatible_constraint(var_name, tuple_type);
     }
 
     fn analyze_return(&mut self, expr: &HirExpr) -> Result<()> {
@@ -1189,14 +1262,94 @@ impl TypeHintProvider {
             return Type::Unknown;
         }
 
-        // Check first element
-        self.infer_expr_type(&elems[0])
+        // DEPYLER-0739: Check if any element is None
+        let has_none = elems
+            .iter()
+            .any(|e| matches!(e, HirExpr::Literal(crate::hir::Literal::None)));
+
+        // DEPYLER-0741: Check if this is a list of dicts and ANY dict has None values
+        // If so, all dicts should have Option<V> value type for consistency
+        let any_dict_has_none = elems.iter().any(|e| {
+            if let HirExpr::Dict(items) = e {
+                items
+                    .iter()
+                    .any(|(_, v)| matches!(v, HirExpr::Literal(crate::hir::Literal::None)))
+            } else {
+                false
+            }
+        });
+
+        // Find first non-None element type
+        let base_type = elems
+            .iter()
+            .filter(|e| !matches!(e, HirExpr::Literal(crate::hir::Literal::None)))
+            .map(|e| self.infer_expr_type(e))
+            .find(|t| !matches!(t, Type::None | Type::Unknown))
+            .unwrap_or_else(|| self.infer_expr_type(&elems[0]));
+
+        // DEPYLER-0741: If list of dicts and any dict has None value,
+        // modify the dict value type to be Optional
+        // Also need to find the real value type from a dict with non-None values
+        if any_dict_has_none {
+            // Find a dict with a non-None value to determine the real value type
+            let real_value_type = elems
+                .iter()
+                .filter_map(|e| {
+                    if let HirExpr::Dict(items) = e {
+                        items
+                            .iter()
+                            .filter(|(_, v)| {
+                                !matches!(v, HirExpr::Literal(crate::hir::Literal::None))
+                            })
+                            .map(|(_, v)| self.infer_expr_type(v))
+                            .find(|t| !matches!(t, Type::None | Type::Unknown))
+                    } else {
+                        None
+                    }
+                })
+                .next();
+
+            // Get key type from first dict
+            let key_type = elems
+                .iter()
+                .filter_map(|e| {
+                    if let HirExpr::Dict(items) = e {
+                        items.first().map(|(k, _)| self.infer_expr_type(k))
+                    } else {
+                        None
+                    }
+                })
+                .next()
+                .unwrap_or(Type::Unknown);
+
+            if let Some(val_type) = real_value_type {
+                return Type::Dict(Box::new(key_type), Box::new(Type::Optional(Box::new(val_type))));
+            } else if let Type::Dict(k, v) = base_type {
+                // Fallback: wrap value type in Option if not already
+                let opt_v = if matches!(v.as_ref(), Type::Optional(_)) {
+                    v
+                } else {
+                    Box::new(Type::Optional(v))
+                };
+                return Type::Dict(k, opt_v);
+            }
+        }
+
+        // If list contains None, wrap element type in Option
+        if has_none && !matches!(base_type, Type::None) {
+            Type::Optional(Box::new(base_type))
+        } else {
+            base_type
+        }
     }
 
     fn infer_expr_type(&self, expr: &HirExpr) -> Type {
         match expr {
             HirExpr::Literal(lit) => self.literal_to_type(lit),
             HirExpr::List(elems) => self.infer_list_expr_type(elems),
+            HirExpr::Dict(items) => self.infer_dict_expr_type(items),
+            HirExpr::Set(elems) => self.infer_set_expr_type(elems),
+            HirExpr::Tuple(elems) => self.infer_tuple_expr_type(elems),
             HirExpr::Var(name) => self.infer_var_type(name),
             _ => Type::Unknown,
         }
@@ -1204,6 +1357,86 @@ impl TypeHintProvider {
 
     fn infer_list_expr_type(&self, elems: &[HirExpr]) -> Type {
         Type::List(Box::new(self.infer_collection_element_type(elems)))
+    }
+
+    // DEPYLER-0742: Infer set type, handling None values
+    fn infer_set_expr_type(&self, elems: &[HirExpr]) -> Type {
+        if elems.is_empty() {
+            return Type::Set(Box::new(Type::Unknown));
+        }
+
+        // Check if any element is None
+        let has_none = elems
+            .iter()
+            .any(|e| matches!(e, HirExpr::Literal(crate::hir::Literal::None)));
+
+        // Get element type from first non-None element
+        let base_elem_type = elems
+            .iter()
+            .filter(|e| !matches!(e, HirExpr::Literal(crate::hir::Literal::None)))
+            .map(|e| self.infer_expr_type(e))
+            .find(|t| !matches!(t, Type::None | Type::Unknown))
+            .unwrap_or_else(|| self.infer_expr_type(&elems[0]));
+
+        // If any element is None, wrap element type in Option
+        let elem_type = if has_none && !matches!(base_elem_type, Type::None) {
+            Type::Optional(Box::new(base_elem_type))
+        } else {
+            base_elem_type
+        };
+
+        Type::Set(Box::new(elem_type))
+    }
+
+    // DEPYLER-0743: Infer tuple type, handling None values in individual positions
+    fn infer_tuple_expr_type(&self, elems: &[HirExpr]) -> Type {
+        let elem_types: Vec<Type> = elems
+            .iter()
+            .map(|e| {
+                let ty = self.infer_expr_type(e);
+                // DEPYLER-0743: For None elements in tuple, use Option<()>
+                // because None as a value needs Option type, and () is the
+                // simplest inner type when we don't have more context
+                if matches!(ty, Type::None) {
+                    Type::Optional(Box::new(Type::Custom("()".to_string())))
+                } else {
+                    ty
+                }
+            })
+            .collect();
+        Type::Tuple(elem_types)
+    }
+
+    // DEPYLER-0740: Infer dict type, handling None values
+    fn infer_dict_expr_type(&self, items: &[(HirExpr, HirExpr)]) -> Type {
+        if items.is_empty() {
+            return Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown));
+        }
+
+        // Check if any value is None
+        let has_none_value = items
+            .iter()
+            .any(|(_, v)| matches!(v, HirExpr::Literal(crate::hir::Literal::None)));
+
+        // Get key type from first item
+        let key_type = self.infer_expr_type(&items[0].0);
+
+        // Get value type from first non-None value
+        let base_val_type = items
+            .iter()
+            .filter(|(_, v)| !matches!(v, HirExpr::Literal(crate::hir::Literal::None)))
+            .map(|(_, v)| self.infer_expr_type(v))
+            .find(|t| !matches!(t, Type::None | Type::Unknown))
+            .unwrap_or_else(|| self.infer_expr_type(&items[0].1));
+
+        // If any value is None, wrap value type in Option
+        let val_type = if has_none_value && !matches!(base_val_type, Type::None) {
+            Type::Optional(Box::new(base_val_type))
+        } else {
+            base_val_type
+        };
+
+        Type::Dict(Box::new(key_type), Box::new(val_type))
     }
 
     fn infer_var_type(&self, name: &str) -> Type {

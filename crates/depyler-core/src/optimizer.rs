@@ -659,52 +659,67 @@ impl Optimizer {
     }
 
     fn eliminate_dead_code_function(&self, func: &mut HirFunction) {
-        // Collect truly used variables (referenced after assignment)
-        let mut used_vars = HashMap::new();
-        for stmt in &func.body {
-            self.collect_truly_used_vars_stmt(stmt, &mut used_vars);
-        }
+        // DEPYLER-0703: Iterate DCE until no more statements are removed
+        // This handles transitive dead code (e.g., `sq = Foo(); is_sq = sq.bar()` where
+        // is_sq is unused → remove is_sq → sq becomes unused → remove sq)
+        const MAX_ITERATIONS: usize = 10;
 
-        // Collect assignments with side effects (indexing) that need to be preserved
-        let mut side_effect_vars = HashSet::new();
-        for stmt in &func.body {
-            if let HirStmt::Assign { target, value, .. } = stmt {
-                if Self::expr_contains_index(value) {
-                    if let AssignTarget::Symbol(name) = target {
-                        side_effect_vars.insert(name.clone());
+        for _ in 0..MAX_ITERATIONS {
+            let initial_len = func.body.len();
+
+            // Collect truly used variables (referenced after assignment)
+            let mut used_vars = HashMap::new();
+            for stmt in &func.body {
+                self.collect_truly_used_vars_stmt(stmt, &mut used_vars);
+            }
+
+            // DEPYLER-0703: Collect assignments with side effects (calls, indexing, etc.)
+            // that need to be preserved even if the variable is unused
+            let mut side_effect_vars = HashSet::new();
+            for stmt in &func.body {
+                if let HirStmt::Assign { target, value, .. } = stmt {
+                    if Self::expr_has_side_effects(value) {
+                        if let AssignTarget::Symbol(name) = target {
+                            side_effect_vars.insert(name.clone());
+                        }
                     }
                 }
             }
-        }
 
-        // Rename variables that have side effects but aren't actually used to `_varname`
-        // This prevents Rust's unused_variables warning while preserving the side effect
-        for stmt in &mut func.body {
-            if let HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } = stmt
-            {
-                if side_effect_vars.contains(name) && !used_vars.contains_key(name) {
-                    *name = format!("_{}", name);
+            // Rename variables that have side effects but aren't actually used to `_varname`
+            // This prevents Rust's unused_variables warning while preserving the side effect
+            for stmt in &mut func.body {
+                if let HirStmt::Assign {
+                    target: AssignTarget::Symbol(name),
+                    ..
+                } = stmt
+                {
+                    if side_effect_vars.contains(name) && !used_vars.contains_key(name) {
+                        *name = format!("_{}", name);
+                    }
                 }
             }
-        }
 
-        // Remove truly dead assignments (not used and no side effects)
-        func.body.retain(|stmt| {
-            if let HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } = stmt
-            {
-                // Keep if: truly used OR has side effects (including renamed _varname)
-                used_vars.contains_key(name)
-                    || side_effect_vars.contains(name.trim_start_matches('_'))
-            } else {
-                true
+            // Remove truly dead assignments (not used and no side effects)
+            func.body.retain(|stmt| {
+                if let HirStmt::Assign {
+                    target: AssignTarget::Symbol(name),
+                    ..
+                } = stmt
+                {
+                    // Keep if: truly used OR has side effects (including renamed _varname)
+                    used_vars.contains_key(name)
+                        || side_effect_vars.contains(name.trim_start_matches('_'))
+                } else {
+                    true
+                }
+            });
+
+            // If no statements were removed, we're done
+            if func.body.len() == initial_len {
+                break;
             }
-        });
+        }
     }
 
     /// DEPYLER-0270 Fix #1 (Updated): Collect truly used variables (referenced, not just assigned)
@@ -831,36 +846,41 @@ impl Optimizer {
     /// operations that can fail (e.g., list[0], dict["key"]) and have side effects.
     ///
     /// # Complexity
-    /// 5 (recursive expression traversal with early return)
-    fn expr_contains_index(expr: &HirExpr) -> bool {
+    /// DEPYLER-0703: Check if expression has side effects (calls, indexing, etc.)
+    /// that should not be eliminated even if the result is unused.
+    /// Complexity: 5 (recursive expression traversal with early return)
+    fn expr_has_side_effects(expr: &HirExpr) -> bool {
         match expr {
+            // Indexing has side effects (may panic)
             HirExpr::Index { .. } => true,
+            // Function calls have side effects (may modify state, print, etc.)
+            HirExpr::Call { .. } => true,
+            // Method calls have side effects
+            HirExpr::MethodCall { .. } => true,
+            // Binary/unary ops have side effects if operands do
             HirExpr::Binary { left, right, .. } => {
-                Self::expr_contains_index(left) || Self::expr_contains_index(right)
+                Self::expr_has_side_effects(left) || Self::expr_has_side_effects(right)
             }
-            HirExpr::Unary { operand, .. } => Self::expr_contains_index(operand),
-            HirExpr::Call { args, .. } => args.iter().any(Self::expr_contains_index),
+            HirExpr::Unary { operand, .. } => Self::expr_has_side_effects(operand),
+            // Collections have side effects if elements do
             HirExpr::List(items) | HirExpr::Tuple(items) => {
-                items.iter().any(Self::expr_contains_index)
+                items.iter().any(Self::expr_has_side_effects)
             }
             HirExpr::Dict(pairs) => pairs
                 .iter()
-                .any(|(k, v)| Self::expr_contains_index(k) || Self::expr_contains_index(v)),
-            HirExpr::Set(items) => items.iter().any(Self::expr_contains_index),
-            HirExpr::MethodCall { object, args, .. } => {
-                Self::expr_contains_index(object) || args.iter().any(Self::expr_contains_index)
-            }
-            HirExpr::Attribute { value, .. } => Self::expr_contains_index(value),
+                .any(|(k, v)| Self::expr_has_side_effects(k) || Self::expr_has_side_effects(v)),
+            HirExpr::Set(items) => items.iter().any(Self::expr_has_side_effects),
+            HirExpr::Attribute { value, .. } => Self::expr_has_side_effects(value),
             HirExpr::Slice {
                 base,
                 start,
                 stop,
                 step,
             } => {
-                Self::expr_contains_index(base)
-                    || start.as_ref().is_some_and(|e| Self::expr_contains_index(e))
-                    || stop.as_ref().is_some_and(|e| Self::expr_contains_index(e))
-                    || step.as_ref().is_some_and(|e| Self::expr_contains_index(e))
+                Self::expr_has_side_effects(base)
+                    || start.as_ref().is_some_and(|e| Self::expr_has_side_effects(e))
+                    || stop.as_ref().is_some_and(|e| Self::expr_has_side_effects(e))
+                    || step.as_ref().is_some_and(|e| Self::expr_has_side_effects(e))
             }
             _ => false,
         }

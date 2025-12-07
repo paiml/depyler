@@ -1,5 +1,5 @@
-const STR_A: &'static str = "a";
 const STR_B: &'static str = "b";
+const STR_A: &'static str = "a";
 use std::collections::HashMap;
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
@@ -82,7 +82,7 @@ pub fn test_list_clear() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_list_index() -> i32 {
-    let mut numbers = vec![10, 20, 30];
+    let numbers = vec![10, 20, 30];
     let pos = numbers
         .iter()
         .position(|x| x == &20)
@@ -94,7 +94,7 @@ pub fn test_list_index() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_list_count() -> i32 {
-    let mut numbers = vec![1, 2, 2, 3, 2];
+    let numbers = vec![1, 2, 2, 3, 2];
     let occurrences = numbers.iter().filter(|x| **x == 2).count() as i32;
     occurrences
 }
@@ -326,6 +326,15 @@ pub fn test_set_pop() -> bool {
         set.insert(3);
         set
     };
+    let _value = numbers
+        .iter()
+        .next()
+        .cloned()
+        .map(|x| {
+            numbers.remove(&x);
+            x
+        })
+        .expect("pop from empty set");
     numbers.len() as i32 == 2
 }
 #[doc = "Test set.clear() method"]

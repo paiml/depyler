@@ -69,8 +69,8 @@ impl AnnotationAwareTypeMapper {
         inner: &PythonType,
         annotations: &TranspilationAnnotations,
     ) -> RustType {
-        // DEPYLER-0609: List[Unknown] should map to Vec<serde_json::Value>
-        // This handles untyped list annotations like `-> list`
+        // DEPYLER-0750: List[Unknown] should map to Vec<serde_json::Value> for single-shot compilation
+        // Using concrete type instead of TypeParam("T") to avoid requiring generic declaration
         let inner_rust = if matches!(inner, PythonType::Unknown) {
             RustType::Custom("serde_json::Value".to_string())
         } else {

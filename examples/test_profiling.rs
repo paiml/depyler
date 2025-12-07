@@ -103,8 +103,8 @@ pub fn type_check_heavy(values: &Vec<serde_json::Value>) -> i32 {
 #[doc = "Matrix multiplication - triple nested loop."]
 #[doc = " Depyler: proven to terminate"]
 pub fn matrix_multiply<'a, 'b>(
-    a: &'a mut Vec<Vec<f64>>,
-    b: &'b mut Vec<Vec<f64>>,
+    a: &'a Vec<Vec<f64>>,
+    b: &'b Vec<Vec<f64>>,
 ) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = a.len() as i32;
     let rows_a = _cse_temp_0;
@@ -118,7 +118,7 @@ pub fn matrix_multiply<'a, 'b>(
     } else {
         0
     };
-    let mut result = (0..rows_a)
+    let result = (0..rows_a)
         .into_iter()
         .map(|_| (0..cols_b).into_iter().map(|_| 0.0).collect::<Vec<_>>())
         .collect::<Vec<_>>();
@@ -167,7 +167,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     fibonacci_iterative(30);
     let test_list = (0..100).collect::<Vec<_>>();
-    process_list(test_list);
+    process_list(&test_list);
     string_concatenation_in_loop(100);
     allocate_many_lists(50);
     let mixed_values = vec![
@@ -180,7 +180,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     type_check_heavy(&mixed_values);
     let mat_a = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
     let mat_b = vec![vec![5.0, 6.0], vec![7.0, 8.0]];
-    matrix_multiply(&mut mat_a, &mut mat_b);
+    matrix_multiply(&mat_a, &mat_b);
     simple_function(10, 20);
     Ok(())
 }

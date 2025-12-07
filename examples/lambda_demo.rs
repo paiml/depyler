@@ -21,7 +21,7 @@ impl IndexError {
 }
 #[doc = "\n    Process S3 events and return processed results.\n    \n    This function demonstrates:\n    - S3 event processing\n    - Error handling\n    - JSON response formatting\n    "]
 pub fn lambda_handler(
-    event: &HashMap<String, serde_json::Value>,
+    event: &std::collections::HashMap<String, serde_json::Value>,
     context: serde_json::Value,
 ) -> Result<HashMap<String, serde_json::Value>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = !event.get("Records").is_some();
@@ -80,7 +80,7 @@ pub fn lambda_handler(
                 .unwrap_or_default()
                 .get("size")
                 .cloned()
-                .unwrap_or(0);
+                .unwrap_or(serde_json::json!(0));
             let mut file_type = "unknown".to_string();
             if (key.ends_with(".jpg")) || (key.ends_with(".jpeg")) {
                 file_type = "image/jpeg";

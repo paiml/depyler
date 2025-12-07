@@ -40,10 +40,10 @@ impl Stack {
         return self._items[-1 as usize];
     }
     pub fn is_empty(&self) -> bool {
-        return self._items.len() == 0;
+        return self._items.len() as i32 == 0;
     }
     pub fn size(&self) -> i32 {
-        return self._items.len();
+        return self._items.len() as i32;
     }
 }
 #[doc = "Check if parentheses are balanced using a stack"]
@@ -59,10 +59,10 @@ pub fn balanced_parentheses(expression: &str) -> Result<bool, Box<dyn std::error
         map
     };
     for char in expression.chars() {
-        if opening.get(&char).is_some() {
+        if opening.contains(&*char) {
             stack.push(char.chars().next().unwrap() as i32);
         } else {
-            if closing.get(&char).is_some() {
+            if closing.contains(&*char) {
                 if stack.is_empty() {
                     return Ok(false);
                 }

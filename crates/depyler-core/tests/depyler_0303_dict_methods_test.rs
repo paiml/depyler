@@ -19,9 +19,12 @@ def add_entry(d: dict[str, int], key: str, value: int) -> dict[str, int]:
         .expect("Transpilation failed");
 
     // Should add mut keyword to d parameter
+    // DEPYLER-0685: Accept both short and fully qualified HashMap paths
     assert!(
-        rust_code.contains("mut d: HashMap<String, i32>"),
-        "Should contain 'mut d: HashMap<String, i32>'"
+        rust_code.contains("mut d: HashMap<String, i32>")
+            || rust_code.contains("mut d: std::collections::HashMap<String, i32>"),
+        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
+        rust_code
     );
     assert!(
         rust_code.contains(".insert("),
@@ -45,9 +48,12 @@ def clear_dict(d: dict[str, int]) -> dict[str, int]:
         .expect("Transpilation failed");
 
     // Should add mut keyword to d parameter
+    // DEPYLER-0685: Accept both short and fully qualified HashMap paths
     assert!(
-        rust_code.contains("mut d: HashMap<String, i32>"),
-        "Should contain 'mut d: HashMap<String, i32>'"
+        rust_code.contains("mut d: HashMap<String, i32>")
+            || rust_code.contains("mut d: std::collections::HashMap<String, i32>"),
+        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
+        rust_code
     );
     assert!(
         rust_code.contains(".clear()"),
@@ -136,9 +142,12 @@ def modify_dict(d: dict[str, int], k1: str, k2: str) -> dict[str, int]:
         .expect("Transpilation failed");
 
     // Should add mut keyword
+    // DEPYLER-0685: Accept both short and fully qualified HashMap paths
     assert!(
-        rust_code.contains("mut d: HashMap<String, i32>"),
-        "Should contain 'mut d: HashMap<String, i32>'"
+        rust_code.contains("mut d: HashMap<String, i32>")
+            || rust_code.contains("mut d: std::collections::HashMap<String, i32>"),
+        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
+        rust_code
     );
 
     // Should NOT have &&k2
@@ -195,9 +204,12 @@ def remove_if_exists(d: dict[str, int], key: str) -> dict[str, int]:
         .expect("Transpilation failed");
 
     // Should add mut keyword (mutation happens in if body)
+    // DEPYLER-0685: Accept both short and fully qualified HashMap paths
     assert!(
-        rust_code.contains("mut d: HashMap<String, i32>"),
-        "Should contain 'mut d: HashMap<String, i32>'"
+        rust_code.contains("mut d: HashMap<String, i32>")
+            || rust_code.contains("mut d: std::collections::HashMap<String, i32>"),
+        "Should contain 'mut d: HashMap<String, i32>' (short or fully qualified)\nGenerated:\n{}",
+        rust_code
     );
 
     // Should NOT have &&key in contains_key or remove

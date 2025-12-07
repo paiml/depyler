@@ -1,17 +1,16 @@
 use serde_json as json;
 use serde_json;
-use std as sys;
 use std::collections::HashMap;
 #[doc = "Parse JSON from string"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn parse_json(text: &str) -> HashMap<String, serde_json::Value> {
+pub fn parse_json(text: &str) -> std::collections::HashMap<String, serde_json::Value> {
     serde_json::from_str::<serde_json::Value>(&text).unwrap()
 }
 #[doc = "Convert dictionary to JSON string"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn serialize_json(data: &HashMap<String, serde_json::Value>) -> String {
+pub fn serialize_json(data: &std::collections::HashMap<String, serde_json::Value>) -> String {
     serde_json::to_string(&data).unwrap()
 }
 #[doc = "Get environment variable"]
@@ -24,7 +23,10 @@ pub fn get_env_var(name: &str) -> String {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_current_directory() -> String {
-    std::env::current_dir()?.to_string_lossy().to_string()
+    std::env::current_dir()
+        .expect("Failed to get current directory")
+        .to_string_lossy()
+        .to_string()
 }
 #[doc = "Get command line arguments"]
 #[doc = " Depyler: verified panic-free"]

@@ -159,3 +159,32 @@ pub fn test_floor_division_zero_remainder() -> Result<i32, Box<dyn std::error::E
     let result = _cse_temp_0;
     Ok(result)
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_test_floor_division_positive_examples() {
+        let _ = test_floor_division_positive();
+    }
+    #[test]
+    fn test_test_floor_division_negative_examples() {
+        let _ = test_floor_division_negative();
+    }
+    #[test]
+    fn test_test_floor_division_negative_divisor_examples() {
+        let _ = test_floor_division_negative_divisor();
+    }
+    #[test]
+    fn test_test_floor_division_both_negative_examples() {
+        let _ = test_floor_division_both_negative();
+    }
+    #[test]
+    fn test_test_floor_division_exact_examples() {
+        let _ = test_floor_division_exact();
+    }
+    #[test]
+    fn test_test_floor_division_zero_remainder_examples() {
+        let _ = test_floor_division_zero_remainder();
+    }
+}

@@ -238,5 +238,6 @@ fn create_calculator_class() -> HirClass {
         ],
         is_dataclass: false,
         docstring: Some("A simple calculator class".to_string()),
+        type_params: vec![],
     }
 }

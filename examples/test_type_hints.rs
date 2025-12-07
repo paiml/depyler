@@ -54,7 +54,7 @@ pub fn manipulate_text(text: &str) -> String {
 #[doc = "Mixed numeric operations."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn mixed_operations<'a, 'b>(x: i32, y: i32) {
+pub fn mixed_operations(x: i32, y: i32) -> i32 {
     let sum_val = x + y;
     let _cse_temp_0 = x * y;
     let product = _cse_temp_0;
@@ -92,8 +92,8 @@ pub fn inferred_return_types() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn string_formatting(name: &str, age: i32) -> String {
     let formatted_name = name.to_uppercase();
-    let next_age = format!("{}{}", age, 1);
-    format!("{} will be {:?} next year", formatted_name, next_age)
+    let next_age = age + 1;
+    format!("{} will be {} next year", formatted_name, next_age)
 }
 #[doc = "Using variables as iterators."]
 #[doc = " Depyler: verified panic-free"]
@@ -112,7 +112,7 @@ pub fn iterator_usage(
 #[doc = "Type conversion hints."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn type_conversions(value: &str) -> (String, i32, f64) {
+pub fn type_conversions(value: &str) -> (String, serde_json::Value, serde_json::Value) {
     let _cse_temp_0 = (value).to_string();
     let text = _cse_temp_0;
     let _cse_temp_1 = value.parse::<i32>().unwrap_or_default();
@@ -123,7 +123,7 @@ pub fn type_conversions(value: &str) -> (String, i32, f64) {
 }
 #[doc = "Only some parameters have annotations."]
 #[doc = " Depyler: verified panic-free"]
-pub fn partial_annotations<'a, 'b>(
+pub fn partial_annotations<'b, 'a>(
     data: &'a Vec<serde_json::Value>,
     multiplier: i32,
 ) -> Vec<serde_json::Value> {
@@ -132,4 +132,25 @@ pub fn partial_annotations<'a, 'b>(
         result.push(item * multiplier);
     }
     result
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_process_numbers_examples() {
+        assert_eq!(process_numbers(&vec![]), 0);
+        assert_eq!(process_numbers(&vec![1]), 1);
+        assert_eq!(process_numbers(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn test_mixed_operations_examples() {
+        assert_eq!(mixed_operations(0, 0), 0);
+        assert_eq!(mixed_operations(1, 2), 3);
+        assert_eq!(mixed_operations(-1, 1), 0);
+    }
+    #[test]
+    fn test_inferred_return_types_examples() {
+        let _ = inferred_return_types();
+    }
 }

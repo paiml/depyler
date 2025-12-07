@@ -1,3 +1,4 @@
+use serde_json;
 #[doc = "// NOTE: Map Python module 'heapq'(tracked in DEPYLER-0424)"]
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -80,7 +81,7 @@ pub fn test_heapify() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
 #[doc = "Test popping minimum element"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_heap_pop_min() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut heap: Vec<i32> = vec![1, 2, 3, 4, 5];
+    let heap: Vec<i32> = vec![1, 2, 3, 4, 5];
     let _cse_temp_0 = heap.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     if _cse_temp_1 {
@@ -97,7 +98,7 @@ pub fn test_heap_pop_min() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "Test peeking at minimum without removing"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_heap_peek() -> Result<i32, Box<dyn std::error::Error>> {
-    let mut heap: Vec<i32> = vec![1, 2, 3, 4, 5];
+    let heap: Vec<i32> = vec![1, 2, 3, 4, 5];
     let _cse_temp_0 = heap.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     if _cse_temp_1 {
@@ -156,7 +157,7 @@ pub fn test_nlargest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::e
 }
 #[doc = "Manual heap insert operation"]
 pub fn manual_heap_insert(
-    heap: &mut Vec<i32>,
+    heap: &Vec<i32>,
     value: i32,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut new_heap: Vec<i32> = heap.clone();
@@ -197,7 +198,9 @@ pub fn manual_heap_insert(
     Ok(new_heap)
 }
 #[doc = "Manual heap extract minimum"]
-pub fn manual_heap_extract_min(heap: &mut Vec<i32>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn manual_heap_extract_min(
+    heap: &Vec<i32>,
+) -> Result<(i32, Vec<serde_json::Value>), Box<dyn std::error::Error>> {
     let _cse_temp_0 = heap.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -222,7 +225,7 @@ pub fn manual_heap_extract_min(heap: &mut Vec<i32>) -> Result<(), Box<dyn std::e
         new_heap.push(heap.get(i as usize).cloned().unwrap_or_default());
     }
     let mut index: i32 = 0;
-    while true {
+    loop {
         let left: i32 = 2 * index + 1;
         let right: i32 = 2 * index + 2;
         let mut smallest: i32 = index.clone();
@@ -254,24 +257,16 @@ pub fn manual_heap_extract_min(heap: &mut Vec<i32>) -> Result<(), Box<dyn std::e
 }
 #[doc = "Simulate priority queue using heap"]
 pub fn priority_queue_simulation() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let tasks: Vec<()> = vec![(3, "low"), (1, "high"), (2, "medium")];
+    let tasks: Vec<()> = vec![
+        (3, "low".to_string()),
+        (1, "high".to_string()),
+        (2, "medium".to_string()),
+    ];
     let mut sorted_tasks: Vec<()> = tasks.clone();
     for i in 0..sorted_tasks.len() as i32 {
         for j in i + 1..sorted_tasks.len() as i32 {
-            if sorted_tasks
-                .get(j as usize)
-                .cloned()
-                .unwrap_or_default()
-                .get(0usize)
-                .cloned()
-                .unwrap_or_default()
-                < sorted_tasks
-                    .get(i as usize)
-                    .cloned()
-                    .unwrap_or_default()
-                    .get(0usize)
-                    .cloned()
-                    .unwrap_or_default()
+            if sorted_tasks.get(j as usize).cloned().unwrap_or_default().0
+                < sorted_tasks.get(i as usize).cloned().unwrap_or_default().0
             {
                 let temp: () = sorted_tasks.get(i as usize).cloned().unwrap_or_default();
                 sorted_tasks.insert(
@@ -284,7 +279,7 @@ pub fn priority_queue_simulation() -> Result<Vec<i32>, Box<dyn std::error::Error
     }
     let mut priorities: Vec<i32> = vec![];
     for task in sorted_tasks.iter().cloned() {
-        priorities.push(task.get(0usize).cloned().unwrap_or_default());
+        priorities.push(task.0);
     }
     Ok(priorities)
 }
@@ -373,7 +368,7 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
     let _cse_temp_2 = _cse_temp_1 == 1;
     let mut median: f64;
     if _cse_temp_2 {
-        let _cse_temp_3 = ({
+        let _cse_temp_3 = {
             let base = &sorted_data;
             let idx: i32 = {
                 let a = n;
@@ -397,7 +392,9 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
                 idx as usize
             };
             base.get(actual_idx).cloned().unwrap_or_default()
-        }) as f64;
+        }
+        .parse::<f64>()
+        .unwrap();
         median = _cse_temp_3;
     } else {
         let mid1: i32 = {
@@ -459,17 +456,27 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
 #[doc = "Run all heapq module tests"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_heapq_features() -> Result<(), Box<dyn std::error::Error>> {
+    let _heap: Vec<i32> = test_heap_push_pop()?;
+    let _heapified: Vec<i32> = test_heapify()?;
+    let _min_val: i32 = test_heap_pop_min()?;
+    let _peek_val: i32 = test_heap_peek()?;
     let data: Vec<i32> = vec![5, 2, 8, 1, 9, 3, 7];
+    let _smallest_3: Vec<i32> = test_nsmallest(&data, 3)?;
+    let _largest_3: Vec<i32> = test_nlargest(&data, 3)?;
     let mut h: Vec<i32> = vec![];
-    h = manual_heap_insert(&mut h, 5)?;
-    h = manual_heap_insert(&mut h, 3)?;
-    h = manual_heap_insert(&mut h, 7)?;
-    let extract_result: () = manual_heap_extract_min(&mut h)?;
-    let _extracted: i32 = extract_result.get(0usize).cloned().unwrap_or_default();
-    let _remaining: Vec<i32> = extract_result.get(1usize).cloned().unwrap_or_default();
+    h = manual_heap_insert(&h, 5)?;
+    h = manual_heap_insert(&h, 3)?;
+    h = manual_heap_insert(&h, 7)?;
+    let extract_result: () = manual_heap_extract_min(&h)?;
+    let _extracted: i32 = extract_result.0;
+    let _remaining: Vec<i32> = extract_result.1;
+    let _priorities: Vec<i32> = priority_queue_simulation()?;
     let lists: Vec<Vec<i32>> = vec![vec![1, 4, 7], vec![2, 5, 8], vec![3, 6, 9]];
+    let _merged: Vec<i32> = merge_sorted_lists(&lists)?;
     let sample: Vec<i32> = vec![7, 10, 4, 3, 20, 15];
+    let _kth: i32 = find_kth_smallest(&sample, 3)?;
     let median_data: Vec<i32> = vec![1, 2, 3, 4, 5];
+    let _median: f64 = find_median_using_heaps(&median_data)?;
     println!("{}", "All heapq module tests completed successfully");
     Ok(())
 }

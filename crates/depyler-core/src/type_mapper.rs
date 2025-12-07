@@ -147,7 +147,14 @@ impl TypeMapper {
             },
             PythonType::Bool => RustType::Primitive(PrimitiveType::Bool),
             PythonType::None => RustType::Unit,
-            PythonType::List(inner) => RustType::Vec(Box::new(self.map_type(inner))),
+            // DEPYLER-0750: Use serde_json::Value for bare list (no type params)
+            // to avoid generating Vec<T> which requires generic parameter declaration
+            PythonType::List(inner) => match inner.as_ref() {
+                PythonType::Unknown => RustType::Vec(Box::new(RustType::Custom(
+                    "serde_json::Value".to_string(),
+                ))),
+                _ => RustType::Vec(Box::new(self.map_type(inner))),
+            },
             PythonType::Dict(k, v) => {
                 RustType::HashMap(Box::new(self.map_type(k)), Box::new(self.map_type(v)))
             }
@@ -249,6 +256,16 @@ impl TypeMapper {
                         | "ZeroDivisionError" | "OverflowError" | "ArithmeticError" => {
                             RustType::Custom("Box<dyn std::error::Error>".to_string())
                         }
+                        // DEPYLER-0742: Python collections.deque maps to std::collections::VecDeque
+                        // VecDeque is the Rust equivalent of Python's deque (double-ended queue)
+                        "deque" | "collections.deque" | "Deque" => {
+                            RustType::Custom("std::collections::VecDeque<serde_json::Value>".to_string())
+                        }
+                        // DEPYLER-0742: Python Counter maps to HashMap (for now)
+                        // A proper Counter implementation would need a wrapper type
+                        "Counter" | "collections.Counter" => {
+                            RustType::HashMap(Box::new(RustType::String), Box::new(RustType::Primitive(PrimitiveType::I32)))
+                        }
                         _ => RustType::Custom(name.clone()),
                     }
                 }
@@ -264,6 +281,12 @@ impl TypeMapper {
                         Box::new(self.map_type(&params[0])),
                         Box::new(self.map_type(&params[1])),
                     ),
+                    // DEPYLER-0742: deque[T] -> VecDeque<T>
+                    // Python's collections.deque with type parameter
+                    "deque" | "collections.deque" | "Deque" if params.len() == 1 => {
+                        let inner_type = self.map_type(&params[0]);
+                        RustType::Custom(format!("std::collections::VecDeque<{}>", inner_type.to_rust_string()))
+                    }
                     // DEPYLER-0188: Generator[YieldType, SendType, ReturnType] -> impl Iterator<Item=YieldType>
                     // Python generators map to Rust iterators for idiomatic code
                     "Generator" if !params.is_empty() => {
@@ -356,7 +379,11 @@ impl TypeMapper {
                 element_type: Box::new(self.map_type(element_type)),
                 size: self.map_const_generic(size),
             },
-            PythonType::Set(inner) => RustType::HashSet(Box::new(self.map_type(inner))),
+            // DEPYLER-0750: Use String for bare set (no type params) since HashSet needs Hash
+            PythonType::Set(inner) => match inner.as_ref() {
+                PythonType::Unknown => RustType::HashSet(Box::new(RustType::String)),
+                _ => RustType::HashSet(Box::new(self.map_type(inner))),
+            },
             PythonType::UnificationVar(id) => {
                 // DEPYLER-0692: UnificationVar indicates incomplete type inference
                 // Instead of panicking, fall back to a generic type

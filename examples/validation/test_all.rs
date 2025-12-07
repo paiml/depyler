@@ -1,5 +1,4 @@
 #[doc = "// NOTE: Map Python module 'subprocess'(tracked in DEPYLER-0424)"]
-use std as sys;
 use std::collections::HashMap;
 #[doc = "Test binary search implementation."]
 #[doc = " Depyler: verified panic-free"]
@@ -53,7 +52,7 @@ pub fn test_process_config() {
                 map.insert("debug".to_string(), "true");
                 map
             },
-            "true",
+            "true".to_string(),
         ),
         (
             {
@@ -77,7 +76,7 @@ pub fn test_process_config() {
                 map.insert("level".to_string(), "info");
                 map
             },
-            "false",
+            "false".to_string(),
         ),
     ];
     println!("{}", "\nTesting process_config...");
@@ -92,11 +91,11 @@ pub fn test_process_config() {
 #[doc = " Depyler: verified panic-free"]
 pub fn test_classify_number() {
     let test_cases = vec![
-        (0, "zero"),
-        (42, "positive"),
-        (-42, "negative"),
-        (1, "positive"),
-        (-1, "negative"),
+        (0, "zero".to_string()),
+        (42, "positive".to_string()),
+        (-42, "negative".to_string()),
+        (1, "positive".to_string()),
+        (-1, "negative".to_string()),
     ];
     println!("{}", "\nTesting classify_number...");
     for (n, expected) in test_cases.iter().cloned() {

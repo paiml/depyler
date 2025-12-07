@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_string_dict() -> HashMap<String, String> {
-    let mut d: HashMap<String, String> = {
+    let mut d: std::collections::HashMap<String, String> = {
         let map = HashMap::new();
         map
     };
@@ -15,7 +15,7 @@ pub fn test_string_dict() -> HashMap<String, String> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_int_dict() -> HashMap<i32, String> {
-    let mut d: HashMap<i32, String> = {
+    let mut d: std::collections::HashMap<i32, String> = {
         let map = HashMap::new();
         map
     };
@@ -27,7 +27,7 @@ pub fn test_int_dict() -> HashMap<i32, String> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_nested_dict() -> HashMap<String, HashMap<String, String>> {
-    let mut d: HashMap<String, HashMap<String, String>> = {
+    let mut d: std::collections::HashMap<String, std::collections::HashMap<String, String>> = {
         let map = HashMap::new();
         map
     };

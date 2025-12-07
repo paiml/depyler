@@ -17,7 +17,7 @@ pub fn logging_decorator(func: serde_json::Value) -> Box<dyn Fn(()) -> ()> {
     let mut wrapper;
     wrapper = |args: ()| {
         let result = func(args);
-        result
+        return result;
     };
     Box::new(wrapper)
 }
@@ -49,9 +49,9 @@ pub fn repeat(times: i32) -> Box<dyn Fn(()) -> ()> {
             for __sanitized in 0..times {
                 result = func(args);
             }
-            result
+            return result;
         };
-        wrapper
+        return wrapper;
     };
     Box::new(decorator)
 }
@@ -64,9 +64,10 @@ pub fn greet(name: String) -> String {
 #[doc = "Test decorated functions"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_decorators() {
+pub fn test_decorators() -> i32 {
     let result1 = slow_function(100);
     let result2 = important_calculation(5, 10);
+    let _result3 = greet("World".to_string());
     result1 + result2
 }
 #[cfg(test)]
@@ -84,5 +85,9 @@ mod tests {
         assert_eq!(important_calculation(0, 0), 0);
         assert_eq!(important_calculation(1, 2), 3);
         assert_eq!(important_calculation(-1, 1), 0);
+    }
+    #[test]
+    fn test_test_decorators_examples() {
+        let _ = test_decorators();
     }
 }

@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_simple_set() -> HashSet<i32> {
+pub fn test_simple_set() -> std::collections::HashSet<i32> {
     let s1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -25,7 +25,7 @@ pub fn test_simple_set() -> HashSet<i32> {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_method() -> HashSet<String> {
+pub fn test_set_method() -> std::collections::HashSet<String> {
     let mut fruits = {
         let mut set = HashSet::new();
         set.insert("apple".to_string());

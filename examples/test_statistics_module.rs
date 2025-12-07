@@ -1,3 +1,4 @@
+use serde_json;
 #[doc = "// NOTE: Map Python module 'statistics'(tracked in DEPYLER-0424)"]
 use std::f64 as math;
 #[derive(Debug, Clone)]
@@ -202,7 +203,7 @@ pub fn test_stdev() -> Result<f64, Box<dyn std::error::Error>> {
     Ok(stdev)
 }
 #[doc = "Test finding min and max"]
-pub fn test_min_max() -> Result<(), Box<dyn std::error::Error>> {
+pub fn test_min_max() -> Result<(f64, f64), Box<dyn std::error::Error>> {
     let data: Vec<f64> = vec![3.5, 1.2, 7.8, 2.4, 9.1];
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -301,7 +302,9 @@ pub fn calculate_percentile(
 #[doc = "Calculate Q1, Q2(median), Q3"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_quartiles(data: Vec<f64>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn calculate_quartiles(
+    data: Vec<f64>,
+) -> Result<(serde_json::Value, serde_json::Value, serde_json::Value), Box<dyn std::error::Error>> {
     let q1: f64 = calculate_percentile(&data, 25)?;
     let q2: f64 = calculate_percentile(&data, 50)?;
     let q3: f64 = calculate_percentile(&data, 75)?;
@@ -311,16 +314,16 @@ pub fn calculate_quartiles(data: Vec<f64>) -> Result<(), Box<dyn std::error::Err
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_iqr(data: Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
     let quartiles: () = calculate_quartiles(data)?;
-    let q1: f64 = quartiles.get(0usize).cloned().unwrap_or_default();
-    let q3: f64 = quartiles.get(2usize).cloned().unwrap_or_default();
+    let q1: f64 = quartiles.0;
+    let q3: f64 = quartiles.2;
     let iqr: f64 = q3 - q1;
     Ok(iqr)
 }
 #[doc = "Detect outliers using IQR method"]
 pub fn detect_outliers(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
     let quartiles: () = calculate_quartiles(data)?;
-    let q1: f64 = quartiles.get(0usize).cloned().unwrap_or_default();
-    let q3: f64 = quartiles.get(2usize).cloned().unwrap_or_default();
+    let q1: f64 = quartiles.0;
+    let q3: f64 = quartiles.2;
     let iqr: f64 = q3 - q1;
     let _cse_temp_0 = 1.5 * iqr;
     let lower_bound: f64 = q1 - _cse_temp_0;
@@ -393,7 +396,7 @@ pub fn standardize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
 }
 #[doc = "Calculate covariance between two datasets"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_covariance<'b, 'a>(
+pub fn calculate_covariance<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
@@ -479,10 +482,6 @@ pub fn calculate_correlation(x: Vec<f64>, y: Vec<f64>) -> Result<f64, Box<dyn st
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_statistics_features() -> Result<(), Box<dyn std::error::Error>> {
-    let sample: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0];
-    let outlier_data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0, 100.0];
-    let x_data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    let y_data: Vec<f64> = vec![2.0, 4.0, 6.0, 8.0, 10.0];
     println!("{}", "All statistics module tests completed successfully");
     Ok(())
 }

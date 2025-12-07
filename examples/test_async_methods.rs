@@ -2,7 +2,7 @@
     pub value: i32
 }
 impl AsyncCounter {
-    pub fn new(start: i32) -> Self {
+    pub fn new(_start: i32) -> Self {
     Self {
     value: 0
 }

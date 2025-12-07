@@ -1,26 +1,33 @@
 use std::path::splitext;
-use std::path::Path::exists;
-use std::path::Path::file_name;
-use std::path::Path::join;
-use std::path::Path::parent;
 #[doc = "Build a file path from components"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn build_file_path(base_dir: String, components: &[String]) -> String {
-    std::path::Path::join(base_dir, components)
+    std::path::PathBuf::from(base_dir)
+        .join(components)
+        .to_string_lossy()
+        .to_string()
 }
 #[doc = "Check if a file exists"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn check_file_exists(path: String) -> bool {
-    std::path::Path::exists(path)
+    std::path::Path::new(&path).exists()
 }
 #[doc = "Get directory, filename, and extension"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_file_info(path: String) -> (String, String, String) {
-    let dir_path = std::path::Path::parent(path);
-    let base_name = std::path::Path::file_name(path);
+    let dir_path = std::path::Path::new(&path)
+        .parent()
+        .and_then(|p| p.to_str())
+        .unwrap_or("")
+        .to_string();
+    let base_name = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("")
+        .to_string();
     let (name, ext) = splitext(base_name);
     (dir_path, name, ext)
 }
@@ -52,7 +59,12 @@ pub fn find_python_files(directory: &str) -> Vec<String> {
     {
         for file in files.iter().cloned() {
             if file.ends_with(".py") {
-                python_files.push(std::path::Path::join(root, file));
+                python_files.push(
+                    std::path::PathBuf::from(root)
+                        .join(file)
+                        .to_string_lossy()
+                        .to_string(),
+                );
             }
         }
     }
@@ -84,7 +96,7 @@ pub fn normalize_path(path: &str) -> String {
 #[doc = "Get relative path from start to path"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_relative_path<'b, 'a>(path: &'a str, start: &'b str) -> String {
+pub fn get_relative_path<'a, 'b>(path: &'a str, start: &'b str) -> String {
     {
         let path_obj = std::path::Path::new(path);
         let start_obj = std::path::Path::new(start);

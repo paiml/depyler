@@ -71,7 +71,7 @@ pub fn enumerate_pattern(items: &Vec<serde_json::Value>) {
 }
 #[doc = "Pattern: filter + map in loop - should suggest filter_map."]
 #[doc = " Depyler: verified panic-free"]
-pub fn filter_map_pattern(data: &mut Vec<i32>) -> Vec<serde_json::Value> {
+pub fn filter_map_pattern(data: &Vec<i32>) -> Vec<serde_json::Value> {
     let mut output = vec![];
     for x in data.iter().cloned() {
         if x > 0 {
@@ -84,7 +84,7 @@ pub fn filter_map_pattern(data: &mut Vec<i32>) -> Vec<serde_json::Value> {
 #[doc = " Depyler: verified panic-free"]
 pub fn while_true_pattern() -> i32 {
     let mut counter = 0;
-    while true {
+    loop {
         counter = counter + 1;
         if counter > 10 {
             break;
@@ -105,7 +105,7 @@ pub fn none_checking_pattern(optional_value: serde_json::Value) {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn validate(x: &str) -> bool {
-    x > 0
+    (x).as_str() > 0
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
@@ -115,7 +115,7 @@ pub fn process_data(x: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn process(x: serde_json::Value) {
-    x
+    let _ = x;
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

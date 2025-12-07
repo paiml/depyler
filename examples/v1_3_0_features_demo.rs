@@ -57,7 +57,7 @@ impl Counter {
 #[doc = "Demonstrate with statement support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn demo_with_statement() {
+pub fn demo_with_statement() -> i32 {
     let mut _context = ResourceManager::new("test".to_string().to_string());
     let rm = _context.__enter__();
     let result = rm.use_resource();
@@ -81,14 +81,22 @@ pub fn demo_iterator() -> i32 {
 pub fn main() {
     let with_result = demo_with_statement();
     let iter_result = demo_iterator();
-    ()
+    let _ = with_result + iter_result;
 }
 #[cfg(test)]
 mod tests {
     use super::*;
     use quickcheck::{quickcheck, TestResult};
     #[test]
+    fn test_demo_with_statement_examples() {
+        let _ = demo_with_statement();
+    }
+    #[test]
     fn test_demo_iterator_examples() {
         let _ = demo_iterator();
+    }
+    #[test]
+    fn test_main_examples() {
+        let _ = main();
     }
 }

@@ -50,24 +50,25 @@ impl CSVParser {
         let mut current_field = "".to_string();
         let mut in_quotes = false;
         let mut i = 0;
-        while i < line.len() {
-            let mut char = line[i as usize];
+        while i < line.len() as i32 {
+            let char = line[i as usize];
             if char == self.quote_char {
-                if in_quotes && i + 1 < line.len() && line[i + 1 as usize] == self.quote_char {
-                    let mut current_field = current_field + self.quote_char;
-                    let mut i = i + 2;
+                if in_quotes && i + 1 < line.len() as i32 && line[i + 1 as usize] == self.quote_char
+                {
+                    let current_field = current_field + self.quote_char;
+                    let i = i + 2;
                 } else {
-                    let mut in_quotes = !in_quotes;
-                    let mut i = i + 1;
+                    let in_quotes = !in_quotes;
+                    let i = i + 1;
                 };
             } else {
                 if char == self.delimiter && !in_quotes {
                     fields.push(current_field);
-                    let mut current_field = "".to_string();
-                    let mut i = i + 1;
+                    let current_field = "".to_string();
+                    let i = i + 1;
                 } else {
-                    let mut current_field = current_field + char;
-                    let mut i = i + 1;
+                    let current_field = current_field + char;
+                    let i = i + 1;
                 };
             };
         }
@@ -75,26 +76,29 @@ impl CSVParser {
         return fields;
     }
     pub fn parse_string(&self, csv_content: String) -> Vec<Vec<String>> {
-        let mut lines = csv_content
+        let lines = csv_content
             .split("\n")
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
         let mut rows = vec![];
         for line in lines {
-            let mut stripped = line.trim().to_string();
+            let stripped = line.trim().to_string();
             if stripped {
-                let mut fields = self.parse_line(stripped);
+                let fields = self.parse_line(stripped);
                 rows.push(fields);
             };
         }
         return rows;
     }
-    pub fn to_dict_list(&self, csv_content: String) -> Vec<HashMap<String, String>> {
-        let mut rows = self.parse_string(csv_content);
+    pub fn to_dict_list(
+        &self,
+        csv_content: String,
+    ) -> Vec<std::collections::HashMap<String, String>> {
+        let rows = self.parse_string(csv_content);
         if !rows {
             return vec![];
         };
-        let mut headers = rows[0 as usize];
+        let headers = rows[0 as usize];
         let mut result = vec![];
         for row in {
             let s = &rows;
@@ -112,7 +116,7 @@ impl CSVParser {
                 map
             };
             for (i, value) in enumerate(row) {
-                if i < headers.len() {
+                if i < headers.len() as i32 {
                     row_dict.insert(headers[i as usize], value);
                 } else {
                     row_dict.insert(format!("column_{}", i), value);
@@ -124,7 +128,7 @@ impl CSVParser {
     }
 }
 #[doc = "Calculate basic statistics for a numeric column in CSV"]
-pub fn calculate_column_stats<'a, 'b>(
+pub fn calculate_column_stats<'b, 'a>(
     csv_content: &'a str,
     column_name: &'b str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
@@ -150,8 +154,14 @@ pub fn calculate_column_stats<'a, 'b>(
     }
     let mut values: Vec<f64> = vec![];
     for row in dict_rows.iter().cloned() {
-        let value = (row.get(column_name).cloned().unwrap_or_default()) as f64;
-        values.push(value);
+        match row.get(column_name).cloned() {
+            Ok(value) => {
+                values.push(value);
+            }
+            Err(_) => {
+                continue;
+            }
+        }
     }
     if values.is_empty() {
         return Ok({
@@ -221,7 +231,7 @@ pub fn filter_csv_rows<'b, 'a>(
         }
     } {
         if (column_index < row.len() as i32)
-            && (row.get(column_index as usize).cloned().unwrap_or_default() == condition_value)
+            && ([row.0, row.1][column_index as usize] == condition_value)
         {
             filtered_rows.push(row);
         }
@@ -240,7 +250,10 @@ pub fn group_by_column<'a, 'b>(
 ) -> Result<HashMap<String, Vec<HashMap<String, String>>>, Box<dyn std::error::Error>> {
     let parser = CSVParser::new();
     let dict_rows = parser.to_dict_list(csv_content);
-    let mut groups: HashMap<String, Vec<HashMap<String, String>>> = {
+    let mut groups: std::collections::HashMap<
+        String,
+        Vec<std::collections::HashMap<String, String>>,
+    > = {
         let map = HashMap::new();
         map
     };
@@ -248,7 +261,7 @@ pub fn group_by_column<'a, 'b>(
         if row.get(group_column).is_some() {
             let group_key = row.get(group_column).cloned().unwrap_or_default();
             if !groups.get(&group_key).is_some() {
-                groups.insert(group_key, vec![]);
+                groups.insert(group_key.clone(), vec![]);
             }
             groups
                 .get(&group_key)

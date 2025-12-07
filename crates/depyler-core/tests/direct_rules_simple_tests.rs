@@ -91,6 +91,7 @@ mod tests {
             fields: vec![],
             is_dataclass: false,
             docstring: None,
+            type_params: vec![],
         });
 
         let type_mapper = TypeMapper::new();
@@ -114,6 +115,7 @@ mod tests {
             }],
             is_dataclass: true,
             docstring: None,
+            type_params: vec![],
         });
 
         let type_mapper = TypeMapper::new();
@@ -284,6 +286,7 @@ mod tests {
             fields: vec![],
             is_dataclass: false,
             docstring: None,
+            type_params: vec![],
         });
 
         let type_mapper = TypeMapper::new();

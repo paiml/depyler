@@ -115,7 +115,7 @@ pub fn test_partial_application() -> Vec<i32> {
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
     let mut results: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
-        let mut result: i32 = multiply_by(multiplier, num);
+        let result: i32 = multiply_by(multiplier, num);
         results.push(result);
     }
     results
@@ -133,7 +133,7 @@ pub fn test_partial_multiple_args() -> i32 {
     let fixed_a: i32 = 10;
     let fixed_b: i32 = 20;
     let variable_c: i32 = 5;
-    let mut result: i32 = add_three_numbers(fixed_a, fixed_b, variable_c);
+    let result: i32 = add_three_numbers(fixed_a, fixed_b, variable_c);
     result
 }
 #[doc = "Test function composition"]
@@ -237,7 +237,7 @@ pub fn test_reduce_boolean_any(values: &Vec<bool>) -> bool {
     let mut result: bool = false;
     for val in values.iter().cloned() {
         result = (result) || (val);
-        if !result.is_empty() {
+        if result {
             break;
         }
     }
@@ -265,7 +265,7 @@ pub fn test_reduce_group_by(items: &Vec<i32>) -> Result<Vec<Vec<i32>>, Box<dyn s
             odds.push(item);
         }
     }
-    let mut result: Vec<Vec<i32>> = vec![evens, odds];
+    let result: Vec<Vec<i32>> = vec![evens, odds];
     Ok(result)
 }
 #[doc = "Test function pipeline pattern"]
@@ -274,10 +274,10 @@ pub fn pipeline(value: i32, operations: &Vec<String>) -> i32 {
     let mut result: i32 = value.clone();
     for op in operations.iter().cloned() {
         if op == "double" {
-            result = result * 2f64;
+            result = result * 2;
         } else {
             if op == "increment" {
-                result = result.iter().chain(1.iter()).cloned().collect::<Vec<_>>();
+                result = result + 1;
             } else {
                 if op == "square" {
                     result = result * result;
@@ -309,19 +309,41 @@ pub fn test_memoization_fibonacci(n: i32) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_functools_features() -> Result<(), Box<dyn std::error::Error>> {
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
+    let _sum_result: i32 = test_reduce_sum(&numbers);
+    let _product_result: i32 = test_reduce_product(&numbers);
+    let _max_result: i32 = test_reduce_max(&numbers)?;
+    let _min_result: i32 = test_reduce_min(&numbers)?;
     let strings: Vec<String> = vec![
         "Hello".to_string(),
         " ".to_string(),
         "World".to_string(),
         "!".to_string(),
     ];
+    let _concat_result: String = test_reduce_concatenate(&strings);
+    let _partial_result: Vec<i32> = test_partial_application();
+    let _partial_multi: i32 = test_partial_multiple_args();
+    let _composed: i32 = test_compose_functions(5);
+    let _map_reduce: i32 = test_map_reduce_pattern(&vec![1, 2, 3, 4, 5]);
+    let _filter_reduce: i32 = test_filter_reduce_pattern(&vec![1, 2, 3, 4, 5, 6])?;
+    let _fact: i32 = memoize_factorial(5);
+    let _fib: i32 = test_memoization_fibonacci(10);
+    let _curried: i32 = test_currying(1, 2, 3);
+    let _accumulated: Vec<i32> = accumulate_with_function(&vec![1, 2, 3, 4, 5]);
+    let _with_initial: i32 = test_reduce_with_initial(&vec![1, 2, 3], 10);
+    let _all_true: bool = test_reduce_boolean_all(&vec![true, true, true]);
+    let _all_false: bool = test_reduce_boolean_all(&vec![true, false, true]);
+    let _any_true: bool = test_reduce_boolean_any(&vec![false, true, false]);
+    let _any_false: bool = test_reduce_boolean_any(&vec![false, false, false]);
     let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
+    let _flattened: Vec<i32> = test_reduce_flatten(&nested);
     let items: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let _grouped: Vec<Vec<i32>> = test_reduce_group_by(&items)?;
     let ops: Vec<String> = vec![
         "double".to_string(),
         "increment".to_string(),
         "square".to_string(),
     ];
+    let _piped: i32 = pipeline(3, &ops);
     println!("{}", "All functools module tests completed successfully");
     Ok(())
 }

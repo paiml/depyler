@@ -1,8 +1,8 @@
 use std::f64 as math;
-const STR_B: &'static str = "B";
-const STR_A: &'static str = "A";
-const STR_C: &'static str = "C";
 const STR_D: &'static str = "D";
+const STR_C: &'static str = "C";
+const STR_A: &'static str = "A";
+const STR_B: &'static str = "B";
 use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -47,7 +47,7 @@ pub struct DataBuffer {
     pub position: i32,
 }
 impl DataBuffer {
-    pub fn new(size: i32) -> Self {
+    pub fn new(_size: i32) -> Self {
         Self {
             data: Default::default(),
             position: 0,
@@ -55,14 +55,14 @@ impl DataBuffer {
     }
     pub fn write(&mut self, values: Vec<i32>) {
         for value in values {
-            if self.position < self.data.len() {
+            if self.position < self.data.len() as i32 {
                 self.data.insert(self.position, value);
                 self.position = self.position + 1;
             };
         }
     }
     pub fn read(&self, count: i32) -> Vec<i32> {
-        let mut start = (0).max(self.position - count);
+        let start = (0).max(self.position - count);
         return {
             let s = &self.data;
             let len = s.chars().count() as isize;
@@ -88,7 +88,7 @@ impl DataBuffer {
 }
 #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'b, 'a>(
+pub fn matrix_multiply<'a, 'b>(
     a: &'a Vec<Vec<f64>>,
     b: &'b Vec<Vec<f64>>,
 ) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>> {
@@ -139,13 +139,13 @@ pub fn process_text_data<'a, 'b>(
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut keyword_counts = keywords
         .iter()
-        .copied()
+        .cloned()
         .map(|kw| (kw, 0))
-        .collect::<HashMap<_, _>>();
+        .collect::<std::collections::HashMap<_, _>>();
     for text in texts.iter().cloned() {
         let normalized = text.to_lowercase().trim().to_string();
         for keyword in keywords.iter().cloned() {
-            if normalized.contains(&keyword) {
+            if normalized.contains(&*keyword) {
                 {
                     let _key = keyword;
                     let _old_val = keyword_counts.get(&_key).cloned().unwrap_or_default();
@@ -193,21 +193,21 @@ pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> 
         .as_slice()
         .iter()
         .copied()
-        .filter(|x| x < pivot)
+        .filter(|&x| x < pivot)
         .map(|x| x)
         .collect::<Vec<_>>();
     let middle = arr
         .as_slice()
         .iter()
         .copied()
-        .filter(|x| x == pivot)
+        .filter(|&x| x == pivot)
         .map(|x| x)
         .collect::<Vec<_>>();
     let right = arr
         .as_slice()
         .iter()
         .copied()
-        .filter(|x| x > pivot)
+        .filter(|&x| x > pivot)
         .map(|x| x)
         .collect::<Vec<_>>();
     Ok(quicksort(left)?
@@ -219,7 +219,7 @@ pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> 
 }
 #[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn safe_divide<'a, 'b>(
+pub fn safe_divide<'b, 'a>(
     numbers: &'a Vec<f64>,
     divisors: &'b Vec<f64>,
 ) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>> {
@@ -245,7 +245,7 @@ pub fn parallel_map(
     for item in data.iter().cloned() {
         let mut result = func(item);
         for __sanitized in 0..1000 {
-            result = (result * 7f64 + 13) % 1000000;
+            result = (result * 7 + 13) % 1000000;
         }
         results.push(result);
     }
@@ -253,7 +253,7 @@ pub fn parallel_map(
 }
 #[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "]
 pub fn optimize_route<'c, 'a, 'b>(
-    distances: &'a HashMap<String, HashMap<String, f64>>,
+    distances: &'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>,
     start: &'b str,
     end: &'c str,
 ) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>> {
@@ -301,8 +301,8 @@ pub fn optimize_route<'c, 'a, 'b>(
                             .cloned()
                             .unwrap_or_default())
                 {
-                    distances_from_start.insert(neighbor, new_distance);
-                    previous.insert(neighbor, serde_json::json!(current));
+                    distances_from_start.insert(neighbor.clone(), new_distance);
+                    previous.insert(neighbor.clone(), serde_json::json!(current));
                 }
             }
         }
@@ -312,7 +312,7 @@ pub fn optimize_route<'c, 'a, 'b>(
         return Ok(None);
     }
     let mut path = vec![];
-    let mut current = end.clone();
+    let mut current = end.to_string();
     while current != start {
         path.push(current);
         current = previous.get(&current).cloned().unwrap_or_default();
@@ -329,7 +329,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=".repeat(40 as usize));
     let a = vec![vec![1, 2], vec![3, 4]];
     let b = vec![vec![5, 6], vec![7, 8]];
-    let mut result = matrix_multiply(&a, &b)?;
+    let result = matrix_multiply(&a, &b)?;
     println!("{}", format!("Matrix multiplication result: {:?}", result));
     let texts = vec![
         "Hello world".to_string(),
@@ -348,7 +348,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", format!("Sorted: {:?}", sorted_nums));
     let nums = vec![10.0, 20.0, 30.0];
     let divs = vec![2.0, 0.0, 5.0];
-    let mut results = safe_divide(&nums, &divs)?;
+    let results = safe_divide(&nums, &divs)?;
     println!("{}", format!("Division results: {:?}", results));
     let data = (0..10).collect::<Vec<_>>();
     let mapped = parallel_map(|x| x * x, &data)?;
@@ -361,7 +361,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         _read_buf.truncate(_n);
         _read_buf
     };
-    println!("{}", format!("Recent buffer data: {:?}", recent));
+    println!("{}", format!("Recent buffer data: {}", recent));
     let graph = {
         let mut map = std::collections::HashMap::new();
         map.insert(

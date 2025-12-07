@@ -27,7 +27,7 @@ pub struct CompletedProcess {
 #[doc = "Test function with unannotated parameters.\n\n    Type inference should infer:\n    - cmd: Vec<String>(from subprocess.run signature)\n    - capture: bool(from default value False)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn run_command(cmd: &Vec<String>, capture: bool) -> (i32, String) {
+pub fn run_command(cmd: &Vec<String>, capture: bool) -> (serde_json::Value, serde_json::Value) {
     let mut result;
     if capture {
         result = {
@@ -60,7 +60,7 @@ pub fn run_command(cmd: &Vec<String>, capture: bool) -> (i32, String) {
 #[doc = "Test indexing constraint.\n\n    Type inference should infer:\n    - items: Vec<T>(from indexing operation)\n    "]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_first(items: &Vec<serde_json::Value>) -> Result<(), Box<dyn std::error::Error>> {
-    Ok(items.get(0usize).cloned().unwrap_or_default())
+    let _ = Ok(items.get(0usize).cloned().unwrap_or_default());
 }
 #[doc = "Test slicing constraint.\n\n    Type inference should infer:\n    - items: Vec<T>(from slicing operation)\n    "]
 #[doc = " Depyler: verified panic-free"]

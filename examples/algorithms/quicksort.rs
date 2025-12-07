@@ -52,21 +52,21 @@ pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> 
         .as_slice()
         .iter()
         .copied()
-        .filter(|x| x < pivot)
+        .filter(|&x| x < pivot)
         .map(|x| x)
         .collect::<Vec<_>>();
     let middle = arr
         .as_slice()
         .iter()
         .copied()
-        .filter(|x| x == pivot)
+        .filter(|&x| x == pivot)
         .map(|x| x)
         .collect::<Vec<_>>();
     let right = arr
         .as_slice()
         .iter()
         .copied()
-        .filter(|x| x > pivot)
+        .filter(|&x| x > pivot)
         .map(|x| x)
         .collect::<Vec<_>>();
     Ok(quicksort(left)?

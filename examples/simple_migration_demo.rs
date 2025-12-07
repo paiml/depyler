@@ -50,7 +50,7 @@ pub fn enumerate_example(data: &Vec<serde_json::Value>) -> Result<(), Box<dyn st
 #[doc = " Depyler: verified panic-free"]
 pub fn while_true_example() -> i32 {
     let mut count = 0;
-    while true {
+    loop {
         count = count + 1;
         if count > 10 {
             break;
