@@ -6664,10 +6664,11 @@ fn codegen_nested_function_def(
     // Generate parameters
     // DEPYLER-0550: For collection types (Dict, List), use references
     // This is more idiomatic in Rust and works correctly with filter() closures
+    // DEPYLER-0769: Use safe_ident to escape Rust keywords in closure parameters
     let param_tokens: Vec<proc_macro2::TokenStream> = effective_params
         .iter()
         .map(|p| {
-            let param_name = syn::Ident::new(&p.name, proc_macro2::Span::call_site());
+            let param_name = safe_ident(&p.name);
             let param_type = hir_type_to_tokens(&p.ty, ctx);
 
             // For collection types, take by reference for idiomatic Rust
