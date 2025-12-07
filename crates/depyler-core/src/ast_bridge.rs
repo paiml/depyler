@@ -1047,10 +1047,11 @@ impl AstBridge {
                     for p in params {
                         // Only collect single-letter uppercase names (type variables)
                         // This avoids collecting concrete types like `Container[str]`
-                        if p.len() == 1 && p.chars().next().is_some_and(|c| c.is_uppercase()) {
-                            if !type_params.contains(&p) {
-                                type_params.push(p);
-                            }
+                        if p.len() == 1
+                            && p.chars().next().is_some_and(|c| c.is_uppercase())
+                            && !type_params.contains(&p)
+                        {
+                            type_params.push(p);
                         }
                     }
                 }
