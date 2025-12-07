@@ -35,6 +35,8 @@ default = []
 wasm = ["web-time"]
 deterministic = []
 ruchy = []
+# PHF compile-time perfect hash optimization (DEPYLER-O1MAP-001)
+phf-lookup = ["phf"]
 # Decision tracing for CITL (Compiler-in-the-Loop) training
 # Captures transpiler decisions for pattern learning
 decision-tracing = ["memmap2", "rmp-serde", "lazy_static"]
@@ -63,6 +65,15 @@ optional = true
 version = "1.4"
 optional = true
 
+# PHF compile-time perfect hash (DEPYLER-O1MAP-001)
+[dependencies.phf]
+version = "0.11"
+features = ["macros"]
+optional = true
+
+[build-dependencies]
+phf_codegen = "0.11"
+
 [dev-dependencies]
 insta.workspace = true
 proptest.workspace = true
@@ -70,3 +81,4 @@ quickcheck.workspace = true
 tempfile.workspace = true
 toml.workspace = true
 verificar = "0.5.0"
+regex.workspace = true
