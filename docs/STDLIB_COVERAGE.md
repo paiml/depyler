@@ -363,17 +363,67 @@
 
 ---
 
+## External Dependency Mappings (DEPYLER-EXTDEPS-001)
+
+Depyler automatically maps popular Python libraries to their Rust equivalents:
+
+### Batuta Stack Mappings (P0 - Highest Priority)
+
+| Python Module | Rust Crate | Version | Coverage |
+|---------------|------------|---------|----------|
+| **numpy** | trueno | 0.7 | array, zeros, ones, dot, matmul, sum, mean, 30+ functions |
+| **numpy.linalg** | trueno::linalg | 0.7 | norm, inv, det, eig, svd, solve |
+| **sklearn.linear_model** | aprender::linear | 0.14 | LinearRegression, LogisticRegression, Ridge, Lasso |
+| **sklearn.cluster** | aprender::cluster | 0.14 | KMeans, DBSCAN, AgglomerativeClustering |
+| **sklearn.tree** | aprender::tree | 0.14 | DecisionTreeClassifier, DecisionTreeRegressor |
+| **sklearn.ensemble** | aprender::ensemble | 0.14 | RandomForest, GradientBoosting |
+| **sklearn.preprocessing** | aprender::preprocessing | 0.14 | StandardScaler, MinMaxScaler, LabelEncoder |
+| **sklearn.metrics** | aprender::metrics | 0.14 | accuracy, precision, recall, f1, confusion_matrix |
+
+### Standard Library Mappings (P0)
+
+| Python Module | Rust Crate | External | Items Mapped |
+|---------------|------------|----------|--------------|
+| **subprocess** | std::process | No | run, Popen, PIPE, Command |
+| **re** | regex | Yes (1.10) | compile, search, match, findall, sub, split, flags |
+| **argparse** | clap | Yes (4.5) | ArgumentParser → Parser derive |
+
+### Phase 2 Mappings (P1 - Medium Impact)
+
+| Python Module | Rust Crate | Version | Items Mapped |
+|---------------|------------|---------|--------------|
+| **random** | rand | 0.8 | random, randint, uniform, seed, choice, shuffle |
+| **threading** | std::thread | stdlib | Thread→spawn, Lock→Mutex, Event→Condvar |
+| **asyncio** | tokio | 1.35 | run, sleep, gather, Queue, create_task |
+| **struct** | byteorder | 1.5 | pack, unpack → WriteBytesExt, ReadBytesExt |
+| **statistics** | statrs | 0.16 | mean, median, stdev, variance |
+
+### Cargo.toml Auto-Generation
+
+When transpiling, Depyler automatically:
+1. Detects Python imports
+2. Maps to Rust crate dependencies
+3. Generates `Cargo.toml` with correct versions
+
+```toml
+# Auto-generated from: from sklearn.linear_model import LinearRegression
+[dependencies]
+aprender = "0.14"
+
+# Auto-generated from: import numpy as np
+[dependencies]
+trueno = "0.7"
+```
+
+---
+
 ## Not Yet Validated
 
 The following modules have NOT been validated and should NOT be used in production:
 
 ### Networking and Web
 - `socket`, `ssl`, `http`, `urllib`, `requests`
-- `asyncio`, `aiohttp`, `websockets`
-
-### Concurrency
-- `threading`, `multiprocessing`, `concurrent.futures`
-- `queue`, `asyncio.Queue`
+- `aiohttp`, `websockets`
 
 ### Database
 - `sqlite3`, `dbm`
@@ -383,11 +433,12 @@ The following modules have NOT been validated and should NOT be used in producti
 - `flask`, `django`, `fastapi`, `tornado`
 
 ### External Libraries
-- `numpy`, `pandas`, `matplotlib`
+- `pandas`, `matplotlib`
 - `requests`, `beautifulsoup4`, `lxml`
-- Any non-stdlib package
 
-**Recommendation**: Only use Depyler for code using the 27 validated stdlib modules. For other modules, wait for validation or contribute validation tests.
+**Note**: numpy and sklearn are now mapped to Batuta stack (trueno, aprender). See External Dependency Mappings above.
+
+**Recommendation**: Only use Depyler for code using the 27 validated stdlib modules plus mapped external libraries. For other modules, wait for validation or contribute validation tests.
 
 ---
 

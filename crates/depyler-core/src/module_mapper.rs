@@ -153,18 +153,35 @@ impl ModuleMapper {
             },
         );
 
+        // DEPYLER-EXTDEPS-001: Enhanced re → regex mapping
         module_map.insert(
             "re".to_string(),
             ModuleMapping {
                 rust_path: "regex".to_string(),
                 is_external: true,
-                version: Some("1.0".to_string()),
+                version: Some("1.10".to_string()),
                 item_map: HashMap::from([
+                    // Core functions
                     ("compile".to_string(), "Regex::new".to_string()),
                     ("search".to_string(), "Regex::find".to_string()),
                     ("match".to_string(), "Regex::is_match".to_string()),
                     ("findall".to_string(), "Regex::find_iter".to_string()),
+                    ("finditer".to_string(), "Regex::find_iter".to_string()),
                     ("Pattern".to_string(), "Regex".to_string()),
+                    // Replacement operations
+                    ("sub".to_string(), "Regex::replace_all".to_string()),
+                    ("subn".to_string(), "Regex::replace_all".to_string()),
+                    // Split operations
+                    ("split".to_string(), "Regex::split".to_string()),
+                    // Flags - mapped to RegexBuilder methods or inline patterns
+                    ("IGNORECASE".to_string(), "(?i)".to_string()),
+                    ("I".to_string(), "(?i)".to_string()),
+                    ("MULTILINE".to_string(), "(?m)".to_string()),
+                    ("M".to_string(), "(?m)".to_string()),
+                    ("DOTALL".to_string(), "(?s)".to_string()),
+                    ("S".to_string(), "(?s)".to_string()),
+                    ("VERBOSE".to_string(), "(?x)".to_string()),
+                    ("X".to_string(), "(?x)".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -241,6 +258,7 @@ impl ModuleMapper {
             },
         );
 
+        // DEPYLER-EXTDEPS-001: Enhanced random → rand mapping (Phase 2)
         module_map.insert(
             "random".to_string(),
             ModuleMapping {
@@ -252,6 +270,12 @@ impl ModuleMapper {
                     ("randint".to_string(), "gen_range".to_string()),
                     ("choice".to_string(), "choose".to_string()),
                     ("shuffle".to_string(), "shuffle".to_string()),
+                    // Phase 2 additions
+                    ("uniform".to_string(), "gen_range".to_string()),
+                    ("seed".to_string(), "SeedableRng::seed_from_u64".to_string()),
+                    ("randrange".to_string(), "gen_range".to_string()),
+                    ("sample".to_string(), "choose_multiple".to_string()),
+                    ("gauss".to_string(), "Normal::sample".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -409,6 +433,250 @@ impl ModuleMapper {
             },
         );
 
+        // =================================================================
+        // DEPYLER-EXTDEPS-001: Batuta Stack Mappings (Tier 0 - P0 Priority)
+        // =================================================================
+
+        // NumPy → Trueno (Spec Section 2.3)
+        // trueno provides SIMD/GPU-accelerated vector and matrix operations
+        module_map.insert(
+            "numpy".to_string(),
+            ModuleMapping {
+                rust_path: "trueno".to_string(),
+                is_external: true,
+                version: Some("0.7".to_string()),
+                item_map: HashMap::from([
+                    // Array creation
+                    ("array".to_string(), "Vector::from_slice".to_string()),
+                    ("zeros".to_string(), "Vector::zeros".to_string()),
+                    ("ones".to_string(), "Vector::ones".to_string()),
+                    ("empty".to_string(), "Vector::zeros".to_string()),
+                    ("arange".to_string(), "Vector::arange".to_string()),
+                    ("linspace".to_string(), "Vector::linspace".to_string()),
+                    // Element-wise operations
+                    ("add".to_string(), "Vector::add".to_string()),
+                    ("subtract".to_string(), "Vector::sub".to_string()),
+                    ("multiply".to_string(), "Vector::mul".to_string()),
+                    ("divide".to_string(), "Vector::div".to_string()),
+                    ("sqrt".to_string(), "Vector::sqrt".to_string()),
+                    ("exp".to_string(), "Vector::exp".to_string()),
+                    ("log".to_string(), "Vector::ln".to_string()),
+                    ("sin".to_string(), "Vector::sin".to_string()),
+                    ("cos".to_string(), "Vector::cos".to_string()),
+                    ("abs".to_string(), "Vector::abs".to_string()),
+                    // Dot product and matrix operations
+                    ("dot".to_string(), "Vector::dot".to_string()),
+                    ("matmul".to_string(), "Matrix::matmul".to_string()),
+                    // Reductions
+                    ("sum".to_string(), "Vector::sum".to_string()),
+                    ("mean".to_string(), "Vector::mean".to_string()),
+                    ("max".to_string(), "Vector::max".to_string()),
+                    ("min".to_string(), "Vector::min".to_string()),
+                    ("std".to_string(), "Vector::std".to_string()),
+                    ("var".to_string(), "Vector::var".to_string()),
+                    ("argmax".to_string(), "Vector::argmax".to_string()),
+                    ("argmin".to_string(), "Vector::argmin".to_string()),
+                    // Shape operations
+                    ("reshape".to_string(), "Matrix::reshape".to_string()),
+                    ("transpose".to_string(), "Matrix::transpose".to_string()),
+                    ("flatten".to_string(), "Vector::flatten".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // NumPy linalg submodule → Trueno linalg
+        module_map.insert(
+            "numpy.linalg".to_string(),
+            ModuleMapping {
+                rust_path: "trueno::linalg".to_string(),
+                is_external: true,
+                version: Some("0.7".to_string()),
+                item_map: HashMap::from([
+                    ("norm".to_string(), "norm".to_string()),
+                    ("inv".to_string(), "inv".to_string()),
+                    ("det".to_string(), "det".to_string()),
+                    ("eig".to_string(), "eig".to_string()),
+                    ("svd".to_string(), "svd".to_string()),
+                    ("solve".to_string(), "solve".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // Sklearn → Aprender (Spec Section 2.4)
+        // aprender provides ML algorithms compatible with sklearn API
+
+        // sklearn.linear_model → aprender::linear
+        module_map.insert(
+            "sklearn.linear_model".to_string(),
+            ModuleMapping {
+                rust_path: "aprender::linear".to_string(),
+                is_external: true,
+                version: Some("0.14".to_string()),
+                item_map: HashMap::from([
+                    ("LinearRegression".to_string(), "LinearRegression".to_string()),
+                    ("LogisticRegression".to_string(), "LogisticRegression".to_string()),
+                    ("Ridge".to_string(), "Ridge".to_string()),
+                    ("Lasso".to_string(), "Lasso".to_string()),
+                    ("ElasticNet".to_string(), "ElasticNet".to_string()),
+                ]),
+                constructor_patterns: HashMap::from([
+                    ("LinearRegression".to_string(), ConstructorPattern::New),
+                    ("LogisticRegression".to_string(), ConstructorPattern::New),
+                ]),
+            },
+        );
+
+        // sklearn.cluster → aprender::cluster
+        module_map.insert(
+            "sklearn.cluster".to_string(),
+            ModuleMapping {
+                rust_path: "aprender::cluster".to_string(),
+                is_external: true,
+                version: Some("0.14".to_string()),
+                item_map: HashMap::from([
+                    ("KMeans".to_string(), "KMeans".to_string()),
+                    ("DBSCAN".to_string(), "DBSCAN".to_string()),
+                    ("AgglomerativeClustering".to_string(), "Agglomerative".to_string()),
+                ]),
+                constructor_patterns: HashMap::from([
+                    ("KMeans".to_string(), ConstructorPattern::New),
+                ]),
+            },
+        );
+
+        // sklearn.tree → aprender::tree
+        module_map.insert(
+            "sklearn.tree".to_string(),
+            ModuleMapping {
+                rust_path: "aprender::tree".to_string(),
+                is_external: true,
+                version: Some("0.14".to_string()),
+                item_map: HashMap::from([
+                    ("DecisionTreeClassifier".to_string(), "DecisionTree".to_string()),
+                    ("DecisionTreeRegressor".to_string(), "DecisionTreeRegressor".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // sklearn.ensemble → aprender::ensemble
+        module_map.insert(
+            "sklearn.ensemble".to_string(),
+            ModuleMapping {
+                rust_path: "aprender::ensemble".to_string(),
+                is_external: true,
+                version: Some("0.14".to_string()),
+                item_map: HashMap::from([
+                    ("RandomForestClassifier".to_string(), "RandomForest".to_string()),
+                    ("RandomForestRegressor".to_string(), "RandomForestRegressor".to_string()),
+                    ("GradientBoostingClassifier".to_string(), "GradientBoosting".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // sklearn.preprocessing → aprender::preprocessing
+        module_map.insert(
+            "sklearn.preprocessing".to_string(),
+            ModuleMapping {
+                rust_path: "aprender::preprocessing".to_string(),
+                is_external: true,
+                version: Some("0.14".to_string()),
+                item_map: HashMap::from([
+                    ("StandardScaler".to_string(), "StandardScaler".to_string()),
+                    ("MinMaxScaler".to_string(), "MinMaxScaler".to_string()),
+                    ("LabelEncoder".to_string(), "LabelEncoder".to_string()),
+                    ("OneHotEncoder".to_string(), "OneHotEncoder".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // sklearn.decomposition → aprender::decomposition
+        module_map.insert(
+            "sklearn.decomposition".to_string(),
+            ModuleMapping {
+                rust_path: "aprender::decomposition".to_string(),
+                is_external: true,
+                version: Some("0.14".to_string()),
+                item_map: HashMap::from([
+                    ("PCA".to_string(), "PCA".to_string()),
+                    ("TruncatedSVD".to_string(), "TruncatedSVD".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // sklearn.model_selection → aprender::model_selection
+        module_map.insert(
+            "sklearn.model_selection".to_string(),
+            ModuleMapping {
+                rust_path: "aprender::model_selection".to_string(),
+                is_external: true,
+                version: Some("0.14".to_string()),
+                item_map: HashMap::from([
+                    ("train_test_split".to_string(), "train_test_split".to_string()),
+                    ("KFold".to_string(), "KFold".to_string()),
+                    ("cross_val_score".to_string(), "cross_val_score".to_string()),
+                    ("GridSearchCV".to_string(), "GridSearchCV".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // sklearn.metrics → aprender::metrics
+        module_map.insert(
+            "sklearn.metrics".to_string(),
+            ModuleMapping {
+                rust_path: "aprender::metrics".to_string(),
+                is_external: true,
+                version: Some("0.14".to_string()),
+                item_map: HashMap::from([
+                    ("accuracy_score".to_string(), "accuracy".to_string()),
+                    ("precision_score".to_string(), "precision".to_string()),
+                    ("recall_score".to_string(), "recall".to_string()),
+                    ("f1_score".to_string(), "f1".to_string()),
+                    ("confusion_matrix".to_string(), "confusion_matrix".to_string()),
+                    ("mean_squared_error".to_string(), "mse".to_string()),
+                    ("r2_score".to_string(), "r2".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // =================================================================
+        // DEPYLER-EXTDEPS-001: High-Impact Standard Library Mappings (P0)
+        // =================================================================
+
+        // subprocess → std::process (146 occurrences in corpus)
+        module_map.insert(
+            "subprocess".to_string(),
+            ModuleMapping {
+                rust_path: "std::process".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    // Process execution
+                    ("run".to_string(), "Command".to_string()),
+                    ("Popen".to_string(), "Command".to_string()),
+                    ("call".to_string(), "Command".to_string()),
+                    ("check_call".to_string(), "Command".to_string()),
+                    ("check_output".to_string(), "Command".to_string()),
+                    // I/O constants
+                    ("PIPE".to_string(), "Stdio::piped".to_string()),
+                    ("STDOUT".to_string(), "Stdio::inherit".to_string()),
+                    ("DEVNULL".to_string(), "Stdio::null".to_string()),
+                    // CompletedProcess fields map to Output
+                    ("CompletedProcess".to_string(), "Output".to_string()),
+                ]),
+                constructor_patterns: HashMap::from([
+                    ("Command".to_string(), ConstructorPattern::Method("new".to_string())),
+                ]),
+            },
+        );
+
         // DEPYLER-0363: Map argparse to clap
         // Note: This requires special handling in codegen for structural transformation
         module_map.insert(
@@ -423,6 +691,111 @@ impl ModuleMapper {
                     // - ArgumentParser() → #[derive(Parser)] struct
                     // - add_argument() → struct fields with #[arg] attributes
                     // - parse_args() → Args::parse()
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // =================================================================
+        // DEPYLER-EXTDEPS-001: Phase 2 Mappings (P1 - Medium Impact)
+        // =================================================================
+
+        // threading → std::thread (stdlib mapping)
+        // Maps Python threading primitives to Rust std library equivalents
+        module_map.insert(
+            "threading".to_string(),
+            ModuleMapping {
+                rust_path: "std::thread".to_string(),
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    // Thread creation and management
+                    ("Thread".to_string(), "spawn".to_string()),
+                    ("current_thread".to_string(), "current".to_string()),
+                    // Synchronization primitives (from std::sync)
+                    ("Lock".to_string(), "Mutex".to_string()),
+                    ("RLock".to_string(), "Mutex".to_string()),
+                    ("Event".to_string(), "Condvar".to_string()),
+                    ("Condition".to_string(), "Condvar".to_string()),
+                    ("Semaphore".to_string(), "Semaphore".to_string()),
+                    ("BoundedSemaphore".to_string(), "Semaphore".to_string()),
+                    ("Barrier".to_string(), "Barrier".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // asyncio → tokio (external async runtime)
+        // Maps Python asyncio primitives to Tokio equivalents
+        module_map.insert(
+            "asyncio".to_string(),
+            ModuleMapping {
+                rust_path: "tokio".to_string(),
+                is_external: true,
+                version: Some("1.35".to_string()),
+                item_map: HashMap::from([
+                    // Runtime and execution
+                    ("run".to_string(), "runtime::Runtime::block_on".to_string()),
+                    ("create_task".to_string(), "spawn".to_string()),
+                    // Time operations
+                    ("sleep".to_string(), "time::sleep".to_string()),
+                    ("wait_for".to_string(), "time::timeout".to_string()),
+                    // Concurrency primitives
+                    ("gather".to_string(), "join!".to_string()),
+                    ("wait".to_string(), "select!".to_string()),
+                    // Channel/Queue
+                    ("Queue".to_string(), "sync::mpsc::channel".to_string()),
+                    // Event loop (conceptually maps to runtime)
+                    ("get_event_loop".to_string(), "runtime::Handle::current".to_string()),
+                    ("new_event_loop".to_string(), "runtime::Runtime::new".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // struct → byteorder (binary data packing)
+        // Maps Python struct module to byteorder crate
+        module_map.insert(
+            "struct".to_string(),
+            ModuleMapping {
+                rust_path: "byteorder".to_string(),
+                is_external: true,
+                version: Some("1.5".to_string()),
+                item_map: HashMap::from([
+                    // Core pack/unpack operations
+                    ("pack".to_string(), "WriteBytesExt".to_string()),
+                    ("unpack".to_string(), "ReadBytesExt".to_string()),
+                    ("pack_into".to_string(), "WriteBytesExt".to_string()),
+                    ("unpack_from".to_string(), "ReadBytesExt".to_string()),
+                    // Size calculations
+                    ("calcsize".to_string(), "std::mem::size_of".to_string()),
+                    // Struct object for repeated use
+                    ("Struct".to_string(), "ByteOrder".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // statistics → statrs (statistical functions)
+        // Maps Python statistics module to statrs crate
+        module_map.insert(
+            "statistics".to_string(),
+            ModuleMapping {
+                rust_path: "statrs".to_string(),
+                is_external: true,
+                version: Some("0.16".to_string()),
+                item_map: HashMap::from([
+                    // Central tendency
+                    ("mean".to_string(), "statistics::Statistics::mean".to_string()),
+                    ("median".to_string(), "statistics::Statistics::median".to_string()),
+                    ("mode".to_string(), "statistics::Statistics::mode".to_string()),
+                    // Spread measures
+                    ("stdev".to_string(), "statistics::Statistics::std_dev".to_string()),
+                    ("variance".to_string(), "statistics::Statistics::variance".to_string()),
+                    ("pstdev".to_string(), "statistics::Statistics::population_std_dev".to_string()),
+                    ("pvariance".to_string(), "statistics::Statistics::population_variance".to_string()),
+                    // Quantiles
+                    ("quantiles".to_string(), "statistics::Statistics::percentile".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
