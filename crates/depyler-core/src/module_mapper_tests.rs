@@ -62,11 +62,11 @@ fn test_external_crate_mappings() {
     assert_eq!(json_mapping.version.as_ref().unwrap(), "1.0");
     assert_eq!(json_mapping.item_map.get("loads").unwrap(), "from_str");
 
-    // Test regex module
+    // Test regex module (DEPYLER-EXTDEPS-001: updated to 1.10)
     let re_mapping = mapper.get_mapping("re").unwrap();
     assert_eq!(re_mapping.rust_path, "regex");
     assert!(re_mapping.is_external);
-    assert_eq!(re_mapping.version.as_ref().unwrap(), "1.0");
+    assert_eq!(re_mapping.version.as_ref().unwrap(), "1.10");
     assert_eq!(re_mapping.item_map.get("compile").unwrap(), "Regex::new");
 
     // Test chrono module
@@ -206,7 +206,8 @@ fn test_get_dependencies() {
     let deps = mapper.get_dependencies(&imports);
     assert_eq!(deps.len(), 2); // json and re (os is stdlib)
     assert!(deps.contains(&("serde_json".to_string(), "1.0".to_string())));
-    assert!(deps.contains(&("regex".to_string(), "1.0".to_string())));
+    // DEPYLER-EXTDEPS-001: regex updated to 1.10
+    assert!(deps.contains(&("regex".to_string(), "1.10".to_string())));
 }
 
 #[test]
