@@ -96,6 +96,9 @@ pub mod type_system;
 pub mod typeshed_ingest;
 pub mod union_enum_gen;
 
+// Generative repair engine (DEPYLER-ENTRENAR-001)
+pub mod generative_repair;
+
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
