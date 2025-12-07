@@ -25,7 +25,8 @@ depyler-core = { path = "../depyler-core" }
 
 # ML models from aprender
 # Features: parallel (rayon), gpu (wgpu via trueno)
-aprender = { version = "0.14.0", default-features = true }
+# Issue #210: Code2Vec embeddings and GNN capabilities
+aprender = { version = "0.14.1", default-features = true }
 
 # CITL training framework for pattern store (Issue #172)
 entrenar = { version = "0.2.2", features = ["citl"] }
