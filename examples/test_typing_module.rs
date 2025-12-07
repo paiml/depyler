@@ -1,3 +1,4 @@
+const STR_ALICE: &'static str = "Alice";
 use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -81,9 +82,9 @@ pub fn test_list_typing() -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_typing() -> HashMap<String, i32> {
-    let ages: HashMap<String, i32> = {
+    let ages: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("Alice".to_string(), 30);
+        map.insert(STR_ALICE.to_string(), 30);
         map.insert("Bob".to_string(), 25);
         map.insert("Charlie".to_string(), 35);
         map
@@ -93,8 +94,8 @@ pub fn test_dict_typing() -> HashMap<String, i32> {
 #[doc = "Test Set type annotation"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_typing() -> HashSet<String> {
-    let colors: HashSet<String> = {
+pub fn test_set_typing() -> std::collections::HashSet<String> {
+    let colors: std::collections::HashSet<String> = {
         let mut set = HashSet::new();
         set.insert("red".to_string());
         set.insert("green".to_string());
@@ -107,7 +108,7 @@ pub fn test_set_typing() -> HashSet<String> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_tuple_typing() -> (String, i32, f64) {
-    let person: (String, i32, f64) = ("Alice", 30, 5.6);
+    let person: (String, i32, f64) = (STR_ALICE.to_string(), 30, 5.6);
     person
 }
 #[doc = "Test Optional return type"]
@@ -153,7 +154,7 @@ pub fn test_nested_list() -> Vec<Vec<i32>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_nested_dict() -> HashMap<String, HashMap<String, i32>> {
-    let data: HashMap<String, HashMap<String, i32>> = {
+    let data: std::collections::HashMap<String, std::collections::HashMap<String, i32>> = {
         let mut map = std::collections::HashMap::new();
         map.insert(
             "group1".to_string(),
@@ -171,16 +172,20 @@ pub fn test_nested_dict() -> HashMap<String, HashMap<String, i32>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_list_of_tuples() -> Vec<(String, i32)> {
-    let items: Vec<(String, i32)> = vec![("apple", 5), ("banana", 3), ("cherry", 8)];
+    let items: Vec<(String, i32)> = vec![
+        ("apple".to_string(), 5),
+        ("banana".to_string(), 3),
+        ("cherry".to_string(), 8),
+    ];
     items
 }
 #[doc = "Test Dict of Lists"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_of_lists() -> HashMap<String, Vec<i32>> {
-    let grades: HashMap<String, Vec<i32>> = {
+    let grades: std::collections::HashMap<String, Vec<i32>> = {
         let mut map = HashMap::new();
-        map.insert("Alice".to_string(), vec![85, 90, 88]);
+        map.insert(STR_ALICE.to_string(), vec![85, 90, 88]);
         map.insert("Bob".to_string(), vec![78, 82, 80]);
         map
     };
@@ -192,7 +197,7 @@ pub fn process_user_data(
     name: String,
     age: i32,
     scores: &Vec<f64>,
-    metadata: Option<HashMap<String, String>>,
+    metadata: Option<std::collections::HashMap<String, String>>,
 ) -> Result<(String, f64), Box<dyn std::error::Error>> {
     let mut total: f64 = 0.0;
     for score in scores.iter().cloned() {
@@ -207,19 +212,19 @@ pub fn process_user_data(
     Ok((result, avg_score))
 }
 #[doc = "Test Dict parameters and return"]
-pub fn merge_data<'b, 'a>(
-    dict1: &'a HashMap<String, i32>,
-    dict2: &'b HashMap<String, i32>,
+pub fn merge_data<'a, 'b>(
+    dict1: &'a std::collections::HashMap<String, i32>,
+    dict2: &'b std::collections::HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let mut merged: HashMap<String, i32> = {
+    let mut merged: std::collections::HashMap<String, i32> = {
         let map = HashMap::new();
         map
     };
     for key in dict1.keys().cloned().collect::<Vec<_>>() {
-        merged.insert(key, dict1.get(&key).cloned().unwrap_or_default());
+        merged.insert(key.clone(), dict1.get(&key).cloned().unwrap_or_default());
     }
     for key in dict2.keys().cloned().collect::<Vec<_>>() {
-        merged.insert(key, dict2.get(&key).cloned().unwrap_or_default());
+        merged.insert(key.clone(), dict2.get(&key).cloned().unwrap_or_default());
     }
     Ok(merged)
 }
@@ -291,8 +296,8 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, Box<dyn std::error::Er
 }
 #[doc = "Safe dict access"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_value<'a, 'b>(
-    data: &'a HashMap<String, i32>,
+pub fn get_value<'b, 'a>(
+    data: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<Option<i32>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = data.get(key).is_some();
@@ -323,7 +328,7 @@ pub fn distance_between_points(
 }
 #[doc = "Test Any type usage"]
 #[doc = " Depyler: verified panic-free"]
-pub fn validate_config(config: &HashMap<String, serde_json::Value>) -> bool {
+pub fn validate_config(config: &std::collections::HashMap<String, serde_json::Value>) -> bool {
     let required: Vec<String> = vec![
         "host".to_string(),
         "port".to_string(),
@@ -338,7 +343,7 @@ pub fn validate_config(config: &HashMap<String, serde_json::Value>) -> bool {
 }
 #[doc = "Test complex transformation"]
 pub fn transform_data(
-    data: &Vec<HashMap<String, i32>>,
+    data: &Vec<std::collections::HashMap<String, i32>>,
 ) -> Result<Vec<(String, i32)>, Box<dyn std::error::Error>> {
     let mut result: Vec<(String, i32)> = vec![];
     for item in data.iter().cloned() {
@@ -354,7 +359,7 @@ pub fn transform_data(
 pub fn group_by_first_letter(
     words: &Vec<String>,
 ) -> Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> {
-    let mut groups: HashMap<String, Vec<String>> = {
+    let mut groups: std::collections::HashMap<String, Vec<String>> = {
         let map = HashMap::new();
         map
     };
@@ -376,7 +381,7 @@ pub fn group_by_first_letter(
                 .unwrap_or_default()
         };
         if !groups.get(&first_letter).is_some() {
-            groups.insert(first_letter, vec![]);
+            groups.insert(first_letter.clone(), vec![]);
         }
         groups
             .get(&first_letter)
@@ -390,36 +395,57 @@ pub fn group_by_first_letter(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_typing_features() -> Result<(), Box<dyn std::error::Error>> {
+    let _numbers: Vec<i32> = test_list_typing();
+    let _ages: std::collections::HashMap<String, i32> = test_dict_typing();
+    let _colors: std::collections::HashSet<String> = test_set_typing();
+    let _person: (String, i32, f64) = test_tuple_typing();
+    let _opt_value: Option<i32> = test_optional_return(5);
+    let _opt_param: i32 = test_optional_parameter(10);
+    let _union_result: UnionType = test_union_simple(-1);
+    let _matrix: Vec<Vec<i32>> = test_nested_list();
+    let _nested: std::collections::HashMap<String, std::collections::HashMap<String, i32>> =
+        test_nested_dict();
+    let _tuples: Vec<(String, i32)> = test_list_of_tuples();
+    let _lists: std::collections::HashMap<String, Vec<i32>> = test_dict_of_lists();
     let scores: Vec<f64> = vec![85.5, 90.0, 88.5];
-    let d1: HashMap<String, i32> = {
+    let _user_result: (String, f64) = process_user_data(STR_ALICE.to_string(), 30, &scores, None)?;
+    let d1: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert("a".to_string(), 1);
         map.insert("b".to_string(), 2);
         map
     };
-    let d2: HashMap<String, i32> = {
+    let d2: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert("c".to_string(), 3);
         map.insert("d".to_string(), 4);
         map
     };
+    let _merged: std::collections::HashMap<String, i32> = merge_data(&d1, &d2)?;
     let nums: Vec<i32> = vec![-1, 2, -3, 4, 5];
-    let data: HashMap<String, i32> = {
+    let _positive: Vec<i32> = filter_positive(&nums);
+    let _first: Option<i32> = first_element(&vec![1, 2, 3])?;
+    let _last: Option<i32> = last_element(&vec![1, 2, 3])?;
+    let _division: Option<f64> = safe_divide(10, 3)?;
+    let data: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert("x".to_string(), 10);
         map.insert("y".to_string(), 20);
         map
     };
+    let _value: Option<i32> = get_value(&data, "x")?;
     let p1: (f64, f64) = create_point();
     let p2: (f64, f64) = (6.0, 8.0);
-    let config: HashMap<String, serde_json::Value> = {
+    let _dist: f64 = distance_between_points(p1, p2)?;
+    let config: std::collections::HashMap<String, serde_json::Value> = {
         let mut map = std::collections::HashMap::new();
         map.insert("host".to_string(), serde_json::json!("localhost"));
         map.insert("port".to_string(), serde_json::json!(8080));
         map.insert("timeout".to_string(), serde_json::json!(30));
         map
     };
-    let dict_list: Vec<HashMap<String, i32>> = vec![
+    let _is_valid: bool = validate_config(&config);
+    let dict_list: Vec<std::collections::HashMap<String, i32>> = vec![
         {
             let mut map = HashMap::new();
             map.insert("a".to_string(), 1);
@@ -431,12 +457,14 @@ pub fn test_all_typing_features() -> Result<(), Box<dyn std::error::Error>> {
             map
         },
     ];
+    let _transformed: Vec<(String, i32)> = transform_data(&dict_list)?;
     let words: Vec<String> = vec![
         "apple".to_string(),
         "banana".to_string(),
         "apricot".to_string(),
         "cherry".to_string(),
     ];
+    let _grouped: std::collections::HashMap<String, Vec<String>> = group_by_first_letter(&words)?;
     println!("{}", "All typing module tests completed successfully");
     Ok(())
 }

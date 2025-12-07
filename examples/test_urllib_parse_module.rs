@@ -61,7 +61,7 @@ pub fn test_urlparse_full() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_parse_qs_basic() {
     let query = "name=John&age=30&city=NYC";
-    let result = parse_qs(query);
+    let result = parse_qs(&query);
     assert!(
         result.get("name").cloned().unwrap_or_default() == vec!["John".to_string().to_string()]
     );
@@ -74,7 +74,7 @@ pub fn test_parse_qs_basic() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_parse_qs_multiple_values() {
     let query = "tag=python&tag=rust&tag=programming";
-    let result = parse_qs(query);
+    let result = parse_qs(&query);
     assert!(result.get("tag").cloned().unwrap_or_default().len() as i32 == 3);
     assert!(result
         .get("tag")
@@ -95,11 +95,17 @@ pub fn test_parse_qs_multiple_values() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_parse_qsl_tuples() {
     let query = "a=1&b=2&c=3";
-    let result = parse_qsl(query);
+    let result = parse_qsl(&query);
     assert!(result.len() as i32 == 3);
-    assert!(result.get(&("a".to_string(), "1".to_string())).is_some());
-    assert!(result.get(&("b".to_string(), "2".to_string())).is_some());
-    assert!(result.get(&("c".to_string(), "3".to_string())).is_some());
+    assert!(result
+        .get(&("a".to_string().to_string(), "1".to_string().to_string()))
+        .is_some());
+    assert!(result
+        .get(&("b".to_string().to_string(), "2".to_string().to_string()))
+        .is_some());
+    assert!(result
+        .get(&("c".to_string().to_string(), "3".to_string().to_string()))
+        .is_some());
     println!("{}", "PASS: test_parse_qsl_tuples");
 }
 #[doc = "Test URL encoding from dict."]
@@ -172,7 +178,7 @@ pub fn test_urljoin_absolute() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_urlsplit_basic() {
     let url = "https://example.com/path?query=value#fragment";
-    let result = urlsplit(url);
+    let result = urlsplit(&url);
     assert!(result.scheme == "https".to_string());
     assert!(result.netloc == "example.com".to_string());
     assert!(result.path == "/path".to_string());

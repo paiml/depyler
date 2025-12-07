@@ -1,7 +1,6 @@
 use clap::Parser;
 use rand as random;
 use serde_json;
-use std as sys;
 const STR__: &'static str = "=";
 #[derive(Debug, Clone)]
 pub struct MarcoPoloGame {
@@ -9,7 +8,7 @@ pub struct MarcoPoloGame {
     pub verbose: bool,
     pub score: i32,
     pub attempts: i32,
-    pub difficulty_ranges: HashMap<serde_json::Value, serde_json::Value>,
+    pub difficulty_ranges: std::collections::HashMap<serde_json::Value, serde_json::Value>,
 }
 impl MarcoPoloGame {
     pub fn new(difficulty: String, verbose: bool) -> Self {
@@ -22,12 +21,12 @@ impl MarcoPoloGame {
         }
     }
     pub fn generate_number(&self) -> i32 {
-        let (mut min_val, mut max_val) = self.difficulty_ranges[self.difficulty as usize];
+        let (min_val, max_val) = self.difficulty_ranges[self.difficulty as usize];
         return random.randint(min_val, max_val);
     }
     pub fn get_hint(&self, guess: i32, target: i32) -> String {
         if guess < target {
-            let mut distance = target - guess;
+            let distance = target - guess;
             if distance > 20 {
                 return "Marco!(Way too low)".to_string();
             } else {
@@ -38,7 +37,7 @@ impl MarcoPoloGame {
                 };
             };
         } else {
-            let mut distance = guess - target;
+            let distance = guess - target;
             if distance > 20 {
                 return "Marco!(Way too high)".to_string();
             } else {
@@ -51,8 +50,8 @@ impl MarcoPoloGame {
         };
     }
     pub fn play_round(&self) -> bool {
-        let mut target = self.generate_number();
-        let (mut min_val, mut max_val) = self.difficulty_ranges[self.difficulty as usize];
+        let target = self.generate_number();
+        let (min_val, max_val) = self.difficulty_ranges[self.difficulty as usize];
         if self.verbose {
             println!("{}", format!("\n[DEBUG] Target number: {}", target));
         };
@@ -73,8 +72,8 @@ impl MarcoPoloGame {
             {
                 let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
                     {
-                        let mut guess_str = input("\nYour guess: ".to_string());
-                        let mut guess = guess_str.parse::<i32>().unwrap_or(0);
+                        let guess_str = input("\nYour guess: ".to_string());
+                        let guess = guess_str.parse::<i32>().unwrap_or(0);
                         if guess < min_val || guess > max_val {
                             println!(
                                 "{}",
@@ -82,7 +81,7 @@ impl MarcoPoloGame {
                             );
                             continue;
                         };
-                        let mut round_attempts = round_attempts + 1;
+                        let round_attempts = round_attempts + 1;
                         self.attempts = self.attempts + 1;
                         if guess == target {
                             println!("{}", "🎉 Polo! You found it!".to_string());
@@ -95,7 +94,7 @@ impl MarcoPoloGame {
                             };
                             return true;
                         } else {
-                            let mut hint = self.get_hint(guess, target);
+                            let hint = self.get_hint(guess, target);
                             println!("{}", hint);
                         };
                     }
@@ -113,7 +112,7 @@ impl MarcoPoloGame {
         if self.attempts == 0 {
             return "No games played".to_string();
         };
-        let mut avg_attempts = self.attempts / (self.score).max(1);
+        let avg_attempts = self.attempts / (self.score).max(1);
         if avg_attempts <= 5 {
             return "🏆 Expert".to_string();
         } else {

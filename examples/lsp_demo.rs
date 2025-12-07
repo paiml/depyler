@@ -10,11 +10,11 @@ pub static data_processors: once_cell::sync::Lazy<serde_json::Value> =
             map.insert("double".to_string().to_string(), |x| x * 2);
             map.insert("square".to_string().to_string(), |x| {
                 if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-                    (x as i32)
-                        .checked_pow(2 as u32)
+                    ({ x } as i32)
+                        .checked_pow({ 2 } as u32)
                         .expect("Power operation overflowed")
                 } else {
-                    (x as f64).powf(2 as f64) as i32
+                    ({ x } as f64).powf({ 2 } as f64) as i32
                 }
             });
             map.insert("stringify".to_string().to_string(), |x| (x).to_string());
@@ -68,7 +68,7 @@ pub struct AdminUser {
     pub permissions: Vec<String>,
 }
 impl AdminUser {
-    pub fn new(name: String, age: i32, permissions: Vec<String>) -> Self {
+    pub fn new(_name: String, _age: i32, permissions: Vec<String>) -> Self {
         Self { permissions }
     }
     pub fn has_permission(&self, permission: String) -> bool {
@@ -93,7 +93,7 @@ impl FileManager {
         }
     }
     pub fn __enter__(&mut self) {
-        self.file = open(self.filename, self.mode);
+        self.file = std::fs::File::open(&self.filename).unwrap();
         return self.file;
     }
     pub fn __exit__(
@@ -152,7 +152,9 @@ pub fn process_users(users: &Vec<User>, filter_adults: bool) -> HashMap<String, 
 #[doc = " Depyler: proven to terminate"]
 pub fn create_handler(prefix: String) -> Box<dyn Fn(String) -> String> {
     let mut handler;
-    handler = |message: String| -> String { format!("{}: {}", prefix, message) };
+    handler = |message: String| -> String {
+        return format!("{}: {}", prefix, message);
+    };
     Box::new(handler)
 }
 #[doc = "Validate if age is in acceptable range."]
@@ -184,7 +186,7 @@ pub fn problematic_function() -> String {
 pub fn process_numbers(numbers: &Vec<i32>) -> Vec<i32> {
     let doubled = numbers
         .iter()
-        .copied()
+        .cloned()
         .map(|n| (data_processors.get("double").cloned().unwrap_or_default())(n))
         .collect::<Vec<_>>();
     doubled
@@ -196,7 +198,7 @@ pub fn log_calls(func: serde_json::Value) -> Box<dyn Fn(()) -> ()> {
     let mut wrapper;
     wrapper = |args: ()| {
         println!("{}", format!("Calling {}", func.__name__));
-        func(args)
+        return func(args);
     };
     Box::new(wrapper)
 }

@@ -34,6 +34,8 @@ pub fn numeric_operations(x: i32, y: i32) -> Result<i32, Box<dyn std::error::Err
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn string_manipulation(text: &str) -> String {
+    let _upper_text = text.to_uppercase();
+    let _lower_text = text.to_lowercase();
     if text.starts_with("Hello") {
         return text.replace("Hello", "Hi");
     }
@@ -58,7 +60,7 @@ pub fn list_processing(items: &mut Vec<serde_json::Value>) -> Vec<serde_json::Va
     result
 }
 #[doc = "Multiple inference sources for better confidence."]
-pub fn mixed_inference<'a, 'b>(
+pub fn mixed_inference<'b, 'a>(
     data: &'a Vec<i32>,
     multiplier: i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -86,13 +88,13 @@ pub fn type_conversions_hint(value: &str) -> (String, i32, f64) {
 #[doc = "Boolean operations suggest bool type."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn boolean_logic<'c, 'a, 'b>(a: bool, b: bool, c: bool) -> bool {
+pub fn boolean_logic<'b, 'c, 'a>(a: bool, b: bool, c: bool) -> bool {
     let _cse_temp_0 = (a) && (b);
-    if _cse_temp_0 {
+    if !_cse_temp_0.is_empty() {
         true
     } else {
         let _cse_temp_1 = (b) || (c);
-        if _cse_temp_1 {
+        if _cse_temp_1 != 0 {
             false
         } else {
             !c
@@ -102,7 +104,11 @@ pub fn boolean_logic<'c, 'a, 'b>(a: bool, b: bool, c: bool) -> bool {
 #[doc = "Dictionary method usage."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn dictionary_operations(mapping: &HashMap<String, String>) -> Option<serde_json::Value> {
+pub fn dictionary_operations(
+    mapping: &std::collections::HashMap<String, String>,
+) -> Option<serde_json::Value> {
+    let _keys = mapping.keys().cloned().collect::<Vec<_>>();
+    let _values = mapping.values().cloned().collect::<Vec<_>>();
     let _cse_temp_0 = mapping.get("key").is_some();
     if _cse_temp_0 {
         return Some(mapping.get("key").cloned().unwrap_or("default"));

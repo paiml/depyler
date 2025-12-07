@@ -19,7 +19,7 @@ impl IndexError {
 }
 #[doc = "Simple S3 Lambda handler for testing."]
 pub fn lambda_handler(
-    event: &HashMap<String, serde_json::Value>,
+    event: &std::collections::HashMap<String, serde_json::Value>,
     context: serde_json::Value,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     for record in event

@@ -33,10 +33,11 @@ pub fn test_dictionary_assignment() -> HashMap<serde_json::Value, serde_json::Va
     };
     nested.insert(
         "level1".to_string().to_string(),
-        serde_json::json!({
+        serde_json::to_value({
             let mut map = std::collections::HashMap::new();
             map
-        }),
+        })
+        .unwrap(),
     );
     nested
         .get_mut(&"level1".to_string())
@@ -47,7 +48,7 @@ pub fn test_dictionary_assignment() -> HashMap<serde_json::Value, serde_json::Va
 #[doc = "Set operations with operators"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_operations() -> (HashSet<i32>, HashSet<i32>) {
+pub fn test_set_operations() -> (i32, i32) {
     let set1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -77,13 +78,13 @@ pub fn test_set_operations() -> (HashSet<i32>, HashSet<i32>) {
 #[doc = "Power operator examples"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_power_operator() -> i32 {
-    let _cse_temp_0 = (2 as i32)
-        .checked_pow(3 as u32)
+pub fn test_power_operator() -> f64 {
+    let _cse_temp_0 = ({ 2 } as i32)
+        .checked_pow({ 3 } as u32)
         .expect("Power operation overflowed");
     let x = _cse_temp_0;
-    let _cse_temp_1 = (5 as i32)
-        .checked_pow(2 as u32)
+    let _cse_temp_1 = ({ 5 } as i32)
+        .checked_pow({ 2 } as u32)
         .expect("Power operation overflowed");
     let y = _cse_temp_1;
     x + y

@@ -48,8 +48,8 @@ pub fn find_duplicates(numbers: &Vec<i32>) -> Vec<i32> {
     let mut seen: Vec<i32> = vec![];
     let mut duplicates: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
-        if seen.get(&num).is_some() {
-            if !duplicates.get(&num).is_some() {
+        if seen.contains(&num) {
+            if !duplicates.contains(&num) {
                 duplicates.push(num);
             }
         } else {
@@ -59,7 +59,7 @@ pub fn find_duplicates(numbers: &Vec<i32>) -> Vec<i32> {
     duplicates
 }
 #[doc = "Merge two sorted lists into one sorted list"]
-pub fn merge_sorted_lists<'b, 'a>(
+pub fn merge_sorted_lists<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {

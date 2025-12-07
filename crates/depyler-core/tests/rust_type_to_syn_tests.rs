@@ -98,13 +98,27 @@ fn test_hashmap_string_i32() {
         Box::new(RustType::String),
         Box::new(RustType::Primitive(PrimitiveType::I32)),
     );
-    assert_eq!(type_to_string(&ty), "HashMap < String , i32 >");
+    let result = type_to_string(&ty);
+    // DEPYLER-0685: Accept both short and fully qualified paths
+    assert!(
+        result == "HashMap < String , i32 >"
+            || result == "std :: collections :: HashMap < String , i32 >",
+        "Expected HashMap or std::collections::HashMap, got: {}",
+        result
+    );
 }
 
 #[test]
 fn test_hashset_string() {
     let ty = RustType::HashSet(Box::new(RustType::String));
-    assert_eq!(type_to_string(&ty), "HashSet < String >");
+    let result = type_to_string(&ty);
+    // DEPYLER-0685: Accept both short and fully qualified paths
+    assert!(
+        result == "HashSet < String >"
+            || result == "std :: collections :: HashSet < String >",
+        "Expected HashSet or std::collections::HashSet, got: {}",
+        result
+    );
 }
 
 #[test]

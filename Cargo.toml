@@ -11,8 +11,10 @@ members = [
     "crates/depyler-ruchy",
     "crates/depyler-testing",
     "crates/depyler-oracle",
+    "crates/depyler-corpus",
 ]
 exclude = [
+    "examples",
     "examples/argparse_cli",
     "examples/comprehensive_cli",
     "examples/test_project",

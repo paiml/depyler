@@ -5,11 +5,11 @@ pub struct URL {
     pub host: String,
     pub port: Option<i32>,
     pub path: String,
-    pub query_params: HashMap<String, String>,
+    pub query_params: std::collections::HashMap<String, String>,
     pub fragment: String,
 }
 impl URL {
-    pub fn new(url: String) -> Self {
+    pub fn new(_url: String) -> Self {
         Self {
             original: String::new(),
             scheme: String::new(),
@@ -22,8 +22,8 @@ impl URL {
     }
     pub fn _parse(&mut self, url: String) {
         let mut remaining = url;
-        if remaining.contains(&"://".to_string()) {
-            let mut scheme_end = remaining.find("://").map(|i| i as i64).unwrap_or(-1);
+        if remaining.contains("://") {
+            let scheme_end = remaining.find("://").map(|i| i as i64).unwrap_or(-1);
             self.scheme = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
@@ -35,7 +35,7 @@ impl URL {
                 };
                 s.chars().take(stop).collect::<String>()
             };
-            let mut remaining = {
+            let remaining = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
                 let start_idx = (scheme_end + 3) as isize;
@@ -47,8 +47,8 @@ impl URL {
                 s.chars().skip(start).collect::<String>()
             };
         };
-        if remaining.contains(&"#".to_string()) {
-            let mut fragment_start = remaining.find("#").map(|i| i as i64).unwrap_or(-1);
+        if remaining.contains("#") {
+            let fragment_start = remaining.find("#").map(|i| i as i64).unwrap_or(-1);
             self.fragment = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
@@ -60,7 +60,7 @@ impl URL {
                 };
                 s.chars().skip(start).collect::<String>()
             };
-            let mut remaining = {
+            let remaining = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
                 let stop_idx = (fragment_start) as isize;
@@ -72,9 +72,9 @@ impl URL {
                 s.chars().take(stop).collect::<String>()
             };
         };
-        if remaining.contains(&"?".to_string()) {
-            let mut query_start = remaining.find("?").map(|i| i as i64).unwrap_or(-1);
-            let mut query_string = {
+        if remaining.contains("?") {
+            let query_start = remaining.find("?").map(|i| i as i64).unwrap_or(-1);
+            let query_string = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
                 let start_idx = (query_start + 1) as isize;
@@ -85,7 +85,7 @@ impl URL {
                 };
                 s.chars().skip(start).collect::<String>()
             };
-            let mut remaining = {
+            let remaining = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
                 let stop_idx = (query_start) as isize;
@@ -98,8 +98,8 @@ impl URL {
             };
             self._parse_query(query_string);
         };
-        if remaining.contains(&"/".to_string()) {
-            let mut path_start = remaining.find("/").map(|i| i as i64).unwrap_or(-1);
+        if remaining.contains("/") {
+            let path_start = remaining.find("/").map(|i| i as i64).unwrap_or(-1);
             self.path = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
@@ -111,7 +111,7 @@ impl URL {
                 };
                 s.chars().skip(start).collect::<String>()
             };
-            let mut remaining = {
+            let remaining = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
                 let stop_idx = (path_start) as isize;
@@ -125,8 +125,8 @@ impl URL {
         } else {
             self.path = "/".to_string();
         };
-        if remaining.contains(&":".to_string()) {
-            let mut colon_pos = remaining.find(":").map(|i| i as i64).unwrap_or(-1);
+        if remaining.contains(":") {
+            let colon_pos = remaining.find(":").map(|i| i as i64).unwrap_or(-1);
             self.host = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
@@ -138,7 +138,7 @@ impl URL {
                 };
                 s.chars().take(stop).collect::<String>()
             };
-            let mut port_str = {
+            let port_str = {
                 let s = &remaining;
                 let len = s.chars().count() as isize;
                 let start_idx = (colon_pos + 1) as isize;
@@ -170,14 +170,14 @@ impl URL {
         if !query_string {
             return ();
         };
-        let mut pairs = query_string
+        let pairs = query_string
             .split("&")
             .map(|s| s.to_string())
             .collect::<Vec<String>>();
         for pair in pairs {
-            if pair.contains(&"=".to_string()) {
-                let mut eq_pos = pair.find("=").map(|i| i as i64).unwrap_or(-1);
-                let mut key = {
+            if pair.contains("=") {
+                let eq_pos = pair.find("=").map(|i| i as i64).unwrap_or(-1);
+                let key = {
                     let s = &pair;
                     let len = s.chars().count() as isize;
                     let stop_idx = (eq_pos) as isize;
@@ -188,7 +188,7 @@ impl URL {
                     };
                     s.chars().take(stop).collect::<String>()
                 };
-                let mut value = {
+                let value = {
                     let s = &pair;
                     let len = s.chars().count() as isize;
                     let start_idx = (eq_pos + 1) as isize;
@@ -207,7 +207,7 @@ impl URL {
     }
     pub fn get_query_param(&self, key: String) -> Option<String> {
         if self.query_params.contains_key(&key) {
-            return self.query_params[key as usize];
+            return self.query_params.get(&key).cloned().unwrap_or_default();
         };
         return ();
     }
@@ -217,11 +217,11 @@ impl URL {
     pub fn get_base_url(&self) -> String {
         let mut result = "".to_string();
         if self.scheme {
-            let mut result = result + self.scheme + "://".to_string();
+            let result = result + self.scheme + "://".to_string();
         };
         let mut result = result + self.host;
         if self.port.is_some() {
-            let mut result = result + ":".to_string() + self.port.to_string();
+            let result = result + ":".to_string() + self.port.to_string();
         };
         return result;
     }
@@ -274,7 +274,7 @@ pub fn is_valid_email(email: &str) -> bool {
     if _cse_temp_7 {
         return false;
     }
-    let _cse_temp_8 = !domain_part.get(".").is_some();
+    let _cse_temp_8 = !domain_part.contains(".");
     if _cse_temp_8 {
         return false;
     }

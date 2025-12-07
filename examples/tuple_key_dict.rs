@@ -3,7 +3,7 @@ use std::collections::HashMap;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_tuple_keys() -> HashMap<(i32, i32), String> {
-    let mut d: HashMap<(i32, i32), String> = {
+    let mut d: std::collections::HashMap<(i32, i32), String> = {
         let map = HashMap::new();
         map
     };

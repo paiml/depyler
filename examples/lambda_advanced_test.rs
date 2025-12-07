@@ -14,14 +14,14 @@ pub fn test_lambda_with_operations() -> (serde_json::Value, serde_json::Value, s
 #[doc = " Depyler: proven to terminate"]
 pub fn test_lambda_as_argument() -> (serde_json::Value, serde_json::Value) {
     let mut apply_to_list;
+    let numbers = vec![1, 2, 3, 4, 5];
     apply_to_list = |lst: &Vec<i64>, func: ()| -> Vec<i64> {
         let result = vec![];
         for item in lst.iter().cloned() {
             result.push(func(item));
         }
-        result
+        return result;
     };
-    let numbers = vec![1, 2, 3, 4, 5];
     let doubled = apply_to_list(&numbers, |x| x * 2);
     let squared = apply_to_list(&numbers, |x| x * x);
     (doubled, squared)

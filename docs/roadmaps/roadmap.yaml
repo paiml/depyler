@@ -1922,3 +1922,312 @@ roadmap:
   - imports
   - tarantula-verified
   notes: null
+- id: DEPYLER-0440
+  github_issue: null
+  item_type: bug
+  title: Option type mismatch - None literal not wrapped in Option
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2025-12-03T21:00:00+00:00
+  updated: 2025-12-03T21:49:42.097169219+00:00
+  spec: docs/qa/tech-debt-dec3.md
+  acceptance_criteria:
+  - None literal wrapped in Option::None in if-else branches
+  - Option<T> returned consistently from conditional expressions
+  - All 5 DEPYLER-0440 tests pass
+  - No regressions in Option type handling
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+    estimated_effort: 30m
+    completion: 0
+  - name: Phase 2 - Fix None wrapping (GREEN)
+    status: planned
+    estimated_effort: 2h
+    completion: 0
+  - name: Phase 3 - Quality gates (REFACTOR)
+    status: planned
+    estimated_effort: 30m
+    completion: 0
+  subtasks: []
+  estimated_effort: 8h
+  labels:
+  - P0-critical
+  - option-type
+  - codegen
+  - tech-debt-dec3
+  notes: '5 failing tests: cli_output_format_real_world, simple_none_if_else, property_none_placeholder_compiles, none_with_elif_chain, nested_if_with_none'
+- id: DEPYLER-0437
+  github_issue: null
+  item_type: bug
+  title: Try-except control flow generates incorrect match expressions
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2025-12-03T21:00:00+00:00
+  updated: 2025-12-03T21:49:47.879179607+00:00
+  spec: docs/qa/tech-debt-dec3.md
+  acceptance_criteria:
+  - try-except blocks generate correct match Result<T,E> expressions
+  - except handler in Err branch, try body in Ok branch
+  - Nested try blocks handled correctly
+  - All 5 DEPYLER-0437 tests pass
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+    estimated_effort: 30m
+    completion: 0
+  - name: Phase 2 - Fix try-except codegen (GREEN)
+    status: planned
+    estimated_effort: 3h
+    completion: 0
+  - name: Phase 3 - Quality gates (REFACTOR)
+    status: planned
+    estimated_effort: 30m
+    completion: 0
+  subtasks: []
+  estimated_effort: 12h
+  labels:
+  - P0-critical
+  - try-except
+  - control-flow
+  - codegen
+  - tech-debt-dec3
+  notes: '5 failing tests: compiles_without_warnings, except_handler_in_err_branch, nested_try_in_ok_branch, multiple_statements_in_try, try_except_generates_match'
+- id: DEPYLER-0303
+  github_issue: null
+  item_type: bug
+  title: Dict/HashMap mutations missing mut inference
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2025-12-03T21:00:00+00:00
+  updated: 2025-12-03T21:49:49.070731544+00:00
+  spec: docs/qa/tech-debt-dec3.md
+  acceptance_criteria:
+  - Dict operations (.insert, .clear, .remove) trigger mut inference
+  - let mut generated for dicts that are mutated
+  - Conditional dict mutations handled correctly
+  - All 4 DEPYLER-0303 tests pass
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+    estimated_effort: 30m
+    completion: 0
+  - name: Phase 2 - Fix mut inference for dicts (GREEN)
+    status: planned
+    estimated_effort: 2h
+    completion: 0
+  - name: Phase 3 - Quality gates (REFACTOR)
+    status: planned
+    estimated_effort: 30m
+    completion: 0
+  subtasks: []
+  estimated_effort: 8h
+  labels:
+  - P0-critical
+  - dict
+  - mutability
+  - codegen
+  - tech-debt-dec3
+  notes: '4 failing tests: dict_combined_mutations, dict_clear_adds_mut, dict_insert_adds_mut, dict_remove_in_conditional'
+- id: DEPYLER-0272
+  github_issue: null
+  item_type: bug
+  title: Unused loop variables not prefixed with underscore
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2025-12-03T21:00:00+00:00
+  updated: 2025-12-03T21:49:35.163705951+00:00
+  spec: docs/qa/tech-debt-dec3.md
+  acceptance_criteria:
+  - Unused loop variables prefixed with _ (e.g., _i, _item)
+  - Enumerate pattern unused index handled
+  - Nested loops with unused variables work
+  - All 4 DEPYLER-0272 tests pass
+  phases:
+  - name: Phase 1 - Create failing tests (RED)
+    status: planned
+    estimated_effort: 30m
+    completion: 0
+  - name: Phase 2 - Fix unused var prefixing (GREEN)
+    status: planned
+    estimated_effort: 1h
+    completion: 0
+  - name: Phase 3 - Quality gates (REFACTOR)
+    status: planned
+    estimated_effort: 30m
+    completion: 0
+  subtasks: []
+  estimated_effort: 4h
+  labels:
+  - P0-critical
+  - unused-vars
+  - loops
+  - codegen
+  - tech-debt-dec3
+  notes: '4 failing tests: enumerate_pattern_unused_index, nested_loops_unused_compiles, range_loop_unused_variable_compiles, list_loop_unused_variable_compiles'
+- id: DEPYLER-HUNT-001
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-HUNT-001'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-05T10:23:02.523607321+00:00
+  updated: 2025-12-05T10:23:02.523607321+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-CARGO-FIRST
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-CARGO-FIRST'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T08:09:53.281188587+00:00
+  updated: 2025-12-06T08:44:54.135092334+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-CORPUS-001
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-CORPUS-001'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T13:35:59.370197160+00:00
+  updated: 2025-12-06T13:35:59.370197160+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-CORPUS-REPORT
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-CORPUS-REPORT'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T13:52:26.451362593+00:00
+  updated: 2025-12-06T13:52:26.451362593+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0723
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0723'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-06T16:41:12.211941764+00:00
+  updated: 2025-12-06T16:41:12.211941764+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-EXTDEPS-001
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-EXTDEPS-001'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-07T07:51:12.580850014+00:00
+  updated: 2025-12-07T08:08:20.184163965+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-EXTDEPS-002
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-EXTDEPS-002'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-07T08:09:12.166821504+00:00
+  updated: 2025-12-07T08:09:12.166821504+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-209
+  github_issue: 209
+  item_type: task
+  title: '[Enhancement] Implement Rich Signal Reporting with ML Clustering & Graph Analysis (DEPYLER-REPORT-V2)'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-07T13:38:14.679592947+00:00
+  updated: 2025-12-07T13:38:14.679592947+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - enhancement
+  notes: null
+- id: DEPYLER-BISECT-001
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-BISECT-001'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-07T18:37:39.722933711+00:00
+  updated: 2025-12-07T18:37:39.722933711+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-210
+  github_issue: 210
+  item_type: task
+  title: '[Enhancement] Upgrade Depyler Oracle with Aprender Code2Vec & GNN'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-07T20:16:13.819675130+00:00
+  updated: 2025-12-07T20:16:13.819675130+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - enhancement
+  notes: null

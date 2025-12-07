@@ -26,9 +26,9 @@ pub fn test_pickle_basic_types() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_list() {
-    let mut data = vec![1, 2, 3, 4, 5];
-    let mut pickled = { format!("{:?}", data).into_bytes() };
-    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
+    let data = vec![1, 2, 3, 4, 5];
+    let pickled = { format!("{:?}", data).into_bytes() };
+    let unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == vec![1, 2, 3, 4, 5]);
     assert!(unpickled.len() as i32 == 5);
     println!("{}", "PASS: test_pickle_list");
@@ -37,15 +37,15 @@ pub fn test_pickle_list() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_dict() {
-    let mut data = {
+    let data = {
         let mut map = std::collections::HashMap::new();
         map.insert("name".to_string(), serde_json::json!("Alice"));
         map.insert("age".to_string(), serde_json::json!(30));
         map.insert("city".to_string(), serde_json::json!("NYC"));
         map
     };
-    let mut pickled = { format!("{:?}", data).into_bytes() };
-    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
+    let pickled = { format!("{:?}", data).into_bytes() };
+    let unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(
         unpickled == {
             let mut map = std::collections::HashMap::new();
@@ -62,7 +62,7 @@ pub fn test_pickle_dict() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_nested_structure() {
-    let mut data = {
+    let data = {
         let mut map = std::collections::HashMap::new();
         map.insert(
             "users".to_string(),
@@ -74,8 +74,8 @@ pub fn test_pickle_nested_structure() {
         map.insert("count".to_string(), serde_json::json!(2));
         map
     };
-    let mut pickled = { format!("{:?}", data).into_bytes() };
-    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
+    let pickled = { format!("{:?}", data).into_bytes() };
+    let unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == data);
     assert!(
         unpickled
@@ -112,10 +112,10 @@ pub fn test_pickle_nested_structure() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_tuple() {
-    let mut data = (1, "hello", 3.14, true);
-    let mut pickled = { format!("{:?}", data).into_bytes() };
-    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
-    assert!(unpickled = = (1, "hello", 3.14, true));
+    let data = (1, "hello".to_string(), 3.14, true);
+    let pickled = { format!("{:?}", data).into_bytes() };
+    let unpickled = { String::from_utf8_lossy(pickled).to_string() };
+    assert!(unpickled = = (1, "hello".to_string(), 3.14, true));
     assert!(unpickled.get(1usize).cloned().unwrap_or_default() == "hello");
     println!("{}", "PASS: test_pickle_tuple");
 }
@@ -123,7 +123,7 @@ pub fn test_pickle_tuple() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_set() {
-    let mut data = {
+    let data = {
         let mut set = HashSet::new();
         set.insert(1);
         set.insert(2);
@@ -132,8 +132,8 @@ pub fn test_pickle_set() {
         set.insert(5);
         set
     };
-    let mut pickled = { format!("{:?}", data).into_bytes() };
-    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
+    let pickled = { format!("{:?}", data).into_bytes() };
+    let unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(
         unpickled == {
             let mut set = HashSet::new();
@@ -152,8 +152,9 @@ pub fn test_pickle_set() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_none() {
-    let mut pickled = { format!("{:?}", data).into_bytes() };
-    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
+    let data = None;
+    let pickled = { format!("{:?}", data).into_bytes() };
+    let unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == None);
     println!("{}", "PASS: test_pickle_none");
 }
@@ -175,9 +176,9 @@ pub fn test_pickle_boolean() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_bytes() {
-    let mut data = b"hello bytes";
-    let mut pickled = { format!("{:?}", data).into_bytes() };
-    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
+    let data = b"hello bytes";
+    let pickled = { format!("{:?}", data).into_bytes() };
+    let unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == b"hello bytes");
     println!("{}", "PASS: test_pickle_bytes");
 }
@@ -185,13 +186,13 @@ pub fn test_pickle_bytes() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_mixed_types() {
-    let mut data = vec![1, "two".to_string(), 3.0, true, None, vec![4, 5], {
+    let data = vec![1, "two".to_string(), 3.0, true, None, vec![4, 5], {
         let mut map = HashMap::new();
         map.insert("key".to_string(), "value");
         map
     }];
-    let mut pickled = { format!("{:?}", data).into_bytes() };
-    let mut unpickled = { String::from_utf8_lossy(pickled).to_string() };
+    let pickled = { format!("{:?}", data).into_bytes() };
+    let unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert!(unpickled == data);
     assert!(
         unpickled

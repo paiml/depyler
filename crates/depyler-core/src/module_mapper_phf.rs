@@ -139,6 +139,8 @@ static MATH_ITEMS: phf::Map<&'static str, &'static str> = phf_map! {
     "pow" => "powf",
     "pi" => "consts::PI",
     "e" => "consts::E",
+    // DEPYLER-0771: isqrt is handled specially in expr_gen.rs (not a direct method call)
+    "isqrt" => "isqrt",
 };
 
 #[cfg(feature = "phf-lookup")]

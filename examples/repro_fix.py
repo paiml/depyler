@@ -1,38 +1,26 @@
-"""Reproduction for DEPYLER-0769: Closure parameters using Rust keywords.
+"""Reproduction for DEPYLER-0771: math.isqrt maps to nonexistent std::f64::isqrt.
 
-The transpiler generates 'fn' as a closure parameter name, but 'fn' is a
-Rust keyword. This should be escaped as 'r#fn'.
+Python's math.isqrt() computes the integer square root (floor of sqrt).
+The transpiler incorrectly maps this to std::f64::isqrt which doesn't exist.
 
-Bug: safe_ident() not called for closure ASSIGNMENT parameter names.
-The bug occurs when a nested function is RETURNED (becoming a closure assignment).
-
-Pattern that triggers the bug:
-    def outer():
-        def inner(fn: int) -> int:  # 'fn' param - Rust keyword
-            return fn * 2
-        return inner
-
-Expected: wrapper = | r#fn: i32 | -> i32 {
-Actual:   wrapper = | fn: i32 | -> i32 {
+Expected: (n as f64).sqrt().floor() as i64 or similar
+Actual:   std::f64::isqrt (doesn't exist)
 """
+from math import isqrt
 
 
-def make_doubler() -> int:
-    """Create a function that doubles its input.
-
-    The inner 'wrapper' function takes 'fn' as a parameter name.
-    'fn' is a Rust keyword and must be escaped as 'r#fn'.
-    """
-
-    def wrapper(fn: int) -> int:
-        return fn * 2
-
-    return wrapper(21)
+def is_perfect_square(n: int) -> bool:
+    """Check if n is a perfect square using isqrt."""
+    if n < 0:
+        return False
+    root = isqrt(n)
+    return root * root == n
 
 
 def main() -> None:
-    result = make_doubler()
-    print(f"Result: {result}")
+    for i in [0, 1, 4, 9, 16, 25, 26, 100]:
+        result = is_perfect_square(i)
+        print(f"{i}: {result}")
 
 
 if __name__ == "__main__":

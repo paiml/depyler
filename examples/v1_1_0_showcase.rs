@@ -22,8 +22,8 @@ impl ZeroDivisionError {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn showcase_dictionary_assignment() -> (
-    HashMap<String, HashMap<String, HashMap<serde_json::Value, serde_json::Value>>>,
-    HashMap<serde_json::Value, serde_json::Value>,
+    std::collections::HashMap<String, std::collections::HashMap<String, serde_json::Value>>,
+    serde_json::Value,
 ) {
     let mut d = {
         let map = HashMap::new();
@@ -59,13 +59,7 @@ pub fn showcase_dictionary_assignment() -> (
 #[doc = "Showcase comprehensive set support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_set_operations() -> (
-    HashSet<i32>,
-    HashSet<i32>,
-    HashSet<i32>,
-    HashSet<i32>,
-    HashSet<i32>,
-) {
+pub fn showcase_set_operations() -> (i32, i32, i32, i32, serde_json::Value) {
     let set1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -120,21 +114,17 @@ pub fn showcase_set_operations() -> (
 #[doc = "Showcase set comprehensions"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_set_comprehensions() -> (
-    HashSet<serde_json::Value>,
-    HashSet<serde_json::Value>,
-    HashSet<String>,
-) {
+pub fn showcase_set_comprehensions() -> (serde_json::Value, serde_json::Value, serde_json::Value) {
     let squares = (0..10).into_iter().map(|x| x * x).collect::<HashSet<_>>();
     let even_squares = (0..10)
         .into_iter()
-        .filter(|x| x % 2 == 0)
+        .filter(|&x| x % 2 == 0)
         .map(|x| x * x)
         .collect::<HashSet<_>>();
     let unique_chars = "hello world"
         .to_string()
         .into_iter()
-        .filter(|c| c.chars().all(|c| c.is_alphabetic()))
+        .filter(|&c| c.chars().all(|c| c.is_alphabetic()))
         .map(|c| c.to_uppercase())
         .collect::<HashSet<_>>();
     (squares, even_squares, unique_chars)
@@ -142,7 +132,7 @@ pub fn showcase_set_comprehensions() -> (
 #[doc = "Showcase frozen set support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_frozen_sets() -> (serde_json::Value, HashMap<serde_json::Value, String>) {
+pub fn showcase_frozen_sets() -> (i32, std::collections::HashMap<i32, String>) {
     let immutable1 = std::sync::Arc::new(vec![1, 2, 3, 4].into_iter().collect::<HashSet<_>>());
     let immutable2 = std::sync::Arc::new(3..6.into_iter().collect::<HashSet<_>>());
     let _cse_temp_0 = immutable1 & immutable2;
@@ -157,14 +147,8 @@ pub fn showcase_frozen_sets() -> (serde_json::Value, HashMap<serde_json::Value, 
 }
 #[doc = "Showcase break and continue statements"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_control_flow() -> Result<
-    (
-        Vec<serde_json::Value>,
-        Vec<serde_json::Value>,
-        Vec<serde_json::Value>,
-    ),
-    Box<dyn std::error::Error>,
-> {
+pub fn showcase_control_flow(
+) -> Result<(serde_json::Value, serde_json::Value, serde_json::Value), Box<dyn std::error::Error>> {
     let mut result1 = vec![];
     for i in 0..10 {
         if i == 5 {
@@ -193,17 +177,17 @@ pub fn showcase_control_flow() -> Result<
 #[doc = "Showcase power operator support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_power_operator() -> (i32, f64, i32, i32) {
-    let _cse_temp_0 = (2 as i32)
-        .checked_pow(10 as u32)
+pub fn showcase_power_operator() -> (f64, f64, f64, f64) {
+    let _cse_temp_0 = ({ 2 } as i32)
+        .checked_pow({ 10 } as u32)
         .expect("Power operation overflowed");
     let int_power = _cse_temp_0;
-    let _cse_temp_1 = (2.5 as f64).powf(3.0 as f64);
+    let _cse_temp_1 = ({ 2.5 } as f64).powf({ 3.0 } as f64);
     let float_power = _cse_temp_1;
-    let _cse_temp_2 = (2 as f64).powf(-3 as f64);
+    let _cse_temp_2 = ({ 2 } as f64).powf({ -3 } as f64);
     let inverse = _cse_temp_2;
-    let _cse_temp_3 = (10 as i32)
-        .checked_pow(6 as u32)
+    let _cse_temp_3 = ({ 10 } as i32)
+        .checked_pow({ 6 } as u32)
         .expect("Power operation overflowed");
     let large = _cse_temp_3;
     (int_power, float_power, inverse, large)

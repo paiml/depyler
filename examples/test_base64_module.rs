@@ -1,5 +1,6 @@
 use base64;
 const STR__: &'static str = "=";
+use base64::Engine;
 #[doc = "Test basic base64 encoding."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

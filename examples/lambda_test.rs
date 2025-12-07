@@ -12,18 +12,15 @@ pub fn test_simple_lambdas() -> (serde_json::Value, serde_json::Value, serde_jso
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_lambda_with_list_operations() -> (
-    Vec<serde_json::Value>,
-    Vec<serde_json::Value>,
-    serde_json::Value,
-) {
+pub fn test_lambda_with_list_operations(
+) -> (serde_json::Value, serde_json::Value, serde_json::Value) {
     let numbers = vec![1, 2, 3, 4, 5];
     let squares = numbers.iter().map(|x| x * x).collect::<Vec<_>>();
     let evens = numbers
         .into_iter()
-        .filter(|x| x % 2 == 0)
+        .filter(|&x| x % 2 == 0)
         .collect::<Vec<_>>();
-    let double = |lst| lst.iter().copied().map(|x| x * 2).collect::<Vec<_>>();
+    let double = |lst| lst.iter().cloned().map(|x| x * 2).collect::<Vec<_>>();
     let doubled = double(&numbers);
     (squares, evens, doubled)
 }
@@ -41,5 +38,5 @@ pub fn test_lambda_with_closure() {
     let multiplier = 3;
     let scale = |x| x * multiplier;
     let result = scale(7);
-    result
+    let _ = result;
 }

@@ -216,7 +216,7 @@ pub fn test_timedelta_components() -> String {
     let _cse_temp_0 = (duration.total_seconds()) as i32;
     let total_seconds: i32 = _cse_temp_0;
     let result: String = format!(
-        "Days: {:?}, Seconds: {:?}, Total: {:?}",
+        "Days: {:?}, Seconds: {:?}, Total: {}",
         days, seconds, total_seconds
     );
     result.to_string()
@@ -253,7 +253,7 @@ pub fn test_date_comparison() -> bool {
 }
 #[doc = "Calculate working days between two dates(excluding weekends)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn working_days_between<'a, 'b>(
+pub fn working_days_between<'b, 'a>(
     start: &'a chrono::NaiveDate,
     end: &'b chrono::NaiveDate,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -312,7 +312,7 @@ pub fn test_datetime_formatting() -> String {
 }
 #[doc = "Generate list of dates in range"]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_date_range<'b, 'a>(
+pub fn test_date_range<'a, 'b>(
     start: &'a chrono::NaiveDate,
     end: &'b chrono::NaiveDate,
 ) -> Vec<chrono::NaiveDate> {
@@ -380,20 +380,43 @@ pub fn quarter_of_year(d: &chrono::NaiveDate) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_datetime_features() -> Result<(), Box<dyn std::error::Error>> {
+    let _current_str: String = test_current_datetime();
+    let _my_date: chrono::NaiveDate = test_date_creation();
+    let _my_time: chrono::NaiveTime = test_time_creation();
+    let _my_datetime: chrono::NaiveDateTime = test_datetime_creation();
+    let _days_diff: i32 = test_date_arithmetic();
+    let _delta: chrono::Duration = test_timedelta_creation();
+    let _future_date: chrono::NaiveDate = test_date_addition();
+    let _past_date: chrono::NaiveDate = test_date_subtraction();
     let birth: chrono::NaiveDate =
         chrono::NaiveDate::from_ymd_opt(1990 as i32, 5 as u32, 15 as u32).unwrap();
     let today: chrono::NaiveDate =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 5 as u32).unwrap();
+    let _age: i32 = calculate_age(birth, today)?;
     let event: chrono::NaiveDate =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
+    let _days_left: i32 = days_until_event(event, today);
+    let _is_leap_2024: bool = is_leap_year(2024)?;
+    let _is_leap_2025: bool = is_leap_year(2025)?;
+    let _days_feb_2024: i32 = days_in_month(2024, 2)?;
+    let _days_feb_2025: i32 = days_in_month(2025, 2)?;
+    let _delta_str: String = test_timedelta_components();
+    let _cmp_dt: bool = test_datetime_comparison();
+    let _cmp_date: bool = test_date_comparison();
     let start: chrono::NaiveDate =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 1 as u32, 1 as u32).unwrap();
     let end: chrono::NaiveDate =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 12 as u32, 31 as u32).unwrap();
+    let _work_days: i32 = working_days_between(start, end)?;
+    let _future: chrono::NaiveDate = add_business_days(today, 10)?;
+    let _formatted: String = test_datetime_formatting();
     let range_start: chrono::NaiveDate =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 1 as u32).unwrap();
     let range_end: chrono::NaiveDate =
         chrono::NaiveDate::from_ymd_opt(2025 as i32, 11 as u32, 7 as u32).unwrap();
+    let _date_list: Vec<chrono::NaiveDate> = test_date_range(range_start, range_end);
+    let _meeting_end: i32 = test_time_arithmetic()?;
+    let _q: i32 = quarter_of_year(today);
     println!("{}", "All datetime module tests completed successfully");
     Ok(())
 }

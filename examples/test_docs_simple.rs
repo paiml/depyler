@@ -16,7 +16,7 @@ impl DataProcessor {
         self.data.push(value);
     }
     pub fn get_count(&self) -> i32 {
-        return self.data.len();
+        return self.data.len() as i32;
     }
     pub fn create_default() -> DataProcessor {
         return DataProcessor::new("default".to_string());

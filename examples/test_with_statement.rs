@@ -27,7 +27,7 @@ impl FileManager {
         return false;
     }
     pub fn write(&self, data: String) {
-        return data.len();
+        return data.len() as i32;
     }
 }
 #[doc = "Test basic with statement"]
@@ -39,7 +39,7 @@ pub fn test_simple_with() {
     let result = fm
         .write_all("Hello, World!".to_string().as_bytes())
         .unwrap();
-    result
+    let _ = result;
 }
 #[doc = "Test with built-in open"]
 #[doc = " Depyler: verified panic-free"]

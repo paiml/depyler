@@ -16,10 +16,11 @@ pub fn test_dict_assignment() -> HashMap<serde_json::Value, serde_json::Value> {
     };
     nested.insert(
         "outer".to_string().to_string(),
-        serde_json::json!({
+        serde_json::to_value({
             let mut map = std::collections::HashMap::new();
             map
-        }),
+        })
+        .unwrap(),
     );
     d
 }

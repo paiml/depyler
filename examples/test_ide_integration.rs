@@ -35,7 +35,12 @@ impl MathUtils {
         if n < 2 {
             return false;
         };
-        for i in 2..(n as f64).powf(0.5 as f64).parse::<i32>().unwrap_or(0) + 1 {
+        for i in 2..({ n } as f64)
+            .powf({ 0.5 } as f64)
+            .parse::<i32>()
+            .unwrap_or(0)
+            + 1
+        {
             if n % i == 0 {
                 return false;
             };

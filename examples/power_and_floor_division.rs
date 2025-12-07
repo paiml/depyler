@@ -19,27 +19,27 @@ impl ZeroDivisionError {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn power_examples(base: i32, exponent: i32) -> i32 {
-    let _cse_temp_0 = (2 as i32)
-        .checked_pow(3 as u32)
+    let _cse_temp_0 = ({ 2 } as i32)
+        .checked_pow({ 3 } as u32)
         .expect("Power operation overflowed");
     let result1 = _cse_temp_0;
     let _cse_temp_1 = {
         if exponent >= 0 && (exponent as i64) <= (u32::MAX as i64) {
-            (base as i32)
-                .checked_pow(exponent as u32)
+            ({ base } as i32)
+                .checked_pow({ exponent } as u32)
                 .expect("Power operation overflowed")
         } else {
-            (base as f64).powf(exponent as f64) as i32
+            ({ base } as f64).powf({ exponent } as f64) as i32
         }
     };
     let result2 = _cse_temp_1;
     let _cse_temp_2 = {
         if 0 >= 0 && (0 as i64) <= (u32::MAX as i64) {
-            (base as i32)
-                .checked_pow(0 as u32)
+            ({ base } as i32)
+                .checked_pow({ 0 } as u32)
                 .expect("Power operation overflowed")
         } else {
-            (base as f64).powf(0 as f64) as i32
+            ({ base } as f64).powf({ 0 } as f64) as i32
         }
     };
     let result3 = _cse_temp_2;
@@ -143,11 +143,11 @@ pub fn floor_division_examples(
 pub fn combined_operations(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let _cse_temp_0 = {
         if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-            (a as i32)
-                .checked_pow(2 as u32)
+            ({ a } as i32)
+                .checked_pow({ 2 } as u32)
                 .expect("Power operation overflowed")
         } else {
-            (a as f64).powf(2 as f64) as i32
+            ({ a } as f64).powf({ 2 } as f64) as i32
         }
     };
     let step1 = _cse_temp_0;
@@ -187,11 +187,11 @@ pub fn combined_operations(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Er
     let step2 = _cse_temp_2;
     let _cse_temp_3 = {
         if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-            (step2 as i32)
-                .checked_pow(2 as u32)
+            ({ step2 } as i32)
+                .checked_pow({ 2 } as u32)
                 .expect("Power operation overflowed")
         } else {
-            (step2 as f64).powf(2 as f64) as i32
+            ({ step2 } as f64).powf({ 2 } as f64) as i32
         }
     };
     let result2 = _cse_temp_3;
@@ -204,11 +204,11 @@ pub fn mathematical_sequence(n: i32) -> Result<i32, Box<dyn std::error::Error>> 
     while i <= n {
         let square = {
             if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-                (i as i32)
-                    .checked_pow(2 as u32)
+                ({ i } as i32)
+                    .checked_pow({ 2 } as u32)
                     .expect("Power operation overflowed")
             } else {
-                (i as f64).powf(2 as f64) as i32
+                ({ i } as f64).powf({ 2 } as f64) as i32
             }
         };
         let contribution = {

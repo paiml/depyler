@@ -17,7 +17,7 @@ impl Range {
     }
     pub fn __next__(&mut self) -> i32 {
         if self.current < self.stop {
-            let mut value = self.current;
+            let value = self.current;
             self.current = self.current + 1;
             return value;
         } else {
@@ -40,7 +40,7 @@ pub fn test_custom_iterator() -> i32 {
 #[doc = "Test for loop with iterator"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_for_with_iterator() -> i32 {
-    let mut r = Range::new(0, 5);
+    let r = Range::new(0, 5);
     let mut total = 0;
     for i in r.iter().cloned() {
         total = total + i;
