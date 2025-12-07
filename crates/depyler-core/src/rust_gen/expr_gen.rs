@@ -121,6 +121,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-0758: Check if HirExpr is a variable that's a borrowed parameter
+    /// If so, return the dereferenced version of the syn::Expr
+    /// Used to fix E0369 errors when doing arithmetic with reference types (e.g., date subtraction)
+    fn deref_if_borrowed_param(&self, hir_expr: &HirExpr, rust_expr: syn::Expr) -> syn::Expr {
+        if let HirExpr::Var(name) = hir_expr {
+            if self.ctx.ref_params.contains(name.as_str()) {
+                // Dereference the expression: `*target` instead of `target`
+                return parse_quote! { *#rust_expr };
+            }
+        }
+        rust_expr
+    }
+
     /// DEPYLER-0582: Wrap expression in parentheses if it's a binary operation with lower precedence
     /// This preserves Python's parenthesized expressions in Rust output
     /// e.g., (1 - beta1) * x should become (1.0 - beta1) * x, not 1.0 - beta1 * x
@@ -603,10 +616,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Without parens, Rust parses "as i32.saturating_sub" incorrectly
                     Ok(parse_quote! { (#left_expr).saturating_sub(#right_expr) })
                 } else {
+                    // DEPYLER-0758: Dereference borrowed params in arithmetic operations
+                    // Fixes E0369: cannot subtract NaiveDate from &NaiveDate
+                    let left_deref = self.deref_if_borrowed_param(left, left_expr);
+                    let right_deref = self.deref_if_borrowed_param(right, right_expr);
+
                     let rust_op = convert_binop(op)?;
                     // DEPYLER-0582: Coerce int to float if operating with float
-                    let left_coerced = self.coerce_int_to_float_if_needed(left_expr, left, right);
-                    let right_coerced = self.coerce_int_to_float_if_needed(right_expr, right, left);
+                    let left_coerced = self.coerce_int_to_float_if_needed(left_deref, left, right);
+                    let right_coerced = self.coerce_int_to_float_if_needed(right_deref, right, left);
                     Ok(parse_quote! { #left_coerced #rust_op #right_coerced })
                 }
             }
@@ -3446,17 +3464,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                         .and_then(|borrows| borrows.get(param_idx))
                                         .copied()
                                         .unwrap_or(true) // Default to borrow if unknown
+                                } else if matches!(var_type, Type::Custom(_)) {
+                                    // DEPYLER-0767: Check function_param_borrows for Custom types
+                                    // datetime maps to Type::Custom("chrono::NaiveDateTime")
+                                    // Check if function signature expects a reference parameter
+                                    self.ctx
+                                        .function_param_borrows
+                                        .get(func)
+                                        .and_then(|borrows| borrows.get(param_idx))
+                                        .copied()
+                                        .unwrap_or(false) // Default to no borrow for custom types
                                 } else {
                                     false
                                 }
                             } else {
-                                // DEPYLER-0467: Variable not in var_types (e.g., pattern match destructuring)
-                                // Apply name-based heuristic for common variable names
-                                eprintln!("[DEPYLER-0467] Variable '{}' NOT in var_types, applying heuristic", var_name);
-                                matches!(var_name.as_str(),
-                                    "config" | "data" | "json" | "obj" | "document" |
-                                    "key" | "value" | "path" | "name" | "text" | "content"
-                                )
+                                // DEPYLER-0467/DEPYLER-0767: Variable not in var_types
+                                // First check function_param_borrows (authoritative source)
+                                // Fall back to name heuristic if not tracked
+                                eprintln!("[DEPYLER-0467] Variable '{}' NOT in var_types, checking function_param_borrows", var_name);
+                                self.ctx
+                                    .function_param_borrows
+                                    .get(func)
+                                    .and_then(|borrows| borrows.get(param_idx))
+                                    .copied()
+                                    // Name-based heuristic as last resort
+                                    .unwrap_or(matches!(var_name.as_str(),
+                                        "config" | "data" | "json" | "obj" | "document" |
+                                        "key" | "value" | "path" | "name" | "text" | "content"
+                                    ))
                             }
                         }
                         // DEPYLER-0359: Auto-borrow list/dict/set literals when calling functions
@@ -11389,6 +11424,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
             }
 
+            // DEPYLER-0770: str.format() - runtime string formatting
+            "format" => {
+                // Python: "Hello, {}!".format(name) -> "Hello, World!"
+                // Rust: Use sequential replacen for positional formatting
+                if arg_exprs.is_empty() {
+                    // No args - return template unchanged
+                    Ok(object_expr.clone())
+                } else if arg_exprs.len() == 1 {
+                    // Single arg - replace first {}
+                    let arg = &arg_exprs[0];
+                    Ok(parse_quote! {
+                        #object_expr.replacen("{}", &format!("{}", #arg), 1)
+                    })
+                } else {
+                    // Multiple args - chain replacen calls
+                    // Build: template.replacen("{}", &format!("{}", a0), 1)
+                    //                .replacen("{}", &format!("{}", a1), 1)...
+                    let mut result: syn::Expr = parse_quote! { #object_expr.to_string() };
+                    for arg in arg_exprs {
+                        result = parse_quote! {
+                            #result.replacen("{}", &format!("{}", #arg), 1)
+                        };
+                    }
+                    Ok(result)
+                }
+            }
+
             _ => bail!("Unknown string method: {}", method),
         }
     }
@@ -16544,6 +16606,15 @@ impl ToRustExpr for HirExpr {
                     // Handle numpy module calls: np.array(), np.dot(), np.sum(), etc.
                     if numpy_gen::is_numpy_module(module_name) {
                         if let Some(result) = converter.try_convert_numpy_call(method, args)? {
+                            return Ok(result);
+                        }
+                    }
+
+                    // DEPYLER-0756: Handle shlex module calls directly in MethodCall dispatch
+                    // shlex.split(cmd) → inline shell lexer implementation
+                    // This must be handled before falling through to convert_method_call
+                    if module_name == "shlex" {
+                        if let Some(result) = converter.try_convert_shlex_method(method, args)? {
                             return Ok(result);
                         }
                     }
