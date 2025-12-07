@@ -1054,9 +1054,12 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
                 || args.iter().any(|a| is_param_used_in_expr(param_name, a))
                 || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
         }
-        HirExpr::MethodCall { object, args, .. } => {
+        // DEPYLER-0761: Must check kwargs too - parameter used in kwargs was being missed
+        // causing param to be renamed with underscore but body still using original name
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
             is_param_used_in_expr(param_name, object)
                 || args.iter().any(|a| is_param_used_in_expr(param_name, a))
+                || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
         }
         HirExpr::Attribute { value, .. } => is_param_used_in_expr(param_name, value),
         HirExpr::Index { base, index } => {
@@ -1091,9 +1094,11 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
         HirExpr::Yield { value } => value
             .as_ref()
             .is_some_and(|e| is_param_used_in_expr(param_name, e)),
-        HirExpr::DynamicCall { callee, args, .. } => {
+        // DEPYLER-0761: Must check kwargs too for dynamic calls
+        HirExpr::DynamicCall { callee, args, kwargs } => {
             is_param_used_in_expr(param_name, callee)
                 || args.iter().any(|a| is_param_used_in_expr(param_name, a))
+                || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
         }
         HirExpr::SortByKey {
             iterable,
