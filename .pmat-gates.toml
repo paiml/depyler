@@ -1,0 +1,29 @@
+# PMAT Quality Gates Configuration
+# Enforces EXTREME TDD quality standards
+
+[quality]
+min_coverage = 80.0
+max_complexity = 10
+max_cognitive_complexity = 10
+min_tdg_score = 85
+
+[gates]
+# Block commits if quality drops below thresholds
+block_on_coverage_drop = true
+block_on_complexity_violation = true
+block_on_satd = true
+
+[ci]
+# CI/CD integration settings
+fail_fast = true
+parallel_jobs = 4
+
+[thresholds]
+# Per-file thresholds
+max_file_lines = 1000
+max_function_lines = 50
+max_parameters = 5
+
+[enforcement]
+# Enforcement level: "warn", "error", "block"
+level = "error"
