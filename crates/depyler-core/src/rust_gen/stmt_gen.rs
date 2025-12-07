@@ -6702,6 +6702,11 @@ fn codegen_nested_function_def(
         ctx.declare_var(&param.name);
     }
 
+    // DEPYLER-0766: Analyze mutability for nested function body
+    // Without this, variables reassigned inside closures don't get `let mut`,
+    // causing E0384 "cannot assign twice to immutable variable" errors.
+    crate::rust_gen::analyze_mutable_vars(body, ctx, &effective_params);
+
     // Generate body
     let body_tokens: Vec<proc_macro2::TokenStream> = body
         .iter()
