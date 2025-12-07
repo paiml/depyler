@@ -1029,17 +1029,34 @@ impl AstBridge {
     }
 
     fn extract_class_type_params(&mut self, class: &ast::StmtClassDef) -> Vec<String> {
-        // Look for Generic[T, U] in base classes
+        // DEPYLER-0759: Extract type params from ANY subscripted base class
+        // This handles both direct `Generic[T, U]` and inherited `Container[T]` patterns
+        // Example: class Box(Container[T]) -> extracts T from Container[T]
+        let mut type_params = Vec::new();
+
         for base in &class.bases {
             if let ast::Expr::Subscript(subscript) = base {
                 if let ast::Expr::Name(n) = subscript.value.as_ref() {
+                    // Check if this is Generic[T] directly
                     if n.id.as_str() == "Generic" {
                         return self.extract_generic_params(&subscript.slice);
+                    }
+                    // DEPYLER-0759: Also extract from other subscripted bases like Container[T]
+                    // This fixes E0412 when dataclass inherits from generic parent
+                    let params = self.extract_generic_params(&subscript.slice);
+                    for p in params {
+                        // Only collect single-letter uppercase names (type variables)
+                        // This avoids collecting concrete types like `Container[str]`
+                        if p.len() == 1 && p.chars().next().is_some_and(|c| c.is_uppercase()) {
+                            if !type_params.contains(&p) {
+                                type_params.push(p);
+                            }
+                        }
                     }
                 }
             }
         }
-        Vec::new()
+        type_params
     }
 
     fn extract_generic_params(&mut self, slice: &ast::Expr) -> Vec<String> {
