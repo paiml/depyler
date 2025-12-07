@@ -6606,7 +6606,35 @@ pub(crate) fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro
             });
             quote! { #ty }
         }
-        _ => quote! { () }, // Fallback for other types (Set, Function, Generic, Union, Array, etc.)
+        // DEPYLER-0770: Handle Callable[[T1, T2], R] -> impl Fn(T1, T2) -> R
+        // NOTE: This generates `impl Fn` which is valid for function parameters but NOT
+        // for closure parameters. When used in closure context, the caller should use
+        // a different approach (generics or dyn Fn). For now we generate impl Fn as
+        // it works for the common case of function parameters.
+        Type::Generic { base, params } if base == "Callable" && params.len() == 2 => {
+            // params[0] is the parameter list type (may be Tuple, List, or single type)
+            // params[1] is the return type
+            let param_types: Vec<proc_macro2::TokenStream> = match &params[0] {
+                Type::Tuple(inner) => inner.iter().map(|t| hir_type_to_tokens(t, _ctx)).collect(),
+                Type::List(inner) => vec![hir_type_to_tokens(inner, _ctx)],
+                Type::None | Type::Unknown => vec![], // Empty param list from []
+                _ => vec![hir_type_to_tokens(&params[0], _ctx)],
+            };
+            let return_type = hir_type_to_tokens(&params[1], _ctx);
+
+            // DEPYLER-0770: Use &dyn Fn for closures since impl Fn is not allowed
+            // in closure parameters/return types. &dyn Fn works universally.
+            if matches!(params[1], Type::None) {
+                quote! { &dyn Fn(#(#param_types),*) }
+            } else {
+                quote! { &dyn Fn(#(#param_types),*) -> #return_type }
+            }
+        }
+        // DEPYLER-0770: Handle bare Callable without parameters
+        Type::Generic { base, params } if base == "Callable" && params.is_empty() => {
+            quote! { &dyn Fn() }
+        }
+        _ => quote! { () }, // Fallback for other types (Set, Function, Array, etc.)
     }
 }
 
