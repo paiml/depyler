@@ -536,6 +536,44 @@ pub fn convert_class_to_struct(
         }
     };
 
+    // DEPYLER-0765: Check if type params are used in any field
+    // If not, we need to add PhantomData to satisfy Rust's unused type param check
+    let type_params_used = if class.type_params.is_empty() {
+        true // No type params, nothing to check
+    } else {
+        // Check if any field type contains one of the type params
+        fields.iter().any(|f| {
+            let type_str = quote::quote!(#f.ty).to_string();
+            class.type_params.iter().any(|tp| type_str.contains(tp))
+        })
+    };
+
+    // Add PhantomData field if type params exist but aren't used in fields
+    let mut final_fields: Vec<syn::Field> = fields;
+    if !class.type_params.is_empty() && !type_params_used {
+        // Build PhantomData<(T, U, ...)> for all type params
+        let phantom_types: Vec<syn::Type> = class.type_params.iter().map(|tp| {
+            let ident = syn::Ident::new(tp, proc_macro2::Span::call_site());
+            parse_quote!(#ident)
+        }).collect();
+
+        let phantom_type: syn::Type = if phantom_types.len() == 1 {
+            let t = &phantom_types[0];
+            parse_quote!(std::marker::PhantomData<#t>)
+        } else {
+            parse_quote!(std::marker::PhantomData<(#(#phantom_types),*)>)
+        };
+
+        final_fields.push(syn::Field {
+            attrs: vec![],
+            vis: syn::Visibility::Inherited, // private field
+            mutability: syn::FieldMutability::None,
+            ident: Some(syn::Ident::new("_phantom", proc_macro2::Span::call_site())),
+            colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
+            ty: phantom_type,
+        });
+    }
+
     // Create the struct - skip Clone derive for non-Clone field types
     let struct_item = syn::Item::Struct(syn::ItemStruct {
         attrs: if has_non_clone_field {
@@ -552,7 +590,7 @@ pub fn convert_class_to_struct(
         generics: generics.clone(), // DEPYLER-0739: Use extracted type params
         fields: syn::Fields::Named(syn::FieldsNamed {
             brace_token: syn::token::Brace::default(),
-            named: fields.into_iter().collect(),
+            named: final_fields.into_iter().collect(),
         }),
         semi_token: None,
     });
@@ -686,7 +724,7 @@ fn generate_dataclass_new(
     }
 
     // Generate body that initializes struct fields (skip class variables)
-    let field_inits = class
+    let mut field_inits: Vec<proc_macro2::TokenStream> = class
         .fields
         .iter()
         .filter(|f| !f.is_class_var) // Skip class constants
@@ -704,7 +742,19 @@ fn generate_dataclass_new(
                 quote! { #field_ident }
             }
         })
-        .collect::<Vec<_>>();
+        .collect();
+
+    // DEPYLER-0765: Add PhantomData initialization if type params aren't used in fields
+    if !class.type_params.is_empty() {
+        let instance_fields: Vec<_> = class.fields.iter().filter(|f| !f.is_class_var).collect();
+        let type_params_used = instance_fields.iter().any(|f| {
+            let type_str = format!("{:?}", f.field_type);
+            class.type_params.iter().any(|tp| type_str.contains(tp))
+        });
+        if !type_params_used {
+            field_inits.push(quote! { _phantom: std::marker::PhantomData });
+        }
+    }
 
     let body = parse_quote! {
         {
