@@ -35,6 +35,7 @@ use aprender::citl::{
     Difficulty, ErrorCategory as AprenderErrorCategory, ErrorCode as AprenderErrorCode,
 };
 
+use crate::ast_embeddings::{AstEmbedder, AstEmbeddingConfig};
 use crate::classifier::ErrorCategory;
 use crate::error_patterns::ErrorPattern;
 use crate::tarantula::TranspilerDecision;
@@ -52,6 +53,10 @@ pub struct GnnEncoderConfig {
     pub max_similar: usize,
     /// Whether to use HNSW index for fast search (default: true)
     pub use_hnsw: bool,
+    /// Whether to include AST embeddings (Issue #210)
+    pub use_ast_embeddings: bool,
+    /// AST embedding dimension (default: 128)
+    pub ast_embedding_dim: usize,
 }
 
 impl Default for GnnEncoderConfig {
@@ -62,6 +67,8 @@ impl Default for GnnEncoderConfig {
             similarity_threshold: 0.7,
             max_similar: 5,
             use_hnsw: true,
+            use_ast_embeddings: true,  // Issue #210: Enable by default
+            ast_embedding_dim: 128,
         }
     }
 }
@@ -112,6 +119,8 @@ pub struct DepylerGnnEncoder {
     config: GnnEncoderConfig,
     /// Underlying aprender GNN encoder
     encoder: GNNErrorEncoder,
+    /// AST embedder for Code2Vec-style embeddings (Issue #210)
+    ast_embedder: Option<AstEmbedder>,
     /// Indexed patterns with embeddings
     patterns: HashMap<String, StructuralPattern>,
     /// Statistics
@@ -124,9 +133,20 @@ impl DepylerGnnEncoder {
     pub fn new(config: GnnEncoderConfig) -> Self {
         let encoder = GNNErrorEncoder::new(config.hidden_dim, config.output_dim);
 
+        // Issue #210: Initialize AST embedder if enabled
+        let ast_embedder = if config.use_ast_embeddings {
+            Some(AstEmbedder::new(AstEmbeddingConfig {
+                embedding_dim: config.ast_embedding_dim,
+                ..AstEmbeddingConfig::default()
+            }))
+        } else {
+            None
+        };
+
         Self {
             config,
             encoder,
+            ast_embedder,
             patterns: HashMap::new(),
             stats: GnnEncoderStats::default(),
         }
@@ -229,6 +249,51 @@ impl DepylerGnnEncoder {
         let diagnostic = self.build_diagnostic(error_code, error_message);
         let embedding = self.encoder.encode(&diagnostic, source_context);
         embedding.vector
+    }
+
+    /// Get combined embedding (GNN + AST) for an error (Issue #210)
+    ///
+    /// Returns a concatenated feature vector:
+    /// - First `output_dim` elements: GNN embedding from program-feedback graph
+    /// - Next `ast_embedding_dim` elements: Code2Vec AST embedding (if enabled)
+    ///
+    /// This hybrid approach combines structural similarity (GNN) with
+    /// syntactic patterns (Code2Vec) for more robust error matching.
+    #[must_use]
+    pub fn encode_combined(
+        &self,
+        error_code: &str,
+        error_message: &str,
+        python_source: &str,
+        rust_source: &str,
+    ) -> Vec<f32> {
+        // GNN embedding from error + Rust source
+        let gnn_embedding = self.encode_error(error_code, error_message, rust_source);
+
+        // If AST embeddings are enabled, concatenate them
+        if let Some(ref ast_embedder) = self.ast_embedder {
+            let python_ast = ast_embedder.embed_python(python_source);
+            let rust_ast = ast_embedder.embed_rust(rust_source);
+
+            // Concatenate: GNN + Python AST + Rust AST
+            let mut combined = gnn_embedding;
+            combined.extend(&python_ast.vector);
+            combined.extend(&rust_ast.vector);
+            combined
+        } else {
+            gnn_embedding
+        }
+    }
+
+    /// Get the total dimension of combined embeddings
+    #[must_use]
+    pub fn combined_dim(&self) -> usize {
+        if self.config.use_ast_embeddings {
+            // GNN + Python AST + Rust AST
+            self.config.output_dim + self.config.ast_embedding_dim * 2
+        } else {
+            self.config.output_dim
+        }
     }
 
     /// Build a program feedback graph for visualization/debugging
@@ -633,5 +698,98 @@ mod tests {
         // Both embeddings should be valid (non-NaN, non-infinite)
         assert!(e1.iter().all(|x| !x.is_nan() && x.is_finite()));
         assert!(e2.iter().all(|x| !x.is_nan() && x.is_finite()));
+    }
+
+    // Issue #210: Combined embedding tests
+
+    #[test]
+    fn test_combined_embedding_dimension() {
+        let encoder = DepylerGnnEncoder::with_defaults();
+
+        // Default: GNN (256) + Python AST (128) + Rust AST (128) = 512
+        assert_eq!(encoder.combined_dim(), 512);
+
+        // Without AST embeddings
+        let config = GnnEncoderConfig {
+            use_ast_embeddings: false,
+            ..Default::default()
+        };
+        let encoder_no_ast = DepylerGnnEncoder::new(config);
+        assert_eq!(encoder_no_ast.combined_dim(), 256);
+    }
+
+    #[test]
+    fn test_encode_combined_with_ast() {
+        let encoder = DepylerGnnEncoder::with_defaults();
+
+        let python_source = r#"
+def add(a, b):
+    return a + b
+"#;
+        let rust_source = r#"
+fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+"#;
+
+        let combined = encoder.encode_combined(
+            "E0308",
+            "mismatched types",
+            python_source,
+            rust_source,
+        );
+
+        // Should have correct total dimension
+        assert_eq!(combined.len(), encoder.combined_dim());
+        assert_eq!(combined.len(), 512);
+
+        // All values should be valid
+        assert!(combined.iter().all(|x| !x.is_nan() && x.is_finite()));
+    }
+
+    #[test]
+    fn test_encode_combined_without_ast() {
+        let config = GnnEncoderConfig {
+            use_ast_embeddings: false,
+            ..Default::default()
+        };
+        let encoder = DepylerGnnEncoder::new(config);
+
+        let combined = encoder.encode_combined(
+            "E0308",
+            "mismatched types",
+            "def foo(): pass",
+            "fn foo() {}",
+        );
+
+        // Should only have GNN dimension
+        assert_eq!(combined.len(), 256);
+    }
+
+    #[test]
+    fn test_combined_embedding_deterministic() {
+        let encoder = DepylerGnnEncoder::with_defaults();
+
+        let python = "def greet(name): return 'Hello ' + name";
+        let rust = "fn greet(name: &str) -> String { format!(\"Hello {}\", name) }";
+
+        let e1 = encoder.encode_combined("E0308", "type mismatch", python, rust);
+        let e2 = encoder.encode_combined("E0308", "type mismatch", python, rust);
+
+        // Same inputs should produce same outputs
+        assert_eq!(e1, e2);
+    }
+
+    #[test]
+    fn test_ast_embedder_initialized() {
+        let encoder = DepylerGnnEncoder::with_defaults();
+        assert!(encoder.ast_embedder.is_some());
+
+        let config = GnnEncoderConfig {
+            use_ast_embeddings: false,
+            ..Default::default()
+        };
+        let encoder = DepylerGnnEncoder::new(config);
+        assert!(encoder.ast_embedder.is_none());
     }
 }
