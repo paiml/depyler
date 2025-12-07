@@ -47,6 +47,8 @@ chaos-basic = []
 chaos-network = ["chaos-basic"]
 chaos-byzantine = ["chaos-basic"]
 chaos-full = ["chaos-network", "chaos-byzantine"]
+# Generative repair via entrenar MCTS/GAN (DEPYLER-ENTRENAR-001)
+generative = ["entrenar"]
 
 [dependencies.web-time]
 workspace = true
@@ -70,6 +72,13 @@ optional = true
 version = "0.11"
 features = ["macros"]
 optional = true
+
+# Generative repair via MCTS/GAN (DEPYLER-ENTRENAR-001)
+# Uses local path for development; switch to version for release
+[dependencies.entrenar]
+path = "/home/noah/src/entrenar"
+optional = true
+default-features = false
 
 [build-dependencies]
 phf_codegen = "0.11"
