@@ -12,9 +12,6 @@ use anyhow::Result;
 use quote::quote;
 use syn::{self, parse_quote};
 
-// Import analyze_mutable_vars from parent module
-use super::analyze_mutable_vars;
-
 /// Check if a name is a Rust keyword that requires raw identifier syntax
 /// DEPYLER-0306: Copied from expr_gen.rs to support method name keyword handling
 fn is_rust_keyword(name: &str) -> bool {
@@ -641,6 +638,190 @@ pub(crate) fn codegen_function_params(
         .collect()
 }
 
+/// DEPYLER-0757: Check if a variable is used anywhere in the function body
+/// Used to detect unused parameters so we can prefix them with underscore
+fn is_param_used_in_body(param_name: &str, body: &[HirStmt]) -> bool {
+    body.iter().any(|stmt| is_param_used_in_stmt(param_name, stmt))
+}
+
+/// Check if a parameter is used in a statement (recursive)
+fn is_param_used_in_stmt(param_name: &str, stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Assign { target, value, .. } => {
+            is_param_used_in_assign_target(param_name, target)
+                || is_param_used_in_expr(param_name, value)
+        }
+        HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
+            is_param_used_in_expr(param_name, condition)
+                || then_body.iter().any(|s| is_param_used_in_stmt(param_name, s))
+                || else_body
+                    .as_ref()
+                    .is_some_and(|body| body.iter().any(|s| is_param_used_in_stmt(param_name, s)))
+        }
+        HirStmt::While { condition, body } => {
+            is_param_used_in_expr(param_name, condition)
+                || body.iter().any(|s| is_param_used_in_stmt(param_name, s))
+        }
+        HirStmt::For { iter, body, .. } => {
+            is_param_used_in_expr(param_name, iter)
+                || body.iter().any(|s| is_param_used_in_stmt(param_name, s))
+        }
+        HirStmt::Return(Some(expr)) => is_param_used_in_expr(param_name, expr),
+        HirStmt::Expr(expr) => is_param_used_in_expr(param_name, expr),
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+            ..
+        } => {
+            body.iter().any(|s| is_param_used_in_stmt(param_name, s))
+                || handlers
+                    .iter()
+                    .any(|h| h.body.iter().any(|s| is_param_used_in_stmt(param_name, s)))
+                || orelse.as_ref().is_some_and(|stmts| {
+                    stmts.iter().any(|s| is_param_used_in_stmt(param_name, s))
+                })
+                || finalbody.as_ref().is_some_and(|stmts| {
+                    stmts.iter().any(|s| is_param_used_in_stmt(param_name, s))
+                })
+        }
+        HirStmt::With { body, .. } => body.iter().any(|s| is_param_used_in_stmt(param_name, s)),
+        _ => false,
+    }
+}
+
+/// Check if parameter is used in an expression
+fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Var(name) => name == param_name,
+        HirExpr::Binary { left, right, .. } => {
+            is_param_used_in_expr(param_name, left) || is_param_used_in_expr(param_name, right)
+        }
+        HirExpr::Unary { operand, .. } => is_param_used_in_expr(param_name, operand),
+        HirExpr::Call { args, kwargs, .. } => {
+            args.iter().any(|a| is_param_used_in_expr(param_name, a))
+                || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
+        }
+        HirExpr::MethodCall { object, args, .. } => {
+            is_param_used_in_expr(param_name, object)
+                || args.iter().any(|a| is_param_used_in_expr(param_name, a))
+        }
+        HirExpr::Attribute { value, .. } => is_param_used_in_expr(param_name, value),
+        HirExpr::Index { base, index } => {
+            is_param_used_in_expr(param_name, base) || is_param_used_in_expr(param_name, index)
+        }
+        HirExpr::Slice {
+            base,
+            start,
+            stop,
+            step,
+        } => {
+            is_param_used_in_expr(param_name, base)
+                || start
+                    .as_ref()
+                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
+                || stop
+                    .as_ref()
+                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
+                || step
+                    .as_ref()
+                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
+        }
+        HirExpr::Borrow { expr, .. } => is_param_used_in_expr(param_name, expr),
+        HirExpr::FrozenSet(items) => items.iter().any(|i| is_param_used_in_expr(param_name, i)),
+        HirExpr::FString { parts } => parts.iter().any(|p| {
+            if let crate::hir::FStringPart::Expr(e) = p {
+                is_param_used_in_expr(param_name, e)
+            } else {
+                false
+            }
+        }),
+        HirExpr::Yield { value } => value
+            .as_ref()
+            .is_some_and(|e| is_param_used_in_expr(param_name, e)),
+        HirExpr::DynamicCall { callee, args, .. } => {
+            is_param_used_in_expr(param_name, callee)
+                || args.iter().any(|a| is_param_used_in_expr(param_name, a))
+        }
+        HirExpr::SortByKey {
+            iterable,
+            key_body,
+            reverse_expr,
+            ..
+        } => {
+            is_param_used_in_expr(param_name, iterable)
+                || is_param_used_in_expr(param_name, key_body)
+                || reverse_expr
+                    .as_ref()
+                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
+        }
+        HirExpr::GeneratorExp {
+            element,
+            generators,
+        } => {
+            is_param_used_in_expr(param_name, element)
+                || generators
+                    .iter()
+                    .any(|g| is_param_used_in_expr(param_name, &g.iter))
+        }
+        HirExpr::NamedExpr { value, .. } => is_param_used_in_expr(param_name, value),
+        HirExpr::List(items) | HirExpr::Tuple(items) => {
+            items.iter().any(|i| is_param_used_in_expr(param_name, i))
+        }
+        HirExpr::Dict(pairs) => {
+            pairs.iter().any(|(k, v)| {
+                is_param_used_in_expr(param_name, k) || is_param_used_in_expr(param_name, v)
+            })
+        }
+        HirExpr::Set(items) => items.iter().any(|i| is_param_used_in_expr(param_name, i)),
+        HirExpr::IfExpr { test, body, orelse } => {
+            is_param_used_in_expr(param_name, test)
+                || is_param_used_in_expr(param_name, body)
+                || is_param_used_in_expr(param_name, orelse)
+        }
+        HirExpr::Lambda { body, .. } => is_param_used_in_expr(param_name, body),
+        HirExpr::ListComp { element, generators, .. }
+        | HirExpr::SetComp { element, generators, .. } => {
+            is_param_used_in_expr(param_name, element)
+                || generators
+                    .iter()
+                    .any(|g| is_param_used_in_expr(param_name, &g.iter))
+        }
+        HirExpr::DictComp {
+            key,
+            value,
+            generators,
+        } => {
+            is_param_used_in_expr(param_name, key)
+                || is_param_used_in_expr(param_name, value)
+                || generators
+                    .iter()
+                    .any(|g| is_param_used_in_expr(param_name, &g.iter))
+        }
+        HirExpr::Await { value } => is_param_used_in_expr(param_name, value),
+        _ => false,
+    }
+}
+
+/// Check if parameter is used in an assignment target
+fn is_param_used_in_assign_target(param_name: &str, target: &AssignTarget) -> bool {
+    match target {
+        AssignTarget::Symbol(name) => name == param_name,
+        AssignTarget::Index { base, index } => {
+            is_param_used_in_expr(param_name, base) || is_param_used_in_expr(param_name, index)
+        }
+        AssignTarget::Attribute { value, .. } => is_param_used_in_expr(param_name, value),
+        AssignTarget::Tuple(targets) => {
+            targets.iter().any(|t| is_param_used_in_assign_target(param_name, t))
+        }
+    }
+}
+
 /// Convert a single parameter with all borrowing strategies
 fn codegen_single_param(
     param: &HirParam,
@@ -648,12 +829,20 @@ fn codegen_single_param(
     lifetime_result: &crate::lifetime_analysis::LifetimeResult,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
-    // Use parameter name directly to ensure signature matches body references
-    // DEPYLER-0357: Removed underscore prefixing logic that was causing compilation errors
-    // Parameter names in signature must match exactly how they're referenced in function body
-    // DEPYLER-0611: Use raw identifiers for parameter names that are Rust keywords (e.g., override)
+    // DEPYLER-0757: Check if parameter is used in the function body
+    // If not used, prefix with underscore to avoid unused variable warnings
+    let is_used = is_param_used_in_body(&param.name, &func.body);
+
+    // DEPYLER-0357: Parameter names in signature must match how they're referenced in body
+    // DEPYLER-0757: But if NOT used at all, prefix with underscore to suppress warning
+    // DEPYLER-0611: Use raw identifiers for parameter names that are Rust keywords
     // DEPYLER-0630: self/Self cannot be raw identifiers, rename to self_ instead
-    let param_name = param.name.clone();
+    let param_name = if is_used {
+        param.name.clone()
+    } else {
+        format!("_{}", param.name)
+    };
+
     let param_ident = if param_name == "self" || param_name == "Self" {
         // self/Self are special - they cannot be raw identifiers, rename them
         syn::Ident::new(&format!("{}_", param_name), proc_macro2::Span::call_site())
@@ -1302,6 +1491,25 @@ fn infer_return_type_from_body_with_params(
         }
     }
 
+    // DEPYLER-0744: Handle T and Option<Unknown> → Option<T>
+    // When a function returns both a typed value and an Option<Unknown> (from a param with default=None),
+    // unify to Option<T> where T is the non-Optional type
+    // Example: def f(x: int, fallback=None): return x OR return fallback
+    //   → return types: [Int, Optional(Unknown)] → Option<Int>
+    let has_optional_unknown = return_types.iter().any(|t| {
+        matches!(t, Type::Optional(inner) if matches!(inner.as_ref(), Type::Unknown))
+    });
+    if has_optional_unknown {
+        // Find the concrete non-Optional, non-Unknown type
+        let concrete_type = return_types.iter().find(|t| {
+            !matches!(t, Type::Optional(_) | Type::Unknown | Type::None)
+        });
+        if let Some(t) = concrete_type {
+            // Unify: T + Option<Unknown> → Option<T>
+            return Some(Type::Optional(Box::new(t.clone())));
+        }
+    }
+
     // If all types are Unknown, return None
     if return_types.iter().all(|t| matches!(t, Type::Unknown)) {
         return None;
@@ -1646,6 +1854,8 @@ fn infer_expr_type_with_env(
                 // DEPYLER-0592: Use fully qualified chrono types
                 "date" => Type::Custom("chrono::NaiveDate".to_string()),
                 "time" => Type::Custom("chrono::NaiveTime".to_string()),
+                // DEPYLER-0750: Counter.most_common() returns list of (key, count) tuples
+                "most_common" => Type::List(Box::new(Type::Tuple(vec![Type::String, Type::Int]))),
                 _ => Type::Unknown,
             }
         }
@@ -2173,7 +2383,7 @@ pub fn infer_param_type_from_body(param_name: &str, body: &[HirStmt]) -> Option<
 fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> {
     match expr {
         // Pattern: print(param) or println(param) → param needs Display → String
-        HirExpr::Call { func, args, .. } => {
+        HirExpr::Call { func, args, kwargs } => {
             // func is a Symbol (String), check if it's print/println
             if func == "print" || func == "println" {
                 // Check if our parameter is used as an argument
@@ -2198,9 +2408,29 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                 }
             }
 
+            // DEPYLER-0737: subprocess.run(..., cwd=param) → param is String (path-like)
+            // When a parameter is used as the cwd kwarg in subprocess.run, it's a path string
+            if func == "subprocess.run" {
+                for (kwarg_name, kwarg_value) in kwargs {
+                    if kwarg_name == "cwd" {
+                        if let HirExpr::Var(var_name) = kwarg_value {
+                            if var_name == param_name {
+                                return Some(Type::String);
+                            }
+                        }
+                    }
+                }
+            }
+
             // Recursively check arguments
             for arg in args {
                 if let Some(ty) = infer_type_from_expr_usage(param_name, arg) {
+                    return Some(ty);
+                }
+            }
+            // Also recursively check kwargs values
+            for (_, kwarg_value) in kwargs {
+                if let Some(ty) = infer_type_from_expr_usage(param_name, kwarg_value) {
                     return Some(ty);
                 }
             }
@@ -2213,7 +2443,7 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             object,
             method,
             args,
-            ..
+            kwargs,
         } => {
             // DEPYLER-0525: If param IS the object and method is a file I/O method,
             // then param must be a file-like object that implements Write or Read
@@ -2352,6 +2582,24 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
                 }
             }
 
+            // DEPYLER-0737: subprocess.run(..., cwd=param) → param is String (path-like)
+            // When a parameter is used as the cwd kwarg in subprocess.run, it's a path string
+            // This prevents incorrect generic inference (Option<T> → Option<String>)
+            if let HirExpr::Var(module_name) = object.as_ref() {
+                if module_name == "subprocess" && method == "run" {
+                    // Check kwargs for cwd parameter
+                    for (kwarg_name, kwarg_value) in kwargs {
+                        if kwarg_name == "cwd" {
+                            if let HirExpr::Var(var_name) = kwarg_value {
+                                if var_name == param_name {
+                                    return Some(Type::String);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             // Methods that expect string arguments (for method calls on objects)
             let string_methods = [
                 "find",
@@ -2386,6 +2634,12 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
             // Recursively check arguments
             for arg in args {
                 if let Some(ty) = infer_type_from_expr_usage(param_name, arg) {
+                    return Some(ty);
+                }
+            }
+            // Also recursively check kwargs values
+            for (_, kwarg_value) in kwargs {
+                if let Some(ty) = infer_type_from_expr_usage(param_name, kwarg_value) {
                     return Some(ty);
                 }
             }
@@ -2627,12 +2881,20 @@ fn detect_returns_nested_function(
         } = stmt
         {
             // GH-70: Apply type inference to parameters
+            // DEPYLER-0737: Also handle Optional(Unknown) for params with default=None
             let mut inferred_params = params.to_vec();
             for param in &mut inferred_params {
                 if matches!(param.ty, Type::Unknown) {
                     // Try to infer from body usage
                     if let Some(inferred_ty) = infer_param_type_from_body(&param.name, body) {
                         param.ty = inferred_ty;
+                    }
+                } else if let Type::Optional(inner) = &param.ty {
+                    // DEPYLER-0737: If param is Optional(Unknown), infer inner type and wrap
+                    if matches!(inner.as_ref(), Type::Unknown) {
+                        if let Some(inferred_ty) = infer_param_type_from_body(&param.name, body) {
+                            param.ty = Type::Optional(Box::new(inferred_ty));
+                        }
                     }
                 }
             }
@@ -3197,7 +3459,36 @@ impl RustCodeGen for HirFunction {
             ctx.type_substitutions = type_substitutions;
         }
 
-        let type_params = generic_registry.infer_function_generics(self)?;
+        // DEPYLER-0524: Infer parameter types from usage in function body
+        // This updates var_types so parameters with Unknown type can be inferred from usage
+        // DEPYLER-0737: Also handle Optional(Unknown) for params with default=None
+        // IMPORTANT: Must run BEFORE generic inference so that inferred concrete types
+        // prevent unnecessary generic parameters from being generated
+        let mut inferred_params = self.params.clone();
+        for param in &mut inferred_params {
+            if matches!(param.ty, Type::Unknown) {
+                if let Some(inferred_ty) = infer_param_type_from_body(&param.name, &self.body) {
+                    param.ty = inferred_ty.clone();
+                    ctx.var_types.insert(param.name.clone(), inferred_ty);
+                }
+            } else if let Type::Optional(inner) = &param.ty {
+                // DEPYLER-0737: If param is Optional(Unknown), infer inner type and wrap in Optional
+                if matches!(inner.as_ref(), Type::Unknown) {
+                    if let Some(inferred_ty) = infer_param_type_from_body(&param.name, &self.body) {
+                        let new_ty = Type::Optional(Box::new(inferred_ty));
+                        param.ty = new_ty.clone();
+                        ctx.var_types.insert(param.name.clone(), new_ty);
+                    }
+                }
+            }
+        }
+
+        // Create a modified version of self with inferred params for generic inference
+        let inferred_self = HirFunction {
+            params: inferred_params,
+            ..self.clone()
+        };
+        let type_params = generic_registry.infer_function_generics(&inferred_self)?;
 
         // Perform lifetime analysis with automatic elision (DEPYLER-0275)
         let mut lifetime_inference = LifetimeInference::new();
@@ -3211,20 +3502,10 @@ impl RustCodeGen for HirFunction {
         // Generate lifetime bounds
         let where_clause = codegen_where_clause(&lifetime_result.lifetime_bounds);
 
-        // DEPYLER-0312: Analyze mutability BEFORE generating parameters
-        // This populates ctx.mutable_vars which codegen_single_param uses to determine `mut` keyword
-        analyze_mutable_vars(&self.body, ctx, &self.params);
-
-        // DEPYLER-0524: Infer parameter types from usage in function body
-        // This updates var_types so parameters with Unknown type can be inferred from usage
-        // Must run BEFORE codegen_function_params to affect parameter type generation
-        for param in &self.params {
-            if matches!(param.ty, Type::Unknown) {
-                if let Some(inferred_ty) = infer_param_type_from_body(&param.name, &self.body) {
-                    ctx.var_types.insert(param.name.clone(), inferred_ty);
-                }
-            }
-        }
+        // DEPYLER-0738: Analyze variable mutability BEFORE parameter generation
+        // This detects reassignments (x = 1; x = 2) and method mutations (.insert(), .push())
+        // Must run before codegen_function_params so param_muts can access ctx.mutable_vars
+        crate::rust_gen::analyze_mutable_vars(&self.body, ctx, &self.params);
 
         // Convert parameters using lifetime analysis results
         let params = codegen_function_params(self, &lifetime_result, ctx)?;
@@ -3504,10 +3785,22 @@ impl RustCodeGen for HirFunction {
                 ctx,
             )?
         } else if self.properties.is_async {
-            quote! {
-                #(#attrs)*
-                pub async fn #name #generic_params(#(#params),*) #return_type #where_clause {
-                    #(#body_stmts)*
+            // DEPYLER-0748: If this is async main(), add #[tokio::main] attribute
+            if self.name == "main" {
+                ctx.needs_tokio = true;
+                quote! {
+                    #(#attrs)*
+                    #[tokio::main]
+                    pub async fn #name #generic_params(#(#params),*) #return_type #where_clause {
+                        #(#body_stmts)*
+                    }
+                }
+            } else {
+                quote! {
+                    #(#attrs)*
+                    pub async fn #name #generic_params(#(#params),*) #return_type #where_clause {
+                        #(#body_stmts)*
+                    }
                 }
             }
         } else {
