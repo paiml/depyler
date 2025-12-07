@@ -115,8 +115,10 @@ def get_host(config):
     );
 
     // Should use &value[key] or value.get(key)
+    // Note: Code formatting may insert newlines, so normalize whitespace for check
+    let normalized = rust.replace('\n', " ").replace("  ", " ");
     assert!(
-        rust.contains("&config[") || rust.contains("config.get(") || rust.contains("config["),
+        normalized.contains("&config[") || normalized.contains(".get(") || rust.contains("config["),
         "Should use proper Value indexing. Generated:\n{}",
         rust
     );

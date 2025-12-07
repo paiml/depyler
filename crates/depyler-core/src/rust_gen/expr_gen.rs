@@ -1995,6 +1995,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     false
                 };
 
+                // DEPYLER-0767: Check if operand is an Optional type variable
+                // Python: `if value:` where value is Optional[T] (e.g., from os.environ.get())
+                // Rust: Cannot use ! on Option<T>, need .is_none()
+                let is_optional_var = if let HirExpr::Var(var_name) = operand {
+                    if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                        matches!(var_type, Type::Optional(_))
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
                 // DEPYLER-0443: Check if operand is a regex method call returning Option<Match>
                 // Python: `if not re.match(...)` or `if not compiled.find(...)`
                 // Rust: Cannot use ! on Option<Match>, need .is_none()
@@ -2021,8 +2034,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 if is_collection {
                     Ok(parse_quote! { #operand_expr.is_empty() })
-                } else if is_option_returning_call {
-                    // For Option-returning methods, use .is_none() instead of !
+                } else if is_optional_var || is_option_returning_call {
+                    // DEPYLER-0767: For Optional type variables and Option-returning methods,
+                    // use .is_none() instead of !
                     Ok(parse_quote! { #operand_expr.is_none() })
                 } else {
                     Ok(parse_quote! { !#operand_expr })
