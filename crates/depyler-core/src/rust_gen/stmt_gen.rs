@@ -2217,6 +2217,52 @@ fn is_var_used_as_dict_key_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     }
 }
 
+/// Check if a variable is reassigned in a statement
+/// DEPYLER-0756: Loop variables that are reassigned need `mut` in for pattern
+fn is_var_reassigned_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Assign { target, .. } => {
+            // Only count as reassignment if the target is the exact variable
+            // Note: Augmented assignment (+=, -=) is also represented as Assign in HIR
+            matches!(target, AssignTarget::Symbol(name) if name == var_name)
+        }
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
+            then_body
+                .iter()
+                .any(|s| is_var_reassigned_in_stmt(var_name, s))
+                || else_body.as_ref().is_some_and(|body| {
+                    body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
+                })
+        }
+        HirStmt::While { body, .. } => body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)),
+        HirStmt::For { body, .. } => body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)),
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+            ..
+        } => {
+            body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
+                || handlers
+                    .iter()
+                    .any(|h| h.body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)))
+                || orelse.as_ref().is_some_and(|stmts| {
+                    stmts.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
+                })
+                || finalbody.as_ref().is_some_and(|stmts| {
+                    stmts.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
+                })
+        }
+        HirStmt::With { body, .. } => body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)),
+        _ => false,
+    }
+}
+
 /// Check if a variable is used in a statement
 /// DEPYLER-0303 Phase 2: Fixed to check assignment targets too (for `d[k] = v`)
 fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
@@ -2360,6 +2406,13 @@ pub(crate) fn codegen_for_stmt(
         body.iter().any(|stmt| is_var_used_in_stmt(var_name, stmt))
     };
 
+    // DEPYLER-0756: Helper to check if a variable is reassigned in the loop body
+    // If a loop variable is reassigned (e.g., `line = line.strip()`), we need `mut`
+    let is_reassigned_in_body = |var_name: &str| -> bool {
+        body.iter()
+            .any(|stmt| is_var_reassigned_in_stmt(var_name, stmt))
+    };
+
     // Generate target pattern based on AssignTarget type
     let target_pattern: syn::Pat = match target {
         AssignTarget::Symbol(name) => {
@@ -2370,11 +2423,17 @@ pub(crate) fn codegen_for_stmt(
                 format!("_{}", name)
             };
             let ident = safe_ident(&var_name); // DEPYLER-0023
-            parse_quote! { #ident }
+            // DEPYLER-0756: Add `mut` if variable is reassigned inside the loop
+            if is_reassigned_in_body(name) {
+                parse_quote! { mut #ident }
+            } else {
+                parse_quote! { #ident }
+            }
         }
         AssignTarget::Tuple(targets) => {
             // For tuple unpacking, check each variable individually
-            let idents: Vec<syn::Ident> = targets
+            // DEPYLER-0756: Check if any tuple element is reassigned
+            let patterns: Vec<syn::Pat> = targets
                 .iter()
                 .map(|t| match t {
                     AssignTarget::Symbol(s) => {
@@ -2384,12 +2443,18 @@ pub(crate) fn codegen_for_stmt(
                         } else {
                             format!("_{}", s)
                         };
-                        safe_ident(&var_name) // DEPYLER-0023
+                        let ident = safe_ident(&var_name); // DEPYLER-0023
+                        // DEPYLER-0756: Add `mut` if this tuple element is reassigned
+                        if is_reassigned_in_body(s) {
+                            parse_quote! { mut #ident }
+                        } else {
+                            parse_quote! { #ident }
+                        }
                     }
-                    _ => safe_ident("_nested"), // Nested tuple unpacking - use placeholder
+                    _ => parse_quote! { _nested }, // Nested tuple unpacking - use placeholder
                 })
                 .collect();
-            parse_quote! { (#(#idents),*) }
+            parse_quote! { (#(#patterns),*) }
         }
         _ => bail!("Unsupported for loop target type"),
     };
