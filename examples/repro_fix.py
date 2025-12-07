@@ -1,22 +1,23 @@
 # Hunt Mode tracking file - used to verify repro fixes compile
-# Current status: GREEN (last verified: E0392 - PhantomData for unused type params)
-# DEPYLER-0765: Empty Generic[T] class now correctly adds PhantomData<T>
+# Current status: GREEN (last verified: E0384 - nested function mutability)
+# DEPYLER-0766: Variables in nested functions now correctly get `let mut`
 
-from typing import Generic, TypeVar
+def calculate(values: list[int]) -> int:
+    """Calculate sum using nested helper."""
 
-T = TypeVar("T")
+    def sum_values(lst: list[int]) -> int:
+        total = 0
+        for x in lst:
+            total += x
+        return total
 
-
-class Box(Generic[T]):
-    """An empty generic container."""
-
-    pass
+    return sum_values(values)
 
 
 def main() -> None:
     """Main entry point."""
-    b: Box[int] = Box()
-    print("Created empty box")
+    result = calculate([1, 2, 3, 4, 5])
+    print(f"Sum: {result}")
 
 
 if __name__ == "__main__":
