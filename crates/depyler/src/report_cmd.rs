@@ -146,19 +146,20 @@ fn phase_clean(corpus_path: &PathBuf) -> Result<()> {
             }
         } else if path.file_name().is_some_and(|n| n == "Cargo.toml") {
             // Don't remove Cargo.toml in the root
-            if path.parent() != Some(corpus_path.as_path()) {
-                if std::fs::remove_file(path).is_ok() {
-                    cargo_removed += 1;
-                }
+            if path.parent() != Some(corpus_path.as_path())
+                && std::fs::remove_file(path).is_ok()
+            {
+                cargo_removed += 1;
             }
         } else if path.file_name().is_some_and(|n| n == "Cargo.lock") {
             if std::fs::remove_file(path).is_ok() {
                 // Count with Cargo.toml
             }
-        } else if path.is_dir() && path.file_name().is_some_and(|n| n == "target") {
-            if std::fs::remove_dir_all(path).is_ok() {
-                target_removed += 1;
-            }
+        } else if path.is_dir()
+            && path.file_name().is_some_and(|n| n == "target")
+            && std::fs::remove_dir_all(path).is_ok()
+        {
+            target_removed += 1;
         }
     }
 

@@ -90,10 +90,10 @@ impl WorklistSolver {
     ///
     /// let mut solver = WorklistSolver::new();
     ///
-    /// // x: i32, param: i64, constraint: x <: param
+    /// // x: Int, param: Optional<Int>, constraint: x <: param
     /// solver.add_constraint(TypeConstraint {
-    ///     lhs: Type::Int32,
-    ///     rhs: Type::Int64,
+    ///     lhs: Type::Int,
+    ///     rhs: Type::Optional(Box::new(Type::Int)),
     ///     kind: ConstraintKind::Subtype,
     ///     reason: "Function call".to_string(),
     /// });

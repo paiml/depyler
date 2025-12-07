@@ -293,7 +293,7 @@ impl TypeVarCollector {
 
     /// DEPYLER-0271: Track nesting to only add generic T when Unknown is in a nested position
     /// (like List[Unknown], Dict[str, Unknown]) but NOT for bare Unknown (function return type)
-    fn collect_from_type_internal(&mut self, ty: &Type, nested: bool) {
+    fn collect_from_type_internal(&mut self, ty: &Type, _nested: bool) {
         match ty {
             Type::Custom(name) if name.chars().next().is_some_and(|c| c.is_uppercase()) => {
                 // Assume single uppercase letters are type variables
@@ -304,13 +304,12 @@ impl TypeVarCollector {
             Type::TypeVar(name) => {
                 self.type_vars.insert(name.clone());
             }
-            // DEPYLER-0705 + DEPYLER-0271: Unknown type in NESTED position becomes type parameter T
-            // Only add T for Unknown in generic positions (List[Unknown], Dict[str, Unknown], etc.)
-            // NOT for bare Unknown at top level (which usually means "no return type annotation")
+            // DEPYLER-0750: Don't treat Unknown as type parameter T
+            // Unknown in collections (List[Unknown], Set[Unknown]) should use concrete default types
+            // via type_mapper (serde_json::Value for List, String for Set)
+            // Only explicit TypeVar("T") should create type parameters
             Type::Unknown => {
-                if nested {
-                    self.type_vars.insert("T".to_string());
-                }
+                // DEPYLER-0750: Removed T insertion - bare collections use concrete defaults
                 // At top level, Unknown means "no type annotation" -> maps to () in Rust
             }
             // Collection types create nested context
@@ -318,10 +317,11 @@ impl TypeVarCollector {
                 self.collect_from_type_internal(inner, true);
             }
             Type::Dict(k, v) => {
-                // DEPYLER-0716: Dict key type vars need Eq + Hash bounds for HashMap
-                // Track if the key type is Unknown (will become T)
-                if matches!(**k, Type::Unknown) {
-                    self.dict_key_type_vars.insert("T".to_string());
+                // DEPYLER-0750: Removed dict_key_type_vars tracking for Unknown
+                // Bare dict uses concrete defaults (String keys) via type_mapper
+                // Only track explicit TypeVar for generics
+                if let Type::TypeVar(name) = k.as_ref() {
+                    self.dict_key_type_vars.insert(name.clone());
                 }
                 self.collect_from_type_internal(k, true);
                 self.collect_from_type_internal(v, true);
@@ -486,6 +486,18 @@ impl TypeInference {
                 {
                     // Dict with unknown element types - T becomes the value type
                     self.analyze_param_usage(&param.name, "T", &func.body)?;
+                }
+                // DEPYLER-0744: Handle Optional(Unknown) - infer T from return statements
+                // When a param has default=None, it becomes Optional(Unknown).
+                // We analyze return statements to find what concrete type T should be.
+                Type::Optional(inner) if matches!(**inner, Type::Unknown) => {
+                    // Find concrete types returned by the function
+                    if let Some(concrete_type) =
+                        self.infer_concrete_type_from_returns(&param.name, &func.body)
+                    {
+                        // Substitute T with the concrete type
+                        self.substitutions.insert("T".to_string(), concrete_type);
+                    }
                 }
                 _ => {}
             }
@@ -735,6 +747,83 @@ impl TypeInference {
         self.param_types
             .get(var_name)
             .is_some_and(|ty| matches!(ty, Type::String))
+    }
+
+    /// DEPYLER-0744: Infer the concrete type from return statements
+    /// When a function has a param with Optional(Unknown), we analyze returns
+    /// to find what concrete type the Optional should contain.
+    /// Example: def f(value: int, fallback=None): return value OR return fallback
+    /// Returns Int because `return value` where value: int provides the concrete type.
+    #[allow(dead_code)]
+    fn infer_concrete_type_from_returns(
+        &self,
+        _optional_param_name: &str,
+        body: &[HirStmt],
+    ) -> Option<Type> {
+        let mut concrete_types = Vec::new();
+
+        // Recursively collect return types from statements
+        self.collect_return_types_from_stmts(body, &mut concrete_types);
+
+        // Find the first concrete (non-Optional, non-Unknown, non-None) type
+        concrete_types.into_iter().find(|ty| {
+            !matches!(
+                ty,
+                Type::Optional(_) | Type::Unknown | Type::None | Type::TypeVar(_)
+            )
+        })
+    }
+
+    /// Helper to collect types from return statements recursively
+    fn collect_return_types_from_stmts(&self, stmts: &[HirStmt], types: &mut Vec<Type>) {
+        for stmt in stmts {
+            match stmt {
+                HirStmt::Return(Some(expr)) => {
+                    // Infer type from the returned expression
+                    if let Some(ty) = self.infer_expr_type(expr) {
+                        types.push(ty);
+                    }
+                }
+                HirStmt::If {
+                    then_body,
+                    else_body,
+                    ..
+                } => {
+                    self.collect_return_types_from_stmts(then_body, types);
+                    if let Some(else_stmts) = else_body {
+                        self.collect_return_types_from_stmts(else_stmts, types);
+                    }
+                }
+                HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                    self.collect_return_types_from_stmts(body, types);
+                }
+                HirStmt::With { body, .. } | HirStmt::Try { body, .. } => {
+                    self.collect_return_types_from_stmts(body, types);
+                }
+                _ => {}
+            }
+        }
+    }
+
+    /// Infer the type of an expression
+    fn infer_expr_type(&self, expr: &HirExpr) -> Option<Type> {
+        use crate::hir::Literal;
+
+        match expr {
+            HirExpr::Literal(lit) => match lit {
+                Literal::Int(_) => Some(Type::Int),
+                Literal::Float(_) => Some(Type::Float),
+                Literal::String(_) => Some(Type::String),
+                Literal::Bool(_) => Some(Type::Bool),
+                Literal::None => Some(Type::None),
+                _ => None,
+            },
+            HirExpr::Var(name) => {
+                // Look up the variable's type from param_types
+                self.param_types.get(name).cloned()
+            }
+            _ => None,
+        }
     }
 }
 

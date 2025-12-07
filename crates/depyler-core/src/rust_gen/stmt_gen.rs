@@ -712,6 +712,17 @@ pub(crate) fn codegen_return_stmt(
         // Check if the expression is None literal
         let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
 
+        // DEPYLER-0744: Check if expression is already Option-typed (e.g., param with default=None)
+        // Don't wrap in Some() if the expression is already Option<T>
+        let is_already_optional = if let HirExpr::Var(var_name) = e {
+            ctx.var_types
+                .get(var_name)
+                .map(|ty| matches!(ty, Type::Optional(_)))
+                .unwrap_or(false)
+        } else {
+            false
+        };
+
         // DEPYLER-0498: Check if expression is if-expr with None arm (ternary with None)
         // Pattern: `return x if cond else None` -> should be `if cond { Some(x) } else { None }`
         // NOT: `Some(if cond { x } else { None })`
@@ -737,12 +748,19 @@ pub(crate) fn codegen_return_stmt(
                 } else {
                     Ok(quote! { Ok(()) })
                 }
-            } else if is_optional_return && !is_none_literal {
+            } else if is_optional_return && !is_none_literal && !is_already_optional {
                 // Wrap value in Some() for Optional return types
                 if use_return_keyword {
                     Ok(quote! { return Ok(Some(#expr_tokens)); })
                 } else {
                     Ok(quote! { Ok(Some(#expr_tokens)) })
+                }
+            } else if is_optional_return && is_already_optional {
+                // DEPYLER-0744: Expression is already Option<T>, just wrap in Ok()
+                if use_return_keyword {
+                    Ok(quote! { return Ok(#expr_tokens); })
+                } else {
+                    Ok(quote! { Ok(#expr_tokens) })
                 }
             } else if is_optional_return && is_none_literal {
                 // DEPYLER-0277: Return None for Optional types (not ())
@@ -792,13 +810,21 @@ pub(crate) fn codegen_return_stmt(
                 // Final statement in void function: use unit value ()
                 Ok(quote! { () })
             }
-        } else if is_optional_return && !is_none_literal && !is_if_expr_with_none {
+        } else if is_optional_return && !is_none_literal && !is_if_expr_with_none && !is_already_optional {
             // Wrap value in Some() for Optional return types
             // DEPYLER-0498: Skip wrapping if if-expr has None arm (handled separately)
+            // DEPYLER-0744: Skip wrapping if expression is already Option<T>
             if use_return_keyword {
                 Ok(quote! { return Some(#expr_tokens); })
             } else {
                 Ok(quote! { Some(#expr_tokens) })
+            }
+        } else if is_optional_return && is_already_optional {
+            // DEPYLER-0744: Expression is already Option<T>, don't double-wrap
+            if use_return_keyword {
+                Ok(quote! { return #expr_tokens; })
+            } else {
+                Ok(quote! { #expr_tokens })
             }
         } else if is_optional_return && is_if_expr_with_none {
             // DEPYLER-0498: If-expr with None arm - manually wrap true arm in Some()
@@ -1289,30 +1315,42 @@ fn apply_truthiness_conversion(
 
             if is_args_var {
                 // Check if this field is optional (Option<T> type, not boolean)
-                let is_optional_field = ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                    parser_info.arguments.iter().any(|arg| {
-                        let field_name = arg.rust_field_name();
-                        if field_name != *attr {
-                            return false;
-                        }
+                // DEPYLER-0722: Check both main parsers AND subcommands
+                // Helper closure to check if an argument is optional
+                let check_optional = |arg: &super::argparse_transform::ArgParserArgument| -> bool {
+                    let field_name = arg.rust_field_name();
+                    if field_name != *attr {
+                        return false;
+                    }
 
-                        // Argument is NOT an Option if it has action="store_true" or "store_false"
-                        if matches!(
-                            arg.action.as_deref(),
-                            Some("store_true") | Some("store_false")
-                        ) {
-                            return false;
-                        }
+                    // Argument is NOT an Option if it has action="store_true" or "store_false"
+                    if matches!(
+                        arg.action.as_deref(),
+                        Some("store_true") | Some("store_false")
+                    ) {
+                        return false;
+                    }
 
-                        // Argument is an Option<T> if: not required AND no default value AND not positional
-                        // Positional arguments are always required (Vec for nargs)
-                        // DEPYLER-0678: Exclude nargs='+' and nargs='*' which are Vec, not Option
-                        !arg.is_positional
-                            && !arg.required.unwrap_or(false)
-                            && arg.default.is_none()
-                            && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
-                    })
+                    // Argument is an Option<T> if: not required AND no default value AND not positional
+                    // Positional arguments are always required (Vec for nargs)
+                    // DEPYLER-0678: Exclude nargs='+' and nargs='*' which are Vec, not Option
+                    !arg.is_positional
+                        && !arg.required.unwrap_or(false)
+                        && arg.default.is_none()
+                        && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+                };
+
+                // Check main parsers
+                let is_optional_in_parser = ctx.argparser_tracker.parsers.values().any(|parser_info| {
+                    parser_info.arguments.iter().any(&check_optional)
                 });
+
+                // DEPYLER-0722: Also check subcommands for optional fields
+                let is_optional_in_subcommand = ctx.argparser_tracker.subcommands.values().any(|subcommand_info| {
+                    subcommand_info.arguments.iter().any(&check_optional)
+                });
+
+                let is_optional_field = is_optional_in_parser || is_optional_in_subcommand;
 
                 if is_optional_field {
                     // DEPYLER-0108: Check if this field has been precomputed
@@ -2659,14 +2697,23 @@ pub(crate) fn codegen_for_stmt(
     // When iterating over strings with .chars(), convert char to String for HashMap<String, _> compatibility
     // DEPYLER-0715: Fixed to use USAGE-based detection instead of name heuristics
     // DEPYLER-0716: Also ensure we're actually iterating over a STRING (not a range/list/etc.)
+    // DEPYLER-0744: MUST check actual type, not just is_var_iteration!
     // Only convert char to String if:
     // 1. We're iterating over a string variable (will become .chars())
     // 2. NOT iterating over a range (range produces integers)
     // 3. The loop variable is actually used as a dict key
     let is_range_iteration = matches!(iter, HirExpr::Call { func, .. } if func == "range");
-    let is_var_iteration = matches!(iter, HirExpr::Var(_));
-    // Only consider string iteration if we're iterating over a variable (not range/enumerate/etc.)
-    let needs_char_to_string = !is_range_iteration && is_var_iteration && if let AssignTarget::Symbol(loop_var_name) = target {
+    // DEPYLER-0744: Check if iterable is actually a String type, not just any variable
+    // This prevents List[int] from being treated as string iteration
+    let is_string_iteration = if let HirExpr::Var(var_name) = iter {
+        ctx.var_types
+            .get(var_name)
+            .is_some_and(|t| matches!(t, Type::String))
+    } else {
+        false
+    };
+    // Only consider string iteration if we're iterating over a STRING variable (not list/dict/etc.)
+    let needs_char_to_string = !is_range_iteration && is_string_iteration && if let AssignTarget::Symbol(loop_var_name) = target {
         // Check if the loop variable is used as a dictionary key in the body
         body.iter().any(|stmt| is_var_used_as_dict_key_in_stmt(loop_var_name, stmt))
     } else {
@@ -5887,6 +5934,7 @@ fn try_generate_subcommand_match(
             // DEPYLER-0577: Register field types in var_types before processing body
             // This allows type-aware codegen (e.g., float vs int comparisons)
             // DEPYLER-0605: Use filter + max_by_key to find the SubcommandInfo with most arguments
+            // DEPYLER-0722: Handle Optional types and boolean flags correctly
             for field_name in &accessed_fields {
                 if let Some(subcommand) = ctx
                     .argparser_tracker
@@ -5896,13 +5944,37 @@ fn try_generate_subcommand_match(
                     .max_by_key(|sc| sc.arguments.len())
                 {
                     if let Some(arg) = subcommand.arguments.iter().find(|a| {
+                        // DEPYLER-0722: Strip dashes from short options (-n → n)
                         let arg_name = a.long.as_ref()
                             .map(|s| s.trim_start_matches('-').to_string())
-                            .unwrap_or_else(|| a.name.clone());
+                            .unwrap_or_else(|| a.name.trim_start_matches('-').to_string());
                         &arg_name == field_name
                     }) {
-                        if let Some(ref ty) = arg.arg_type {
-                            ctx.var_types.insert(field_name.clone(), ty.clone());
+                        // DEPYLER-0722: Determine actual type including Optional wrapper
+                        let base_type = if let Some(ref ty) = arg.arg_type {
+                            Some(ty.clone())
+                        } else if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                            Some(Type::Bool)
+                        } else {
+                            None
+                        };
+
+                        if let Some(ty) = base_type {
+                            // DEPYLER-0722: Check if this is actually Option<T> in Clap
+                            // An argument is Option<T> if: NOT required AND NO default AND NOT positional
+                            // AND NOT a boolean flag (store_true/store_false)
+                            let is_bool_flag = matches!(arg.action.as_deref(), Some("store_true") | Some("store_false"));
+                            let is_option_type = !arg.is_positional
+                                && !arg.required.unwrap_or(false)
+                                && arg.default.is_none()
+                                && !is_bool_flag;
+
+                            let actual_type = if is_option_type {
+                                Type::Optional(Box::new(ty))
+                            } else {
+                                ty
+                            };
+                            ctx.var_types.insert(field_name.clone(), actual_type);
                         }
                     }
                 }
@@ -5978,11 +6050,12 @@ fn try_generate_subcommand_match(
                             .and_then(|sc| {
                                 sc.arguments.iter().find(|arg| {
                                     // Match by field name (from long flag or positional name)
+                                    // DEPYLER-0722: Also strip dashes from short options (-n → n)
                                     let arg_field_name = arg
                                         .long
                                         .as_ref()
                                         .map(|s| s.trim_start_matches('-').to_string())
-                                        .unwrap_or_else(|| arg.name.clone());
+                                        .unwrap_or_else(|| arg.name.trim_start_matches('-').to_string());
                                     arg_field_name == *field_name
                                 })
                             });
@@ -6043,10 +6116,21 @@ fn try_generate_subcommand_match(
                                 // DEPYLER-0576: Check if field has a default value (is Option<T>)
                                 // Clap represents optional args with defaults as Option<T>
                                 // ref binding gives &Option<T>, need to unwrap with default
+                                // DEPYLER-0722: Also check for Option<T> without default (NOT required AND NOT positional)
                                 let has_default = maybe_arg
                                     .as_ref()
                                     .map(|a| a.default.is_some())
                                     .unwrap_or(false);
+                                let is_required = maybe_arg
+                                    .as_ref()
+                                    .map(|a| a.required.unwrap_or(false))
+                                    .unwrap_or(false);
+                                let is_positional = maybe_arg
+                                    .as_ref()
+                                    .map(|a| a.is_positional)
+                                    .unwrap_or(false);
+                                // DEPYLER-0722: An argument is Option<T> if NOT required AND NOT positional AND NO default
+                                let is_option_without_default = !is_required && !is_positional && !has_default;
 
                                 if has_default {
                                     // Field is Option<T>, unwrap with default
@@ -6067,6 +6151,10 @@ fn try_generate_subcommand_match(
                                         }
                                     });
                                     quote! { let #field_ident = #field_ident.unwrap_or(#default_val); }
+                                } else if is_option_without_default {
+                                    // DEPYLER-0722: Option<T> without default - clone the &Option<T> to Option<T>
+                                    // Body code can then use .is_some() for truthiness
+                                    quote! { let #field_ident = #field_ident.clone(); }
                                 } else {
                                     // Required field (not Option), just dereference
                                     quote! { let #field_ident = *#field_ident; }
