@@ -71,3 +71,4 @@
 - [Hunt Mode: Automated Calibration](./hunt-mode.md)
 - [Corpus Report: Scientific Analysis](./corpus-report.md)
 - [CITL Corpus Extraction](./citl-corpus-extraction.md)
+- [O(1) Module Mapping](./module-mapping.md)
