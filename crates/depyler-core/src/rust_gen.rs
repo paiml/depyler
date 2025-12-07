@@ -155,7 +155,7 @@ fn scan_expr_for_validators(expr: &HirExpr, ctx: &mut CodeGenContext) {
 /// 3. DEPYLER-0312: Function parameters that are reassigned (requires mut)
 ///
 /// Complexity: 7 (stmt loop + match + if + expr scan + method match)
-fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[HirParam]) {
+pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[HirParam]) {
     // DEPYLER-0707: Clear mutable_vars before analyzing each function
     // Without this, variables from previous functions leak to subsequent ones,
     // causing false positives (e.g., `p` in test_point() leaking to test_person())
@@ -1251,6 +1251,17 @@ pub fn generate_rust_file(
         mutating_methods.insert(class.name.clone(), mut_methods);
     }
 
+    // DEPYLER-0737: Collect property method names from all classes
+    // In Python, @property allows method access without (), but Rust requires ()
+    let mut property_methods: HashSet<String> = HashSet::new();
+    for class in &module.classes {
+        for method in &class.methods {
+            if method.is_property {
+                property_methods.insert(method.name.clone());
+            }
+        }
+    }
+
     let mut ctx = CodeGenContext {
         type_mapper,
         annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
@@ -1291,6 +1302,7 @@ pub fn generate_rust_file(
         needs_bufread: false,   // DEPYLER-0522
         needs_once_cell: false, // DEPYLER-REARCH-001
         needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+        needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
         needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
         vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
         declared_vars: vec![HashSet::new()],
@@ -1312,13 +1324,16 @@ pub fn generate_rust_file(
         var_types: std::collections::HashMap::new(),
         class_names,
         mutating_methods,
+        property_methods, // DEPYLER-0737: Track @property methods for parenthesis insertion
         function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
         function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
         function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
         function_param_defaults: std::collections::HashMap::new(),
-            class_field_types: std::collections::HashMap::new(), // DEPYLER-0621: Track default param values
+        function_param_optionals: std::collections::HashMap::new(), // DEPYLER-0737: Track Optional params
+        class_field_types: std::collections::HashMap::new(), // DEPYLER-0621: Track default param values
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
+        ref_params: HashSet::new(),      // DEPYLER-0758: Track parameters passed by reference
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
         result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
@@ -1348,6 +1363,7 @@ pub fn generate_rust_file(
         option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
         type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions for generic inference
         current_assign_type: None, // DEPYLER-0727: Track assignment target type for dict Value wrapping
+        force_dict_value_option_wrap: false, // DEPYLER-0741: Force dict values to use Option wrapping
     };
 
     // Analyze all functions first for string optimization
@@ -1395,6 +1411,21 @@ pub fn generate_rust_file(
     for func in &module.functions {
         if func.params.iter().any(|p| p.is_vararg) {
             ctx.vararg_functions.insert(func.name.clone());
+        }
+    }
+
+    // DEPYLER-0737: Pre-populate Optional parameters for call site wrapping
+    // When a parameter has Optional type (from =None default), call sites need Some() wrapping
+    for func in &module.functions {
+        let optionals: Vec<bool> = func
+            .params
+            .iter()
+            .map(|p| matches!(p.ty, Type::Optional(_)))
+            .collect();
+        // Only track if any param is Optional
+        if optionals.iter().any(|&b| b) {
+            ctx.function_param_optionals
+                .insert(func.name.clone(), optionals);
         }
     }
 
@@ -1568,6 +1599,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
             vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
             declared_vars: vec![HashSet::new()],
@@ -1589,11 +1621,13 @@ mod tests {
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
+            property_methods: HashSet::new(), // DEPYLER-0737: Track @property methods
             function_return_types: std::collections::HashMap::new(), // DEPYLER-0269: Track function return types
             function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track variables assigned from iterators
+            ref_params: HashSet::new(),      // DEPYLER-0758: Track parameters passed by reference
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
             result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
@@ -1623,9 +1657,11 @@ mod tests {
             function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
             option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
             function_param_defaults: HashMap::new(), // Track function parameter defaults
+            function_param_optionals: HashMap::new(), // DEPYLER-0737: Track Optional params
             class_field_types: HashMap::new(), // DEPYLER-0720: Track class field types
             type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions
             current_assign_type: None, // DEPYLER-0727: Track assignment target type
+            force_dict_value_option_wrap: false, // DEPYLER-0741
         }
     }
 
