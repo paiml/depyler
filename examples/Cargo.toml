@@ -1,12 +1,48 @@
 [package]
-name = "repro_fix"
+name = "depyler-examples"
 version = "0.1.0"
 edition = "2021"
+description = "Transpiled examples from Depyler - Python to Rust"
+publish = false
 
-[lib]
-name = "repro_fix"
-path = "repro_fix.rs"
-
+# Dependencies used by transpiled examples
+# These are automatically detected and added by depyler transpile --gen-cargo
 [dependencies]
-serde_json = "1.0"
+# Serialization (json module)
 serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Date/Time (datetime module)
+chrono = "0.4"
+
+# Crypto (hashlib module)
+sha2 = "0.10"
+base64 = "0.22"
+
+# Regex (re module)
+regex = "1.10"
+
+# Random (random module)
+rand = "0.8"
+
+# Functional (itertools module)
+itertools = "0.13"
+
+# CSV (csv module)
+csv = "1.3"
+
+# URL parsing (urllib module)
+url = "2.5"
+
+# Lazy initialization
+once_cell = "1.19"
+
+# Testing
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
+
+# Note: Individual example binaries can be added here as [[bin]] entries
+# Example:
+# [[bin]]
+# name = "my_example"
+# path = "my_example.rs"
