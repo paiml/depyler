@@ -61,6 +61,7 @@ impl Default for GenerativeRepairConfig {
 
 /// Represents the state of code generation (partial AST)
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // is_complete is used only when "generative" feature is enabled
 pub struct CodeState {
     /// Token representation of the partial AST
     tokens: Vec<String>,
