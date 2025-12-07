@@ -31,10 +31,34 @@ fn generate_state_fields(
             let rust_type = ctx.type_mapper.map_type(&var.ty);
             // DEPYLER-0188: Box impl Trait types for struct fields
             let field_rust_type = box_impl_trait_for_field(&rust_type);
-            let field_type = rust_type_to_syn(&field_rust_type)?;
+            // DEPYLER-0772: Use concrete fallback for TypeParam in struct fields
+            let concrete_type = concretize_type_param_for_struct(&field_rust_type);
+            let field_type = rust_type_to_syn(&concrete_type)?;
             Ok(quote! { #field_name: #field_type })
         })
         .collect()
+}
+
+/// DEPYLER-0772: Convert TypeParam to concrete type for struct fields
+///
+/// Generator state structs cannot use bare type parameters like `T` without
+/// declaring them. When a state variable has unknown type that maps to `T`,
+/// we use `i32` as a safe default since most generator variables are counters
+/// or indices.
+///
+/// # Complexity: 2 (match + clone)
+#[inline]
+fn concretize_type_param_for_struct(
+    rust_type: &crate::type_mapper::RustType,
+) -> crate::type_mapper::RustType {
+    use crate::type_mapper::{PrimitiveType, RustType};
+
+    match rust_type {
+        // DEPYLER-0772: Replace bare `T` with concrete `i32`
+        // Most generator state variables are loop counters or accumulator values
+        RustType::TypeParam(_) => RustType::Primitive(PrimitiveType::I32),
+        other => other.clone(),
+    }
 }
 
 /// Convert impl Trait types to boxed trait objects for struct fields
@@ -83,7 +107,9 @@ fn generate_param_fields(
             let rust_type = ctx.type_mapper.map_type(&param.ty);
             // DEPYLER-0188: Box impl Trait types for struct fields
             let field_rust_type = box_impl_trait_for_field(&rust_type);
-            let field_type = rust_type_to_syn(&field_rust_type)?;
+            // DEPYLER-0772: Use concrete fallback for TypeParam in struct fields
+            let concrete_type = concretize_type_param_for_struct(&field_rust_type);
+            let field_type = rust_type_to_syn(&concrete_type)?;
             Ok(quote! { #field_name: #field_type })
         })
         .collect()
