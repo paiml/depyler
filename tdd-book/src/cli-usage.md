@@ -651,15 +651,16 @@ cargo install lld      # Cross-platform
 
 ## Running Examples
 
-Depyler includes several example programs demonstrating various features.
+Depyler includes two types of examples:
+1. **Built-in examples** - Demonstrate Depyler library features
+2. **Transpiled examples** - Python code transpiled to Rust
 
-### List Available Examples
+### Built-in Library Examples
 
+List available examples:
 ```bash
 cargo run --example
 ```
-
-### Available Examples
 
 | Example | Description |
 |---------|-------------|
@@ -670,7 +671,44 @@ cargo run --example
 | `train_moe_on_real_corpus` | Train mixture-of-experts model |
 | `train_unified_corpus` | Train unified corpus model |
 
-### Running Examples
+### Transpiled Examples
+
+The `examples/` directory contains Python code transpiled to Rust. These demonstrate
+real-world transpilation output including:
+- Algorithms (fibonacci, quicksort)
+- Data structures (stack, list operations)
+- String processing utilities
+- Mathematical functions
+- File processing
+
+**Running transpiled examples:**
+
+```bash
+# Navigate to examples directory
+cd examples
+
+# View available transpiled files
+ls *.rs
+
+# Compile and run a specific example (if it has a main function)
+rustc fibonacci.rs && ./fibonacci
+
+# Or use the examples Cargo.toml with dependencies
+cargo build --manifest-path examples/Cargo.toml
+```
+
+**Dependencies for transpiled examples:**
+
+The `examples/Cargo.toml` provides all dependencies needed by transpiled code:
+- `serde_json` - JSON module
+- `chrono` - datetime module
+- `regex` - re module
+- `rand` - random module
+- `itertools` - itertools module
+- `csv` - csv module
+- `sha2` - hashlib module
+
+### Running Built-in Examples
 
 **Basic execution:**
 ```bash
