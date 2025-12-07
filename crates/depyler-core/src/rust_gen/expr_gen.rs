@@ -13690,7 +13690,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Scope guard: reset flag after processing list elements
         let result = self.convert_list_elements(elts, has_mixed_types, needs_string_unify);
         self.ctx.force_dict_value_option_wrap = false;
-        return result;
+        result
     }
 
     /// DEPYLER-0741: Helper to convert list elements, allowing the flag to be reset afterward

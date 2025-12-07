@@ -34,7 +34,7 @@ pub use type_extraction::TypeExtractor;
 ///
 /// // Convert to HIR
 /// let bridge = AstBridge::new();
-/// let hir = bridge.python_to_hir(ast).unwrap();
+/// let (hir, _type_env) = bridge.python_to_hir(ast).unwrap();
 ///
 /// assert_eq!(hir.functions.len(), 1);
 /// assert_eq!(hir.functions[0].name, "add");
@@ -57,7 +57,7 @@ pub use type_extraction::TypeExtractor;
 /// let bridge = AstBridge::new()
 ///     .with_source(python_code.to_string());
 ///
-/// let hir = bridge.python_to_hir(ast).unwrap();
+/// let (hir, _type_env) = bridge.python_to_hir(ast).unwrap();
 /// assert_eq!(hir.functions[0].name, "greet");
 /// ```
 pub struct AstBridge {
@@ -142,7 +142,7 @@ impl AstBridge {
     ///
     /// let ast = parse(python_code, Mode::Module, "<test>").unwrap();
     /// let bridge = AstBridge::new();
-    /// let hir = bridge.python_to_hir(ast).unwrap();
+    /// let (hir, _type_env) = bridge.python_to_hir(ast).unwrap();
     ///
     /// assert_eq!(hir.functions.len(), 1);
     /// assert_eq!(hir.functions[0].name, "fibonacci");
@@ -637,6 +637,9 @@ impl AstBridge {
             })
             .collect();
 
+        // DEPYLER-0739: Extract type parameters from Generic[T, U, ...] base class
+        let type_params = self.extract_class_type_params(class);
+
         // Convert methods and fields
         let mut methods = Vec::new();
         let mut fields = Vec::new();
@@ -668,12 +671,16 @@ impl AstBridge {
                         let field_name = target.id.to_string();
                         let field_type = TypeExtractor::extract_type(&ann_assign.annotation)?;
 
-                        // If there's a default value, it's a class attribute (constant/static)
-                        // If there's no value, it's an instance attribute declaration
+                        // DEPYLER-0714: For dataclasses, fields with defaults are INSTANCE fields
+                        // For regular classes, fields with defaults are class constants
+                        // Only ClassVar[T] annotations should be class variables in dataclasses
                         let (is_class_var, default_value) = if let Some(value) = &ann_assign.value {
                             // Convert the default value expression
                             let converted_value = ExprConverter::convert(value.as_ref().clone())?;
-                            (true, Some(converted_value))
+                            // In dataclasses, annotated fields with defaults are instance fields
+                            // In regular classes, they are class constants
+                            let is_class_constant = !is_dataclass;
+                            (is_class_constant, Some(converted_value))
                         } else {
                             // Instance attribute - no default value
                             (false, None)
@@ -769,6 +776,7 @@ impl AstBridge {
             fields,
             is_dataclass,
             docstring,
+            type_params, // DEPYLER-0739: Generic type parameters
         }))
     }
 
@@ -1390,7 +1398,7 @@ impl AstBridge {
 ///
 /// let python_code = "def simple(): return 42";
 /// let ast = parse(python_code, Mode::Module, "<test>").unwrap();
-/// let hir = python_to_hir(ast).unwrap();
+/// let (hir, _type_env) = python_to_hir(ast).unwrap();
 ///
 /// assert_eq!(hir.functions.len(), 1);
 /// assert_eq!(hir.functions[0].name, "simple");
@@ -1578,13 +1586,17 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
         };
 
         // DEPYLER-0457: Infer types for unannotated parameters
+        // DEPYLER-0744: Use Option<Unknown> for unannotated params with default=None
+        // This allows the return type inference to unify properly when the param is returned
         let ty = if let Some(HirExpr::Literal(Literal::None)) = &default {
             // Parameter has default=None, wrap type in Optional
             match base_ty {
                 Type::Unknown => {
-                    // For unannotated optional params, infer Option<String> as reasonable default
-                    // This handles common patterns like: def foo(path=None), def bar(name=None)
-                    Type::Optional(Box::new(Type::String))
+                    // DEPYLER-0744: Use Option<Unknown> instead of hardcoding Option<String>
+                    // This enables proper type inference when the param is returned alongside
+                    // a typed value. Example: def f(x: int, fallback=None): return x OR fallback
+                    // The Unknown will be unified with the return type during codegen.
+                    Type::Optional(Box::new(Type::Unknown))
                 }
                 Type::Optional(_) => {
                     // Already Optional<T>, don't double-wrap

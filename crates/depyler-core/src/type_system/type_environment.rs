@@ -17,8 +17,8 @@
 //!
 //! let mut env = TypeEnvironment::new();
 //!
-//! // Python: x = 5 (x_0: i64)
-//! let x_0 = env.bind_var("x", Type::Int64);
+//! // Python: x = 5 (x_0: int)
+//! let x_0 = env.bind_var("x", Type::Int);
 //!
 //! // Python: x = "hello" (x_1: String) - type change requires new version
 //! let x_1 = env.bind_var("x", Type::String);
@@ -81,7 +81,7 @@ impl TypeEnvironment {
     ///
     /// let mut env = TypeEnvironment::new();
     ///
-    /// let x_0 = env.bind_var("x", Type::Int64);
+    /// let x_0 = env.bind_var("x", Type::Int);
     /// let x_1 = env.bind_var("x", Type::String);  // New version for type change
     ///
     /// assert_ne!(x_0, x_1);
