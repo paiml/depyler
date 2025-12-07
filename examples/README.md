@@ -2,41 +2,87 @@
 
 Comprehensive examples demonstrating real-world Python to Rust conversion patterns.
 
-## Example Suite
+## Quick Start - Run All Examples
+
+```bash
+# List all available examples
+cargo run --example 2>&1 | head -50
+
+# Run a specific example (from project root)
+cargo run --example fibonacci
+cargo run --example quicksort
+cargo run --example basic_lambda
+```
+
+## Example Categories
+
+### Algorithm Examples
+```bash
+cargo run --example fibonacci       # Fibonacci sequence
+cargo run --example quicksort       # QuickSort implementation
+```
+
+### Data Structure Examples
+```bash
+cargo run --example basic_class_test     # Basic OOP patterns
+cargo run --example dict_assign          # Dictionary operations
+cargo run --example set_operations       # Set operations
+```
+
+### Functional Programming
+```bash
+cargo run --example basic_lambda         # Lambda expressions
+cargo run --example lambda_demo          # Advanced lambdas
+cargo run --example lambda_test          # Lambda with collections
+```
+
+### Standard Library Usage
+```bash
+cargo run --example stdlib_comprehensive_test   # Comprehensive stdlib
+cargo run --example stdlib_string_methods_test  # String methods
+cargo run --example test_math_module            # Math operations
+cargo run --example test_datetime_module        # Date/time handling
+cargo run --example test_json_parsing           # JSON processing
+```
+
+### CLI Tools
+```bash
+# WordCount CLI with argparse
+cargo run --example wordcount -- examples/argparse_cli/testdata/sample.txt
+```
+
+## Example Suite Status
 
 | Example | Description | Status | Benchmark Results |
 |---------|-------------|--------|-------------------|
 | [argparse_cli](argparse_cli/) | CLI tool with argument parsing | 🟡 In Progress | Run `make benchmark` |
-| generator_pipeline | Text processing with generators | 🔴 Planned | Not yet started |
-| multifile_project | Multi-module project with CLI | 🔴 Planned | Not yet started |
+| algorithms/ | Sorting, searching algorithms | 🟢 Complete | See examples |
+| data_processing/ | List/dict operations | 🟢 Complete | See examples |
 
-## Quick Start
+## Transpilation Workflow
 
 ```bash
-# Run Python version
+# 1. Run Python version
 python3 argparse_cli/python/wordcount.py argparse_cli/testdata/sample.txt
 
-# Transpile to Rust
+# 2. Transpile to Rust
 depyler transpile argparse_cli/python/wordcount.py
 
-# Build and run optimized binary
+# 3. Build optimized binary
 cargo build --release --example wordcount
+
+# 4. Run the binary
 ./target/release/examples/wordcount argparse_cli/testdata/sample.txt
 ```
 
-## Running Examples
-
-Each example can be run as a cargo example:
+## Building All Examples
 
 ```bash
-# Example 1: WordCount CLI
-cargo run --example wordcount -- argparse_cli/testdata/sample.txt
+# Build all examples in release mode
+cargo build --release --examples
 
-# Example 2: Text Processor (coming soon)
-cargo run --example text_processor -- generator_pipeline/testdata/large.txt
-
-# Example 3: Calculator (coming soon)
-cargo run --example calculator -- "2 + 3 * 4"
+# List built binaries
+ls -la target/release/examples/
 ```
 
 ## EXTREME TDD Implementation
