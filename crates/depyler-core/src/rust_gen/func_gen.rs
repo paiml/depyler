@@ -708,8 +708,10 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
             is_param_used_in_expr(param_name, left) || is_param_used_in_expr(param_name, right)
         }
         HirExpr::Unary { operand, .. } => is_param_used_in_expr(param_name, operand),
-        HirExpr::Call { args, kwargs, .. } => {
-            args.iter().any(|a| is_param_used_in_expr(param_name, a))
+        // DEPYLER-0761: Check if param is used as the function being called (Callable params)
+        HirExpr::Call { func, args, kwargs } => {
+            func == param_name
+                || args.iter().any(|a| is_param_used_in_expr(param_name, a))
                 || kwargs.iter().any(|(_, v)| is_param_used_in_expr(param_name, v))
         }
         HirExpr::MethodCall { object, args, .. } => {
