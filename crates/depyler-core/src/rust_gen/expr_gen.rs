@@ -3628,7 +3628,46 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         if is_optional_param {
                             // Don't wrap if arg is already None
                             let is_none = matches!(hir_arg, HirExpr::Literal(Literal::None));
-                            if !is_none {
+
+                            // DEPYLER-0760: Don't double-wrap if arg is already Option<T>
+                            // Pattern: args.cwd (already Option<String>) passed to cwd=None param
+                            // Should NOT become Some(args.cwd) which is Option<Option<String>>
+                            let is_already_optional = if let HirExpr::Var(var_name) = hir_arg {
+                                self.ctx
+                                    .var_types
+                                    .get(var_name)
+                                    .map(|ty| matches!(ty, Type::Optional(_)))
+                                    .unwrap_or(false)
+                            } else if let HirExpr::Attribute { value: _, attr } = hir_arg {
+                                // Handle attribute access like args.cwd
+                                // Check if this is an argparse optional field using tracker
+                                let check_optional = |arg: &crate::rust_gen::argparse_transform::ArgParserArgument| {
+                                    let field_name = arg.rust_field_name();
+                                    if field_name != *attr {
+                                        return false;
+                                    }
+                                    // Exclude store_true/store_false actions
+                                    if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                                        return false;
+                                    }
+                                    // Optional if: not required, no default, not positional, not nargs='+/*'
+                                    !arg.is_positional
+                                        && !arg.required.unwrap_or(false)
+                                        && arg.default.is_none()
+                                        && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+                                };
+
+                                let is_optional_in_parser = self.ctx.argparser_tracker.parsers.values()
+                                    .any(|parser_info| parser_info.arguments.iter().any(&check_optional));
+                                let is_optional_in_subcommand = self.ctx.argparser_tracker.subcommands.values()
+                                    .any(|sub_info| sub_info.arguments.iter().any(&check_optional));
+
+                                is_optional_in_parser || is_optional_in_subcommand
+                            } else {
+                                false
+                            };
+
+                            if !is_none && !is_already_optional {
                                 return parse_quote! { Some(#arg_expr) };
                             }
                         }
