@@ -3113,6 +3113,78 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Await { value } => self.convert_await(value),
             // DEPYLER-0513: F-string support for class methods
             HirExpr::FString { parts } => self.convert_fstring(parts),
+            // DEPYLER-0764: IfExpr (ternary operator) support for class methods
+            // Python: a if cond else b → Rust: if cond { a } else { b }
+            HirExpr::IfExpr { test, body, orelse } => {
+                let test_expr = self.convert(test)?;
+                let body_expr = self.convert(body)?;
+                let orelse_expr = self.convert(orelse)?;
+                Ok(parse_quote! { if #test_expr { #body_expr } else { #orelse_expr } })
+            }
+            // DEPYLER-0764: GeneratorExp support for class methods
+            // Python: (x for x in items) → Rust: items.iter().map(|x| x)
+            HirExpr::GeneratorExp { element, generators } => {
+                // Only support single generator for direct rules path
+                if generators.len() != 1 {
+                    bail!("Multiple generators not supported in direct rules path");
+                }
+                let gen = &generators[0];
+                let iter_expr = self.convert(&gen.iter)?;
+                let element_expr = self.convert(element)?;
+                let target_ident = make_ident(&gen.target);
+
+                // Handle conditions
+                if gen.conditions.is_empty() {
+                    Ok(parse_quote! { #iter_expr.iter().map(|#target_ident| #element_expr) })
+                } else if gen.conditions.len() == 1 {
+                    let cond_expr = self.convert(&gen.conditions[0])?;
+                    Ok(parse_quote! {
+                        #iter_expr.iter()
+                            .filter(|#target_ident| #cond_expr)
+                            .map(|#target_ident| #element_expr)
+                    })
+                } else {
+                    bail!("Multiple conditions in generator not supported in direct rules path");
+                }
+            }
+            // DEPYLER-0764: SortByKey support for sorted() with key parameter
+            HirExpr::SortByKey { iterable, key_params, key_body, reverse_expr } => {
+                let iter_expr = self.convert(iterable)?;
+                let key_body_expr = self.convert(key_body)?;
+
+                // Build the key lambda parameter(s)
+                let key_param = if key_params.len() == 1 {
+                    let p = make_ident(&key_params[0]);
+                    quote! { #p }
+                } else {
+                    let params: Vec<_> = key_params.iter().map(|p| make_ident(p)).collect();
+                    quote! { (#(#params),*) }
+                };
+
+                // Check if reversed
+                let is_reversed = match reverse_expr {
+                    Some(boxed) => matches!(boxed.as_ref(), HirExpr::Literal(Literal::Bool(true))),
+                    _ => false,
+                };
+
+                if is_reversed {
+                    Ok(parse_quote! {
+                        {
+                            let mut v: Vec<_> = #iter_expr.into_iter().collect();
+                            v.sort_by_key(|#key_param| std::cmp::Reverse(#key_body_expr));
+                            v
+                        }
+                    })
+                } else {
+                    Ok(parse_quote! {
+                        {
+                            let mut v: Vec<_> = #iter_expr.into_iter().collect();
+                            v.sort_by_key(|#key_param| #key_body_expr);
+                            v
+                        }
+                    })
+                }
+            }
             _ => bail!("Expression type not yet supported: {:?}", expr),
         }
     }
