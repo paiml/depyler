@@ -3288,7 +3288,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0771: Special handling for math.isqrt import
             // isqrt(n) → (n as f64).sqrt().floor() as i32
             // This is needed because std::f64::isqrt doesn't exist in Rust
-            if rust_path == "std::f64::isqrt" && func == "isqrt" && args.len() == 1 {
+            // Check both exact match and ends_with for robustness
+            if (rust_path == "std::f64::isqrt" || rust_path.ends_with("::isqrt"))
+                && func == "isqrt"
+                && args.len() == 1
+            {
                 let arg = &args[0];
                 return Ok(parse_quote! { ((#arg) as f64).sqrt().floor() as i32 });
             }
@@ -3370,6 +3374,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { #class_ident::new(#(#args),*) })
             }
         } else {
+            // DEPYLER-0771: Fallback handling for isqrt if not found in imported_items
+            // This handles cases where the import wasn't properly tracked
+            if func == "isqrt" && args.len() == 1 {
+                let arg = &args[0];
+                return Ok(parse_quote! { ((#arg) as f64).sqrt().floor() as i32 });
+            }
+
             // Regular function call
             // DEPYLER-0588: Use safe_ident to handle keywords and invalid characters
             let func_ident = crate::rust_gen::keywords::safe_ident(func);
