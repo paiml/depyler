@@ -92,6 +92,7 @@ pub mod test_generation;
 pub mod type_hints;
 pub mod type_mapper;
 pub mod type_system;
+pub mod typeshed_ingest;
 pub mod union_enum_gen;
 
 use anyhow::Result;
