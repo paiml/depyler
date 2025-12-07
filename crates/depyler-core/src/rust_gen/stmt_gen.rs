@@ -6503,7 +6503,11 @@ pub(crate) fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro
     use quote::quote;
 
     match ty {
-        Type::Int => quote! { i64 },
+        // DEPYLER-0759: Use i32 to match all other type mappers in the codebase
+        // (codegen.rs, expr_gen.rs, argparse_transform.rs, etc.)
+        // Using i64 here caused E0308 mismatched types when nested functions
+        // captured i32 variables from outer scope
+        Type::Int => quote! { i32 },
         Type::Float => quote! { f64 },
         Type::String => quote! { String },
         Type::Bool => quote! { bool },
