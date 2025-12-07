@@ -45,6 +45,7 @@ pub mod curriculum;
 pub mod distillation;
 pub mod error_patterns;
 pub mod gnn_encoder;
+pub mod ast_embeddings;  // Issue #210: Code2Vec-style AST embeddings
 pub mod tarantula;
 pub mod tarantula_bridge;
 pub mod tarantula_corpus;
@@ -147,6 +148,12 @@ pub use gnn_encoder::{
     DepylerGnnEncoder, GnnEncoderConfig, GnnEncoderStats,
     SimilarPattern, StructuralPattern, infer_decision_from_match,
     map_error_category,
+};
+
+// AST Embeddings (Issue #210 - Code2Vec-style embeddings)
+pub use ast_embeddings::{
+    AstEmbedder, AstEmbedding, AstEmbeddingConfig, CombinedEmbeddingExtractor,
+    CombinedFeatures, PathContext,
 };
 
 // OIP CITL Export (Strategy #6 - DEPYLER-0636)
