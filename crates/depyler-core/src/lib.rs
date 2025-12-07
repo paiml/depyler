@@ -79,6 +79,7 @@ pub mod lifetime_analysis;
 pub mod lsp;
 pub mod migration_suggestions;
 pub mod module_mapper;
+pub mod module_mapper_phf;
 pub mod optimization;
 pub mod optimizer;
 pub mod performance_warnings;
