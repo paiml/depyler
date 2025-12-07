@@ -2187,9 +2187,10 @@ fn infer_expr_type_with_env(
                     if matches!(object_type, Type::Custom(ref s) if s == "serde_json::Value") {
                         return Type::Custom("serde_json::Value".to_string());
                     }
-                    // dict.get() returns element type
+                    // DEPYLER-0767: dict.get(key) returns Optional[T] in Python, not T
+                    // This enables proper truthiness conversion (if value: → if value.is_some())
                     match object_type {
-                        Type::Dict(_, val) => *val,
+                        Type::Dict(_, val) => Type::Optional(val),
                         Type::List(elem) => *elem,
                         _ => Type::Unknown,
                     }
