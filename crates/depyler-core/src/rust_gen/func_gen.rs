@@ -3882,6 +3882,16 @@ impl RustCodeGen for HirFunction {
                     .unwrap_or(false)
             })
             .collect();
+
+        // DEPYLER-0758: Populate ref_params with borrowed parameter names for current function
+        // Used in convert_binary to dereference reference params in arithmetic operations
+        ctx.ref_params.clear();
+        for (p, &is_borrowed) in self.params.iter().zip(param_borrows.iter()) {
+            if is_borrowed {
+                ctx.ref_params.insert(p.name.clone());
+            }
+        }
+
         ctx.function_param_borrows
             .insert(self.name.clone(), param_borrows);
 

@@ -78,6 +78,7 @@ pub struct CodeGenContext<'a> {
     pub needs_bufread: bool, // DEPYLER-0522: Track std::io::BufRead trait for .lines() method
     pub needs_once_cell: bool, // DEPYLER-REARCH-001: Track once_cell for lazy static initialization
     pub needs_trueno: bool,    // Phase 3: NumPy→Trueno codegen (SIMD-accelerated tensor lib)
+    pub needs_tokio: bool,     // DEPYLER-0747: asyncio→tokio async runtime mapping
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,
@@ -97,6 +98,10 @@ pub struct CodeGenContext<'a> {
     pub var_types: HashMap<String, Type>,
     pub class_names: HashSet<String>,
     pub mutating_methods: HashMap<String, HashSet<String>>,
+    /// DEPYLER-0737: Track property method names across all classes
+    /// In Python, @property allows method access without (), but Rust requires ()
+    /// Used in convert_attribute to emit method call syntax for property access
+    pub property_methods: HashSet<String>,
     /// DEPYLER-0269: Track function return types for Display trait selection
     /// Maps function name -> return type, populated during function generation
     /// Used to track types of variables assigned from function calls
@@ -122,6 +127,9 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0520: Track variables assigned from iterator-producing expressions
     /// Used to avoid adding .iter().cloned() to variables that are already iterators
     pub iterator_vars: HashSet<String>,
+    /// DEPYLER-0758: Track parameters passed by reference in current function
+    /// Used to dereference reference params in arithmetic operations (e.g., date subtraction)
+    pub ref_params: HashSet<String>,
     /// DEPYLER-0271: Tracks if current statement is the final statement in its block
     /// Used to generate idiomatic expression-based returns (no `return` keyword)
     pub is_final_statement: bool,
@@ -256,6 +264,16 @@ pub struct CodeGenContext<'a> {
     /// When assigning to a variable with type annotation (e.g., `d: Dict[str, Any] = {...}`),
     /// this stores the annotation so dict codegen can wrap values in serde_json::json!()
     pub current_assign_type: Option<Type>,
+
+    /// DEPYLER-0741: Force dict values to be wrapped in Some() when in list context
+    /// When generating a list of dicts where ANY dict has None values, all dicts
+    /// must use Option<V> for consistency. This flag is set by convert_list.
+    pub force_dict_value_option_wrap: bool,
+
+    /// DEPYLER-0737: Track which function parameters are Optional (from =None default)
+    /// Maps function name → Vec<bool> where true means param at that index is Option<T>
+    /// Used by call sites to wrap non-None values in Some()
+    pub function_param_optionals: HashMap<String, Vec<bool>>,
 }
 
 impl<'a> CodeGenContext<'a> {

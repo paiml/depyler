@@ -117,6 +117,11 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
         deps.push(Dependency::new("trueno", "0.7"));
     }
 
+    // DEPYLER-0747: asyncio→tokio async runtime mapping
+    if ctx.needs_tokio {
+        deps.push(Dependency::new("tokio", "1").with_features(vec!["full".to_string()]));
+    }
+
     if ctx.needs_hex {
         deps.push(Dependency::new("hex", "0.4"));
     }
@@ -423,6 +428,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![std::collections::HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -442,10 +448,12 @@ mod tests {
             var_types: std::collections::HashMap::new(),
             class_names: std::collections::HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
+            property_methods: std::collections::HashSet::new(), // DEPYLER-0737: Track @property methods
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: std::collections::HashSet::new(),
             iterator_vars: std::collections::HashSet::new(), // DEPYLER-0520: Track iterator vars
+            ref_params: std::collections::HashSet::new(),      // DEPYLER-0758: Track ref params
             is_final_statement: false,
             result_bool_functions: std::collections::HashSet::new(),
             result_returning_functions: std::collections::HashSet::new(),
@@ -473,6 +481,7 @@ mod tests {
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
             function_param_defaults: std::collections::HashMap::new(),
+            function_param_optionals: std::collections::HashMap::new(),
             class_field_types: std::collections::HashMap::new(),
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
@@ -481,6 +490,7 @@ mod tests {
             vararg_functions: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
             current_assign_type: None, // DEPYLER-0727
+            force_dict_value_option_wrap: false, // DEPYLER-0741
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -549,6 +559,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -568,10 +579,12 @@ mod tests {
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
+            property_methods: HashSet::new(), // DEPYLER-0737: Track @property methods
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
+            ref_params: HashSet::new(),      // DEPYLER-0758: Track ref params
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
@@ -599,6 +612,7 @@ mod tests {
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
             function_param_defaults: std::collections::HashMap::new(),
+            function_param_optionals: std::collections::HashMap::new(),
             class_field_types: std::collections::HashMap::new(),
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
@@ -607,6 +621,7 @@ mod tests {
             vararg_functions: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
             current_assign_type: None, // DEPYLER-0727
+            force_dict_value_option_wrap: false, // DEPYLER-0741
         };
 
         let deps = extract_dependencies(&ctx);
@@ -672,6 +687,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -691,10 +707,12 @@ mod tests {
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
+            property_methods: HashSet::new(), // DEPYLER-0737: Track @property methods
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
+            ref_params: HashSet::new(),      // DEPYLER-0758: Track ref params
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
@@ -722,6 +740,7 @@ mod tests {
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
             function_param_defaults: std::collections::HashMap::new(),
+            function_param_optionals: std::collections::HashMap::new(),
             class_field_types: std::collections::HashMap::new(),
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
@@ -730,6 +749,7 @@ mod tests {
             vararg_functions: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
             current_assign_type: None, // DEPYLER-0727
+            force_dict_value_option_wrap: false, // DEPYLER-0741
         };
 
         let deps = extract_dependencies(&ctx);
@@ -799,6 +819,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -818,10 +839,12 @@ mod tests {
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
+            property_methods: HashSet::new(), // DEPYLER-0737: Track @property methods
             function_return_types: std::collections::HashMap::new(),
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
+            ref_params: HashSet::new(),      // DEPYLER-0758: Track ref params
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
@@ -849,6 +872,7 @@ mod tests {
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
             function_param_defaults: std::collections::HashMap::new(),
+            function_param_optionals: std::collections::HashMap::new(),
             class_field_types: std::collections::HashMap::new(),
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
@@ -857,6 +881,7 @@ mod tests {
             vararg_functions: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
             current_assign_type: None, // DEPYLER-0727
+            force_dict_value_option_wrap: false, // DEPYLER-0741
         };
 
         let deps = extract_dependencies(&ctx);
