@@ -1107,14 +1107,18 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
                     .as_ref()
                     .is_some_and(|e| is_param_used_in_expr(param_name, e))
         }
+        // DEPYLER-0766: Check element, iterator, AND conditions for generator expressions
         HirExpr::GeneratorExp {
             element,
             generators,
         } => {
             is_param_used_in_expr(param_name, element)
-                || generators
-                    .iter()
-                    .any(|g| is_param_used_in_expr(param_name, &g.iter))
+                || generators.iter().any(|g| {
+                    is_param_used_in_expr(param_name, &g.iter)
+                        || g.conditions
+                            .iter()
+                            .any(|cond| is_param_used_in_expr(param_name, cond))
+                })
         }
         HirExpr::NamedExpr { value, .. } => is_param_used_in_expr(param_name, value),
         HirExpr::List(items) | HirExpr::Tuple(items) => {
@@ -1132,13 +1136,18 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
                 || is_param_used_in_expr(param_name, orelse)
         }
         HirExpr::Lambda { body, .. } => is_param_used_in_expr(param_name, body),
+        // DEPYLER-0766: Check element, iterator, AND conditions for comprehensions
         HirExpr::ListComp { element, generators, .. }
         | HirExpr::SetComp { element, generators, .. } => {
             is_param_used_in_expr(param_name, element)
-                || generators
-                    .iter()
-                    .any(|g| is_param_used_in_expr(param_name, &g.iter))
+                || generators.iter().any(|g| {
+                    is_param_used_in_expr(param_name, &g.iter)
+                        || g.conditions
+                            .iter()
+                            .any(|cond| is_param_used_in_expr(param_name, cond))
+                })
         }
+        // DEPYLER-0766: Check key, value, iterator, AND conditions for dict comprehensions
         HirExpr::DictComp {
             key,
             value,
@@ -1146,9 +1155,12 @@ fn is_param_used_in_expr(param_name: &str, expr: &HirExpr) -> bool {
         } => {
             is_param_used_in_expr(param_name, key)
                 || is_param_used_in_expr(param_name, value)
-                || generators
-                    .iter()
-                    .any(|g| is_param_used_in_expr(param_name, &g.iter))
+                || generators.iter().any(|g| {
+                    is_param_used_in_expr(param_name, &g.iter)
+                        || g.conditions
+                            .iter()
+                            .any(|cond| is_param_used_in_expr(param_name, cond))
+                })
         }
         HirExpr::Await { value } => is_param_used_in_expr(param_name, value),
         _ => false,

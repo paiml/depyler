@@ -301,7 +301,7 @@ fn resolve_union_type(types: &[Type]) -> proc_macro2::TokenStream {
     };
 
     // Filter out duplicates and check for None
-    let has_none = types.iter().any(|t| is_none_type(t));
+    let has_none = types.iter().any(is_none_type);
     let non_none_types: Vec<&Type> = types.iter().filter(|t| !is_none_type(t)).collect();
 
     // Case 1: T | None → Option<T>
