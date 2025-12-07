@@ -156,7 +156,20 @@ impl TypeMapper {
                 _ => RustType::Vec(Box::new(self.map_type(inner))),
             },
             PythonType::Dict(k, v) => {
-                RustType::HashMap(Box::new(self.map_type(k)), Box::new(self.map_type(v)))
+                // DEPYLER-0776: Use concrete types for Dict with Unknown key/value
+                // Bare `dict` annotation → Dict(Unknown, Unknown) → HashMap<String, serde_json::Value>
+                // This matches common Python usage patterns and avoids E0412 for undeclared T
+                let key_type = if matches!(**k, PythonType::Unknown) {
+                    RustType::String
+                } else {
+                    self.map_type(k)
+                };
+                let val_type = if matches!(**v, PythonType::Unknown) {
+                    RustType::Custom("serde_json::Value".to_string())
+                } else {
+                    self.map_type(v)
+                };
+                RustType::HashMap(Box::new(key_type), Box::new(val_type))
             }
             PythonType::Tuple(types) => {
                 let rust_types = types.iter().map(|t| self.map_type(t)).collect();
