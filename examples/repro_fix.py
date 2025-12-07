@@ -1,30 +1,44 @@
-# Hunt Mode repro for E0425: cannot find value `x` in this scope
-# DEPYLER-0761: Parameter used in method call kwargs was not detected as used
-# Pattern: def f(x=None): obj.method(kwarg=x) → fn f(_x: Option<T>) { obj.method(kwarg: x) }
+# Hunt Mode repro for DEPYLER-0762: Panic on --format as identifier
+# The transpiler tries to use raw argparse flags (--format) as Rust identifiers
+# which panics because "--format" is not a valid Rust identifier
 
-import subprocess
+import argparse
 
 
-def run_command(cmd: list[str], capture: bool = False, cwd: str = None) -> tuple[int, str, str]:
-    """Execute a system command.
-
-    DEPYLER-0761: When cwd is used in subprocess.run kwargs:
-    - is_param_used_in_body should detect cwd usage
-    - But HirExpr::MethodCall handler ignored kwargs (used ..)
-    - Fixed: Now checks kwargs.iter().any() for param usage
-    """
-    if capture:
-        result = subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
-        return (result.returncode, result.stdout, result.stderr)
+def cmd_show(args):
+    """Show data in specified format. Depyler: proven to terminate"""
+    if args.format == "json":
+        print('{"result": "ok"}')
+    elif args.format == "text":
+        print("result: ok")
     else:
-        result = subprocess.run(cmd, cwd=cwd)
-        return (result.returncode, "", "")
+        print(args.format)
 
 
-def main() -> None:
-    code, out, err = run_command(["echo", "hello"], capture=True, cwd="/tmp")
-    print(f"Exit code: {code}")
-    print(f"Output: {out}")
+def cmd_info(args):
+    """Show info. Depyler: proven to terminate"""
+    print(f"Name: {args.name}")
+
+
+def main():
+    """Main entry point. Depyler: proven to terminate"""
+    parser = argparse.ArgumentParser(description="Format tool")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # show subcommand with --format option
+    show_parser = subparsers.add_parser("show", help="Show data")
+    show_parser.add_argument("--format", choices=["json", "text"], default="text")
+
+    # info subcommand
+    info_parser = subparsers.add_parser("info", help="Show info")
+    info_parser.add_argument("name", help="Name to show")
+
+    args = parser.parse_args()
+
+    if args.command == "show":
+        cmd_show(args)
+    elif args.command == "info":
+        cmd_info(args)
 
 
 if __name__ == "__main__":
