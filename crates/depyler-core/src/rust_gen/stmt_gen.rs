@@ -6172,8 +6172,18 @@ fn try_generate_subcommand_match(
                         let field_type = maybe_arg
                             .and_then(|arg| {
                                 // If arg_type is set, use it
-                                if arg.arg_type.is_some() {
-                                    return arg.arg_type.clone();
+                                if let Some(ref base_type) = arg.arg_type {
+                                    // DEPYLER-0768: nargs="+" or nargs="*" wraps type in List
+                                    // Python: add_argument("values", type=int, nargs="+")
+                                    // Rust: Vec<i32> (not i32)
+                                    let is_multi = matches!(
+                                        arg.nargs.as_deref(),
+                                        Some("+") | Some("*")
+                                    );
+                                    if is_multi {
+                                        return Some(Type::List(Box::new(base_type.clone())));
+                                    }
+                                    return Some(base_type.clone());
                                 }
                                 // Check action for bool flags: store_true/store_false → Bool
                                 if matches!(
