@@ -304,13 +304,17 @@ impl TypeVarCollector {
             Type::TypeVar(name) => {
                 self.type_vars.insert(name.clone());
             }
-            // DEPYLER-0750: Don't treat Unknown as type parameter T
+            // DEPYLER-0750: Don't treat Unknown as type parameter T for nested types
             // Unknown in collections (List[Unknown], Set[Unknown]) should use concrete default types
             // via type_mapper (serde_json::Value for List, String for Set)
-            // Only explicit TypeVar("T") should create type parameters
+            // DEPYLER-0775: BUT for top-level Unknown (function parameters), we MUST add T
+            // because TypeMapper generates TypeParam("T") for Unknown parameter types
             Type::Unknown => {
-                // DEPYLER-0750: Removed T insertion - bare collections use concrete defaults
-                // At top level, Unknown means "no type annotation" -> maps to () in Rust
+                // DEPYLER-0775: Add T only for top-level Unknown (function params)
+                // Nested Unknown uses concrete defaults via type_mapper
+                if !_nested {
+                    self.type_vars.insert("T".to_string());
+                }
             }
             // Collection types create nested context
             Type::List(inner) | Type::Optional(inner) => {
