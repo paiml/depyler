@@ -61,35 +61,48 @@ pub fn compile_python_to_binary(
     pb.inc(1);
 
     // Step 2: Create Cargo project (DEPYLER-0384: with automatic dependencies)
+    // DEPYLER-0763: Returns (project_dir, is_binary) - libraries have no main()
     pb.set_message("Creating Cargo project...");
-    let project_dir = create_cargo_project(input, &rust_code, &dependencies)?;
+    let (project_dir, is_binary) = create_cargo_project(input, &rust_code, &dependencies)?;
     pb.inc(1);
 
-    // Step 3: Build binary
-    pb.set_message("Building binary...");
+    // Step 3: Build project (binary or library)
+    pb.set_message(if is_binary { "Building binary..." } else { "Building library..." });
     let cargo_profile = profile.unwrap_or("release");
     build_cargo_project(&project_dir, cargo_profile)?;
     pb.inc(1);
 
-    // Step 4: Copy binary to output location
+    // Step 4: Copy binary to output location (only for binaries)
+    // DEPYLER-0763: Libraries don't produce executables - skip finalize for them
     pb.set_message("Finalizing...");
-    let binary_path = finalize_binary(&project_dir, input, output, cargo_profile)?;
+    let result_path = if is_binary {
+        finalize_binary(&project_dir, input, output, cargo_profile)?
+    } else {
+        // Library: just return the project directory since there's no binary
+        // The .rlib is in target/release/lib<name>.rlib but we don't need to copy it
+        project_dir.clone()
+    };
     pb.inc(1);
 
-    pb.finish_with_message("✅ Compilation complete!");
-    Ok(binary_path)
+    pb.finish_with_message(if is_binary {
+        "✅ Compilation complete!"
+    } else {
+        "✅ Library compilation complete!"
+    });
+    Ok(result_path)
 }
 
 /// Create a Cargo project with the transpiled Rust code
 ///
 /// DEPYLER-0384: Now accepts dependencies for automatic Cargo.toml generation
+/// DEPYLER-0763: Returns (project_dir, is_binary) - is_binary is true if code has main()
 ///
-/// Complexity: 3 (within ≤10 target)
+/// Complexity: 4 (within ≤10 target)
 fn create_cargo_project(
     input: &Path,
     rust_code: &str,
     dependencies: &[depyler_core::cargo_toml_gen::Dependency],
-) -> Result<PathBuf> {
+) -> Result<(PathBuf, bool)> {
     let project_name = input
         .file_stem()
         .and_then(|s| s.to_str())
@@ -99,20 +112,44 @@ fn create_cargo_project(
     let project_dir = temp_dir.join(format!("depyler_{}", project_name));
 
     // Create project structure
-    fs::create_dir_all(project_dir.join("src")).context("Failed to create src directory")?;
+    // DEPYLER-0763: Clean existing src directory to avoid stale files
+    // (e.g., leftover main.rs when switching to lib.rs)
+    let src_dir = project_dir.join("src");
+    if src_dir.exists() {
+        fs::remove_dir_all(&src_dir).ok(); // Ignore errors - might not exist
+    }
+    fs::create_dir_all(&src_dir).context("Failed to create src directory")?;
 
-    // DEPYLER-0384, DEPYLER-0392: Generate Cargo.toml with automatic dependencies and [[bin]] section
-    let cargo_toml = depyler_core::cargo_toml_gen::generate_cargo_toml(
-        project_name,
-        "src/main.rs", // DEPYLER-0392: Path to binary source
-        dependencies,
-    );
+    // DEPYLER-0763: Check if code has fn main() to determine crate type
+    // Libraries (no main) should be compiled as --crate-type lib to avoid E0601
+    // CLIs with argparse/main functions should be compiled as binaries
+    let has_main = rust_code.contains("fn main()") || rust_code.contains("pub fn main()");
+    let (rs_filename, cargo_toml) = if has_main {
+        // Binary: uses [[bin]] section
+        let toml = depyler_core::cargo_toml_gen::generate_cargo_toml(
+            project_name,
+            "src/main.rs",
+            dependencies,
+        );
+        ("src/main.rs", toml)
+    } else {
+        // Library: uses [lib] section - avoids E0601 "main function not found"
+        // Must use generate_cargo_toml_lib directly (not _auto which only does lib for test_*)
+        let toml = depyler_core::cargo_toml_gen::generate_cargo_toml_lib(
+            project_name,
+            "src/lib.rs",
+            dependencies,
+        );
+        ("src/lib.rs", toml)
+    };
     fs::write(project_dir.join("Cargo.toml"), cargo_toml).context("Failed to write Cargo.toml")?;
 
-    // Write main.rs
-    fs::write(project_dir.join("src/main.rs"), rust_code).context("Failed to write main.rs")?;
+    // Write source file (main.rs or lib.rs based on crate type)
+    fs::write(project_dir.join(rs_filename), rust_code)
+        .with_context(|| format!("Failed to write {}", rs_filename))?;
 
-    Ok(project_dir)
+    // DEPYLER-0763: Return whether this is a binary (has main) so caller knows what to finalize
+    Ok((project_dir, has_main))
 }
 
 /// Build the Cargo project
@@ -203,7 +240,7 @@ mod tests {
     use tempfile::TempDir;
 
     #[test]
-    fn test_create_cargo_project() {
+    fn test_create_cargo_project_binary() {
         let rust_code = r#"fn main() { println!("test"); }"#;
         let temp = TempDir::new().unwrap();
         let input = temp.path().join("test.py");
@@ -211,8 +248,10 @@ mod tests {
 
         // DEPYLER-0384: Empty dependencies list for basic test
         let dependencies = vec![];
-        let project_dir = create_cargo_project(&input, rust_code, &dependencies).unwrap();
+        // DEPYLER-0763: Now returns (project_dir, is_binary)
+        let (project_dir, is_binary) = create_cargo_project(&input, rust_code, &dependencies).unwrap();
 
+        assert!(is_binary, "Code with fn main() should be detected as binary");
         assert!(project_dir.join("Cargo.toml").exists());
         assert!(project_dir.join("src/main.rs").exists());
 
@@ -223,6 +262,28 @@ mod tests {
         let cargo_content = fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
         assert!(cargo_content.contains("[package]"));
         assert!(cargo_content.contains("name = \"test\""));
+    }
+
+    #[test]
+    fn test_create_cargo_project_library() {
+        // DEPYLER-0763: Test library detection (no main function)
+        let rust_code = r#"pub fn greet(name: &str) -> String { format!("Hello, {}!", name) }"#;
+        let temp = TempDir::new().unwrap();
+        let input = temp.path().join("mylib.py");
+        fs::write(&input, "").unwrap();
+
+        let dependencies = vec![];
+        let (project_dir, is_binary) = create_cargo_project(&input, rust_code, &dependencies).unwrap();
+
+        assert!(!is_binary, "Code without fn main() should be detected as library");
+        assert!(project_dir.join("Cargo.toml").exists());
+        assert!(project_dir.join("src/lib.rs").exists());
+        assert!(!project_dir.join("src/main.rs").exists(), "Library should not have main.rs");
+
+        // Verify Cargo.toml has [lib] section instead of [[bin]]
+        let cargo_content = fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
+        assert!(cargo_content.contains("[lib]"), "Library should have [lib] section");
+        assert!(!cargo_content.contains("[[bin]]"), "Library should not have [[bin]] section");
     }
 
     #[test]
