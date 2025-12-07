@@ -67,6 +67,7 @@ macro_rules! param_with_default {
 ///     type_aliases: vec![],
 ///     protocols: vec![],
 ///     classes: vec![],
+///     constants: vec![],
 /// };
 ///
 /// assert_eq!(module.functions.len(), 1);
@@ -182,6 +183,8 @@ pub struct HirClass {
     pub fields: Vec<HirField>,
     pub is_dataclass: bool,
     pub docstring: Option<String>,
+    /// DEPYLER-0739: Generic type parameters from Generic[T, U, ...] base class
+    pub type_params: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

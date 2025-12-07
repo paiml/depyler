@@ -14,12 +14,12 @@
 //! use depyler_core::type_system::constraint::{TypeConstraint, ConstraintKind};
 //! use depyler_core::hir::Type;
 //!
-//! // i32 argument passed to i64 parameter (subtyping)
+//! // Int argument passed to Optional<Int> parameter (subtyping)
 //! let constraint = TypeConstraint {
-//!     lhs: Type::Int32,
-//!     rhs: Type::Int64,
+//!     lhs: Type::Int,
+//!     rhs: Type::Optional(Box::new(Type::Int)),
 //!     kind: ConstraintKind::Subtype,
-//!     reason: "Function call: fibonacci(n - 1)".to_string(),
+//!     reason: "Function call: process_optional(n)".to_string(),
 //! };
 //! ```
 

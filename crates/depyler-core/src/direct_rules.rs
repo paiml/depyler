@@ -4,6 +4,14 @@ use anyhow::{bail, Result};
 use quote::quote;
 use syn::{self, parse_quote};
 
+// DEPYLER-0737: Thread-local storage for property method names
+// This allows us to track which methods are @property decorated across the module
+// and emit method call syntax (obj.prop()) instead of field access (obj.prop)
+thread_local! {
+    static PROPERTY_METHODS: std::cell::RefCell<std::collections::HashSet<String>> =
+        std::cell::RefCell::new(std::collections::HashSet::new());
+}
+
 /// Check if a name is a Rust keyword that requires raw identifier syntax
 /// DEPYLER-0306: Copied from expr_gen.rs to support method name keyword handling
 fn is_rust_keyword(name: &str) -> bool {
@@ -103,10 +111,15 @@ fn make_ident(name: &str) -> syn::Ident {
     if name.is_empty() {
         return syn::Ident::new("_empty", proc_macro2::Span::call_site());
     }
-    // Special case: "self", "super", "crate", "Self" cannot be raw identifiers
+    // Special case: "self", "super", "crate" cannot be raw identifiers as variable names
     // Convert them to name with underscore suffix
+    // DEPYLER-0741: "Self" is valid as a type name in impl blocks, so return it directly
     match name {
-        "self" | "super" | "crate" | "Self" => {
+        "Self" => {
+            // Self is valid as a type name, return as-is
+            return syn::Ident::new(name, proc_macro2::Span::call_site());
+        }
+        "self" | "super" | "crate" => {
             let suffixed = format!("{}_", name);
             return syn::Ident::new(&suffixed, proc_macro2::Span::call_site());
         }
@@ -233,8 +246,8 @@ fn extract_nested_indices(
 ///         HirFunction {
 ///             name: "add".to_string(),
 ///             params: smallvec![
-///                 HirParam { name: "a".to_string(), ty: Type::Int, default: None },
-///                 HirParam { name: "b".to_string(), ty: Type::Int, default: None }
+///                 HirParam { name: "a".to_string(), ty: Type::Int, default: None, is_vararg: false },
+///                 HirParam { name: "b".to_string(), ty: Type::Int, default: None, is_vararg: false }
 ///             ],
 ///             ret_type: Type::Int,
 ///             body: vec![
@@ -252,6 +265,7 @@ fn extract_nested_indices(
 ///     classes: vec![],
 ///     type_aliases: vec![],
 ///     protocols: vec![],
+///     constants: vec![],
 /// };
 ///
 /// let type_mapper = TypeMapper::new();
@@ -260,6 +274,21 @@ fn extract_nested_indices(
 /// ```
 pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::File> {
     let mut items = Vec::new();
+
+    // DEPYLER-0737: Clear and collect property method names from all classes
+    // This must happen before function conversion so we know which attribute accesses
+    // need to emit method call syntax (obj.prop()) instead of field access (obj.prop)
+    PROPERTY_METHODS.with(|pm| {
+        let mut props = pm.borrow_mut();
+        props.clear();
+        for class in &module.classes {
+            for method in &class.methods {
+                if method.is_property {
+                    props.insert(method.name.clone());
+                }
+            }
+        }
+    });
 
     // Add standard imports
     items.push(parse_quote! {
@@ -421,10 +450,12 @@ fn convert_protocol_to_trait(protocol: &Protocol, type_mapper: &TypeMapper) -> R
 ///     methods: vec![],
 ///     is_dataclass: true,
 ///     docstring: Some("A 2D point".to_string()),
+///     type_params: vec![],
 /// };
 ///
 /// let type_mapper = TypeMapper::new();
-/// let items = convert_class_to_struct(&class, &type_mapper).unwrap();
+/// let vararg_functions = std::collections::HashSet::new();
+/// let items = convert_class_to_struct(&class, &type_mapper, &vararg_functions).unwrap();
 /// assert!(!items.is_empty()); // Should have at least the struct definition
 /// ```
 pub fn convert_class_to_struct(
@@ -467,6 +498,44 @@ pub fn convert_class_to_struct(
         });
     }
 
+    // DEPYLER-0739: Build generics from type_params (e.g., Generic[T, U] -> <T, U>)
+    // Add Clone bound to type params when struct derives Clone
+    let needs_clone_bound = !has_non_clone_field;
+    let generics = if class.type_params.is_empty() {
+        syn::Generics::default()
+    } else {
+        let params: syn::punctuated::Punctuated<syn::GenericParam, syn::Token![,]> = class
+            .type_params
+            .iter()
+            .map(|name| {
+                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                let bounds = if needs_clone_bound {
+                    // Add Clone bound: T: Clone
+                    let clone_bound: syn::TypeParamBound = parse_quote!(Clone);
+                    let mut bounds = syn::punctuated::Punctuated::new();
+                    bounds.push(clone_bound);
+                    bounds
+                } else {
+                    syn::punctuated::Punctuated::new()
+                };
+                syn::GenericParam::Type(syn::TypeParam {
+                    attrs: vec![],
+                    ident,
+                    colon_token: if needs_clone_bound { Some(syn::Token![:](proc_macro2::Span::call_site())) } else { None },
+                    bounds,
+                    eq_token: None,
+                    default: None,
+                })
+            })
+            .collect();
+        syn::Generics {
+            lt_token: Some(syn::Token![<](proc_macro2::Span::call_site())),
+            params,
+            gt_token: Some(syn::Token![>](proc_macro2::Span::call_site())),
+            where_clause: None,
+        }
+    };
+
     // Create the struct - skip Clone derive for non-Clone field types
     let struct_item = syn::Item::Struct(syn::ItemStruct {
         attrs: if has_non_clone_field {
@@ -480,7 +549,7 @@ pub fn convert_class_to_struct(
         vis: syn::Visibility::Public(syn::Token![pub](proc_macro2::Span::call_site())),
         struct_token: syn::Token![struct](proc_macro2::Span::call_site()),
         ident: struct_name.clone(),
-        generics: syn::Generics::default(),
+        generics: generics.clone(), // DEPYLER-0739: Use extracted type params
         fields: syn::Fields::Named(syn::FieldsNamed {
             brace_token: syn::token::Brace::default(),
             named: fields.into_iter().collect(),
@@ -520,7 +589,8 @@ pub fn convert_class_to_struct(
             } else {
                 // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
                 // DEPYLER-0696: Pass class fields for return type inference
-                let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions, &class.fields)?;
+                // DEPYLER-0740: Pass class type_params to distinguish method-level generics
+                let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions, &class.fields, &class.type_params)?;
                 impl_items.push(syn::ImplItem::Fn(rust_method));
             }
         }
@@ -540,21 +610,40 @@ pub fn convert_class_to_struct(
         for method in &class.methods {
             // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
             // DEPYLER-0696: Pass class fields for return type inference
-            let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions, &class.fields)?;
+            // DEPYLER-0740: Pass class type_params to distinguish method-level generics
+            let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions, &class.fields, &class.type_params)?;
             impl_items.push(syn::ImplItem::Fn(rust_method));
         }
     }
 
     // Only generate impl block if there are methods
     if !impl_items.is_empty() {
+        // DEPYLER-0739: Build self_ty with generics if present (e.g., Container<T>)
+        let self_ty: syn::Type = if class.type_params.is_empty() {
+            parse_quote! { #struct_name }
+        } else {
+            let type_args: syn::punctuated::Punctuated<syn::Type, syn::Token![,]> = class
+                .type_params
+                .iter()
+                .map(|name| {
+                    let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    syn::Type::Path(syn::TypePath {
+                        qself: None,
+                        path: syn::Path::from(ident),
+                    })
+                })
+                .collect();
+            parse_quote! { #struct_name<#type_args> }
+        };
+
         let impl_block = syn::Item::Impl(syn::ItemImpl {
             attrs: vec![],
             defaultness: None,
             unsafety: None,
             impl_token: syn::Token![impl](proc_macro2::Span::call_site()),
-            generics: syn::Generics::default(),
+            generics: generics.clone(), // DEPYLER-0739: Use same generics
             trait_: None,
-            self_ty: Box::new(parse_quote! { #struct_name }),
+            self_ty: Box::new(self_ty),
             brace_token: syn::token::Brace::default(),
             items: impl_items,
         });
@@ -796,6 +885,44 @@ fn stmt_mutates_self(stmt: &HirStmt) -> bool {
     }
 }
 
+/// DEPYLER-0740: Collect type variables from a Type recursively
+fn collect_type_vars(ty: &Type, vars: &mut std::collections::HashSet<String>) {
+    match ty {
+        Type::TypeVar(name) => {
+            vars.insert(name.clone());
+        }
+        Type::List(inner) | Type::Set(inner) | Type::Optional(inner) | Type::Final(inner) => {
+            collect_type_vars(inner, vars);
+        }
+        Type::Dict(key, value) => {
+            collect_type_vars(key, vars);
+            collect_type_vars(value, vars);
+        }
+        Type::Tuple(types) | Type::Union(types) => {
+            for t in types {
+                collect_type_vars(t, vars);
+            }
+        }
+        Type::Generic { params, .. } => {
+            for p in params {
+                collect_type_vars(p, vars);
+            }
+        }
+        Type::Function { params, ret } => {
+            for p in params {
+                collect_type_vars(p, vars);
+            }
+            collect_type_vars(ret, vars);
+        }
+        Type::Array { element_type, .. } => {
+            collect_type_vars(element_type, vars);
+        }
+        // Primitive and leaf types have no type variables
+        Type::Int | Type::Float | Type::String | Type::Bool | Type::None
+        | Type::Unknown | Type::UnificationVar(_) | Type::Custom(_) => {}
+    }
+}
+
 /// DEPYLER-0422 Fix #10: Infer return type from method body
 /// Similar to infer_return_type_from_body in func_gen.rs
 /// DEPYLER-0696: Infer method return type with class field context
@@ -1019,11 +1146,13 @@ fn should_param_be_self_type(param_name: &str, body: &[HirStmt], fields: &[HirFi
 }
 
 /// DEPYLER-0696: Accept class fields for return type inference
+/// DEPYLER-0740: Accept class type_params to distinguish method-level generics
 fn convert_method_to_impl_item(
     method: &HirMethod,
     type_mapper: &TypeMapper,
     vararg_functions: &std::collections::HashSet<String>,
     fields: &[HirField],
+    class_type_params: &[String],
 ) -> Result<syn::ImplItemFn> {
     // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
     let method_name = if is_rust_keyword(&method.name) {
@@ -1031,6 +1160,19 @@ fn convert_method_to_impl_item(
     } else {
         make_ident(&method.name)
     };
+
+    // DEPYLER-0740: Collect type variables used in method signature
+    let mut method_type_vars = std::collections::HashSet::new();
+    for param in &method.params {
+        collect_type_vars(&param.ty, &mut method_type_vars);
+    }
+    collect_type_vars(&method.ret_type, &mut method_type_vars);
+
+    // Filter out class-level type params to get method-level ones
+    let method_level_type_params: Vec<String> = method_type_vars
+        .into_iter()
+        .filter(|tv| !class_type_params.contains(tv))
+        .collect();
 
     // Convert parameters
     let mut inputs = syn::punctuated::Punctuated::new();
@@ -1177,7 +1319,37 @@ fn convert_method_to_impl_item(
             abi: None,
             fn_token: syn::Token![fn](proc_macro2::Span::call_site()),
             ident: method_name,
-            generics: syn::Generics::default(),
+            // DEPYLER-0740: Build method-level generics for type params not in class signature
+            // Add Clone bound to method-level type params since they're often used with Clone-bounded structs
+            generics: if method_level_type_params.is_empty() {
+                syn::Generics::default()
+            } else {
+                let params: syn::punctuated::Punctuated<syn::GenericParam, syn::Token![,]> =
+                    method_level_type_params
+                        .iter()
+                        .map(|name| {
+                            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                            // Add Clone bound
+                            let clone_bound: syn::TypeParamBound = parse_quote!(Clone);
+                            let mut bounds = syn::punctuated::Punctuated::new();
+                            bounds.push(clone_bound);
+                            syn::GenericParam::Type(syn::TypeParam {
+                                attrs: vec![],
+                                ident,
+                                colon_token: Some(syn::Token![:](proc_macro2::Span::call_site())),
+                                bounds,
+                                eq_token: None,
+                                default: None,
+                            })
+                        })
+                        .collect();
+                syn::Generics {
+                    lt_token: Some(syn::Token![<](proc_macro2::Span::call_site())),
+                    params,
+                    gt_token: Some(syn::Token![>](proc_macro2::Span::call_site())),
+                    where_clause: None,
+                }
+            },
             paren_token: syn::token::Paren::default(),
             inputs,
             variadic: None,
@@ -2946,7 +3118,8 @@ impl<'a> ExprConverter<'a> {
                 // Check if we're subtracting from a .len() call to prevent underflow
                 if is_len_call(left) {
                     // Use saturating_sub to prevent underflow when subtracting from array length
-                    Ok(parse_quote! { #left_expr.saturating_sub(#right_expr) })
+                    // DEPYLER-0746: Wrap in parens to handle cast expressions like `x as usize`
+                    Ok(parse_quote! { (#left_expr).saturating_sub(#right_expr) })
                 } else {
                     let rust_op = convert_binop(op)?;
                     Ok(parse_quote! { #left_expr #rust_op #right_expr })
@@ -3056,8 +3229,9 @@ impl<'a> ExprConverter<'a> {
                         } else {
                             // Positive integer exponent: use .pow() with u32
                             // Add checked_pow for overflow safety
+                            // DEPYLER-0746: Wrap in parens to handle cast expressions
                             Ok(parse_quote! {
-                                #left_expr.checked_pow(#right_expr as u32)
+                                (#left_expr).checked_pow(#right_expr as u32)
                                     .expect("Power operation overflowed")
                             })
                         }
@@ -3862,6 +4036,31 @@ impl<'a> ExprConverter<'a> {
             }
             // Calls to str() produce strings
             HirExpr::Call { func, .. } if func == "str" => true,
+            // DEPYLER-0752: Handle attribute access for known string fields
+            // Examples: r.stdout, result.stderr, response.text
+            HirExpr::Attribute { attr, .. } => {
+                matches!(
+                    attr.as_str(),
+                    "stdout" | "stderr" | "text" | "output" | "message" | "name"
+                )
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0742: Detect if expression is a deque type.
+    /// Used to generate VecDeque methods instead of Vec methods.
+    fn is_deque_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Call to deque() constructor
+            HirExpr::Call { func, .. } if func == "deque" || func == "collections.deque" => true,
+            // Variables with deque-like names
+            HirExpr::Var(name) => {
+                matches!(
+                    name.as_str(),
+                    "d" | "dq" | "deque" | "queue" | "buffer" | "deck"
+                )
+            }
             _ => false,
         }
     }
@@ -3970,13 +4169,32 @@ impl<'a> ExprConverter<'a> {
 
         // Map Python collection methods to Rust equivalents
         match method {
-            // List methods
+            // List/Deque methods
             "append" => {
                 if arg_exprs.len() != 1 {
                     bail!("append() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                Ok(parse_quote! { #object_expr.push(#arg) })
+                // DEPYLER-0742: VecDeque uses push_back, Vec uses push
+                if self.is_deque_expr(object) {
+                    Ok(parse_quote! { #object_expr.push_back(#arg) })
+                } else {
+                    Ok(parse_quote! { #object_expr.push(#arg) })
+                }
+            }
+            // DEPYLER-0742: Deque-specific methods
+            "appendleft" => {
+                if arg_exprs.len() != 1 {
+                    bail!("appendleft() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.push_front(#arg) })
+            }
+            "popleft" => {
+                if !arg_exprs.is_empty() {
+                    bail!("popleft() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.pop_front() })
             }
             "remove" => {
                 if arg_exprs.len() != 1 {
@@ -4036,6 +4254,13 @@ impl<'a> ExprConverter<'a> {
                             x
                         }).expect("pop from empty set")
                     })
+                } else if self.is_deque_expr(object) {
+                    // DEPYLER-0742: VecDeque uses pop_back
+                    if arg_exprs.is_empty() {
+                        Ok(parse_quote! { #object_expr.pop_back().unwrap_or_default() })
+                    } else {
+                        bail!("deque.pop() does not accept an index argument");
+                    }
                 } else {
                     // List pop
                     if arg_exprs.is_empty() {
@@ -4468,6 +4693,24 @@ impl<'a> ExprConverter<'a> {
                     }
                 }
                 "Queue" => Some(parse_quote! { tokio::sync::mpsc::channel(100).1 }),
+                // DEPYLER-0747: asyncio.sleep(secs) → tokio::time::sleep(Duration)
+                "sleep" => {
+                    if let Some(arg) = arg_exprs.first() {
+                        Some(parse_quote! {
+                            tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+                        })
+                    } else {
+                        Some(parse_quote! {
+                            tokio::time::sleep(std::time::Duration::from_secs(0))
+                        })
+                    }
+                }
+                // DEPYLER-0747: asyncio.run(coro) → tokio runtime block_on
+                "run" => arg_exprs.first().map(|arg| {
+                    parse_quote! {
+                        tokio::runtime::Runtime::new().unwrap().block_on(#arg)
+                    }
+                }),
                 _ => None,
             },
             "json" => match constructor {
@@ -4911,7 +5154,25 @@ impl<'a> ExprConverter<'a> {
         let value_expr = self.convert(value)?;
         // DEPYLER-0596: Use make_ident to handle keywords like "match"
         let attr_ident = make_ident(attr);
-        Ok(parse_quote! { #value_expr.#attr_ident })
+
+        // DEPYLER-0737: Check if this attribute is a @property method
+        // In Python, @property allows method access without (), but in Rust we need ()
+        let is_property_method = PROPERTY_METHODS.with(|pm| pm.borrow().contains(attr));
+
+        if is_property_method {
+            // Property access needs method call syntax: obj.prop()
+            Ok(parse_quote! { #value_expr.#attr_ident() })
+        } else {
+            // Regular field access: obj.field
+            // DEPYLER-0740: For self.field accesses, add .clone() to avoid E0507 moves
+            // Python semantics don't consume values on field access, so cloning is safe
+            if let HirExpr::Var(var_name) = value {
+                if var_name == "self" {
+                    return Ok(parse_quote! { #value_expr.#attr_ident.clone() });
+                }
+            }
+            Ok(parse_quote! { #value_expr.#attr_ident })
+        }
     }
 
     /// DEPYLER-0188: Convert dynamic/subscript function call
@@ -4952,7 +5213,15 @@ fn convert_literal(lit: &Literal) -> syn::Expr {
             parse_quote! { #lit }
         }
         Literal::Float(f) => {
-            let lit = syn::LitFloat::new(&f.to_string(), proc_macro2::Span::call_site());
+            // DEPYLER-0738: Ensure float literals always have a decimal point
+            // f64::to_string() outputs "0" for 0.0, which parses as integer
+            let s = f.to_string();
+            let float_str = if s.contains('.') || s.contains('e') || s.contains('E') {
+                s
+            } else {
+                format!("{}.0", s)
+            };
+            let lit = syn::LitFloat::new(&float_str, proc_macro2::Span::call_site());
             parse_quote! { #lit }
         }
         Literal::String(s) => {

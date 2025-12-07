@@ -38,11 +38,11 @@ impl SubtypeChecker {
     ///
     /// let checker = SubtypeChecker::new();
     ///
-    /// // Numeric widening
-    /// assert!(checker.check_subtype(&Type::Int32, &Type::Int64).is_ok());
+    /// // Reflexivity - same type is subtype of itself
+    /// assert!(checker.check_subtype(&Type::Int, &Type::Int).is_ok());
     ///
     /// // Option lifting
-    /// assert!(checker.check_subtype(&Type::Int64, &Type::Optional(Box::new(Type::Int64))).is_ok());
+    /// assert!(checker.check_subtype(&Type::Int, &Type::Optional(Box::new(Type::Int))).is_ok());
     /// ```
     pub fn check_subtype(&self, lhs: &Type, rhs: &Type) -> Result<(), String> {
         // Check cache first
