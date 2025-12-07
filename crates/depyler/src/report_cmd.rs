@@ -294,9 +294,30 @@ fn extract_error(stderr: &str) -> (String, String) {
         }
     }
 
-    // Fallback to first error line
+    // Check for transpiler errors (anyhow style: "Error: ...")
+    // DEPYLER-0764: Handle capital "Error:" from depyler transpiler failures
     for line in stderr.lines() {
-        if line.starts_with("error") {
+        if line.starts_with("Error: Failed to transpile") {
+            // Extract the root cause from "Caused by:" if available
+            for cause_line in stderr.lines() {
+                if cause_line.trim().starts_with("Expression type not yet supported") {
+                    return ("TRANSPILE".to_string(), strip_ansi(cause_line.trim()));
+                }
+                if cause_line.trim().starts_with("Unsupported") {
+                    return ("TRANSPILE".to_string(), strip_ansi(cause_line.trim()));
+                }
+            }
+            return ("TRANSPILE".to_string(), strip_ansi(line));
+        }
+        if line.starts_with("Error:") {
+            return ("DEPYLER".to_string(), strip_ansi(line));
+        }
+    }
+
+    // Fallback to first error line (case-insensitive)
+    for line in stderr.lines() {
+        let lower = line.to_lowercase();
+        if lower.starts_with("error") {
             return ("UNKNOWN".to_string(), strip_ansi(line));
         }
     }
@@ -586,6 +607,9 @@ fn error_description(code: &str) -> &'static str {
         "E0601" => "main function not found",
         "E0573" => "Expected type, found something else",
         "E0666" => "Ambiguous use of lifetime parameter",
+        // DEPYLER-0764: New transpiler-specific error codes
+        "TRANSPILE" => "Unsupported Python expression/statement (transpiler limitation)",
+        "DEPYLER" => "General transpiler error (input/output issue)",
         _ => "See `rustc --explain` for details",
     }
 }
@@ -602,6 +626,9 @@ fn fix_recommendation(code: &str) -> &'static str {
         "E0433" => "Update module path resolution",
         "E0423" => "Fix value/type confusion in codegen",
         "E0369" => "Add operator overloading or type coercion",
+        // DEPYLER-0764: New transpiler-specific error codes
+        "TRANSPILE" => "Add support for unsupported expression type in rust_gen/expr_gen.rs",
+        "DEPYLER" => "Fix general transpiler error (check error message for details)",
         _ => "Investigate error pattern and update transpiler",
     }
 }
