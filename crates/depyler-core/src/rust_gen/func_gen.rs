@@ -7,6 +7,7 @@ use crate::hir::*;
 use crate::lifetime_analysis::LifetimeInference;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen};
 use crate::rust_gen::generator_gen::codegen_generator_function;
+use crate::rust_gen::keywords::safe_ident;
 use crate::rust_gen::type_gen::{rust_type_to_syn, update_import_needs};
 use anyhow::Result;
 use quote::quote;
@@ -888,10 +889,11 @@ pub(crate) fn codegen_function_body(
     // these variable declarations to function scope.
     // We initialize with Default::default() to avoid E0381 "possibly-uninitialized"
     // errors, since Rust can't prove the loop will always execute.
+    // DEPYLER-0763: Use safe_ident to escape Rust keywords (e.g. match -> r#match)
     let loop_escaping_vars = collect_loop_escaping_variables(&func.body);
     for var_name in &loop_escaping_vars {
         if !ctx.is_declared(var_name) {
-            let ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+            let ident = safe_ident(var_name);
             body_stmts.push(quote! { let mut #ident = Default::default(); });
             ctx.declare_var(var_name);
         }
