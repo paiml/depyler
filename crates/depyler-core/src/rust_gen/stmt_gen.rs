@@ -6699,10 +6699,16 @@ fn codegen_nested_function_def(
             let param_name = safe_ident(&p.name);
             let param_type = hir_type_to_tokens(&p.ty, ctx);
 
-            // For collection types, take by reference for idiomatic Rust
+            // For collection types and strings, take by reference for idiomatic Rust
             // This is necessary for closures used with filter() which provides &T
+            // DEPYLER-0774: Also use &str for String params in nested functions
+            // Parent functions receive &str but nested func expects String → use &str
             if matches!(p.ty, Type::Dict(_, _) | Type::List(_) | Type::Set(_)) {
                 quote! { #param_name: &#param_type }
+            } else if matches!(p.ty, Type::String) {
+                // DEPYLER-0774: Use &str instead of String for nested function params
+                // This matches how parent functions receive string args (&str)
+                quote! { #param_name: &str }
             } else {
                 quote! { #param_name: #param_type }
             }
