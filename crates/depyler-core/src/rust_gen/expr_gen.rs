@@ -2114,8 +2114,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DEPYLER-0178: Handle filter() with lambda → convert to Rust iterator pattern
-        // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
-        // because filter() receives &Item, but Python expects the value directly
+        // DEPYLER-0754: Use .iter().cloned() instead of .into_iter() to produce Vec<T> not Vec<&T>
+        // When iterable is &Vec<T>, .into_iter() yields &T references, causing type mismatch.
+        // .iter().cloned() properly clones elements to produce owned iterator.
         if func == "filter" && args.len() == 2 {
             if let HirExpr::Lambda { params, body } = &args[0] {
                 if params.len() != 1 {
@@ -2126,8 +2127,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let param_ident = crate::rust_gen::keywords::safe_ident(&params[0]);
                 let body_expr = body.to_rust_expr(self.ctx)?;
 
+                // DEPYLER-0754: With .cloned(), values are owned, so use |x| not |&x|
                 return Ok(parse_quote! {
-                    #iterable_expr.into_iter().filter(|&#param_ident| #body_expr)
+                    #iterable_expr.iter().cloned().filter(|#param_ident| #body_expr)
                 });
             }
         }
@@ -2351,7 +2353,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "frozenset" => self.convert_frozenset_constructor(&arg_exprs),
             // DEPYLER-0171, 0172, 0173, 0174: Collection conversion builtins
             // DEPYLER-0230: Only treat as builtin if not a user-defined class
-            "Counter" if !is_user_class => self.convert_counter_builtin(&arg_exprs),
+            // DEPYLER-0751: Pass HIR args to detect string type for .chars()
+            "Counter" if !is_user_class => self.convert_counter_builtin(&all_hir_args, &arg_exprs),
             "defaultdict" if !is_user_class => self.convert_defaultdict_builtin(&arg_exprs),
             "dict" if !is_user_class => self.convert_dict_builtin(&arg_exprs),
             "deque" if !is_user_class => self.convert_deque_builtin(&arg_exprs),
@@ -2530,7 +2533,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
     /// DEPYLER-0188: Pass HirExpr to detect PathBuf for .display().to_string()
+    /// DEPYLER-0722: Handle Option<T> types - use .unwrap().to_string()
     fn convert_str_conversion(&self, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+        // DEPYLER-0722: Check if argument is an Optional type
+        if !hir_args.is_empty() && args.len() == 1 {
+            let var_name = match &hir_args[0] {
+                HirExpr::Var(name) => Some(name.as_str()),
+                HirExpr::Attribute { attr, .. } => Some(attr.as_str()),
+                _ => None,
+            };
+            if let Some(name) = var_name {
+                if let Some(Type::Optional(_)) = self.ctx.var_types.get(name) {
+                    let arg = &args[0];
+                    return Ok(parse_quote! { (#arg).unwrap().to_string() });
+                }
+            }
+        }
         builtin_conversions::convert_str_conversion(hir_args, args, |e| self.is_path_expr(e))
     }
 
@@ -2573,7 +2591,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // DEPYLER-REFACTOR-001: Delegated to collection_constructors module
     // ========================================================================
 
-    fn convert_counter_builtin(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
+    /// DEPYLER-0751: Handle Counter(string) by using .chars() instead of .into_iter()
+    fn convert_counter_builtin(
+        &mut self,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        self.ctx.needs_hashmap = true;
+        // DEPYLER-0751: Handle Counter(string) → string.chars().fold(...)
+        // String doesn't implement IntoIterator, need to use .chars()
+        if hir_args.len() == 1 && args.len() == 1 {
+            let hir_arg = &hir_args[0];
+            let is_string = self.is_string_type(hir_arg)
+                || matches!(
+                    hir_arg,
+                    HirExpr::Var(name) if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::String))
+                );
+            if is_string {
+                let arg = &args[0];
+                return Ok(parse_quote! {
+                    #arg.chars().fold(HashMap::new(), |mut acc, item| {
+                        *acc.entry(item).or_insert(0) += 1;
+                        acc
+                    })
+                });
+            }
+        }
         collection_constructors::convert_counter_builtin(self.ctx, args)
     }
 
@@ -2736,7 +2779,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             bail!("reversed() requires exactly 1 argument");
         }
         let iterable = &args[0];
-        Ok(parse_quote! { #iterable.into_iter().rev() })
+        // DEPYLER-0753: Use .iter().cloned() instead of .into_iter() to produce Vec<T> not Vec<&T>
+        // When iterable is &Vec<T>, .into_iter() yields &T references, causing type mismatch.
+        // .iter().cloned().rev() properly clones elements to produce owned iterator.
+        Ok(parse_quote! { #iterable.iter().cloned().rev() })
     }
 
     fn convert_sorted_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -2766,7 +2812,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             bail!("filter() requires exactly 2 arguments");
         }
         // Check if first arg is lambda
-        // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
+        // DEPYLER-0754: Use .iter().cloned() instead of .into_iter() to produce owned values
+        // When iterable is &Vec<T>, .into_iter() yields &T references, causing type mismatch.
+        // .iter().cloned() properly clones elements to produce owned values.
         if let HirExpr::Lambda { params, body } = &hir_args[0] {
             if params.len() != 1 {
                 bail!("filter() lambda must have exactly 1 parameter");
@@ -2775,14 +2823,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let param_ident = crate::rust_gen::keywords::safe_ident(&params[0]);
             let body_expr = body.to_rust_expr(self.ctx)?;
             let iterable = &args[1];
+            // DEPYLER-0754: With .cloned(), values are owned, so use |x| not |&x|
             Ok(parse_quote! {
-                #iterable.into_iter().filter(|&#param_ident| #body_expr)
+                #iterable.iter().cloned().filter(|#param_ident| #body_expr)
             })
         } else {
             let predicate = &args[0];
             let iterable = &args[1];
             Ok(parse_quote! {
-                #iterable.into_iter().filter(#predicate)
+                #iterable.iter().cloned().filter(#predicate)
             })
         }
     }
@@ -3531,6 +3580,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 }
                             }
                         }
+
+                        // DEPYLER-0737: Wrap in Some() if function param is Optional
+                        // and the argument is not None
+                        let is_optional_param = self.ctx
+                            .function_param_optionals
+                            .get(func)
+                            .and_then(|optionals| optionals.get(param_idx))
+                            .copied()
+                            .unwrap_or(false);
+
+                        if is_optional_param {
+                            // Don't wrap if arg is already None
+                            let is_none = matches!(hir_arg, HirExpr::Literal(Literal::None));
+                            if !is_none {
+                                return parse_quote! { Some(#arg_expr) };
+                            }
+                        }
+
                         arg_expr.clone()
                     }
                 })
@@ -12126,8 +12193,46 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Fallback to method name dispatch
         match method {
-            // List methods
-            "append" | "extend" | "pop" | "insert" | "remove" | "index" | "copy" | "clear"
+            // DEPYLER-0742: Deque-specific methods (must come before list methods)
+            "appendleft" => {
+                if arg_exprs.len() != 1 {
+                    bail!("appendleft() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                Ok(parse_quote! { #object_expr.push_front(#arg) })
+            }
+            "popleft" => {
+                if !arg_exprs.is_empty() {
+                    bail!("popleft() takes no arguments");
+                }
+                Ok(parse_quote! { #object_expr.pop_front() })
+            }
+
+            // DEPYLER-0742: Handle append/pop for deque vs list
+            "append" => {
+                if self.is_deque_expr(object) {
+                    if arg_exprs.len() != 1 {
+                        bail!("append() requires exactly one argument");
+                    }
+                    let arg = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.push_back(#arg) })
+                } else {
+                    self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
+                }
+            }
+            "pop" => {
+                if self.is_deque_expr(object) {
+                    if !arg_exprs.is_empty() {
+                        bail!("deque.pop() does not accept an index argument");
+                    }
+                    Ok(parse_quote! { #object_expr.pop_back().unwrap_or_default() })
+                } else {
+                    self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
+                }
+            }
+
+            // List methods (remaining)
+            "extend" | "insert" | "remove" | "index" | "copy" | "clear"
             | "reverse" | "sort" => {
                 self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
             }
@@ -12357,6 +12462,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-0747: Handle asyncio module method calls
+        // asyncio.sleep(secs) → tokio::time::sleep(Duration)
+        // asyncio.run(coro) → tokio runtime block_on
+        if let HirExpr::Var(module) = object {
+            if module == "asyncio" {
+                self.ctx.needs_tokio = true;
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| arg.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()?;
+                match method {
+                    "sleep" => {
+                        if let Some(arg) = arg_exprs.first() {
+                            return Ok(parse_quote! {
+                                tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+                            });
+                        }
+                        return Ok(parse_quote! {
+                            tokio::time::sleep(std::time::Duration::from_secs(0))
+                        });
+                    }
+                    "run" => {
+                        if let Some(arg) = arg_exprs.first() {
+                            return Ok(parse_quote! {
+                                tokio::runtime::Runtime::new().unwrap().block_on(#arg)
+                            });
+                        }
+                    }
+                    _ => {} // Fall through for other asyncio methods
+                }
+            }
+        }
+
         // DEPYLER-0558: Handle hasher methods (hexdigest, update) for incremental hashing
         if method == "hexdigest" {
             self.ctx.needs_hex = true;
@@ -12366,6 +12504,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 hex::encode(#object_expr.finalize())
             });
         }
+
+        // DEPYLER-0750: Handle Counter.most_common(n)
+        // counter.most_common(n) → sort HashMap by value descending, take n
+        if method == "most_common" {
+            let object_expr = object.to_rust_expr(self.ctx)?;
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?;
+
+            if let Some(n_arg) = arg_exprs.first() {
+                // With n argument: take top n
+                return Ok(parse_quote! {
+                    {
+                        let mut entries: Vec<_> = #object_expr.iter().map(|(k, v)| (k.clone(), *v)).collect();
+                        entries.sort_by(|a, b| b.1.cmp(&a.1));
+                        entries.into_iter().take(#n_arg as usize).collect::<Vec<_>>()
+                    }
+                });
+            } else {
+                // No argument: return all sorted
+                return Ok(parse_quote! {
+                    {
+                        let mut entries: Vec<_> = #object_expr.iter().map(|(k, v)| (k.clone(), *v)).collect();
+                        entries.sort_by(|a, b| b.1.cmp(&a.1));
+                        entries
+                    }
+                });
+            }
+        }
+
         // DEPYLER-0728: hasher.update() handler should NOT intercept dict/set.update()
         // Only apply to hash objects (Sha256, Md5, etc.), not collections
         if method == "update" && !args.is_empty() && !self.is_dict_expr(object) && !self.is_set_expr(object) {
@@ -13501,6 +13670,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // For mixed types like [1, "hello", 3.14, true], use Vec<serde_json::Value>
         let has_mixed_types = self.list_has_mixed_types(elts);
 
+        // DEPYLER-0741: Detect if list contains dicts and if ANY dict has None values
+        // If so, ALL dicts must use Option<V> for type consistency
+        let any_dict_has_none = elts.iter().any(|e| {
+            if let HirExpr::Dict(items) = e {
+                items
+                    .iter()
+                    .any(|(_, v)| matches!(v, HirExpr::Literal(Literal::None)))
+            } else {
+                false
+            }
+        });
+
+        // Set flag before processing so convert_dict knows to wrap values in Some()
+        if any_dict_has_none {
+            self.ctx.force_dict_value_option_wrap = true;
+        }
+
+        // Scope guard: reset flag after processing list elements
+        let result = self.convert_list_elements(elts, has_mixed_types, needs_string_unify);
+        self.ctx.force_dict_value_option_wrap = false;
+        return result;
+    }
+
+    /// DEPYLER-0741: Helper to convert list elements, allowing the flag to be reset afterward
+    fn convert_list_elements(
+        &mut self,
+        elts: &[HirExpr],
+        has_mixed_types: bool,
+        needs_string_unify: bool,
+    ) -> Result<syn::Expr> {
         if has_mixed_types {
             // DEPYLER-0711: Convert to Vec<serde_json::Value> for heterogeneous lists
             self.ctx.needs_serde_json = true;
@@ -13511,6 +13710,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let expr = e.to_rust_expr(self.ctx)?;
                     // Wrap each element in serde_json::json!()
                     Ok(parse_quote! { serde_json::json!(#expr) })
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            return Ok(parse_quote! { vec![#(#elt_exprs),*] });
+        }
+
+        // DEPYLER-0739: Detect if list contains None elements
+        // If so, wrap non-None elements in Some() to create Vec<Option<T>>
+        let has_none = elts
+            .iter()
+            .any(|e| matches!(e, HirExpr::Literal(Literal::None)));
+
+        if has_none {
+            let elt_exprs: Vec<syn::Expr> = elts
+                .iter()
+                .map(|e| {
+                    if matches!(e, HirExpr::Literal(Literal::None)) {
+                        // None stays as None
+                        Ok(parse_quote! { None })
+                    } else {
+                        // Non-None elements get wrapped in Some()
+                        let mut expr = e.to_rust_expr(self.ctx)?;
+                        // Convert string literals to owned Strings
+                        if matches!(e, HirExpr::Literal(Literal::String(_))) {
+                            expr = parse_quote! { #expr.to_string() };
+                        }
+                        Ok(parse_quote! { Some(#expr) })
+                    }
                 })
                 .collect::<Result<Vec<_>>>()?;
 
@@ -13656,6 +13883,50 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // Homogeneous dict: use HashMap
         self.ctx.needs_hashmap = true;
+
+        // DEPYLER-0740: Detect if any dict value is None
+        // If so, wrap non-None values in Some() to create HashMap<K, Option<V>>
+        // DEPYLER-0741: Also check context flag - set when list of dicts has ANY dict with None
+        let has_none_value = items
+            .iter()
+            .any(|(_, v)| matches!(v, HirExpr::Literal(Literal::None)));
+
+        // Use Option wrapping if this dict has None OR if we're in a list context
+        // where another dict has None (for type consistency)
+        if has_none_value || self.ctx.force_dict_value_option_wrap {
+            let mut insert_stmts = Vec::new();
+            for (key, value) in items {
+                let mut key_expr = key.to_rust_expr(self.ctx)?;
+
+                // Convert string literal keys to owned Strings
+                if matches!(key, HirExpr::Literal(Literal::String(_))) {
+                    key_expr = parse_quote! { #key_expr.to_string() };
+                }
+
+                let val_expr: syn::Expr = if matches!(value, HirExpr::Literal(Literal::None)) {
+                    // None stays as None
+                    parse_quote! { None }
+                } else {
+                    // Non-None values get wrapped in Some()
+                    let mut inner = value.to_rust_expr(self.ctx)?;
+                    // Convert string literals to owned Strings
+                    if matches!(value, HirExpr::Literal(Literal::String(_))) {
+                        inner = parse_quote! { #inner.to_string() };
+                    }
+                    parse_quote! { Some(#inner) }
+                };
+
+                insert_stmts.push(quote! { map.insert(#key_expr, #val_expr); });
+            }
+
+            return Ok(parse_quote! {
+                {
+                    let mut map = HashMap::new();
+                    #(#insert_stmts)*
+                    map
+                }
+            });
+        }
 
         // DEPYLER-0729: Check if target dict value type is String
         // If so, string literal values need .to_string() conversion
@@ -13875,10 +14146,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     fn convert_set(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
         self.ctx.needs_hashset = true;
+
+        // DEPYLER-0742: Detect if set contains None
+        let has_none = elts
+            .iter()
+            .any(|e| matches!(e, HirExpr::Literal(Literal::None)));
+
         let mut insert_stmts = Vec::new();
         for elem in elts {
-            let elem_expr = elem.to_rust_expr(self.ctx)?;
-            insert_stmts.push(quote! { set.insert(#elem_expr); });
+            // DEPYLER-0742: Wrap non-None elements in Some() when set has None
+            if has_none {
+                if matches!(elem, HirExpr::Literal(Literal::None)) {
+                    insert_stmts.push(quote! { set.insert(None); });
+                } else {
+                    let elem_expr = elem.to_rust_expr(self.ctx)?;
+                    insert_stmts.push(quote! { set.insert(Some(#elem_expr)); });
+                }
+            } else {
+                let elem_expr = elem.to_rust_expr(self.ctx)?;
+                insert_stmts.push(quote! { set.insert(#elem_expr); });
+            }
         }
         Ok(parse_quote! {
             {
@@ -13892,10 +14179,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn convert_frozenset(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
         self.ctx.needs_hashset = true;
         self.ctx.needs_arc = true;
+
+        // DEPYLER-0742: Detect if frozenset contains None
+        let has_none = elts
+            .iter()
+            .any(|e| matches!(e, HirExpr::Literal(Literal::None)));
+
         let mut insert_stmts = Vec::new();
         for elem in elts {
-            let elem_expr = elem.to_rust_expr(self.ctx)?;
-            insert_stmts.push(quote! { set.insert(#elem_expr); });
+            // DEPYLER-0742: Wrap non-None elements in Some() when set has None
+            if has_none {
+                if matches!(elem, HirExpr::Literal(Literal::None)) {
+                    insert_stmts.push(quote! { set.insert(None); });
+                } else {
+                    let elem_expr = elem.to_rust_expr(self.ctx)?;
+                    insert_stmts.push(quote! { set.insert(Some(#elem_expr)); });
+                }
+            } else {
+                let elem_expr = elem.to_rust_expr(self.ctx)?;
+                insert_stmts.push(quote! { set.insert(#elem_expr); });
+            }
         }
         Ok(parse_quote! {
             {
@@ -14392,7 +14695,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             syn::Ident::new(attr, proc_macro2::Span::call_site())
         };
-        Ok(parse_quote! { #value_expr.#attr_ident })
+
+        // DEPYLER-0737: Check if this is a @property method access
+        // In Python, @property allows method access without (), but Rust requires ()
+        if self.ctx.property_methods.contains(attr) {
+            Ok(parse_quote! { #value_expr.#attr_ident() })
+        } else {
+            Ok(parse_quote! { #value_expr.#attr_ident })
+        }
     }
 
     fn convert_borrow(&mut self, expr: &HirExpr, mutable: bool) -> Result<syn::Expr> {
@@ -15048,6 +15358,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     // Fall back to conservative: only treat explicit list literals as lists
                     false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0742: Check if expression is a deque type (VecDeque)
+    /// Used to generate correct VecDeque methods instead of Vec methods.
+    fn is_deque_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Call to deque() constructor
+            HirExpr::Call { func, .. }
+                if func == "deque" || func == "collections.deque" || func == "Deque" =>
+            {
+                true
+            }
+            HirExpr::Var(name) => {
+                // Check var_types for Deque type annotation
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    // Check if the type string contains "deque" or "VecDeque"
+                    let type_str = format!("{:?}", var_type);
+                    type_str.contains("deque") || type_str.contains("VecDeque")
+                } else {
+                    // Fallback: common deque variable names
+                    matches!(
+                        name.as_str(),
+                        "d" | "dq" | "deque" | "queue" | "buffer" | "deck"
+                    )
                 }
             }
             _ => false,
