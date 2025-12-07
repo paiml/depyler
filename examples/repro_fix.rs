@@ -1,12 +1,19 @@
-#[derive(Debug, Clone)]
-pub struct Account {
-    pub balance: f64,
+#[doc = "Function with optional parameter."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn process(value: i32, name: &Option<String>) -> String {
+    if name.is_none() {
+        return format!("value={}", value);
+    }
+    format!("value={}, name={:?}", value, name)
 }
-impl Account {
-    pub fn new(balance: f64) -> Self {
-        Self { balance }
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn main() {
+    let maybe_name: Option<String> = None;
+    if maybe_name.is_none() {
+        println!("{}", "No name provided");
     }
-    pub fn is_positive(&self) -> bool {
-        return self.balance > 0f64;
-    }
+    let result = process(42, maybe_name.as_ref().unwrap());
+    println!("{}", result);
 }

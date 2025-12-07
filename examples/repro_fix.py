@@ -1,17 +1,15 @@
-# Repro case: E0599 - dict.keys() method not found on HashMap<String, Value>
-# Target: DEPYLER-204 (Hunt Mode single-shot compilation)
-# Pattern: Dict[str, Any].keys() -> HashMap<String, Value> has no `.keys()` that returns iter
-
-from typing import Dict, Any
-
-def count_keys(data: Dict[str, Any]) -> int:
-    """Count number of keys in dict."""
-    return len(data.keys())
+# Hunt Mode repro for DEPYLER-0760: Option type annotation for None-initialized variables
+# Pattern: typed variable initialized to None gets Option<T> type
 
 def main() -> None:
-    d: Dict[str, Any] = {"a": 1, "b": 2}
-    count = count_keys(d)
-    print(f"Keys: {count}")
+    # Test: Variable with type annotation assigned None
+    # Expected: let maybe_name: Option<String> = None;
+    maybe_name: str = None
+
+    # Test: is_none() check (validates var_types tracking)
+    if maybe_name.is_none():
+        print("No name provided")
+
 
 if __name__ == "__main__":
     main()
