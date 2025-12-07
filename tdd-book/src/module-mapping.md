@@ -43,14 +43,17 @@ let mapping = parse_pyi(&json_pyi, "json");
 
 Full specification: [DEPYLER-O1MAP-001](../docs/specifications/o-1-lookup-lib-mapping-rust-python-spec.md)
 
-### Implementation Status
+### Implementation Status (v1.2.0)
 
 | Component | Status |
 |-----------|--------|
 | HashMap O(1) Lookup | ✅ Production |
 | 35+ Module Mappings | ✅ Production |
 | Typeshed Parser | ✅ Complete |
-| PHF Optimization | ⏳ Future |
+| PHF Optimization | ✅ Complete |
+| Semantic Tests | ✅ 17 tests |
+| CI Integration | ✅ Weekly automation |
+| Benchmarks | ✅ Criterion suite |
 
 ## Usage
 
@@ -65,3 +68,39 @@ if let Some(mapping) = mapper.get_mapping("json") {
     println!("External: {}", mapping.is_external);   // true
 }
 ```
+
+## PHF Compile-Time Optimization
+
+For O(1) worst-case lookup (no hash collision risk), enable the `phf-lookup` feature:
+
+```bash
+cargo build --features phf-lookup
+```
+
+```rust
+#[cfg(feature = "phf-lookup")]
+use depyler_core::module_mapper_phf::{get_module_mapping, get_item_mapping};
+
+// O(1) worst-case lookup via perfect hash
+if let Some(mapping) = get_module_mapping("numpy") {
+    println!("Rust crate: {}", mapping.rust_path);  // "trueno"
+}
+
+// Item-level lookup
+if let Some(rust_fn) = get_item_mapping("json", "loads") {
+    println!("Rust equivalent: {}", rust_fn);  // "from_str"
+}
+```
+
+## Semantic Equivalence
+
+All mappings are verified via semantic equivalence tests ensuring Python behavior is preserved:
+
+| Python | Rust | Semantic Guarantee |
+|--------|------|-------------------|
+| `json.loads(s)` | `serde_json::from_str(s)` | Same JSON parsing |
+| `math.sqrt(x)` | `x.sqrt()` | Same result (NaN for negative) |
+| `re.match(p, s)` | `Regex::is_match(s)` | Same pattern matching |
+| `os.getcwd()` | `env::current_dir()` | Same directory |
+
+See [semantic tests](../crates/depyler-core/tests/module_mapper_semantic_tests.rs) for full coverage.
