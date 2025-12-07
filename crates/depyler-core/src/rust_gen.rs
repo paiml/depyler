@@ -688,10 +688,12 @@ fn generate_import_tokens(
         // DEPYLER-0721: Also skip bare struct types like `std::path::Path` for inline-handled
         // functions (splitext, normpath, etc.) that don't need imports
         // DEPYLER-0771: Skip std::f64::isqrt - it doesn't exist; handled inline in expr_gen.rs
+        // Also skip any path ending with ::isqrt since Rust has no such function in std::f64
         if import.path.contains("::Path::")
             || import.path.contains("::File::")
             || import.path.ends_with("::Path")
             || import.path == "std::f64::isqrt"
+            || import.path.ends_with("::isqrt")
         {
             continue;
         }
