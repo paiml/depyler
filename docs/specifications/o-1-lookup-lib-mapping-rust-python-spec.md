@@ -582,7 +582,40 @@ String interning (future)   12.1 KB       4.1 KB
 
 ---
 
-## Appendix B: Changelog
+## Appendix B: Implementation Status
+
+### Completed (v1.1.0)
+
+| Component | File | Status |
+|-----------|------|--------|
+| O(1) HashMap Lookup | `module_mapper.rs` | ✅ Production |
+| 35+ Module Mappings | `module_mapper.rs` | ✅ Production |
+| Batuta Stack (numpy→trueno, sklearn→aprender) | `module_mapper.rs` | ✅ Production |
+| Typeshed Ingestion Parser | `typeshed_ingest.rs` | ✅ Complete (8 tests) |
+| Multiline .pyi Parsing | `typeshed_ingest.rs` | ✅ Complete |
+| Semantic Bridge Configs | `typeshed_ingest.rs` | ✅ Complete |
+| Specification Document | This file | ✅ Complete |
+
+### Remaining Work (Future)
+
+| Component | Priority | Effort | Notes |
+|-----------|----------|--------|-------|
+| PHF Compile-Time Migration | P1 | Medium | Replace HashMap with `phf` crate |
+| Full Typeshed Corpus Integration | P1 | Medium | CI pipeline to ingest all stdlib stubs |
+| Semantic Equivalence Test Suite | P2 | High | Golden tests for all mappings |
+| Performance Benchmarks | P2 | Low | Measure actual lookup times |
+| Property-Based Tests | P2 | Medium | QuickCheck/Proptest for mappings |
+| depyler.toml Config Support | P3 | Low | User-defined mapping overrides |
+
+---
+
+## Appendix C: Changelog
+
+### v1.1.0 (2025-12-07)
+- **IMPLEMENTED**: `typeshed_ingest.rs` - .pyi stub parser for auto-mapping
+- Added Section 5: Automation Strategy (Typeshed Ingestion)
+- Added Appendix B: Implementation Status tracking
+- 8 passing tests for json, math, os, and unknown module ingestion
 
 ### v1.0.0 (2025-12-07)
 - Initial specification based on `module_mapper.rs` implementation
@@ -591,6 +624,3 @@ String interning (future)   12.1 KB       4.1 KB
 - Established semantic equivalence validation contracts
 - Added Toyota Way design principles alignment
 - Included 12 peer-reviewed citations
-
-### v1.1.0 (2025-12-07)
-- Added Section 5: Automation Strategy (Typeshed Ingestion) to eliminate manual mapping bottleneck
