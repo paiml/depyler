@@ -776,7 +776,7 @@ mod integration {
 
         // External deps should be present
         assert!(
-            dep_names.contains(&"trueno") || !mapper.get_mapping("numpy").is_some(),
+            dep_names.contains(&"trueno") || mapper.get_mapping("numpy").is_none(),
             "trueno should be in deps if numpy mapping exists"
         );
         assert!(dep_names.contains(&"serde_json"));
