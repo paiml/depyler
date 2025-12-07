@@ -691,6 +691,11 @@ fn is_param_used_in_stmt(param_name: &str, stmt: &HirStmt) -> bool {
                 })
         }
         HirStmt::With { body, .. } => body.iter().any(|s| is_param_used_in_stmt(param_name, s)),
+        // DEPYLER-0758: Check nested function bodies for closure captures
+        // If outer param is used in nested function, it's a closure capture and must not be renamed
+        HirStmt::FunctionDef { body, .. } => {
+            body.iter().any(|s| is_param_used_in_stmt(param_name, s))
+        }
         _ => false,
     }
 }
