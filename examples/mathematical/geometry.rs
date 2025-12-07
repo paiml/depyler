@@ -25,15 +25,15 @@ impl Point {
         Self { x, y }
     }
     pub fn distance_to(&self, other: Point) -> f64 {
-        let mut dx = self.x - other.x;
-        let mut dy = self.y - other.y;
-        let mut distance_squared = dx * dx + dy * dy;
+        let dx = self.x - other.x;
+        let dy = self.y - other.y;
+        let distance_squared = dx * dx + dy * dy;
         if distance_squared == 0 {
             return 0;
         };
         let mut result = distance_squared / 2;
         for _ in 0..10 {
-            let mut result = result + distance_squared / result / 2;
+            let result = result + distance_squared / result / 2;
         }
         return result;
     }
@@ -66,16 +66,16 @@ impl Circle {
         Self { radius }
     }
     pub fn area(&self) -> f64 {
-        let mut pi = 3.14159;
+        let pi = 3.14159;
         return pi * self.radius * self.radius;
     }
     pub fn circumference(&self) -> f64 {
-        let mut pi = 3.14159;
+        let pi = 3.14159;
         return 2 * pi * self.radius;
     }
     pub fn contains_point(&self, point: Point) -> bool {
-        let mut distance_squared = point.x * point.x + point.y * point.y;
-        let mut radius_squared = self.radius * self.radius;
+        let distance_squared = point.x * point.x + point.y * point.y;
+        let radius_squared = self.radius * self.radius;
         return distance_squared <= radius_squared;
     }
 }
@@ -124,7 +124,7 @@ pub fn triangle_area_heron(a: f64, b: f64, c: f64) -> Result<f64, Box<dyn std::e
 }
 #[doc = "Find intersection of two lines defined by point pairs"]
 #[doc = " Depyler: proven to terminate"]
-pub fn line_intersection<'a, 'c, 'l1, 'b>(
+pub fn line_intersection<'b, 'l1, 'c, 'a>(
     p1: &'a Point,
     p2: &'b Point,
     p3: &'c Point,
@@ -144,7 +144,7 @@ pub fn line_intersection<'a, 'c, 'l1, 'b>(
     }
     let _cse_temp_4 = (x1 - x3) * (y3 - y4);
     let _cse_temp_5 = (y1 - y3) * (x3 - x4);
-    let _cse_temp_6 = (_cse_temp_4 - _cse_temp_5) / denominator;
+    let _cse_temp_6 = (_cse_temp_4 - _cse_temp_5 as f64) / (denominator as f64);
     let t = _cse_temp_6;
     let _cse_temp_7 = t * (x2 - x1);
     let intersection_x = x1 + _cse_temp_7;

@@ -128,7 +128,10 @@ fn extract_generator_item_type(
 
 /// Infer type from a yield expression
 ///
-/// # Complexity: 2 (match + return)
+/// DEPYLER-0769: Handle tuple yields and other composite expressions
+/// to prevent undefined type `T` in generated code.
+///
+/// # Complexity: 4 (nested match + recursion for tuples)
 #[inline]
 fn infer_yield_type(expr: &HirExpr) -> Type {
     match expr {
@@ -140,8 +143,18 @@ fn infer_yield_type(expr: &HirExpr) -> Type {
             Literal::Bool(_) => Type::Bool,
             Literal::None => Type::None,
         },
-        HirExpr::Var(_) => Type::Int, // Default to Int for variables without type info
-        _ => Type::Unknown,
+        // DEPYLER-0769: Handle tuple yields like `yield a, b`
+        // Recursively infer types for each element
+        HirExpr::Tuple(elems) => {
+            let elem_types: Vec<Type> = elems.iter().map(infer_yield_type).collect();
+            Type::Tuple(elem_types)
+        }
+        // DEPYLER-0769: Default to String for variables without type info
+        // String is safer than Int as it can represent most yield patterns
+        HirExpr::Var(_) => Type::String,
+        // For other expressions (calls, binary ops, etc.), default to String
+        // which is a safer fallback than Unknown (which maps to undefined T)
+        _ => Type::String,
     }
 }
 

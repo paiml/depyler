@@ -1,11 +1,12 @@
 use serde_json;
 #[doc = "// NOTE: Map Python module 'dataclasses'(tracked in DEPYLER-0424)"]
 #[derive(Debug, Clone, PartialEq)]
-pub struct Counter {}
+pub struct Counter {
+    pub value: i32,
+}
 impl Counter {
-    pub const value: i32 = 0;
     pub fn new() -> Self {
-        Self {}
+        Self { value: 0 }
     }
     pub fn increment(&mut self) {
         self.value = self.value + 1;

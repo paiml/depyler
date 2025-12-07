@@ -48,7 +48,7 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
 }
 #[doc = "Calculate comprehensive statistics on dataset"]
 pub fn calculate_statistics(
-    data: &mut Vec<f64>,
+    data: &Vec<f64>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -58,7 +58,7 @@ pub fn calculate_statistics(
             map
         });
     }
-    let mut stats: HashMap<String, f64> = {
+    let mut stats: std::collections::HashMap<String, f64> = {
         let map = HashMap::new();
         map
     };
@@ -67,7 +67,7 @@ pub fn calculate_statistics(
         total = total + value;
     }
     let _cse_temp_2 = (_cse_temp_0) as f64;
-    let _cse_temp_3 = total / _cse_temp_2;
+    let _cse_temp_3 = (total as f64) / (_cse_temp_2 as f64);
     let mean: f64 = _cse_temp_3;
     stats.insert("mean".to_string().to_string(), mean);
     let mut variance_sum: f64 = 0.0;
@@ -75,7 +75,7 @@ pub fn calculate_statistics(
         let diff: f64 = value - mean;
         variance_sum = variance_sum + diff * diff;
     }
-    let _cse_temp_4 = variance_sum / _cse_temp_2;
+    let _cse_temp_4 = (variance_sum as f64) / (_cse_temp_2 as f64);
     let variance: f64 = _cse_temp_4;
     stats.insert("variance".to_string().to_string(), variance);
     stats.insert("std_dev".to_string().to_string(), (variance as f64).sqrt());
@@ -143,7 +143,7 @@ pub fn calculate_statistics(
             };
             base.get(actual_idx).cloned().unwrap_or_default()
         } + sorted_data.get(mid as usize).cloned().unwrap_or_default();
-        let _cse_temp_10 = _cse_temp_9 / 2.0;
+        let _cse_temp_10 = (_cse_temp_9 as f64) / (2.0 as f64);
         stats.insert("median".to_string().to_string(), _cse_temp_10);
     }
     Ok(stats)
@@ -151,7 +151,7 @@ pub fn calculate_statistics(
 #[doc = "Calculate quartiles using math and sorting"]
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_percentiles(
-    data: &mut Vec<f64>,
+    data: &Vec<f64>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -176,7 +176,7 @@ pub fn calculate_percentiles(
             }
         }
     }
-    let mut percentiles: HashMap<String, f64> = {
+    let mut percentiles: std::collections::HashMap<String, f64> = {
         let map = HashMap::new();
         map
     };
@@ -260,8 +260,8 @@ pub fn calculate_percentiles(
     Ok(percentiles)
 }
 #[doc = "Detect outliers using IQR method(combines statistics + collections)"]
-pub fn detect_outliers(mut data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
-    let mut percentiles: HashMap<String, f64> = calculate_percentiles(&mut data)?;
+pub fn detect_outliers(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
+    let percentiles: std::collections::HashMap<String, f64> = calculate_percentiles(&data)?;
     let _cse_temp_0 = percentiles.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -283,7 +283,7 @@ pub fn detect_outliers(mut data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::erro
 }
 #[doc = "Create histogram bins(uses collections + math)"]
 pub fn bin_data(
-    data: &mut Vec<f64>,
+    data: &Vec<f64>,
     num_bins: i32,
 ) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = data.len() as i32;
@@ -307,17 +307,17 @@ pub fn bin_data(
         }
     }
     let _cse_temp_4 = (num_bins) as f64;
-    let _cse_temp_5 = (max_val - min_val) / _cse_temp_4;
+    let _cse_temp_5 = (max_val - min_val as f64) / (_cse_temp_4 as f64);
     let bin_width: f64 = _cse_temp_5;
-    let mut bins: HashMap<i32, i32> = {
+    let mut bins: std::collections::HashMap<i32, i32> = {
         let map = HashMap::new();
         map
     };
     for i in 0..num_bins {
-        bins.insert(i, 0);
+        bins.insert(i.clone(), 0);
     }
     for value in data.iter().cloned() {
-        let mut bin_index: i32 = ((value - min_val) / bin_width) as i32;
+        let mut bin_index: i32 = ((value - min_val as f64) / (bin_width as f64)) as i32;
         if bin_index >= num_bins {
             bin_index = num_bins - 1;
         }
@@ -375,7 +375,7 @@ pub fn calculate_correlation<'a, 'b>(
     Ok(correlation)
 }
 #[doc = "Z-score normalization using statistics"]
-pub fn normalize_data(mut data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
+pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -406,34 +406,24 @@ pub fn normalize_data(mut data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error
     Ok(normalized)
 }
 #[doc = "Group data by ranges using collections"]
-pub fn group_by_range<'b, 'a>(
-    data: &'a mut Vec<f64>,
+pub fn group_by_range<'a, 'b>(
+    data: &'a Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, Box<dyn std::error::Error>> {
-    let mut groups: HashMap<String, Vec<f64>> = {
+    let mut groups: std::collections::HashMap<String, Vec<f64>> = {
         let map = HashMap::new();
         map
     };
     for i in 0..ranges.len() as i32 {
         let mut range_tuple: (f64, f64) = ranges.get(i as usize).cloned().unwrap_or_default();
-        let mut range_key: String = format!(
-            "{}-{}",
-            range_tuple.get(0usize).cloned().unwrap_or_default(),
-            range_tuple.get(1usize).cloned().unwrap_or_default()
-        );
-        groups.insert(range_key, vec![]);
+        let mut range_key: String = format!("{}-{}", range_tuple.0, range_tuple.1);
+        groups.insert(range_key.clone(), vec![]);
     }
     for value in data.iter().cloned() {
         for i in 0..ranges.len() as i32 {
             let mut range_tuple: (f64, f64) = ranges.get(i as usize).cloned().unwrap_or_default();
-            if (value >= range_tuple.get(0usize).cloned().unwrap_or_default())
-                && (value < range_tuple.get(1usize).cloned().unwrap_or_default())
-            {
-                let mut range_key: String = format!(
-                    "{}-{}",
-                    range_tuple.get(0usize).cloned().unwrap_or_default(),
-                    range_tuple.get(1usize).cloned().unwrap_or_default()
-                );
+            if (value >= range_tuple.0) && (value < range_tuple.1) {
+                let mut range_key: String = format!("{}-{}", range_tuple.0, range_tuple.1);
                 groups
                     .get(&range_key)
                     .cloned()
@@ -458,7 +448,7 @@ pub fn monte_carlo_simulation(
         let distance: f64 = (x * x + y * y as f64).sqrt();
         results.push(distance);
     }
-    let mut stats: HashMap<String, f64> = calculate_statistics(&mut results)?;
+    let stats: std::collections::HashMap<String, f64> = calculate_statistics(&results)?;
     Ok(stats)
 }
 #[doc = "Main analysis pipeline combining all modules"]
@@ -472,7 +462,7 @@ pub fn analyze_dataset() -> Result<(), Box<dyn std::error::Error>> {
     };
     let sample_size: i32 = 100;
     let dataset: Vec<f64> = generate_sample_data(sample_size, 50.0, 10.0);
-    let mut stats: HashMap<String, f64> = calculate_statistics(&mut dataset)?;
+    let stats: std::collections::HashMap<String, f64> = calculate_statistics(&dataset)?;
     println!(
         "{}",
         format!(
@@ -481,7 +471,7 @@ pub fn analyze_dataset() -> Result<(), Box<dyn std::error::Error>> {
             stats.get("std_dev").cloned().unwrap_or_default()
         )
     );
-    let mut percentiles: HashMap<String, f64> = calculate_percentiles(&mut dataset)?;
+    let percentiles: std::collections::HashMap<String, f64> = calculate_percentiles(&dataset)?;
     println!(
         "{}",
         format!(
@@ -491,15 +481,16 @@ pub fn analyze_dataset() -> Result<(), Box<dyn std::error::Error>> {
             percentiles.get("q3").cloned().unwrap_or_default()
         )
     );
-    let mut outliers: Vec<f64> = detect_outliers(dataset)?;
+    let outliers: Vec<f64> = detect_outliers(dataset)?;
     println!("{}", format!("Outliers found: {}", outliers.len() as i32));
-    let histogram: HashMap<i32, i32> = bin_data(&mut dataset, 10)?;
+    let histogram: std::collections::HashMap<i32, i32> = bin_data(&dataset, 10)?;
     println!(
         "{}",
         format!("Histogram bins created: {}", histogram.len() as i32)
     );
-    let mut normalized: Vec<f64> = normalize_data(dataset)?;
-    let normalized_stats: HashMap<String, f64> = calculate_statistics(&mut normalized)?;
+    let normalized: Vec<f64> = normalize_data(dataset)?;
+    let normalized_stats: std::collections::HashMap<String, f64> =
+        calculate_statistics(&normalized)?;
     println!(
         "{}",
         format!(
@@ -511,12 +502,12 @@ pub fn analyze_dataset() -> Result<(), Box<dyn std::error::Error>> {
     let corr: f64 = calculate_correlation(&dataset, &dataset2)?;
     println!("{}", format!("Correlation: {:?}", corr));
     let ranges: Vec<(f64, f64)> = vec![(0.0, 25.0), (25.0, 50.0), (50.0, 75.0), (75.0, 100.0)];
-    let mut groups: HashMap<String, Vec<f64>> = group_by_range(&mut dataset, &ranges)?;
+    let groups: std::collections::HashMap<String, Vec<f64>> = group_by_range(&dataset, &ranges)?;
     println!(
         "{}",
         format!("Range groups created: {}", groups.len() as i32)
     );
-    let mc_stats: HashMap<String, f64> = monte_carlo_simulation(1000)?;
+    let mc_stats: std::collections::HashMap<String, f64> = monte_carlo_simulation(1000)?;
     println!(
         "{}",
         format!(

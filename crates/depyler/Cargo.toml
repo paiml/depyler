@@ -55,6 +55,8 @@ async-trait.workspace = true
 notify = "8.0"
 chrono = "0.4"
 walkdir = "2.5"
+rand.workspace = true
+regex.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

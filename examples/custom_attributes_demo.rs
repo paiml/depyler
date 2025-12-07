@@ -54,8 +54,8 @@ pub fn compute_hash(text: &str) -> Result<i32, Box<dyn std::error::Error>> {
     for _char in text.chars() {
         let char = _char.to_string();
         hash_val = (hash_val * 31 + char.chars().next().unwrap() as i32)
-            % (2 as i32)
-                .checked_pow(32 as u32)
+            % ({ 2 } as i32)
+                .checked_pow({ 32 } as u32)
                 .expect("Power operation overflowed");
     }
     Ok(hash_val)

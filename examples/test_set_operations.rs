@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn create_sets() -> (HashSet<i32>, HashSet<i32>) {
+pub fn create_sets() -> (
+    std::collections::HashSet<i32>,
+    std::collections::HashSet<i32>,
+) {
     let s1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -24,7 +27,7 @@ pub fn create_sets() -> (HashSet<i32>, HashSet<i32>) {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_intersection() -> HashSet<i32> {
+pub fn test_set_intersection() -> std::collections::HashSet<i32> {
     let s1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -52,7 +55,7 @@ pub fn test_set_intersection() -> HashSet<i32> {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_union() -> HashSet<i32> {
+pub fn test_set_union() -> std::collections::HashSet<i32> {
     let s1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -76,7 +79,7 @@ pub fn test_set_union() -> HashSet<i32> {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_difference() -> HashSet<i32> {
+pub fn test_set_difference() -> std::collections::HashSet<i32> {
     let s1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -101,7 +104,7 @@ pub fn test_set_difference() -> HashSet<i32> {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_symmetric_difference() -> HashSet<i32> {
+pub fn test_set_symmetric_difference() -> std::collections::HashSet<i32> {
     let s1 = {
         let mut set = HashSet::new();
         set.insert(1);

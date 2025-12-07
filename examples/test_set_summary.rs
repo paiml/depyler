@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_all_set_features() -> HashSet<i32> {
+pub fn test_all_set_features() -> std::collections::HashSet<i32> {
     let mut s1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -10,6 +10,7 @@ pub fn test_all_set_features() -> HashSet<i32> {
         set
     };
     let mut s2 = vec![4, 5, 6].into_iter().collect::<HashSet<_>>();
+    let _empty = HashSet::<i32>::new();
     let _cse_temp_0 = s1
         .union(&s2)
         .cloned()
@@ -69,9 +70,18 @@ pub fn test_all_set_features() -> HashSet<i32> {
     let symmetric_diff = _cse_temp_3;
     s1.insert(4);
     s2.remove(&5);
-    let _cse_temp_4 = union | intersection;
-    let _cse_temp_5 = _cse_temp_4 | difference;
-    let _cse_temp_6 = _cse_temp_5 | symmetric_diff;
+    let _cse_temp_4 = union
+        .union(&intersection)
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
+    let _cse_temp_5 = _cse_temp_4
+        .union(&difference)
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
+    let _cse_temp_6 = _cse_temp_5
+        .union(&symmetric_diff)
+        .cloned()
+        .collect::<std::collections::HashSet<_>>();
     let result = _cse_temp_6;
     result
 }

@@ -9,8 +9,8 @@ pub const subtraction: serde_json::Value = 50 - 15;
 pub const multiplication: serde_json::Value = 7 * 8;
 pub const division: serde_json::Value = 100 / 4;
 pub const modulo: serde_json::Value = 17 % 5;
-pub const power: serde_json::Value = (2 as i32)
-    .checked_pow(8 as u32)
+pub const power: serde_json::Value = ({ 2 } as i32)
+    .checked_pow({ 8 } as u32)
     .expect("Power operation overflowed");
 pub const greater_than: serde_json::Value = 10 > 5;
 pub const less_than: serde_json::Value = 3 < 7;
@@ -27,7 +27,7 @@ pub const bitwise_not: serde_json::Value = !255;
 pub static list_example: once_cell::sync::Lazy<serde_json::Value> =
     once_cell::sync::Lazy::new(|| serde_json::to_value(vec![1, 2, 3, 4, 5]).unwrap());
 pub static tuple_example: once_cell::sync::Lazy<serde_json::Value> =
-    once_cell::sync::Lazy::new(|| (1, "hello".to_string(), 3.14, true));
+    once_cell::sync::Lazy::new(|| (1, "hello".to_string().to_string(), 3.14, true));
 pub static dict_example: once_cell::sync::Lazy<serde_json::Value> =
     once_cell::sync::Lazy::new(|| {
         serde_json::to_value({
@@ -116,18 +116,18 @@ pub const slice_reverse: serde_json::Value = {
 pub const list_comp: serde_json::Value = (0..10).into_iter().map(|x| x * 2).collect::<Vec<_>>();
 pub const list_comp_filtered: serde_json::Value = (0..20)
     .into_iter()
-    .filter(|x| x % 2 == 0)
+    .filter(|&x| x % 2 == 0)
     .map(|x| x)
     .collect::<Vec<_>>();
 pub const set_comp: serde_json::Value = (0..5)
     .into_iter()
     .map(|x| {
         if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-            (x as i32)
-                .checked_pow(2 as u32)
+            ({ x } as i32)
+                .checked_pow({ 2 } as u32)
                 .expect("Power operation overflowed")
         } else {
-            (x as f64).powf(2 as f64) as i32
+            ({ x } as f64).powf({ 2 } as f64) as i32
         }
     })
     .collect::<HashSet<_>>();
@@ -136,15 +136,15 @@ pub const dict_comp: serde_json::Value = (0..5)
     .map(|x| {
         (x, {
             if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-                (x as i32)
-                    .checked_pow(2 as u32)
+                ({ x } as i32)
+                    .checked_pow({ 2 } as u32)
                     .expect("Power operation overflowed")
             } else {
-                (x as f64).powf(2 as f64) as i32
+                ({ x } as f64).powf({ 2 } as f64) as i32
             }
         })
     })
-    .collect::<HashMap<_, _>>();
+    .collect::<std::collections::HashMap<_, _>>();
 pub const simple_call: serde_json::Value = println!("{}", "Hello".to_string());
 pub const method_call: serde_json::Value = "hello".to_string().to_uppercase();
 pub const chained_calls: serde_json::Value =
@@ -154,11 +154,11 @@ pub const module_function: serde_json::Value = (16 as f64).sqrt();
 pub fn square(x: i32) -> i32 {
     {
         if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-            (x as i32)
-                .checked_pow(2 as u32)
+            ({ x } as i32)
+                .checked_pow({ 2 } as u32)
                 .expect("Power operation overflowed")
         } else {
-            (x as f64).powf(2 as f64) as i32
+            ({ x } as f64).powf({ 2 } as f64) as i32
         }
     }
 }
@@ -337,20 +337,20 @@ pub fn demonstrate_comprehensions() -> Vec<(i32, i32, i32)> {
                 x,
                 {
                     if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-                        (x as i32)
-                            .checked_pow(2 as u32)
+                        ({ x } as i32)
+                            .checked_pow({ 2 } as u32)
                             .expect("Power operation overflowed")
                     } else {
-                        (x as f64).powf(2 as f64) as i32
+                        ({ x } as f64).powf({ 2 } as f64) as i32
                     }
                 },
                 {
                     if 3 >= 0 && (3 as i64) <= (u32::MAX as i64) {
-                        (x as i32)
-                            .checked_pow(3 as u32)
+                        ({ x } as i32)
+                            .checked_pow({ 3 } as u32)
                             .expect("Power operation overflowed")
                     } else {
-                        (x as f64).powf(3 as f64) as i32
+                        ({ x } as f64).powf({ 3 } as f64) as i32
                     }
                 },
             )

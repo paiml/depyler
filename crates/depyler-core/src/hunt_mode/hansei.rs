@@ -371,7 +371,7 @@ mod tests {
         reflector.reflect_on_cycle(&outcome2);
 
         // Should have reinforced existing lessons
-        let high_conf = reflector.high_confidence_lessons();
+        let _high_conf = reflector.high_confidence_lessons();
         // At least some lessons should have been reinforced
         assert!(reflector.lessons().iter().any(|l| l.occurrences > 1));
     }

@@ -166,7 +166,6 @@ impl HuntPlanner {
     /// Higher score = higher priority
     fn calculate_priority(&self, pattern: &FailurePattern) -> f64 {
         let frequency = pattern.affected_count as f64;
-        let severity = pattern.fix_complexity as f64; // Invert: easier = higher priority
         let complexity = pattern.fix_complexity as f64;
 
         // Avoid division by zero

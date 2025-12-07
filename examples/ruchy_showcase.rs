@@ -24,7 +24,7 @@ impl DataProcessor {
     threshold
 }
 } pub fn filter_data(&self, data: Vec<i32>) -> Vec<i32>{
-    return data.into_iter().filter(| x | x>self.threshold).map(| x | x).collect::<Vec<_>>();
+    return data.into_iter().filter(| & x | x>self.threshold).map(| x | x).collect::<Vec<_>>();
    
 }
 pub fn transform_data(&self, data: Vec<i32>) -> Vec<i32>{
@@ -61,7 +61,7 @@ else {
 else {
     Vec::new()
 }
-}.into_iter().filter(| x | x<pivot).map(| x | x).collect::<Vec<_>>();
+}.into_iter().filter(| & x | x<pivot).map(| x | x).collect::<Vec<_>>();
     let greater = {
     let base = & arr;
     let start_idx = 1 as isize;
@@ -76,16 +76,16 @@ else {
 else {
     Vec::new()
 }
-}.into_iter().filter(| x | x>= pivot).map(| x | x).collect::<Vec<_>>();
+}.into_iter().filter(| & x | x>= pivot).map(| x | x).collect::<Vec<_>>();
     Ok(quicksort(less) ?.iter().chain (vec! [pivot].iter()).cloned().collect::<Vec<_>>() + quicksort(greater) ?)
 }
 #[doc = "Process data using functional pipeline style."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn process_data(numbers: & Vec<i32>) -> Vec<i32>{
-    let result = numbers.iter().copied().filter(| x | x>0).map(| x | x * 2).collect::<Vec<_>>();
+    let result = numbers.iter().cloned().filter(| & x | x>0).map(| x | x * 2).collect::<Vec<_>>();
     result
 }
 #[doc = "Create a greeting with optional title."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn greet(name: String, title: & Option<String>) -> String {
     if let Some(ref title_val) = title {
-    format!("Hello, {:?} {}!", title_val.clone(), name)
+    format!("Hello, {:?} {}!", title_val, name)
 }
 else {
     format!("Hello, {}!", name)

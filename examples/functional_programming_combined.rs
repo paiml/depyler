@@ -83,7 +83,7 @@ pub fn reduce_product(data: &Vec<i32>) -> i32 {
 pub fn chain_operations(data: Vec<i32>) -> i32 {
     let mapped: Vec<i32> = map_transform(&data, 2);
     let filtered: Vec<i32> = filter_predicate(&mapped, 10);
-    let mut result: i32 = reduce_sum(&filtered);
+    let result: i32 = reduce_sum(&filtered);
     result
 }
 #[doc = "Zip two lists together"]
@@ -120,14 +120,14 @@ pub fn group_by_property(
     items: &Vec<i32>,
     modulo: i32,
 ) -> Result<HashMap<i32, Vec<i32>>, Box<dyn std::error::Error>> {
-    let mut groups: HashMap<i32, Vec<i32>> = {
+    let mut groups: std::collections::HashMap<i32, Vec<i32>> = {
         let map = HashMap::new();
         map
     };
     for item in items.iter().cloned() {
         let key: i32 = item % modulo;
         if !groups.get(&key).is_some() {
-            groups.insert(key, vec![]);
+            groups.insert(key.clone(), vec![]);
         }
         groups.get(&key).cloned().unwrap_or_default().push(item);
     }
@@ -171,7 +171,7 @@ pub fn flatten_nested_list(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Compute Cartesian product of two lists"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
+pub fn cartesian_product<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
     let mut result: Vec<(i32, i32)> = vec![];
     for item1 in list1.iter().cloned() {
         for item2 in list2.iter().cloned() {
@@ -263,7 +263,7 @@ pub fn compose_two_functions(data: Vec<i32>) -> Vec<i32> {
 }
 #[doc = "Apply multiple operations in sequence"]
 #[doc = " Depyler: verified panic-free"]
-pub fn apply_multiple_operations<'b, 'a>(
+pub fn apply_multiple_operations<'a, 'b>(
     data: &'a Vec<i32>,
     operations: &'b Vec<String>,
 ) -> Vec<i32> {
@@ -308,21 +308,21 @@ pub fn map_reduce_pattern(data: &Vec<i32>) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn filter_map_reduce_pattern(data: Vec<i32>, threshold: i32) -> i32 {
     let filtered: Vec<i32> = filter_predicate(&data, threshold);
-    let mut mapped: Vec<i32> = map_transform(&filtered, 3);
+    let mapped: Vec<i32> = map_transform(&filtered, 3);
     let reduced: i32 = reduce_sum(&mapped);
     reduced
 }
 #[doc = "Get unique elements(set-like operation)"]
 #[doc = " Depyler: verified panic-free"]
 pub fn unique_elements(data: &Vec<i32>) -> Vec<i32> {
-    let mut seen: HashMap<i32, bool> = {
+    let mut seen: std::collections::HashMap<i32, bool> = {
         let map = HashMap::new();
         map
     };
     let mut result: Vec<i32> = vec![];
     for item in data.iter().cloned() {
         if !seen.get(&item).is_some() {
-            seen.insert(item, true);
+            seen.insert(item.clone(), true);
             result.push(item);
         }
     }
@@ -330,7 +330,7 @@ pub fn unique_elements(data: &Vec<i32>) -> Vec<i32> {
 }
 #[doc = "Count occurrences of each value"]
 pub fn count_by_value(data: &Vec<i32>) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
-    let mut counts: HashMap<i32, i32> = {
+    let mut counts: std::collections::HashMap<i32, i32> = {
         let map = HashMap::new();
         map
     };
@@ -342,7 +342,7 @@ pub fn count_by_value(data: &Vec<i32>) -> Result<HashMap<i32, i32>, Box<dyn std:
                 counts.insert(_key, _old_val + 1);
             }
         } else {
-            counts.insert(item, 1);
+            counts.insert(item.clone(), 1);
         }
     }
     Ok(counts)
@@ -388,8 +388,8 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
         format!("   Filtered(>5): {} elements", filtered.len() as i32)
     );
     println!("{}", "\n3. Reduce Pattern");
-    let mut total: i32 = reduce_sum(&data);
-    println!("{}", format!("   Sum: {:?}", total));
+    let total: i32 = reduce_sum(&data);
+    println!("{}", format!("   Sum: {}", total));
     println!("{}", "\n4. Chained Operations");
     let chained: i32 = chain_operations(data);
     println!("{}", format!("   Result: {:?}", chained));
@@ -416,7 +416,7 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
     );
     println!("{}", format!("   Zipped: {} pairs", zipped.len() as i32));
     println!("{}", "\n6. Group By Pattern");
-    let mut groups: HashMap<i32, Vec<i32>> = group_by_property(&data, 3)?;
+    let groups: std::collections::HashMap<i32, Vec<i32>> = group_by_property(&data, 3)?;
     println!(
         "{}",
         format!("   Groups(mod 3): {} groups", groups.len() as i32)
@@ -427,8 +427,8 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
         "{}",
         format!(
             "   Partition: {} passed, {} failed",
-            parts.get(0usize).cloned().unwrap_or_default().len() as i32,
-            parts.get(1usize).cloned().unwrap_or_default().len() as i32
+            parts.0.len() as i32,
+            parts.1.len() as i32
         )
     );
     println!("{}", "\n8. Accumulate Pattern");
@@ -447,7 +447,7 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
     println!("{}", "\n10. Cartesian Product");
     let list1: Vec<i32> = vec![1, 2, 3];
     let list2: Vec<i32> = vec![10, 20];
-    let mut product: Vec<(i32, i32)> = cartesian_product(&list1, &list2);
+    let product: Vec<(i32, i32)> = cartesian_product(&list1, &list2);
     println!(
         "{}",
         format!("   Product: {} combinations", product.len() as i32)

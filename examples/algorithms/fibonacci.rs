@@ -31,9 +31,9 @@ pub fn fibonacci_recursive(n: i32) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn fibonacci_memoized(
     n: i32,
-    mut memo: Option<HashMap<i32, i32>>,
+    mut memo: Option<std::collections::HashMap<i32, i32>>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    if memo.is_none() {
+    if memo.is_null() {
         memo = {
             let map = HashMap::new();
             map
@@ -51,7 +51,7 @@ pub fn fibonacci_memoized(
         let _cse_temp_2 = fibonacci_memoized(n - 1, &memo)? + fibonacci_memoized(n - 2, &memo)?;
         result = _cse_temp_2;
     }
-    memo.insert(n, serde_json::json!(result));
+    memo.insert(n.clone(), serde_json::json!(result));
     Ok(result)
 }
 #[doc = "Iterative fibonacci - demonstrates loops and efficiency"]

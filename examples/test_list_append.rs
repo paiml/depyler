@@ -11,7 +11,7 @@ impl Logger {
     }
     pub fn log(&self, msg: String) -> i32 {
         self.messages.push(msg);
-        return self.messages.len();
+        return self.messages.len() as i32;
     }
 }
 #[doc = " Depyler: verified panic-free"]
@@ -19,5 +19,5 @@ impl Logger {
 pub fn test_logger() {
     let logger = Logger::new();
     let count = logger.log("Hello".to_string());
-    count
+    let _ = count;
 }

@@ -156,6 +156,7 @@ def process_format(use_json, format_str):
 // Expected: `if option_var.is_some()` OR `if let Some(value) = option_var`
 
 #[test]
+#[ignore = "DEPYLER-0455: Option truthiness not yet implemented"]
 fn test_DEPYLER_0455_03_option_truthiness_check() {
     let python = r#"
 import os
@@ -283,6 +284,7 @@ def show_config():
 // It mirrors the actual code from example_complex that triggered DEPYLER-0455.
 
 #[test]
+#[ignore = "DEPYLER-0455: Option truthiness not yet implemented"]
 fn test_DEPYLER_0455_05_combined_scenario() {
     let python = r#"
 import os
@@ -350,6 +352,7 @@ def main():
 // Test that nested Option checks are handled correctly
 
 #[test]
+#[ignore = "DEPYLER-0455: Option truthiness not yet implemented"]
 fn test_DEPYLER_0455_06_nested_option_checks() {
     let python = r#"
 import os

@@ -51,6 +51,7 @@ fn test_depyler_0351_index_class_with_methods() {
         base_classes: vec![],
         is_dataclass: false,
         docstring: None,
+        type_params: vec![],
     };
 
     let module = HirModule {
@@ -96,6 +97,7 @@ fn test_depyler_0351_index_class_with_fields() {
         base_classes: vec![],
         is_dataclass: false,
         docstring: None,
+        type_params: vec![],
     };
 
     let module = HirModule {
@@ -161,6 +163,7 @@ fn test_depyler_0351_index_multiple_methods() {
         base_classes: vec![],
         is_dataclass: false,
         docstring: None,
+        type_params: vec![],
     };
 
     let module = HirModule {
@@ -222,6 +225,7 @@ fn test_depyler_0351_index_module_with_functions_and_classes() {
         base_classes: vec![],
         is_dataclass: false,
         docstring: None,
+        type_params: vec![],
     };
 
     let module = HirModule {
@@ -310,6 +314,7 @@ fn test_depyler_0351_index_method_detail_format() {
         base_classes: vec![],
         is_dataclass: false,
         docstring: None,
+        type_params: vec![],
     };
 
     let module = HirModule {
@@ -351,6 +356,7 @@ fn test_depyler_0351_index_field_type_annotation() {
         base_classes: vec![],
         is_dataclass: false,
         docstring: None,
+        type_params: vec![],
     };
 
     let module = HirModule {
@@ -507,6 +513,7 @@ fn test_depyler_0351_completions_empty_prefix() {
         base_classes: vec![],
         is_dataclass: false,
         docstring: None,
+        type_params: vec![],
     };
 
     let module = HirModule {
@@ -618,6 +625,7 @@ fn test_depyler_0351_completions_different_kinds() {
         base_classes: vec![],
         is_dataclass: false,
         docstring: None,
+        type_params: vec![],
     };
 
     let module = HirModule {
@@ -915,6 +923,7 @@ fn test_depyler_0351_class_with_multiple_fields() {
         base_classes: vec![],
         is_dataclass: false,
         docstring: None,
+        type_params: vec![],
     };
 
     let module = HirModule {

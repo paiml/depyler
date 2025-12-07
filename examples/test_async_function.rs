@@ -16,7 +16,7 @@ results
 }
 #[doc = " Depyler: verified panic-free"] pub async fn main () {
     let urls = vec! ["http://api.example.com".to_string(), "http://api2.example.com".to_string()];
-    let mut results = process_urls(& urls).await;
+    let results = process_urls(& urls).await;
     for result in results.iter().cloned() {
     println!("{:?}", result);
    

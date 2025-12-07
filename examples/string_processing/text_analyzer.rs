@@ -41,7 +41,7 @@ pub fn word_frequency(text: &str) -> Result<HashMap<String, i32>, Box<dyn std::e
         .split_whitespace()
         .map(|s| s.to_string())
         .collect::<Vec<String>>();
-    let mut frequency: HashMap<String, i32> = {
+    let mut frequency: std::collections::HashMap<String, i32> = {
         let map = HashMap::new();
         map
     };
@@ -50,10 +50,10 @@ pub fn word_frequency(text: &str) -> Result<HashMap<String, i32>, Box<dyn std::e
         for _char in word.chars() {
             let char = _char.to_string();
             if char.chars().all(|c| c.is_alphabetic()) {
-                clean_word = clean_word + char;
+                clean_word = format!("{}{}", clean_word, char);
             }
         }
-        if clean_word {
+        if !clean_word.is_empty() {
             if frequency.get(&clean_word).is_some() {
                 {
                     let _key = clean_word;
@@ -61,7 +61,7 @@ pub fn word_frequency(text: &str) -> Result<HashMap<String, i32>, Box<dyn std::e
                     frequency.insert(_key, _old_val + 1);
                 }
             } else {
-                frequency.insert(clean_word, 1);
+                frequency.insert(clean_word.clone(), 1);
             }
         }
     }
@@ -70,7 +70,7 @@ pub fn word_frequency(text: &str) -> Result<HashMap<String, i32>, Box<dyn std::e
 #[doc = "Group words that are anagrams of each other"]
 #[doc = " Depyler: verified panic-free"]
 pub fn find_anagrams(words: &Vec<String>) -> Vec<Vec<String>> {
-    let mut groups: HashMap<String, Vec<String>> = {
+    let mut groups: std::collections::HashMap<String, Vec<String>> = {
         let map = HashMap::new();
         map
     };
@@ -88,7 +88,7 @@ pub fn find_anagrams(words: &Vec<String>) -> Vec<Vec<String>> {
                 .unwrap_or_default()
                 .push(word);
         } else {
-            groups.insert(sorted_chars, vec![word]);
+            groups.insert(sorted_chars.clone(), vec![word]);
         }
     }
     let mut result: Vec<Vec<String>> = vec![];
@@ -165,7 +165,7 @@ pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, Box<dyn st
                     .nth(actual_idx)
                     .map(|c| c.to_string())
                     .unwrap_or_default()
-            } != char
+            } != *char
             {
                 all_match = false;
                 break;
@@ -184,7 +184,7 @@ pub fn is_palindrome(s: &str) -> Result<bool, Box<dyn std::error::Error>> {
     let mut cleaned = STR_EMPTY.to_string();
     for char in s.to_lowercase() {
         if char.chars().all(|c| c.is_alphanumeric()) {
-            cleaned = cleaned + char;
+            cleaned = format!("{}{}", cleaned, char);
         }
     }
     let _cse_temp_0 = cleaned.len() as i32;
@@ -206,15 +206,30 @@ pub fn is_palindrome(s: &str) -> Result<bool, Box<dyn std::error::Error>> {
         }
     }
     {
-        if cleaned.get(i as usize).cloned().unwrap_or_default() != {
+        if {
             let base = &cleaned;
-            let idx: i32 = length - 1 - i;
+            let idx: i32 = i;
             let actual_idx = if idx < 0 {
-                base.len().saturating_sub(idx.abs() as usize)
+                base.chars().count().saturating_sub(idx.abs() as usize)
             } else {
                 idx as usize
             };
-            base.get(actual_idx).cloned().unwrap_or_default()
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        } != {
+            let base = &cleaned;
+            let idx: i32 = length - 1 - i;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
         } {
             return Ok(false);
         }

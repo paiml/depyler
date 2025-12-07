@@ -68,7 +68,7 @@ pub fn count_vowels(s: &str) -> i32 {
     let mut count = 0;
     for _char in s.chars() {
         let char = _char.to_string();
-        if vowels.get(&char).is_some() {
+        if vowels.contains(&*char) {
             count = count + 1;
         }
     }
@@ -80,7 +80,7 @@ pub fn is_palindrome_simple(s: &str) -> Result<bool, Box<dyn std::error::Error>>
     for _char in s.chars() {
         let char = _char.to_string();
         if char.chars().all(|c| c.is_alphabetic()) {
-            cleaned = cleaned + char.to_lowercase();
+            cleaned = format!("{}{}", cleaned, char.to_lowercase());
         }
     }
     let _cse_temp_0 = cleaned.len() as i32;
@@ -102,15 +102,30 @@ pub fn is_palindrome_simple(s: &str) -> Result<bool, Box<dyn std::error::Error>>
         }
     }
     {
-        if cleaned.get(i as usize).cloned().unwrap_or_default() != {
+        if {
             let base = &cleaned;
-            let idx: i32 = length - 1 - i;
+            let idx: i32 = i;
             let actual_idx = if idx < 0 {
-                base.len().saturating_sub(idx.abs() as usize)
+                base.chars().count().saturating_sub(idx.abs() as usize)
             } else {
                 idx as usize
             };
-            base.get(actual_idx).cloned().unwrap_or_default()
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        } != {
+            let base = &cleaned;
+            let idx: i32 = length - 1 - i;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
         } {
             return Ok(false);
         }
@@ -143,23 +158,21 @@ pub fn capitalize_words(text: &str) -> String {
     let mut result_words = vec![];
     for word in words.iter().cloned() {
         if !word.is_empty() {
-            let capitalized = format!(
-                "{}{}",
-                {
-                    let base = &word;
-                    let idx: i32 = 0;
-                    let actual_idx = if idx < 0 {
-                        base.chars().count().saturating_sub(idx.abs() as usize)
-                    } else {
-                        idx as usize
-                    };
-                    base.chars()
-                        .nth(actual_idx)
-                        .map(|c| c.to_string())
-                        .unwrap_or_default()
-                }
-                .to_uppercase(),
-                {
+            let capitalized = {
+                let base = &word;
+                let idx: i32 = 0;
+                let actual_idx = if idx < 0 {
+                    base.chars().count().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.chars()
+                    .nth(actual_idx)
+                    .map(|c| c.to_string())
+                    .unwrap_or_default()
+            }
+            .to_uppercase()
+                + {
                     let base = word;
                     let start_idx: i32 = 1;
                     let len = base.chars().count() as i32;
@@ -170,8 +183,7 @@ pub fn capitalize_words(text: &str) -> String {
                     };
                     base.chars().skip(actual_start).collect::<String>()
                 }
-                .to_lowercase()
-            );
+                .to_lowercase();
             result_words.push(capitalized);
         }
     }

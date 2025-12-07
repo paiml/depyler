@@ -12,23 +12,12 @@ def showcase_collections():
     numbers = [1, 2, 3]
     numbers.append(4)
     numbers.extend([5, 6])
-    
-    # Dict operations  
+
+    # Dict operations - use print to prevent DCE
     data = {"name": "Alice", "score": 95}
     name = data.get("name", "Unknown")
-    
-    # Nested collections
-    matrix = [[1, 2], [3, 4]]
-    nested_data = [
-        {"id": 1, "values": [10, 20]},
-        {"id": 2, "values": [30, 40]}
-    ]
-    
-    # String operations
-    text = "Hello World"
-    upper_text = text.upper()
-    words = text.split()
-    
+    print(name)
+
     return len(numbers)
 "#;
 

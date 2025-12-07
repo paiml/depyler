@@ -3,7 +3,10 @@ use std::collections::HashMap;
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_deep_nested() -> HashMap<String, HashMap<String, HashMap<String, String>>> {
-    let mut d: HashMap<String, HashMap<String, HashMap<String, String>>> = {
+    let mut d: std::collections::HashMap<
+        String,
+        std::collections::HashMap<String, std::collections::HashMap<String, String>>,
+    > = {
         let map = HashMap::new();
         map
     };

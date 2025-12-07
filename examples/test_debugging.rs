@@ -113,7 +113,7 @@ pub fn binary_search(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn std::er
 pub fn test_functions() -> Result<(), Box<dyn std::error::Error>> {
     let result = fibonacci(10);
     println!("{}", format!("Fibonacci(10) = {:?}", result));
-    let mut factors = find_prime_factors(60)?;
+    let factors = find_prime_factors(60)?;
     println!("{}", format!("Prime factors of 60: {:?}", factors));
     let test_array = vec![1, 3, 5, 7, 9, 11, 13, 15, 17, 19];
     let index = binary_search(&test_array, 7)?;

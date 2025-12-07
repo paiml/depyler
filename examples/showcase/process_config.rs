@@ -19,7 +19,7 @@ impl IndexError {
 #[doc = "Process configuration dictionary and return debug value if present."]
 #[doc = " Depyler: proven to terminate"]
 pub fn process_config(
-    config: &HashMap<String, String>,
+    config: &std::collections::HashMap<String, String>,
 ) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = config.get("debug").is_some();
     if _cse_temp_0 {

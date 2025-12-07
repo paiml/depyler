@@ -16,5 +16,5 @@ impl Point {
 pub fn test_property() {
     let p = Point::new(3, 4);
     let m = p.magnitude;
-    m
+    let _ = m;
 }

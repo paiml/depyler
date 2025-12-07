@@ -1,3 +1,4 @@
+use serde_json;
 use std::path::PathBuf;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -40,8 +41,10 @@ pub fn create_nested_path(
 #[doc = "Get file information"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_file_info(filepath: String) -> () {
-    let mut path = std::path::PathBuf::from(&filepath);
+pub fn get_file_info(
+    filepath: String,
+) -> (serde_json::Value, serde_json::Value, serde_json::Value) {
+    let path = std::path::PathBuf::from(&filepath);
     (
         path.file_name()
             .and_then(|n| n.to_str())

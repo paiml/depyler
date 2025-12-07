@@ -3,11 +3,13 @@ name = "test_wordcount"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "test_wordcount"
+[lib]
 path = "test_wordcount.rs"
 
 [dependencies]
 tempfile = "3.0"
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
+
+[dev-dependencies]
+quickcheck = "1"

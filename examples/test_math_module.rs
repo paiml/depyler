@@ -299,7 +299,23 @@ pub fn test_integer_operations() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_math_features() -> Result<(), Box<dyn std::error::Error>> {
+    let _basic_result: f64 = test_basic_math_functions();
+    let _trig_result: f64 = test_trigonometric_functions()?;
+    let _log_result: f64 = test_logarithmic_functions();
+    let _round_result: f64 = test_rounding_functions();
+    let _const_result: f64 = test_constants();
+    let _hyper_result: f64 = test_hyperbolic_functions();
+    let _special_result: f64 = test_special_functions();
+    let _angle_result: f64 = test_angle_conversions();
+    let _dist: f64 = calculate_distance(0.0, 0.0, 3.0, 4.0);
+    let _hyp: f64 = calculate_hypotenuse(3.0, 4.0);
+    let _power_result: f64 = test_power_operations();
     let sample_values: Vec<f64> = vec![1.5, 2.7, 3.2, 4.8, 5.1];
+    let _comp_result: f64 = test_comparison_functions(&sample_values)?;
+    let _stat_result: f64 = test_statistical_math(&sample_values)?;
+    let _sign_result: f64 = test_sign_and_copysign();
+    let _remainder_result: f64 = test_remainder_operations();
+    let _int_result: i32 = test_integer_operations()?;
     println!("{}", "All math module tests completed successfully");
     Ok(())
 }

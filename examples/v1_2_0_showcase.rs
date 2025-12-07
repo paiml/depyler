@@ -6,7 +6,7 @@ pub struct BankAccount {
     pub transaction_count: i32,
 }
 impl BankAccount {
-    pub fn new(owner: String, initial_balance: f64) -> Self {
+    pub fn new(owner: String, _initial_balance: f64) -> Self {
         Self {
             owner,
             balance: 0.0,
@@ -27,7 +27,7 @@ impl BankAccount {
         return false;
     }
     pub fn calculate_interest(principal: f64, rate: f64, years: i32) -> f64 {
-        return principal * rate * years;
+        return principal * rate * (years as f64);
     }
     pub fn summary(&self) -> String {
         return format!("{}: ${}", self.owner, self.balance);
@@ -56,11 +56,11 @@ pub struct SavingsAccount {
     pub interest_rate: f64,
 }
 impl SavingsAccount {
-    pub fn new(owner: String, interest_rate: f64) -> Self {
+    pub fn new(_owner: String, interest_rate: f64) -> Self {
         Self { interest_rate }
     }
     pub fn apply_interest(&mut self) -> f64 {
-        let mut interest = self.balance * self.interest_rate;
+        let interest = self.balance * self.interest_rate;
         self.balance = self.balance + interest;
         return self.balance;
     }
@@ -77,14 +77,14 @@ pub fn dataclass<T: Default>(_args: impl std::any::Any) -> T {
 pub fn demo_instance_methods() {
     let account = BankAccount::new("Alice".to_string(), 1000.0);
     let balance = account.balance;
-    balance
+    let _ = balance;
 }
 #[doc = "Demonstrate static method calls"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_static_methods() {
     let interest = BankAccount::calculate_interest(1000.0, 0.05, 3);
-    interest
+    let _ = interest;
 }
 #[doc = "Demonstrate dataclass functionality"]
 #[doc = " Depyler: verified panic-free"]
@@ -92,7 +92,7 @@ pub fn demo_static_methods() {
 pub fn demo_dataclass() {
     let tx = Transaction::new("Alice".to_string(), "Bob".to_string(), 100.0);
     let valid = tx.is_valid();
-    valid
+    let _ = valid;
 }
 #[doc = "Comprehensive demo of all v1.2.0 OOP features"]
 #[doc = " Depyler: verified panic-free"]
@@ -105,12 +105,15 @@ pub fn demo_all_features() {
         checking.withdraw(transaction.amount);
     }
     let future_value = BankAccount::calculate_interest(checking.balance, 0.03, 5);
-    checking.balance + future_value
+    let _ = checking.balance + future_value;
 }
 #[doc = "Run all demonstrations"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
+    let _balance = demo_instance_methods();
+    let _interest = demo_static_methods();
+    let _valid = demo_dataclass();
     let r#final = demo_all_features();
-    ()
+    let _ = r#final;
 }

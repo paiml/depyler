@@ -9,7 +9,7 @@ impl Point {
         Self { x, y }
     }
     pub fn distance_from_origin(&self) -> f64 {
-        return (self.x * self.x + self.y * self.y as f64).powf(0.5 as f64);
+        return ({ self.x * self.x + self.y * self.y } as f64).powf({ 0.5 } as f64);
     }
     pub fn translate(&mut self, dx: i32, dy: i32) {
         self.x = self.x + dx;
@@ -84,14 +84,8 @@ pub fn test_rectangle() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_person() {
-    let mut p = Person::new("Alice".to_string(), 25);
-    assert!(
-        p.file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_string()
-            == "Alice"
-    );
+    let p = Person::new("Alice".to_string(), 25);
+    assert!(p.name == "Alice");
     assert!(p.age == 25);
     assert!(p.is_adult());
     assert!(p.greet() == "Hello, my name is Alice".to_string());

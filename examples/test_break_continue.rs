@@ -54,7 +54,7 @@ pub fn test_nested_break() {
 #[doc = " Depyler: verified panic-free"]
 pub fn test_while_break() {
     let mut i = 0;
-    while true {
+    loop {
         if i >= 5 {
             break;
         }

@@ -37,9 +37,18 @@ impl IndexError {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_random_integers() -> i32 {
-    let rand_int: i32 = rand::thread_rng().gen_range(1..=10);
-    let rand_int2: i32 = rand::thread_rng().gen_range(0..=100);
-    let rand_int3: i32 = rand::thread_rng().gen_range(-50..=50);
+    let rand_int: i32 = {
+        use rand::Rng;
+        rand::thread_rng().gen_range(1..=10)
+    };
+    let rand_int2: i32 = {
+        use rand::Rng;
+        rand::thread_rng().gen_range(0..=100)
+    };
+    let rand_int3: i32 = {
+        use rand::Rng;
+        rand::thread_rng().gen_range(-50..=50)
+    };
     rand_int + rand_int2 + rand_int3
 }
 #[doc = "Test random float generation"]
@@ -47,8 +56,14 @@ pub fn test_random_integers() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_random_floats() -> f64 {
     let rand_float: f64 = rand::random::<f64>();
-    let rand_uniform: f64 = rand::thread_rng().gen_range((10.0 as f64)..=(20.0 as f64));
-    let rand_bounded: f64 = rand::thread_rng().gen_range((-1.0 as f64)..=(1.0 as f64));
+    let rand_uniform: f64 = {
+        use rand::Rng;
+        rand::thread_rng().gen_range((10.0 as f64)..=(20.0 as f64))
+    };
+    let rand_bounded: f64 = {
+        use rand::Rng;
+        rand::thread_rng().gen_range((-1.0 as f64)..=(1.0 as f64))
+    };
     rand_float + rand_uniform + rand_bounded
 }
 #[doc = "Test random choice from sequence"]
@@ -60,7 +75,10 @@ pub fn test_random_choice(items: &Vec<String>) -> String {
     if _cse_temp_1 {
         return "".to_string();
     }
-    let chosen: String = *items.choose(&mut rand::thread_rng()).unwrap();
+    let chosen: String = {
+        use rand::seq::SliceRandom;
+        *items.choose(&mut rand::thread_rng()).unwrap()
+    };
     chosen.to_string()
 }
 #[doc = "Test random sampling without replacement"]
@@ -72,10 +90,13 @@ pub fn test_random_sample(numbers: &Vec<i32>, k: i32) -> Vec<i32> {
     if _cse_temp_1 {
         return vec![];
     }
-    let sample: Vec<i32> = numbers
-        .choose_multiple(&mut rand::thread_rng(), k as usize)
-        .cloned()
-        .collect::<Vec<_>>();
+    let sample: Vec<i32> = {
+        use rand::seq::SliceRandom;
+        numbers
+            .choose_multiple(&mut rand::thread_rng(), k as usize)
+            .cloned()
+            .collect::<Vec<_>>()
+    };
     sample
 }
 #[doc = "Test in-place list shuffling"]
@@ -83,7 +104,10 @@ pub fn test_random_sample(numbers: &Vec<i32>, k: i32) -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_shuffle_list(items: &Vec<i32>) -> Vec<i32> {
     let shuffled: Vec<i32> = items.clone();
-    shuffled.shuffle(&mut rand::thread_rng());
+    {
+        use rand::seq::SliceRandom;
+        shuffled.shuffle(&mut rand::thread_rng())
+    };
     shuffled
 }
 #[doc = "Test seeded random generation for reproducibility"]
@@ -96,7 +120,10 @@ pub fn test_random_seed() -> Vec<i32> {
     };
     let mut results: Vec<i32> = vec![];
     for _i in 0..5 {
-        let rand_num: i32 = rand::thread_rng().gen_range(1..=100);
+        let rand_num: i32 = {
+            use rand::Rng;
+            rand::thread_rng().gen_range(1..=100)
+        };
         results.push(rand_num);
     }
     results
@@ -106,6 +133,7 @@ pub fn test_random_seed() -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_random_range() -> i32 {
     let even_num: i32 = {
+        use rand::Rng;
         let start = 0;
         let stop = 100;
         let step = 2;
@@ -114,6 +142,7 @@ pub fn test_random_range() -> i32 {
         start + offset * step
     };
     let odd_num: i32 = {
+        use rand::Rng;
         let start = 1;
         let stop = 100;
         let step = 2;
@@ -122,6 +151,7 @@ pub fn test_random_range() -> i32 {
         start + offset * step
     };
     let multiple_5: i32 = {
+        use rand::Rng;
         let start = 0;
         let stop = 100;
         let step = 5;
@@ -135,14 +165,20 @@ pub fn test_random_range() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn simulate_dice_roll() -> i32 {
-    rand::thread_rng().gen_range(1..=6)
+    {
+        use rand::Rng;
+        rand::thread_rng().gen_range(1..=6)
+    }
 }
 #[doc = "Simulate a coin flip"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn simulate_coin_flip() -> String {
-    let result: i32 = rand::thread_rng().gen_range(0..=1);
-    let _cse_temp_0 = result == 0.0;
+    let result: i32 = {
+        use rand::Rng;
+        rand::thread_rng().gen_range(0..=1)
+    };
+    let _cse_temp_0 = result == 0;
     if _cse_temp_0 {
         "Heads".to_string()
     } else {
@@ -156,15 +192,30 @@ pub fn generate_random_password(length: i32) -> Result<String, Box<dyn std::erro
     let chars: String =
         "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".to_string();
     for _i in 0..length {
-        let idx: i32 = rand::thread_rng().gen_range(0..=(chars.len() as i32).saturating_sub(1));
-        let char: String = chars.get(idx as usize).cloned().unwrap_or_default();
+        let idx: i32 = {
+            use rand::Rng;
+            rand::thread_rng().gen_range(0..=(chars.len() as i32).saturating_sub(1))
+        };
+        let char: String = {
+            let base = &chars;
+            let idx: i32 = idx;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        };
         password_chars.push(char);
     }
     let password: String = password_chars.join("");
     Ok(password.to_string())
 }
 #[doc = "Simulate weighted random choice(manual implementation)"]
-pub fn weighted_random_choice<'b, 'a>(
+pub fn weighted_random_choice<'a, 'b>(
     items: &'a Vec<String>,
     weights: &'b Vec<i32>,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -178,16 +229,15 @@ pub fn weighted_random_choice<'b, 'a>(
     }
     let mut total_weight: i32 = 0;
     for weight in weights.iter().cloned() {
-        total_weight = format!("{}{}", total_weight, weight);
+        total_weight = total_weight + weight;
     }
-    let rand_value: i32 = rand::thread_rng().gen_range(0..=total_weight - 1);
+    let rand_value: i32 = {
+        use rand::Rng;
+        rand::thread_rng().gen_range(0..=total_weight - 1)
+    };
     let mut cumulative: i32 = 0;
     for i in 0..items.len() as i32 {
-        cumulative = format!(
-            "{}{}",
-            cumulative,
-            weights.get(i as usize).cloned().unwrap_or_default()
-        );
+        cumulative = cumulative + weights.get(i as usize).cloned().unwrap_or_default();
         if rand_value < cumulative {
             return Ok(items.get(i as usize).cloned().unwrap_or_default());
         }
@@ -263,11 +313,14 @@ pub fn shuffle_deck() -> Vec<String> {
     ];
     for suit in suits.iter().cloned() {
         for rank in ranks.iter().cloned() {
-            let card: String = rank + suit;
+            let card: String = format!("{}{}", rank, suit);
             deck.push(card);
         }
     }
-    deck.shuffle(&mut rand::thread_rng());
+    {
+        use rand::seq::SliceRandom;
+        deck.shuffle(&mut rand::thread_rng())
+    };
     deck
 }
 #[doc = "Test Gaussian(normal) distribution"]
@@ -307,19 +360,35 @@ pub fn test_triangular_distribution() -> f64 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_random_features() -> Result<(), Box<dyn std::error::Error>> {
+    let _int_result: i32 = test_random_integers();
+    let _float_result: f64 = test_random_floats();
     let colors: Vec<String> = vec![
         "red".to_string(),
         "green".to_string(),
         "blue".to_string(),
         "yellow".to_string(),
     ];
+    let _chosen_color: String = test_random_choice(&colors);
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let _sampled: Vec<i32> = test_random_sample(&numbers, 3);
+    let _shuffled: Vec<i32> = test_shuffle_list(&numbers);
+    let _seeded_results: Vec<i32> = test_random_seed();
+    let _range_result: i32 = test_random_range();
+    let _dice: i32 = simulate_dice_roll();
+    let _coin: String = simulate_coin_flip();
+    let _password: String = generate_random_password(8)?;
     let items: Vec<String> = vec![
         "common".to_string(),
         "uncommon".to_string(),
         "rare".to_string(),
     ];
     let weights: Vec<i32> = vec![70, 25, 5];
+    let _weighted: String = weighted_random_choice(&items, &weights)?;
+    let _pi_est: f64 = monte_carlo_pi_estimation(1000)?;
+    let _bool_dist: f64 = test_random_boolean_distribution(100)?;
+    let _deck: Vec<String> = shuffle_deck();
+    let _gauss_result: f64 = test_gauss_distribution();
+    let _tri_result: f64 = test_triangular_distribution();
     println!("{}", "All random module tests completed successfully");
     Ok(())
 }

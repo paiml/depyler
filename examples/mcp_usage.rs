@@ -1,7 +1,7 @@
 #[doc = "// NOTE: Map Python module 'asyncio'(tracked in DEPYLER-0424)"] use serde_json as json;
     use std::path::PathBuf;
-    const STR___1: &'static str = "=";
-    const STR___2: &'static str = "\n";
+    const STR___1: &'static str = "\n";
+    const STR___2: &'static str = "=";
     use std::collections::HashMap;
     use serde_json;
     #[derive(Debug, Clone)] pub struct ZeroDivisionError {
@@ -46,9 +46,9 @@ impl DepylerMCPClient {
     Self {
     server_command, request_id: 0
 }
-} pub async fn call_tool(&mut self, tool_name: String, arguments: HashMap<String, serde_json::Value>) -> HashMap<String, serde_json::Value>{
+} pub async fn call_tool(&mut self, tool_name: String, arguments: std::collections::HashMap<String, serde_json::Value>) -> std::collections::HashMap<String, serde_json::Value>{
     self.request_id = self.request_id + 1;
-    let mut request = {
+    let request = {
     let mut map = std::collections::HashMap::new();
     map.insert("id".to_string(), self.request_id.to_string());
     map.insert("method".to_string(), "tools/call".to_string());
@@ -64,7 +64,7 @@ impl DepylerMCPClient {
     return self._mock_response(tool_name, arguments).await;
    
 }
-pub async fn _mock_response(&self, tool_name: String, arguments: HashMap<String, serde_json::Value>) -> HashMap<String, serde_json::Value>{
+pub async fn _mock_response(&self, tool_name: String, arguments: std::collections::HashMap<String, serde_json::Value>) -> std::collections::HashMap<String, serde_json::Value>{
     if tool_name == "transpile_python".to_string() {
     return {
     let mut map = std::collections::HashMap::new();
@@ -175,7 +175,7 @@ else {
 }
 } #[doc = "Example 1: Simple function transpilation with MCP."] pub async fn example_1_simple_transpilation() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 1: Simple Function Transpilation");
-    println!("{}", STR___1.repeat(50 as usize));
+    println!("{}", STR___2.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let python_code = "\ndef add_numbers(a: int, b: int) -> int:\n    \"\"\"Add two numbers together.\"\"\"\n    return a + b\n\nif __name__ == \"__main__\":\n    result = add_numbers(5, 3)\n    print(f\"Result: {result}\")\n";
     println!("{}", "🐍 Python Source:");
@@ -203,7 +203,7 @@ println!();
 }
 #[doc = "Example 2: Analyze migration complexity for a project."] pub async fn example_2_project_analysis() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 2: Project Migration Analysis");
-    println!("{}", STR___1.repeat(50 as usize));
+    println!("{}", STR___2.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let result = client.call_tool("analyze_migration_complexity", {
     let mut map = std::collections::HashMap::new();
@@ -240,7 +240,7 @@ println!();
 }
 #[doc = "Example 3: Verify transpilation correctness."] pub async fn example_3_verification() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 3: Transpilation Verification");
-    println!("{}", STR___1.repeat(50 as usize));
+    println!("{}", STR___2.repeat(50 as usize));
     let client = DepylerMCPClient::new();
     let python_source = "\ndef factorial(n: int) -> int:\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n";
     let rust_source = "\nfn factorial(n: i32) -> i32 {\n    if n <= 1 {\n        1\n   
@@ -287,9 +287,9 @@ println!();
 }
 #[doc = "Example 4: Batch processing multiple files."] pub async fn example_4_batch_processing() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 4: Batch Processing Workflow");
-    println!("{}", STR___1.repeat(50 as usize));
+    println!("{}", STR___2.repeat(50 as usize));
     let client = DepylerMCPClient::new();
-    let python_files = vec! [("binary_search.py", "def binary_search(arr, target):...") ,("calculate_sum.py", "def calculate_sum(numbers):...") ,("classify_number.py", "def classify_number(n):...")];
+    let python_files = vec! [("binary_search.py".to_string(), "def binary_search(arr, target):...".to_string()) ,("calculate_sum.py".to_string(), "def calculate_sum(numbers):...".to_string()) ,("classify_number.py".to_string(), "def classify_number(n):...".to_string())];
     println!("{}", "🔄 Processing multiple files with MCP...");
     println!();
     let mut results = vec! [];
@@ -319,20 +319,20 @@ println!();
 println!();
     println!("{}", "📊 Batch Processing Summary:");
     println!("{}", format!("  • Files processed: {}", results.len() as i32));
-    println!("{}", format!("  • Success rate: {}", results.iter().copied().filter(| r | r.get("verification_passed").cloned().unwrap_or_default()).map(| r | r).collect::<Vec<_>>().len() as i32 / results.len() as i32));
-    let _cse_temp_0 = results.iter().copied().map(| r | r.get("transpile_metrics").cloned().unwrap_or_default().get("lines_of_code").cloned().unwrap_or_default()).sum::<i32>();
+    println!("{}", format!("  • Success rate: {}", results.iter().cloned().filter(| & r | r.get("verification_passed").cloned().unwrap_or_default()).map(| r | r).collect::<Vec<_>>().len() as i32 / results.len() as i32));
+    let _cse_temp_0 = results.iter().cloned().map(| r | r.get("transpile_metrics").cloned().unwrap_or_default().get("lines_of_code").cloned().unwrap_or_default()).sum::<i32>();
     let total_loc = _cse_temp_0;
     let _cse_temp_1 = results.len() as i32;
     let _cse_temp_2 = _cse_temp_0 / _cse_temp_1;
     let avg_performance = _cse_temp_2;
-    println!("{}", format!("  • Total lines of Rust: {:?}", total_loc));
-    println!("{}", format!("  • Average performance gain: {:?}%", avg_performance));
+    println!("{}", format!("  • Total lines of Rust: {}", total_loc));
+    println!("{}", format!("  • Average performance gain: {}%", avg_performance));
     println!();
     Ok(())
 }
 #[doc = "Example 5: Integration pattern for AI assistants."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn example_5_ai_assistant_integration() {
     println!("{}", "🔬 Example 5: AI Assistant Integration Pattern");
-    println!("{}", STR___1.repeat(50 as usize));
+    println!("{}", STR___2.repeat(50 as usize));
     println!("{}", "🤖 AI Assistant Workflow:");
     println!();
     println!("{}", "1\u{fe0f}\u{20e3}  Analyze Python project complexity...");
@@ -369,7 +369,7 @@ println!();
 }
 #[doc = "Run all MCP usage examples."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn main () {
     println!("{}", "🚀 Depyler MCP Integration Examples");
-    println!("{}", STR___1.repeat(60 as usize));
+    println!("{}", STR___2.repeat(60 as usize));
     println!();
     println!("{}", "This script demonstrates various ways to use Depyler's");
     println!("{}", "Model Context Protocol(MCP) integration for AI-powered");
@@ -382,16 +382,16 @@ println!();
     println!("{}", "  4. Batch processing workflow");
     println!("{}", "  5. AI assistant integration patterns");
     println!();
-    println!("{}", STR___1.repeat(60 as usize));
+    println!("{}", STR___2.repeat(60 as usize));
     println!();
     example_1_simple_transpilation().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___2, STR___1.repeat(60 as usize)), STR___2));
+    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
     example_2_project_analysis().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___2, STR___1.repeat(60 as usize)), STR___2));
+    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
     example_3_verification().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___2, STR___1.repeat(60 as usize)), STR___2));
+    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
     example_4_batch_processing().await;
-    println!("{}", format!("{}{}", format!("{}{}", STR___2, STR___1.repeat(60 as usize)), STR___2));
+    println!("{}", format!("{}{}", format!("{}{}", STR___1, STR___2.repeat(60 as usize)), STR___1));
     example_5_ai_assistant_integration().await;
     println!("{}", "🎉 All examples completed!");
     println!();
