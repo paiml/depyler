@@ -14168,9 +14168,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// Helper: Check if a type should use serde_json::Value
     /// DEPYLER-0726: Also check for Type::Custom("Any") after DEPYLER-0725 fix
+    /// DEPYLER-0773: Also check for "object" which is Python's top-level type
     fn is_json_value_type(ty: &Type) -> bool {
         matches!(ty, Type::Unknown)
-            || matches!(ty, Type::Custom(s) if s == "serde_json::Value" || s == "Value" || s == "Any")
+            || matches!(ty, Type::Custom(s) if s == "serde_json::Value" || s == "Value" || s == "Any" || s == "object")
     }
 
     /// DEPYLER-0376: Check if dict has heterogeneous value types
