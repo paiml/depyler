@@ -686,6 +686,22 @@ pub(crate) fn codegen_return_stmt(
             }
         }
 
+        // DEPYLER-0757: Wrap return values when function returns serde_json::Value (Python's `any`)
+        // When return type is serde_json::Value, use json!() macro to convert any value
+        // Note: ctx.current_return_type contains HIR type (e.g., "any") not the mapped Rust type
+        let is_json_value_return = matches!(
+            ctx.current_return_type.as_ref(),
+            Some(Type::Custom(name)) if name == "serde_json::Value"
+                || name == "any"
+                || name == "Any"
+                || name == "typing.Any"
+        );
+        if is_json_value_return {
+            // Use serde_json::json!() macro to convert the expression to Value
+            // This handles bool, int, float, string, arrays, etc. automatically
+            expr_tokens = parse_quote! { serde_json::json!(#expr_tokens) };
+        }
+
         // Check if return type is Optional and wrap value in Some()
         let is_optional_return =
             matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
@@ -2108,6 +2124,13 @@ fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
         // Without this, loop variables used in async function calls inside await
         // are incorrectly marked as unused and prefixed with underscore
         HirExpr::Await { value } => is_var_used_in_expr(var_name, value),
+        // DEPYLER-0768: Handle yield expressions for variable usage detection
+        // Without this, loop variables used in yield statements inside generators
+        // are incorrectly marked as unused and prefixed with underscore, causing E0425
+        // Example: `for i in range(n): yield i` -> `for _i in ...: return Some(i)` ERROR
+        HirExpr::Yield { value } => {
+            value.as_ref().is_some_and(|v| is_var_used_in_expr(var_name, v))
+        }
         _ => false, // Literals and other expressions don't reference variables
     }
 }
@@ -3620,8 +3643,27 @@ pub(crate) fn codegen_assign_stmt(
             actual_type
         };
 
-        let target_rust_type = ctx.type_mapper.map_type(actual_type);
+        // DEPYLER-0760: When value is None literal, wrap type annotation in Option<>
+        // Pattern: `x: str = None` in Python → `let x: Option<String> = None;` in Rust
+        // This ensures the type annotation matches the None value which requires Option<T>
+        let is_none_value = matches!(value, HirExpr::Literal(Literal::None));
+        let needs_option_wrap = is_none_value && !matches!(actual_type, Type::Optional(_));
+        let target_rust_type = if needs_option_wrap {
+            // Wrap the type in Option since the value is None
+            crate::type_mapper::RustType::Option(Box::new(ctx.type_mapper.map_type(actual_type)))
+        } else {
+            ctx.type_mapper.map_type(actual_type)
+        };
         let target_syn_type = rust_type_to_syn(&target_rust_type)?;
+
+        // DEPYLER-0760: Update var_types with Optional type so subsequent usage is correct
+        // This ensures is_none() and print() calls handle the variable correctly
+        if needs_option_wrap {
+            if let AssignTarget::Symbol(var_name) = target {
+                ctx.var_types
+                    .insert(var_name.clone(), Type::Optional(Box::new(actual_type.clone())));
+            }
+        }
 
         // DEPYLER-0272: Check if we need type conversion (e.g., usize to i32)
         // DEPYLER-0455 Bug 7: Also pass ctx for validator function detection
