@@ -228,7 +228,7 @@ pub fn test_enum_count() -> i32 {
 #[doc = "Convert color enum to RGB values"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn color_to_rgb(color: i32) -> () {
+pub fn color_to_rgb(color: i32) -> (i32, i32, i32) {
     let _cse_temp_0 = color == Color::RED;
     if _cse_temp_0 {
         (255, 0, 0)
@@ -247,7 +247,7 @@ pub fn color_to_rgb(color: i32) -> () {
 #[doc = "Convert status enum to message"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn status_to_message(mut status: i32) -> String {
+pub fn status_to_message(status: i32) -> String {
     let _cse_temp_0 = status == Status::PENDING;
     if _cse_temp_0 {
         "Waiting for approval".to_string()
@@ -266,7 +266,7 @@ pub fn status_to_message(mut status: i32) -> String {
 #[doc = "Process value based on status"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process_by_status(mut status: i32, value: i32) -> i32 {
+pub fn process_by_status(status: i32, value: i32) -> i32 {
     let _cse_temp_0 = status == Status::APPROVED;
     if _cse_temp_0 {
         value * 2
@@ -319,7 +319,25 @@ pub fn validate_enum_value(value: i32, min_val: i32, max_val: i32) -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_enum_features() {
-    let mut status: i32 = test_status_enum();
+    let _color: i32 = test_enum_basic_access();
+    let _is_different: bool = test_enum_comparison();
+    let _name: String = test_enum_to_name();
+    let _value: i32 = test_enum_to_value();
+    let _from_value: i32 = test_enum_from_value(2);
+    let status: i32 = test_status_enum();
+    let _msg: String = status_to_message(status);
+    let _direction: i32 = test_direction_enum();
+    let _rotated: i32 = rotate_direction(Direction::NORTH, true);
+    let _opposite: i32 = opposite_direction(Direction::NORTH);
+    let _is_horiz: bool = is_horizontal(Direction::EAST);
+    let _is_vert: bool = is_vertical(Direction::NORTH);
+    let _colors: Vec<i32> = test_enum_iteration();
+    let _count: i32 = test_enum_count();
+    let _rgb: () = color_to_rgb(Color::RED);
+    let _processed: i32 = process_by_status(Status::APPROVED, 10);
+    let _has_perms: bool = test_enum_flags();
+    let _dir_range: Vec<i32> = test_enum_range();
+    let _is_valid: bool = validate_enum_value(2, 0, 3);
     println!("{}", "All enum module tests completed successfully");
 }
 #[cfg(test)]

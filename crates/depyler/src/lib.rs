@@ -451,12 +451,14 @@ pub enum Commands {
     /// Scientific analysis of transpilation quality using Toyota Way methodology.
     /// Runs a 5-phase pipeline: Clean → Transpile → Compile → Analyze → Report.
     /// Produces actionable error taxonomy with prioritized fix recommendations.
+    ///
+    /// DEPYLER-BISECT-001: Supports granular filtering and bisection.
     Report {
         /// Path to corpus directory (defaults to reprorusted-python-cli)
         #[arg(short, long)]
         corpus: Option<PathBuf>,
 
-        /// Output format (terminal, json, markdown)
+        /// Output format (terminal, json, markdown, rich)
         #[arg(short, long, default_value = "terminal")]
         format: String,
 
@@ -471,6 +473,31 @@ pub enum Commands {
         /// Target single-shot compilation rate (0.0-1.0)
         #[arg(long, default_value = "0.8")]
         target_rate: f64,
+
+        // DEPYLER-BISECT-001: Granular filtering options
+        /// Filter files by regex/glob pattern (e.g., "argparse", "dict_*")
+        #[arg(long)]
+        filter: Option<String>,
+
+        /// Filter by semantic tag (Dict, List, argparse, async, class, etc.)
+        #[arg(long)]
+        tag: Option<String>,
+
+        /// Limit number of files to process
+        #[arg(long)]
+        limit: Option<usize>,
+
+        /// Random sample of N files (for quick checks)
+        #[arg(long)]
+        sample: Option<usize>,
+
+        /// Enable bisection mode to find minimal failing set
+        #[arg(long)]
+        bisect: bool,
+
+        /// Stop on first failure
+        #[arg(long)]
+        fail_fast: bool,
     },
 }
 

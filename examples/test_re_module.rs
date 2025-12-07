@@ -1,5 +1,7 @@
 use regex as re;
 const STR_EMPTY: &'static str = "";
+const STR_HELLO: &'static str = "Hello";
+const STR_HELLO_WORLD: &'static str = "Hello World";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -21,8 +23,8 @@ impl IndexError {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_simple_match() -> bool {
-    let text: String = "Hello World".to_string();
-    let pattern: String = "Hello".to_string();
+    let text: String = STR_HELLO_WORLD.to_string();
+    let pattern: String = STR_HELLO.to_string();
     let matches: bool = text.starts_with(pattern);
     matches
 }
@@ -32,7 +34,7 @@ pub fn test_simple_match() -> bool {
 pub fn test_contains_pattern() -> bool {
     let text: String = "The quick brown fox".to_string();
     let pattern: String = "quick".to_string();
-    let _cse_temp_0 = text.contains(&pattern);
+    let _cse_temp_0 = text.contains(&*pattern);
     let contains: bool = _cse_temp_0;
     contains
 }
@@ -51,14 +53,14 @@ pub fn test_find_pattern_position() -> i32 {
 pub fn test_count_occurrences() -> i32 {
     let text: String = "abc abc abc".to_string();
     let pattern: String = "abc".to_string();
-    let count: i32 = text.matches(pattern).count() as i32 as i32;
+    let count: i32 = text.matches(&*pattern).count() as i32 as i32;
     count
 }
 #[doc = "Test replacing pattern"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_replace_pattern() -> String {
-    let text: String = "Hello World".to_string();
+    let text: String = STR_HELLO_WORLD.to_string();
     let old_pattern: String = "World".to_string();
     let new_text: String = "Python".to_string();
     let result: String = text.replace(old_pattern, new_text);
@@ -88,7 +90,7 @@ pub fn test_match_digit() -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_match_alpha() -> bool {
-    let text: String = "Hello".to_string();
+    let text: String = STR_HELLO.to_string();
     let is_alpha: bool = text.chars().all(|c| c.is_alphabetic());
     is_alpha
 }
@@ -155,7 +157,7 @@ pub fn validate_email_simple(email: &str) -> bool {
         };
         base.chars().skip(actual_start).collect::<String>()
     };
-    let _cse_temp_1 = after_at.get(".").is_some();
+    let _cse_temp_1 = after_at.contains(".");
     let has_dot: bool = _cse_temp_1;
     has_dot
 }
@@ -238,7 +240,7 @@ pub fn remove_punctuation(text: &str) -> String {
     for _char in text.chars() {
         let char = _char.to_string();
         let mut is_punct: bool = false;
-        for p in punctuation.iter().cloned() {
+        for p in punctuation.chars() {
             if char == p {
                 is_punct = true;
                 break;
@@ -264,7 +266,7 @@ pub fn normalize_whitespace(text: &str) -> String {
 #[doc = "Check if text starts with pattern"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn starts_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
+pub fn starts_with_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
     text.starts_with(pattern)
 }
 #[doc = "Check if text ends with pattern"]
@@ -279,14 +281,14 @@ pub fn ends_with_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> bool {
 pub fn case_insensitive_match<'a, 'b>(text: &'a str, pattern: &'b str) -> bool {
     let text_lower: String = text.to_lowercase();
     let pattern_lower: String = pattern.to_lowercase();
-    let _cse_temp_0 = text_lower.contains(&pattern_lower);
+    let _cse_temp_0 = text_lower.contains(&*pattern_lower);
     let matches: bool = _cse_temp_0;
     matches
 }
 #[doc = "Find text between two markers"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_between<'c, 'a, 'b>(
+pub fn find_between<'b, 'c, 'a>(
     text: &'a str,
     start_marker: &'b str,
     end_marker: &'c str,
@@ -297,7 +299,7 @@ pub fn find_between<'c, 'a, 'b>(
         return STR_EMPTY;
     }
     let _cse_temp_1 = start_marker.len() as i32;
-    start_pos = Some(format!("{}{}", start_pos, _cse_temp_1));
+    start_pos = Some(start_pos + _cse_temp_1);
     let end_pos: i32 = text[start_pos as usize..]
         .find(end_marker)
         .map(|i| (i + start_pos as usize) as i32)
@@ -306,7 +308,7 @@ pub fn find_between<'c, 'a, 'b>(
     if _cse_temp_2 {
         return STR_EMPTY;
     }
-    let mut result: String = {
+    let result: String = {
         let base = text;
         let start_idx: i32 = start_pos;
         let stop_idx: i32 = end_pos;
@@ -333,21 +335,21 @@ pub fn find_between<'c, 'a, 'b>(
     result.to_string()
 }
 #[doc = "Replace multiple patterns"]
-pub fn replace_multiple<'a, 'b>(
+pub fn replace_multiple<'b, 'a>(
     text: &'a str,
     replacements: &'b Vec<()>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let mut result: String = text.to_string();
     for replacement in replacements.iter().cloned() {
-        let old: String = replacement.get(0usize).cloned().unwrap_or_default();
-        let new: String = replacement.get(1usize).cloned().unwrap_or_default();
+        let old: String = replacement.0;
+        let new: String = replacement.1;
         result = result.replace(old, new);
     }
     Ok(result.to_string())
 }
 #[doc = "Count occurrences of a word"]
 #[doc = " Depyler: verified panic-free"]
-pub fn count_word_occurrences<'b, 'a>(text: &'a str, word: &'b str) -> i32 {
+pub fn count_word_occurrences<'a, 'b>(text: &'a str, word: &'b str) -> i32 {
     let words: Vec<String> = text
         .split_whitespace()
         .map(|s| s.to_string())
@@ -368,10 +370,10 @@ pub fn extract_numbers_from_text(text: &str) -> Vec<i32> {
     for _char in text.chars() {
         let char = _char.to_string();
         if char.chars().all(|c| c.is_numeric()) {
-            current_num = current_num + char;
+            current_num = format!("{}{}", current_num, char);
         } else {
             if current_num.len() as i32 > 0 {
-                let mut num: i32 = (current_num) as i32;
+                let mut num: i32 = current_num.parse::<i32>().unwrap_or_default();
                 numbers.push(num);
                 current_num = STR_EMPTY;
             }
@@ -380,7 +382,7 @@ pub fn extract_numbers_from_text(text: &str) -> Vec<i32> {
     let _cse_temp_0 = current_num.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     if _cse_temp_1 {
-        let _cse_temp_2 = (current_num) as i32;
+        let _cse_temp_2 = current_num.parse::<i32>().unwrap_or_default();
         let mut num: i32 = _cse_temp_2.clone();
         numbers.push(num);
     }
@@ -425,15 +427,46 @@ pub fn wildcard_match_simple<'a, 'b>(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_re_features() -> Result<(), Box<dyn std::error::Error>> {
+    let _matches: bool = test_simple_match();
+    let _contains: bool = test_contains_pattern();
+    let _position: i32 = test_find_pattern_position();
+    let _count: i32 = test_count_occurrences();
+    let _replaced: String = test_replace_pattern();
+    let _split_result: Vec<String> = test_split_by_pattern();
+    let _is_digit: bool = test_match_digit();
+    let _is_alpha: bool = test_match_alpha();
+    let _is_alnum: bool = test_match_alphanumeric();
     let text: String = "abc123def456".to_string();
+    let _digits: String = extract_digits(&text);
+    let _letters: String = extract_letters(&text);
     let sentence: String = "Hello world from Python".to_string();
-    let mut url: String = "https://www.example.com/path/page.html".to_string();
+    let _words: Vec<String> = find_all_words(&sentence);
+    let _email_valid: bool = validate_email_simple("user@example.com");
+    let _email_invalid: bool = validate_email_simple("notanemail");
+    let _phone_valid: bool = validate_phone_simple("555-123-4567");
+    let _phone_invalid: bool = validate_phone_simple("abc");
+    let url: String = "https://www.example.com/path/page.html".to_string();
+    let _domain: String = extract_url_domain(&url);
     let punct_text: String = "Hello, World!".to_string();
+    let _no_punct: String = remove_punctuation(&punct_text);
     let spaces: String = "Hello    World  !".to_string();
+    let _normalized: String = normalize_whitespace(&spaces);
+    let _starts: bool = starts_with_pattern(STR_HELLO_WORLD, STR_HELLO);
+    let _ends: bool = ends_with_pattern(STR_HELLO_WORLD, "World");
+    let _case_match: bool = case_insensitive_match(STR_HELLO, "hello");
     let tagged: String = "<tag>content</tag>".to_string();
-    let replacements: Vec<()> = vec![("a", "x"), ("b", "y")];
+    let _content: String = find_between(&tagged, "<tag>", "</tag>");
+    let replacements: Vec<()> = vec![
+        ("a".to_string(), "x".to_string()),
+        ("b".to_string(), "y".to_string()),
+    ];
+    let _multi_replace: String = replace_multiple("aabbcc", &replacements)?;
     let para: String = "the quick brown fox jumps over the lazy dog".to_string();
+    let _the_count: i32 = count_word_occurrences(&para, "the");
     let mixed: String = "I have 2 apples and 5 oranges".to_string();
+    let _nums: Vec<i32> = extract_numbers_from_text(&mixed);
+    let _wildcard1: bool = wildcard_match_simple("hello.txt", "*.txt")?;
+    let _wildcard2: bool = wildcard_match_simple("test_file.py", "test_*")?;
     println!("{}", "All regex module tests completed successfully");
     Ok(())
 }

@@ -53,7 +53,7 @@ pub fn test_sha256_update() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha1_basic() {
     let data = b"test data";
-    let mut hash_obj = {
+    let hash_obj = {
         use sha1::Digest;
         let mut hasher = sha1::Sha1::new();
         hasher.update(data);
@@ -69,7 +69,7 @@ pub fn test_sha1_basic() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_md5_basic() {
     let data = b"test";
-    let mut hash_obj = {
+    let hash_obj = {
         use md5::Digest;
         let mut hasher = md5::Md5::new();
         hasher.update(data);
@@ -85,7 +85,7 @@ pub fn test_md5_basic() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha256_binary_data() {
     let data = bytes(0..256);
-    let mut hash_obj = {
+    let hash_obj = {
         use sha2::Digest;
         let mut hasher = sha2::Sha256::new();
         hasher.update(data);
@@ -97,7 +97,7 @@ pub fn test_sha256_binary_data() {
         .as_slice()
         .iter()
         .copied()
-        .map(|c| "0123456789abcdef".to_string().contains(&c))
+        .map(|c| "0123456789abcdef".to_string().contains(&*c))
         .all(|x| x));
     println!("{}", "PASS: test_sha256_binary_data");
 }
@@ -107,7 +107,7 @@ pub fn test_sha256_binary_data() {
 pub fn test_sha256_large_data() {
     let _cse_temp_0 = b"A" * 10000;
     let data = _cse_temp_0;
-    let mut hash_obj = {
+    let hash_obj = {
         use sha2::Digest;
         let mut hasher = sha2::Sha256::new();
         hasher.update(data);
@@ -119,7 +119,7 @@ pub fn test_sha256_large_data() {
         .as_slice()
         .iter()
         .copied()
-        .map(|c| "0123456789abcdef".to_string().contains(&c))
+        .map(|c| "0123456789abcdef".to_string().contains(&*c))
         .all(|x| x));
     println!("{}", "PASS: test_sha256_large_data");
 }
@@ -180,7 +180,7 @@ pub fn test_hash_deterministic() {
 pub fn test_sha256_text() {
     let text = "Hello, 世界!";
     let data = text.as_bytes().to_vec();
-    let mut hash_obj = {
+    let hash_obj = {
         use sha2::Digest;
         let mut hasher = sha2::Sha256::new();
         hasher.update(data);
@@ -192,7 +192,7 @@ pub fn test_sha256_text() {
         .as_slice()
         .iter()
         .copied()
-        .map(|c| "0123456789abcdef".to_string().contains(&c))
+        .map(|c| "0123456789abcdef".to_string().contains(&*c))
         .all(|x| x));
     println!("{}", "PASS: test_sha256_text");
 }

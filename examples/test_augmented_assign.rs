@@ -3,10 +3,10 @@ pub struct Counter {
     pub value: i32,
 }
 impl Counter {
-    pub fn new(initial: i32) -> Self {
+    pub fn new(_initial: i32) -> Self {
         Self { value: 0 }
     }
-    pub fn increment(&mut self, amount: i32) {
+    pub fn increment(&mut self, amount: i32) -> i32 {
         self.value = self.value + amount;
         return self.value;
     }
@@ -16,5 +16,5 @@ impl Counter {
 pub fn test_counter() {
     let mut c = Counter::new(10);
     let result = c.increment(5);
-    result
+    let _ = result;
 }

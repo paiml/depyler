@@ -18,7 +18,7 @@ pub fn parse_json(data: String) -> std::collections::HashMap<String, serde_json:
 }
 #[doc = " Depyler: verified panic-free"]
 pub fn join_paths<'a, 'b>(base: &'a str, paths: &[String]) -> String {
-    let mut result = base.clone();
+    let mut result = base.to_string();
     for p in paths.iter().cloned() {
         result = std::path::PathBuf::from(result)
             .join(p)
@@ -29,7 +29,7 @@ pub fn join_paths<'a, 'b>(base: &'a str, paths: &[String]) -> String {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> Vec<String> {
+pub fn find_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> Vec<String> {
     let regex = regex::Regex::new(pattern).unwrap();
     regex
         .find_iter(text)

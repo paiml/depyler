@@ -22,11 +22,11 @@ impl DataProcessor {
         return self
             .data
             .into_iter()
-            .filter(|x| predicate(x))
+            .filter(|&x| predicate(x))
             .map(|x| x)
             .collect::<Vec<_>>();
     }
-    pub fn get_summary(&self) -> HashMap<String, UnionType> {
+    pub fn get_summary(&self) -> std::collections::HashMap<String, UnionType> {
         if !self.data {
             return {
                 let mut map = std::collections::HashMap::new();
@@ -37,23 +37,23 @@ impl DataProcessor {
         };
         return {
             let mut map = std::collections::HashMap::new();
-            map.insert("count".to_string(), self.data.len());
+            map.insert("count".to_string(), self.data.len() as i32);
             map.insert("sum".to_string(), sum(self.data));
-            map.insert("mean".to_string(), sum(self.data) / self.data.len());
+            map.insert("mean".to_string(), sum(self.data) / self.data.len() as i32);
             map.insert("max".to_string(), max(self.data));
             map.insert("min".to_string(), min(self.data));
             map
         };
     }
     pub fn merge_processors(processors: Vec<DataProcessor>) -> DataProcessor {
-        let mut merged = DataProcessor::new();
+        let merged = DataProcessor::new();
         for proc in processors {
             merged.add_batch(proc.data);
         }
         return merged;
     }
     pub fn is_empty(&self) -> bool {
-        return self.data.len() == 0;
+        return self.data.len() as i32 == 0;
     }
 }
 #[doc = "Calculate the n-th Fibonacci number.\n    \n    This function uses an iterative approach for efficiency.\n    \n    Args:\n        n: The position in the Fibonacci sequence(0-indexed)\n        \n    Returns:\n        The n-th Fibonacci number\n        \n    Examples:\n      >>>fibonacci(0)\n        0\n      >>>fibonacci(1)\n        1\n      >>>fibonacci(10)\n        55\n    "]
@@ -100,8 +100,8 @@ pub fn process_data(items: Vec<i32>, threshold: &Option<i32>) -> HashMap<String,
     if threshold.is_some() {
         let _cse_temp_0 = items
             .iter()
-            .copied()
-            .filter(|x| x > threshold.unwrap_or(i32::MIN))
+            .cloned()
+            .filter(|&x| x > threshold.unwrap_or(i32::MIN))
             .map(|x| 1)
             .sum::<i32>();
         stats.insert("above_threshold".to_string(), _cse_temp_0);
@@ -116,7 +116,7 @@ pub fn main() {
     processor.add_batch(vec![1, 2, 3, 4, 5]);
     let summary = processor.get_summary();
     println!("{}", format!("Summary: {:?}", summary));
-    let mut stats = process_data(processor.data, 3);
+    let stats = process_data(processor.data, 3);
     println!("{}", format!("Stats: {:?}", stats));
 }
 #[cfg(test)]

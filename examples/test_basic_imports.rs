@@ -1,15 +1,16 @@
-use serde_json;
-use std as sys;
 #[doc = "Get current working directory"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_current_directory() -> String {
-    std::env::current_dir()?.to_string_lossy().to_string()
+    std::env::current_dir()
+        .expect("Failed to get current directory")
+        .to_string_lossy()
+        .to_string()
 }
 #[doc = "Get command line arguments"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_args() -> Vec<serde_json::Value> {
+pub fn get_args() -> Vec<String> {
     std::env::args().collect::<Vec<String>>()
 }
 #[doc = "Exit program with code"]

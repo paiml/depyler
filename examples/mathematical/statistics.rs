@@ -140,7 +140,7 @@ pub fn mode(numbers: &Vec<i32>) -> Result<Option<i32>, Box<dyn std::error::Error
     if numbers.is_empty() {
         return Ok(None);
     }
-    let mut frequency: HashMap<i32, i32> = {
+    let mut frequency: std::collections::HashMap<i32, i32> = {
         let map = HashMap::new();
         map
     };
@@ -152,7 +152,7 @@ pub fn mode(numbers: &Vec<i32>) -> Result<Option<i32>, Box<dyn std::error::Error
                 frequency.insert(_key, _old_val + 1);
             }
         } else {
-            frequency.insert(num, 1);
+            frequency.insert(num.clone(), 1);
         }
     }
     let mut max_count = 0;
@@ -203,7 +203,7 @@ pub fn standard_deviation(numbers: Vec<f64>) -> Result<f64, Box<dyn std::error::
 }
 #[doc = "Calculate Pearson correlation coefficient"]
 #[doc = " Depyler: proven to terminate"]
-pub fn correlation(mut x: Vec<f64>, y: Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
+pub fn correlation(x: Vec<f64>, y: Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;

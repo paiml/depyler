@@ -5,7 +5,7 @@ pub struct Calculator {
     pub history: Vec<serde_json::Value>,
 }
 impl Calculator {
-    pub fn new(initial_value: i32) -> Self {
+    pub fn new(_initial_value: i32) -> Self {
         Self {
             value: 0,
             history: Vec::new(),

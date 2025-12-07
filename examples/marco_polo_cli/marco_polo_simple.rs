@@ -138,7 +138,8 @@ pub fn validate_guess(guess: i32, min_val: i32, max_val: i32) -> bool {
 #[doc = "Simulate a round with fixed guesses."]
 #[doc = " Depyler: verified panic-free"]
 pub fn play_simple_round(target: i32, max_attempts: i32) -> i32 {
-    let mut attempts = 0;
+    let mut attempts = Default::default();
+    attempts = 0;
     let mut guess = 50;
     while attempts < max_attempts {
         attempts = attempts + 1;

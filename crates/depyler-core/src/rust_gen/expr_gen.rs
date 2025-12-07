@@ -3285,6 +3285,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 });
             }
 
+            // DEPYLER-0771: Special handling for math.isqrt import
+            // isqrt(n) → (n as f64).sqrt().floor() as i32
+            // This is needed because std::f64::isqrt doesn't exist in Rust
+            if rust_path == "std::f64::isqrt" && func == "isqrt" && args.len() == 1 {
+                let arg = &args[0];
+                return Ok(parse_quote! { ((#arg) as f64).sqrt().floor() as i32 });
+            }
+
             // Parse the rust path and generate the call
             let path_parts: Vec<&str> = rust_path.split("::").collect();
             let mut path = quote! {};
@@ -9519,6 +9527,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         a as i32
                     }
                 }
+            }
+
+            // DEPYLER-0771: Integer square root - math.isqrt(n) → floor(sqrt(n)) as integer
+            "isqrt" => {
+                if arg_exprs.len() != 1 {
+                    bail!("math.isqrt() requires exactly 1 argument");
+                }
+                let arg = &arg_exprs[0];
+                // Python's isqrt returns the floor of the square root as an integer
+                parse_quote! { ((#arg as f64).sqrt().floor() as i32) }
             }
 
             // Factorial - compute inline for now

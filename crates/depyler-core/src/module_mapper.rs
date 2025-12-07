@@ -253,6 +253,8 @@ impl ModuleMapper {
                     ("tan".to_string(), "tan".to_string()),
                     ("pi".to_string(), "consts::PI".to_string()),
                     ("e".to_string(), "consts::E".to_string()),
+                    // DEPYLER-0771: isqrt is handled inline in expr_gen.rs
+                    ("isqrt".to_string(), "isqrt".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },

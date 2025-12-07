@@ -7,5 +7,5 @@ pub fn test_basic_lambdas() {
     let result2 = add(3, 4);
     let get_value = || 42;
     let result3 = get_value();
-    result1 + result2 + result3
+    let _ = result1 + result2 + result3;
 }

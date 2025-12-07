@@ -1,1 +1,0 @@
-Error: Unsupported type annotation

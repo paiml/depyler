@@ -69,7 +69,7 @@ pub fn count_words(text: &str) -> Result<HashMap<String, i32>, Box<dyn std::erro
                 word_count.insert(_key, _old_val + 1);
             }
         } else {
-            word_count.insert(word, 1);
+            word_count.insert(word.clone(), 1);
         }
     }
     Ok(word_count)
@@ -85,7 +85,7 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, Box<dyn std::error::Er
 }
 #[doc = "Compute dot product with SIMD hints."]
 #[doc = " Depyler: proven to terminate"]
-pub fn dot_product<'b, 'a>(
+pub fn dot_product<'a, 'b>(
     v1: &'a Vec<f64>,
     v2: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {

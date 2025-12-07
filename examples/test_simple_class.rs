@@ -1,4 +1,3 @@
-use serde_json;
 #[derive(Debug, Clone)]
 pub struct Point {
     pub x: i32,
@@ -12,10 +11,10 @@ impl Point {
         self.x = self.x + dx;
         self.y = self.y + dy;
     }
-    pub fn distance_to(&self, other: serde_json::Value) -> f64 {
-        let mut dx = self.x - other.x;
-        let mut dy = self.y - other.y;
-        return (dx * dx + dy * dy as f64).powf(0.5 as f64);
+    pub fn distance_to(&self, other: &Self) -> f64 {
+        let dx = self.x - other.x;
+        let dy = self.y - other.y;
+        return ({ dx * dx + dy * dy } as f64).powf({ 0.5 } as f64);
     }
 }
 #[doc = " Depyler: verified panic-free"]
@@ -24,6 +23,6 @@ pub fn test_point() {
     let mut p1 = Point::new(0, 0);
     let p2 = Point::new(3, 4);
     p1.move_by(1, 1);
-    let dist = p1.distance_to(p2);
-    dist
+    let dist = p1.distance_to(&p2);
+    let _ = dist;
 }

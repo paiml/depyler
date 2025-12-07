@@ -122,9 +122,9 @@ impl Iterator for FibonacciGeneratorState {
 #[doc = " Depyler: proven to terminate"]
 pub fn fibonacci_memoized(
     n: i32,
-    mut memo: Option<HashMap<serde_json::Value, serde_json::Value>>,
+    mut memo: Option<std::collections::HashMap<serde_json::Value, serde_json::Value>>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    if memo.is_none() {
+    if memo.is_null() {
         memo = {
             let map = HashMap::new();
             map
@@ -145,7 +145,7 @@ pub fn fibonacci_memoized(
     }
     let _cse_temp_3 = fibonacci_memoized(n - 1, &memo)? + fibonacci_memoized(n - 2, &memo)?;
     let result = _cse_temp_3;
-    memo.insert(n, serde_json::json!(result));
+    memo.insert(n.clone(), serde_json::json!(result));
     Ok(result)
 }
 #[doc = "Find the index of a target value in Fibonacci sequence."]
@@ -172,14 +172,14 @@ pub fn find_fibonacci_index(target: i32) -> Option<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn is_fibonacci_number(num: i32) -> bool {
     let mut is_perfect_square;
-    is_perfect_square = |x: i64| -> bool {
-        let root = ((x as f64).powf(0.5 as f64)) as i32;
-        root * root == x
-    };
     let _cse_temp_0 = num < 0;
     if _cse_temp_0 {
         return false;
     }
+    is_perfect_square = |x: i64| -> bool {
+        let root = (({ x } as f64).powf({ 0.5 } as f64)) as i32;
+        return root * root == x;
+    };
     (is_perfect_square(5 * num * num + 4)) || (is_perfect_square(5 * num * num - 4))
 }
 #[doc = "Test the Fibonacci functions."]
@@ -207,12 +207,17 @@ pub fn main() {
         format!("\nFirst {} Fibonacci numbers: {}", n, fibonacci_sequence(n))
     );
     println!("{}", "\nUsing generator:");
-    for (i, fib) in fibonacci_generator(n).iter().cloned().enumerate() {
+    for (i, fib) in fibonacci_generator(n)
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(i, x)| (i as i32, x))
+    {
         let i = i as i32;
         println!("{}", format!("  F({:?}) = {:?}", i, fib));
     }
     let target = 21;
-    let mut index = find_fibonacci_index(target);
+    let index = find_fibonacci_index(target);
     if index.is_some() {
         println!(
             "{}",

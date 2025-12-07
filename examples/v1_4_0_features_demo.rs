@@ -9,7 +9,7 @@ impl AsyncService {
 }
 } pub async fn handle_request(&mut self, request_id: i32) -> String {
     self.requests_count = self.requests_count + 1;
-    let mut result = self._process(request_id).await;
+    let result = self._process(request_id).await;
     return format!("{} processed: {}", self.name, result);
    
 }

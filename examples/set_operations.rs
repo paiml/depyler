@@ -2,7 +2,7 @@ use std::collections::HashSet;
 #[doc = "Test basic set creation and operations"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_creation() -> HashSet<i32> {
+pub fn test_set_creation() -> std::collections::HashSet<i32> {
     let s1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -15,7 +15,7 @@ pub fn test_set_creation() -> HashSet<i32> {
 #[doc = "Test set operators"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_operators() -> HashSet<i32> {
+pub fn test_set_operators() -> std::collections::HashSet<i32> {
     let s1 = {
         let mut set = HashSet::new();
         set.insert(1);
@@ -58,10 +58,10 @@ pub fn test_set_methods() -> Vec<String> {
 #[doc = "Test set comprehension"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_set_comprehension() -> HashSet<i32> {
+pub fn test_set_comprehension() -> std::collections::HashSet<i32> {
     let even_squares = (0..10)
         .into_iter()
-        .filter(|x| x % 2 == 0)
+        .filter(|&x| x % 2 == 0)
         .map(|x| x * x)
         .collect::<HashSet<_>>();
     even_squares

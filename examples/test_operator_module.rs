@@ -90,13 +90,13 @@ pub fn test_itemgetter_list() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "Test itemgetter on tuple"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_itemgetter_tuple() -> Result<String, Box<dyn std::error::Error>> {
-    let data: (String, i32, f64) = ("hello", 42, 3.14);
-    let item: String = data.get(0usize).cloned().unwrap_or_default();
+    let data: (String, i32, f64) = ("hello".to_string(), 42, 3.14);
+    let item: String = data.0;
     Ok(item.to_string())
 }
 #[doc = "Test itemgetter with multiple indices"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_itemgetter_multiple() -> Result<(), Box<dyn std::error::Error>> {
+pub fn test_itemgetter_multiple() -> Result<(i32, i32), Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![10, 20, 30, 40, 50];
     let item1: i32 = data.get(1usize).cloned().unwrap_or_default();
     let item3: i32 = data.get(3usize).cloned().unwrap_or_default();
@@ -108,20 +108,8 @@ pub fn sort_by_second_element(data: &Vec<()>) -> Result<Vec<()>, Box<dyn std::er
     let mut sorted_data: Vec<()> = data.clone();
     for i in 0..sorted_data.len() as i32 {
         for j in i + 1..sorted_data.len() as i32 {
-            if sorted_data
-                .get(j as usize)
-                .cloned()
-                .unwrap_or_default()
-                .get(1usize)
-                .cloned()
-                .unwrap_or_default()
-                < sorted_data
-                    .get(i as usize)
-                    .cloned()
-                    .unwrap_or_default()
-                    .get(1usize)
-                    .cloned()
-                    .unwrap_or_default()
+            if sorted_data.get(j as usize).cloned().unwrap_or_default().1
+                < sorted_data.get(i as usize).cloned().unwrap_or_default().1
             {
                 let temp: () = sorted_data.get(i as usize).cloned().unwrap_or_default();
                 sorted_data.insert(
@@ -157,7 +145,7 @@ pub fn test_neg_operator() -> i32 {
 pub fn test_index_operator() -> bool {
     let data: Vec<i32> = vec![10, 20, 30, 40, 50];
     let value: i32 = 30;
-    let _cse_temp_0 = data.get(&value).is_some();
+    let _cse_temp_0 = data.contains(&value);
     let contains: bool = _cse_temp_0;
     let mut found: bool;
     if contains {
@@ -223,7 +211,7 @@ pub fn test_setitem_operator() -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_delitem_operator() -> Vec<i32> {
-    let mut data: Vec<i32> = vec![10, 20, 30, 40];
+    let data: Vec<i32> = vec![10, 20, 30, 40];
     let mut new_data: Vec<i32> = vec![];
     for i in 0..data.len() as i32 {
         if i != 2 {
@@ -273,7 +261,7 @@ pub fn apply_operation(a: i32, b: i32, op: &str) -> Result<i32, Box<dyn std::err
     }
 }
 #[doc = "Find max element using key function"]
-pub fn max_by_key(data: &mut Vec<()>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn max_by_key(data: &Vec<()>) -> Result<(i32, i32), Box<dyn std::error::Error>> {
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -281,16 +269,14 @@ pub fn max_by_key(data: &mut Vec<()>) -> Result<(), Box<dyn std::error::Error>> 
     }
     let mut max_elem: () = data.get(0usize).cloned().unwrap_or_default();
     for elem in data.iter().cloned() {
-        if elem.get(1usize).cloned().unwrap_or_default()
-            > max_elem.get(1usize).cloned().unwrap_or_default()
-        {
+        if elem.1 > max_elem.1 {
             max_elem = elem;
         }
     }
     Ok(max_elem)
 }
 #[doc = "Find min element using key function"]
-pub fn min_by_key(data: &mut Vec<()>) -> Result<(), Box<dyn std::error::Error>> {
+pub fn min_by_key(data: &Vec<()>) -> Result<(i32, i32), Box<dyn std::error::Error>> {
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -298,9 +284,7 @@ pub fn min_by_key(data: &mut Vec<()>) -> Result<(), Box<dyn std::error::Error>> 
     }
     let mut min_elem: () = data.get(0usize).cloned().unwrap_or_default();
     for elem in data.iter().cloned() {
-        if elem.get(1usize).cloned().unwrap_or_default()
-            < min_elem.get(1usize).cloned().unwrap_or_default()
-        {
+        if elem.1 < min_elem.1 {
             min_elem = elem;
         }
     }
@@ -347,8 +331,30 @@ pub fn chain_comparisons(x: i32, low: i32, high: i32) -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_operator_features() -> Result<(), Box<dyn std::error::Error>> {
+    let _arith_result: i32 = test_arithmetic_operators()?;
+    let _comp_result: bool = test_comparison_operators();
+    let _logic_result: bool = test_logical_operators();
+    let _bit_result: i32 = test_bitwise_operators();
+    let _list_item: i32 = test_itemgetter_list()?;
+    let _tuple_item: String = test_itemgetter_tuple()?;
+    let _multi_items: () = test_itemgetter_multiple()?;
     let tuples: Vec<()> = vec![(1, 3), (2, 1), (3, 2)];
-    let mut data: Vec<()> = vec![(1, 100), (2, 50), (3, 200)];
+    let _sorted_tuples: Vec<()> = sort_by_second_element(&tuples)?;
+    let _abs_val: i32 = test_abs_operator();
+    let _neg_val: i32 = test_neg_operator();
+    let _contains: bool = test_index_operator();
+    let _concatenated: Vec<i32> = test_concat_operator();
+    let _repeated: Vec<i32> = test_repeat_operator();
+    let _get_item: i32 = test_getitem_operator()?;
+    let _set_result: Vec<i32> = test_setitem_operator();
+    let _del_result: Vec<i32> = test_delitem_operator();
+    let _op_result: i32 = apply_operation(10, 5, "add")?;
+    let data: Vec<()> = vec![(1, 100), (2, 50), (3, 200)];
+    let _max_elem: () = max_by_key(&data)?;
+    let _min_elem: () = min_by_key(&data)?;
+    let _truth: bool = test_truthiness();
+    let _identity: bool = test_identity();
+    let _chained: bool = chain_comparisons(5, 1, 10);
     println!("{}", "All operator module tests completed successfully");
     Ok(())
 }

@@ -50,10 +50,11 @@ impl TypeExtractor {
             }
             // DEPYLER-0188: Handle string literal forward references (-> "ClassName")
             // PEP 484: Forward references use string literals containing type names
+            // DEPYLER-0740: Parse forward references to extract generic types
             ast::Expr::Constant(ast::ExprConstant {
                 value: ast::Constant::Str(s),
                 ..
-            }) => Self::extract_simple_type(s.as_str()),
+            }) => Self::parse_forward_reference(s.as_str()),
             // DEPYLER-0273: Handle PEP 604 union syntax (int | None)
             ast::Expr::BinOp(b) if matches!(b.op, ast::Operator::BitOr) => {
                 Self::extract_union_from_binop(b)
@@ -104,6 +105,38 @@ impl TypeExtractor {
 
         // Default to custom type
         Ok(Type::Custom(name.to_string()))
+    }
+
+    /// DEPYLER-0740: Parse forward reference strings like "Container[U]"
+    /// to extract generic type structure instead of treating as opaque string.
+    fn parse_forward_reference(s: &str) -> Result<Type> {
+        let s = s.trim();
+
+        // Check for generic syntax: Base[T, U, ...]
+        if let Some(bracket_pos) = s.find('[') {
+            if s.ends_with(']') {
+                let base = s[..bracket_pos].trim();
+                let params_str = &s[bracket_pos + 1..s.len() - 1];
+
+                // Parse the type parameters (handles simple cases like "T, U")
+                let params: Vec<Type> = params_str
+                    .split(',')
+                    .map(|p| Self::extract_simple_type(p.trim()))
+                    .collect::<Result<Vec<_>>>()?;
+
+                if params.is_empty() {
+                    return Self::extract_simple_type(base);
+                }
+
+                return Ok(Type::Generic {
+                    base: base.to_string(),
+                    params,
+                });
+            }
+        }
+
+        // No generic syntax, fall back to simple type extraction
+        Self::extract_simple_type(s)
     }
 
     fn try_extract_builtin_type(name: &str) -> Option<Type> {

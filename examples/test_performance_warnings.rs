@@ -100,8 +100,8 @@ pub fn large_list_in_loop(n: serde_json::Value) -> Vec<serde_json::Value> {
 }
 #[doc = "Linear search in nested loop - O(n²)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn linear_search_in_loop<'a, 'b>(
-    items: &'a mut str,
+pub fn linear_search_in_loop<'b, 'a>(
+    items: &'a str,
     targets: &'b serde_json::Value,
 ) -> Vec<serde_json::Value> {
     let mut found = vec![];
@@ -122,7 +122,7 @@ pub fn linear_search_in_loop<'a, 'b>(
 pub fn power_in_tight_loop(values: &serde_json::Value) -> Vec<serde_json::Value> {
     let mut results = vec![];
     for x in values.iter().cloned() {
-        let mut result = (x as f64).powf(3.5 as f64);
+        let result = ({ x } as f64).powf({ 3.5 } as f64);
         results.push(result);
     }
     results
@@ -130,7 +130,7 @@ pub fn power_in_tight_loop(values: &serde_json::Value) -> Vec<serde_json::Value>
 #[doc = "Using range(len()) instead of enumerate."]
 #[doc = " Depyler: proven to terminate"]
 pub fn range_len_antipattern(
-    items: &mut Vec<serde_json::Value>,
+    items: &Vec<serde_json::Value>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     for i in 0..items.len() as i32 {
         process_item(i, items.get(i as usize).cloned().unwrap_or_default());
@@ -143,7 +143,7 @@ pub fn aggregate_in_nested_loop(matrix: &Vec<Vec<i32>>) -> i32 {
     let mut result = 0;
     for row in matrix.iter().cloned() {
         for col in row.iter().cloned() {
-            let mut total = row.iter().sum::<i32>();
+            let total = row.iter().sum::<i32>();
             result = result + col * total;
         }
     }
@@ -154,9 +154,14 @@ pub fn aggregate_in_nested_loop(matrix: &Vec<Vec<i32>>) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn large_parameter_by_value<'a, 'b>(
     huge_list: &'a Vec<serde_json::Value>,
-    huge_dict: &'b HashMap<serde_json::Value, serde_json::Value>,
+    huge_dict: &'b std::collections::HashMap<serde_json::Value, serde_json::Value>,
 ) -> i32 {
-    huge_list.len() as i32 + huge_dict.len() as i32 as i32
+    huge_list.len() as i32
+        + huge_dict
+            .as_array()
+            .map(|a| a.len())
+            .unwrap_or_else(|| huge_dict.as_object().map(|o| o.len()).unwrap_or(0)) as i32
+            as i32
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

@@ -643,6 +643,7 @@ mod tests {
             base_classes: vec![],
             is_dataclass: false,
             docstring: Some("A test class.".to_string()),
+            type_params: vec![], // DEPYLER-0739
         };
 
         let module = HirModule {

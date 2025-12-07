@@ -1,4 +1,5 @@
 use base64;
+use base64::Engine;
 #[doc = "Encode string to base64"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

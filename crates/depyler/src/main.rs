@@ -400,6 +400,12 @@ async fn handle_command(command: Commands) -> Result<()> {
             output,
             skip_clean,
             target_rate,
+            filter,
+            tag,
+            limit,
+            sample,
+            bisect,
+            fail_fast,
         } => {
             let args = ReportArgs {
                 corpus,
@@ -407,6 +413,12 @@ async fn handle_command(command: Commands) -> Result<()> {
                 output,
                 skip_clean,
                 target_rate,
+                filter,
+                tag,
+                limit,
+                sample,
+                bisect,
+                fail_fast,
             };
             handle_report_command(args)
         }

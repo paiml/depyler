@@ -20,7 +20,7 @@ impl ZeroDivisionError {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn add_numbers<'b, 'a>(a: i32, b: i32) {
-    a + b
+    let _ = a + b;
 }
 #[doc = "Process text - should infer string type."]
 #[doc = " Depyler: verified panic-free"]

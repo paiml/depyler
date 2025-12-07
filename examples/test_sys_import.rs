@@ -1,4 +1,3 @@
-use std as sys;
 #[doc = "Get command line arguments"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]

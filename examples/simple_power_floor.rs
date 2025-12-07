@@ -20,11 +20,11 @@ impl ZeroDivisionError {
 pub fn test_power(x: i32) -> i32 {
     {
         if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-            (x as i32)
-                .checked_pow(2 as u32)
+            ({ x } as i32)
+                .checked_pow({ 2 } as u32)
                 .expect("Power operation overflowed")
         } else {
-            (x as f64).powf(2 as f64) as i32
+            ({ x } as f64).powf({ 2 } as f64) as i32
         }
     }
 }

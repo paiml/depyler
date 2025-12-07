@@ -74,7 +74,12 @@ pub fn test_enumerate() -> Vec<(i32, String)> {
         "banana".to_string(),
         "cherry".to_string(),
     ];
-    let enumerated: Vec<(i32, String)> = items.iter().cloned().enumerate().collect::<Vec<_>>();
+    let enumerated: Vec<(i32, String)> = items
+        .iter()
+        .cloned()
+        .enumerate()
+        .map(|(i, x)| (i as i32, x))
+        .collect::<Vec<_>>();
     enumerated
 }
 #[doc = "Test filtering iterables"]
@@ -139,7 +144,7 @@ pub fn test_repeat(value: i32, times: i32) -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_islice(items: &Vec<i32>, start: i32, stop: i32) -> Vec<i32> {
-    let mut result: Vec<i32> = {
+    let result: Vec<i32> = {
         let base = &items;
         let start_idx = start as isize;
         let stop_idx = stop as isize;
@@ -249,7 +254,7 @@ pub fn test_groupby_manual(
 }
 #[doc = "Test compress() to filter data by selectors"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_compress<'b, 'a>(
+pub fn test_compress<'a, 'b>(
     data: &'a Vec<String>,
     selectors: &'b Vec<bool>,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -285,7 +290,7 @@ pub fn flatten_nested_lists(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Manual implementation of Cartesian product"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_manual<'b, 'a>(
+pub fn cartesian_product_manual<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Vec<(i32, i32)> {
@@ -300,7 +305,7 @@ pub fn cartesian_product_manual<'b, 'a>(
 }
 #[doc = "Manual implementation of zip_longest"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_zip_longest<'b, 'a>(
+pub fn test_zip_longest<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
     fillvalue: i32,
@@ -444,25 +449,6 @@ pub fn test_quantify(items: &Vec<i32>, threshold: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_itertools_features() -> Result<(), Box<dyn std::error::Error>> {
-    let colors: Vec<String> = vec!["red".to_string(), "green".to_string(), "blue".to_string()];
-    let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
-    let numbers2: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-    let data_str: Vec<String> = vec![
-        "a".to_string(),
-        "b".to_string(),
-        "c".to_string(),
-        "d".to_string(),
-        "e".to_string(),
-    ];
-    let selectors: Vec<bool> = vec![true, false, true, false, true];
-    let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
-    let list1: Vec<i32> = vec![1, 2, 3];
-    let list2: Vec<i32> = vec![10, 20];
-    let short_list: Vec<i32> = vec![1, 2, 3];
-    let long_list: Vec<i32> = vec![10, 20, 30, 40, 50];
-    let batch_data: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-    let window_data: Vec<i32> = vec![1, 2, 3, 4, 5];
-    let duplicates: Vec<i32> = vec![1, 1, 2, 2, 2, 3, 3, 4, 4, 4, 4, 5];
     println!("{}", "All itertools tests completed successfully");
     Ok(())
 }

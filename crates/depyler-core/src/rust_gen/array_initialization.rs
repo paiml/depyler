@@ -157,11 +157,15 @@ pub fn convert_array_init_call(
     }
 }
 
-/// Convert small array literals (≤32 elements) to fixed-size arrays
+/// DEPYLER-0695: Convert array literals to Vec for consistent return types
 ///
-/// - `zeros(5)` → `[0; 5]`
-/// - `ones(5)` → `[1; 5]`
-/// - `full(5, 42)` → `[42; 5]`
+/// Always uses vec![] to ensure Python list semantics (dynamically sized).
+/// Previously used fixed arrays for small sizes, but this caused E0308 type
+/// mismatches when functions declared Vec<T> return types.
+///
+/// - `zeros(5)` → `vec![0; 5]`
+/// - `ones(5)` → `vec![1; 5]`
+/// - `full(5, 42)` → `vec![42; 5]`
 ///
 /// # Complexity: 4
 pub fn convert_array_small_literal(
@@ -172,12 +176,12 @@ pub fn convert_array_small_literal(
 ) -> Result<syn::Expr> {
     let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
     match func {
-        "zeros" => Ok(parse_quote! { [0; #size_lit] }),
-        "ones" => Ok(parse_quote! { [1; #size_lit] }),
+        "zeros" => Ok(parse_quote! { vec![0; #size_lit] }),
+        "ones" => Ok(parse_quote! { vec![1; #size_lit] }),
         "full" => {
             if args.len() >= 2 {
                 let value = args[1].to_rust_expr(ctx)?;
-                Ok(parse_quote! { [#value; #size_lit] })
+                Ok(parse_quote! { vec![#value; #size_lit] })
             } else {
                 bail!("full() requires a value argument");
             }

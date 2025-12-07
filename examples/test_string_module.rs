@@ -145,7 +145,7 @@ pub fn is_whitespace(char: &str) -> bool {
         return false;
     }
     let whitespace_chars: String = " \t\n\r".to_string();
-    for ws in whitespace_chars.iter().cloned() {
+    for ws in whitespace_chars.chars() {
         if char == ws {
             return true;
         }
@@ -161,7 +161,7 @@ pub fn is_punctuation(char: &str) -> bool {
         return false;
     }
     let punctuation_chars: String = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".to_string();
-    for p in punctuation_chars.iter().cloned() {
+    for p in punctuation_chars.chars() {
         if char == p {
             return true;
         }
@@ -222,10 +222,10 @@ pub fn swap_case(text: &str) -> String {
     let mut result: String = STR_EMPTY.to_string();
     for _char in text.chars() {
         let char = _char.to_string();
-        if char.isupper() {
+        if char.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) {
             result = format!("{}{}", result, char.to_lowercase());
         } else {
-            if char.islower() {
+            if char.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()) {
                 result = format!("{}{}", result, char.to_uppercase());
             } else {
                 result = format!("{}{}", result, char);
@@ -321,7 +321,7 @@ pub fn keep_alphanumeric(text: &str) -> String {
 #[doc = "Simple template substitution"]
 pub fn template_substitute<'a, 'b>(
     template: &'a str,
-    values: &'b HashMap<serde_json::Value, serde_json::Value>,
+    values: &'b std::collections::HashMap<serde_json::Value, serde_json::Value>,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let mut result: String = template.to_string();
     for key in values
@@ -344,21 +344,17 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, Box<dyn std::erro
         let char = _char.to_string();
         if char.chars().all(|c| c.is_alphabetic()) {
             let mut shifted: i32;
-            let mut base: i32;
             let mut new_char: String;
-            if char.isupper() {
+            let mut base: i32;
+            if char.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) {
                 base = "A".chars().next().unwrap() as i32;
-                shifted = format!("{}{}", char.chars().next().unwrap() as i32 - base, shift) % 26;
-                new_char = char::from_u32(format!("{}{}", base, shifted) as u32)
-                    .unwrap()
-                    .to_string();
+                shifted = (char.chars().next().unwrap() as i32 - base + shift) % 26;
+                new_char = char::from_u32(base + shifted as u32).unwrap().to_string();
                 result = format!("{}{}", result, new_char);
             } else {
                 base = "a".chars().next().unwrap() as i32;
-                shifted = format!("{}{}", char.chars().next().unwrap() as i32 - base, shift) % 26;
-                new_char = char::from_u32(format!("{}{}", base, shifted) as u32)
-                    .unwrap()
-                    .to_string();
+                shifted = (char.chars().next().unwrap() as i32 - base + shift) % 26;
+                new_char = char::from_u32(base + shifted as u32).unwrap().to_string();
                 result = format!("{}{}", result, new_char);
             }
         } else {
@@ -401,16 +397,38 @@ pub fn is_palindrome(text: &str) -> Result<bool, Box<dyn std::error::Error>> {
     let mut normalized: String = STR_EMPTY.to_string();
     for char in text.to_lowercase() {
         if char.chars().all(|c| c.is_alphanumeric()) {
-            normalized = normalized + char;
+            normalized = format!("{}{}", normalized, char);
         }
     }
     let mut left: i32 = 0;
     let _cse_temp_0 = normalized.len() as i32;
     let mut right: i32 = _cse_temp_0 - 1;
     while left < right {
-        if normalized.get(left as usize).cloned().unwrap_or_default()
-            != normalized.get(right as usize).cloned().unwrap_or_default()
-        {
+        if {
+            let base = &normalized;
+            let idx: i32 = left;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        } != {
+            let base = &normalized;
+            let idx: i32 = right;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        } {
             return Ok(false);
         }
         left = left + 1;
@@ -425,7 +443,7 @@ pub fn count_vowels(text: &str) -> i32 {
     let mut count: i32 = 0;
     for _char in text.chars() {
         let char = _char.to_string();
-        if vowels.get(char).is_some() {
+        if vowels.contains(&*char) {
             count = count + 1;
         }
     }
@@ -438,7 +456,7 @@ pub fn count_consonants(text: &str) -> i32 {
     let mut count: i32 = 0;
     for _char in text.chars() {
         let char = _char.to_string();
-        if (is_ascii_letter(&char)) && (!vowels.get(char).is_some()) {
+        if (is_ascii_letter(&char)) && (!vowels.contains(&*char)) {
             count = count + 1;
         }
     }
@@ -448,17 +466,46 @@ pub fn count_consonants(text: &str) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_string_features() -> Result<(), Box<dyn std::error::Error>> {
+    let _lowercase: String = test_ascii_lowercase();
+    let _uppercase: String = test_ascii_uppercase();
+    let _letters: String = test_ascii_letters();
+    let _digits: String = test_digits();
+    let _hexdigits: String = test_hexdigits();
+    let _octdigits: String = test_octdigits();
+    let _punct: String = test_punctuation();
+    let _ws: String = test_whitespace();
+    let _is_letter: bool = is_ascii_letter("a".to_string());
+    let _is_num: bool = is_digit("5");
+    let _is_alnum: bool = is_alphanumeric("a".to_string());
+    let _is_ws: bool = is_whitespace(" ");
+    let _is_punct: bool = is_punctuation("!");
     let text: String = "hello world".to_string();
+    let _capitalized: String = capitalize_words(&text);
+    let _title: String = to_title_case(&text);
+    let _swapped: String = swap_case(&text);
     let sample: String = "Hello World 123!".to_string();
+    let _letter_count: i32 = count_letters(&sample);
+    let _digit_count: i32 = count_digits(&sample);
+    let _ws_count: i32 = count_whitespace(&sample);
+    let _no_ws: String = remove_whitespace(&sample);
+    let _only_letters: String = keep_only_letters(&sample);
+    let _only_digits: String = keep_only_digits(&sample);
+    let _only_alnum: String = keep_alphanumeric(&sample);
     let template: String = "Hello ${name}, you are ${age} years old".to_string();
-    let values: HashMap<serde_json::Value, serde_json::Value> = {
+    let values: std::collections::HashMap<serde_json::Value, serde_json::Value> = {
         let mut map = HashMap::new();
         map.insert("name".to_string(), "Alice");
         map.insert("age".to_string(), "30");
         map
     };
+    let _substituted: String = template_substitute(&template, &values)?;
     let message: String = "HELLO".to_string();
-    let encrypted: String = caesar_cipher(message, 3)?;
+    let encrypted: String = caesar_cipher(&message, 3)?;
+    let _decrypted: String = caesar_cipher(encrypted, -3)?;
+    let _reversed_text: String = reverse_string("hello")?;
+    let _is_palin: bool = is_palindrome("A man a plan a canal Panama")?;
+    let _vowel_count: i32 = count_vowels("hello world");
+    let _consonant_count: i32 = count_consonants("hello world");
     println!("{}", "All string module tests completed successfully");
     Ok(())
 }

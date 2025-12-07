@@ -1,7 +1,6 @@
-pub const T: serde_json::Value = TypeVar::new("T".to_string());
-pub const K: serde_json::Value = TypeVar::new("K".to_string());
-pub const V: serde_json::Value = TypeVar::new("V".to_string());
-use serde_json;
+pub type UserId = i32;
+pub type Username = String;
+pub type UserData = std::collections::HashMap<UserId, Username>;
 use std::collections::HashMap;
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
@@ -162,7 +161,7 @@ impl Container {
 }
 #[derive(Debug, Clone)]
 pub struct Mapping {
-    pub data: HashMap<K, V>,
+    pub data: std::collections::HashMap<K, V>,
 }
 impl Mapping {
     pub fn new() -> Self {
@@ -188,13 +187,13 @@ pub fn simple_types(a: i32, b: f64, c: String, d: bool, e: ()) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn container_types(
     items: &Vec<i32>,
-    mapping: HashMap<String, f64>,
-    unique: HashSet<String>,
+    mapping: std::collections::HashMap<String, f64>,
+    unique: std::collections::HashSet<String>,
     coords: (i32, i32, i32),
 ) -> Vec<String> {
     items
         .iter()
-        .copied()
+        .cloned()
         .map(|item| (item).to_string())
         .collect::<Vec<_>>()
 }
@@ -216,8 +215,8 @@ pub fn optional_types(
 #[doc = " Depyler: proven to terminate"]
 pub fn nested_types(
     matrix: Vec<Vec<i32>>,
-    lookup: HashMap<String, Vec<f64>>,
-    optional_dict: Option<HashMap<String, i32>>,
+    lookup: std::collections::HashMap<String, Vec<f64>>,
+    optional_dict: Option<std::collections::HashMap<String, i32>>,
     union_list: Vec<UnionType>,
 ) -> HashMap<String, Vec<Option<i32>>> {
     {
@@ -239,9 +238,9 @@ pub fn generic_function<T: Clone>(items: &Vec<T>) -> Result<T, Box<dyn std::erro
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn complex_generics(
-    data: Vec<Option<HashMap<String, UnionType>>>,
+    data: Vec<Option<std::collections::HashMap<String, UnionType>>>,
     processor: Container<Vec<T>>,
-    mappings: HashMap<String, Mapping<String, i32>>,
+    mappings: std::collections::HashMap<String, Mapping<String, i32>>,
 ) -> TypeOrListUnion {
     Container::new(42)
 }
@@ -264,7 +263,7 @@ pub fn variable_tuple(args: &[String]) -> Vec<String> {
 #[doc = "Function taking another function as parameter."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn higher_order(func: Callable<serde_json::Value, i32>, a: i32, b: i32) -> i32 {
+pub fn higher_order(func: Box<dyn Fn(i32, i32) -> i32>, a: i32, b: i32) -> i32 {
     func(a, b)
 }
 #[doc = "Demonstrate type extraction for various Python types."]

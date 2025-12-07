@@ -1,4 +1,3 @@
-use std as sys;
 const STR_EMPTY: &'static str = "";
 const STR__: &'static str = "/";
 use std::collections::HashMap;
@@ -72,7 +71,10 @@ pub fn test_env_variable_exists() -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_current_directory() -> String {
-    let cwd: String = std::env::current_dir()?.to_string_lossy().to_string();
+    let cwd: String = std::env::current_dir()
+        .expect("Failed to get current directory")
+        .to_string_lossy()
+        .to_string();
     cwd.to_string()
 }
 #[doc = "Test path joining"]
@@ -101,7 +103,20 @@ pub fn test_path_basename() -> Result<String, Box<dyn std::error::Error>> {
             .rev()
             .step_by(step.max(1))
     } {
-        if path.get(i as usize).cloned().unwrap_or_default() == STR__ {
+        if {
+            let base = &path;
+            let idx: i32 = i;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        } == STR__
+        {
             last_slash = i;
             break;
         }
@@ -110,18 +125,15 @@ pub fn test_path_basename() -> Result<String, Box<dyn std::error::Error>> {
     let mut basename: String;
     if _cse_temp_0 {
         basename = {
-            let base = &path;
-            let start_idx = format!("{}{}", last_slash, 1) as isize;
-            let start = if start_idx < 0 {
-                (base.len() as isize + start_idx).max(0) as usize
+            let base = path;
+            let start_idx: i32 = last_slash + 1;
+            let len = base.chars().count() as i32;
+            let actual_start = if start_idx < 0 {
+                (len + start_idx).max(0) as usize
             } else {
-                start_idx as usize
+                start_idx.min(len) as usize
             };
-            if start < base.len() {
-                base[start..].to_vec()
-            } else {
-                Vec::new()
-            }
+            base.chars().skip(actual_start).collect::<String>()
         };
     } else {
         basename = path.to_string();
@@ -142,7 +154,20 @@ pub fn test_path_dirname() -> Result<String, Box<dyn std::error::Error>> {
             .rev()
             .step_by(step.max(1))
     } {
-        if path.get(i as usize).cloned().unwrap_or_default() == STR__ {
+        if {
+            let base = &path;
+            let idx: i32 = i;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        } == STR__
+        {
             last_slash = i;
             break;
         }
@@ -151,14 +176,15 @@ pub fn test_path_dirname() -> Result<String, Box<dyn std::error::Error>> {
     let mut dirname: String;
     if _cse_temp_0 {
         dirname = {
-            let base = &path;
-            let stop_idx = last_slash as isize;
-            let stop = if stop_idx < 0 {
-                (base.len() as isize + stop_idx).max(0) as usize
+            let base = path;
+            let stop_idx: i32 = last_slash;
+            let len = base.chars().count() as i32;
+            let actual_stop = if stop_idx < 0 {
+                (len + stop_idx).max(0) as usize
             } else {
-                stop_idx as usize
+                stop_idx.min(len) as usize
             };
-            base[..stop.min(base.len())].to_vec()
+            base.chars().take(actual_stop).collect::<String>()
         };
     } else {
         dirname = STR__.to_string();
@@ -167,7 +193,7 @@ pub fn test_path_dirname() -> Result<String, Box<dyn std::error::Error>> {
 }
 #[doc = "Test splitting path into directory and basename"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_path_split() -> Result<(), Box<dyn std::error::Error>> {
+pub fn test_path_split() -> Result<(String, String), Box<dyn std::error::Error>> {
     let path: String = "/home/user/documents/file.txt".to_string();
     let mut last_slash: i32 = -1;
     for i in {
@@ -179,38 +205,49 @@ pub fn test_path_split() -> Result<(), Box<dyn std::error::Error>> {
             .rev()
             .step_by(step.max(1))
     } {
-        if path.get(i as usize).cloned().unwrap_or_default() == STR__ {
+        if {
+            let base = &path;
+            let idx: i32 = i;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        } == STR__
+        {
             last_slash = i;
             break;
         }
     }
     let _cse_temp_0 = last_slash >= 0;
-    let mut dirname: String;
     let mut basename: String;
+    let mut dirname: String;
     if _cse_temp_0 {
         dirname = {
-            let base = &path;
-            let stop_idx = last_slash as isize;
-            let stop = if stop_idx < 0 {
-                (base.len() as isize + stop_idx).max(0) as usize
+            let base = path;
+            let stop_idx: i32 = last_slash;
+            let len = base.chars().count() as i32;
+            let actual_stop = if stop_idx < 0 {
+                (len + stop_idx).max(0) as usize
             } else {
-                stop_idx as usize
+                stop_idx.min(len) as usize
             };
-            base[..stop.min(base.len())].to_vec()
+            base.chars().take(actual_stop).collect::<String>()
         };
         basename = {
-            let base = &path;
-            let start_idx = last_slash + 1 as isize;
-            let start = if start_idx < 0 {
-                (base.len() as isize + start_idx).max(0) as usize
+            let base = path;
+            let start_idx: i32 = last_slash + 1;
+            let len = base.chars().count() as i32;
+            let actual_start = if start_idx < 0 {
+                (len + start_idx).max(0) as usize
             } else {
-                start_idx as usize
+                start_idx.min(len) as usize
             };
-            if start < base.len() {
-                base[start..].to_vec()
-            } else {
-                Vec::new()
-            }
+            base.chars().skip(actual_start).collect::<String>()
         };
     } else {
         dirname = STR_EMPTY.to_string();
@@ -220,7 +257,7 @@ pub fn test_path_split() -> Result<(), Box<dyn std::error::Error>> {
 }
 #[doc = "Test splitting path into name and extension"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_path_splitext() -> Result<(), Box<dyn std::error::Error>> {
+pub fn test_path_splitext() -> Result<(String, String), Box<dyn std::error::Error>> {
     let path: String = "document.txt".to_string();
     let mut last_dot: i32 = -1;
     for i in {
@@ -232,7 +269,20 @@ pub fn test_path_splitext() -> Result<(), Box<dyn std::error::Error>> {
             .rev()
             .step_by(step.max(1))
     } {
-        if path.get(i as usize).cloned().unwrap_or_default() == "." {
+        if {
+            let base = &path;
+            let idx: i32 = i;
+            let actual_idx = if idx < 0 {
+                base.chars().count().saturating_sub(idx.abs() as usize)
+            } else {
+                idx as usize
+            };
+            base.chars()
+                .nth(actual_idx)
+                .map(|c| c.to_string())
+                .unwrap_or_default()
+        } == "."
+        {
             last_dot = i;
             break;
         }
@@ -242,28 +292,26 @@ pub fn test_path_splitext() -> Result<(), Box<dyn std::error::Error>> {
     let mut ext: String;
     if _cse_temp_0 {
         name = {
-            let base = &path;
-            let stop_idx = last_dot as isize;
-            let stop = if stop_idx < 0 {
-                (base.len() as isize + stop_idx).max(0) as usize
+            let base = path;
+            let stop_idx: i32 = last_dot;
+            let len = base.chars().count() as i32;
+            let actual_stop = if stop_idx < 0 {
+                (len + stop_idx).max(0) as usize
             } else {
-                stop_idx as usize
+                stop_idx.min(len) as usize
             };
-            base[..stop.min(base.len())].to_vec()
+            base.chars().take(actual_stop).collect::<String>()
         };
         ext = {
-            let base = &path;
-            let start_idx = last_dot as isize;
-            let start = if start_idx < 0 {
-                (base.len() as isize + start_idx).max(0) as usize
+            let base = path;
+            let start_idx: i32 = last_dot;
+            let len = base.chars().count() as i32;
+            let actual_start = if start_idx < 0 {
+                (len + start_idx).max(0) as usize
             } else {
-                start_idx as usize
+                start_idx.min(len) as usize
             };
-            if start < base.len() {
-                base[start..].to_vec()
-            } else {
-                Vec::new()
-            }
+            base.chars().skip(actual_start).collect::<String>()
         };
     } else {
         name = path.to_string();
@@ -277,7 +325,19 @@ pub fn test_path_isabs() -> Result<bool, Box<dyn std::error::Error>> {
     let path: String = "/home/user/file.txt".to_string();
     let _cse_temp_0 = path.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
-    let _cse_temp_2 = path.get(0usize).cloned().unwrap_or_default() == STR__;
+    let _cse_temp_2 = {
+        let base = &path;
+        let idx: i32 = 0;
+        let actual_idx = if idx < 0 {
+            base.chars().count().saturating_sub(idx.abs() as usize)
+        } else {
+            idx as usize
+        };
+        base.chars()
+            .nth(actual_idx)
+            .map(|c| c.to_string())
+            .unwrap_or_default()
+    } == STR__;
     let _cse_temp_3 = (_cse_temp_1) && (_cse_temp_2);
     let is_absolute: bool = _cse_temp_3;
     Ok(is_absolute)
@@ -326,7 +386,7 @@ pub fn get_file_extension(filename: &str) -> Result<String, Box<dyn std::error::
     if _cse_temp_0 {
         extension = {
             let base = filename;
-            let start_idx: i32 = format!("{}{}", last_dot, 1);
+            let start_idx: i32 = last_dot + 1;
             let len = base.chars().count() as i32;
             let actual_start = if start_idx < 0 {
                 (len + start_idx).max(0) as usize
@@ -398,7 +458,7 @@ pub fn test_listdir_simulation() -> Vec<String> {
 #[doc = " Depyler: verified panic-free"]
 pub fn filter_by_extension<'a, 'b>(
     files: &'a Vec<String>,
-    ext: &'b mut str,
+    ext: &'b str,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut filtered: Vec<String> = vec![];
     for file in files.iter().cloned() {
@@ -413,7 +473,7 @@ pub fn filter_by_extension<'a, 'b>(
 pub fn count_files_by_extension(
     files: &Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let mut counts: HashMap<String, i32> = {
+    let mut counts: std::collections::HashMap<String, i32> = {
         let map = HashMap::new();
         map
     };
@@ -429,14 +489,14 @@ pub fn count_files_by_extension(
                 counts.insert(_key, _old_val + 1);
             }
         } else {
-            counts.insert(ext, 1);
+            counts.insert(ext.clone(), 1);
         }
     }
     Ok(counts)
 }
 #[doc = "Simulate path traversal with depth limit"]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_path_traversal(path: &mut str, max_depth: i32) -> i32 {
+pub fn test_path_traversal(path: &str, max_depth: i32) -> i32 {
     let mut depth: i32 = 0;
     for char in path.chars() {
         if char == STR__ {
@@ -452,7 +512,7 @@ pub fn sanitize_filename(filename: &str) -> String {
     let mut sanitized: String = STR_EMPTY.to_string();
     for char in filename.chars() {
         let mut is_invalid: bool = false;
-        for invalid in invalid_chars.iter().cloned() {
+        for invalid in invalid_chars.chars() {
             if char == invalid {
                 is_invalid = true;
                 break;
@@ -468,12 +528,33 @@ pub fn sanitize_filename(filename: &str) -> String {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_os_sys_features() -> Result<(), Box<dyn std::error::Error>> {
+    let _args: Vec<String> = test_sys_argv();
+    let _version: String = test_sys_version_info();
+    let _platform: String = test_sys_platform();
+    let _exit_code: i32 = test_sys_exit_code();
+    let _home: String = test_env_variable_access();
+    let _env_exists: bool = test_env_variable_exists();
+    let _cwd: String = test_current_directory();
+    let _joined: String = test_path_join();
+    let _basename: String = test_path_basename()?;
+    let _dirname: String = test_path_dirname()?;
+    let _split_result: () = test_path_split()?;
+    let _splitext_result: () = test_path_splitext()?;
+    let _is_abs: bool = test_path_isabs()?;
+    let _normalized: String = test_path_normpath();
+    let _ext: String = get_file_extension("document.txt")?;
+    let _hidden: bool = is_hidden_file(".gitignore")?;
     let parts: Vec<String> = vec![
         "home".to_string(),
         "user".to_string(),
         "documents".to_string(),
     ];
+    let _built_path: String = build_path_from_parts(&parts)?;
     let files: Vec<String> = test_listdir_simulation();
+    let _txt_files: Vec<String> = filter_by_extension(&files, "txt")?;
+    let _file_counts: std::collections::HashMap<String, i32> = count_files_by_extension(&files)?;
+    let _depth: i32 = test_path_traversal("/home/user/docs", 5);
+    let _safe_name: String = sanitize_filename("file<>name.txt");
     println!("{}", "All os/sys module tests completed successfully");
     Ok(())
 }
