@@ -952,17 +952,18 @@ pub(crate) fn codegen_function_params(
         }
 
         // Add individual field params for each accessed field
-        // Type them as &str by default (most common for argparse fields)
-        // For fields that look like lists (plural names), use &[String]
+        // DEPYLER-0789: Look up correct types from argparser tracker
+        // - store_true/store_false → bool
+        // - type=int → i32
+        // - nargs=*/+ → &[String]
+        // - optional fields → Option<String>
+        // - default → &str
+        // Also infer from body usage if tracker doesn't have info
         for field in &accessed_fields {
             let field_ident = quote::format_ident!("{}", field);
-            let is_list_field = field.ends_with('s')
-                && !["status", "args", "class", "process"].contains(&field.as_str());
-            let param_tokens = if is_list_field {
-                quote::quote! { #field_ident: &[String] }
-            } else {
-                quote::quote! { #field_ident: &str }
-            };
+
+            // Look up field type from argparser tracker or infer from body usage
+            let param_tokens = lookup_argparse_field_type(field, &field_ident, ctx, &func.body);
             params.push(param_tokens);
         }
 
@@ -973,6 +974,133 @@ pub(crate) fn codegen_function_params(
         .iter()
         .map(|param| codegen_single_param(param, func, lifetime_result, ctx))
         .collect()
+}
+
+/// DEPYLER-0789: Look up correct type for an argparse field from tracker or body usage
+/// Searches all subcommands for the field, or infers type from how args.field is used
+fn lookup_argparse_field_type(
+    field: &str,
+    field_ident: &proc_macro2::Ident,
+    ctx: &CodeGenContext,
+    body: &[crate::hir::HirStmt],
+) -> proc_macro2::TokenStream {
+    use crate::hir::Type;
+
+    // Search all subcommands for this field
+    for subcommand in ctx.argparser_tracker.subcommands.values() {
+        for arg in &subcommand.arguments {
+            let arg_field_name = arg.rust_field_name();
+            if arg_field_name == field {
+                // Found the argument - determine its type
+                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                    return quote::quote! { #field_ident: bool };
+                }
+                if matches!(arg.nargs.as_deref(), Some("+") | Some("*")) {
+                    return quote::quote! { #field_ident: &[String] };
+                }
+                if let Some(ref arg_type) = arg.arg_type {
+                    match arg_type {
+                        Type::Int => return quote::quote! { #field_ident: i32 },
+                        Type::Float => return quote::quote! { #field_ident: f64 },
+                        Type::Bool => return quote::quote! { #field_ident: bool },
+                        _ => {}
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // Also check main parser arguments
+    for parser in ctx.argparser_tracker.parsers.values() {
+        for arg in &parser.arguments {
+            let arg_field_name = arg.rust_field_name();
+            if arg_field_name == field {
+                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                    return quote::quote! { #field_ident: bool };
+                }
+                if matches!(arg.nargs.as_deref(), Some("+") | Some("*")) {
+                    return quote::quote! { #field_ident: &[String] };
+                }
+                if let Some(ref arg_type) = arg.arg_type {
+                    match arg_type {
+                        Type::Int => return quote::quote! { #field_ident: i32 },
+                        Type::Float => return quote::quote! { #field_ident: f64 },
+                        Type::Bool => return quote::quote! { #field_ident: bool },
+                        _ => {}
+                    }
+                }
+                break;
+            }
+        }
+    }
+
+    // DEPYLER-0789: Infer type from body usage if tracker doesn't have info
+    // If args.field is used directly in if condition → bool
+    if is_field_used_as_bool_condition(field, body) {
+        return quote::quote! { #field_ident: bool };
+    }
+
+    // Default: string type with heuristic for lists
+    let is_list_field =
+        field.ends_with('s') && !["status", "args", "class", "process"].contains(&field);
+    if is_list_field {
+        quote::quote! { #field_ident: &[String] }
+    } else {
+        quote::quote! { #field_ident: &str }
+    }
+}
+
+/// DEPYLER-0789: Check if a field is used as a boolean condition in the body
+/// Patterns: `if args.field:`, `args.field and ...`, `not args.field`
+fn is_field_used_as_bool_condition(field: &str, body: &[crate::hir::HirStmt]) -> bool {
+    use crate::hir::{HirExpr, HirStmt};
+
+    fn check_expr_is_field_access(expr: &HirExpr, field: &str) -> bool {
+        matches!(
+            expr,
+            HirExpr::Attribute { value, attr }
+            if matches!(value.as_ref(), HirExpr::Var(v) if v == "args")
+            && attr == field
+        )
+    }
+
+    fn check_stmt(stmt: &HirStmt, field: &str) -> bool {
+        match stmt {
+            HirStmt::If { condition, then_body, else_body } => {
+                // Check if condition is `args.field` directly (used as bool)
+                if check_expr_is_field_access(condition, field) {
+                    return true;
+                }
+                // Recurse into then/else
+                if then_body.iter().any(|s| check_stmt(s, field)) {
+                    return true;
+                }
+                if let Some(else_stmts) = else_body {
+                    if else_stmts.iter().any(|s| check_stmt(s, field)) {
+                        return true;
+                    }
+                }
+                false
+            }
+            HirStmt::While { condition, body } => {
+                if check_expr_is_field_access(condition, field) {
+                    return true;
+                }
+                body.iter().any(|s| check_stmt(s, field))
+            }
+            HirStmt::For { body, .. } => body.iter().any(|s| check_stmt(s, field)),
+            HirStmt::With { body, .. } => body.iter().any(|s| check_stmt(s, field)),
+            HirStmt::Try { body, handlers, finalbody, .. } => {
+                body.iter().any(|s| check_stmt(s, field))
+                    || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, field)))
+                    || finalbody.as_ref().map_or(false, |f| f.iter().any(|s| check_stmt(s, field)))
+            }
+            _ => false,
+        }
+    }
+
+    body.iter().any(|stmt| check_stmt(stmt, field))
 }
 
 /// DEPYLER-0757: Check if a variable is used anywhere in the function body
