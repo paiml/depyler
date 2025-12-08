@@ -2,6 +2,10 @@
 //!
 //! Issue #211: Tracks codebase changes to trigger automatic retraining
 //! when the corpus or model architecture changes.
+//!
+//! **DEPRECATED**: This module is superseded by `oracle_lineage` (Issue #212).
+//! Use `OracleLineage` from `entrenar::monitor::ModelLineage` instead.
+//! Benefits: lineage chains, regression detection, PAIML stack alignment.
 
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -9,6 +13,12 @@ use std::path::{Path, PathBuf};
 /// Tracks the state of oracle training for change detection.
 ///
 /// Stored in `.depyler/oracle_state.json` to persist across sessions.
+///
+/// # Deprecated
+///
+/// Use [`OracleLineage`](crate::oracle_lineage::OracleLineage) instead.
+/// This struct is maintained for backward compatibility.
+#[deprecated(since = "3.22.0", note = "Use OracleLineage instead (Issue #212)")]
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct TrainingState {
     /// Git commit SHA when the oracle was last trained
@@ -23,6 +33,7 @@ pub struct TrainingState {
     pub model_version: String,
 }
 
+#[allow(deprecated)]
 impl Default for TrainingState {
     fn default() -> Self {
         Self {
@@ -39,6 +50,7 @@ impl Default for TrainingState {
 const STATE_DIR: &str = ".depyler";
 const STATE_FILE: &str = "oracle_state.json";
 
+#[allow(deprecated)]
 impl TrainingState {
     /// Create a new training state with current values.
     #[must_use]
@@ -187,6 +199,7 @@ impl TrainingState {
 }
 
 #[cfg(test)]
+#[allow(deprecated)] // Testing deprecated TrainingState for backward compatibility
 mod tests {
     use super::*;
     use tempfile::TempDir;
