@@ -852,6 +852,9 @@ fn infer_constant_type(value: &HirExpr, ctx: &mut CodeGenContext) -> proc_macro2
         HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
         HirExpr::Literal(Literal::String(_)) => quote! { : &str },
         HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
+        // DEPYLER-0798: None literal should be Option<()>, not ()
+        // Python `None` maps to Rust `Option::None`, which requires Option<T> type
+        HirExpr::Literal(Literal::None) => quote! { : Option<()> },
 
         // DEPYLER-0516: Unary operations preserve type (helper extracts unary logic)
         HirExpr::Unary { op, operand } => infer_unary_type(op, operand, ctx),
