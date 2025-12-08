@@ -131,9 +131,10 @@ impl TypeMapper {
         );
 
         match py_type {
-            // DEPYLER-0264: Map Unknown to generic type T instead of serde_json::Value
-            // DEPYLER-0705: Use generic T for single-shot compilation without external deps
-            PythonType::Unknown => RustType::TypeParam("T".to_string()),
+            // DEPYLER-0781: Map Unknown to serde_json::Value for concrete typing
+            // Previously used TypeParam("T") which caused E0283 errors when T
+            // wasn't actually used in the function signature
+            PythonType::Unknown => RustType::Custom("serde_json::Value".to_string()),
             PythonType::Int => RustType::Primitive(match self.width_preference {
                 IntWidth::I32 => PrimitiveType::I32,
                 IntWidth::I64 => PrimitiveType::I64,
