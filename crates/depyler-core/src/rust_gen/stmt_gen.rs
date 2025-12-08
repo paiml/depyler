@@ -78,9 +78,24 @@ fn expr_infers_float(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
         HirExpr::Var(name) => {
             matches!(ctx.var_types.get(name), Some(Type::Float))
         }
-        // Function calls - check function_return_types
+        // Function calls - check function_return_types or Callable parameter types
         HirExpr::Call { func, .. } => {
-            matches!(ctx.function_return_types.get(func), Some(Type::Float))
+            // Check module-level function return types first
+            if matches!(ctx.function_return_types.get(func), Some(Type::Float)) {
+                return true;
+            }
+            // DEPYLER-0800: Check if func is a Callable parameter with Float return type
+            // Example: f: Callable[[float], float] -> f(x) returns Float
+            if let Some(Type::Function { ret, .. }) = ctx.var_types.get(func) {
+                return matches!(ret.as_ref(), Type::Float);
+            }
+            // Callable is stored as Generic { base: "Callable", params: [param_types, return_type] }
+            if let Some(Type::Generic { base, params }) = ctx.var_types.get(func) {
+                if base == "Callable" && params.len() == 2 {
+                    return matches!(params[1], Type::Float);
+                }
+            }
+            false
         }
         // Binary operations: if either operand is float, result is float (for Mul, Div, Add, Sub)
         HirExpr::Binary { op, left, right } => {
