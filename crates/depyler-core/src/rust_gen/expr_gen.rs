@@ -8058,7 +8058,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! {
                     {
                         let start = #start;
-                        let step = #step;
+                        // DEPYLER-0812: Use i32 for step to support negative values
+                        let step: i32 = #step;
                         std::iter::successors(Some(start), move |&n| Some(n + step))
                     }
                 }
@@ -9402,7 +9403,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             use rand::Rng;
                             let start = #start;
                             let stop = #stop;
-                            let step = #step;
+                            // DEPYLER-0812: Use i32 for step to support negative values
+                        let step: i32 = #step;
                             let num_steps = ((stop - start) / step).max(0);
                             let offset = rand::thread_rng().gen_range(0..num_steps);
                             start + offset * step
@@ -13740,7 +13742,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! {
                     {
                         let base = #base_expr;
-                        let step = #step;
+                        // DEPYLER-0812: Use i32 for step to support negative values
+                        let step: i32 = #step;
                         if step == 1 {
                             base.clone()
                         } else if step > 0 {
@@ -13839,7 +13842,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else {
                             stop_idx as usize
                         };
-                        let step = #step;
+                        // DEPYLER-0812: Use i32 for step to support negative values
+                        let step: i32 = #step;
 
                         if step == 1 {
                             if start < base.len() {
@@ -13882,7 +13886,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         start_idx as usize
                     };
-                    let step = #step;
+                    // DEPYLER-0812: Use i32 for step to support negative values
+                    let step: i32 = #step;
 
                     if start < base.len() {
                         if step == 1 {
@@ -13919,7 +13924,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 {
                     let base = #base_expr;
                     let stop = (#stop).max(0) as usize;
-                    let step = #step;
+                    // DEPYLER-0812: Use i32 for step to support negative values
+                    let step: i32 = #step;
 
                     if step == 1 {
                         base[..stop.min(base.len())].to_vec()
