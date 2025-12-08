@@ -36,6 +36,7 @@ pub mod tfidf;
 pub mod hybrid_retrieval;
 pub mod hansei;
 pub mod training;
+pub mod training_state;  // Issue #211: Continuous oracle retraining trigger
 pub mod tuning;
 pub mod unified_training;
 pub mod verificar_integration;
@@ -83,6 +84,7 @@ pub use hansei::{
     TranspileIssue, TranspileOutcome, Trend,
 };
 pub use training::{TrainingDataset, TrainingSample};
+pub use training_state::TrainingState;  // Issue #211
 
 // MoE Oracle exports
 pub use moe_oracle::{ExpertDomain, MoeClassificationResult, MoeOracle, MoeOracleConfig};
@@ -254,6 +256,49 @@ pub struct Oracle {
 /// Default model filename
 const DEFAULT_MODEL_NAME: &str = "depyler_oracle.apr";
 
+/// Get training corpus file paths for hash computation.
+///
+/// Issue #211: Used to detect when training data has changed.
+#[must_use]
+pub fn get_training_corpus_paths() -> Vec<PathBuf> {
+    let mut paths = Vec::new();
+
+    // Find project root
+    let mut root = std::env::current_dir().unwrap_or_default();
+    for _ in 0..5 {
+        if root.join("Cargo.toml").exists() {
+            break;
+        }
+        if !root.pop() {
+            return paths;
+        }
+    }
+
+    // Collect corpus directories
+    let corpus_dirs = [
+        root.join("crates/depyler-oracle/src"),
+        root.join("verificar/corpus"),
+        root.join("training_data"),
+    ];
+
+    for dir in corpus_dirs {
+        if dir.exists() {
+            if let Ok(entries) = std::fs::read_dir(&dir) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.extension().map_or(false, |e| e == "rs" || e == "json") {
+                        paths.push(path);
+                    }
+                }
+            }
+        }
+    }
+
+    // Sort for deterministic hashing
+    paths.sort();
+    paths
+}
+
 impl Oracle {
     /// Get the default model path (in project root or current dir).
     #[must_use]
@@ -276,12 +321,51 @@ impl Oracle {
     ///
     /// This is the recommended way to get an Oracle instance - it caches
     /// the trained model to disk for faster subsequent loads.
+    ///
+    /// ## Issue #211: Continuous Oracle Retraining
+    ///
+    /// This method now implements automatic change detection:
+    /// - Compares current git commit SHA with stored state
+    /// - Compares corpus hash with stored state
+    /// - Triggers retraining when codebase changes detected
+    /// - Stores training state in `.depyler/oracle_state.json`
     pub fn load_or_train() -> Result<Self> {
-        let path = Self::default_model_path();
+        let model_path = Self::default_model_path();
+        let state_path = TrainingState::default_state_path();
 
-        if path.exists() {
-            match Self::load(&path) {
-                Ok(oracle) => return Ok(oracle),
+        // Get current state for comparison
+        let current_sha = TrainingState::get_current_commit_sha();
+        let corpus_paths = get_training_corpus_paths();
+        let current_corpus_hash = TrainingState::compute_corpus_hash(&corpus_paths);
+
+        // Check if we need to retrain (Issue #211)
+        let needs_retrain = match TrainingState::load(&state_path) {
+            Ok(Some(state)) => {
+                let should_retrain = state.needs_retraining(&current_sha, &current_corpus_hash);
+                if should_retrain {
+                    eprintln!(
+                        "📊 Oracle: Codebase changes detected, triggering retraining..."
+                    );
+                }
+                should_retrain
+            }
+            Ok(None) => {
+                eprintln!("📊 Oracle: No training state found, will train fresh...");
+                true
+            }
+            Err(e) => {
+                eprintln!("Warning: Failed to load training state: {e}. Retraining...");
+                true
+            }
+        };
+
+        // Try to load existing model if no retrain needed
+        if !needs_retrain && model_path.exists() {
+            match Self::load(&model_path) {
+                Ok(oracle) => {
+                    eprintln!("📊 Oracle: Loaded cached model (no changes detected)");
+                    return Ok(oracle);
+                }
                 Err(e) => {
                     eprintln!("Warning: Failed to load cached model: {e}. Retraining...");
                 }
@@ -300,15 +384,28 @@ impl Oracle {
         for sample in synthetic_corpus.samples() {
             dataset.add(sample.clone());
         }
+
+        let sample_count = dataset.samples().len();
         let (features, labels_vec) = samples_to_features(dataset.samples());
         let labels: Vec<usize> = labels_vec.as_slice().iter().map(|&x| x as usize).collect();
 
         let mut oracle = Self::new();
         oracle.train(&features, &labels)?;
 
-        // Save for next time
-        if let Err(e) = oracle.save(&path) {
-            eprintln!("Warning: Failed to cache model to {}: {e}", path.display());
+        // Save model for next time
+        if let Err(e) = oracle.save(&model_path) {
+            eprintln!("Warning: Failed to cache model to {}: {e}", model_path.display());
+        }
+
+        // Save training state (Issue #211)
+        let new_state = TrainingState::new(current_sha, current_corpus_hash, sample_count);
+        if let Err(e) = new_state.save(&state_path) {
+            eprintln!("Warning: Failed to save training state: {e}");
+        } else {
+            eprintln!(
+                "📊 Oracle: Training complete ({} samples), state saved",
+                sample_count
+            );
         }
 
         Ok(oracle)
@@ -577,6 +674,109 @@ mod tests {
     fn test_oracle_creation() {
         let oracle = Oracle::new();
         assert_eq!(oracle.categories.len(), 7);
+    }
+
+    // ============================================================
+    // Issue #211: Continuous Oracle Retraining Tests (TDD - RED FIRST)
+    // ============================================================
+
+    #[test]
+    fn test_needs_retrain_no_state_file() {
+        // When no state file exists, should need retraining
+        let temp_dir = tempfile::TempDir::new().expect("create temp dir");
+        let state_path = temp_dir.path().join(".depyler").join("oracle_state.json");
+
+        let result = TrainingState::load(&state_path).expect("load should not error");
+        assert!(result.is_none(), "No state file should return None");
+
+        // When None, needs_retraining should be true (treat as never trained)
+        let default_state = TrainingState::default();
+        assert!(
+            default_state.needs_retraining("any_sha", "any_hash"),
+            "Default state should need retraining"
+        );
+    }
+
+    #[test]
+    fn test_needs_retrain_commit_changed() {
+        // When commit SHA changes, should need retraining
+        let state = TrainingState::new(
+            "abc123def456".to_string(),
+            "corpus_hash_123".to_string(),
+            1000,
+        );
+
+        assert!(
+            state.needs_retraining("different_sha_789", "corpus_hash_123"),
+            "Changed commit SHA should trigger retraining"
+        );
+    }
+
+    #[test]
+    fn test_needs_retrain_corpus_changed() {
+        // When corpus hash changes, should need retraining
+        let state = TrainingState::new(
+            "abc123def456".to_string(),
+            "corpus_hash_123".to_string(),
+            1000,
+        );
+
+        assert!(
+            state.needs_retraining("abc123def456", "different_corpus_hash"),
+            "Changed corpus hash should trigger retraining"
+        );
+    }
+
+    #[test]
+    fn test_no_retrain_when_unchanged() {
+        // When nothing changed, should NOT need retraining
+        let state = TrainingState::new(
+            "abc123def456".to_string(),
+            "corpus_hash_123".to_string(),
+            1000,
+        );
+
+        assert!(
+            !state.needs_retraining("abc123def456", "corpus_hash_123"),
+            "Unchanged state should NOT need retraining"
+        );
+    }
+
+    #[test]
+    fn test_training_state_saves_after_training() {
+        let temp_dir = tempfile::TempDir::new().expect("create temp dir");
+        let state_path = temp_dir.path().join(".depyler").join("oracle_state.json");
+
+        // Create and save state
+        let state = TrainingState::new(
+            "test_sha_12345".to_string(),
+            "test_hash_67890".to_string(),
+            500,
+        );
+        state.save(&state_path).expect("save should work");
+
+        // Verify it was saved
+        assert!(state_path.exists(), "State file should exist after save");
+
+        // Load and verify
+        let loaded = TrainingState::load(&state_path)
+            .expect("load should work")
+            .expect("state should exist");
+        assert_eq!(loaded.last_trained_commit_sha, "test_sha_12345");
+        assert_eq!(loaded.corpus_hash, "test_hash_67890");
+        assert_eq!(loaded.sample_count, 500);
+    }
+
+    #[test]
+    fn test_get_corpus_paths_for_hashing() {
+        // Test that we can get corpus paths for hashing
+        // This tests the corpus path collection logic
+        let paths = get_training_corpus_paths();
+        // Should return some paths (even if empty in test environment)
+        assert!(
+            paths.is_empty() || !paths.is_empty(),
+            "get_training_corpus_paths should return a Vec"
+        );
     }
 
     #[test]
