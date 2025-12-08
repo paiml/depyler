@@ -2213,6 +2213,11 @@ fn infer_expr_type_with_env(
                 }
             }
 
+            // DEPYLER-0808: Power with negative exponent always returns float
+            if matches!(op, BinOp::Pow) && is_negative_int_expr(right) {
+                return Type::Float;
+            }
+
             let left_type = infer_expr_type_with_env(left, var_types);
             let right_type = infer_expr_type_with_env(right, var_types);
             if matches!(left_type, Type::Float) || matches!(right_type, Type::Float) {
@@ -2527,6 +2532,12 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 }
             }
 
+            // DEPYLER-0808: Power with negative exponent always returns float
+            // In Python: 2 ** -1 = 0.5, even for int ** int with negative exp
+            if matches!(op, BinOp::Pow) && is_negative_int_expr(right) {
+                return Type::Float;
+            }
+
             // For arithmetic, infer from operands
             let left_type = infer_expr_type_simple(left);
             let right_type = infer_expr_type_simple(right);
@@ -2723,6 +2734,21 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
             }
         }
         _ => Type::Unknown,
+    }
+}
+
+/// DEPYLER-0808: Check if expression is a negative integer
+/// Handles both direct negative literals and unary negation of positive integers
+fn is_negative_int_expr(expr: &HirExpr) -> bool {
+    match expr {
+        // Direct negative literal: -1, -2, etc.
+        HirExpr::Literal(Literal::Int(n)) => *n < 0,
+        // Unary negation: -(1), -(x)
+        HirExpr::Unary { op, operand } => {
+            matches!(op, UnaryOp::Neg)
+                && matches!(operand.as_ref(), HirExpr::Literal(Literal::Int(n)) if *n > 0)
+        }
+        _ => false,
     }
 }
 
