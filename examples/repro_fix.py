@@ -1,26 +1,23 @@
 #!/usr/bin/env python3
-"""Minimal repro for E0425: exception alias variable not declared.
+"""Minimal repro for E0507: filter closure borrow pattern.
 
-DEPYLER-XXXX: Exception alias variable 'err' in 'except ... as err' clause
-is not properly declared in generated Rust code.
+DEPYLER-0820: Filter closure uses |&(k, v)| but String doesn't implement Copy,
+causing "cannot move out of shared reference" error.
 
-Pattern: except SomeException as alias_var -> use alias_var
-Root Cause: The 'as err' binding is not being declared in the match arm.
+Pattern: {k: v for k, v in d.items() if k.startswith(prefix)}
+Generated: .filter(|&(k, v)| k.starts_with(prefix))  // E0507
+Should be: .filter(|(k, v)| k.starts_with(prefix))   // OK
 """
 
 
-def catch_and_convert(value: str) -> int:
-    """Catch one exception, raise another using the exception alias."""
-    try:
-        return int(value)
-    except ValueError as err:
-        # This 'err' variable should be bound by the match arm
-        # Currently generates: map_err(|_| err) - but err isn't declared!
-        raise RuntimeError(f"Cannot parse: {value}") from err
+def filter_by_key(d: dict[str, int], prefix: str) -> dict[str, int]:
+    """Filter dict by key prefix."""
+    return {k: v for k, v in d.items() if k.startswith(prefix)}
 
 
 def main() -> int:
-    result = catch_and_convert("not_a_number")
+    data = {"apple": 1, "apricot": 2, "banana": 3}
+    result = filter_by_key(data, "ap")
     print(result)
     return 0
 
