@@ -1057,6 +1057,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
                 Ok(parse_quote! { vec![#elem; #left_expr as usize] })
             }
+            // DEPYLER-0794: Pattern: [x] * expr (any expression for size → Vec)
+            // Example: [True] * (limit + 1) → vec![true; (limit + 1) as usize]
+            // Note: Parentheses needed because `as` has lower precedence than arithmetic
+            (HirExpr::List(elts), _) if elts.len() == 1 => {
+                let elem = elts[0].to_rust_expr(self.ctx)?;
+                Ok(parse_quote! { vec![#elem; (#right_expr) as usize] })
+            }
+            // DEPYLER-0794: Pattern: expr * [x] (any expression for size → Vec)
+            (_, HirExpr::List(elts)) if elts.len() == 1 => {
+                let elem = elts[0].to_rust_expr(self.ctx)?;
+                Ok(parse_quote! { vec![#elem; (#left_expr) as usize] })
+            }
             // Default multiplication
             _ => {
                 let rust_op = convert_binop(op)?;

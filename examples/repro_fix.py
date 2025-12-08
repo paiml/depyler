@@ -1,20 +1,20 @@
-"""Reproduction for map(str, ...) pattern.
+"""Reproduction for list replication pattern.
 
-The issue: Python's `map(str, items)` converts each item to string.
-This generates `map(str, &items)` but `str` is a Rust type, not a function.
+The issue: Python's `[True] * n` creates list with n copies of True.
+This generates `vec![true] * n` but Vec doesn't support * operator.
 
-Error: E0423: expected value, found builtin type `str`
+Error: E0369: cannot multiply `Vec<bool>` by `i32`
 
-Python: print(" ".join(map(str, result)))
+Python: is_prime = [True] * (limit + 1)
 
 WRONG Rust:
-  map(str, &result)  // ERROR: str is a type, not a value
+  vec![true] * (limit + 1)  // ERROR: cannot multiply Vec by i32
 
 RIGHT Rust:
-  result.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" ")
+  vec![true; (limit + 1) as usize]
 """
 
 
-def format_numbers(nums: list[int]) -> str:
-    """Convert list of numbers to space-separated string."""
-    return " ".join(map(str, nums))
+def create_sieve(limit: int) -> list[bool]:
+    """Create boolean sieve array."""
+    return [True] * (limit + 1)
