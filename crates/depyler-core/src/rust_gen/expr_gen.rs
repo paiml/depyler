@@ -92,6 +92,137 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         matches!(name, "self" | "Self" | "super" | "crate")
     }
 
+    /// DEPYLER-0792: Collect all variable names defined by walrus operators in conditions
+    /// Recursively walks the expression tree to find NamedExpr targets
+    fn collect_walrus_vars_from_conditions(conditions: &[HirExpr]) -> std::collections::HashSet<String> {
+        let mut vars = std::collections::HashSet::new();
+        for cond in conditions {
+            Self::collect_walrus_vars_from_expr(cond, &mut vars);
+        }
+        vars
+    }
+
+    /// DEPYLER-0792: Helper to recursively find NamedExpr (walrus) targets in an expression
+    fn collect_walrus_vars_from_expr(expr: &HirExpr, vars: &mut std::collections::HashSet<String>) {
+        match expr {
+            HirExpr::NamedExpr { target, value } => {
+                vars.insert(target.clone());
+                Self::collect_walrus_vars_from_expr(value, vars);
+            }
+            HirExpr::Binary { left, right, .. } => {
+                Self::collect_walrus_vars_from_expr(left, vars);
+                Self::collect_walrus_vars_from_expr(right, vars);
+            }
+            HirExpr::Unary { operand, .. } => {
+                Self::collect_walrus_vars_from_expr(operand, vars);
+            }
+            HirExpr::Call { args, kwargs, .. } => {
+                for arg in args {
+                    Self::collect_walrus_vars_from_expr(arg, vars);
+                }
+                for (_, v) in kwargs {
+                    Self::collect_walrus_vars_from_expr(v, vars);
+                }
+            }
+            HirExpr::MethodCall { object, args, kwargs, .. } => {
+                Self::collect_walrus_vars_from_expr(object, vars);
+                for arg in args {
+                    Self::collect_walrus_vars_from_expr(arg, vars);
+                }
+                for (_, v) in kwargs {
+                    Self::collect_walrus_vars_from_expr(v, vars);
+                }
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                Self::collect_walrus_vars_from_expr(test, vars);
+                Self::collect_walrus_vars_from_expr(body, vars);
+                Self::collect_walrus_vars_from_expr(orelse, vars);
+            }
+            HirExpr::Tuple(elts) | HirExpr::List(elts) | HirExpr::Set(elts) => {
+                for e in elts {
+                    Self::collect_walrus_vars_from_expr(e, vars);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// DEPYLER-0792: Check if an expression uses any of the given variable names
+    fn expr_uses_any_var(expr: &HirExpr, var_names: &std::collections::HashSet<String>) -> bool {
+        match expr {
+            HirExpr::Var(name) => var_names.contains(name),
+            HirExpr::NamedExpr { value, .. } => Self::expr_uses_any_var(value, var_names),
+            HirExpr::Binary { left, right, .. } => {
+                Self::expr_uses_any_var(left, var_names) || Self::expr_uses_any_var(right, var_names)
+            }
+            HirExpr::Unary { operand, .. } => Self::expr_uses_any_var(operand, var_names),
+            HirExpr::Call { args, kwargs, .. } => {
+                args.iter().any(|a| Self::expr_uses_any_var(a, var_names))
+                    || kwargs.iter().any(|(_, v)| Self::expr_uses_any_var(v, var_names))
+            }
+            HirExpr::MethodCall { object, args, kwargs, .. } => {
+                Self::expr_uses_any_var(object, var_names)
+                    || args.iter().any(|a| Self::expr_uses_any_var(a, var_names))
+                    || kwargs.iter().any(|(_, v)| Self::expr_uses_any_var(v, var_names))
+            }
+            HirExpr::Tuple(elts) | HirExpr::List(elts) | HirExpr::Set(elts) => {
+                elts.iter().any(|e| Self::expr_uses_any_var(e, var_names))
+            }
+            HirExpr::Index { base, index } => {
+                Self::expr_uses_any_var(base, var_names) || Self::expr_uses_any_var(index, var_names)
+            }
+            HirExpr::Attribute { value, .. } => Self::expr_uses_any_var(value, var_names),
+            HirExpr::IfExpr { test, body, orelse } => {
+                Self::expr_uses_any_var(test, var_names)
+                    || Self::expr_uses_any_var(body, var_names)
+                    || Self::expr_uses_any_var(orelse, var_names)
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0792: Generate let bindings for walrus expressions in a condition
+    /// Extracts `(length := len(w))` as `let length = w.len() as i32;`
+    fn generate_walrus_bindings(cond: &HirExpr, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
+        let mut bindings = proc_macro2::TokenStream::new();
+        Self::collect_walrus_bindings_from_expr(cond, ctx, &mut bindings)?;
+        Ok(bindings)
+    }
+
+    /// DEPYLER-0792: Helper to recursively extract walrus bindings from expression
+    fn collect_walrus_bindings_from_expr(
+        expr: &HirExpr,
+        ctx: &mut CodeGenContext,
+        bindings: &mut proc_macro2::TokenStream,
+    ) -> Result<()> {
+        match expr {
+            HirExpr::NamedExpr { target, value } => {
+                let var_ident = syn::Ident::new(target, proc_macro2::Span::call_site());
+                let value_expr = value.to_rust_expr(ctx)?;
+                bindings.extend(quote::quote! { let #var_ident = #value_expr; });
+                // Recurse into value in case of nested walrus
+                Self::collect_walrus_bindings_from_expr(value, ctx, bindings)?;
+            }
+            HirExpr::Binary { left, right, .. } => {
+                Self::collect_walrus_bindings_from_expr(left, ctx, bindings)?;
+                Self::collect_walrus_bindings_from_expr(right, ctx, bindings)?;
+            }
+            HirExpr::Unary { operand, .. } => {
+                Self::collect_walrus_bindings_from_expr(operand, ctx, bindings)?;
+            }
+            HirExpr::Call { args, kwargs, .. } => {
+                for arg in args {
+                    Self::collect_walrus_bindings_from_expr(arg, ctx, bindings)?;
+                }
+                for (_, v) in kwargs {
+                    Self::collect_walrus_bindings_from_expr(v, ctx, bindings)?;
+                }
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     /// DEPYLER-0633: Check if expression looks like it returns Option
     /// Used to detect `Option or default` patterns that should become `.unwrap_or()`
     ///
@@ -15034,7 +15165,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { #iter_expr.into_iter() }
             };
 
-            // DEPYLER-0691: Add filters for each condition
+            // DEPYLER-0792: Check if any condition contains a walrus operator (:=)
+            // and if the element expression uses that walrus variable.
+            // If so, we must use filter_map instead of filter + map, because
+            // the walrus variable is defined in the filter closure but needed in map.
+            let walrus_vars_in_conditions = Self::collect_walrus_vars_from_conditions(&gen.conditions);
+            let element_uses_walrus = !walrus_vars_in_conditions.is_empty()
+                && Self::expr_uses_any_var(element, &walrus_vars_in_conditions);
+
+            if element_uses_walrus && gen.conditions.len() == 1 {
+                // DEPYLER-0792: Single condition with walrus - use filter_map pattern
+                // Python: [(w, length) for w in words if (length := len(w)) > 3]
+                // Rust: words.iter().cloned().filter_map(|w| {
+                //           let length = w.len() as i32;
+                //           if length > 3 { Some((w, length)) } else { None }
+                //       }).collect::<Vec<_>>()
+                let cond = &gen.conditions[0];
+                let cond_expr = cond.to_rust_expr(self.ctx)?;
+
+                // Collect walrus variable assignments as let bindings
+                let walrus_bindings = Self::generate_walrus_bindings(cond, self.ctx)?;
+
+                chain = parse_quote! {
+                    #chain.filter_map(|#target_pat| {
+                        #walrus_bindings
+                        if #cond_expr { Some(#element_expr) } else { None }
+                    })
+                };
+
+                // Collect into Vec
+                return Ok(parse_quote! { #chain.collect::<Vec<_>>() });
+            }
+
+            // DEPYLER-0691: Add filters for each condition (no walrus in element)
             // Use |&x| pattern to auto-dereference because filter() receives &Item
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
