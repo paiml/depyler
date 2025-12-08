@@ -4731,14 +4731,24 @@ impl<'a> ExprConverter<'a> {
                 if !is_valid_ident {
                     bail!("Invalid method name '{}' - not a valid Rust identifier", method);
                 }
+
+                // DEPYLER-0823: Wrap cast expressions in parentheses before method calls
+                // Rust parses `x as i32.method()` as `x as (i32.method())` which is invalid
+                // Must be: `(x as i32).method()`
+                let safe_object_expr: syn::Expr = if matches!(object_expr, syn::Expr::Cast(_)) {
+                    parse_quote! { (#object_expr) }
+                } else {
+                    object_expr.clone()
+                };
+
                 // Debug: Check if method is a Rust keyword
                 if syn::parse_str::<syn::Ident>(method).is_err() {
                     // Method is a Rust keyword - use raw identifier
                     let method_ident = syn::Ident::new_raw(method, proc_macro2::Span::call_site());
-                    return Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) });
+                    return Ok(parse_quote! { #safe_object_expr.#method_ident(#(#arg_exprs),*) });
                 }
                 let method_ident = make_ident(method);
-                Ok(parse_quote! { #object_expr.#method_ident(#(#arg_exprs),*) })
+                Ok(parse_quote! { #safe_object_expr.#method_ident(#(#arg_exprs),*) })
             }
         }
     }

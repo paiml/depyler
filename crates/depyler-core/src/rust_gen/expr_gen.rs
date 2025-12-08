@@ -12931,7 +12931,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     })
                     .collect();
 
-                Ok(parse_quote! { #object_expr.#method_ident(#(#processed_args),*) })
+                // DEPYLER-0823: Wrap cast expressions in parentheses before method calls
+                // Rust parses `x as i32.method()` as `x as (i32.method())` which is invalid
+                // Must be: `(x as i32).method()`
+                let safe_object_expr: syn::Expr = if matches!(object_expr, syn::Expr::Cast(_)) {
+                    parse_quote! { (#object_expr) }
+                } else {
+                    object_expr.clone()
+                };
+
+                Ok(parse_quote! { #safe_object_expr.#method_ident(#(#processed_args),*) })
             }
         }
     }
