@@ -3484,23 +3484,30 @@ impl<'a> ExprConverter<'a> {
                 let left_is_float = self.expr_returns_float_direct(left);
                 let right_is_float = self.expr_returns_float_direct(right);
 
-                // If left is float and right is integer literal, convert right to float
-                if left_is_float {
+                // DEPYLER-0828: Handle float/int comparisons with proper coercion
+                // If left is float and right is integer (literal or variable), convert right to float
+                if left_is_float && !right_is_float {
                     if let HirExpr::Literal(Literal::Int(n)) = right {
+                        // Integer literal: convert at compile time
                         let float_val = *n as f64;
                         return Ok(parse_quote! { #safe_left #rust_op #float_val });
                     }
+                    // Integer variable or expression: cast to f64 at runtime
+                    return Ok(parse_quote! { #safe_left #rust_op (#safe_right as f64) });
                 }
 
-                // If right is float and left is integer literal, convert left to float
-                if right_is_float {
+                // If right is float and left is integer (literal or variable), convert left to float
+                if right_is_float && !left_is_float {
                     if let HirExpr::Literal(Literal::Int(n)) = left {
+                        // Integer literal: convert at compile time
                         let float_val = *n as f64;
                         return Ok(parse_quote! { #float_val #rust_op #safe_right });
                     }
+                    // Integer variable or expression: cast to f64 at runtime
+                    return Ok(parse_quote! { (#safe_left as f64) #rust_op #safe_right });
                 }
 
-                // No coercion needed
+                // No coercion needed (both same type)
                 Ok(parse_quote! { #safe_left #rust_op #safe_right })
             }
             _ => {
