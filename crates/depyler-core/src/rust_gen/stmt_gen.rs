@@ -3820,9 +3820,20 @@ pub(crate) fn codegen_assign_symbol(
         // If the first "real" assignment is a string literal like "", the type would be &str
         // But later assignments with format!() return String → E0308 type mismatch
         // Solution: Convert string literal reassignments to owned String
+        // DEPYLER-0787: Also handle &str parameter references (not just literals)
+        // When `result = text` where text is &str param, we need `.to_string()` too
+        // DEPYLER-0788: Also handle ref-pattern bindings from match arms (e.g., `ref text`)
+        // When `result = text` where text is from `ref text`, it's &String and needs .to_string()
         let value_expr = {
             let value_str = quote!(#value_expr).to_string();
-            if value_str.starts_with('"') && value_str.ends_with('"') {
+            // Check if it's a string literal
+            let is_string_literal = value_str.starts_with('"') && value_str.ends_with('"');
+            // Check if it's a &str parameter reference
+            let is_str_param = ctx.fn_str_params.contains(&value_str);
+            // Check if it's a ref-pattern binding from match arm (gives &String)
+            let is_ref_binding = ctx.subcommand_match_fields.contains(&value_str);
+
+            if is_string_literal || is_str_param || is_ref_binding {
                 parse_quote! { #value_expr.to_string() }
             } else {
                 value_expr
