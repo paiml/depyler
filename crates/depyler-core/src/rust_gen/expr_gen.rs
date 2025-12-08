@@ -15475,10 +15475,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 matches!(method.as_str(), "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" |
                          "clamp" | "clip" | "unwrap")
             }
-            // Variable named 'arr' or with numpy-array semantics
+            // DEPYLER-0804: Check var_types first to avoid false positives
+            // Variables with known scalar types (Float, Int) are NOT numpy arrays
             HirExpr::Var(name) => {
+                // First check var_types for definitive type info
+                if let Some(ty) = self.ctx.var_types.get(name) {
+                    // Scalar types are never numpy arrays
+                    if matches!(ty, Type::Float | Type::Int | Type::Bool | Type::String) {
+                        return false;
+                    }
+                    // List types could be numpy-like arrays
+                    if matches!(ty, Type::List(_)) {
+                        return true;
+                    }
+                }
+                // Fall back to name heuristics only for unknown types
+                // DEPYLER-0804: Removed "x", "y", "result" - too generic, often scalars
                 let n = name.as_str();
-                matches!(n, "arr" | "array" | "data" | "values" | "x" | "y" | "result" | "vec" | "vector")
+                matches!(n, "arr" | "array" | "data" | "values" | "vec" | "vector")
                     || n.starts_with("arr_") || n.ends_with("_arr")
                     || n.starts_with("vec_") || n.ends_with("_vec")
             }
