@@ -4020,8 +4020,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     }
                                 }
                                 HirExpr::Literal(Literal::Int(n)) => {
-                                    let n = *n;
-                                    parse_quote! { #n }
+                                    // DEPYLER-0806: Use i32 suffix for default args
+                                    // Python int maps to Rust i32 for function params
+                                    // Using i64 causes E0308 when param expects i32
+                                    let n_i32 = *n as i32;
+                                    parse_quote! { #n_i32 }
                                 }
                                 HirExpr::Literal(Literal::Float(f)) => {
                                     let f = *f;
