@@ -3311,15 +3311,26 @@ pub(crate) fn codegen_assign_stmt(
 
                             if let AssignTarget::Symbol(subcommand_var) = target {
                                 use crate::rust_gen::argparse_transform::SubcommandInfo;
-                                ctx.argparser_tracker.register_subcommand(
-                                    subcommand_var.clone(),
-                                    SubcommandInfo {
-                                        name: command_name,
-                                        help,
-                                        arguments: vec![],
-                                        subparsers_var: subparsers_var.clone(),
-                                    },
-                                );
+                                // DEPYLER-0822: Use command_name as key (not variable name)
+                                // to avoid duplicate enum variants
+                                let cmd_name = command_name.clone();
+                                // Only register if not already registered (preregister may have
+                                // already added this with argument info)
+                                if ctx.argparser_tracker.get_subcommand(&cmd_name).is_none() {
+                                    ctx.argparser_tracker.register_subcommand(
+                                        cmd_name.clone(),
+                                        SubcommandInfo {
+                                            name: command_name,
+                                            help,
+                                            arguments: vec![],
+                                            subparsers_var: subparsers_var.clone(),
+                                        },
+                                    );
+                                }
+                                // Also map variable name to command name
+                                ctx.argparser_tracker
+                                    .subcommand_var_to_cmd
+                                    .insert(subcommand_var.clone(), cmd_name);
                             }
                         }
                         // Skip this assignment - not needed with clap

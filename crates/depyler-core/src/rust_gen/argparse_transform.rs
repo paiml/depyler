@@ -365,6 +365,10 @@ pub struct ArgParserTracker {
     /// Maps subcommand parser variable (e.g., "parser_clone") to subcommand details
     pub subcommands: HashMap<String, SubcommandInfo>,
 
+    /// DEPYLER-0822: Maps subcommand parser variable to command name
+    /// e.g., "top_parser" → "top" (for looking up SubcommandInfo when processing add_argument)
+    pub subcommand_var_to_cmd: HashMap<String, String>,
+
     /// Whether we've generated the Args struct for current function
     pub struct_generated: bool,
 }
@@ -411,6 +415,7 @@ impl ArgParserTracker {
         self.group_to_parser.clear(); // DEPYLER-0396
         self.subparsers.clear(); // DEPYLER-0399
         self.subcommands.clear(); // DEPYLER-0399
+        self.subcommand_var_to_cmd.clear(); // DEPYLER-0822
         self.struct_generated = false;
     }
 
@@ -1633,6 +1638,108 @@ pub fn preregister_subcommands_from_hir(
                     walk_expr(val, tracker);
                 }
             }
+            // DEPYLER-0822: Handle add_argument() calls to extract type info
+            // Pattern: top_parser.add_argument("n", type=int, ...)
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                kwargs,
+            } if method == "add_argument" => {
+                // DEPYLER-0822: Handle add_argument() calls to extract type info
+                if let HirExpr::Var(parser_var) = object.as_ref() {
+                    // Try to find the subcommand - either directly by key, or via var_to_cmd mapping
+                    let cmd_name = tracker.subcommand_var_to_cmd.get(parser_var).cloned();
+                    let lookup_key = cmd_name.as_deref().unwrap_or(parser_var);
+
+                    // Check if this is a subcommand parser
+                    if let Some(subcommand_info) = tracker.get_subcommand_mut(lookup_key) {
+                        // Extract argument info
+                        if let Some(first_arg) = args.first() {
+                            let arg_name = extract_string_from_hir(first_arg);
+                            let mut arg = ArgParserArgument::new(arg_name);
+
+                            // Check for second argument (long flag name)
+                            if let Some(second_arg) = args.get(1) {
+                                let second_str = extract_string_from_hir(second_arg);
+                                if second_str.starts_with("--") {
+                                    arg.long = Some(second_str);
+                                }
+                            }
+
+                            // Extract type from kwargs
+                            for (kw_name, kw_value) in kwargs {
+                                match kw_name.as_str() {
+                                    "type" => {
+                                        if let HirExpr::Var(type_name) = kw_value {
+                                            match type_name.as_str() {
+                                                "int" => {
+                                                    arg.arg_type =
+                                                        Some(crate::hir::Type::Int)
+                                                }
+                                                "float" => {
+                                                    arg.arg_type =
+                                                        Some(crate::hir::Type::Float)
+                                                }
+                                                "str" => {
+                                                    arg.arg_type =
+                                                        Some(crate::hir::Type::String)
+                                                }
+                                                "Path" => {
+                                                    arg.arg_type = Some(
+                                                        crate::hir::Type::Custom(
+                                                            "PathBuf".to_string(),
+                                                        ),
+                                                    )
+                                                }
+                                                _ => {}
+                                            }
+                                        }
+                                    }
+                                    "action" => {
+                                        if let HirExpr::Literal(crate::hir::Literal::String(
+                                            action_val,
+                                        )) = kw_value
+                                        {
+                                            arg.action = Some(action_val.clone());
+                                        }
+                                    }
+                                    "nargs" => match kw_value {
+                                        HirExpr::Literal(crate::hir::Literal::String(
+                                            nargs_val,
+                                        )) => {
+                                            arg.nargs = Some(nargs_val.clone());
+                                        }
+                                        HirExpr::Literal(crate::hir::Literal::Int(n)) => {
+                                            arg.nargs = Some(n.to_string());
+                                        }
+                                        _ => {}
+                                    },
+                                    "help" => {
+                                        if let HirExpr::Literal(crate::hir::Literal::String(
+                                            help_val,
+                                        )) = kw_value
+                                        {
+                                            arg.help = Some(help_val.clone());
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+
+                            subcommand_info.arguments.push(arg);
+                        }
+                    }
+                }
+                // Recurse
+                walk_expr(object, tracker);
+                for arg in args {
+                    walk_expr(arg, tracker);
+                }
+                for (_, val) in kwargs {
+                    walk_expr(val, tracker);
+                }
+            }
             // Recurse into all other expression types
             HirExpr::Binary { left, right, .. } => {
                 walk_expr(left, tracker);
@@ -1704,10 +1811,35 @@ pub fn preregister_subcommands_from_hir(
             } => {
                 // Special handling for ArgumentParser() assignments
                 // Pattern: parser = argparse.ArgumentParser(...)
+                // Can be either Call (ArgumentParser()) or MethodCall (argparse.ArgumentParser())
                 if let HirExpr::Call { func, kwargs, .. } = value {
                     if func == "ArgumentParser" {
                         if let crate::hir::AssignTarget::Symbol(parser_var) = target {
                             // Register parser
+                            let description = extract_kwarg_string_from_hir(kwargs, "description");
+                            let epilog = extract_kwarg_string_from_hir(kwargs, "epilog");
+
+                            let parser_info = ArgParserInfo {
+                                parser_var: parser_var.clone(),
+                                description,
+                                epilog,
+                                arguments: vec![],
+                                args_var: None,
+                            };
+
+                            tracker.register_parser(parser_var.clone(), parser_info);
+                        }
+                    }
+                }
+
+                // DEPYLER-0822: Also handle argparse.ArgumentParser() as method call
+                // Pattern: parser = argparse.ArgumentParser(...)
+                if let HirExpr::MethodCall {
+                    method, kwargs, ..
+                } = value
+                {
+                    if method == "ArgumentParser" {
+                        if let crate::hir::AssignTarget::Symbol(parser_var) = target {
                             let description = extract_kwarg_string_from_hir(kwargs, "description");
                             let epilog = extract_kwarg_string_from_hir(kwargs, "epilog");
 
@@ -1729,8 +1861,8 @@ pub fn preregister_subcommands_from_hir(
                 if let HirExpr::MethodCall {
                     object,
                     method,
+                    args,
                     kwargs,
-                    ..
                 } = value
                 {
                     if method == "add_subparsers" {
@@ -1757,6 +1889,36 @@ pub fn preregister_subcommands_from_hir(
                                         subparsers_var.clone(),
                                         subparser_info,
                                     );
+                                }
+                            }
+                        }
+                    }
+                    // DEPYLER-0822: Handle add_parser() assignments
+                    // Pattern: top_parser = subparsers.add_parser("top", ...)
+                    // Register subcommand and map variable name to command name
+                    else if method == "add_parser" {
+                        if let HirExpr::Var(subparsers_var) = object.as_ref() {
+                            if tracker.get_subparsers(subparsers_var).is_some() {
+                                if let crate::hir::AssignTarget::Symbol(parser_var_name) = target {
+                                    if let Some(first_arg) = args.first() {
+                                        let command_name = extract_string_from_hir(first_arg);
+                                        let help = extract_kwarg_string_from_hir(kwargs, "help");
+
+                                        // Register subcommand with command name as key
+                                        let subcommand_info = SubcommandInfo {
+                                            name: command_name.clone(),
+                                            help,
+                                            arguments: vec![],
+                                            subparsers_var: subparsers_var.clone(),
+                                        };
+                                        tracker.register_subcommand(command_name.clone(), subcommand_info);
+
+                                        // Map variable name to command name for add_argument lookups
+                                        tracker.subcommand_var_to_cmd.insert(
+                                            parser_var_name.clone(),
+                                            command_name,
+                                        );
+                                    }
                                 }
                             }
                         }
