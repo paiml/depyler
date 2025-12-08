@@ -14465,6 +14465,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let mut key_expr = key.to_rust_expr(self.ctx)?;
             let mut val_expr = value.to_rust_expr(self.ctx)?;
 
+            // DEPYLER-0810: Unwrap Result-returning function calls in dict value context
+            // HashMap<K, V> expects V, not Result<V, E>, so we need to unwrap
+            if let HirExpr::Call { func, .. } = value {
+                if self.ctx.result_returning_functions.contains(func) {
+                    let error_msg = format!("{} failed", func);
+                    val_expr = parse_quote! { #val_expr.expect(#error_msg) };
+                }
+            }
+
             // DEPYLER-0270 FIX: ALWAYS convert string literal keys to owned Strings
             // Dict literals should use HashMap<String, V> not HashMap<&str, V>
             // This ensures they can be passed to functions expecting HashMap<String, V>
