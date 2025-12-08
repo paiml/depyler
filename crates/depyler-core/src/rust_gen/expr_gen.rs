@@ -631,19 +631,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-0575: Coerce integer literal to float when comparing with float expression
             // DEPYLER-0720: Extended to ALL integer literals, not just 0
+            // DEPYLER-0828: Extended to ALL integer expressions (variables, not just literals)
             // Example: `self.balance > 0` -> `self.balance > 0.0` when balance is f64
+            // Example: `x < y` where x:f64, y:i32 -> `x < (y as f64)`
             let left_is_float = self.expr_returns_float(left);
             let right_is_float = self.expr_returns_float(right);
 
-            if left_is_float {
+            if left_is_float && !right_is_float {
                 if let HirExpr::Literal(Literal::Int(n)) = right {
+                    // Integer literal: convert at compile time
                     let float_val = *n as f64;
                     right_expr = parse_quote! { #float_val };
+                } else {
+                    // DEPYLER-0828: Integer variable/expression: cast at runtime
+                    right_expr = parse_quote! { (#right_expr as f64) };
                 }
-            } else if right_is_float {
+            } else if right_is_float && !left_is_float {
                 if let HirExpr::Literal(Literal::Int(n)) = left {
+                    // Integer literal: convert at compile time
                     let float_val = *n as f64;
                     left_expr = parse_quote! { #float_val };
+                } else {
+                    // DEPYLER-0828: Integer variable/expression: cast at runtime
+                    left_expr = parse_quote! { (#left_expr as f64) };
                 }
             }
 
