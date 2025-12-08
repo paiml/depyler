@@ -2399,10 +2399,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return result;
         }
 
-        // DEPYLER-0248: Handle abs(value) → value.abs()
+        // DEPYLER-0248: Handle abs(value) → (value).abs()
+        // DEPYLER-0815: Parens required for correct precedence (abs(n - 10) → (n - 10).abs())
         if func == "abs" && args.len() == 1 {
             let value_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #value_expr.abs() });
+            return Ok(parse_quote! { (#value_expr).abs() });
         }
 
         // DEPYLER-REFACTOR-001 Phase 2.20: Delegate any/all calls to helper
