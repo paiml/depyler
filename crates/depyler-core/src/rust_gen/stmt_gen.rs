@@ -975,6 +975,12 @@ pub(crate) fn codegen_while_stmt(
     body: &[HirStmt],
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0791: Save and restore is_final_statement for loop body
+    // Return statements inside loops are always early exits, never final expressions
+    // Without this, `return count` inside `if` inside `loop` gets generated as just `count`
+    let saved_is_final = ctx.is_final_statement;
+    ctx.is_final_statement = false;
+
     // DEPYLER-0698: Convert `while True:` to `loop {}` for idiomatic Rust
     // Rust warns: "denote infinite loops with `loop { ... }`"
     if matches!(condition, HirExpr::Literal(Literal::Bool(true))) {
@@ -984,6 +990,7 @@ pub(crate) fn codegen_while_stmt(
             .map(|s| s.to_rust_tokens(ctx))
             .collect::<Result<Vec<_>>>()?;
         ctx.exit_scope();
+        ctx.is_final_statement = saved_is_final;
         return Ok(quote! {
             loop {
                 #(#body_stmts)*
@@ -1003,6 +1010,7 @@ pub(crate) fn codegen_while_stmt(
         .map(|s| s.to_rust_tokens(ctx))
         .collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
+    ctx.is_final_statement = saved_is_final;
     Ok(quote! {
         while #cond {
             #(#body_stmts)*
@@ -2444,6 +2452,11 @@ pub(crate) fn codegen_for_stmt(
     body: &[HirStmt],
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0791: Save and restore is_final_statement for loop body
+    // Return statements inside loops are always early exits, never final expressions
+    let saved_is_final = ctx.is_final_statement;
+    ctx.is_final_statement = false;
+
     // CITL: Trace for loop iteration strategy
     trace_decision!(
         category = DecisionCategory::BorrowStrategy,
@@ -2808,6 +2821,7 @@ pub(crate) fn codegen_for_stmt(
         .map(|s| s.to_rust_tokens(ctx))
         .collect::<Result<Vec<_>>>()?;
     ctx.exit_scope();
+    ctx.is_final_statement = saved_is_final;
 
     // DEPYLER-0307 Fix #8: Handle enumerate() usize index casting
     // When iterating with enumerate(), the first element of the tuple is usize
