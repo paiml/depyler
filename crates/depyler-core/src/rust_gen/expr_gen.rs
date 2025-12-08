@@ -346,7 +346,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return parse_quote! { (#expr as f64) };
         }
 
+        // DEPYLER-0805: Coerce binary expressions of integers to float
+        // Example: (i + 1) * dx where i is Int and dx is Float
+        // The result of (i + 1) is also Int and needs casting
+        if self.is_int_expr(hir_expr) {
+            return parse_quote! { ((#expr) as f64) };
+        }
+
         expr
+    }
+
+    /// DEPYLER-0805: Check if expression evaluates to an integer type
+    /// Handles variables, literals, and binary operations on integers
+    fn is_int_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Var(name) => {
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    matches!(var_type, Type::Int)
+                } else {
+                    false
+                }
+            }
+            HirExpr::Literal(Literal::Int(_)) => true,
+            // Binary operations on integers produce integers
+            HirExpr::Binary { left, right, op } => {
+                // Arithmetic operations between integers return integers
+                // (Add, Sub, Mul produce Int if both operands are Int)
+                // Division in Python returns Float, so we don't include Div
+                if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv) {
+                    self.is_int_expr(left) && self.is_int_expr(right)
+                } else {
+                    false
+                }
+            }
+            // Unary minus on integer is still integer
+            HirExpr::Unary { operand, .. } => self.is_int_expr(operand),
+            _ => false,
+        }
     }
 
     /// Check if expression is a variable with integer type
