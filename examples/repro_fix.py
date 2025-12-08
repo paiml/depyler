@@ -1,20 +1,13 @@
-"""Reproduction for integer literal suffix mismatch.
+"""Reproduction for sorted() on float list.
 
-The issue: When calling a function with default int argument,
-the literal 100 is generated as 100i64 but the parameter expects i32.
+The issue: sorted(roots) where roots is list[float] generates
+sorted_vec.sort() but f64 doesn't implement Ord.
 
-Error: E0308: mismatched types, expected `i32`, found `i64`
+Error: E0277: the trait bound `f64: Ord` is not satisfied
 """
 
 
-def bisection(a: float, b: float, max_iter: int = 100) -> float:
-    """Find root using bisection."""
-    for _ in range(max_iter):
-        a = (a + b) / 2
-    return a
-
-
-def find_roots(a: float, b: float) -> float:
-    """Call bisection without explicit max_iter."""
-    result = bisection(a, b)  # Uses default, generates 100i64 instead of 100
-    return result
+def find_roots(a: float, b: float) -> list[float]:
+    """Find and return sorted roots."""
+    roots = [b, a]  # list[float]
+    return sorted(roots)  # BUG: generates .sort() which requires Ord
