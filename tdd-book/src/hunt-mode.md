@@ -47,6 +47,10 @@ graph TD
 *   Runs property tests.
 *   Commits the strategy if successful.
 
+## Developer Resources
+
+*   [The Apex Hunt Protocol](../../docs/prompts/apex-hunt-protocol.md) - The idempotent prompt used to drive the Hunt Mode cycle.
+
 ## Scientific Foundation (Bibliography)
 
 ### Automated Program Repair & SBSE
