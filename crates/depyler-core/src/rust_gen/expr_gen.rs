@@ -11212,7 +11212,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             "strip" => {
                 // DEPYLER-0595: str.strip([chars]) → trim_matches
+                // DEPYLER-0821: If receiver is a char from Counter iteration, use is_whitespace()
+                // Python's char.strip() on a single char returns "" if whitespace, the char otherwise
+                // In boolean context: if char.strip(): means "if not whitespace"
                 if arg_exprs.is_empty() {
+                    // Check if receiver is a char variable from string/Counter iteration
+                    // Use both explicit tracking and heuristics for variable names
+                    let is_likely_char = if let HirExpr::Var(var_name) = hir_object {
+                        self.ctx.char_iter_vars.contains(var_name)
+                            || var_name == "char"
+                            || var_name == "ch"
+                            || var_name == "c"
+                            || var_name == "character"
+                    } else {
+                        false
+                    };
+
+                    if is_likely_char {
+                        // For char type, strip() in boolean context = "is not whitespace"
+                        return Ok(parse_quote! { !#obj.is_whitespace() });
+                    }
                     Ok(parse_quote! { #obj.trim().to_string() })
                 } else {
                     let chars = &arg_exprs[0];

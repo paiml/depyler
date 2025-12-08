@@ -279,6 +279,10 @@ pub struct CodeGenContext<'a> {
     /// These variables are `char` type in Rust (not `str`), so ord(var) should be `var as u32`
     /// not `var.chars().next().unwrap() as i32`
     pub char_iter_vars: HashSet<String>,
+
+    /// DEPYLER-0821: Track Counter variables created from strings (HashMap<char, i32>)
+    /// Used to mark key variables as char when iterating with .items()
+    pub char_counter_vars: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {
