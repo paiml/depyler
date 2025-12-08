@@ -1,22 +1,20 @@
-"""Reproduction for walrus operator in list comprehension.
+"""Reproduction for map(str, ...) pattern.
 
-The issue: walrus variable assigned in 'if' condition must be
-accessible in the tuple expression of the comprehension.
+The issue: Python's `map(str, items)` converts each item to string.
+This generates `map(str, &items)` but `str` is a Rust type, not a function.
 
-Python: [(w, length) for w in words if (length := len(w)) > 3]
+Error: E0423: expected value, found builtin type `str`
 
-WRONG Rust (separate closures):
-  .filter(|w| { let length = ...; length > 3 })
-  .map(|w| (w, length))  // ERROR: length not in scope
+Python: print(" ".join(map(str, result)))
 
-RIGHT Rust (filter_map):
-  .filter_map(|w| {
-      let length = w.len();
-      if length > 3 { Some((w, length)) } else { None }
-  })
+WRONG Rust:
+  map(str, &result)  // ERROR: str is a type, not a value
+
+RIGHT Rust:
+  result.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" ")
 """
 
 
-def count_long_words(words: list[str]) -> list[tuple[str, int]]:
-    """Filter and capture word lengths using walrus operator."""
-    return [(w, length) for w in words if (length := len(w)) > 3]
+def format_numbers(nums: list[int]) -> str:
+    """Convert list of numbers to space-separated string."""
+    return " ".join(map(str, nums))
