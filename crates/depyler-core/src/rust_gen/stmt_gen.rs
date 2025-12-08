@@ -1337,7 +1337,7 @@ fn apply_truthiness_conversion(
     // DEPYLER-0570: Handle dict index access in conditions
     // Python: `if info["extension"]:` checks if the value is truthy (non-empty string)
     // Rust: info.get("extension")... returns serde_json::Value, need to check truthiness
-    // Convert to: `.as_str().map_or(false, |s| !s.is_empty())` for string values
+    // Convert to: `.as_str().is_some_and(|s| !s.is_empty())` for string values
     if let HirExpr::Index { base, index } = condition {
         // Check if using string key (dict-like access)
         let has_string_key = matches!(index.as_ref(), HirExpr::Literal(Literal::String(_)));
@@ -1369,7 +1369,7 @@ fn apply_truthiness_conversion(
         if is_dict_access {
             // Dict value access - check if the Value is truthy
             // serde_json::Value truthiness: string must be non-empty
-            return parse_quote! { #cond_expr.as_str().map_or(false, |s| !s.is_empty()) };
+            return parse_quote! { #cond_expr.as_str().is_some_and(|s| !s.is_empty()) };
         }
     }
 
@@ -1520,7 +1520,7 @@ fn apply_truthiness_conversion(
     // This returns serde_json::Value which doesn't coerce to bool
     let cond_str = quote::quote!(#cond_expr).to_string();
     if cond_str.contains(".get(") && cond_str.contains("unwrap_or_default") {
-        return parse_quote! { #cond_expr.as_str().map_or(false, |s| !s.is_empty()) };
+        return parse_quote! { #cond_expr.as_str().is_some_and(|s| !s.is_empty()) };
     }
 
     // Not a variable or no type info - use as-is
@@ -3079,10 +3079,8 @@ pub(crate) fn codegen_assign_stmt(
             // Check if func is a Callable parameter with Float return type
             // Callable is stored as Type::Generic { base: "Callable", params: [input_types, return_type] }
             if let Some(Type::Generic { base, params }) = ctx.var_types.get(func) {
-                if base == "Callable" && params.len() == 2 {
-                    if matches!(params[1], Type::Float) {
-                        ctx.var_types.insert(var_name.clone(), Type::Float);
-                    }
+                if base == "Callable" && params.len() == 2 && matches!(params[1], Type::Float) {
+                    ctx.var_types.insert(var_name.clone(), Type::Float);
                 }
             }
             // Also handle Type::Function case (less common but possible)
@@ -4730,6 +4728,14 @@ fn handler_ends_with_exit(handler_body: &[HirStmt]) -> bool {
     }
 }
 
+/// DEPYLER-0819: Check if handler body contains a raise statement
+/// When handlers contain raise, the function returns Result<T, E>
+/// and the Ok arm must wrap the value in Ok()
+#[inline]
+fn handler_contains_raise(handler_body: &[HirStmt]) -> bool {
+    handler_body.iter().any(|stmt| matches!(stmt, HirStmt::Raise { .. }))
+}
+
 /// DEPYLER-0578: Try to detect and generate json.load(sys.stdin) pattern
 /// Pattern: try { data = json.load(sys.stdin) } except JSONDecodeError as e: { print; exit }
 /// Returns: let data = match serde_json::from_reader(...) { Ok(d) => d, Err(e) => { ... } };
@@ -5266,9 +5272,15 @@ pub(crate) fn codegen_try_stmt(
                     .map(|_| quote! { _result })
                     .unwrap_or_else(|| quote! { () });
                 // DEPYLER-0437: The Ok arm extracts _result from Result, returns it directly
-                // The function returns the plain type, not Result
+                // DEPYLER-0819: When handlers contain raise, the function returns Result<T, E>
+                // and we must wrap the success value in Ok()
+                let any_handler_raises = handlers.iter().any(|h| handler_contains_raise(&h.body));
                 let ok_arm_body = if try_return_type.is_some() {
-                    quote! { return _result; }
+                    if any_handler_raises {
+                        quote! { return Ok(_result); }
+                    } else {
+                        quote! { return _result; }
+                    }
                 } else {
                     quote! {}
                 };
@@ -7076,9 +7088,9 @@ fn is_nested_function_recursive(name: &str, body: &[HirStmt]) -> bool {
             HirExpr::Await { value } => check_expr(value, name),
             HirExpr::Slice { base, start, stop, step } => {
                 check_expr(base, name)
-                    || start.as_ref().map_or(false, |e| check_expr(e, name))
-                    || stop.as_ref().map_or(false, |e| check_expr(e, name))
-                    || step.as_ref().map_or(false, |e| check_expr(e, name))
+                    || start.as_ref().is_some_and(|e| check_expr(e, name))
+                    || stop.as_ref().is_some_and(|e| check_expr(e, name))
+                    || step.as_ref().is_some_and(|e| check_expr(e, name))
             }
             HirExpr::Borrow { expr, .. } => check_expr(expr, name),
             HirExpr::FString { parts } => {
@@ -7090,11 +7102,11 @@ fn is_nested_function_recursive(name: &str, body: &[HirStmt]) -> bool {
                     }
                 })
             }
-            HirExpr::Yield { value } => value.as_ref().map_or(false, |e| check_expr(e, name)),
+            HirExpr::Yield { value } => value.as_ref().is_some_and(|e| check_expr(e, name)),
             HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
                 check_expr(iterable, name)
                     || check_expr(key_body, name)
-                    || reverse_expr.as_ref().map_or(false, |e| check_expr(e, name))
+                    || reverse_expr.as_ref().is_some_and(|e| check_expr(e, name))
             }
             HirExpr::NamedExpr { value, .. } => check_expr(value, name),
             _ => false,
@@ -7108,7 +7120,7 @@ fn is_nested_function_recursive(name: &str, body: &[HirStmt]) -> bool {
             HirStmt::If { condition, then_body, else_body } => {
                 check_expr(condition, name)
                     || then_body.iter().any(|s| check_stmt(s, name))
-                    || else_body.as_ref().map_or(false, |b| b.iter().any(|s| check_stmt(s, name)))
+                    || else_body.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
             }
             HirStmt::While { condition, body } => {
                 check_expr(condition, name) || body.iter().any(|s| check_stmt(s, name))
@@ -7122,17 +7134,17 @@ fn is_nested_function_recursive(name: &str, body: &[HirStmt]) -> bool {
             HirStmt::Try { body, handlers, orelse, finalbody } => {
                 body.iter().any(|s| check_stmt(s, name))
                     || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, name)))
-                    || orelse.as_ref().map_or(false, |b| b.iter().any(|s| check_stmt(s, name)))
-                    || finalbody.as_ref().map_or(false, |b| b.iter().any(|s| check_stmt(s, name)))
+                    || orelse.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
+                    || finalbody.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
             }
             HirStmt::FunctionDef { body, .. } => body.iter().any(|s| check_stmt(s, name)),
             HirStmt::Block(stmts) => stmts.iter().any(|s| check_stmt(s, name)),
             HirStmt::Assert { test, msg } => {
-                check_expr(test, name) || msg.as_ref().map_or(false, |m| check_expr(m, name))
+                check_expr(test, name) || msg.as_ref().is_some_and(|m| check_expr(m, name))
             }
             HirStmt::Raise { exception, cause } => {
-                exception.as_ref().map_or(false, |e| check_expr(e, name))
-                    || cause.as_ref().map_or(false, |c| check_expr(c, name))
+                exception.as_ref().is_some_and(|e| check_expr(e, name))
+                    || cause.as_ref().is_some_and(|c| check_expr(c, name))
             }
             _ => false,
         }
@@ -7162,11 +7174,10 @@ fn captures_outer_scope(
         locals: &mut std::collections::HashSet<&'a str>,
     ) {
         match stmt {
-            HirStmt::Assign { target, .. } => {
-                if let crate::hir::AssignTarget::Symbol(name) = target {
-                    locals.insert(name.as_str());
-                }
+            HirStmt::Assign { target: crate::hir::AssignTarget::Symbol(name), .. } => {
+                locals.insert(name.as_str());
             }
+            HirStmt::Assign { .. } => {}
             HirStmt::For { target, body, .. } => {
                 if let crate::hir::AssignTarget::Symbol(name) = target {
                     locals.insert(name.as_str());
@@ -7336,13 +7347,13 @@ fn captures_outer_scope(
                 check_expr_for_capture(base, local_vars, outer_vars)
                     || start
                         .as_ref()
-                        .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars))
+                        .is_some_and(|e| check_expr_for_capture(e, local_vars, outer_vars))
                     || stop
                         .as_ref()
-                        .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars))
+                        .is_some_and(|e| check_expr_for_capture(e, local_vars, outer_vars))
                     || step
                         .as_ref()
-                        .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars))
+                        .is_some_and(|e| check_expr_for_capture(e, local_vars, outer_vars))
             }
             HirExpr::Borrow { expr, .. } => check_expr_for_capture(expr, local_vars, outer_vars),
             HirExpr::FString { parts } => parts.iter().any(|p| {
@@ -7354,13 +7365,13 @@ fn captures_outer_scope(
             }),
             HirExpr::Yield { value } => value
                 .as_ref()
-                .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars)),
+                .is_some_and(|e| check_expr_for_capture(e, local_vars, outer_vars)),
             HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
                 check_expr_for_capture(iterable, local_vars, outer_vars)
                     || check_expr_for_capture(key_body, local_vars, outer_vars)
                     || reverse_expr
                         .as_ref()
-                        .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars))
+                        .is_some_and(|e| check_expr_for_capture(e, local_vars, outer_vars))
             }
             HirExpr::NamedExpr { value, .. } => {
                 check_expr_for_capture(value, local_vars, outer_vars)
@@ -7386,7 +7397,7 @@ fn captures_outer_scope(
                     || then_body
                         .iter()
                         .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
-                    || else_body.as_ref().map_or(false, |b| {
+                    || else_body.as_ref().is_some_and(|b| {
                         b.iter()
                             .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     })
@@ -7417,11 +7428,11 @@ fn captures_outer_scope(
                             .iter()
                             .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     })
-                    || orelse.as_ref().map_or(false, |b| {
+                    || orelse.as_ref().is_some_and(|b| {
                         b.iter()
                             .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     })
-                    || finalbody.as_ref().map_or(false, |b| {
+                    || finalbody.as_ref().is_some_and(|b| {
                         b.iter()
                             .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     })
@@ -7434,16 +7445,16 @@ fn captures_outer_scope(
                 .any(|s| check_stmt_for_capture(s, local_vars, outer_vars)),
             HirStmt::Assert { test, msg } => {
                 check_expr_for_capture(test, local_vars, outer_vars)
-                    || msg.as_ref().map_or(false, |m| {
+                    || msg.as_ref().is_some_and(|m| {
                         check_expr_for_capture(m, local_vars, outer_vars)
                     })
             }
             HirStmt::Raise { exception, cause } => {
-                exception.as_ref().map_or(false, |e| {
+                exception.as_ref().is_some_and(|e| {
                     check_expr_for_capture(e, local_vars, outer_vars)
                 }) || cause
                     .as_ref()
-                    .map_or(false, |c| check_expr_for_capture(c, local_vars, outer_vars))
+                    .is_some_and(|c| check_expr_for_capture(c, local_vars, outer_vars))
             }
             _ => false,
         }
