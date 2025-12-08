@@ -2582,6 +2582,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn try_convert_map_with_zip(&mut self, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+        // DEPYLER-0793: Handle map(str, iterable) → iterable.iter().map(|x| x.to_string())
+        // Python's str builtin converts elements to strings, in Rust use .to_string()
+        if args.len() == 2 {
+            if let HirExpr::Var(func_name) = &args[0] {
+                if func_name == "str" {
+                    let iterable_expr = args[1].to_rust_expr(self.ctx)?;
+                    return Ok(Some(parse_quote! {
+                        #iterable_expr.iter().map(|x| x.to_string())
+                    }));
+                }
+                // DEPYLER-0793: Handle map(int, iterable) → iterable.iter().map(|x| *x as i32)
+                // For converting strings to int, this is a simplified version
+                if func_name == "int" {
+                    let iterable_expr = args[1].to_rust_expr(self.ctx)?;
+                    return Ok(Some(parse_quote! {
+                        #iterable_expr.iter().filter_map(|x| x.parse::<i32>().ok())
+                    }));
+                }
+                // DEPYLER-0793: Handle map(float, iterable) → iterable.iter().filter_map(|x| x.parse::<f64>().ok())
+                if func_name == "float" {
+                    let iterable_expr = args[1].to_rust_expr(self.ctx)?;
+                    return Ok(Some(parse_quote! {
+                        #iterable_expr.iter().filter_map(|x| x.parse::<f64>().ok())
+                    }));
+                }
+            }
+        }
+
         // Check if first argument is a lambda
         if let HirExpr::Lambda { params, body } = &args[0] {
             let num_iterables = args.len() - 1;
