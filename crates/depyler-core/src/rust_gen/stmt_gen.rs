@@ -6839,6 +6839,21 @@ fn codegen_nested_function_def(
     ctx.current_return_type = saved_return_type;
     ctx.is_main_function = saved_is_main;
 
+    // DEPYLER-0790: Check if this nested function is recursive (calls itself)
+    // Recursive functions cannot be closures because closures can't reference themselves
+    // For recursive nested functions that DON'T capture outer variables,
+    // generate as `fn name(...)` instead of closure
+    let is_recursive = is_nested_function_recursive(name, body);
+
+    // Get outer scope variables to check for captures
+    // Collect all declared vars from all scopes
+    let outer_vars: std::collections::HashSet<String> = ctx
+        .declared_vars
+        .iter()
+        .flat_map(|scope| scope.iter().cloned())
+        .collect();
+    let has_captures = captures_outer_scope(params, body, &outer_vars);
+
     // GH-70 FIX: Generate as closure instead of fn item
     // Closures can be returned as values and have better type inference
     // This fixes the issue where nested functions had all types defaulting to ()
@@ -6852,7 +6867,31 @@ fn codegen_nested_function_def(
     //
     // DEPYLER-0613: Support hoisting - if variable is already declared, use assignment
     let is_declared = ctx.is_declared(name);
-    
+
+    // DEPYLER-0790: For recursive functions that DON'T capture outer variables,
+    // generate as proper fn instead of closure
+    // If recursive AND captures, we can't easily fix - keep as closure (will produce E0425)
+    if is_recursive && !has_captures {
+        // Declare the function name in context so sibling nested functions can detect it
+        ctx.declare_var(name);
+        return Ok(if matches!(ret_type, Type::Unknown) {
+            quote! {
+                fn #fn_name(#(#param_tokens),*) {
+                    #(#body_tokens)*
+                }
+            }
+        } else {
+            quote! {
+                fn #fn_name(#(#param_tokens),*) -> #return_type {
+                    #(#body_tokens)*
+                }
+            }
+        });
+    }
+
+    // Declare the function name in context so sibling nested functions can detect it as a capture
+    ctx.declare_var(name);
+
     // DEPYLER-0783: Always use `move` for nested function closures
     // This is required when:
     // 1. The closure captures variables from outer scope AND is returned (E0373)
@@ -6886,4 +6925,448 @@ fn codegen_nested_function_def(
             };
         }
     })
+}
+
+/// DEPYLER-0790: Check if a nested function is recursive (calls itself)
+/// Returns true if the function body contains a call to the function itself
+fn is_nested_function_recursive(name: &str, body: &[HirStmt]) -> bool {
+    use crate::hir::{HirExpr, HirStmt};
+
+    fn check_expr(expr: &HirExpr, name: &str) -> bool {
+        match expr {
+            // Direct call to the function by name - func is Symbol, not Box<HirExpr>
+            HirExpr::Call { func, args, kwargs } => {
+                if func == name {
+                    return true;
+                }
+                // Check args and kwargs recursively
+                args.iter().any(|a| check_expr(a, name))
+                    || kwargs.iter().any(|(_, v)| check_expr(v, name))
+            }
+            // Dynamic call - check callee expression
+            HirExpr::DynamicCall { callee, args, kwargs } => {
+                check_expr(callee, name)
+                    || args.iter().any(|a| check_expr(a, name))
+                    || kwargs.iter().any(|(_, v)| check_expr(v, name))
+            }
+            // Recurse into all expression types
+            HirExpr::Binary { left, right, .. } => {
+                check_expr(left, name) || check_expr(right, name)
+            }
+            HirExpr::Unary { operand, .. } => check_expr(operand, name),
+            HirExpr::MethodCall { object, args, kwargs, .. } => {
+                check_expr(object, name)
+                    || args.iter().any(|a| check_expr(a, name))
+                    || kwargs.iter().any(|(_, v)| check_expr(v, name))
+            }
+            HirExpr::Attribute { value, .. } => check_expr(value, name),
+            HirExpr::Index { base, index } => {
+                check_expr(base, name) || check_expr(index, name)
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                check_expr(test, name) || check_expr(body, name) || check_expr(orelse, name)
+            }
+            HirExpr::List(items)
+            | HirExpr::Tuple(items)
+            | HirExpr::Set(items)
+            | HirExpr::FrozenSet(items) => items.iter().any(|i| check_expr(i, name)),
+            HirExpr::Dict(pairs) => {
+                pairs.iter().any(|(k, v)| check_expr(k, name) || check_expr(v, name))
+            }
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators }
+            | HirExpr::GeneratorExp { element, generators } => {
+                check_expr(element, name)
+                    || generators.iter().any(|g| {
+                        check_expr(&g.iter, name)
+                            || g.conditions.iter().any(|c| check_expr(c, name))
+                    })
+            }
+            HirExpr::DictComp { key, value, generators } => {
+                check_expr(key, name)
+                    || check_expr(value, name)
+                    || generators.iter().any(|g| {
+                        check_expr(&g.iter, name)
+                            || g.conditions.iter().any(|c| check_expr(c, name))
+                    })
+            }
+            HirExpr::Lambda { body, .. } => check_expr(body, name),
+            HirExpr::Await { value } => check_expr(value, name),
+            HirExpr::Slice { base, start, stop, step } => {
+                check_expr(base, name)
+                    || start.as_ref().map_or(false, |e| check_expr(e, name))
+                    || stop.as_ref().map_or(false, |e| check_expr(e, name))
+                    || step.as_ref().map_or(false, |e| check_expr(e, name))
+            }
+            HirExpr::Borrow { expr, .. } => check_expr(expr, name),
+            HirExpr::FString { parts } => {
+                parts.iter().any(|p| {
+                    if let crate::hir::FStringPart::Expr(e) = p {
+                        check_expr(e, name)
+                    } else {
+                        false
+                    }
+                })
+            }
+            HirExpr::Yield { value } => value.as_ref().map_or(false, |e| check_expr(e, name)),
+            HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
+                check_expr(iterable, name)
+                    || check_expr(key_body, name)
+                    || reverse_expr.as_ref().map_or(false, |e| check_expr(e, name))
+            }
+            HirExpr::NamedExpr { value, .. } => check_expr(value, name),
+            _ => false,
+        }
+    }
+
+    fn check_stmt(stmt: &HirStmt, name: &str) -> bool {
+        match stmt {
+            HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => check_expr(expr, name),
+            HirStmt::Assign { value, .. } => check_expr(value, name),
+            HirStmt::If { condition, then_body, else_body } => {
+                check_expr(condition, name)
+                    || then_body.iter().any(|s| check_stmt(s, name))
+                    || else_body.as_ref().map_or(false, |b| b.iter().any(|s| check_stmt(s, name)))
+            }
+            HirStmt::While { condition, body } => {
+                check_expr(condition, name) || body.iter().any(|s| check_stmt(s, name))
+            }
+            HirStmt::For { iter, body, .. } => {
+                check_expr(iter, name) || body.iter().any(|s| check_stmt(s, name))
+            }
+            HirStmt::With { context, body, .. } => {
+                check_expr(context, name) || body.iter().any(|s| check_stmt(s, name))
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                body.iter().any(|s| check_stmt(s, name))
+                    || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, name)))
+                    || orelse.as_ref().map_or(false, |b| b.iter().any(|s| check_stmt(s, name)))
+                    || finalbody.as_ref().map_or(false, |b| b.iter().any(|s| check_stmt(s, name)))
+            }
+            HirStmt::FunctionDef { body, .. } => body.iter().any(|s| check_stmt(s, name)),
+            HirStmt::Block(stmts) => stmts.iter().any(|s| check_stmt(s, name)),
+            HirStmt::Assert { test, msg } => {
+                check_expr(test, name) || msg.as_ref().map_or(false, |m| check_expr(m, name))
+            }
+            HirStmt::Raise { exception, cause } => {
+                exception.as_ref().map_or(false, |e| check_expr(e, name))
+                    || cause.as_ref().map_or(false, |c| check_expr(c, name))
+            }
+            _ => false,
+        }
+    }
+
+    body.iter().any(|stmt| check_stmt(stmt, name))
+}
+
+/// DEPYLER-0790: Check if a nested function captures outer scope variables
+/// Returns true if the function body references any variables that are NOT:
+/// - The function's own parameters
+/// - Local variables defined within the function
+fn captures_outer_scope(
+    params: &[crate::hir::HirParam],
+    body: &[HirStmt],
+    outer_vars: &std::collections::HashSet<String>,
+) -> bool {
+    use crate::hir::HirExpr;
+
+    // Collect parameter names
+    let mut local_vars: std::collections::HashSet<&str> =
+        params.iter().map(|p| p.name.as_str()).collect();
+
+    // Collect locally defined variables from assignments
+    fn collect_local_vars<'a>(
+        stmt: &'a HirStmt,
+        locals: &mut std::collections::HashSet<&'a str>,
+    ) {
+        match stmt {
+            HirStmt::Assign { target, .. } => {
+                if let crate::hir::AssignTarget::Symbol(name) = target {
+                    locals.insert(name.as_str());
+                }
+            }
+            HirStmt::For { target, body, .. } => {
+                if let crate::hir::AssignTarget::Symbol(name) = target {
+                    locals.insert(name.as_str());
+                }
+                for s in body {
+                    collect_local_vars(s, locals);
+                }
+            }
+            HirStmt::If { then_body, else_body, .. } => {
+                for s in then_body {
+                    collect_local_vars(s, locals);
+                }
+                if let Some(eb) = else_body {
+                    for s in eb {
+                        collect_local_vars(s, locals);
+                    }
+                }
+            }
+            HirStmt::While { body, .. } => {
+                for s in body {
+                    collect_local_vars(s, locals);
+                }
+            }
+            HirStmt::With { body, target, .. } => {
+                if let Some(t) = target {
+                    locals.insert(t.as_str());
+                }
+                for s in body {
+                    collect_local_vars(s, locals);
+                }
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                for s in body {
+                    collect_local_vars(s, locals);
+                }
+                for h in handlers {
+                    if let Some(name) = &h.name {
+                        locals.insert(name.as_str());
+                    }
+                    for s in &h.body {
+                        collect_local_vars(s, locals);
+                    }
+                }
+                if let Some(els) = orelse {
+                    for s in els {
+                        collect_local_vars(s, locals);
+                    }
+                }
+                if let Some(fin) = finalbody {
+                    for s in fin {
+                        collect_local_vars(s, locals);
+                    }
+                }
+            }
+            HirStmt::FunctionDef { name, .. } => {
+                locals.insert(name.as_str());
+            }
+            HirStmt::Block(stmts) => {
+                for s in stmts {
+                    collect_local_vars(s, locals);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    // First pass: collect all locally defined variables
+    for stmt in body {
+        collect_local_vars(stmt, &mut local_vars);
+    }
+
+    // Now check if body references any outer scope variables
+    fn check_expr_for_capture(
+        expr: &HirExpr,
+        local_vars: &std::collections::HashSet<&str>,
+        outer_vars: &std::collections::HashSet<String>,
+    ) -> bool {
+        match expr {
+            HirExpr::Var(name) => {
+                // If variable is not local and IS in outer scope, it's captured
+                !local_vars.contains(name.as_str()) && outer_vars.contains(name)
+            }
+            HirExpr::Binary { left, right, .. } => {
+                check_expr_for_capture(left, local_vars, outer_vars)
+                    || check_expr_for_capture(right, local_vars, outer_vars)
+            }
+            HirExpr::Unary { operand, .. } => {
+                check_expr_for_capture(operand, local_vars, outer_vars)
+            }
+            HirExpr::Call { func, args, kwargs, .. } => {
+                // Check if calling a function defined in outer scope
+                let captures_func = !local_vars.contains(func.as_str()) && outer_vars.contains(func);
+                captures_func
+                    || args
+                        .iter()
+                        .any(|a| check_expr_for_capture(a, local_vars, outer_vars))
+                    || kwargs
+                        .iter()
+                        .any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
+            }
+            HirExpr::DynamicCall { callee, args, kwargs } => {
+                check_expr_for_capture(callee, local_vars, outer_vars)
+                    || args
+                        .iter()
+                        .any(|a| check_expr_for_capture(a, local_vars, outer_vars))
+                    || kwargs
+                        .iter()
+                        .any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
+            }
+            HirExpr::MethodCall { object, args, kwargs, .. } => {
+                check_expr_for_capture(object, local_vars, outer_vars)
+                    || args
+                        .iter()
+                        .any(|a| check_expr_for_capture(a, local_vars, outer_vars))
+                    || kwargs
+                        .iter()
+                        .any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
+            }
+            HirExpr::Attribute { value, .. } => {
+                check_expr_for_capture(value, local_vars, outer_vars)
+            }
+            HirExpr::Index { base, index } => {
+                check_expr_for_capture(base, local_vars, outer_vars)
+                    || check_expr_for_capture(index, local_vars, outer_vars)
+            }
+            HirExpr::IfExpr { test, body, orelse } => {
+                check_expr_for_capture(test, local_vars, outer_vars)
+                    || check_expr_for_capture(body, local_vars, outer_vars)
+                    || check_expr_for_capture(orelse, local_vars, outer_vars)
+            }
+            HirExpr::List(items)
+            | HirExpr::Tuple(items)
+            | HirExpr::Set(items)
+            | HirExpr::FrozenSet(items) => items
+                .iter()
+                .any(|i| check_expr_for_capture(i, local_vars, outer_vars)),
+            HirExpr::Dict(pairs) => pairs.iter().any(|(k, v)| {
+                check_expr_for_capture(k, local_vars, outer_vars)
+                    || check_expr_for_capture(v, local_vars, outer_vars)
+            }),
+            HirExpr::ListComp { element, generators }
+            | HirExpr::SetComp { element, generators }
+            | HirExpr::GeneratorExp { element, generators } => {
+                check_expr_for_capture(element, local_vars, outer_vars)
+                    || generators.iter().any(|g| {
+                        check_expr_for_capture(&g.iter, local_vars, outer_vars)
+                            || g.conditions
+                                .iter()
+                                .any(|c| check_expr_for_capture(c, local_vars, outer_vars))
+                    })
+            }
+            HirExpr::DictComp { key, value, generators } => {
+                check_expr_for_capture(key, local_vars, outer_vars)
+                    || check_expr_for_capture(value, local_vars, outer_vars)
+                    || generators.iter().any(|g| {
+                        check_expr_for_capture(&g.iter, local_vars, outer_vars)
+                            || g.conditions
+                                .iter()
+                                .any(|c| check_expr_for_capture(c, local_vars, outer_vars))
+                    })
+            }
+            HirExpr::Lambda { body, .. } => {
+                check_expr_for_capture(body, local_vars, outer_vars)
+            }
+            HirExpr::Await { value } => check_expr_for_capture(value, local_vars, outer_vars),
+            HirExpr::Slice { base, start, stop, step } => {
+                check_expr_for_capture(base, local_vars, outer_vars)
+                    || start
+                        .as_ref()
+                        .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars))
+                    || stop
+                        .as_ref()
+                        .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars))
+                    || step
+                        .as_ref()
+                        .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars))
+            }
+            HirExpr::Borrow { expr, .. } => check_expr_for_capture(expr, local_vars, outer_vars),
+            HirExpr::FString { parts } => parts.iter().any(|p| {
+                if let crate::hir::FStringPart::Expr(e) = p {
+                    check_expr_for_capture(e, local_vars, outer_vars)
+                } else {
+                    false
+                }
+            }),
+            HirExpr::Yield { value } => value
+                .as_ref()
+                .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars)),
+            HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
+                check_expr_for_capture(iterable, local_vars, outer_vars)
+                    || check_expr_for_capture(key_body, local_vars, outer_vars)
+                    || reverse_expr
+                        .as_ref()
+                        .map_or(false, |e| check_expr_for_capture(e, local_vars, outer_vars))
+            }
+            HirExpr::NamedExpr { value, .. } => {
+                check_expr_for_capture(value, local_vars, outer_vars)
+            }
+            _ => false,
+        }
+    }
+
+    fn check_stmt_for_capture(
+        stmt: &HirStmt,
+        local_vars: &std::collections::HashSet<&str>,
+        outer_vars: &std::collections::HashSet<String>,
+    ) -> bool {
+        match stmt {
+            HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => {
+                check_expr_for_capture(expr, local_vars, outer_vars)
+            }
+            HirStmt::Assign { value, .. } => {
+                check_expr_for_capture(value, local_vars, outer_vars)
+            }
+            HirStmt::If { condition, then_body, else_body } => {
+                check_expr_for_capture(condition, local_vars, outer_vars)
+                    || then_body
+                        .iter()
+                        .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    || else_body.as_ref().map_or(false, |b| {
+                        b.iter()
+                            .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    })
+            }
+            HirStmt::While { condition, body } => {
+                check_expr_for_capture(condition, local_vars, outer_vars)
+                    || body
+                        .iter()
+                        .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+            }
+            HirStmt::For { iter, body, .. } => {
+                check_expr_for_capture(iter, local_vars, outer_vars)
+                    || body
+                        .iter()
+                        .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+            }
+            HirStmt::With { context, body, .. } => {
+                check_expr_for_capture(context, local_vars, outer_vars)
+                    || body
+                        .iter()
+                        .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                body.iter()
+                    .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    || handlers.iter().any(|h| {
+                        h.body
+                            .iter()
+                            .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    })
+                    || orelse.as_ref().map_or(false, |b| {
+                        b.iter()
+                            .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    })
+                    || finalbody.as_ref().map_or(false, |b| {
+                        b.iter()
+                            .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
+                    })
+            }
+            HirStmt::FunctionDef { body, .. } => body
+                .iter()
+                .any(|s| check_stmt_for_capture(s, local_vars, outer_vars)),
+            HirStmt::Block(stmts) => stmts
+                .iter()
+                .any(|s| check_stmt_for_capture(s, local_vars, outer_vars)),
+            HirStmt::Assert { test, msg } => {
+                check_expr_for_capture(test, local_vars, outer_vars)
+                    || msg.as_ref().map_or(false, |m| {
+                        check_expr_for_capture(m, local_vars, outer_vars)
+                    })
+            }
+            HirStmt::Raise { exception, cause } => {
+                exception.as_ref().map_or(false, |e| {
+                    check_expr_for_capture(e, local_vars, outer_vars)
+                }) || cause
+                    .as_ref()
+                    .map_or(false, |c| check_expr_for_capture(c, local_vars, outer_vars))
+            }
+            _ => false,
+        }
+    }
+
+    body.iter()
+        .any(|stmt| check_stmt_for_capture(stmt, &local_vars, outer_vars))
 }
