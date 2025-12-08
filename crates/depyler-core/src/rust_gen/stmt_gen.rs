@@ -6795,29 +6795,35 @@ fn codegen_nested_function_def(
     // DEPYLER-0613: Support hoisting - if variable is already declared, use assignment
     let is_declared = ctx.is_declared(name);
     
+    // DEPYLER-0783: Always use `move` for nested function closures
+    // This is required when:
+    // 1. The closure captures variables from outer scope AND is returned (E0373)
+    // 2. For Copy types (i32, bool), move just copies - no harm
+    // 3. For non-Copy types, move is required if captured and returned
+    // Using `move` universally is safe and fixes the common closure capture issue
     Ok(if matches!(ret_type, Type::Unknown) {
         if is_declared {
             quote! {
-                #fn_name = |#(#param_tokens),*| {
+                #fn_name = move |#(#param_tokens),*| {
                     #(#body_tokens)*
                 };
             }
         } else {
             quote! {
-                let #fn_name = |#(#param_tokens),*| {
+                let #fn_name = move |#(#param_tokens),*| {
                     #(#body_tokens)*
                 };
             }
         }
     } else if is_declared {
         quote! {
-            #fn_name = |#(#param_tokens),*| -> #return_type {
+            #fn_name = move |#(#param_tokens),*| -> #return_type {
                 #(#body_tokens)*
             };
         }
     } else {
         quote! {
-            let #fn_name = |#(#param_tokens),*| -> #return_type {
+            let #fn_name = move |#(#param_tokens),*| -> #return_type {
                 #(#body_tokens)*
             };
         }
