@@ -1,16 +1,22 @@
-"""Reproduction for E0308: Array literal in class method.
+"""Reproduction for walrus operator in list comprehension.
 
-The issue: Class methods passing list literals may not get &vec![] conversion.
+The issue: walrus variable assigned in 'if' condition must be
+accessible in the tuple expression of the comprehension.
+
+Python: [(w, length) for w in words if (length := len(w)) > 3]
+
+WRONG Rust (separate closures):
+  .filter(|w| { let length = ...; length > 3 })
+  .map(|w| (w, length))  // ERROR: length not in scope
+
+RIGHT Rust (filter_map):
+  .filter_map(|w| {
+      let length = w.len();
+      if length > 3 { Some((w, length)) } else { None }
+  })
 """
 
 
-def process(items: list[str]) -> int:
-    """Process list of items."""
-    return len(items)
-
-
-class TestCase:
-    def test_it(self):
-        # List literal in class method - does it convert?
-        result = process(["a", "b", "c"])
-        print(result)
+def count_long_words(words: list[str]) -> list[tuple[str, int]]:
+    """Filter and capture word lengths using walrus operator."""
+    return [(w, length) for w in words if (length := len(w)) > 3]
