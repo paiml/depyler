@@ -1,22 +1,17 @@
-"""Reproduction for isalpha() on char from string iteration.
+"""Reproduction for tuple literal not iterable.
 
-The issue: When iterating `for char in text`, Python gives string chars.
-`char.isalpha()` checks if that single-char string is alphabetic.
+The issue: Python `set((1, 2, 3))` creates a set from tuple.
+In Rust, tuples don't implement IntoIterator, so `(1, 2, 3).into_iter()`
+doesn't work.
 
-In Rust, `for char in text.chars()` gives `char` type directly.
-`char.isalpha()` incorrectly generates `char.chars().all(|c| c.is_alphabetic())`
-but `char` type has no `.chars()` method.
+Error: E0599: `(i32, i32, i32)` is not an iterator
 
-Error: E0599: no method named `chars` found for type `char`
-
-Should generate: `char.is_alphabetic()` directly.
+Should generate: `vec![1, 2, 3].into_iter()` instead of tuple
 """
 
+from typing import Set
 
-def count_alpha(text: str) -> int:
-    """Count alphabetic characters in a string."""
-    count = 0
-    for char in text:
-        if char.isalpha():
-            count += 1
-    return count
+
+def make_set() -> Set[int]:
+    """Create a set from a tuple literal."""
+    return set((1, 2, 3))
