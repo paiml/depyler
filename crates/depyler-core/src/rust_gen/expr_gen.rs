@@ -3482,6 +3482,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if args.len() == 1 {
                     return Ok(parse_quote! { std::path::PathBuf::from(#first).to_string_lossy().to_string() });
                 }
+                // DEPYLER-0814: Check if any arg (after first) is a List/Vec type (varargs)
+                // If so, generate iteration code instead of chaining .join()
+                for (i, hir_arg) in hir_args[1..].iter().enumerate() {
+                    if let HirExpr::Var(name) = hir_arg {
+                        if let Some(Type::List(_)) = self.ctx.var_types.get(name) {
+                            // This is a vararg parameter - generate iteration code
+                            let parts_var = &args[i + 1];
+                            return Ok(parse_quote! {
+                                {
+                                    let mut __path = std::path::PathBuf::from(#first);
+                                    for __part in #parts_var {
+                                        __path = __path.join(__part);
+                                    }
+                                    __path.to_string_lossy().to_string()
+                                }
+                            });
+                        }
+                    }
+                }
+                // Normal case: chain .join() calls
                 let mut result: syn::Expr = parse_quote! { std::path::PathBuf::from(#first) };
                 for part in &args[1..] {
                     result = parse_quote! { #result.join(#part) };
