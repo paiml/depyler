@@ -1,21 +1,20 @@
-"""Reproduction for (i + 1) * dx generating i32 * f64.
+"""Reproduction for integer literal suffix mismatch.
 
-The issue: When i is from range(n) (Int) and dx is Float,
-the expression (i + 1) * dx doesn't compile because (i + 1) is also Int.
+The issue: When calling a function with default int argument,
+the literal 100 is generated as 100i64 but the parameter expects i32.
 
-Error: E0277: cannot multiply `i32` by `f64`
+Error: E0308: mismatched types, expected `i32`, found `i64`
 """
 
 
-def find_all_roots(a: float, b: float, n: int) -> list[float]:
-    """Find roots in interval."""
-    roots = []
-    dx = (b - a) / n
+def bisection(a: float, b: float, max_iter: int = 100) -> float:
+    """Find root using bisection."""
+    for _ in range(max_iter):
+        a = (a + b) / 2
+    return a
 
-    for i in range(n):
-        x0 = a + i * dx
-        x1 = a + (i + 1) * dx  # BUG: (i + 1) is i32, dx is f64
-        roots.append(x0)
-        roots.append(x1)
 
-    return roots
+def find_roots(a: float, b: float) -> float:
+    """Call bisection without explicit max_iter."""
+    result = bisection(a, b)  # Uses default, generates 100i64 instead of 100
+    return result
