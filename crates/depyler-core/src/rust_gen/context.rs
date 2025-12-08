@@ -274,6 +274,11 @@ pub struct CodeGenContext<'a> {
     /// Maps function name → Vec<bool> where true means param at that index is Option<T>
     /// Used by call sites to wrap non-None values in Some()
     pub function_param_optionals: HashMap<String, Vec<bool>>,
+
+    /// DEPYLER-0795: Track loop variables that iterate over string.chars()
+    /// These variables are `char` type in Rust (not `str`), so ord(var) should be `var as u32`
+    /// not `var.chars().next().unwrap() as i32`
+    pub char_iter_vars: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {
