@@ -15929,6 +15929,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             HirExpr::List(_) => true,
             HirExpr::Call { func, .. } if func == "list" => true,
+            // DEPYLER-0811: Function calls that return list types
+            HirExpr::Call { func, .. } => {
+                if let Some(ret_type) = self.ctx.function_return_types.get(func) {
+                    matches!(ret_type, Type::List(_))
+                } else {
+                    false
+                }
+            }
             HirExpr::Var(name) => {
                 // DEPYLER-169: Check var_types for List type
                 // This enables proper `item in list_var` detection
@@ -15939,6 +15947,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     false
                 }
             }
+            // DEPYLER-0811: Binary Add of lists produces a list (for chained concat)
+            HirExpr::Binary {
+                op: BinOp::Add,
+                left,
+                right,
+            } => self.is_list_expr(left) || self.is_list_expr(right),
             _ => false,
         }
     }
