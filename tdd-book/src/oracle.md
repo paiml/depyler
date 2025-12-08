@@ -747,6 +747,132 @@ match status {
 
 Drift detection uses a sliding window comparison of historical vs. recent accuracy.
 
+## Continuous Oracle Retraining (Issue #211)
+
+The Oracle now implements **automatic change detection** to trigger retraining when the codebase or training corpus changes. This eliminates the "stale model" defect where transpiler improvements don't benefit from updated training data.
+
+### How It Works
+
+When `Oracle::load_or_train()` is called:
+
+1. **Load Training State**: Reads `.depyler/oracle_state.json`
+2. **Get Current State**: Fetches git HEAD SHA and computes corpus hash
+3. **Compare States**: Checks if retraining is needed
+4. **Auto-Retrain**: If changes detected, retrains and saves new state
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Oracle::load_or_train()                       │
+│                                                                 │
+│  ┌─────────────────┐     ┌─────────────────┐                    │
+│  │ Load Training   │     │ Get Current     │                    │
+│  │ State (.json)   │     │ SHA + Hash      │                    │
+│  └────────┬────────┘     └────────┬────────┘                    │
+│           │                       │                             │
+│           └───────────┬───────────┘                             │
+│                       ▼                                         │
+│              ┌─────────────────┐                                │
+│              │ needs_retraining│                                │
+│              │ (sha, hash)?    │                                │
+│              └────────┬────────┘                                │
+│                       │                                         │
+│           ┌───────────┴───────────┐                             │
+│           ▼                       ▼                             │
+│    ┌──────────────┐       ┌──────────────┐                      │
+│    │  No Changes  │       │   Changed!   │                      │
+│    │  Load Model  │       │   Retrain    │                      │
+│    └──────────────┘       └──────┬───────┘                      │
+│                                  │                              │
+│                                  ▼                              │
+│                          ┌──────────────┐                       │
+│                          │ Save State   │                       │
+│                          │ (.json)      │                       │
+│                          └──────────────┘                       │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Training State Structure
+
+The training state is stored in `.depyler/oracle_state.json`:
+
+```json
+{
+  "last_trained_commit_sha": "abc123def456...",
+  "corpus_hash": "a1b2c3d4e5f6g7h8",
+  "last_trained_at": "2024-01-15T10:30:00Z",
+  "sample_count": 12500,
+  "model_version": "3.21.0"
+}
+```
+
+| Field | Purpose |
+|-------|---------|
+| `last_trained_commit_sha` | Git HEAD when last trained |
+| `corpus_hash` | Hash of training corpus file mtimes |
+| `last_trained_at` | ISO 8601 timestamp |
+| `sample_count` | Number of training samples used |
+| `model_version` | Depyler version (for architecture changes) |
+
+### Retraining Triggers
+
+Retraining is automatically triggered when:
+
+| Condition | Why |
+|-----------|-----|
+| **Commit SHA changed** | Transpiler code modified |
+| **Corpus hash changed** | Training data files modified |
+| **Model version changed** | Oracle architecture updated |
+| **No state file exists** | First-time training |
+
+### Usage
+
+The feature is **automatic** - no code changes needed:
+
+```rust
+use depyler_oracle::Oracle;
+
+// Automatically checks for changes and retrains if needed
+let oracle = Oracle::load_or_train()?;
+
+// Output examples:
+// "📊 Oracle: Loaded cached model (no changes detected)"
+// "📊 Oracle: Codebase changes detected, triggering retraining..."
+// "📊 Oracle: Training complete (12500 samples), state saved"
+```
+
+### Manual State Management
+
+For advanced use cases:
+
+```rust
+use depyler_oracle::TrainingState;
+use std::path::Path;
+
+// Load existing state
+let state = TrainingState::load(&Path::new(".depyler/oracle_state.json"))?;
+
+// Check if retraining needed
+let current_sha = TrainingState::get_current_commit_sha();
+let corpus_paths = get_training_corpus_paths();
+let corpus_hash = TrainingState::compute_corpus_hash(&corpus_paths);
+
+if state.map_or(true, |s| s.needs_retraining(&current_sha, &corpus_hash)) {
+    println!("Retraining required!");
+}
+
+// Create and save new state after training
+let new_state = TrainingState::new(current_sha, corpus_hash, sample_count);
+new_state.save(&Path::new(".depyler/oracle_state.json"))?;
+```
+
+### Benefits
+
+1. **No stale models**: Oracle always reflects latest transpiler patterns
+2. **Zero manual intervention**: Automatic change detection
+3. **Fast loads**: If no changes, loads cached model (~100ms)
+4. **Audit trail**: State file tracks training history
+5. **Version awareness**: Retrains when model architecture changes
+
 ## Configuration
 
 ```rust
