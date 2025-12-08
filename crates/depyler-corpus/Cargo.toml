@@ -1,0 +1,51 @@
+[package]
+name = "depyler-corpus"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Deterministic scientific corpus analysis for Python-to-Rust transpilation quality measurement"
+keywords = ["transpiler", "corpus", "analysis", "metrics", "scientific"]
+categories = ["development-tools", "compilers"]
+
+[dependencies]
+# Core
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+
+# File system
+walkdir = "2.5"
+glob = "0.3"
+
+# Hashing for determinism
+blake3 = "1.5"
+
+# Time
+chrono = { version = "0.4", features = ["serde"] }
+
+# CLI integration
+clap.workspace = true
+indicatif.workspace = true
+colored.workspace = true
+
+# Statistics (minimal implementation)
+# We use simple stats to avoid heavy dependencies
+
+[dev-dependencies]
+tempfile.workspace = true
+proptest.workspace = true
+insta.workspace = true
+
+[[bin]]
+name = "depyler-corpus"
+path = "src/main.rs"
+
+[features]
+default = []
+# Future: integration with external tools
+pmat-integration = []
+aprender-integration = []
