@@ -1,20 +1,27 @@
-"""Reproduction for list replication pattern.
+"""Reproduction for ord() on char from string iteration.
 
-The issue: Python's `[True] * n` creates list with n copies of True.
-This generates `vec![true] * n` but Vec doesn't support * operator.
+The issue: When iterating `for char in text`, Python gives string chars.
+`ord(char)` gets the Unicode code point of that character.
 
-Error: E0369: cannot multiply `Vec<bool>` by `i32`
+In Rust, `for char in text.chars()` gives `char` type directly.
+`ord(char)` incorrectly generates `char.chars().next().unwrap() as i32`
+but `char` type has no `.chars()` method.
 
-Python: is_prime = [True] * (limit + 1)
+Error: E0599: no method named `chars` found for type `char`
+
+Python: ord(char)  # char from `for char in text:`
 
 WRONG Rust:
-  vec![true] * (limit + 1)  // ERROR: cannot multiply Vec by i32
+  char.chars().next().unwrap() as i32  // ERROR: char has no .chars()
 
 RIGHT Rust:
-  vec![true; (limit + 1) as usize]
+  char as u32  # or `char as i32` for signed
 """
 
 
-def create_sieve(limit: int) -> list[bool]:
-    """Create boolean sieve array."""
-    return [True] * (limit + 1)
+def compute_hash(text: str) -> int:
+    """Hash a string by summing character ordinals."""
+    total = 0
+    for char in text:
+        total += ord(char)
+    return total

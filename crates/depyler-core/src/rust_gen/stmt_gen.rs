@@ -2653,6 +2653,14 @@ pub(crate) fn codegen_for_stmt(
             if is_string_type || is_string_name {
                 // For strings, use .chars() to iterate over characters
                 iter_expr = parse_quote! { #iter_expr.chars() };
+
+                // DEPYLER-0795: Track loop variables that iterate over string.chars()
+                // The loop variable is a `char` type in Rust, which affects ord() codegen.
+                // Note: We track ALL char iter vars here. If the var is later converted to String
+                // (via needs_char_to_string), it's still a char when passed to ord().
+                if let AssignTarget::Symbol(loop_var_name) = target {
+                    ctx.char_iter_vars.insert(loop_var_name.clone());
+                }
             } else if is_json_value {
                 // DEPYLER-0606: serde_json::Value needs .as_array().unwrap() before iteration
                 // This handles: for item in json_value (where json_value is a JSON array)

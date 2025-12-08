@@ -2579,7 +2579,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0579: format(value, spec) builtin
             "format" => self.convert_format_builtin(&arg_exprs, &all_hir_args),
             "chr" => self.convert_chr_builtin(&arg_exprs),
-            "ord" => self.convert_ord_builtin(&arg_exprs),
+            "ord" => self.convert_ord_builtin(&arg_exprs, &all_hir_args),
             "hash" => self.convert_hash_builtin(&arg_exprs),
             "repr" => self.convert_repr_builtin(&arg_exprs),
             // DEPYLER-0387: File I/O builtin
@@ -3210,11 +3210,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 
-    fn convert_ord_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_ord_builtin(&self, args: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("ord() requires exactly 1 argument");
         }
         let char_str = &args[0];
+
+        // DEPYLER-0795: Check if argument is a char iteration variable
+        // When iterating over string.chars(), the loop variable is already a char,
+        // so we should use `var as u32` instead of `var.chars().next().unwrap() as i32`
+        if let Some(HirExpr::Var(var_name)) = hir_args.first() {
+            if self.ctx.char_iter_vars.contains(var_name) {
+                // Variable is a char from string iteration - just cast it
+                return Ok(parse_quote! {
+                    #char_str as u32 as i32
+                });
+            }
+        }
+
+        // Default: assume it's a string and get first char
         Ok(parse_quote! {
             #char_str.chars().next().unwrap() as i32
         })
