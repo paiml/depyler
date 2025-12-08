@@ -124,10 +124,10 @@ impl TypeVarRegistry {
         // Collect from return type
         collector.collect_from_type(&func.ret_type);
 
-        // Collect from function body
-        for stmt in &func.body {
-            collector.collect_from_stmt(stmt);
-        }
+        // DEPYLER-0781: Don't collect from function body
+        // Type vars from body can add generic params that aren't used in the
+        // function signature, causing E0283 "cannot infer type" errors
+        // Only params and return type define the function's generic interface
 
         // Build constraints from usage
         let mut inference = TypeInference::new();
@@ -304,17 +304,14 @@ impl TypeVarCollector {
             Type::TypeVar(name) => {
                 self.type_vars.insert(name.clone());
             }
-            // DEPYLER-0750: Don't treat Unknown as type parameter T for nested types
-            // Unknown in collections (List[Unknown], Set[Unknown]) should use concrete default types
-            // via type_mapper (serde_json::Value for List, String for Set)
-            // DEPYLER-0775: BUT for top-level Unknown (function parameters), we MUST add T
-            // because TypeMapper generates TypeParam("T") for Unknown parameter types
+            // DEPYLER-0781: Don't treat Unknown as type parameter T
+            // Unknown types should use concrete defaults via type_mapper:
+            // - List[Unknown] → Vec<serde_json::Value>
+            // - Set[Unknown] → HashSet<String>
+            // - Bare Unknown → i32 or String depending on context
+            // Adding T causes E0283 "cannot infer type" when T isn't used in signature
             Type::Unknown => {
-                // DEPYLER-0775: Add T only for top-level Unknown (function params)
-                // Nested Unknown uses concrete defaults via type_mapper
-                if !_nested {
-                    self.type_vars.insert("T".to_string());
-                }
+                // Don't add T - let type_mapper use concrete fallback
             }
             // Collection types create nested context
             Type::List(inner) | Type::Optional(inner) => {
