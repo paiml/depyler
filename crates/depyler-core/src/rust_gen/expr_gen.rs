@@ -3059,10 +3059,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0733: Use .iter().cloned() instead of .into_iter() to produce Vec<T> not Vec<&T>
         // When iterable is &Vec<T>, .into_iter() yields &T references, causing type mismatch.
         // .iter().cloned() properly clones elements to produce owned Vec<T>.
+        // DEPYLER-0807: Use sort_by with partial_cmp to support floats (f64 doesn't implement Ord)
+        // partial_cmp works for all PartialOrd types including integers and floats.
+        // unwrap_or(Equal) treats NaN as equal, which is safe for typical sorting.
         Ok(parse_quote! {
             {
                 let mut sorted_vec = #iterable.iter().cloned().collect::<Vec<_>>();
-                sorted_vec.sort();
+                sorted_vec.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
                 sorted_vec
             }
         })
