@@ -16151,9 +16151,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 }
                 // Also check for math builtin functions that return float
+                // DEPYLER-0816: Removed "abs" - Python abs() preserves input type (int→int, float→float)
+                // The math functions below ALWAYS return float, but abs() is type-preserving
                 matches!(
                     func.as_str(),
-                    "abs" | "sqrt" | "sin" | "cos" | "tan" | "exp" | "log" | "log10" | "log2"
+                    "sqrt" | "sin" | "cos" | "tan" | "exp" | "log" | "log10" | "log2"
                         | "floor"
                         | "ceil"
                         | "pow"
