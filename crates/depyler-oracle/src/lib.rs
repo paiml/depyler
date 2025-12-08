@@ -36,7 +36,8 @@ pub mod tfidf;
 pub mod hybrid_retrieval;
 pub mod hansei;
 pub mod training;
-pub mod training_state;  // Issue #211: Continuous oracle retraining trigger
+pub mod training_state;  // Issue #211: Continuous oracle retraining trigger (DEPRECATED - see oracle_lineage)
+pub mod oracle_lineage;  // Issue #212: Replace TrainingState with Entrenar ModelLineage
 pub mod tuning;
 pub mod unified_training;
 pub mod verificar_integration;
@@ -84,7 +85,9 @@ pub use hansei::{
     TranspileIssue, TranspileOutcome, Trend,
 };
 pub use training::{TrainingDataset, TrainingSample};
-pub use training_state::TrainingState;  // Issue #211
+#[allow(deprecated)]
+pub use training_state::TrainingState;  // Issue #211 (DEPRECATED - use OracleLineage)
+pub use oracle_lineage::OracleLineage;  // Issue #212: Replaces TrainingState
 
 // MoE Oracle exports
 pub use moe_oracle::{ExpertDomain, MoeClassificationResult, MoeOracle, MoeOracleConfig};
@@ -322,42 +325,38 @@ impl Oracle {
     /// This is the recommended way to get an Oracle instance - it caches
     /// the trained model to disk for faster subsequent loads.
     ///
-    /// ## Issue #211: Continuous Oracle Retraining
+    /// ## Issue #212: Model Lineage Tracking (replaces Issue #211)
     ///
-    /// This method now implements automatic change detection:
-    /// - Compares current git commit SHA with stored state
-    /// - Compares corpus hash with stored state
-    /// - Triggers retraining when codebase changes detected
-    /// - Stores training state in `.depyler/oracle_state.json`
+    /// This method now uses `entrenar::monitor::ModelLineage` for:
+    /// - Git commit SHA and corpus hash change detection
+    /// - Model version tracking with lineage chains
+    /// - Regression detection between training runs
+    /// - Stores lineage in `.depyler/oracle_lineage.json`
     pub fn load_or_train() -> Result<Self> {
         let model_path = Self::default_model_path();
-        let state_path = TrainingState::default_state_path();
+        let lineage_path = OracleLineage::default_lineage_path();
 
         // Get current state for comparison
-        let current_sha = TrainingState::get_current_commit_sha();
+        let current_sha = OracleLineage::get_current_commit_sha();
         let corpus_paths = get_training_corpus_paths();
-        let current_corpus_hash = TrainingState::compute_corpus_hash(&corpus_paths);
+        let current_corpus_hash = OracleLineage::compute_corpus_hash(&corpus_paths);
 
-        // Check if we need to retrain (Issue #211)
-        let needs_retrain = match TrainingState::load(&state_path) {
-            Ok(Some(state)) => {
-                let should_retrain = state.needs_retraining(&current_sha, &current_corpus_hash);
-                if should_retrain {
-                    eprintln!(
-                        "📊 Oracle: Codebase changes detected, triggering retraining..."
-                    );
-                }
-                should_retrain
-            }
-            Ok(None) => {
-                eprintln!("📊 Oracle: No training state found, will train fresh...");
-                true
-            }
+        // Load existing lineage (Issue #212)
+        let mut lineage = match OracleLineage::load(&lineage_path) {
+            Ok(l) => l,
             Err(e) => {
-                eprintln!("Warning: Failed to load training state: {e}. Retraining...");
-                true
+                eprintln!("Warning: Failed to load lineage: {e}. Starting fresh...");
+                OracleLineage::new()
             }
         };
+
+        // Check if we need to retrain
+        let needs_retrain = lineage.needs_retraining(&current_sha, &current_corpus_hash);
+        if needs_retrain && lineage.model_count() > 0 {
+            eprintln!("📊 Oracle: Codebase changes detected, triggering retraining...");
+        } else if needs_retrain {
+            eprintln!("📊 Oracle: No training history found, will train fresh...");
+        }
 
         // Try to load existing model if no retrain needed
         if !needs_retrain && model_path.exists() {
@@ -397,14 +396,32 @@ impl Oracle {
             eprintln!("Warning: Failed to cache model to {}: {e}", model_path.display());
         }
 
-        // Save training state (Issue #211)
-        let new_state = TrainingState::new(current_sha, current_corpus_hash, sample_count);
-        if let Err(e) = new_state.save(&state_path) {
-            eprintln!("Warning: Failed to save training state: {e}");
+        // Record training in lineage (Issue #212)
+        // Use a default accuracy of 0.85 since we don't have validation data here
+        let model_id = lineage.record_training(
+            current_sha,
+            current_corpus_hash,
+            sample_count,
+            0.85, // Default accuracy estimate
+        );
+
+        // Check for regression (enabled by ModelLineage)
+        if let Some((reason, delta)) = lineage.find_regression() {
+            eprintln!(
+                "⚠️  Oracle: Regression detected! Accuracy dropped by {:.2}% ({})",
+                delta.abs() * 100.0,
+                reason
+            );
+        }
+
+        // Save lineage
+        if let Err(e) = lineage.save(&lineage_path) {
+            eprintln!("Warning: Failed to save lineage: {e}");
         } else {
             eprintln!(
-                "📊 Oracle: Training complete ({} samples), state saved",
-                sample_count
+                "📊 Oracle: Training complete ({} samples), lineage recorded as {}",
+                sample_count,
+                model_id
             );
         }
 
@@ -677,94 +694,104 @@ mod tests {
     }
 
     // ============================================================
-    // Issue #211: Continuous Oracle Retraining Tests (TDD - RED FIRST)
+    // Issue #212: Model Lineage Tests (replaces Issue #211)
     // ============================================================
 
     #[test]
-    fn test_needs_retrain_no_state_file() {
-        // When no state file exists, should need retraining
+    fn test_needs_retrain_no_lineage_file() {
+        // When no lineage file exists, should need retraining
         let temp_dir = tempfile::TempDir::new().expect("create temp dir");
-        let state_path = temp_dir.path().join(".depyler").join("oracle_state.json");
+        let lineage_path = temp_dir.path().join(".depyler").join("oracle_lineage.json");
 
-        let result = TrainingState::load(&state_path).expect("load should not error");
-        assert!(result.is_none(), "No state file should return None");
+        let lineage = OracleLineage::load(&lineage_path).expect("load should not error");
+        assert_eq!(lineage.model_count(), 0, "No lineage file should return empty lineage");
 
-        // When None, needs_retraining should be true (treat as never trained)
-        let default_state = TrainingState::default();
+        // Empty lineage should need retraining
         assert!(
-            default_state.needs_retraining("any_sha", "any_hash"),
-            "Default state should need retraining"
+            lineage.needs_retraining("any_sha", "any_hash"),
+            "Empty lineage should need retraining"
         );
     }
 
     #[test]
-    fn test_needs_retrain_commit_changed() {
+    fn test_needs_retrain_commit_changed_lineage() {
         // When commit SHA changes, should need retraining
-        let state = TrainingState::new(
+        let mut lineage = OracleLineage::new();
+        lineage.record_training(
             "abc123def456".to_string(),
             "corpus_hash_123".to_string(),
             1000,
+            0.85,
         );
 
         assert!(
-            state.needs_retraining("different_sha_789", "corpus_hash_123"),
+            lineage.needs_retraining("different_sha_789", "corpus_hash_123"),
             "Changed commit SHA should trigger retraining"
         );
     }
 
     #[test]
-    fn test_needs_retrain_corpus_changed() {
+    fn test_needs_retrain_corpus_changed_lineage() {
         // When corpus hash changes, should need retraining
-        let state = TrainingState::new(
+        let mut lineage = OracleLineage::new();
+        lineage.record_training(
             "abc123def456".to_string(),
             "corpus_hash_123".to_string(),
             1000,
+            0.85,
         );
 
         assert!(
-            state.needs_retraining("abc123def456", "different_corpus_hash"),
+            lineage.needs_retraining("abc123def456", "different_corpus_hash"),
             "Changed corpus hash should trigger retraining"
         );
     }
 
     #[test]
-    fn test_no_retrain_when_unchanged() {
+    fn test_no_retrain_when_unchanged_lineage() {
         // When nothing changed, should NOT need retraining
-        let state = TrainingState::new(
+        let mut lineage = OracleLineage::new();
+        lineage.record_training(
             "abc123def456".to_string(),
             "corpus_hash_123".to_string(),
             1000,
+            0.85,
         );
 
         assert!(
-            !state.needs_retraining("abc123def456", "corpus_hash_123"),
+            !lineage.needs_retraining("abc123def456", "corpus_hash_123"),
             "Unchanged state should NOT need retraining"
         );
     }
 
     #[test]
-    fn test_training_state_saves_after_training() {
+    fn test_lineage_saves_after_training() {
         let temp_dir = tempfile::TempDir::new().expect("create temp dir");
-        let state_path = temp_dir.path().join(".depyler").join("oracle_state.json");
+        let lineage_path = temp_dir.path().join(".depyler").join("oracle_lineage.json");
 
-        // Create and save state
-        let state = TrainingState::new(
+        // Create and save lineage
+        let mut lineage = OracleLineage::new();
+        lineage.record_training(
             "test_sha_12345".to_string(),
             "test_hash_67890".to_string(),
             500,
+            0.85,
         );
-        state.save(&state_path).expect("save should work");
+        lineage.save(&lineage_path).expect("save should work");
 
         // Verify it was saved
-        assert!(state_path.exists(), "State file should exist after save");
+        assert!(lineage_path.exists(), "Lineage file should exist after save");
 
         // Load and verify
-        let loaded = TrainingState::load(&state_path)
-            .expect("load should work")
-            .expect("state should exist");
-        assert_eq!(loaded.last_trained_commit_sha, "test_sha_12345");
-        assert_eq!(loaded.corpus_hash, "test_hash_67890");
-        assert_eq!(loaded.sample_count, 500);
+        let loaded = OracleLineage::load(&lineage_path)
+            .expect("load should work");
+        assert_eq!(loaded.model_count(), 1);
+
+        // Verify latest model has correct metadata
+        let latest = loaded.latest_model().expect("should have model");
+        assert_eq!(latest.tags.get("commit_sha"), Some(&"test_sha_12345".to_string()));
+        assert_eq!(latest.config_hash, "test_hash_67890");
+        assert_eq!(latest.tags.get("sample_count"), Some(&"500".to_string()));
     }
 
     #[test]
