@@ -3615,9 +3615,18 @@ impl<'a> ExprConverter<'a> {
         } else if args.len() == 1 {
             // Set from iterable: set([1, 2, 3])
             let arg = &args[0];
-            Ok(parse_quote! {
-                #arg.into_iter().collect::<HashSet<_>>()
-            })
+            // DEPYLER-0797: Check if arg is a tuple - tuples don't implement IntoIterator in Rust
+            // Convert tuple to vec! for iteration
+            if let syn::Expr::Tuple(tuple) = arg {
+                let elems = &tuple.elems;
+                Ok(parse_quote! {
+                    vec![#elems].into_iter().collect::<HashSet<_>>()
+                })
+            } else {
+                Ok(parse_quote! {
+                    #arg.into_iter().collect::<HashSet<_>>()
+                })
+            }
         } else {
             bail!("set() takes at most 1 argument ({} given)", args.len())
         }
@@ -3631,9 +3640,18 @@ impl<'a> ExprConverter<'a> {
         } else if args.len() == 1 {
             // Frozenset from iterable: frozenset([1, 2, 3])
             let arg = &args[0];
-            Ok(parse_quote! {
-                std::sync::Arc::new(#arg.into_iter().collect::<HashSet<_>>())
-            })
+            // DEPYLER-0797: Check if arg is a tuple - tuples don't implement IntoIterator in Rust
+            // Convert tuple to vec! for iteration
+            if let syn::Expr::Tuple(tuple) = arg {
+                let elems = &tuple.elems;
+                Ok(parse_quote! {
+                    std::sync::Arc::new(vec![#elems].into_iter().collect::<HashSet<_>>())
+                })
+            } else {
+                Ok(parse_quote! {
+                    std::sync::Arc::new(#arg.into_iter().collect::<HashSet<_>>())
+                })
+            }
         } else {
             bail!(
                 "frozenset() takes at most 1 argument ({} given)",
