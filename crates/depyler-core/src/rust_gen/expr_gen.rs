@@ -796,7 +796,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if needs_float_division || has_float_operand {
                     // Cast both operands to f64 for Python float division semantics
                     // or for mixed int/float operations
-                    Ok(parse_quote! { (#left_expr as f64) / (#right_expr as f64) })
+                    // DEPYLER-0802: Double-wrap operands to ensure correct operator precedence
+                    // Without inner parens: (n - 1 as f64) parses as (n - (1 as f64)) due to `as` precedence
+                    // With inner parens: ((n - 1) as f64) correctly casts the entire expression
+                    Ok(parse_quote! { ((#left_expr) as f64) / ((#right_expr) as f64) })
                 } else {
                     // Regular division (int/int → int, float/float → float)
                     let rust_op = convert_binop(op)?;
