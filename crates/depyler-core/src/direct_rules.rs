@@ -3867,9 +3867,9 @@ impl<'a> ExprConverter<'a> {
                 return Ok(parse_quote! { #arg.len() as i32 });
             }
             "abs" if args.len() == 1 => {
-                // abs(x) → x.abs()
+                // DEPYLER-0815: abs(x) → (x).abs() - parens needed for precedence
                 let arg = &args[0];
-                return Ok(parse_quote! { #arg.abs() });
+                return Ok(parse_quote! { (#arg).abs() });
             }
             "min" if args.len() >= 2 => {
                 // min(a, b, ...) → a.min(b).min(c)...
