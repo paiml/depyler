@@ -11316,6 +11316,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("isdigit() takes no arguments");
                 }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { #object_expr.is_numeric() });
+                    }
+                }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_numeric()) })
             }
             "isalpha" => {
@@ -11323,12 +11329,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("isalpha() takes no arguments");
                 }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { #object_expr.is_alphabetic() });
+                    }
+                }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_alphabetic()) })
             }
             "isspace" => {
                 // DEPYLER-0650: str.isspace() → .chars().all(|c| c.is_whitespace())
                 if !arg_exprs.is_empty() {
                     bail!("isspace() takes no arguments");
+                }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { #object_expr.is_whitespace() });
+                    }
                 }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_whitespace()) })
             }
@@ -11390,6 +11408,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0302: str.isalnum() → .chars().all(|c| c.is_alphanumeric())
                 if !arg_exprs.is_empty() {
                     bail!("isalnum() takes no arguments");
+                }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { #object_expr.is_alphanumeric() });
+                    }
                 }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_alphanumeric()) })
             }
@@ -11660,6 +11684,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("isprintable() takes no arguments");
                 }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { !#object_expr.is_control() || #object_expr == '\t' || #object_expr == '\n' || #object_expr == '\r' });
+                    }
+                }
                 Ok(parse_quote! {
                     #object_expr.chars().all(|c| !c.is_control() || c == '\t' || c == '\n' || c == '\r')
                 })
@@ -11669,11 +11699,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("isupper() takes no arguments");
                 }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_uppercase() });
+                    }
+                }
                 Ok(parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) })
             }
             "islower" => {
                 if !arg_exprs.is_empty() {
                     bail!("islower() takes no arguments");
+                }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_lowercase() });
+                    }
                 }
                 Ok(parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()) })
             }
@@ -11702,17 +11744,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("isnumeric() takes no arguments");
                 }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { #object_expr.is_numeric() });
+                    }
+                }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_numeric()) })
             }
             "isascii" => {
                 if !arg_exprs.is_empty() {
                     bail!("isascii() takes no arguments");
                 }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { #object_expr.is_ascii() });
+                    }
+                }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_ascii()) })
             }
             "isdecimal" => {
                 if !arg_exprs.is_empty() {
                     bail!("isdecimal() takes no arguments");
+                }
+                // DEPYLER-0796: If object is a char from string iteration, use direct char method
+                if let HirExpr::Var(var_name) = hir_object {
+                    if self.ctx.char_iter_vars.contains(var_name) {
+                        return Ok(parse_quote! { #object_expr.is_ascii_digit() });
+                    }
                 }
                 Ok(parse_quote! { #object_expr.chars().all(|c| c.is_ascii_digit()) })
             }
