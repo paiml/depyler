@@ -872,13 +872,13 @@ pub(crate) fn codegen_function_body(
     let mut body_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
 
     // Emit declarations for all nested functions
+    // DEPYLER-0783: Use `let` without `mut` - closures are only assigned once
+    // Using `let mut` causes unused_mut warning since closures aren't reassigned
     for name in &all_nested_fns {
         if !ctx.is_declared(name) {
             let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-            // Declare as mutable variable to allow assignment later
-            // Use explicit type if known? No, closures have anonymous types.
-            // Rust allows `let mut x; x = ||...` and infers the type.
-            body_stmts.push(quote! { let mut #ident; });
+            // Rust allows `let x; x = ||...` and infers the type
+            body_stmts.push(quote! { let #ident; });
             ctx.declare_var(name);
         }
     }
