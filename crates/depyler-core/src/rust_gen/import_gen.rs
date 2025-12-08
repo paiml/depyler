@@ -47,7 +47,10 @@ fn process_import_item(
         if import_module == "typing" && !rust_name.is_empty() {
             // Types from typing module don't need full paths
             imported_items.insert(import_key.to_string(), rust_name.clone());
-        } else if !mapping.rust_path.is_empty() {
+        } else if !mapping.rust_path.is_empty() && !rust_name.is_empty() {
+            // DEPYLER-0825: Don't insert items with empty rust_name
+            // Empty rust_name indicates no direct Rust equivalent (e.g., functools.partial)
+            // This prevents "std::" paths that cause syn::Ident::new("") to panic
             imported_items.insert(
                 import_key.to_string(),
                 format!("{}::{}", mapping.rust_path, rust_name),
