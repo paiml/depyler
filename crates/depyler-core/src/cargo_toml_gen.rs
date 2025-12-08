@@ -492,6 +492,7 @@ mod tests {
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
+            char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -624,6 +625,7 @@ mod tests {
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
+            char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
         };
 
         let deps = extract_dependencies(&ctx);
@@ -753,6 +755,7 @@ mod tests {
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
+            char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
         };
 
         let deps = extract_dependencies(&ctx);
@@ -886,6 +889,7 @@ mod tests {
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
+            char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
         };
 
         let deps = extract_dependencies(&ctx);

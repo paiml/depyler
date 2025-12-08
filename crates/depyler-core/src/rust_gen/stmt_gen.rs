@@ -2508,6 +2508,26 @@ pub(crate) fn codegen_for_stmt(
         }
     }
 
+    // DEPYLER-0821: Track char variables from Counter(string) iteration
+    // When iterating over counter.items() or counter.most_common() where counter is from Counter(string),
+    // the first tuple element is a char in Rust (not String)
+    if let AssignTarget::Tuple(targets) = target {
+        if let HirExpr::MethodCall { object, method, .. } = iter {
+            // Handle both .items() and .most_common() (with optional arg)
+            if method == "items" || method == "most_common" {
+                if let HirExpr::Var(counter_name) = object.as_ref() {
+                    // Check if this counter is from Counter(string)
+                    if ctx.char_counter_vars.contains(counter_name) {
+                        // Mark the first tuple element as a char variable
+                        if let Some(AssignTarget::Symbol(first_var)) = targets.first() {
+                            ctx.char_iter_vars.insert(first_var.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     // Generate target pattern based on AssignTarget type
     let target_pattern: syn::Pat = match target {
         AssignTarget::Symbol(name) => {
@@ -3066,6 +3086,40 @@ pub(crate) fn codegen_assign_stmt(
                 // Get the function's return type and add to var_types
                 if let Some(ret_type) = ctx.function_return_types.get(func) {
                     ctx.var_types.insert(var_name.clone(), ret_type.clone());
+                }
+            }
+        }
+    }
+
+    // DEPYLER-0821: Track variables assigned from Counter(string)
+    // When counter = Counter(text) where text is a string, mark counter in char_counter_vars
+    // This is used to detect char iteration in for (k,v) in counter.items()
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::Call { func, args, .. } = value {
+            if func == "Counter" && args.len() == 1 {
+                // Check if the argument is a string type or derived from string operations
+                let is_string_arg = match &args[0] {
+                    HirExpr::Var(arg_name) => {
+                        // Check known type or use heuristics for common string var names
+                        ctx.var_types
+                            .get(arg_name)
+                            .is_some_and(|t| matches!(t, Type::String))
+                            || arg_name == "text"
+                            || arg_name == "s"
+                            || arg_name == "string"
+                            || arg_name.ends_with("_text")
+                    }
+                    // MethodCall like sys.stdin.read().strip() returns string
+                    HirExpr::MethodCall { method, .. } => {
+                        method == "read"
+                            || method == "strip"
+                            || method == "lower"
+                            || method == "upper"
+                    }
+                    _ => false,
+                };
+                if is_string_arg {
+                    ctx.char_counter_vars.insert(var_name.clone());
                 }
             }
         }
