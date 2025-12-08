@@ -190,6 +190,7 @@ Python AST → HIR → Type Inference → Rust AST → Code Generation
 - [API Documentation](https://docs.rs/depyler)
 - [MCP Quickstart](docs/MCP_QUICKSTART.md)
 - [Agent Mode Guide](AGENT.md)
+- [Developer Prompts](docs/prompts/)
 - [Changelog](CHANGELOG.md)
 - [TDD Book](tdd-book/)
 
