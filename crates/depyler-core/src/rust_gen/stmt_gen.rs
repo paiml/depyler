@@ -65,6 +65,40 @@ fn expr_returns_usize(expr: &HirExpr) -> bool {
     }
 }
 
+/// DEPYLER-0785: Check if an HIR expression returns float type
+///
+/// Used to track CSE temp variable types for float coercion in comparisons.
+/// When CSE extracts `f(a) * f(b)` into `_cse_temp_0`, we need to track that
+/// the temp is float so `_cse_temp_0 > 0` coerces 0 to 0f64.
+fn expr_infers_float(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
+    match expr {
+        // Float literals are obviously float
+        HirExpr::Literal(Literal::Float(_)) => true,
+        // Variable with Float type in var_types
+        HirExpr::Var(name) => {
+            matches!(ctx.var_types.get(name), Some(Type::Float))
+        }
+        // Function calls - check function_return_types
+        HirExpr::Call { func, .. } => {
+            matches!(ctx.function_return_types.get(func), Some(Type::Float))
+        }
+        // Binary operations: if either operand is float, result is float (for Mul, Div, Add, Sub)
+        HirExpr::Binary { op, left, right } => {
+            matches!(
+                op,
+                BinOp::Mul | BinOp::Div | BinOp::Add | BinOp::Sub | BinOp::Mod | BinOp::Pow
+            ) && (expr_infers_float(left, ctx) || expr_infers_float(right, ctx))
+        }
+        // Unary operations preserve float type
+        HirExpr::Unary { operand, .. } => expr_infers_float(operand, ctx),
+        // IfExpr: float if both branches are float
+        HirExpr::IfExpr { body, orelse, .. } => {
+            expr_infers_float(body, ctx) && expr_infers_float(orelse, ctx)
+        }
+        _ => false,
+    }
+}
+
 /// DEPYLER-0520: Check if an expression produces an iterator (not a collection)
 ///
 /// Generator expressions and method chains ending in iterator adapters produce
@@ -3303,6 +3337,19 @@ pub(crate) fn codegen_assign_stmt(
                     // This is a heuristic - could be improved with module tracking
                     ctx.var_types
                         .insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
+                }
+                // DEPYLER-0785: Track float return types for CSE comparison coercion
+                // When f() returns float, result = f(x) should track result as Float
+                else if matches!(ctx.function_return_types.get(func), Some(Type::Float)) {
+                    ctx.var_types.insert(var_name.clone(), Type::Float);
+                }
+            }
+            // DEPYLER-0785: Track Binary expressions that return float
+            // When CSE extracts `f(a) * f(b)` into `_cse_temp_0`, we need to track
+            // that the temp is float so `_cse_temp_0 > 0` coerces 0 to 0f64.
+            HirExpr::Binary { .. } => {
+                if expr_infers_float(value, ctx) {
+                    ctx.var_types.insert(var_name.clone(), Type::Float);
                 }
             }
             HirExpr::List(elements) => {
