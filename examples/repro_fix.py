@@ -1,4 +1,11 @@
-"""Tests DEPYLER-0812: Module-level slice with negative step generates usize for -1."""
+"""Minimal repro for double-reference bug (DEPYLER-0818)."""
 
-data: list[int] = [1, 2, 3, 4, 5]
-reversed_data: list[int] = data[::-1]  # E0277: usize: Neg not satisfied
+
+def caller(s: str) -> str:
+    """Pass str param to another function."""
+    return callee(s)  # s is str, pass directly
+
+
+def callee(s: str) -> str:
+    """Receive str and return it."""
+    return s

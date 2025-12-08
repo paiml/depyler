@@ -3759,9 +3759,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     // Also borrow Dict types (mapped to serde_json::Value)
                                     true
                                 } else if matches!(var_type, Type::String) {
-                                    // DEPYLER-0469: ALWAYS borrow String types as &str
-                                    // This is idiomatic Rust - prefer &str over String for parameters
-                                    true
+                                    // DEPYLER-0469: Borrow String types as &str
+                                    // DEPYLER-0818: But DON'T borrow if the variable is already &str
+                                    // (i.e., it's a function param that was mapped to &str).
+                                    // Borrowing an &str would create &&str which is wrong.
+                                    !self.ctx.fn_str_params.contains(var_name)
                                 } else if matches!(var_type, Type::Unknown) {
                                     // DEPYLER-0467: Heuristic for Unknown types
                                     // If variable name suggests it's commonly borrowed, borrow it
@@ -3887,6 +3889,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             let name = var_name.as_str();
                             if name == "path" || name.ends_with("_path") {
                                 return parse_quote! { #arg_expr.display().to_string() };
+                            }
+                        }
+                    }
+
+                    // DEPYLER-0818: Handle &str → String conversion
+                    // When an &str param (fn_str_params) is passed to a function expecting String,
+                    // we need to add .to_string() to convert the reference to owned.
+                    if let HirExpr::Var(var_name) = hir_arg {
+                        if self.ctx.fn_str_params.contains(var_name) && !should_borrow {
+                            // Variable is &str param but callee doesn't expect borrow (wants String)
+                            // Check if callee expects a borrow - if not, convert to String
+                            let callee_expects_borrow = self.ctx
+                                .function_param_borrows
+                                .get(func)
+                                .and_then(|borrows| borrows.get(param_idx))
+                                .copied()
+                                .unwrap_or(false);
+
+                            if !callee_expects_borrow {
+                                return parse_quote! { #arg_expr.to_string() };
                             }
                         }
                     }
