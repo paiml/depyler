@@ -251,8 +251,33 @@ pub fn convert_float_cast(
 
             // DEPYLER-0200: Index on likely-string collections
             // Expressions like words[0] where words is from split() return String
-            HirExpr::Index { .. } => {
-                // Use parse() for index operations - safer than as f64
+            // DEPYLER-0813: But dict[key] where dict is Dict[str, int] returns int, not String
+            // DEPYLER-0813: Also list[i] where list is List[int] returns int, not String
+            HirExpr::Index { base, .. } => {
+                // Check if base is a dict/list variable with known numeric value type
+                if let HirExpr::Var(base_name) = base.as_ref() {
+                    if let Some(var_type) = ctx.var_types.get(base_name) {
+                        // Dict[K, int] or Dict[K, float] - value is numeric, use as f64
+                        if let Type::Dict(_, value_type) = var_type {
+                            if matches!(
+                                value_type.as_ref(),
+                                Type::Int | Type::Float | Type::Unknown
+                            ) {
+                                return Ok(parse_quote! { (#arg) as f64 });
+                            }
+                        }
+                        // List[int] or List[float] - element is numeric, use as f64
+                        if let Type::List(elem_type) = var_type {
+                            if matches!(
+                                elem_type.as_ref(),
+                                Type::Int | Type::Float | Type::Unknown
+                            ) {
+                                return Ok(parse_quote! { (#arg) as f64 });
+                            }
+                        }
+                    }
+                }
+                // Default: use parse() for index operations on string collections
                 return Ok(parse_quote! { #arg.parse::<f64>().unwrap() });
             }
 
