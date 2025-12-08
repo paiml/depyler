@@ -1372,6 +1372,7 @@ pub fn generate_rust_file(
         current_assign_type: None, // DEPYLER-0727: Track assignment target type for dict Value wrapping
         force_dict_value_option_wrap: false, // DEPYLER-0741: Force dict values to use Option wrapping
         char_iter_vars: HashSet::new(), // DEPYLER-0795: Track loop vars iterating over string.chars()
+        char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
     };
 
     // Analyze all functions first for string optimization
@@ -1678,6 +1679,7 @@ mod tests {
             current_assign_type: None, // DEPYLER-0727: Track assignment target type
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: HashSet::new(), // DEPYLER-0795: Track loop vars iterating over string.chars()
+            char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
         }
     }
 
