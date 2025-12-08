@@ -15426,10 +15426,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-0691: Add filters for each condition (no walrus in element)
-            // Use |&x| pattern to auto-dereference because filter() receives &Item
+            // DEPYLER-0820: Use |pattern| not |&pattern| to avoid E0507 on non-Copy types
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
             }
 
             // Add the map transformation
@@ -15466,10 +15466,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
         // DEPYLER-0691: Add filters for first generator's conditions
-        // Use |&x| pattern to auto-dereference because filter() receives &Item
+        // DEPYLER-0820: Use |pattern| not |&pattern| to avoid E0507 on non-Copy types
         for cond in &first_gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|&#first_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
         }
 
         // Use flat_map for the first generator
@@ -16177,10 +16177,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 // Callable is stored as Generic { base: "Callable", params: [param_types, return_type] }
                 if let Some(Type::Generic { base, params }) = self.ctx.var_types.get(func) {
-                    if base == "Callable" && params.len() == 2 {
-                        if matches!(params[1], Type::Float) {
-                            return true;
-                        }
+                    if base == "Callable" && params.len() == 2 && matches!(params[1], Type::Float) {
+                        return true;
                     }
                 }
                 // Also check for math builtin functions that return float
@@ -16347,10 +16345,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             };
 
             // DEPYLER-0691: Add filters for each condition
-            // Use |&x| pattern to auto-dereference because filter() receives &Item
+            // DEPYLER-0820: Use |pattern| not |&pattern| - after .cloned() values are owned,
+            // filter() receives &Item, using |pattern| binds as references avoiding E0507
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
             }
 
             // Add the map transformation
@@ -16407,10 +16406,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             };
 
             // DEPYLER-0691: Add filters for each condition
-            // Use |&x| pattern to auto-dereference because filter() receives &Item
+            // DEPYLER-0820: Use |pattern| not |&pattern| - after .cloned() values are owned,
+            // filter() receives &Item, using |pattern| binds as references avoiding E0507
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
             }
 
             // DEPYLER-0706: Add the map transformation (to key-value tuple)
@@ -16449,10 +16449,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
         // DEPYLER-0691: Add filters for first generator's conditions
-        // Use |&x| pattern to auto-dereference because filter() receives &Item
+        // DEPYLER-0820: Use |pattern| not |&pattern| to avoid E0507 on non-Copy types
         for cond in &first_gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|&#first_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
         }
 
         // Use flat_map for the first generator
@@ -16491,10 +16491,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
 
         // DEPYLER-0691: Add filters for current generator's conditions
-        // Use |&x| pattern to auto-dereference because filter() receives &Item
+        // DEPYLER-0820: Use |pattern| not |&pattern| to avoid E0507 on non-Copy types
         for cond in &gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
         }
 
         // Use flat_map to nest the inner chain
@@ -17069,10 +17069,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             };
 
             // DEPYLER-0691: Add filters for each condition
-            // Use |&x| pattern to auto-dereference because filter() receives &Item
+            // DEPYLER-0820: Use |pattern| not |&pattern| - after .cloned() values are owned,
+            // filter() receives &Item, using |pattern| binds as references avoiding E0507
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
             }
 
             // Add the map transformation
@@ -17107,10 +17108,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
         // DEPYLER-0691: Add filters for first generator's conditions
-        // Use |&x| pattern to auto-dereference because filter() receives &Item
+        // DEPYLER-0820: Use |pattern| not |&pattern| to avoid E0507 on non-Copy types
         for cond in &first_gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|&#first_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
         }
 
         // Use flat_map for the first generator
@@ -17145,10 +17146,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut chain: syn::Expr = parse_quote! { #iter_expr.into_iter() };
 
         // DEPYLER-0691: Add filters for this generator's conditions
-        // Use |&x| pattern to auto-dereference because filter() receives &Item
+        // DEPYLER-0820: Use |pattern| not |&pattern| to avoid E0507 on non-Copy types
         for cond in &gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
+            chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
         }
 
         // Use flat_map for intermediate generators, map for the last
