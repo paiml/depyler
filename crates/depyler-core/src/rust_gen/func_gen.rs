@@ -3920,6 +3920,25 @@ impl RustCodeGen for HirFunction {
         ctx.function_param_muts
             .insert(self.name.clone(), param_muts);
 
+        // DEPYLER-0779: Extract parameter optionality for Some() wrapping at call sites
+        // A parameter is optional if: (a) type is Optional(T), OR (b) default is None
+        let param_optionals: Vec<bool> = self
+            .params
+            .iter()
+            .map(|p| {
+                // Check if type is Optional(T)
+                let type_is_optional = matches!(p.ty, Type::Optional(_));
+                // Check if default value is None
+                let default_is_none = matches!(
+                    p.default,
+                    Some(HirExpr::Literal(Literal::None))
+                );
+                type_is_optional || default_is_none
+            })
+            .collect();
+        ctx.function_param_optionals
+            .insert(self.name.clone(), param_optionals);
+
         // DEPYLER-0648: Track if function has vararg parameter (*args in Python)
         // These become &[T] in Rust, so call sites need to wrap args in &[...]
         if self.params.iter().any(|p| p.is_vararg) {

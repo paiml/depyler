@@ -3624,6 +3624,61 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             parse_quote! { &#arg_expr }
                         }
                     } else {
+                        // DEPYLER-0737/0779: Check if function param is Optional FIRST
+                        // This determines if we need to wrap the final result in Some()
+                        let is_optional_param = self.ctx
+                            .function_param_optionals
+                            .get(func)
+                            .and_then(|optionals| optionals.get(param_idx))
+                            .copied()
+                            .unwrap_or(false);
+
+                        // DEPYLER-0760: Don't double-wrap if arg is already Option<T>
+                        let is_already_optional = if let HirExpr::Var(var_name) = hir_arg {
+                            self.ctx
+                                .var_types
+                                .get(var_name)
+                                .map(|ty| matches!(ty, Type::Optional(_)))
+                                .unwrap_or(false)
+                        } else if let HirExpr::Attribute { value: _, attr } = hir_arg {
+                            // Handle attribute access like args.cwd
+                            let check_optional = |arg: &crate::rust_gen::argparse_transform::ArgParserArgument| {
+                                let field_name = arg.rust_field_name();
+                                if field_name != *attr {
+                                    return false;
+                                }
+                                if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
+                                    return false;
+                                }
+                                !arg.is_positional
+                                    && !arg.required.unwrap_or(false)
+                                    && arg.default.is_none()
+                                    && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
+                            };
+
+                            let is_optional_in_parser = self.ctx.argparser_tracker.parsers.values()
+                                .any(|parser_info| parser_info.arguments.iter().any(&check_optional));
+                            let is_optional_in_subcommand = self.ctx.argparser_tracker.subcommands.values()
+                                .any(|sub_info| sub_info.arguments.iter().any(&check_optional));
+
+                            is_optional_in_parser || is_optional_in_subcommand
+                        } else {
+                            false
+                        };
+
+                        // Don't wrap if arg is already None
+                        let is_none = matches!(hir_arg, HirExpr::Literal(Literal::None));
+                        let needs_some_wrap = is_optional_param && !is_none && !is_already_optional;
+
+                        // DEPYLER-0779: Check if the optional param is also borrowed (&Option<T>)
+                        // vs owned (Option<T>) - this determines if we use &Some() or Some()
+                        let optional_is_borrowed = self.ctx
+                            .function_param_borrows
+                            .get(func)
+                            .and_then(|borrows| borrows.get(param_idx))
+                            .copied()
+                            .unwrap_or(false);
+
                         // DEPYLER-0635: String literal args need type-aware conversion
                         // - If function param expects &str (borrowed), pass literal directly
                         // - If function param expects String (owned), add .to_string()
@@ -3639,68 +3694,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                             if param_expects_borrowed {
                                 // Param is &str - string literal works directly
+                                // DEPYLER-0779: But wrap in Some if optional param
+                                if needs_some_wrap {
+                                    let converted: syn::Expr = parse_quote! { #arg_expr.to_string() };
+                                    if optional_is_borrowed {
+                                        return parse_quote! { &Some(#converted) };
+                                    } else {
+                                        return parse_quote! { Some(#converted) };
+                                    }
+                                }
                                 return arg_expr.clone();
                             } else {
                                 // Param is String - need .to_string() conversion
                                 let expr_str = quote::quote! { #arg_expr }.to_string();
-                                if !expr_str.contains("to_string") {
-                                    return parse_quote! { #arg_expr.to_string() };
+                                let converted: syn::Expr = if !expr_str.contains("to_string") {
+                                    parse_quote! { #arg_expr.to_string() }
+                                } else {
+                                    arg_expr.clone()
+                                };
+                                // DEPYLER-0779: Wrap in Some if optional param
+                                // Use &Some for borrowed (&Option<T>), Some for owned (Option<T>)
+                                if needs_some_wrap {
+                                    if optional_is_borrowed {
+                                        return parse_quote! { &Some(#converted) };
+                                    } else {
+                                        return parse_quote! { Some(#converted) };
+                                    }
                                 }
+                                return converted;
                             }
                         }
 
-                        // DEPYLER-0737: Wrap in Some() if function param is Optional
-                        // and the argument is not None
-                        let is_optional_param = self.ctx
-                            .function_param_optionals
-                            .get(func)
-                            .and_then(|optionals| optionals.get(param_idx))
-                            .copied()
-                            .unwrap_or(false);
-
-                        if is_optional_param {
-                            // Don't wrap if arg is already None
-                            let is_none = matches!(hir_arg, HirExpr::Literal(Literal::None));
-
-                            // DEPYLER-0760: Don't double-wrap if arg is already Option<T>
-                            // Pattern: args.cwd (already Option<String>) passed to cwd=None param
-                            // Should NOT become Some(args.cwd) which is Option<Option<String>>
-                            let is_already_optional = if let HirExpr::Var(var_name) = hir_arg {
-                                self.ctx
-                                    .var_types
-                                    .get(var_name)
-                                    .map(|ty| matches!(ty, Type::Optional(_)))
-                                    .unwrap_or(false)
-                            } else if let HirExpr::Attribute { value: _, attr } = hir_arg {
-                                // Handle attribute access like args.cwd
-                                // Check if this is an argparse optional field using tracker
-                                let check_optional = |arg: &crate::rust_gen::argparse_transform::ArgParserArgument| {
-                                    let field_name = arg.rust_field_name();
-                                    if field_name != *attr {
-                                        return false;
-                                    }
-                                    // Exclude store_true/store_false actions
-                                    if matches!(arg.action.as_deref(), Some("store_true") | Some("store_false")) {
-                                        return false;
-                                    }
-                                    // Optional if: not required, no default, not positional, not nargs='+/*'
-                                    !arg.is_positional
-                                        && !arg.required.unwrap_or(false)
-                                        && arg.default.is_none()
-                                        && !matches!(arg.nargs.as_deref(), Some("+") | Some("*"))
-                                };
-
-                                let is_optional_in_parser = self.ctx.argparser_tracker.parsers.values()
-                                    .any(|parser_info| parser_info.arguments.iter().any(&check_optional));
-                                let is_optional_in_subcommand = self.ctx.argparser_tracker.subcommands.values()
-                                    .any(|sub_info| sub_info.arguments.iter().any(&check_optional));
-
-                                is_optional_in_parser || is_optional_in_subcommand
+                        // For non-string literals, apply Some wrapping if needed
+                        // Use &Some for borrowed (&Option<T>), Some for owned (Option<T>)
+                        if needs_some_wrap {
+                            if optional_is_borrowed {
+                                return parse_quote! { &Some(#arg_expr) };
                             } else {
-                                false
-                            };
-
-                            if !is_none && !is_already_optional {
                                 return parse_quote! { Some(#arg_expr) };
                             }
                         }
