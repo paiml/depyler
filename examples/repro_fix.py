@@ -1,17 +1,21 @@
-"""Reproduction for tuple literal not iterable.
+"""Reproduction for x - fx / dfx generating Vector code.
 
-The issue: Python `set((1, 2, 3))` creates a set from tuple.
-In Rust, tuples don't implement IntoIterator, so `(1, 2, 3).into_iter()`
-doesn't work.
+The issue: When x, fx, dfx are all floats, the expression x - fx / dfx
+should generate simple scalar arithmetic, not Vector::from_vec nonsense.
 
-Error: E0599: `(i32, i32, i32)` is not an iterator
-
-Should generate: `vec![1, 2, 3].into_iter()` instead of tuple
+Error: E0433: failed to resolve: use of undeclared type `Vector`
 """
 
-from typing import Set
+from collections.abc import Callable
 
 
-def make_set() -> Set[int]:
-    """Create a set from a tuple literal."""
-    return set((1, 2, 3))
+def newton(
+    f: Callable[[float], float],
+    df: Callable[[float], float],
+    x0: float,
+) -> float:
+    x = x0
+    fx = f(x)
+    dfx = df(x)
+    x_new = x - fx / dfx  # BUG: generates Vector::from_vec(x.as_slice()...)
+    return x_new
