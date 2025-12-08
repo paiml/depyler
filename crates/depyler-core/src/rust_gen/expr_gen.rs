@@ -1051,6 +1051,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
         }
 
+        // DEPYLER-0817: Byte string repetition
+        // Python: b"hello" * n → Rust: b"hello".repeat(n as usize)
+        // Returns Vec<u8> which matches Python bytes behavior
+        let left_is_bytes = matches!(left, HirExpr::Literal(Literal::Bytes(_)));
+        let right_is_bytes = matches!(right, HirExpr::Literal(Literal::Bytes(_)));
+        if left_is_bytes && right_is_int {
+            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+        } else if left_is_int && right_is_bytes {
+            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+        }
+
         // Array creation: [value] * n or n * [value]
         match (left, right) {
             // Pattern: [x] * n (small arrays ≤32)
