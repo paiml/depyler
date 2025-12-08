@@ -2498,6 +2498,16 @@ pub(crate) fn codegen_for_stmt(
             .any(|stmt| is_var_reassigned_in_stmt(var_name, stmt))
     };
 
+    // DEPYLER-0803: Track loop variable type for int/float coercion
+    // When `for i in range(n)` where n is int, track i as Int so that
+    // expressions like `i * dx` can coerce i to f64 when dx is float
+    if let AssignTarget::Symbol(name) = target {
+        // Check if this is a range iteration - the loop variable is Int
+        if matches!(iter, HirExpr::Call { func, .. } if func == "range") {
+            ctx.var_types.insert(name.clone(), Type::Int);
+        }
+    }
+
     // Generate target pattern based on AssignTarget type
     let target_pattern: syn::Pat = match target {
         AssignTarget::Symbol(name) => {
@@ -3414,6 +3424,14 @@ pub(crate) fn codegen_assign_stmt(
             HirExpr::Binary { .. } => {
                 if expr_infers_float(value, ctx) {
                     ctx.var_types.insert(var_name.clone(), Type::Float);
+                }
+            }
+            // DEPYLER-0803: Propagate types from variable-to-variable assignments
+            // When dx = _cse_temp_0 where _cse_temp_0 is Float, dx should also be Float
+            // This enables proper coercion in expressions like i * dx where i is int
+            HirExpr::Var(source_var) => {
+                if let Some(source_type) = ctx.var_types.get(source_var) {
+                    ctx.var_types.insert(var_name.clone(), source_type.clone());
                 }
             }
             HirExpr::List(elements) => {
