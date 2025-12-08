@@ -3541,7 +3541,8 @@ impl<'a> ExprConverter<'a> {
             "exists" => self.convert_path_exists_call(&arg_exprs),
             "isfile" => self.convert_path_isfile_call(&arg_exprs),
             "isdir" => self.convert_path_isdir_call(&arg_exprs),
-            _ => self.convert_generic_call(func, &arg_exprs),
+            // DEPYLER-0780: Pass HIR args for auto-borrowing detection
+            _ => self.convert_generic_call(func, args, &arg_exprs),
         }
     }
 
@@ -3801,7 +3802,7 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
-    fn convert_generic_call(&self, func: &str, args: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_generic_call(&self, func: &str, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
         // Special case: Python print() → Rust println!()
         if func == "print" {
             return if args.is_empty() {
@@ -3905,7 +3906,22 @@ impl<'a> ExprConverter<'a> {
             if self.vararg_functions.contains(func) && !args.is_empty() {
                 Ok(parse_quote! { #func_ident(&[#(#args),*]) })
             } else {
-                Ok(parse_quote! { #func_ident(#(#args),*) })
+                // DEPYLER-0780: Auto-borrow list/dict/set literals when calling functions
+                // Most user-defined functions taking list params expect &Vec<T>
+                let borrowed_args: Vec<syn::Expr> = hir_args
+                    .iter()
+                    .zip(args.iter())
+                    .map(|(hir_arg, arg_expr)| {
+                        match hir_arg {
+                            // List/Dict/Set literals should be borrowed
+                            HirExpr::List(_) | HirExpr::Dict(_) | HirExpr::Set(_) => {
+                                parse_quote! { &#arg_expr }
+                            }
+                            _ => arg_expr.clone(),
+                        }
+                    })
+                    .collect();
+                Ok(parse_quote! { #func_ident(#(#borrowed_args),*) })
             }
         }
     }
@@ -4069,24 +4085,10 @@ impl<'a> ExprConverter<'a> {
             .map(|e| self.convert(e))
             .collect::<Result<Vec<_>>>()?;
 
-        // Check if this list has a known fixed size that should be an array
-        // Arrays are preferred for small fixed sizes (typically < 32 elements)
-        if !elts.is_empty() && elts.len() <= 32 {
-            // Check if all elements are literals or constants (good candidate for array)
-            let all_literals = elts.iter().all(|e| matches!(e, HirExpr::Literal(_)));
-
-            if all_literals {
-                // Generate array literal instead of vec!
-                Ok(parse_quote! { [#(#elt_exprs),*] })
-            } else {
-                // For now, still use vec! for non-literal lists
-                // Future: integrate with const generic inference for smarter detection
-                Ok(parse_quote! { vec![#(#elt_exprs),*] })
-            }
-        } else {
-            // Use vec! for empty lists or large lists
-            Ok(parse_quote! { vec![#(#elt_exprs),*] })
-        }
+        // DEPYLER-0780: Always use vec![] for list literals
+        // Array literals [T; N] are incompatible with &Vec<T> parameters
+        // Python lists map to Vec<T> in Rust, so consistently use vec![]
+        Ok(parse_quote! { vec![#(#elt_exprs),*] })
     }
 
     fn convert_dict(&self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
@@ -5603,11 +5605,11 @@ mod tests {
     }
 
     #[test]
-    fn test_array_literal_generation() {
+    fn test_list_literal_generation() {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
 
-        // Small literal array should generate array syntax
+        // DEPYLER-0780: List literals should generate vec![] for &Vec<T> compatibility
         let list_expr = HirExpr::List(vec![
             HirExpr::Literal(Literal::Int(1)),
             HirExpr::Literal(Literal::Int(2)),
@@ -5615,8 +5617,8 @@ mod tests {
         ]);
 
         let result = converter.convert(&list_expr).unwrap();
-        // Should generate an array expression
-        assert!(matches!(result, syn::Expr::Array(_)));
+        // Should generate vec! macro expression
+        assert!(matches!(result, syn::Expr::Macro(_)));
     }
 
     #[test]
@@ -5676,7 +5678,7 @@ mod tests {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
 
-        // Test literal list (should generate array)
+        // DEPYLER-0780: All lists should generate vec![] for &Vec<T> compatibility
         let list_expr = HirExpr::List(vec![
             HirExpr::Literal(Literal::Int(1)),
             HirExpr::Literal(Literal::Int(2)),
@@ -5684,10 +5686,10 @@ mod tests {
         ]);
 
         let result = converter.convert(&list_expr).unwrap();
-        // Small literal lists should generate array expressions
-        assert!(matches!(result, syn::Expr::Array(_)));
+        // All lists should generate vec! macro
+        assert!(matches!(result, syn::Expr::Macro(_)));
 
-        // Test non-literal list (should generate vec!)
+        // Test non-literal list (should also generate vec!)
         let var_list = HirExpr::List(vec![
             HirExpr::Var("x".to_string()),
             HirExpr::Var("y".to_string()),
