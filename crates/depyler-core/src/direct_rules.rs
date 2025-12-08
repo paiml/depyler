@@ -3467,6 +3467,19 @@ impl<'a> ExprConverter<'a> {
             BinOp::Gt | BinOp::GtEq | BinOp::Lt | BinOp::LtEq | BinOp::Eq | BinOp::NotEq => {
                 let rust_op = convert_binop(op)?;
 
+                // DEPYLER-0824: Wrap cast expressions in parentheses before binary operators
+                // Rust parses `x as i32 < y` incorrectly. Must be: `(x as i32) < y`
+                let safe_left: syn::Expr = if matches!(left_expr, syn::Expr::Cast(_)) {
+                    parse_quote! { (#left_expr) }
+                } else {
+                    left_expr.clone()
+                };
+                let safe_right: syn::Expr = if matches!(right_expr, syn::Expr::Cast(_)) {
+                    parse_quote! { (#right_expr) }
+                } else {
+                    right_expr.clone()
+                };
+
                 // Check if either side is float
                 let left_is_float = self.expr_returns_float_direct(left);
                 let right_is_float = self.expr_returns_float_direct(right);
@@ -3475,7 +3488,7 @@ impl<'a> ExprConverter<'a> {
                 if left_is_float {
                     if let HirExpr::Literal(Literal::Int(n)) = right {
                         let float_val = *n as f64;
-                        return Ok(parse_quote! { #left_expr #rust_op #float_val });
+                        return Ok(parse_quote! { #safe_left #rust_op #float_val });
                     }
                 }
 
@@ -3483,16 +3496,27 @@ impl<'a> ExprConverter<'a> {
                 if right_is_float {
                     if let HirExpr::Literal(Literal::Int(n)) = left {
                         let float_val = *n as f64;
-                        return Ok(parse_quote! { #float_val #rust_op #right_expr });
+                        return Ok(parse_quote! { #float_val #rust_op #safe_right });
                     }
                 }
 
                 // No coercion needed
-                Ok(parse_quote! { #left_expr #rust_op #right_expr })
+                Ok(parse_quote! { #safe_left #rust_op #safe_right })
             }
             _ => {
                 let rust_op = convert_binop(op)?;
-                Ok(parse_quote! { #left_expr #rust_op #right_expr })
+                // DEPYLER-0824: Wrap cast expressions in parentheses
+                let safe_left: syn::Expr = if matches!(left_expr, syn::Expr::Cast(_)) {
+                    parse_quote! { (#left_expr) }
+                } else {
+                    left_expr.clone()
+                };
+                let safe_right: syn::Expr = if matches!(right_expr, syn::Expr::Cast(_)) {
+                    parse_quote! { (#right_expr) }
+                } else {
+                    right_expr.clone()
+                };
+                Ok(parse_quote! { #safe_left #rust_op #safe_right })
             }
         }
     }
