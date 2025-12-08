@@ -694,6 +694,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     return Ok(parse_quote! { #left_expr.unwrap_or(#right_expr.to_string()) });
                 }
 
+                // DEPYLER-0786: Python `or` returns first truthy value, not a boolean
+                // For strings: `value or default` → `if value.is_empty() { default } else { value }`
+                // This preserves the string type instead of returning bool
+                if matches!(op, BinOp::Or) {
+                    let left_is_string = self.expr_is_string_type(left);
+                    let right_is_string = self.expr_is_string_type(right)
+                        || matches!(right, HirExpr::Literal(Literal::String(_)));
+
+                    // DEPYLER-0786: If right is a string literal, assume left is also string
+                    // This handles cases where function parameters aren't tracked in var_types
+                    // Example: `email or ""` where email: &str is a function parameter
+                    let infer_left_from_right =
+                        matches!(right, HirExpr::Literal(Literal::String(_)));
+
+                    if (left_is_string || infer_left_from_right) && right_is_string {
+                        // Generate: if left.is_empty() { right } else { left }
+                        // Need to clone left_expr since we use it twice
+                        return Ok(
+                            parse_quote! { if #left_expr.is_empty() { #right_expr.to_string() } else { #left_expr.to_string() } },
+                        );
+                    }
+                }
+
                 // Apply truthiness conversion to both operands
                 let left_converted = Self::apply_truthiness_conversion(left, left_expr, self.ctx);
                 let right_converted =
@@ -15724,6 +15747,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || self.expr_returns_float(right)
                     || self.is_float_var(left)
                     || self.is_float_var(right)
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0786: Check if expression is a string type
+    /// Used to determine if `or` operator should return string instead of bool
+    fn expr_is_string_type(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // String literals
+            HirExpr::Literal(Literal::String(_)) => true,
+            // Variable with String type
+            HirExpr::Var(name) => {
+                matches!(self.ctx.var_types.get(name), Some(Type::String))
+            }
+            // Attribute access with String type
+            HirExpr::Attribute { attr, .. } => {
+                matches!(self.ctx.var_types.get(attr), Some(Type::String))
+            }
+            // Method calls that return strings
+            HirExpr::MethodCall { method, .. } => {
+                matches!(
+                    method.as_str(),
+                    "strip" | "lower" | "upper" | "replace" | "join" | "format"
+                )
             }
             _ => false,
         }
