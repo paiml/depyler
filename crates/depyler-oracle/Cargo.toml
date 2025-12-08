@@ -29,7 +29,8 @@ depyler-core = { path = "../depyler-core" }
 aprender = { version = "0.14.1", default-features = true }
 
 # CITL training framework for pattern store (Issue #172)
-entrenar = { version = "0.2.2", features = ["citl"] }
+# Issue #212: Also using monitor::ModelLineage for training state tracking
+entrenar = { version = "0.2.5", features = ["citl"] }
 
 # Data loading and versioning
 alimentar = "0.2.2"
