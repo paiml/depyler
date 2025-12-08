@@ -3061,6 +3061,33 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
+    // DEPYLER-0801: Track variables assigned from Callable calls that return Float
+    // When fa = f(a) where f is Callable[[float], float], we need to track fa as Float
+    // so that later comparisons like `fa * fc < 0` coerce 0 to 0.0.
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::Call { func, .. } = value {
+            // Check if func is a Callable parameter with Float return type
+            // Callable is stored as Type::Generic { base: "Callable", params: [input_types, return_type] }
+            if let Some(Type::Generic { base, params }) = ctx.var_types.get(func) {
+                if base == "Callable" && params.len() == 2 {
+                    if matches!(params[1], Type::Float) {
+                        ctx.var_types.insert(var_name.clone(), Type::Float);
+                    }
+                }
+            }
+            // Also handle Type::Function case (less common but possible)
+            if let Some(Type::Function { ret, .. }) = ctx.var_types.get(func) {
+                if matches!(ret.as_ref(), Type::Float) {
+                    ctx.var_types.insert(var_name.clone(), Type::Float);
+                }
+            }
+            // Also check module-level function return types
+            if let Some(Type::Float) = ctx.function_return_types.get(func) {
+                ctx.var_types.insert(var_name.clone(), Type::Float);
+            }
+        }
+    }
+
     // DEPYLER-0520: Track variables assigned from iterator-producing expressions
     // Generator expressions and method chains ending in filter/map/etc produce iterators,
     // not collections. These variables should NOT have .iter().cloned() added in for loops.
