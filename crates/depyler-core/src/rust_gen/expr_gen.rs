@@ -16020,19 +16020,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0799: Function calls - check return type from function_return_types
             // This handles cases like f(a) * f(b) > 0 where f returns float
             HirExpr::Call { func, .. } => {
+                // Check module-level function return types first
                 if let Some(ret_type) = self.ctx.function_return_types.get(func) {
-                    matches!(ret_type, Type::Float)
-                } else {
-                    // Also check for math builtin functions that return float
-                    matches!(
-                        func.as_str(),
-                        "abs" | "sqrt" | "sin" | "cos" | "tan" | "exp" | "log" | "log10" | "log2"
-                            | "floor"
-                            | "ceil"
-                            | "pow"
-                            | "float"
-                    )
+                    if matches!(ret_type, Type::Float) {
+                        return true;
+                    }
                 }
+                // DEPYLER-0800: Check if func is a Callable parameter with Float return type
+                // Example: f: Callable[[float], float] -> f(x) returns Float
+                if let Some(Type::Function { ret, .. }) = self.ctx.var_types.get(func) {
+                    if matches!(ret.as_ref(), Type::Float) {
+                        return true;
+                    }
+                }
+                // Callable is stored as Generic { base: "Callable", params: [param_types, return_type] }
+                if let Some(Type::Generic { base, params }) = self.ctx.var_types.get(func) {
+                    if base == "Callable" && params.len() == 2 {
+                        if matches!(params[1], Type::Float) {
+                            return true;
+                        }
+                    }
+                }
+                // Also check for math builtin functions that return float
+                matches!(
+                    func.as_str(),
+                    "abs" | "sqrt" | "sin" | "cos" | "tan" | "exp" | "log" | "log10" | "log2"
+                        | "floor"
+                        | "ceil"
+                        | "pow"
+                        | "float"
+                )
             }
             // DEPYLER-0694: Binary expression with float operand returns float
             // This handles chained operations like (principal * rate) * years
