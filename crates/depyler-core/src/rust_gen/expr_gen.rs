@@ -13943,12 +13943,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { vec![#(#elt_exprs),*] });
         }
 
+        // DEPYLER-0782: Check if list has string literals to determine if it's Vec<String>
+        let has_string_literals = elts
+            .iter()
+            .any(|e| matches!(e, HirExpr::Literal(Literal::String(_))));
+
         let elt_exprs: Vec<syn::Expr> = elts
             .iter()
             .map(|e| {
                 let mut expr = e.to_rust_expr(self.ctx)?;
                 // Check if element is a string literal
                 if matches!(e, HirExpr::Literal(Literal::String(_))) {
+                    expr = parse_quote! { #expr.to_string() };
+                }
+                // DEPYLER-0782: Variables need .to_string() in Vec<String> context
+                // Both constants (SCRIPT: &str) and parameters (arg: &str) need conversion
+                // String.to_string() is a no-op, so safe to call on any string type
+                if matches!(e, HirExpr::Var(_)) && has_string_literals {
                     expr = parse_quote! { #expr.to_string() };
                 }
                 // DEPYLER-0572: Convert dict Value to String when mixed with f-strings
