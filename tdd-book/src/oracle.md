@@ -840,29 +840,38 @@ let oracle = Oracle::load_or_train()?;
 // "📊 Oracle: Training complete (12500 samples), state saved"
 ```
 
-### Manual State Management
+### Manual Lineage Management
 
-For advanced use cases:
+For advanced use cases (Issue #212 - uses `entrenar::monitor::ModelLineage`):
 
 ```rust
-use depyler_oracle::TrainingState;
+use depyler_oracle::OracleLineage;
 use std::path::Path;
 
-// Load existing state
-let state = TrainingState::load(&Path::new(".depyler/oracle_state.json"))?;
+// Load existing lineage (or empty if not found)
+let mut lineage = OracleLineage::load(&Path::new(".depyler/oracle_lineage.json"))?;
 
 // Check if retraining needed
-let current_sha = TrainingState::get_current_commit_sha();
+let current_sha = OracleLineage::get_current_commit_sha();
 let corpus_paths = get_training_corpus_paths();
-let corpus_hash = TrainingState::compute_corpus_hash(&corpus_paths);
+let corpus_hash = OracleLineage::compute_corpus_hash(&corpus_paths);
 
-if state.map_or(true, |s| s.needs_retraining(&current_sha, &corpus_hash)) {
+if lineage.needs_retraining(&current_sha, &corpus_hash) {
     println!("Retraining required!");
-}
 
-// Create and save new state after training
-let new_state = TrainingState::new(current_sha, corpus_hash, sample_count);
-new_state.save(&Path::new(".depyler/oracle_state.json"))?;
+    // ... perform training ...
+
+    // Record training in lineage with accuracy tracking
+    let model_id = lineage.record_training(current_sha, corpus_hash, sample_count, accuracy);
+
+    // Check for regression (new feature!)
+    if let Some((reason, delta)) = lineage.find_regression() {
+        println!("Warning: Accuracy dropped by {:.2}%", delta.abs() * 100.0);
+    }
+
+    // Save updated lineage
+    lineage.save(&Path::new(".depyler/oracle_lineage.json"))?;
+}
 ```
 
 ### Benefits
@@ -870,8 +879,9 @@ new_state.save(&Path::new(".depyler/oracle_state.json"))?;
 1. **No stale models**: Oracle always reflects latest transpiler patterns
 2. **Zero manual intervention**: Automatic change detection
 3. **Fast loads**: If no changes, loads cached model (~100ms)
-4. **Audit trail**: State file tracks training history
-5. **Version awareness**: Retrains when model architecture changes
+4. **Lineage tracking**: Full model version history with derivation chains
+5. **Regression detection**: Automatic accuracy regression warnings
+6. **PAIML stack alignment**: Uses standardized `entrenar::monitor::ModelLineage`
 
 ## Configuration
 
