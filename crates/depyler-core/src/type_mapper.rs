@@ -790,13 +790,13 @@ mod tests {
             "MyClass"
         );
 
-        // DEPYLER-0705: Unknown type now maps to TypeParam("T") for single-shot compilation
+        // DEPYLER-0781: Unknown type now maps to serde_json::Value (concrete fallback)
+        // This prevents unused generic parameter errors (E0283)
         let unknown_type = PythonType::Unknown;
-        if let RustType::TypeParam(name) = mapper.map_type(&unknown_type) {
-            assert_eq!(name, "T");
-        } else {
-            panic!("Expected TypeParam(T) for unknown type");
-        }
+        assert_eq!(
+            mapper.map_type(&unknown_type),
+            RustType::Custom("serde_json::Value".to_string())
+        );
     }
 
     #[test]
