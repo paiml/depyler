@@ -36,8 +36,7 @@ pub mod tfidf;
 pub mod hybrid_retrieval;
 pub mod hansei;
 pub mod training;
-pub mod training_state;  // Issue #211: Continuous oracle retraining trigger (DEPRECATED - see oracle_lineage)
-pub mod oracle_lineage;  // Issue #212: Replace TrainingState with Entrenar ModelLineage
+pub mod oracle_lineage;  // Issue #212: OracleLineage using entrenar::monitor::ModelLineage
 pub mod tuning;
 pub mod unified_training;
 pub mod verificar_integration;
@@ -85,9 +84,7 @@ pub use hansei::{
     TranspileIssue, TranspileOutcome, Trend,
 };
 pub use training::{TrainingDataset, TrainingSample};
-#[allow(deprecated)]
-pub use training_state::TrainingState;  // Issue #211 (DEPRECATED - use OracleLineage)
-pub use oracle_lineage::OracleLineage;  // Issue #212: Replaces TrainingState
+pub use oracle_lineage::OracleLineage;  // Issue #212: Model lineage tracking
 
 // MoE Oracle exports
 pub use moe_oracle::{ExpertDomain, MoeClassificationResult, MoeOracle, MoeOracleConfig};
