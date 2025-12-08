@@ -862,26 +862,23 @@ pub(crate) fn codegen_function_body(
     // DEPYLER-0312 NOTE: analyze_mutable_vars is now called in impl RustCodeGen BEFORE
     // codegen_function_params, so ctx.mutable_vars is already populated here
 
-    // DEPYLER-0613: Recursively find and declare nested functions to support hoisting
-    // This fixes E0425 where helper functions are called before they're defined,
-    // even if they are defined inside blocks (if/else/try).
+    // DEPYLER-0784: Don't hoist nested functions
+    // Previous DEPYLER-0613 hoisted ALL nested functions to fix E0425 (forward references),
+    // but this causes E0282 (type annotations needed) because Rust can't infer closure
+    // types without an initializer (`let x;` for closures doesn't work).
+    // Since most Python code defines functions before calling them, we remove hoisting.
+    // If forward references are needed, the Rust compiler will give a clear E0425 error.
     let mut all_nested_fns = Vec::new();
     collect_nested_function_names(&func.body, &mut all_nested_fns);
-    
+
     // Start with an empty body
     let mut body_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
 
-    // Emit declarations for all nested functions
-    // DEPYLER-0783: Use `let` without `mut` - closures are only assigned once
-    // Using `let mut` causes unused_mut warning since closures aren't reassigned
-    for name in &all_nested_fns {
-        if !ctx.is_declared(name) {
-            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-            // Rust allows `let x; x = ||...` and infers the type
-            body_stmts.push(quote! { let #ident; });
-            ctx.declare_var(name);
-        }
-    }
+    // DEPYLER-0784: Don't pre-declare nested functions
+    // The closure will be declared inline when processing the FunctionDef statement
+    // Note: We collect names but don't call ctx.declare_var() so that
+    // codegen_nested_function_def will emit `let name = move |...|` instead of `name = ...`
+    let _ = all_nested_fns; // Silence unused warning
 
     // DEPYLER-0762: Hoist loop-escaping variables
     // Python has function-level scoping, so variables assigned in for/while loops
