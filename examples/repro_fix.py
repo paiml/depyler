@@ -1,6 +1,6 @@
 """Verification that all recent fixes work.
 
-This file tests the fixes from DEPYLER-0804 through DEPYLER-0807.
+This file tests the fixes from DEPYLER-0804 through DEPYLER-0808.
 """
 
 from collections.abc import Callable
@@ -39,3 +39,14 @@ def bisection(a: float, b: float, max_iter: int = 100) -> float:
     for _ in range(max_iter):
         a = (a + b) / 2
     return a
+
+
+def negative_power():
+    """Tests DEPYLER-0808: negative exponent produces float.
+
+    Without type annotation, return type should be inferred as (f64, f64, f64).
+    """
+    a = 2 ** -1   # 0.5
+    b = 10 ** -2  # 0.01
+    c = 5 ** -3   # 0.008
+    return a, b, c
