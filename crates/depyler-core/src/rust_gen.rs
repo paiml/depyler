@@ -1380,6 +1380,13 @@ pub fn generate_rust_file(
     // Must run BEFORE function conversion so validator parameter types are correct
     analyze_validators(&mut ctx, &module.functions, &module.constants);
 
+    // DEPYLER-0789: Pre-register ALL argparse subcommands from ALL functions
+    // This ensures cmd_* functions have access to argument type info (e.g., store_true → bool)
+    // even when defined before the main() function that sets up argparse
+    for func in &module.functions {
+        argparse_transform::preregister_subcommands_from_hir(func, &mut ctx.argparser_tracker);
+    }
+
     // DEPYLER-0270: Populate Result-returning functions map
     // All functions that can_fail return Result<T, E> and need unwrapping at call sites
     for func in &module.functions {
