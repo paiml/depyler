@@ -3768,6 +3768,19 @@ pub(crate) fn codegen_assign_symbol(
         }
     } else if ctx.is_declared(symbol) {
         // Variable already exists, just assign
+        // DEPYLER-0777: Convert string literals to .to_string() when reassigning hoisted variables
+        // Hoisted variables (e.g., loop-escaping vars) are declared with Default::default()
+        // If the first "real" assignment is a string literal like "", the type would be &str
+        // But later assignments with format!() return String → E0308 type mismatch
+        // Solution: Convert string literal reassignments to owned String
+        let value_expr = {
+            let value_str = quote!(#value_expr).to_string();
+            if value_str.starts_with('"') && value_str.ends_with('"') {
+                parse_quote! { #value_expr.to_string() }
+            } else {
+                value_expr
+            }
+        };
         // DEPYLER-0604: Check if variable has Optional type and wrap value in Some()
         let final_value = if let Some(Type::Optional(inner_type)) = ctx.var_types.get(symbol) {
             // Check if the value is already wrapped in Some or is None
