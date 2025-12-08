@@ -1,13 +1,4 @@
-"""Tests DEPYLER-0811: Triple list concat with function calls fails."""
+"""Tests DEPYLER-0812: Module-level slice with negative step generates usize for -1."""
 
-
-def get_list(n: int) -> list[int]:
-    """Returns a list, may raise (so Result in Rust)."""
-    if n < 0:
-        raise ValueError("negative")
-    return [n]
-
-
-def triple_concat() -> list[int]:
-    """DEPYLER-0811: get_list(1) + [2] + get_list(3) should chain iterators."""
-    return get_list(1) + [2] + get_list(3)
+data: list[int] = [1, 2, 3, 4, 5]
+reversed_data: list[int] = data[::-1]  # E0277: usize: Neg not satisfied
