@@ -26,7 +26,7 @@ depyler-core = { path = "../depyler-core" }
 # ML models from aprender
 # Features: parallel (rayon), gpu (wgpu via trueno)
 # Issue #210: Code2Vec embeddings and GNN capabilities
-aprender = { version = "0.14.1", default-features = true }
+aprender = { version = "0.16.0", default-features = true }
 
 # CITL training framework for pattern store (Issue #172)
 # Issue #212: Also using monitor::ModelLineage for training state tracking
@@ -62,6 +62,9 @@ uuid = "1.18"
 
 # Directory traversal for corpus extraction
 walkdir = "2"
+
+# Glob pattern matching for UTOL
+glob = "0.3"
 
 # CLI parsing for binary
 clap = { version = "4", features = ["derive"] }

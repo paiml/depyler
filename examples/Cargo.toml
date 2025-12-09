@@ -8,4 +8,4 @@ name = "repro_fix"
 path = "repro_fix.rs"
 
 [dependencies]
-clap = { version = "4.5", features = ["derive"] }
+chrono = "0.4"

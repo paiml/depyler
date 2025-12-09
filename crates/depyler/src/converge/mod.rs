@@ -24,12 +24,17 @@
 //!     --auto-fix
 //! ```
 
+mod cache;
 mod classifier;
 mod clusterer;
 mod compiler;
 mod reporter;
 mod state;
 
+pub use cache::{
+    CacheConfig, CacheEntry, CacheError, CacheStats, CasStore, CompilationStatus, GcResult,
+    SqliteCache, TranspilationCacheKey,
+};
 pub use classifier::{ErrorCategory, ErrorClassification, ErrorClassifier};
 pub use clusterer::{ErrorCluster, ErrorClusterer, RootCause};
 pub use compiler::{BatchCompiler, CompilationError, CompilationResult};

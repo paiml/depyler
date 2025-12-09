@@ -342,6 +342,7 @@ impl TypeVarCollector {
         }
     }
 
+    #[allow(dead_code)] // Reserved for future use in generic inference passes
     fn collect_from_stmt(&mut self, stmt: &HirStmt) {
         match stmt {
             HirStmt::Assign { value, .. } => self.collect_from_expr(value),
@@ -378,7 +379,7 @@ impl TypeVarCollector {
         }
     }
 
-    #[allow(clippy::only_used_in_recursion)]
+    #[allow(dead_code, clippy::only_used_in_recursion)] // Reserved for future use in generic inference passes
     fn collect_from_expr(&mut self, expr: &HirExpr) {
         match expr {
             HirExpr::Binary { left, right, .. } => {
