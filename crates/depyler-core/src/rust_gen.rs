@@ -248,7 +248,14 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                 analyze_expr_for_mutations(base, mutable, var_types, mutating_methods);
                 analyze_expr_for_mutations(index, mutable, var_types, mutating_methods);
             }
-            HirExpr::Attribute { value, .. } => {
+            HirExpr::Attribute { value, attr } => {
+                // DEPYLER-0835: Some Python attributes translate to mutating method calls in Rust
+                // e.g., csv.DictReader.fieldnames → reader.headers() (requires &mut self)
+                if is_mutating_attribute(attr) {
+                    if let HirExpr::Var(name) = value.as_ref() {
+                        mutable.insert(name.clone());
+                    }
+                }
                 analyze_expr_for_mutations(value, mutable, var_types, mutating_methods);
             }
             _ => {}
@@ -271,6 +278,15 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
             // csv::Writer requires &mut self for write_record(), serialize()
             "headers" | "records" | "deserialize" | "serialize" | "write_record" |
             "writeheader" | "writerow"
+        )
+    }
+
+    /// DEPYLER-0835: Python attributes that translate to mutating method calls in Rust
+    fn is_mutating_attribute(attr: &str) -> bool {
+        matches!(
+            attr,
+            // csv.DictReader.fieldnames → reader.headers() requires &mut self
+            "fieldnames"
         )
     }
 
@@ -297,7 +313,12 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                         // DEPYLER-0549: Mark csv readers/writers as mutable
                         // In Rust, csv::Reader and csv::Writer require &mut self for most operations
                         // Detection: variable names or call patterns involving csv/reader/writer
-                        let needs_csv_mut =
+                        // DEPYLER-0835: Name heuristic should ALWAYS apply, not just as fallback
+                        let name_heuristic = name == "reader"
+                            || name == "writer"
+                            || name.contains("reader")
+                            || name.contains("writer");
+                        let pattern_match =
                             if let HirExpr::MethodCall { object, method, .. } = value {
                                 // csv.DictReader() or csv.reader()
                                 if let HirExpr::Var(module) = object.as_ref() {
@@ -316,12 +337,9 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                                     || func.contains("reader")
                                     || func.contains("writer")
                             } else {
-                                // Name heuristic: variables named reader/writer
-                                name == "reader"
-                                    || name == "writer"
-                                    || name.contains("reader")
-                                    || name.contains("writer")
+                                false
                             };
+                        let needs_csv_mut = name_heuristic || pattern_match;
 
                         if needs_csv_mut {
                             mutable.insert(name.clone());
@@ -1284,6 +1302,8 @@ pub fn generate_rust_file(
         needs_rc: false,
         needs_cow: false,
         needs_rand: false,
+        needs_slice_random: false, // GH-207
+        needs_rand_distr: false,   // GH-207
         needs_serde_json: false,
         needs_regex: false,
         needs_chrono,    // DEPYLER-0490: Set from imports
@@ -1309,6 +1329,7 @@ pub fn generate_rust_file(
         needs_bufread: false,   // DEPYLER-0522
         needs_once_cell: false, // DEPYLER-REARCH-001
         needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
         needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
         needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
         vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
@@ -1325,6 +1346,12 @@ pub fn generate_rust_file(
         needs_argumenttypeerror: false,
         needs_runtimeerror: false,      // DEPYLER-0551
         needs_filenotfounderror: false, // DEPYLER-0551
+        needs_syntaxerror: false,       // GH-204
+        needs_typeerror: false,         // GH-204
+        needs_keyerror: false,          // GH-204
+        needs_ioerror: false,           // GH-204
+        needs_attributeerror: false,    // GH-204
+        needs_stopiteration: false,     // GH-204
         in_generator: false,
         is_classmethod: false,
         generator_state_vars: HashSet::new(),
@@ -1355,6 +1382,7 @@ pub fn generate_rust_file(
         in_json_context: false,      // DEPYLER-0461: Track json!() macro context for nested dicts
         stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452: Stdlib API mappings
         hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
+        none_placeholder_vars: HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment for hoisting
         cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
         precomputed_option_fields: HashSet::new(), // DEPYLER-0108: Track precomputed Option checks for argparse
         nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
@@ -1591,6 +1619,8 @@ mod tests {
             needs_rc: false,
             needs_cow: false,
             needs_rand: false,
+            needs_slice_random: false, // GH-207
+            needs_rand_distr: false,   // GH-207
             needs_serde_json: false,
             needs_regex: false,
             needs_chrono: false,
@@ -1615,6 +1645,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
             vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
@@ -1631,6 +1662,12 @@ mod tests {
             needs_argumenttypeerror: false,
             needs_runtimeerror: false,      // DEPYLER-0551
             needs_filenotfounderror: false, // DEPYLER-0551
+            needs_syntaxerror: false,       // GH-204
+            needs_typeerror: false,         // GH-204
+            needs_keyerror: false,          // GH-204
+            needs_ioerror: false,           // GH-204
+            needs_attributeerror: false,    // GH-204
+            needs_stopiteration: false,     // GH-204
             is_classmethod: false,
             in_generator: false,
             generator_state_vars: HashSet::new(),
@@ -1658,6 +1695,7 @@ mod tests {
             in_json_context: false, // DEPYLER-0461: Track json!() macro context for nested dicts
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: HashSet::new(), // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
+            none_placeholder_vars: HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment for hoisting
             precomputed_option_fields: HashSet::new(), // DEPYLER-0108: Track precomputed Option checks
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2: Track CSE subcommand temps
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params

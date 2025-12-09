@@ -386,6 +386,10 @@ pub enum Commands {
     #[command(subcommand)]
     Oracle(OracleCommands),
 
+    /// Compilation cache commands (DEPYLER-CACHE-001)
+    #[command(subcommand)]
+    Cache(CacheCommands),
+
     /// Automated convergence loop to achieve 100% compilation rate (GH-158)
     Converge {
         /// Directory containing Python examples
@@ -769,6 +773,66 @@ pub enum OracleCommands {
         /// Output format: text (default) or json
         #[arg(short, long, default_value = "text")]
         format: String,
+    },
+}
+
+/// Cache commands for O(1) incremental compilation (DEPYLER-CACHE-001)
+#[derive(Subcommand)]
+pub enum CacheCommands {
+    /// Show cache statistics
+    Stats {
+        /// Cache directory path (default: ~/.depyler/cache)
+        #[arg(short, long)]
+        cache_dir: Option<PathBuf>,
+
+        /// Output format (text, json)
+        #[arg(short, long, default_value = "text")]
+        format: String,
+    },
+
+    /// Run garbage collection to reclaim space
+    Gc {
+        /// Cache directory path (default: ~/.depyler/cache)
+        #[arg(short, long)]
+        cache_dir: Option<PathBuf>,
+
+        /// Maximum cache size in MB (default: 1024)
+        #[arg(long, default_value = "1024")]
+        max_size_mb: u64,
+
+        /// Maximum entry age in hours (default: 168 = 1 week)
+        #[arg(long, default_value = "168")]
+        max_age_hours: u64,
+
+        /// Dry run - show what would be deleted without deleting
+        #[arg(long)]
+        dry_run: bool,
+    },
+
+    /// Clear the entire cache
+    Clear {
+        /// Cache directory path (default: ~/.depyler/cache)
+        #[arg(short, long)]
+        cache_dir: Option<PathBuf>,
+
+        /// Skip confirmation prompt
+        #[arg(short, long)]
+        force: bool,
+    },
+
+    /// Warm cache by pre-transpiling files
+    Warm {
+        /// Directory containing Python files to pre-transpile
+        #[arg(short, long)]
+        input_dir: PathBuf,
+
+        /// Cache directory path (default: ~/.depyler/cache)
+        #[arg(short, long)]
+        cache_dir: Option<PathBuf>,
+
+        /// Number of parallel jobs (default: 4)
+        #[arg(short, long, default_value = "4")]
+        jobs: usize,
     },
 }
 

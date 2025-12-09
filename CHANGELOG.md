@@ -11625,6 +11625,7 @@ and this project adheres to
 ## [Unreleased]
 
 ### Added
+- Migrate to aprender online module and delete custom drift/lineage code (#213)
 - feat: Map Callable type to fn() pointer (#197)
 - feat(oracle): Add TranspileHanseiAnalyzer for post-run reflection analysis (#189)
 - feat: Oracle Query Loop (ROI Multiplier) (#172)

@@ -688,6 +688,184 @@ utol:
 | **Andon** | 行灯 | Visual feedback system (sparklines) |
 | **Poka-Yoke** | ポカヨケ | Deterministic seeds prevent errors |
 
+### `cache` - Compilation Cache Management (DEPYLER-CACHE-001)
+
+O(1) incremental compilation cache for avoiding redundant transpilation work.
+Implements the WiscKey pattern with SQLite index + Content-Addressable Storage (CAS).
+
+```bash
+depyler cache <COMMAND>
+
+Commands:
+  stats    Show cache statistics
+  gc       Run garbage collection to reclaim space
+  clear    Clear the entire cache
+  warm     Warm cache by pre-transpiling files
+```
+
+#### `cache stats` - View Cache Statistics
+
+```bash
+depyler cache stats [OPTIONS]
+
+Options:
+  -c, --cache-dir <PATH>   Cache directory [default: ~/.depyler/cache]
+  -f, --format <FORMAT>    Output format [default: text]
+                           [possible values: text, json]
+```
+
+##### Examples
+
+```bash
+# View cache statistics
+depyler cache stats
+
+# JSON output for scripting
+depyler cache stats --format json
+
+# Custom cache directory
+depyler cache stats --cache-dir /tmp/depyler-cache
+```
+
+##### Output Format (Text)
+
+```
+📊 Cache Statistics (DEPYLER-CACHE-001)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📁 Cache directory: /home/user/.depyler/cache
+📦 Entries: 142
+💾 Total size: 15.43 MB
+✅ Cache hits: 1,247
+❌ Cache misses: 89
+📈 Hit rate: 93.3%
+```
+
+##### Output Format (JSON)
+
+```json
+{
+  "entries": 142,
+  "total_size_bytes": 16178585,
+  "hits": 1247,
+  "misses": 89,
+  "hit_rate": 0.933,
+  "cache_dir": "/home/user/.depyler/cache"
+}
+```
+
+#### `cache gc` - Garbage Collection
+
+Run LRU-based garbage collection to reclaim disk space.
+
+```bash
+depyler cache gc [OPTIONS]
+
+Options:
+  -c, --cache-dir <PATH>        Cache directory [default: ~/.depyler/cache]
+      --max-size-mb <SIZE>      Maximum cache size in MB [default: 1024]
+      --max-age-hours <HOURS>   Maximum entry age in hours [default: 168]
+      --dry-run                 Show what would be deleted without deleting
+```
+
+##### Examples
+
+```bash
+# Run garbage collection with defaults (1GB max, 7 days max age)
+depyler cache gc
+
+# Limit cache to 500MB
+depyler cache gc --max-size-mb 500
+
+# Keep only entries from last 24 hours
+depyler cache gc --max-age-hours 24
+
+# Dry run - see what would be deleted
+depyler cache gc --dry-run
+```
+
+##### Output Format
+
+```
+🧹 Garbage Collection Results
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🗑️  Entries removed: 45
+💾 Space reclaimed: 8.72 MB
+```
+
+#### `cache clear` - Clear Entire Cache
+
+Remove all cached transpilation results.
+
+```bash
+depyler cache clear [OPTIONS]
+
+Options:
+  -c, --cache-dir <PATH>   Cache directory [default: ~/.depyler/cache]
+  -f, --force              Skip confirmation prompt
+```
+
+##### Examples
+
+```bash
+# Clear cache (prompts for confirmation)
+depyler cache clear
+
+# Force clear without confirmation
+depyler cache clear --force
+
+# Clear custom cache directory
+depyler cache clear --cache-dir /tmp/depyler-cache --force
+```
+
+#### `cache warm` - Pre-populate Cache
+
+Pre-transpile Python files to warm the cache for faster subsequent runs.
+
+```bash
+depyler cache warm [OPTIONS]
+
+Options:
+  -i, --input-dir <DIR>    Directory containing Python files
+  -c, --cache-dir <PATH>   Cache directory [default: ~/.depyler/cache]
+  -j, --jobs <N>           Number of parallel jobs [default: 4]
+```
+
+##### Examples
+
+```bash
+# Warm cache for all Python files in examples
+depyler cache warm --input-dir ./examples
+
+# Warm with 8 parallel jobs
+depyler cache warm --input-dir ./src --jobs 8
+```
+
+#### Cache Architecture
+
+The cache uses a **hermetic cache key** composed of:
+
+| Component | Description |
+|-----------|-------------|
+| Source Hash | SHA256 of Python source code |
+| Transpiler Hash | SHA256 of depyler binary |
+| Environment Hash | Deterministic hash of env vars |
+| Config Hash | Hash of transpiler configuration |
+
+This ensures **cache invalidation** happens automatically when:
+- Source code changes
+- Depyler is upgraded
+- Environment variables change
+- Configuration changes
+
+#### Academic Foundation
+
+The cache design is based on peer-reviewed research:
+
+- **Build Systems à la Carte** (Mokhov et al., ICFP 2018) - Minimal rebuild theory
+- **Pluto** (Erdweg et al., PLDI 2015) - Sound incremental build
+- **Nix** (Dolstra et al., ICSE 2004) - Input addressing
+- **WiscKey** (Lu et al., FAST 2016) - Key-value separation pattern
+
 ## Configuration
 
 ### Project Configuration File

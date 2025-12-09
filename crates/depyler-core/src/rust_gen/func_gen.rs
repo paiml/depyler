@@ -1094,7 +1094,7 @@ fn is_field_used_as_bool_condition(field: &str, body: &[crate::hir::HirStmt]) ->
             HirStmt::Try { body, handlers, finalbody, .. } => {
                 body.iter().any(|s| check_stmt(s, field))
                     || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, field)))
-                    || finalbody.as_ref().map_or(false, |f| f.iter().any(|s| check_stmt(s, field)))
+                    || finalbody.as_ref().is_some_and(|f| f.iter().any(|s| check_stmt(s, field)))
             }
             _ => false,
         }
@@ -1155,7 +1155,12 @@ fn is_param_used_in_stmt(param_name: &str, stmt: &HirStmt) -> bool {
                     stmts.iter().any(|s| is_param_used_in_stmt(param_name, s))
                 })
         }
-        HirStmt::With { body, .. } => body.iter().any(|s| is_param_used_in_stmt(param_name, s)),
+        // DEPYLER-0833: Also check the context expression in With statements
+        // Example: `with open(path) as f:` - path is used in context, not body
+        HirStmt::With { context, body, .. } => {
+            is_param_used_in_expr(param_name, context)
+                || body.iter().any(|s| is_param_used_in_stmt(param_name, s))
+        }
         // DEPYLER-0758: Check nested function bodies for closure captures
         // If outer param is used in nested function, it's a closure capture and must not be renamed
         HirStmt::FunctionDef { body, .. } => {
