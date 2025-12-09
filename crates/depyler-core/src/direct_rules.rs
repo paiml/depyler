@@ -3275,6 +3275,16 @@ impl<'a> ExprConverter<'a> {
                         }
                     };
                     Ok(parse_quote! { #right_expr.contains(#pattern) })
+                } else if self.is_tuple_or_list_expr(right) {
+                    // DEPYLER-0832: For tuples/lists, convert to array and use .contains()
+                    // Python: x in (A, B, C) -> Rust: [A, B, C].contains(&x)
+                    let elements: Vec<syn::Expr> = match right {
+                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
+                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
+                        }
+                        _ => vec![right_expr.clone()],
+                    };
+                    Ok(parse_quote! { [#(#elements),*].contains(&#left_expr) })
                 } else {
                     // Convert "x in dict" to "dict.contains_key(&x)" for dicts/maps
                     Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
@@ -3295,6 +3305,16 @@ impl<'a> ExprConverter<'a> {
                         }
                     };
                     Ok(parse_quote! { !#right_expr.contains(#pattern) })
+                } else if self.is_tuple_or_list_expr(right) {
+                    // DEPYLER-0832: For tuples/lists, convert to array and use !.contains()
+                    // Python: x not in (A, B, C) -> Rust: ![A, B, C].contains(&x)
+                    let elements: Vec<syn::Expr> = match right {
+                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
+                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
+                        }
+                        _ => vec![right_expr.clone()],
+                    };
+                    Ok(parse_quote! { ![#(#elements),*].contains(&#left_expr) })
                 } else {
                     // Convert "x not in dict" to "!dict.contains_key(&x)"
                     Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
@@ -4314,6 +4334,12 @@ impl<'a> ExprConverter<'a> {
             }
             _ => false,
         }
+    }
+
+    /// DEPYLER-0832: Detect if expression is a tuple (for `in` operator).
+    /// Tuples should use `.contains()` on an array, not `.contains_key()`.
+    fn is_tuple_or_list_expr(&self, expr: &HirExpr) -> bool {
+        matches!(expr, HirExpr::Tuple(_) | HirExpr::List(_))
     }
 
     fn convert_set_operation(
