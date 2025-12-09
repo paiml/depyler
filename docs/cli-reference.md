@@ -569,6 +569,125 @@ The convergence loop classifies errors into categories:
 | E0433 | TranspilerGap | Missing import |
 | E0382/E0502/E0507 | TranspilerGap | Borrow checker issues |
 
+### `utol` - Unified Training Oracle Loop (Toyota Way)
+
+Automated self-correcting compilation feedback system with rich visual feedback.
+Replaces manual "Apex Hunt" prompt-driven cycles with deterministic convergence
+following Toyota Way principles: Jidoka (自働化), Kaizen (改善), Andon (行灯).
+
+```bash
+depyler utol [OPTIONS]
+
+Options:
+  -c, --corpus <CORPUS>            Path to corpus directory
+  -t, --target-rate <RATE>         Target compilation success rate (0.0-1.0) [default: 0.80]
+  -m, --max-iterations <N>         Maximum iterations before stopping [default: 50]
+      --patience <N>               Stop if no improvement for N iterations [default: 5]
+      --display <MODE>             Display mode [default: rich]
+                                   [possible values: rich, minimal, json, silent]
+  -o, --output <FILE>              Output results to JSON file
+      --config <FILE>              Path to YAML configuration file
+      --status                     Show status and exit (don't run loop)
+  -w, --watch                      Watch mode: continuously monitor corpus and re-run on changes
+      --watch-debounce <MS>        Watch debounce interval in milliseconds [default: 500]
+```
+
+#### Examples
+
+```bash
+# Show current UTOL status (model, corpus, target)
+depyler utol --status
+
+# Run UTOL loop on default corpus
+depyler utol
+
+# Run on custom corpus with 90% target
+depyler utol --corpus ./my-python-project --target-rate 0.90
+
+# Minimal output for CI pipelines
+depyler utol --corpus ./src --display minimal --max-iterations 10
+
+# Export results to JSON
+depyler utol --corpus ./examples --output utol_results.json
+
+# Silent mode for automation
+depyler utol --corpus ./src --display silent --output results.json
+
+# Watch mode - continuously monitor and re-run on file changes
+depyler utol --watch
+
+# Watch mode with custom debounce (2 seconds)
+depyler utol --watch --watch-debounce 2000
+
+# Watch mode with limited iterations per run
+depyler utol --watch --max-iterations 5
+```
+
+#### Output Format (Rich Mode)
+
+```
+╔══════════════════════════════════════════════════════════════════════╗
+║                    UTOL - Unified Training Oracle Loop               ║
+╠══════════════════════════════════════════════════════════════════════╣
+║  Corpus: ../reprorusted-python-cli                                   ║
+║  Target: 80.0%                                                       ║
+║  Max Iterations: 50                                                  ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+Iteration: [████████████░░░░░░░░] 12/50 (24%)
+Compile Rate: 75.3% → Target: 80.0%  ✓ ON TRACK
+
+Compile Rate: ▁▂▃▄▅▆▇█ 75.3% (+2.1%)
+Drift Status: ● STABLE
+
+═══════════════════════════════════════════════════════════════════════
+                         UTOL Final Report
+═══════════════════════════════════════════════════════════════════════
+
+  Status:       ✅ CONVERGED
+  Final Rate:   82.1%
+  Iterations:   15
+  Duration:     45.3s
+  Model:        oracle-utol-3.21.0
+```
+
+#### Configuration File
+
+Create `.depyler/utol.yaml` for persistent configuration:
+
+```yaml
+utol:
+  version: "1.0"
+
+  corpus:
+    path: "../my-corpus"
+    include_patterns:
+      - "**/*.py"
+    exclude_patterns:
+      - "**/test_*.py"
+      - "**/__pycache__/**"
+
+  convergence:
+    target_rate: 0.80
+    max_iterations: 50
+    patience: 5
+    min_delta: 0.005
+
+  display:
+    mode: "rich"
+    refresh_ms: 500
+    show_sparklines: true
+```
+
+#### Toyota Way Principles
+
+| Principle | Japanese | Application in UTOL |
+|-----------|----------|---------------------|
+| **Jidoka** | 自働化 | Auto-stop on failure, self-diagnose |
+| **Kaizen** | 改善 | Each iteration improves incrementally |
+| **Andon** | 行灯 | Visual feedback system (sparklines) |
+| **Poka-Yoke** | ポカヨケ | Deterministic seeds prevent errors |
+
 ## Configuration
 
 ### Project Configuration File
