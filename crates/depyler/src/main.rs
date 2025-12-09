@@ -9,7 +9,8 @@ use depyler::{
     oracle_improve_command, oracle_optimize_command, oracle_show_command, oracle_train_command,
     profile_cmd::handle_profile_command, quality_check_command,
     report_cmd::{handle_report_command, ReportArgs},
-    transpile_command, AgentCommands, Cli, Commands, LambdaCommands, OracleCommands,
+    transpile_command, utol_cmd::handle_utol_command, AgentCommands, Cli, Commands, LambdaCommands,
+    OracleCommands,
 };
 use std::path::PathBuf;
 
@@ -422,6 +423,29 @@ async fn handle_command(command: Commands) -> Result<()> {
             };
             handle_report_command(args)
         }
+        Commands::Utol {
+            corpus,
+            target_rate,
+            max_iterations,
+            patience,
+            display,
+            output,
+            config,
+            status,
+            watch,
+            watch_debounce,
+        } => handle_utol_command(
+            corpus,
+            target_rate,
+            max_iterations,
+            patience,
+            display,
+            output,
+            config,
+            status,
+            watch,
+            watch_debounce,
+        ),
     }
 }
 
