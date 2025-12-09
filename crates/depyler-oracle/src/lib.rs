@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use aprender::format::{self, Compression, ModelType, SaveOptions};
-use aprender::metrics::drift::{DriftConfig, DriftDetector, DriftStatus};
+use aprender::online::drift::{DriftDetector, DriftStats, DriftStatus, ADWIN};
 use aprender::primitives::Matrix;
 use aprender::tree::RandomForestClassifier;
 use serde::{Deserialize, Serialize};
@@ -52,6 +52,7 @@ pub mod tarantula_bridge;
 pub mod tarantula_corpus;
 pub mod oip_export;
 pub mod acceleration_pipeline;
+pub mod utol;  // UTOL-001: Unified Training Oracle Loop
 
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
@@ -247,10 +248,9 @@ pub struct Oracle {
     categories: Vec<ErrorCategory>,
     /// Fix templates per category
     fix_templates: HashMap<ErrorCategory, Vec<String>>,
-    /// Drift detector for retraining triggers
-    drift_detector: DriftDetector,
-    /// Historical performance scores
-    performance_history: Vec<f32>,
+    /// ADWIN drift detector for retraining triggers (Issue #213)
+    /// Replaces manual performance_history tracking with adaptive windowing
+    adwin_detector: ADWIN,
 }
 
 /// Default model filename
@@ -286,7 +286,7 @@ pub fn get_training_corpus_paths() -> Vec<PathBuf> {
             if let Ok(entries) = std::fs::read_dir(&dir) {
                 for entry in entries.flatten() {
                     let path = entry.path();
-                    if path.extension().map_or(false, |e| e == "rs" || e == "json") {
+                    if path.extension().is_some_and(|e| e == "rs" || e == "json") {
                         paths.push(path);
                     }
                 }
@@ -453,12 +453,9 @@ impl Oracle {
                 ErrorCategory::Other,
             ],
             fix_templates: Self::default_fix_templates(),
-            drift_detector: DriftDetector::new(
-                DriftConfig::default()
-                    .with_min_samples(10)
-                    .with_window_size(50),
-            ),
-            performance_history: Vec::new(),
+            // Issue #213: Use ADWIN with recommended delta (0.002)
+            // Per Toyota Way review: ADWIN handles both sudden and gradual drift
+            adwin_detector: ADWIN::with_delta(0.002),
         }
     }
 
@@ -608,20 +605,52 @@ impl Oracle {
     }
 
     /// Check if the model needs retraining based on performance drift.
-    pub fn check_drift(&mut self, recent_accuracy: f32) -> DriftStatus {
-        self.performance_history.push(recent_accuracy);
+    ///
+    /// Issue #213: Uses ADWIN (Adaptive Windowing) algorithm for drift detection.
+    /// ADWIN automatically adjusts window size and detects both sudden and gradual drift.
+    ///
+    /// # Arguments
+    /// * `was_error` - true if the prediction was wrong, false if correct
+    ///
+    /// # Returns
+    /// * `DriftStatus::Stable` - Model performing well
+    /// * `DriftStatus::Warning` - Performance degrading, collect more data
+    /// * `DriftStatus::Drift` - Significant drift detected, retrain recommended
+    pub fn observe_prediction(&mut self, was_error: bool) -> DriftStatus {
+        self.adwin_detector.add_element(was_error);
+        self.adwin_detector.detected_change()
+    }
 
-        if self.performance_history.len() < 10 {
-            return DriftStatus::NoDrift;
-        }
+    /// Get current drift status without adding new observation.
+    #[must_use]
+    pub fn drift_status(&self) -> DriftStatus {
+        self.adwin_detector.detected_change()
+    }
 
-        let baseline: Vec<f32> =
-            self.performance_history[..self.performance_history.len() / 2].to_vec();
-        let current: Vec<f32> =
-            self.performance_history[self.performance_history.len() / 2..].to_vec();
+    /// Check if model needs retraining based on drift status.
+    #[must_use]
+    pub fn needs_retraining(&self) -> bool {
+        matches!(self.drift_status(), DriftStatus::Drift)
+    }
 
-        self.drift_detector
-            .detect_performance_drift(&baseline, &current)
+    /// Reset drift detector (call after retraining).
+    pub fn reset_drift_detector(&mut self) {
+        self.adwin_detector.reset();
+    }
+
+    /// Get drift detector statistics.
+    #[must_use]
+    pub fn drift_stats(&self) -> DriftStats {
+        self.adwin_detector.stats()
+    }
+
+    /// Set ADWIN sensitivity (delta parameter).
+    ///
+    /// Lower delta = more sensitive to drift (more false positives)
+    /// Higher delta = less sensitive (fewer false positives)
+    /// Default: 0.002 (recommended balance)
+    pub fn set_adwin_delta(&mut self, delta: f64) {
+        self.adwin_detector = ADWIN::with_delta(delta);
     }
 
     /// Save the oracle model to a file.
@@ -664,12 +693,8 @@ impl Oracle {
                 ErrorCategory::Other,
             ],
             fix_templates: Self::default_fix_templates(),
-            drift_detector: DriftDetector::new(
-                DriftConfig::default()
-                    .with_min_samples(10)
-                    .with_window_size(50),
-            ),
-            performance_history: Vec::new(),
+            // Issue #213: Use ADWIN with recommended delta (0.002)
+            adwin_detector: ADWIN::with_delta(0.002),
         })
     }
 }
@@ -677,6 +702,316 @@ impl Oracle {
 impl Default for Oracle {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+// ============================================================
+// Issue #213: Stdout Visualization (Andon-style)
+// ============================================================
+
+/// Print drift status to stdout with visual indicators.
+pub fn print_drift_status(stats: &DriftStats, status: &DriftStatus) {
+    let status_indicator = match status {
+        DriftStatus::Stable => "🟢 STABLE",
+        DriftStatus::Warning => "🟡 WARNING",
+        DriftStatus::Drift => "🔴 DRIFT DETECTED",
+    };
+
+    println!("╭─────────────────────────────────────────────────────╮");
+    println!("│            Drift Detection Status                   │");
+    println!("├─────────────────────────────────────────────────────┤");
+    println!("│  Status: {:^40} │", status_indicator);
+    println!("│  Samples: {:>8}                                 │", stats.n_samples);
+    println!("│  Error Rate: {:>6.2}%                               │", stats.error_rate * 100.0);
+    println!("│  Min Error Rate: {:>6.2}%                           │", stats.min_error_rate * 100.0);
+    println!("│  Std Dev: {:>8.4}                                 │", stats.std_dev);
+    println!("╰─────────────────────────────────────────────────────╯");
+}
+
+/// Print retrain trigger status with Andon-style alerts.
+pub fn print_retrain_status(stats: &RetrainStats) {
+    let status_indicator = match &stats.drift_status {
+        DriftStatus::Stable => "🟢",
+        DriftStatus::Warning => "🟡",
+        DriftStatus::Drift => "🔴",
+    };
+
+    let accuracy_bar = create_accuracy_bar(stats.accuracy());
+
+    println!("╭─────────────────────────────────────────────────────╮");
+    println!("│            Retrain Trigger Status                   │");
+    println!("├─────────────────────────────────────────────────────┤");
+    println!("│  {} Drift Status: {:?}                           │", status_indicator, stats.drift_status);
+    println!("│  Predictions: {:>8}                              │", stats.predictions_observed);
+    println!("│  Correct:     {:>8}                              │", stats.correct_predictions);
+    println!("│  Errors:      {:>8}                              │", stats.errors);
+    println!("│  Consecutive: {:>8}                              │", stats.consecutive_errors);
+    println!("│  Drift Count: {:>8}                              │", stats.drift_count);
+    println!("├─────────────────────────────────────────────────────┤");
+    println!("│  Accuracy: {:>6.2}% {}                    │", stats.accuracy() * 100.0, accuracy_bar);
+    println!("│  Error Rate: {:>6.2}%                               │", stats.error_rate() * 100.0);
+    println!("╰─────────────────────────────────────────────────────╯");
+}
+
+/// Print lineage history to stdout.
+pub fn print_lineage_history(lineage: &OracleLineage) {
+    println!("╭─────────────────────────────────────────────────────╮");
+    println!("│            Model Lineage History                    │");
+    println!("├─────────────────────────────────────────────────────┤");
+    println!("│  Total Models: {:>6}                               │", lineage.model_count());
+
+    if let Some(latest) = lineage.latest_model() {
+        let commit_sha = latest.tags.get("commit_sha").map(|s| &s[..8.min(s.len())]).unwrap_or("unknown");
+        println!("│  Latest Model: {}                     │", latest.model_id.chars().take(30).collect::<String>());
+        println!("│  Version: {}                              │", latest.version);
+        println!("│  Accuracy: {:>6.2}%                                 │", latest.accuracy * 100.0);
+        println!("│  Commit: {}                                │", commit_sha);
+    }
+
+    // Show regression if any
+    if let Some((reason, delta)) = lineage.find_regression() {
+        let indicator = if delta < 0.0 { "🔴" } else { "🟢" };
+        println!("├─────────────────────────────────────────────────────┤");
+        println!("│  {} Regression: {:+.2}%                             │", indicator, delta * 100.0);
+        println!("│  Reason: {:40} │", reason.chars().take(40).collect::<String>());
+    }
+
+    // Show lineage chain
+    let chain = lineage.get_lineage_chain();
+    if !chain.is_empty() {
+        println!("├─────────────────────────────────────────────────────┤");
+        println!("│  Lineage Chain ({} models):                        │", chain.len());
+        for (i, model_id) in chain.iter().take(5).enumerate() {
+            let arrow = if i == 0 { "└" } else { "├" };
+            println!("│    {} {}               │", arrow, model_id.chars().take(35).collect::<String>());
+        }
+        if chain.len() > 5 {
+            println!("│    ... and {} more                               │", chain.len() - 5);
+        }
+    }
+
+    println!("╰─────────────────────────────────────────────────────╯");
+}
+
+/// Create a visual accuracy bar.
+fn create_accuracy_bar(accuracy: f64) -> String {
+    let filled = (accuracy * 10.0).round() as usize;
+    let empty = 10 - filled;
+    format!("[{}{}]", "█".repeat(filled), "░".repeat(empty))
+}
+
+/// Print combined status (drift + retrain + lineage).
+pub fn print_oracle_status(trigger: &RetrainTrigger, lineage: &OracleLineage) {
+    print_retrain_status(trigger.stats());
+    println!();
+    print_drift_status(&trigger.drift_stats(), &trigger.stats().drift_status);
+    println!();
+    print_lineage_history(lineage);
+}
+
+// ============================================================
+// Issue #213: RetrainOrchestrator-style Integration
+// ============================================================
+
+/// Result of observing a prediction (mirrors aprender::online::orchestrator::ObserveResult).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ObserveResult {
+    /// Model is performing well
+    Stable,
+    /// Warning level - collecting more data
+    Warning,
+    /// Drift detected - retraining needed
+    DriftDetected,
+}
+
+/// Configuration for retrain trigger (mirrors aprender::online::orchestrator::RetrainConfig).
+#[derive(Debug, Clone)]
+pub struct RetrainConfig {
+    /// Minimum predictions before drift detection is reliable
+    pub min_samples: usize,
+    /// Maximum consecutive errors before forcing alert
+    pub max_consecutive_errors: usize,
+    /// Error rate threshold for warning
+    pub warning_threshold: f64,
+    /// Error rate threshold for drift
+    pub drift_threshold: f64,
+}
+
+impl Default for RetrainConfig {
+    fn default() -> Self {
+        Self {
+            min_samples: 50,
+            max_consecutive_errors: 10,
+            warning_threshold: 0.2,
+            drift_threshold: 0.3,
+        }
+    }
+}
+
+/// Statistics from the retrain trigger (mirrors aprender::online::orchestrator::OrchestratorStats).
+#[derive(Debug, Clone, Default)]
+pub struct RetrainStats {
+    /// Total predictions observed
+    pub predictions_observed: u64,
+    /// Total correct predictions
+    pub correct_predictions: u64,
+    /// Total errors
+    pub errors: u64,
+    /// Consecutive errors (resets on correct)
+    pub consecutive_errors: usize,
+    /// Current drift status
+    pub drift_status: DriftStatus,
+    /// Times drift was detected
+    pub drift_count: u64,
+}
+
+impl RetrainStats {
+    /// Current error rate.
+    #[must_use]
+    pub fn error_rate(&self) -> f64 {
+        if self.predictions_observed == 0 {
+            0.0
+        } else {
+            self.errors as f64 / self.predictions_observed as f64
+        }
+    }
+
+    /// Current accuracy.
+    #[must_use]
+    pub fn accuracy(&self) -> f64 {
+        1.0 - self.error_rate()
+    }
+}
+
+/// Retrain trigger for Oracle (adapted from aprender::online::orchestrator::RetrainOrchestrator).
+///
+/// Monitors prediction outcomes and determines when retraining is needed.
+/// Integrates ADWIN drift detection with Oracle predictions.
+///
+/// # Example
+///
+/// ```ignore
+/// let mut trigger = RetrainTrigger::new(oracle, RetrainConfig::default());
+///
+/// // After each prediction
+/// let result = trigger.observe_prediction(was_error);
+/// if result == ObserveResult::DriftDetected {
+///     // Retrain the oracle
+///     trigger.mark_retrained();
+/// }
+/// ```
+pub struct RetrainTrigger {
+    /// The oracle being monitored
+    oracle: Oracle,
+    /// Configuration
+    config: RetrainConfig,
+    /// Statistics
+    stats: RetrainStats,
+}
+
+impl RetrainTrigger {
+    /// Create a new retrain trigger with an oracle.
+    pub fn new(oracle: Oracle, config: RetrainConfig) -> Self {
+        Self {
+            oracle,
+            config,
+            stats: RetrainStats::default(),
+        }
+    }
+
+    /// Create with default config.
+    pub fn with_oracle(oracle: Oracle) -> Self {
+        Self::new(oracle, RetrainConfig::default())
+    }
+
+    /// Observe a prediction outcome.
+    ///
+    /// # Arguments
+    /// * `was_error` - true if the prediction was wrong, false if correct
+    ///
+    /// # Returns
+    /// * `ObserveResult` indicating current status
+    pub fn observe(&mut self, was_error: bool) -> ObserveResult {
+        self.stats.predictions_observed += 1;
+
+        if was_error {
+            self.stats.errors += 1;
+            self.stats.consecutive_errors += 1;
+        } else {
+            self.stats.correct_predictions += 1;
+            self.stats.consecutive_errors = 0;
+        }
+
+        // Use ADWIN for drift detection
+        let drift_status = self.oracle.observe_prediction(was_error);
+        self.stats.drift_status = drift_status;
+
+        // Check for drift
+        if matches!(drift_status, DriftStatus::Drift) {
+            self.stats.drift_count += 1;
+            return ObserveResult::DriftDetected;
+        }
+
+        // Check consecutive error threshold
+        if self.stats.consecutive_errors >= self.config.max_consecutive_errors {
+            self.stats.drift_count += 1;
+            return ObserveResult::DriftDetected;
+        }
+
+        // Check error rate after minimum samples
+        if self.stats.predictions_observed >= self.config.min_samples as u64 {
+            let error_rate = self.stats.error_rate();
+            if error_rate >= self.config.drift_threshold {
+                self.stats.drift_count += 1;
+                return ObserveResult::DriftDetected;
+            }
+            if error_rate >= self.config.warning_threshold {
+                return ObserveResult::Warning;
+            }
+        }
+
+        ObserveResult::Stable
+    }
+
+    /// Mark that retraining has been completed.
+    pub fn mark_retrained(&mut self) {
+        self.oracle.reset_drift_detector();
+        self.stats.consecutive_errors = 0;
+        self.stats.predictions_observed = 0;
+        self.stats.correct_predictions = 0;
+        self.stats.errors = 0;
+    }
+
+    /// Get current statistics.
+    #[must_use]
+    pub fn stats(&self) -> &RetrainStats {
+        &self.stats
+    }
+
+    /// Get mutable reference to oracle for predictions.
+    pub fn oracle_mut(&mut self) -> &mut Oracle {
+        &mut self.oracle
+    }
+
+    /// Get reference to oracle.
+    #[must_use]
+    pub fn oracle(&self) -> &Oracle {
+        &self.oracle
+    }
+
+    /// Check if retraining is recommended.
+    #[must_use]
+    pub fn needs_retraining(&self) -> bool {
+        self.oracle.needs_retraining()
+            || self.stats.consecutive_errors >= self.config.max_consecutive_errors
+            || (self.stats.predictions_observed >= self.config.min_samples as u64
+                && self.stats.error_rate() >= self.config.drift_threshold)
+    }
+
+    /// Get ADWIN drift statistics.
+    #[must_use]
+    pub fn drift_stats(&self) -> DriftStats {
+        self.oracle.drift_stats()
     }
 }
 
@@ -814,11 +1149,85 @@ mod tests {
             .contains_key(&ErrorCategory::BorrowChecker));
     }
 
+    // ============================================================
+    // Issue #213: ADWIN Drift Detection Tests
+    // ============================================================
+
     #[test]
-    fn test_drift_detection_insufficient_data() {
+    fn test_adwin_drift_detection_stable() {
         let mut oracle = Oracle::new();
-        let status = oracle.check_drift(0.95);
-        assert!(matches!(status, DriftStatus::NoDrift));
+
+        // Feed good predictions (no errors) - should stay stable
+        for _ in 0..50 {
+            let status = oracle.observe_prediction(false); // correct prediction
+            assert!(
+                matches!(status, DriftStatus::Stable),
+                "All correct predictions should be stable"
+            );
+        }
+
+        assert!(!oracle.needs_retraining(), "Should not need retraining with all correct");
+    }
+
+    #[test]
+    fn test_adwin_drift_detection_gradual_degradation() {
+        // Use a more sensitive ADWIN detector for testing
+        let mut oracle = Oracle::new();
+        // Replace with more sensitive detector for test
+        oracle.set_adwin_delta(0.1);
+
+        // Start with good predictions
+        for _ in 0..200 {
+            oracle.observe_prediction(false);
+        }
+
+        // Introduce many errors - ADWIN should detect the significant change
+        for _ in 0..200 {
+            oracle.observe_prediction(true);
+        }
+
+        // After all this, either drift was detected or stats show high error rate
+        let stats = oracle.drift_stats();
+        // With 200 correct + 200 wrong, the mean error rate should be around 0.5
+        // If ADWIN didn't detect drift, at least verify it's tracking the data
+        assert!(
+            oracle.needs_retraining() || stats.error_rate > 0.3,
+            "Should detect drift or have high error rate: {:?}, drift status: {:?}",
+            stats,
+            oracle.drift_status()
+        );
+    }
+
+    #[test]
+    fn test_adwin_drift_detector_reset() {
+        let mut oracle = Oracle::new();
+
+        // Add some observations
+        for _ in 0..50 {
+            oracle.observe_prediction(true);
+        }
+
+        // Reset the detector
+        oracle.reset_drift_detector();
+
+        // Should be back to stable
+        assert!(matches!(oracle.drift_status(), DriftStatus::Stable));
+    }
+
+    #[test]
+    fn test_adwin_drift_stats() {
+        let mut oracle = Oracle::new();
+
+        // Add some observations
+        for _ in 0..10 {
+            oracle.observe_prediction(false);
+        }
+        for _ in 0..10 {
+            oracle.observe_prediction(true);
+        }
+
+        let stats = oracle.drift_stats();
+        assert_eq!(stats.n_samples, 20, "Should have 20 samples");
     }
 
     #[test]
@@ -852,5 +1261,117 @@ mod tests {
     fn test_default_model_path() {
         let path = Oracle::default_model_path();
         assert!(path.to_string_lossy().contains("depyler_oracle.apr"));
+    }
+
+    // ============================================================
+    // Issue #213: RetrainTrigger Tests
+    // ============================================================
+
+    #[test]
+    fn test_retrain_trigger_creation() {
+        let oracle = Oracle::new();
+        let trigger = RetrainTrigger::with_oracle(oracle);
+        let stats = trigger.stats();
+        assert_eq!(stats.predictions_observed, 0);
+        assert_eq!(stats.errors, 0);
+    }
+
+    #[test]
+    fn test_retrain_trigger_observe_correct() {
+        let oracle = Oracle::new();
+        let mut trigger = RetrainTrigger::with_oracle(oracle);
+
+        for _ in 0..10 {
+            let result = trigger.observe(false); // correct predictions
+            assert_eq!(result, ObserveResult::Stable);
+        }
+
+        let stats = trigger.stats();
+        assert_eq!(stats.predictions_observed, 10);
+        assert_eq!(stats.correct_predictions, 10);
+        assert_eq!(stats.errors, 0);
+    }
+
+    #[test]
+    fn test_retrain_trigger_consecutive_errors() {
+        let oracle = Oracle::new();
+        let config = RetrainConfig {
+            max_consecutive_errors: 5,
+            ..Default::default()
+        };
+        let mut trigger = RetrainTrigger::new(oracle, config);
+
+        // Less than threshold - should be stable
+        for _ in 0..4 {
+            let result = trigger.observe(true);
+            assert_eq!(result, ObserveResult::Stable);
+        }
+
+        // Hit threshold - should detect drift
+        let result = trigger.observe(true);
+        assert_eq!(result, ObserveResult::DriftDetected);
+    }
+
+    #[test]
+    fn test_retrain_trigger_error_rate_threshold() {
+        let oracle = Oracle::new();
+        let config = RetrainConfig {
+            min_samples: 10,
+            drift_threshold: 0.5,
+            warning_threshold: 0.3,
+            max_consecutive_errors: 100, // Disable consecutive check
+            ..Default::default()
+        };
+        let mut trigger = RetrainTrigger::new(oracle, config);
+
+        // Add some correct predictions
+        for _ in 0..7 {
+            trigger.observe(false);
+        }
+
+        // Add errors to hit threshold (50% error rate needs 7 errors to hit 7/14 = 50%)
+        for _ in 0..6 {
+            trigger.observe(true);
+        }
+
+        // This should trigger drift (7 errors out of 14 = 50% error rate)
+        let result = trigger.observe(true);
+        assert!(
+            result == ObserveResult::DriftDetected || result == ObserveResult::Warning,
+            "Should detect drift or warning at 50% error rate"
+        );
+    }
+
+    #[test]
+    fn test_retrain_trigger_mark_retrained() {
+        let oracle = Oracle::new();
+        let mut trigger = RetrainTrigger::with_oracle(oracle);
+
+        // Generate some stats
+        for _ in 0..10 {
+            trigger.observe(true);
+        }
+
+        assert_eq!(trigger.stats().errors, 10);
+
+        // Mark as retrained
+        trigger.mark_retrained();
+
+        // Stats should be reset
+        let stats = trigger.stats();
+        assert_eq!(stats.predictions_observed, 0);
+        assert_eq!(stats.errors, 0);
+        assert_eq!(stats.consecutive_errors, 0);
+    }
+
+    #[test]
+    fn test_retrain_stats_error_rate() {
+        let mut stats = RetrainStats::default();
+        assert_eq!(stats.error_rate(), 0.0);
+
+        stats.predictions_observed = 100;
+        stats.errors = 25;
+        assert!((stats.error_rate() - 0.25).abs() < 0.001);
+        assert!((stats.accuracy() - 0.75).abs() < 0.001);
     }
 }

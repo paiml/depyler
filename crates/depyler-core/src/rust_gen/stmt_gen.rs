@@ -1074,6 +1074,7 @@ pub(crate) fn codegen_raise_stmt(
 
         // DEPYLER-0438: Set error type flag for generation
         // DEPYLER-0551: Added RuntimeError and FileNotFoundError
+        // GH-204: Added SyntaxError, TypeError, KeyError, IOError, AttributeError, StopIteration
         match exception_type.as_str() {
             "ValueError" => ctx.needs_valueerror = true,
             "ArgumentTypeError" => ctx.needs_argumenttypeerror = true,
@@ -1081,6 +1082,12 @@ pub(crate) fn codegen_raise_stmt(
             "IndexError" => ctx.needs_indexerror = true,
             "RuntimeError" => ctx.needs_runtimeerror = true,
             "FileNotFoundError" => ctx.needs_filenotfounderror = true,
+            "SyntaxError" => ctx.needs_syntaxerror = true,
+            "TypeError" => ctx.needs_typeerror = true,
+            "KeyError" => ctx.needs_keyerror = true,
+            "IOError" => ctx.needs_ioerror = true,
+            "AttributeError" => ctx.needs_attributeerror = true,
+            "StopIteration" => ctx.needs_stopiteration = true,
             _ => {}
         }
 
@@ -1108,6 +1115,7 @@ pub(crate) fn codegen_raise_stmt(
                 );
 
                 // DEPYLER-0551: Added RuntimeError and FileNotFoundError
+                // GH-204: Added ZeroDivisionError, SyntaxError, IOError, AttributeError, StopIteration
                 if !is_already_wrapped
                     && (exception_type == "ValueError"
                         || exception_type == "ArgumentTypeError"
@@ -1115,7 +1123,12 @@ pub(crate) fn codegen_raise_stmt(
                         || exception_type == "KeyError"
                         || exception_type == "IndexError"
                         || exception_type == "RuntimeError"
-                        || exception_type == "FileNotFoundError")
+                        || exception_type == "FileNotFoundError"
+                        || exception_type == "ZeroDivisionError"
+                        || exception_type == "SyntaxError"
+                        || exception_type == "IOError"
+                        || exception_type == "AttributeError"
+                        || exception_type == "StopIteration")
                 {
                     let exc_type = safe_ident(&exception_type);
                     Ok(quote! { return Err(Box::new(#exc_type::new(#exc_expr))); })
@@ -1132,6 +1145,7 @@ pub(crate) fn codegen_raise_stmt(
                 );
 
                 // DEPYLER-0551: Added RuntimeError and FileNotFoundError
+                // GH-204: Added ZeroDivisionError, SyntaxError, IOError, AttributeError, StopIteration
                 if !is_already_wrapped
                     && (exception_type == "ValueError"
                         || exception_type == "ArgumentTypeError"
@@ -1139,7 +1153,12 @@ pub(crate) fn codegen_raise_stmt(
                         || exception_type == "KeyError"
                         || exception_type == "IndexError"
                         || exception_type == "RuntimeError"
-                        || exception_type == "FileNotFoundError")
+                        || exception_type == "FileNotFoundError"
+                        || exception_type == "ZeroDivisionError"
+                        || exception_type == "SyntaxError"
+                        || exception_type == "IOError"
+                        || exception_type == "AttributeError"
+                        || exception_type == "StopIteration")
                 {
                     let exc_type = safe_ident(&exception_type);
                     Ok(quote! { return Err(#exc_type::new(#exc_expr)); })
@@ -1821,20 +1840,39 @@ pub(crate) fn codegen_if_stmt(
 
     // DEPYLER-0379: Variable hoisting - find variables assigned in BOTH branches
     // DEPYLER-0476: Use toplevel extraction to avoid hoisting variables from nested for/while loops
-    let hoisted_vars: HashSet<String> = if let Some(else_stmts) = else_body {
-        let then_vars = extract_toplevel_assigned_symbols(then_body);
+    // DEPYLER-0823: Also hoist None-placeholder variables assigned in any branch
+    let then_vars = extract_toplevel_assigned_symbols(then_body);
+    let mut hoisted_vars: HashSet<String> = if let Some(else_stmts) = else_body {
         let else_vars = extract_toplevel_assigned_symbols(else_stmts);
         then_vars.intersection(&else_vars).cloned().collect()
     } else {
         HashSet::new()
     };
 
+    // DEPYLER-0823: Add None-placeholder variables that are assigned in any branch
+    // These variables had `var = None` skipped, but need to be declared before the if
+    // so they're accessible after it (e.g., `if cond: var = x; use(var)`)
+    for var_name in &then_vars {
+        if ctx.none_placeholder_vars.contains(var_name) {
+            hoisted_vars.insert(var_name.clone());
+        }
+    }
+    if let Some(else_stmts) = else_body {
+        let else_vars = extract_toplevel_assigned_symbols(else_stmts);
+        for var_name in &else_vars {
+            if ctx.none_placeholder_vars.contains(var_name) {
+                hoisted_vars.insert(var_name.clone());
+            }
+        }
+    }
+
     // DEPYLER-0379: Generate hoisted variable declarations
     // DEPYLER-0439: Skip variables already declared in parent scope (prevents shadowing)
     let mut hoisted_decls = Vec::new();
     for var_name in &hoisted_vars {
         // DEPYLER-0439: Skip if variable is already declared in parent scope
-        if ctx.is_declared(var_name) {
+        let already_declared = ctx.is_declared(var_name);
+        if already_declared {
             continue;
         }
 
@@ -1864,11 +1902,23 @@ pub(crate) fn codegen_if_stmt(
         if let Some(ty) = var_type {
             let rust_type = ctx.type_mapper.map_type(&ty);
             let syn_type = rust_type_to_syn(&rust_type)?;
-            hoisted_decls.push(quote! { let mut #var_ident: #syn_type; });
+            // DEPYLER-0823: For if-only (no else), initialize with Default to prevent E0381
+            // Rust requires initialization since the branch may not be taken
+            if else_body.is_none() {
+                hoisted_decls.push(quote! { let mut #var_ident: #syn_type = Default::default(); });
+            } else {
+                hoisted_decls.push(quote! { let mut #var_ident: #syn_type; });
+            }
         } else {
             // No type annotation - use type inference placeholder
             // Rust will infer the type from the assignments in the branches
-            hoisted_decls.push(quote! { let mut #var_ident; });
+            // DEPYLER-0823: For if-only (no else), we need a typed default
+            // Since we don't know the type, use String as common case for None placeholders
+            if else_body.is_none() && ctx.none_placeholder_vars.contains(var_name) {
+                hoisted_decls.push(quote! { let mut #var_ident: String = Default::default(); });
+            } else {
+                hoisted_decls.push(quote! { let mut #var_ident; });
+            }
 
             // DEPYLER-0455 Bug 2: Track hoisted variables needing String normalization
             // When a variable is hoisted without type annotation, we need to normalize
@@ -1906,6 +1956,7 @@ pub(crate) fn codegen_if_stmt(
     } else {
         Ok(quote! {
             #(#walrus_lets)*
+            #(#hoisted_decls)*
             if #cond {
                 #(#then_stmts)*
             }
@@ -1997,7 +2048,11 @@ fn codegen_option_if_let(
 /// DEPYLER-0379: Find the type annotation for a variable in a statement block
 ///
 /// Searches for the first Assign statement that assigns to the given variable
-/// and returns its type annotation if present.
+/// and returns its type annotation if present, or infers from the value expression.
+///
+/// DEPYLER-0823: Enhanced to infer type from value when no annotation exists.
+/// This fixes the None-placeholder hoisting bug where `value = None; if cond: value = 42`
+/// was incorrectly typed as String instead of i64.
 ///
 /// # Complexity
 /// 3 (linear search with recursive check)
@@ -2007,9 +2062,18 @@ fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
             HirStmt::Assign {
                 target: AssignTarget::Symbol(name),
                 type_annotation,
-                ..
+                value,
             } if name == var_name => {
-                return type_annotation.clone();
+                // First try explicit type annotation
+                if type_annotation.is_some() {
+                    return type_annotation.clone();
+                }
+                // DEPYLER-0823: If no annotation, infer from the assigned value
+                let inferred = crate::rust_gen::func_gen::infer_expr_type_simple(value);
+                if !matches!(inferred, Type::Unknown) {
+                    return Some(inferred);
+                }
+                return None;
             }
             _ => {}
         }
@@ -2727,13 +2791,27 @@ pub(crate) fn codegen_for_stmt(
                     // DEPYLER-0710: For dicts, iterate over keys only (Python semantics)
                     iter_expr = parse_quote! { #iter_expr.keys().cloned() };
                 } else {
-                    // For collections, use .iter().cloned()
-                    // DEPYLER-0265: Use .iter().cloned() to automatically clone items
-                    // This handles both Copy types (int, float, bool) and Clone types (String, Vec, etc.)
-                    // For Copy types, .cloned() is optimized to a simple bit-copy by the compiler.
-                    // For Clone types, it calls .clone() which is correct for Rust.
-                    // This matches Python semantics where loop variables are values, not references.
-                    iter_expr = parse_quote! { #iter_expr.iter().cloned() };
+                    // DEPYLER-0836: Check if iterating over a trueno::Vector type
+                    // Vector<T> doesn't have .iter() method, it uses .as_slice().iter()
+                    let is_vector_type = ctx.var_types.get(var_name).is_some_and(|t| {
+                        match t {
+                            Type::Custom(name) => name.starts_with("Vector<") || name == "Vector",
+                            _ => false,
+                        }
+                    });
+
+                    if is_vector_type {
+                        // DEPYLER-0836: trueno::Vector<T>.as_slice().iter().cloned()
+                        iter_expr = parse_quote! { #iter_expr.as_slice().iter().cloned() };
+                    } else {
+                        // For collections, use .iter().cloned()
+                        // DEPYLER-0265: Use .iter().cloned() to automatically clone items
+                        // This handles both Copy types (int, float, bool) and Clone types (String, Vec, etc.)
+                        // For Copy types, .cloned() is optimized to a simple bit-copy by the compiler.
+                        // For Clone types, it calls .clone() which is correct for Rust.
+                        // This matches Python semantics where loop variables are values, not references.
+                        iter_expr = parse_quote! { #iter_expr.iter().cloned() };
+                    }
                 }
             }
         }
@@ -3159,16 +3237,36 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
+    // DEPYLER-0837: Mark csv.DictReader variables as mutable
+    // csv::Reader needs mutable borrows for .headers() and iteration (.records())
+    // Pattern: reader = csv.DictReader(f) → let mut reader = csv::ReaderBuilder::new()...
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::MethodCall { object, method, .. } = value {
+            if method == "DictReader" || method == "reader" {
+                if let HirExpr::Var(module_name) = object.as_ref() {
+                    if module_name == "csv" {
+                        ctx.mutable_vars.insert(var_name.clone());
+                    }
+                }
+            }
+        }
+    }
+
     // DEPYLER-0440: Handle None-placeholder assignments
     // When a variable is initialized with None and later reassigned in if-elif-else,
     // Python uses None as a placeholder that will be overwritten.
     // Python pattern: var = None; if cond: var = x; else: var = y; use(var)
     // Rust pattern: Skip None assignment, let first real assignment be the declaration.
     // The mutable_vars check ensures the variable WILL be assigned a real value later.
+    // DEPYLER-0823: Track the variable so it can be hoisted if assigned inside a conditional
     if let AssignTarget::Symbol(var_name) = target {
-        if matches!(value, HirExpr::Literal(Literal::None)) && ctx.mutable_vars.contains(var_name) {
+        let is_none_literal = matches!(value, HirExpr::Literal(Literal::None));
+        let is_mutable = ctx.mutable_vars.contains(var_name);
+        if is_none_literal && is_mutable {
             // Skip None placeholder assignment - the first real assignment will declare the var
             // This avoids type mismatch: `let mut x = None; x = "yes"` (Option vs &str)
+            // DEPYLER-0823: Track this variable for potential hoisting in if statements
+            ctx.none_placeholder_vars.insert(var_name.clone());
             return Ok(quote! {});
         }
     }

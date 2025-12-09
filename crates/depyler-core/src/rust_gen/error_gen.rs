@@ -168,6 +168,150 @@ pub fn generate_error_type_definitions(ctx: &CodeGenContext) -> Vec<proc_macro2:
         });
     }
 
+    // GH-204: SyntaxError for parsing/syntax failures
+    if ctx.needs_syntaxerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct SyntaxError {
+                message: String,
+            }
+
+            impl std::fmt::Display for SyntaxError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "syntax error: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for SyntaxError {}
+
+            impl SyntaxError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
+    // GH-204: TypeError for type mismatch errors
+    if ctx.needs_typeerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct TypeError {
+                message: String,
+            }
+
+            impl std::fmt::Display for TypeError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "type error: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for TypeError {}
+
+            impl TypeError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
+    // GH-204: KeyError for dictionary key lookup failures
+    if ctx.needs_keyerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct KeyError {
+                message: String,
+            }
+
+            impl std::fmt::Display for KeyError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "key error: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for KeyError {}
+
+            impl KeyError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
+    // GH-204: IOError for I/O operation failures
+    if ctx.needs_ioerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct IOError {
+                message: String,
+            }
+
+            impl std::fmt::Display for IOError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "io error: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for IOError {}
+
+            impl IOError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
+    // GH-204: AttributeError for missing attribute access
+    if ctx.needs_attributeerror {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct AttributeError {
+                message: String,
+            }
+
+            impl std::fmt::Display for AttributeError {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "attribute error: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for AttributeError {}
+
+            impl AttributeError {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
+    // GH-204: StopIteration for iterator exhaustion (used in generators)
+    if ctx.needs_stopiteration {
+        definitions.push(quote! {
+            #[derive(Debug, Clone)]
+            pub struct StopIteration {
+                message: String,
+            }
+
+            impl std::fmt::Display for StopIteration {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "stop iteration: {}", self.message)
+                }
+            }
+
+            impl std::error::Error for StopIteration {}
+
+            impl StopIteration {
+                pub fn new(message: impl Into<String>) -> Self {
+                    Self { message: message.into() }
+                }
+            }
+        });
+    }
+
     definitions
 }
 

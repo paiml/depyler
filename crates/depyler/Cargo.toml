@@ -32,7 +32,7 @@ depyler-quality = { version = "3.19.18", path = "../depyler-quality" }
 depyler-oracle = { version = "3.21.0", path = "../depyler-oracle" }
 depyler-corpus = { path = "../depyler-corpus" }
 depyler-ruchy = { version = "3.19.18", path = "../depyler-ruchy", optional = true }
-trueno-viz = "0.1.2"
+trueno-viz = "0.1.3"
 entrenar = "0.2.5"
 alimentar = { version = "0.2.2", features = ["default"] }
 arrow = { version = "54", default-features = false, features = ["json"] }
@@ -58,6 +58,12 @@ walkdir = "2.5"
 rand.workspace = true
 regex.workspace = true
 
+# DEPYLER-CACHE-001: O(1) compilation cache
+sha2 = "0.10"
+hex = "0.4"
+rusqlite = { version = "0.32", features = ["bundled"] }
+dirs = "5.0"
+
 [dev-dependencies]
 insta.workspace = true
 tempfile.workspace = true
@@ -71,6 +77,11 @@ rand.workspace = true
 md5.workspace = true
 assert_cmd = "2.0"
 predicates = "3.0"
+
+# Examples
+[[example]]
+name = "cache_demo"
+path = "examples/cache_demo.rs"
 
 [[test]]
 name = "functional_tests"

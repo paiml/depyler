@@ -11,8 +11,9 @@
 *   **Check State:** Does `examples/repro_fix.py` exist?
 *   **IF PASSING (or missing):**
     *   **Action 1:** Remove `examples/repro_fix.py`.
-    *   **Action 2 (Turbo Scan & Self-Healing AI Insight):** Run `depyler report --corpus ../reprorusted-python-cli --format rich`.
-        *   *Note:* The oracle will now **automatically monitor for drift and retrain if needed** during the report generation. This ensures diagnostics are always fresh and reflect the current codebase.
+    *   **Action 2 (Mandatory Retrain):** Run `./target/release/depyler oracle train --synthetic`.
+        *   *Reason:* Ensure the Oracle has learned from the very latest commits before analysis. Passive checks failed; explicit retraining is required.
+    *   **Action 3 (Turbo Scan & AI Insight):** Run `depyler report --corpus ../reprorusted-python-cli --format rich`.
     *   **Target Selection (AI-Prioritized):** Based on the `depyler report`'s:
         *   **Andon Status:** Observe `print_drift_status()` output. If `DriftDetected`, prioritize retraining.
         *   **Top Error Taxonomies** (e.g., `E0425`, `E0412`, `E0308`, or `TRANSPILE`).

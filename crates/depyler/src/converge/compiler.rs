@@ -5,11 +5,17 @@
 //!
 //! Uses Cargo-First compilation strategy (DEPYLER-CARGO-FIRST) to ensure
 //! proper dependency resolution for all generated Rust code.
+//!
+//! DEPYLER-CACHE-001: O(1) caching support via SqliteCache integration.
 
+use super::cache::{
+    CacheConfig, CacheEntry, CompilationStatus, SqliteCache, TranspilationCacheKey,
+};
 use anyhow::Result;
 use depyler_core::cargo_first;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 /// A single compilation error
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -40,21 +46,30 @@ pub struct CompilationResult {
 }
 
 /// Batch compiler for Python examples
+///
+/// DEPYLER-CACHE-001: Optionally integrates with SqliteCache for O(1) lookups.
 pub struct BatchCompiler {
     /// Directory containing examples
     input_dir: PathBuf,
     /// Number of parallel jobs
     parallel_jobs: usize,
+    /// Optional compilation cache (DEPYLER-CACHE-001)
+    cache: Option<SqliteCache>,
+    /// Cache configuration
+    cache_config: CacheConfig,
 }
 
 impl BatchCompiler {
     /// Create a new batch compiler
     pub fn new(input_dir: &Path) -> Self {
+        let cache_config = CacheConfig::default();
         Self {
             input_dir: input_dir.to_path_buf(),
             parallel_jobs: std::thread::available_parallelism()
                 .map(|n| n.get())
                 .unwrap_or(4),
+            cache: None,
+            cache_config,
         }
     }
 
@@ -62,6 +77,23 @@ impl BatchCompiler {
     pub fn with_parallel_jobs(mut self, jobs: usize) -> Self {
         self.parallel_jobs = jobs;
         self
+    }
+
+    /// Enable caching with the given configuration (DEPYLER-CACHE-001)
+    pub fn with_cache(mut self, config: CacheConfig) -> Result<Self> {
+        self.cache_config = config.clone();
+        self.cache = Some(SqliteCache::open(config)?);
+        Ok(self)
+    }
+
+    /// Enable caching with default configuration
+    pub fn with_default_cache(self) -> Result<Self> {
+        self.with_cache(CacheConfig::default())
+    }
+
+    /// Get cache statistics (if caching is enabled)
+    pub fn cache_stats(&self) -> Option<super::cache::CacheStats> {
+        self.cache.as_ref().and_then(|c| c.stats().ok())
     }
 
     /// Compile all Python files in the input directory
@@ -116,33 +148,55 @@ impl BatchCompiler {
     }
 
     /// Compile a single Python file
+    ///
+    /// DEPYLER-CACHE-001: Checks cache first for O(1) lookup.
     async fn compile_one(&self, py_file: &Path) -> Result<CompilationResult> {
+        let start = Instant::now();
+
+        // Step 0: Check cache (DEPYLER-CACHE-001)
+        if let Some(ref cache) = self.cache {
+            if let Some(cached_result) = self.check_cache(cache, py_file)? {
+                return Ok(cached_result);
+            }
+        }
+
         // Step 1: Transpile Python to Rust
         let transpile_result = self.transpile(py_file).await;
 
         match transpile_result {
             Ok(rust_file) => {
+                // Read the generated Rust code for caching
+                let rust_code = std::fs::read_to_string(&rust_file).unwrap_or_default();
+
                 // Step 2: Compile Rust
                 let compile_result = self.compile_rust(&rust_file).await;
 
-                match compile_result {
-                    Ok(()) => Ok(CompilationResult {
+                let result = match compile_result {
+                    Ok(()) => CompilationResult {
                         source_file: py_file.to_path_buf(),
                         success: true,
                         errors: vec![],
                         rust_file: Some(rust_file),
-                    }),
-                    Err(errors) => Ok(CompilationResult {
+                    },
+                    Err(errors) => CompilationResult {
                         source_file: py_file.to_path_buf(),
                         success: false,
                         errors,
                         rust_file: Some(rust_file),
-                    }),
+                    },
+                };
+
+                // Step 3: Store in cache (DEPYLER-CACHE-001)
+                if let Some(ref cache) = self.cache {
+                    let elapsed = start.elapsed().as_millis() as u64;
+                    let _ = self.store_in_cache(cache, py_file, &rust_code, &result, elapsed);
                 }
+
+                Ok(result)
             }
             Err(e) => {
                 // Transpilation failed
-                Ok(CompilationResult {
+                let result = CompilationResult {
                     source_file: py_file.to_path_buf(),
                     success: false,
                     errors: vec![CompilationError {
@@ -153,9 +207,91 @@ impl BatchCompiler {
                         column: 0,
                     }],
                     rust_file: None,
-                })
+                };
+
+                // Store failure in cache too
+                if let Some(ref cache) = self.cache {
+                    let elapsed = start.elapsed().as_millis() as u64;
+                    let _ = self.store_in_cache(cache, py_file, "", &result, elapsed);
+                }
+
+                Ok(result)
             }
         }
+    }
+
+    /// Check cache for a previously compiled result (DEPYLER-CACHE-001)
+    fn check_cache(
+        &self,
+        cache: &SqliteCache,
+        py_file: &Path,
+    ) -> Result<Option<CompilationResult>> {
+        // Read Python source
+        let source = std::fs::read_to_string(py_file)?;
+        let key = TranspilationCacheKey::compute(&source, &self.cache_config);
+
+        // Lookup in cache
+        if let Ok(Some(entry)) = cache.lookup(&key) {
+            // Load the cached Rust code
+            if let Ok(rust_code) = cache.load_rust_code(&entry) {
+                // Write rust code to expected location
+                let rust_file = py_file.with_extension("rs");
+                std::fs::write(&rust_file, &rust_code)?;
+
+                // Return cached result
+                let errors: Vec<CompilationError> = entry
+                    .error_messages
+                    .iter()
+                    .map(|msg| CompilationError {
+                        code: "CACHED".to_string(),
+                        message: msg.clone(),
+                        file: rust_file.clone(),
+                        line: 0,
+                        column: 0,
+                    })
+                    .collect();
+
+                return Ok(Some(CompilationResult {
+                    source_file: py_file.to_path_buf(),
+                    success: entry.status == CompilationStatus::Success,
+                    errors,
+                    rust_file: Some(rust_file),
+                }));
+            }
+        }
+
+        Ok(None)
+    }
+
+    /// Store compilation result in cache (DEPYLER-CACHE-001)
+    fn store_in_cache(
+        &self,
+        cache: &SqliteCache,
+        py_file: &Path,
+        rust_code: &str,
+        result: &CompilationResult,
+        elapsed_ms: u64,
+    ) -> Result<()> {
+        let source = std::fs::read_to_string(py_file)?;
+        let key = TranspilationCacheKey::compute(&source, &self.cache_config);
+
+        let entry = CacheEntry {
+            rust_code_blob: String::new(), // Will be set by store
+            cargo_toml_blob: String::new(),
+            dependencies: vec![],
+            status: if result.success {
+                CompilationStatus::Success
+            } else {
+                CompilationStatus::Failure
+            },
+            error_messages: result.errors.iter().map(|e| e.message.clone()).collect(),
+            created_at: 0,
+            last_accessed_at: 0,
+            transpilation_time_ms: elapsed_ms,
+        };
+
+        cache.store(&key, rust_code, "", entry)?;
+        Ok(())
     }
 
     /// Transpile Python to Rust

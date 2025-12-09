@@ -15960,13 +15960,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if matches!(ty, Type::List(_)) {
                         return true;
                     }
+                    // DEPYLER-0836: trueno::Vector<T> types are numpy arrays
+                    if let Type::Custom(type_name) = ty {
+                        if type_name.starts_with("Vector<") || type_name == "Vector" {
+                            return true;
+                        }
+                    }
                 }
                 // Fall back to name heuristics only for unknown types
-                // DEPYLER-0804: Removed "x", "y", "result" - too generic, often scalars
+                // DEPYLER-0804: Removed "x", "y" - too generic, often scalars
+                // DEPYLER-0836: "result" is included when in numpy context (needs_trueno)
                 let n = name.as_str();
+                let is_numpy_context = self.ctx.needs_trueno;
                 matches!(n, "arr" | "array" | "data" | "values" | "vec" | "vector")
                     || n.starts_with("arr_") || n.ends_with("_arr")
                     || n.starts_with("vec_") || n.ends_with("_vec")
+                    || (is_numpy_context && n == "result")
             }
             // Recursive: binary op on vector yields vector
             HirExpr::Binary { left, .. } => self.is_numpy_array_expr(left),
