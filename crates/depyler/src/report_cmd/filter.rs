@@ -60,6 +60,7 @@ pub enum SemanticTag {
 
 impl SemanticTag {
     /// Parse a tag from string.
+    #[allow(clippy::should_implement_trait)] // FromStr would require Result return type
     pub fn from_str(s: &str) -> Self {
         match s.to_lowercase().as_str() {
             "dict" | "dictionary" => Self::Dict,

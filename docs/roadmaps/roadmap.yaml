@@ -1906,7 +1906,7 @@ roadmap:
   priority: medium
   assigned_to: null
   created: 2025-12-03T07:19:30.405566504+00:00
-  updated: 2025-12-03T07:19:30.405566504+00:00
+  updated: 2025-12-09T08:31:12.053981457+00:00
   spec: null
   acceptance_criteria:
   - E0433 blocked count reduced from 2744 to <500
@@ -2230,4 +2230,249 @@ roadmap:
   estimated_effort: null
   labels:
   - enhancement
+  notes: null
+- id: GH-212
+  github_issue: 212
+  item_type: task
+  title: '[Refactor] Replace Custom TrainingState with Entrenar Lineage (DEPYLER-REFACTOR-001)'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-08T15:29:37.276114564+00:00
+  updated: 2025-12-08T15:29:37.276114564+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - enhancement
+  notes: null
+- id: GH-213
+  github_issue: 213
+  item_type: task
+  title: Migrate to aprender online module and delete custom drift/lineage code
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-08T15:54:03.808961645+00:00
+  updated: 2025-12-08T16:15:22.716293747+00:00
+  spec: null
+  acceptance_criteria:
+  - 'Fix import: `aprender::online::drift` not `aprender::metrics::drift`'
+  - Replace manual `performance_history` with `ADWIN::with_delta(0.002)`
+  - Delete `check_drift()` method in lib.rs (lines 610-625)
+  - Use `DriftDetectorFactory::recommended()` for default config
+  - Evaluate if `oracle_lineage.rs` duplicates `entrenar::ModelLineage`
+  - Consolidate to single lineage implementation
+  - Delete redundant code in `oracle_lineage.rs`
+  - Replace `unified_training.rs` manual merging with `CorpusMerger`
+  - Use `CorpusBuffer` with `EvictionPolicy::Reservoir` for sampling
+  - 'Enable deduplication via `CorpusBufferConfig { deduplicate: true }`'
+  - Map 5 sources to `SampleSource` enum
+  - Complete entrenar integration in `training_monitor.rs`
+  - Add `HanseiAnalyzer` for post-training reflection
+  - Integrate `AndonSystem` alerts with drift detection
+  - Add `RetrainOrchestrator` for automatic drift-triggered retraining
+  - 'Configure:'
+  - Add real-time drift status visualization
+  - Show corpus composition breakdown (synthetic/production/verificar/oip)
+  - Display model lineage history with regression markers
+  - Add Andon-style alerts for drift warnings
+  - Curriculum stage progression (if implemented)
+  - Import path fixed to `aprender::online::drift`
+  - Zero manual drift detection code
+  - Single lineage implementation (not duplicated)
+  - CorpusMerger replaces manual corpus merging
+  - Full entrenar monitoring integration
+  - Visualization dashboard for drift/corpus/lineage
+  - ~550 lines of code deleted
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - enhancement
+  notes: null
+- id: 'UTOL-001: Implement Unified Training Oracle Loop'
+  github_issue: null
+  item_type: task
+  title: 'New task: UTOL-001: Implement Unified Training Oracle Loop'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-08T20:37:11.872244987+00:00
+  updated: 2025-12-08T20:37:11.872244987+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'UTOL-002: Implement run_utol main loop with real corpus compilation'
+  github_issue: null
+  item_type: task
+  title: 'New task: UTOL-002: Implement run_utol main loop with real corpus compilation'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-08T21:04:32.228015432+00:00
+  updated: 2025-12-08T21:04:32.228015432+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0824
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0824'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-08T21:43:58.349076683+00:00
+  updated: 2025-12-08T21:43:58.349076683+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0826
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0826'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-08T22:20:00.870106929+00:00
+  updated: 2025-12-08T22:20:00.870106929+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0827
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0827'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-08T22:47:36.896019633+00:00
+  updated: 2025-12-08T22:47:36.896019633+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0828
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0828'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-08T22:57:23.782108393+00:00
+  updated: 2025-12-08T22:57:23.782108393+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0829
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0829'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-09T07:41:33.198132765+00:00
+  updated: 2025-12-09T07:41:33.198132765+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0830
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0830'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-09T07:49:46.119998598+00:00
+  updated: 2025-12-09T07:49:46.119998598+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: GH-207
+  github_issue: 207
+  item_type: task
+  title: '[P1-HIGH] E0599 Method Resolution Enhancement - ~1000 Blocked Examples'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-09T09:09:09.637091275+00:00
+  updated: 2025-12-09T09:09:09.637091275+00:00
+  spec: null
+  acceptance_criteria:
+  - E0599 blocked count reduced from ~1000 to <300
+  - All common string methods mapped
+  - All common collection methods mapped
+  - +8-10% improvement in single-shot compile rate
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels:
+  - bug
+  - P1-high
+  - tarantula-verified
+  notes: null
+- id: DEPYLER-0833
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0833'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-09T13:02:19.738538368+00:00
+  updated: 2025-12-09T13:02:19.738538368+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-CACHE-001
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-CACHE-001'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-09T17:23:34.341238739+00:00
+  updated: 2025-12-09T17:23:34.341238739+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
   notes: null
