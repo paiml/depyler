@@ -85,6 +85,7 @@ pub mod interactive;
 pub mod profile_cmd;
 pub mod report_cmd;
 pub mod training_monitor;
+pub mod utol_cmd;
 
 #[derive(Parser)]
 #[command(name = "depyler")]
@@ -498,6 +499,54 @@ pub enum Commands {
         /// Stop on first failure
         #[arg(long)]
         fail_fast: bool,
+    },
+
+    /// UTOL: Unified Training Oracle Loop (Toyota Way)
+    ///
+    /// Automated self-correcting compilation feedback system with rich visual feedback.
+    /// Replaces manual "Apex Hunt" prompt-driven cycles with deterministic convergence.
+    ///
+    /// Principles: Jidoka (自働化), Kaizen (改善), Andon (行灯), Heijunka (平準化)
+    Utol {
+        /// Path to corpus directory
+        #[arg(short, long)]
+        corpus: Option<PathBuf>,
+
+        /// Target compilation success rate (0.0-1.0)
+        #[arg(short, long, default_value = "0.80")]
+        target_rate: f64,
+
+        /// Maximum iterations before stopping
+        #[arg(short, long, default_value = "50")]
+        max_iterations: usize,
+
+        /// Patience: stop if no improvement for N iterations
+        #[arg(long, default_value = "5")]
+        patience: usize,
+
+        /// Display mode: rich (TUI), minimal (CI), json (automation), silent
+        #[arg(long, default_value = "rich")]
+        display: String,
+
+        /// Output results to JSON file
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Path to YAML configuration file
+        #[arg(long)]
+        config: Option<PathBuf>,
+
+        /// Show status and exit (don't run loop)
+        #[arg(long)]
+        status: bool,
+
+        /// Watch mode: continuously monitor corpus and re-run on changes
+        #[arg(short, long)]
+        watch: bool,
+
+        /// Watch debounce interval in milliseconds
+        #[arg(long, default_value = "500")]
+        watch_debounce: u64,
     },
 }
 
