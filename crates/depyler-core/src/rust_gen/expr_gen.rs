@@ -15119,9 +15119,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 insert_stmts.push(quote! { set.insert(#elem_expr); });
             }
         }
+        // DEPYLER-0831: Use fully-qualified path for E0412 resolution
         Ok(parse_quote! {
             {
-                let mut set = HashSet::new();
+                let mut set = std::collections::HashSet::new();
                 #(#insert_stmts)*
                 set
             }
@@ -15152,9 +15153,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 insert_stmts.push(quote! { set.insert(#elem_expr); });
             }
         }
+        // DEPYLER-0831: Use fully-qualified path for E0412 resolution
         Ok(parse_quote! {
             {
-                let mut set = HashSet::new();
+                let mut set = std::collections::HashSet::new();
                 #(#insert_stmts)*
                 std::sync::Arc::new(set)
             }
@@ -16715,12 +16717,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             chain = parse_quote! { #chain.map(|#target_pat| #element_expr) };
 
             // Collect into HashSet
-            return Ok(parse_quote! { #chain.collect::<HashSet<_>>() });
+            // DEPYLER-0831: Use fully-qualified path for E0412 resolution
+            return Ok(parse_quote! { #chain.collect::<std::collections::HashSet<_>>() });
         }
 
         // Multiple generators case (nested iteration with flat_map)
         let chain = self.convert_nested_generators_for_list_comp(element, generators)?;
-        Ok(parse_quote! { #chain.collect::<HashSet<_>>() })
+        // DEPYLER-0831: Use fully-qualified path for E0412 resolution
+        Ok(parse_quote! { #chain.collect::<std::collections::HashSet<_>>() })
     }
 
     fn convert_dict_comp(

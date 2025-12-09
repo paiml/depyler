@@ -3642,20 +3642,22 @@ impl<'a> ExprConverter<'a> {
             // Empty set: set()
             // DEPYLER-0409: Use default type i32 to avoid "type annotations needed" error
             // when the variable is unused or type can't be inferred from context
-            Ok(parse_quote! { HashSet::<i32>::new() })
+            // DEPYLER-0831: Use fully-qualified path for E0412 resolution
+            Ok(parse_quote! { std::collections::HashSet::<i32>::new() })
         } else if args.len() == 1 {
             // Set from iterable: set([1, 2, 3])
             let arg = &args[0];
             // DEPYLER-0797: Check if arg is a tuple - tuples don't implement IntoIterator in Rust
             // Convert tuple to vec! for iteration
+            // DEPYLER-0831: Use fully-qualified path for E0412 resolution
             if let syn::Expr::Tuple(tuple) = arg {
                 let elems = &tuple.elems;
                 Ok(parse_quote! {
-                    vec![#elems].into_iter().collect::<HashSet<_>>()
+                    vec![#elems].into_iter().collect::<std::collections::HashSet<_>>()
                 })
             } else {
                 Ok(parse_quote! {
-                    #arg.into_iter().collect::<HashSet<_>>()
+                    #arg.into_iter().collect::<std::collections::HashSet<_>>()
                 })
             }
         } else {
@@ -3667,20 +3669,22 @@ impl<'a> ExprConverter<'a> {
         if args.is_empty() {
             // Empty frozenset: frozenset()
             // DEPYLER-0409: Use default type i32 for empty sets
-            Ok(parse_quote! { std::sync::Arc::new(HashSet::<i32>::new()) })
+            // DEPYLER-0831: Use fully-qualified path for E0412 resolution
+            Ok(parse_quote! { std::sync::Arc::new(std::collections::HashSet::<i32>::new()) })
         } else if args.len() == 1 {
             // Frozenset from iterable: frozenset([1, 2, 3])
             let arg = &args[0];
             // DEPYLER-0797: Check if arg is a tuple - tuples don't implement IntoIterator in Rust
             // Convert tuple to vec! for iteration
+            // DEPYLER-0831: Use fully-qualified path for E0412 resolution
             if let syn::Expr::Tuple(tuple) = arg {
                 let elems = &tuple.elems;
                 Ok(parse_quote! {
-                    std::sync::Arc::new(vec![#elems].into_iter().collect::<HashSet<_>>())
+                    std::sync::Arc::new(vec![#elems].into_iter().collect::<std::collections::HashSet<_>>())
                 })
             } else {
                 Ok(parse_quote! {
-                    std::sync::Arc::new(#arg.into_iter().collect::<HashSet<_>>())
+                    std::sync::Arc::new(#arg.into_iter().collect::<std::collections::HashSet<_>>())
                 })
             }
         } else {
@@ -4829,6 +4833,7 @@ impl<'a> ExprConverter<'a> {
         let iter_expr = self.convert(iter)?;
         let element_expr = self.convert(element)?;
 
+        // DEPYLER-0831: Use fully-qualified path for E0412 resolution
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
             // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
@@ -4838,7 +4843,7 @@ impl<'a> ExprConverter<'a> {
                     .into_iter()
                     .filter(|&#target_pat| #cond_expr)
                     .map(|#target_pat| #element_expr)
-                    .collect::<HashSet<_>>()
+                    .collect::<std::collections::HashSet<_>>()
             })
         } else {
             // Without condition: iter().map().collect()
@@ -4846,7 +4851,7 @@ impl<'a> ExprConverter<'a> {
                 #iter_expr
                     .into_iter()
                     .map(|#target_pat| #element_expr)
-                    .collect::<HashSet<_>>()
+                    .collect::<std::collections::HashSet<_>>()
             })
         }
     }
