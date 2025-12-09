@@ -146,6 +146,16 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
         deps.push(Dependency::new("rand", "0.8"));
     }
 
+    // GH-207: rand_distr for statistical distributions (gauss, triangular, etc.)
+    if ctx.needs_rand_distr {
+        deps.push(Dependency::new("rand_distr", "0.4"));
+    }
+
+    // DEPYLER-0829: glob crate for Path.glob() and Path.rglob()
+    if ctx.needs_glob {
+        deps.push(Dependency::new("glob", "0.3"));
+    }
+
     // DEPYLER-0384: Check if ArgumentParser was used (needs clap)
     if ctx.needs_clap {
         deps.push(Dependency::new("clap", "4.5").with_features(vec!["derive".to_string()]));
@@ -404,6 +414,8 @@ mod tests {
             needs_rc: false,
             needs_cow: false,
             needs_rand: true,
+            needs_slice_random: false, // GH-207
+            needs_rand_distr: false,   // GH-207
             needs_serde_json: true,
             needs_regex: false,
             needs_chrono: true,
@@ -428,6 +440,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![std::collections::HashSet::new()],
             current_function_can_fail: false,
@@ -442,6 +455,12 @@ mod tests {
             needs_argumenttypeerror: false,
             needs_runtimeerror: false,
             needs_filenotfounderror: false,
+            needs_syntaxerror: false,
+            needs_typeerror: false,
+            needs_keyerror: false,
+            needs_ioerror: false,
+            needs_attributeerror: false,
+            needs_stopiteration: false,
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: std::collections::HashSet::new(),
@@ -468,6 +487,7 @@ mod tests {
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
@@ -537,6 +557,8 @@ mod tests {
             needs_rc: false,
             needs_cow: false,
             needs_rand: true,
+            needs_slice_random: false, // GH-207
+            needs_rand_distr: false,   // GH-207
             needs_serde_json: true,
             needs_regex: true,
             needs_chrono: true,
@@ -561,6 +583,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -575,6 +598,12 @@ mod tests {
             needs_argumenttypeerror: false,
             needs_runtimeerror: false,
             needs_filenotfounderror: false,
+            needs_syntaxerror: false,
+            needs_typeerror: false,
+            needs_keyerror: false,
+            needs_ioerror: false,
+            needs_attributeerror: false,
+            needs_stopiteration: false,
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: HashSet::new(),
@@ -601,6 +630,7 @@ mod tests {
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
@@ -667,6 +697,8 @@ mod tests {
             needs_rc: false,
             needs_cow: false,
             needs_rand: false,
+            needs_slice_random: false, // GH-207
+            needs_rand_distr: false,   // GH-207
             needs_serde_json: true, // Enable serde_json
             needs_regex: false,
             needs_chrono: false,
@@ -691,6 +723,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -705,6 +738,12 @@ mod tests {
             needs_argumenttypeerror: false,
             needs_runtimeerror: false,
             needs_filenotfounderror: false,
+            needs_syntaxerror: false,
+            needs_typeerror: false,
+            needs_keyerror: false,
+            needs_ioerror: false,
+            needs_attributeerror: false,
+            needs_stopiteration: false,
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: HashSet::new(),
@@ -731,6 +770,7 @@ mod tests {
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
@@ -801,6 +841,8 @@ mod tests {
             needs_rc: false,
             needs_cow: false,
             needs_rand: false,
+            needs_slice_random: false, // GH-207
+            needs_rand_distr: false,   // GH-207
             needs_serde_json: false,
             needs_regex: false,
             needs_chrono: false,
@@ -825,6 +867,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -839,6 +882,12 @@ mod tests {
             needs_argumenttypeerror: false,
             needs_runtimeerror: false,
             needs_filenotfounderror: false,
+            needs_syntaxerror: false,
+            needs_typeerror: false,
+            needs_keyerror: false,
+            needs_ioerror: false,
+            needs_attributeerror: false,
+            needs_stopiteration: false,
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: HashSet::new(),
@@ -865,6 +914,7 @@ mod tests {
             in_json_context: false,                                // DEPYLER-0461
             stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(), // DEPYLER-0452
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
+            none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
             cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
