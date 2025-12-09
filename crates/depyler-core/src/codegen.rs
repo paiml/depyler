@@ -996,6 +996,7 @@ fn set_comp_to_rust_tokens(
     let iter_tokens = expr_to_rust_tokens(iter)?;
     let element_tokens = expr_to_rust_tokens(element)?;
 
+    // DEPYLER-0831: Use fully-qualified path for E0412 resolution
     if let Some(cond) = condition {
         // With condition: iter().filter().map().collect()
         // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
@@ -1005,7 +1006,7 @@ fn set_comp_to_rust_tokens(
                 .into_iter()
                 .filter(|&#target_ident| #cond_tokens)
                 .map(|#target_ident| #element_tokens)
-                .collect::<HashSet<_>>()
+                .collect::<std::collections::HashSet<_>>()
         })
     } else {
         // Without condition: iter().map().collect()
@@ -1013,7 +1014,7 @@ fn set_comp_to_rust_tokens(
             #iter_tokens
                 .into_iter()
                 .map(|#target_ident| #element_tokens)
-                .collect::<HashSet<_>>()
+                .collect::<std::collections::HashSet<_>>()
         })
     }
 }
