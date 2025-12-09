@@ -53,6 +53,8 @@ pub struct CodeGenContext<'a> {
     pub needs_rc: bool,
     pub needs_cow: bool,
     pub needs_rand: bool,
+    pub needs_slice_random: bool, // GH-207: Track rand::seq::SliceRandom trait for choose/shuffle
+    pub needs_rand_distr: bool,   // GH-207: Track rand_distr crate for distributions (gauss, triangular)
     pub needs_serde_json: bool,
     pub needs_regex: bool,
     pub needs_chrono: bool,
@@ -79,6 +81,7 @@ pub struct CodeGenContext<'a> {
     pub needs_once_cell: bool, // DEPYLER-REARCH-001: Track once_cell for lazy static initialization
     pub needs_trueno: bool,    // Phase 3: NumPy→Trueno codegen (SIMD-accelerated tensor lib)
     pub needs_tokio: bool,     // DEPYLER-0747: asyncio→tokio async runtime mapping
+    pub needs_glob: bool,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,
@@ -92,6 +95,12 @@ pub struct CodeGenContext<'a> {
     pub needs_argumenttypeerror: bool,
     pub needs_runtimeerror: bool, // DEPYLER-0551: Python RuntimeError
     pub needs_filenotfounderror: bool, // DEPYLER-0551: Python FileNotFoundError
+    pub needs_syntaxerror: bool,    // GH-204: Python SyntaxError
+    pub needs_typeerror: bool,      // GH-204: Python TypeError
+    pub needs_keyerror: bool,       // GH-204: Python KeyError
+    pub needs_ioerror: bool,        // GH-204: Python IOError
+    pub needs_attributeerror: bool, // GH-204: Python AttributeError
+    pub needs_stopiteration: bool,  // GH-204: Python StopIteration
     pub is_classmethod: bool,
     pub in_generator: bool,
     pub generator_state_vars: HashSet<String>,
@@ -184,6 +193,13 @@ pub struct CodeGenContext<'a> {
     /// Without normalization: &str vs String type mismatch
     /// With normalization: String vs String (consistent)
     pub hoisted_inference_vars: HashSet<String>,
+
+    /// DEPYLER-0823: Track variables assigned None placeholder that need hoisting
+    /// When `var = None; if cond: var = value; use(var)`, the None assignment is skipped
+    /// but the variable must be hoisted before the if block to be accessible after it.
+    /// Without hoisting: let var = value declared INSIDE if → E0425 outside
+    /// With hoisting: let mut var; if cond { var = value; } → var accessible outside
+    pub none_placeholder_vars: HashSet<String>,
 
     /// DEPYLER-0108: Track precomputed Option field checks for argparse
     /// Contains field names (e.g., "hash") where we've precomputed `let has_<field> = args.<field>.is_some();`

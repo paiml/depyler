@@ -8823,6 +8823,258 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
+    /// DEPYLER-0829: Convert pathlib methods on Path/PathBuf variable instances
+    /// This handles cases like `p.write_text(content)` where p is a Path variable
+    /// Unlike try_convert_pathlib_method which handles module calls like pathlib.Path(...).method()
+    #[inline]
+    fn convert_pathlib_instance_method(
+        &mut self,
+        path_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        let result = match method {
+            // File I/O operations
+            "write_text" => {
+                if arg_exprs.is_empty() {
+                    bail!("write_text() requires at least 1 argument (content)");
+                }
+                let content = &arg_exprs[0];
+                parse_quote! { std::fs::write(&#path_expr, #content).unwrap() }
+            }
+
+            "read_text" => {
+                parse_quote! { std::fs::read_to_string(&#path_expr).unwrap() }
+            }
+
+            "read_bytes" => {
+                parse_quote! { std::fs::read(&#path_expr).unwrap() }
+            }
+
+            "write_bytes" => {
+                if arg_exprs.is_empty() {
+                    bail!("write_bytes() requires at least 1 argument (data)");
+                }
+                let data = &arg_exprs[0];
+                parse_quote! { std::fs::write(&#path_expr, #data).unwrap() }
+            }
+
+            // Path predicates
+            "exists" => {
+                parse_quote! { #path_expr.exists() }
+            }
+
+            "is_file" => {
+                parse_quote! { #path_expr.is_file() }
+            }
+
+            "is_dir" => {
+                parse_quote! { #path_expr.is_dir() }
+            }
+
+            // Directory operations
+            "mkdir" => {
+                // Check if parents=True was passed
+                if !arg_exprs.is_empty() {
+                    parse_quote! { std::fs::create_dir_all(&#path_expr).unwrap() }
+                } else {
+                    parse_quote! { std::fs::create_dir(&#path_expr).unwrap() }
+                }
+            }
+
+            "rmdir" => {
+                parse_quote! { std::fs::remove_dir(&#path_expr).unwrap() }
+            }
+
+            "unlink" => {
+                parse_quote! { std::fs::remove_file(&#path_expr).unwrap() }
+            }
+
+            "iterdir" => {
+                parse_quote! {
+                    std::fs::read_dir(&#path_expr)
+                        .unwrap()
+                        .map(|e| e.unwrap().path())
+                        .collect::<Vec<_>>()
+                }
+            }
+
+            // Glob operations - require glob crate
+            "glob" => {
+                self.ctx.needs_glob = true;
+                if arg_exprs.is_empty() {
+                    bail!("glob() requires at least 1 argument (pattern)");
+                }
+                let pattern = &arg_exprs[0];
+                parse_quote! {
+                    glob::glob(&format!("{}/{}", #path_expr.display(), #pattern))
+                        .unwrap()
+                        .filter_map(|e| e.ok())
+                        .collect::<Vec<_>>()
+                }
+            }
+
+            "rglob" => {
+                self.ctx.needs_glob = true;
+                if arg_exprs.is_empty() {
+                    bail!("rglob() requires at least 1 argument (pattern)");
+                }
+                let pattern = &arg_exprs[0];
+                parse_quote! {
+                    glob::glob(&format!("{}/**/{}", #path_expr.display(), #pattern))
+                        .unwrap()
+                        .filter_map(|e| e.ok())
+                        .collect::<Vec<_>>()
+                }
+            }
+
+            // Path transformations
+            "with_name" => {
+                if arg_exprs.is_empty() {
+                    bail!("with_name() requires 1 argument (name)");
+                }
+                let name = &arg_exprs[0];
+                parse_quote! { #path_expr.with_file_name(#name) }
+            }
+
+            "with_suffix" => {
+                if arg_exprs.is_empty() {
+                    bail!("with_suffix() requires 1 argument (suffix)");
+                }
+                let suffix = &arg_exprs[0];
+                parse_quote! { #path_expr.with_extension(#suffix.trim_start_matches('.')) }
+            }
+
+            "with_stem" => {
+                // Python's with_stem - change stem keeping extension
+                if arg_exprs.is_empty() {
+                    bail!("with_stem() requires 1 argument (stem)");
+                }
+                let stem = &arg_exprs[0];
+                parse_quote! {
+                    {
+                        let p = &#path_expr;
+                        let ext = p.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
+                        p.with_file_name(format!("{}{}", #stem, ext))
+                    }
+                }
+            }
+
+            "resolve" | "absolute" => {
+                parse_quote! { #path_expr.canonicalize().unwrap() }
+            }
+
+            "relative_to" => {
+                if arg_exprs.is_empty() {
+                    bail!("relative_to() requires 1 argument (base)");
+                }
+                let base = &arg_exprs[0];
+                parse_quote! { #path_expr.strip_prefix(#base).unwrap().to_path_buf() }
+            }
+
+            _ => {
+                // Fall through to regular method call
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                parse_quote! { #path_expr.#method_ident(#(#arg_exprs),*) }
+            }
+        };
+
+        Ok(result)
+    }
+
+    /// DEPYLER-0830: Convert datetime/timedelta methods on variable instances
+    /// This handles cases like `td.total_seconds()` where td is a TimeDelta variable
+    /// Unlike try_convert_datetime_method which handles module calls like datetime.datetime.now()
+    #[inline]
+    fn convert_datetime_instance_method(
+        &mut self,
+        dt_expr: &syn::Expr,
+        method: &str,
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        // Mark that we need the chrono crate
+        self.ctx.needs_chrono = true;
+
+        let result = match method {
+            // timedelta.total_seconds() → td.num_seconds() as f64
+            "total_seconds" => {
+                parse_quote! { #dt_expr.num_seconds() as f64 }
+            }
+
+            // datetime.fromisoformat(s) → NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
+            "fromisoformat" => {
+                if arg_exprs.is_empty() {
+                    bail!("fromisoformat() requires 1 argument (string)");
+                }
+                let s = &arg_exprs[0];
+                parse_quote! {
+                    chrono::NaiveDateTime::parse_from_str(&#s, "%Y-%m-%dT%H:%M:%S").unwrap()
+                }
+            }
+
+            // datetime.isoformat() → dt.format("%Y-%m-%dT%H:%M:%S").to_string()
+            "isoformat" => {
+                parse_quote! { #dt_expr.format("%Y-%m-%dT%H:%M:%S").to_string() }
+            }
+
+            // datetime.strftime(fmt) → dt.format(fmt).to_string()
+            "strftime" => {
+                if arg_exprs.is_empty() {
+                    bail!("strftime() requires 1 argument (format string)");
+                }
+                let fmt = &arg_exprs[0];
+                parse_quote! { #dt_expr.format(#fmt).to_string() }
+            }
+
+            // datetime.timestamp() → dt.and_utc().timestamp() as f64
+            "timestamp" => {
+                parse_quote! { #dt_expr.and_utc().timestamp() as f64 }
+            }
+
+            // datetime.timetuple() - not directly supported, return tuple of components
+            "timetuple" => {
+                parse_quote! {
+                    (#dt_expr.year(), #dt_expr.month(), #dt_expr.day(),
+                     #dt_expr.hour(), #dt_expr.minute(), #dt_expr.second())
+                }
+            }
+
+            // datetime.weekday() → dt.weekday().num_days_from_monday()
+            "weekday" => {
+                parse_quote! { #dt_expr.weekday().num_days_from_monday() as i32 }
+            }
+
+            // datetime.isoweekday() → dt.weekday().number_from_monday()
+            "isoweekday" => {
+                parse_quote! { (#dt_expr.weekday().num_days_from_monday() + 1) as i32 }
+            }
+
+            // datetime.isocalendar() → (year, week, weekday)
+            "isocalendar" => {
+                parse_quote! {
+                    {
+                        let iso = #dt_expr.iso_week();
+                        (iso.year(), iso.week() as i32, #dt_expr.weekday().number_from_monday() as i32)
+                    }
+                }
+            }
+
+            // datetime.replace() - simplified: with_year, with_month, etc.
+            "replace" => {
+                // For now, just pass through - would need kwargs support for proper impl
+                parse_quote! { #dt_expr }
+            }
+
+            // Fallback: pass through as method call
+            _ => {
+                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                parse_quote! { #dt_expr.#method_ident(#(#arg_exprs),*) }
+            }
+        };
+
+        Ok(result)
+    }
+
     /// Try to convert datetime module method calls
     /// DEPYLER-STDLIB-DATETIME: Comprehensive datetime module support
     #[inline]
@@ -9570,6 +9822,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 2 {
                     bail!("random.{}() requires exactly 2 arguments", method);
                 }
+                // GH-207: Mark that we need rand_distr crate for Normal distribution
+                self.ctx.needs_rand_distr = true;
                 let mu = &arg_exprs[0];
                 let sigma = &arg_exprs[1];
                 // Use rand_distr::Normal
@@ -9586,6 +9840,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 1 {
                     bail!("random.expovariate() requires exactly 1 argument");
                 }
+                // GH-207: Mark that we need rand_distr crate for Exp distribution
+                self.ctx.needs_rand_distr = true;
                 let lambd = &arg_exprs[0];
                 // Use rand_distr::Exp
                 parse_quote! {
@@ -9601,6 +9857,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 2 {
                     bail!("random.betavariate() requires exactly 2 arguments");
                 }
+                // GH-207: Mark that we need rand_distr crate for Beta distribution
+                self.ctx.needs_rand_distr = true;
                 let alpha = &arg_exprs[0];
                 let beta = &arg_exprs[1];
                 parse_quote! {
@@ -9616,6 +9874,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() != 2 {
                     bail!("random.gammavariate() requires exactly 2 arguments");
                 }
+                // GH-207: Mark that we need rand_distr crate for Gamma distribution
+                self.ctx.needs_rand_distr = true;
                 let alpha = &arg_exprs[0];
                 let beta = &arg_exprs[1];
                 parse_quote! {
@@ -9662,6 +9922,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() < 2 || arg_exprs.len() > 3 {
                     bail!("random.triangular() requires 2 or 3 arguments");
                 }
+                // GH-207: Mark that we need rand_distr crate for Triangular distribution
+                self.ctx.needs_rand_distr = true;
                 let low = &arg_exprs[0];
                 let high = &arg_exprs[1];
                 let mode = if arg_exprs.len() == 3 {
@@ -13193,6 +13455,65 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .map(|arg| arg.to_rust_expr(self.ctx))
                 .collect::<Result<Vec<_>>>()?;
             return self.convert_string_method(object, &object_expr, method, &arg_exprs, args);
+        }
+
+        // DEPYLER-0829: Handle pathlib methods on Path variables (not just module calls)
+        // Python: p = Path("/foo"); p.write_text(content)
+        // Rust: PathBuf doesn't have write_text, must use std::fs::write
+        // This catches path methods when object is a variable, not the pathlib module
+        if matches!(
+            method,
+            "write_text"
+                | "read_text"
+                | "read_bytes"
+                | "write_bytes"
+                | "exists"
+                | "is_file"
+                | "is_dir"
+                | "mkdir"
+                | "rmdir"
+                | "unlink"
+                | "iterdir"
+                | "glob"
+                | "rglob"
+                | "with_name"
+                | "with_suffix"
+                | "with_stem"
+                | "resolve"
+                | "absolute"
+                | "relative_to"
+        ) {
+            let object_expr = object.to_rust_expr(self.ctx)?;
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?;
+            return self.convert_pathlib_instance_method(&object_expr, method, &arg_exprs);
+        }
+
+        // DEPYLER-0830: Handle datetime/timedelta instance methods on variables
+        // Python: td = datetime.timedelta(seconds=100); td.total_seconds()
+        // Rust: TimeDelta.num_seconds() as f64
+        // This catches datetime methods when object is a variable, not the datetime module
+        if matches!(
+            method,
+            "total_seconds"
+                | "fromisoformat"
+                | "isoformat"
+                | "strftime"
+                | "timestamp"
+                | "timetuple"
+                | "weekday"
+                | "isoweekday"
+                | "isocalendar"
+                | "replace"
+        ) {
+            let object_expr = object.to_rust_expr(self.ctx)?;
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?;
+            return self.convert_datetime_instance_method(&object_expr, method, &arg_exprs);
         }
 
         // DEPYLER-0416: Check if this is a static method call on a class (e.g., Point.origin())
