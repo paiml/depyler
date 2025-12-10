@@ -55,7 +55,7 @@ use anyhow::Result;
 /// Final convergence state with results
 pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<ConvergenceState> {
     let mut state = ConvergenceState::new(config.clone());
-    let compiler = BatchCompiler::new(&config.input_dir);
+    let compiler = BatchCompiler::new(&config.input_dir).with_display_mode(config.display_mode);
     let classifier = ErrorClassifier::new();
     let clusterer = ErrorClusterer::new();
     let reporter = ConvergenceReporter::with_display_mode(config.display_mode);
