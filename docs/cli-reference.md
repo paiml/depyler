@@ -603,6 +603,8 @@ Options:
       --fix-confidence <F>     Minimum confidence for auto-fix (0.0-1.0) [default: 0.8]
       --checkpoint-dir <DIR>   Directory to save/resume checkpoints
   -p, --parallel-jobs <N>      Number of parallel compilation jobs [default: 4]
+      --display <MODE>         Display mode [default: rich]
+                               [possible values: rich, minimal, json, silent]
 ```
 
 #### Examples
