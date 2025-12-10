@@ -1207,6 +1207,40 @@ pmat validate-docs docs/
 - Checks broken links
 - Verifies API examples
 
+## Corpus Convergence Protocol
+
+**CRITICAL**: Use the convergence protocol to achieve 100% compilation rate on real-world corpora.
+
+**Prompt Location**: `docs/prompts/converge_reprorusted_100.md`
+
+**Quick Start**:
+```bash
+# Build release binary
+cargo build --release --bin depyler
+
+# Warm cache for O(1) subsequent lookups
+depyler cache warm --input-dir /path/to/corpus
+
+# Run UTOL automated convergence (Toyota Way)
+depyler utol --corpus /path/to/corpus --target-rate 0.80
+
+# Or manual convergence with explain + oracle
+depyler explain out.rs --trace trace.json --verbose
+depyler oracle improve --corpus /path/to/corpus --target-rate 1.0
+```
+
+**Key Commands**:
+| Task | Command |
+|------|---------|
+| Cache Warm | `depyler cache warm --input-dir $CORPUS` |
+| Cache Stats | `depyler cache stats` |
+| Explain Errors | `depyler explain <file.rs> --trace <trace.json>` |
+| Oracle Train | `depyler oracle train --corpus $CORPUS` |
+| Oracle Improve | `depyler oracle improve --corpus $CORPUS` |
+| UTOL Loop | `depyler utol --corpus $CORPUS --target-rate 0.80` |
+
+**Toyota Way Principles**: Jidoka (stop on defect), Kaizen (continuous improvement), Andon (visual feedback).
+
 ## Release Checklist
 - [ ] All examples transpile and run
 - [ ] Property tests 100% coverage on supported features
