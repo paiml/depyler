@@ -67,6 +67,7 @@
 
 # Development Guide
 
+- [Corpus Convergence Protocol](./convergence-protocol.md)
 - [Oracle: ML Error Classification](./oracle.md)
 - [Hunt Mode: Automated Calibration](./hunt-mode.md)
 - [Generative Repair: MCTS Code Synthesis](./generative-repair.md)
