@@ -23,16 +23,24 @@ pub enum DisplayMode {
     Silent,
 }
 
-impl DisplayMode {
-    /// Parse display mode from string
-    pub fn from_str(s: &str) -> Self {
-        match s.to_lowercase().as_str() {
+impl std::str::FromStr for DisplayMode {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.to_lowercase().as_str() {
             "rich" => Self::Rich,
             "minimal" => Self::Minimal,
             "json" => Self::Json,
             "silent" => Self::Silent,
             _ => Self::Rich, // Default to rich
-        }
+        })
+    }
+}
+
+impl DisplayMode {
+    /// Parse display mode from string (convenience method)
+    pub fn parse(s: &str) -> Self {
+        s.parse().unwrap_or_default()
     }
 }
 

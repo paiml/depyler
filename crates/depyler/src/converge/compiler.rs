@@ -11,9 +11,12 @@
 use super::cache::{
     CacheConfig, CacheEntry, CompilationStatus, SqliteCache, TranspilationCacheKey,
 };
+use super::reporter::progress_bar;
+use super::state::DisplayMode;
 use anyhow::Result;
 use depyler_core::cargo_first;
 use serde::{Deserialize, Serialize};
+use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -57,6 +60,8 @@ pub struct BatchCompiler {
     cache: Option<SqliteCache>,
     /// Cache configuration
     cache_config: CacheConfig,
+    /// Display mode for progress output
+    display_mode: DisplayMode,
 }
 
 impl BatchCompiler {
@@ -70,7 +75,14 @@ impl BatchCompiler {
                 .unwrap_or(4),
             cache: None,
             cache_config,
+            display_mode: DisplayMode::default(),
         }
+    }
+
+    /// Set display mode for progress output
+    pub fn with_display_mode(mut self, display_mode: DisplayMode) -> Self {
+        self.display_mode = display_mode;
+        self
     }
 
     /// Set number of parallel jobs
@@ -102,14 +114,76 @@ impl BatchCompiler {
 
         // Find all Python files
         let python_files = self.find_python_files()?;
+        let total = python_files.len();
 
-        // Compile each file
-        for py_file in python_files {
-            let result = self.compile_one(&py_file).await?;
+        // Show initial compilation message
+        if matches!(self.display_mode, DisplayMode::Rich) {
+            println!("Compiling {} files...", total);
+        }
+
+        // Compile each file with progress output
+        for (i, py_file) in python_files.iter().enumerate() {
+            let result = self.compile_one(py_file).await?;
+
+            // Output progress based on display mode
+            self.report_compile_progress(i + 1, total, py_file, &result);
+
             results.push(result);
         }
 
+        // Clear line and show completion
+        if matches!(self.display_mode, DisplayMode::Rich) {
+            println!();
+        }
+
         Ok(results)
+    }
+
+    /// Report progress during compilation
+    fn report_compile_progress(
+        &self,
+        current: usize,
+        total: usize,
+        py_file: &Path,
+        result: &CompilationResult,
+    ) {
+        let filename = py_file
+            .file_name()
+            .map(|s| s.to_string_lossy())
+            .unwrap_or_default();
+        let status = if result.success { "✓" } else { "✗" };
+
+        match self.display_mode {
+            DisplayMode::Rich => {
+                let bar = progress_bar(current, total, 20);
+                let pct = if total > 0 {
+                    (current as f64 / total as f64) * 100.0
+                } else {
+                    0.0
+                };
+                // Use carriage return for in-place update
+                print!(
+                    "\r[{}] {:3.0}% {} {:40}",
+                    bar,
+                    pct,
+                    status,
+                    truncate_filename(&filename, 40)
+                );
+                let _ = std::io::stdout().flush();
+            }
+            DisplayMode::Minimal => {
+                // Only output on completion or every 10%
+                if current == total || (current * 10 / total) > ((current - 1) * 10 / total) {
+                    println!(
+                        "[{}/{}] Compiling... {}% complete",
+                        current,
+                        total,
+                        current * 100 / total.max(1)
+                    );
+                }
+            }
+            DisplayMode::Json | DisplayMode::Silent => {}
+        }
     }
 
     /// Find all Python files in input directory
@@ -484,6 +558,15 @@ impl BatchCompiler {
         }
 
         None
+    }
+}
+
+/// Truncate filename for display
+fn truncate_filename(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        format!("{:width$}", s, width = max_len)
+    } else {
+        format!("...{}", &s[s.len() - max_len + 3..])
     }
 }
 
