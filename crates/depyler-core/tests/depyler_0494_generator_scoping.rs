@@ -6,6 +6,8 @@
 //! BUG: Variables declared in state:0 are not accessible in state:1
 //! Expected: Generator variables stored as struct fields, accessed via self
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 use std::io::Write;
 

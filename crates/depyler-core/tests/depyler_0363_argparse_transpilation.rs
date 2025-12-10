@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0363: ArgParse transpilation tests
 // Status: RED phase - These tests MUST fail initially
 //

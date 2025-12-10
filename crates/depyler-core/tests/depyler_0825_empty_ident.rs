@@ -9,11 +9,14 @@
 //! Solution: In import_gen.rs, don't insert items with empty rust_name
 //! into imported_items. Let them fall through to bail with a cleaner error.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Test that functools.partial import doesn't panic
 /// Instead it should fail gracefully with a meaningful error
 #[test]
+#[allow(non_snake_case)]
 fn test_DEPYLER_0825_functools_partial_no_panic() {
     let pipeline = DepylerPipeline::new();
 
@@ -33,6 +36,7 @@ def apply_partial(f, x):
 
 /// Test functools.reduce still works (it has a real mapping)
 #[test]
+#[allow(non_snake_case)]
 fn test_DEPYLER_0825_functools_reduce_works() {
     let pipeline = DepylerPipeline::new();
 
@@ -49,6 +53,7 @@ def sum_list(items: list[int]) -> int:
 
 /// Test that lru_cache (empty mapping) doesn't panic
 #[test]
+#[allow(non_snake_case)]
 fn test_DEPYLER_0825_functools_lru_cache_no_panic() {
     let pipeline = DepylerPipeline::new();
 

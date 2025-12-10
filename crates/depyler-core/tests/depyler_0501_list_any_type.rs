@@ -7,6 +7,8 @@
 //! 2. Callable[[Any], Any] transpiles correctly
 //! 3. data_processor.py compiles successfully
 
+#![allow(non_snake_case)]
+
 use depyler_core::ast_bridge;
 use depyler_core::hir::Type;
 use rustpython_ast::Suite;

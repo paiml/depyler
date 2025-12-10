@@ -11,6 +11,8 @@
 //!
 //! Solution: Change HIR SortByKey from reverse: bool to reverse_expr: Option<Box<HirExpr>>
 
+#![allow(non_snake_case)]
+
 use depyler_core::ast_bridge;
 use rustpython_ast::Suite;
 use rustpython_parser::{ast, Parse};

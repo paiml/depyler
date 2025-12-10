@@ -6,6 +6,8 @@
 //! BUG: Iterator[int] transpiles to Iterator<Item = Iterator<i32>> instead of Iterator<Item = i32>
 //! Expected: Direct element type mapping, no nested Iterator
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 use std::io::Write;
 

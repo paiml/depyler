@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0302 Phase 2: String Method Medium Wins Test
 // Tests for:
 // 1. String multiplication (s * n → .repeat())

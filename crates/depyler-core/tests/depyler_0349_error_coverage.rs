@@ -15,6 +15,8 @@
 //! - TypeMismatch variant
 //! - Edge cases
 
+#![allow(non_snake_case)]
+
 use depyler_core::error::*;
 
 // ============================================================================

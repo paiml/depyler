@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0307: Test sorted() with reverse parameter
 // Tests for sorted() builtin with reverse=True/False parameter handling
 

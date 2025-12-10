@@ -7,6 +7,8 @@
 //!
 //! This test MUST FAIL initially (Red phase), then pass after fix (Green phase).
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 use std::process::Command;
 
