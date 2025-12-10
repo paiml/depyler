@@ -9,11 +9,11 @@ retries = 0
 [profile.fast]
 # Fast profile for development iteration - optimized for speed
 # Target: < 5 minutes for quick feedback during development
-# Excludes SLOW tests, benchmark tests, and integration benchmarks
+# Excludes SLOW tests, benchmark tests, integration benchmarks, and integration tests that spawn rustc
 # Note: Property test case reduction handled by Makefile via env vars
-filter-expr = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(property_test_benchmarks) and not test(integration_benchmarks)"
+filter-expr = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(property_test_benchmarks) and not test(integration_benchmarks) and not test(~test_gh158) and not test(~test_citl) and not test(~cache_warmer) and not test(~hunt_mode)"
 slow-timeout = { period = "30s", grace-period = "5s" }
-retries = 1
+retries = 0
 test-threads = "num-cpus"
 
 [profile.ci]
