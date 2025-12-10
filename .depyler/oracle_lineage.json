@@ -1,0 +1,144 @@
+{
+  "models": {
+    "oracle-3.21.0-1765228423038": {
+      "model_id": "oracle-3.21.0-1765228423038",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765228423038,
+      "config_hash": "bde847bec274bb8f",
+      "tags": {
+        "corpus_hash": "bde847bec274bb8f",
+        "commit_sha": "2473baaf994b7b61bd087968f1c278fe0d36af50",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1765268081018": {
+      "model_id": "oracle-3.21.0-1765268081018",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765268081018,
+      "config_hash": "8f6054b3f80cb9cb",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "8f6054b3f80cb9cb",
+        "commit_sha": "c1278df5ed643f71d82909720c8a2fb9351597f4"
+      }
+    },
+    "oracle-3.21.0-1765221727108": {
+      "model_id": "oracle-3.21.0-1765221727108",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765221727108,
+      "config_hash": "3f871ddb05acee99",
+      "tags": {
+        "corpus_hash": "3f871ddb05acee99",
+        "sample_count": "12282",
+        "commit_sha": "2473baaf994b7b61bd087968f1c278fe0d36af50"
+      }
+    },
+    "oracle-3.21.0-1765231185995": {
+      "model_id": "oracle-3.21.0-1765231185995",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765231185995,
+      "config_hash": "bde847bec274bb8f",
+      "tags": {
+        "corpus_hash": "bde847bec274bb8f",
+        "commit_sha": "e0938011f7e0bb1d8326b5c69c3bfd2863c228e7",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1765227173215": {
+      "model_id": "oracle-3.21.0-1765227173215",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765227173215,
+      "config_hash": "1a4a0052b88d8d55",
+      "tags": {
+        "commit_sha": "2473baaf994b7b61bd087968f1c278fe0d36af50",
+        "corpus_hash": "1a4a0052b88d8d55",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1765235819651": {
+      "model_id": "oracle-3.21.0-1765235819651",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765235819651,
+      "config_hash": "8f6054b3f80cb9cb",
+      "tags": {
+        "corpus_hash": "8f6054b3f80cb9cb",
+        "commit_sha": "9b78a1cc2801bb2f2df84e2c585d9528a47fb7ea",
+        "sample_count": "12282"
+      }
+    },
+    "oracle-3.21.0-1765229987531": {
+      "model_id": "oracle-3.21.0-1765229987531",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765229987531,
+      "config_hash": "bde847bec274bb8f",
+      "tags": {
+        "sample_count": "12282",
+        "corpus_hash": "bde847bec274bb8f",
+        "commit_sha": "200f50799e32b082c0fb1541051459c1deccb1de"
+      }
+    },
+    "oracle-3.21.0-1765232274582": {
+      "model_id": "oracle-3.21.0-1765232274582",
+      "version": "3.21.0",
+      "accuracy": 0.85,
+      "created_at": 1765232274582,
+      "config_hash": "bde847bec274bb8f",
+      "tags": {
+        "corpus_hash": "bde847bec274bb8f",
+        "commit_sha": "92abb18528feb75af02e320f4b7877b282ccb4c7",
+        "sample_count": "12282"
+      }
+    }
+  },
+  "derivations": [
+    {
+      "parent_id": "oracle-3.21.0-1765221727108",
+      "child_id": "oracle-3.21.0-1765227173215",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.21.0-1765227173215",
+      "child_id": "oracle-3.21.0-1765228423038",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.21.0-1765228423038",
+      "child_id": "oracle-3.21.0-1765229987531",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.21.0-1765229987531",
+      "child_id": "oracle-3.21.0-1765231185995",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.21.0-1765231185995",
+      "child_id": "oracle-3.21.0-1765232274582",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.21.0-1765232274582",
+      "child_id": "oracle-3.21.0-1765235819651",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    },
+    {
+      "parent_id": "oracle-3.21.0-1765235819651",
+      "child_id": "oracle-3.21.0-1765268081018",
+      "change_type": "Retrain",
+      "description": "Oracle retrained due to codebase changes"
+    }
+  ]
+}

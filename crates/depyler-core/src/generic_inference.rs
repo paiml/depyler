@@ -338,6 +338,23 @@ impl TypeVarCollector {
                 }
                 self.collect_from_type_internal(ret, true);
             }
+            // DEPYLER-0836: Handle Generic types like Either<L, R>, Maybe<T>
+            // Extract type vars from generic parameters (e.g., L and R from Either<L, R>)
+            Type::Generic { params, .. } => {
+                for p in params {
+                    self.collect_from_type_internal(p, true);
+                }
+            }
+            // DEPYLER-0836: Handle Union types (e.g., Union[T, U] or T | None)
+            Type::Union(types) => {
+                for t in types {
+                    self.collect_from_type_internal(t, true);
+                }
+            }
+            // DEPYLER-0836: Handle Set types
+            Type::Set(inner) => {
+                self.collect_from_type_internal(inner, true);
+            }
             _ => {}
         }
     }

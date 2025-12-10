@@ -320,6 +320,7 @@ impl TypeMapper {
                     // DEPYLER-0734: Callable[[T1, T2, ...], R] -> impl Fn(T1, T2, ...) -> R
                     // Python Callable types map to impl Fn for ergonomic closures without boxing
                     // This allows passing closures directly without Box::new() wrapping
+                    // DEPYLER-0846: Detect nested Callable types and use &dyn Fn to avoid E0666
                     "Callable" if params.len() == 2 => {
                         // params[0] is the parameter list type (may be Tuple, List, or single type)
                         // params[1] is the return type
@@ -338,18 +339,42 @@ impl TypeMapper {
                         let return_type = self.map_type(&params[1]);
                         let return_str = return_type.to_rust_string();
 
+                        // DEPYLER-0846: Check if any param or return type contains impl Fn
+                        // If so, we can't use impl Fn (E0666 nested impl Trait not allowed)
+                        // Convert ALL impl Fn to &dyn Fn for proper higher-order function support
+                        let has_nested_fn = param_types.iter().any(|s| s.contains("impl Fn"))
+                            || return_str.contains("impl Fn");
+
                         // DEPYLER-0734: Format: impl Fn(T1, T2) -> R or impl Fn() for None return
-                        // Using impl Fn allows closures to be passed without Box::new()
-                        let fn_str = if return_str == "()" || matches!(params[1], PythonType::None) {
-                            format!("impl Fn({})", param_types.join(", "))
+                        // DEPYLER-0846: Use &dyn Fn for nested Callable types, and convert inner impl Fn too
+                        let (fn_prefix, fixed_params, fixed_return) = if has_nested_fn {
+                            // Convert all impl Fn to &dyn Fn recursively
+                            let fixed_params: Vec<String> = param_types.iter()
+                                .map(|s| s.replace("impl Fn", "&dyn Fn"))
+                                .collect();
+                            let fixed_return = return_str.replace("impl Fn", "&dyn Fn");
+                            ("&dyn Fn", fixed_params, fixed_return)
                         } else {
-                            format!("impl Fn({}) -> {}", param_types.join(", "), return_str)
+                            ("impl Fn", param_types.clone(), return_str.clone())
+                        };
+                        let fn_str = if fixed_return == "()" || matches!(params[1], PythonType::None) {
+                            format!("{}({})", fn_prefix, fixed_params.join(", "))
+                        } else {
+                            format!("{}({}) -> {}", fn_prefix, fixed_params.join(", "), fixed_return)
                         };
                         RustType::Custom(fn_str)
                     }
                     "Callable" if params.is_empty() => {
                         // DEPYLER-0734: Bare Callable without parameters -> impl Fn()
                         RustType::Custom("impl Fn()".to_string())
+                    }
+                    // DEPYLER-0845: type[T] -> std::marker::PhantomData<T>
+                    // Python's type[T] represents a class object that instantiates to T.
+                    // Rust doesn't have runtime type objects, so we use PhantomData<T>
+                    // to carry the type parameter without storing any data.
+                    "type" if params.len() == 1 => {
+                        let inner_type = self.map_type(&params[0]);
+                        RustType::Custom(format!("std::marker::PhantomData<{}>", inner_type.to_rust_string()))
                     }
                     _ => RustType::Generic {
                         base: base.clone(),

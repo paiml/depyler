@@ -44,14 +44,41 @@ for rs_file in examples/**/*.rs examples/*.rs; do
     
     printf "[%2d] Checking %-50s ... " "$TOTAL" "$(basename $rs_file)"
     
-    # Compile with rustc (library crate) WITHOUT --deny warnings so we can count them
-    rustc --crate-type lib "$rs_file" -o "/tmp/depyler_check_$$" 2>"/tmp/depyler_err_$$" || true
+    # Check for Cargo.toml in the same directory
+    dir=$(dirname "$rs_file")
+    manifest="$dir/Cargo.toml"
     
-    # Count warnings - use grep with wc to avoid multiple line output
-    warning_count=$(grep "^warning:" "/tmp/depyler_err_$$" 2>/dev/null | wc -l | tr -d ' ')
+    if [ -f "$manifest" ]; then
+        # Use cargo check if manifest exists (handles dependencies)
+        # We use --quiet to suppress progress bars but keep warnings
+        # We need to capture stderr because cargo prints warnings there
+        if cargo check --manifest-path "$manifest" --quiet --message-format=short > "/tmp/depyler_check_$$" 2>"/tmp/depyler_err_$$"; then
+            # Cargo check succeeded (no errors), now check for warnings in stderr
+            warning_count=$(grep "warning:" "/tmp/depyler_err_$$" | wc -l | tr -d ' ')
+        else
+            # Cargo check failed (errors occurred)
+            # Treat this as a failure, even if we are only counting warnings normally
+            warning_count="ERROR"
+        fi
+    else
+        # Fallback to rustc for standalone files (no dependencies)
+        rustc --crate-type lib "$rs_file" -o "/tmp/depyler_check_$$" 2>"/tmp/depyler_err_$$" || true
+        warning_count=$(grep "^warning:" "/tmp/depyler_err_$$" 2>/dev/null | wc -l | tr -d ' ')
+    fi
+
     [ -z "$warning_count" ] && warning_count=0
 
-    if [ "$warning_count" -eq 0 ]; then
+    if [ "$warning_count" = "ERROR" ]; then
+        echo -e "${RED}❌ BUILD FAIL${NC}"
+        FAILED=$((FAILED + 1))
+        FAILED_FILES+=("$rs_file")
+        WARNING_COUNTS+=("Build Error")
+        
+        # Show build errors
+        echo -e "${YELLOW}  Build errors:${NC}"
+        cat "/tmp/depyler_err_$$" | head -5 | sed 's/^/    /'
+        
+    elif [ "$warning_count" -eq 0 ]; then
         echo -e "${GREEN}✅ PASS${NC}"
         PASSED=$((PASSED + 1))
     else
@@ -64,7 +91,7 @@ for rs_file in examples/**/*.rs examples/*.rs; do
         
         # Show first 3 warnings
         echo -e "${YELLOW}  Sample warnings:${NC}"
-        grep "^warning:" "/tmp/depyler_err_$$" | head -3 | sed 's/^/    /'
+        grep "warning:" "/tmp/depyler_err_$$" | head -3 | sed 's/^/    /'
     fi
     
     # Cleanup
