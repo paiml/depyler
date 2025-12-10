@@ -34,51 +34,68 @@ rm -f "$LOG_DIR/baseline_results.txt" "$LOG_DIR/error_log.txt"
 
 ## 2. Measurement Cycle (The "Scanner")
 
-Run this block to assess current status. It is designed to be idempotent and safe.
+### Option A: Built-in Converge Command (RECOMMENDED)
+
+Use the built-in `converge` command with rich progress feedback:
+
+```bash
+# Rich TUI with progress bar, ETA, and live statistics
+"$DEPYLER_BIN" converge --input-dir "$CORPUS_DIR" --target-rate 80 --verbose
+
+# Display modes: rich (TUI), minimal (CI), json (automation), silent
+"$DEPYLER_BIN" converge --input-dir "$CORPUS_DIR" --display rich
+
+# Check status without running (quick summary)
+"$DEPYLER_BIN" utol --corpus "$CORPUS_DIR" --status
+```
+
+### Option B: Manual Bash Loop (with progress feedback)
+
+If you need custom logic, use this loop with progress counter:
 
 ```bash
 echo "Starting Corpus Scan..."
 PASS=0
 FAIL=0
 TOTAL=0
+PROCESSED=0
+
+# Count total first for progress
+TOTAL_DIRS=$(ls -d "$CORPUS_DIR"/example_* 2>/dev/null | wc -l)
 
 # Iterate through all example directories
 for dir in "$CORPUS_DIR"/example_*; do
     [ -d "$dir" ] || continue
     TOTAL=$((TOTAL + 1))
-    
+    PROCESSED=$((PROCESSED + 1))
+
+    # Progress feedback: [42/200] 21% - example_foo
+    printf "\r[%d/%d] %d%% - %-40s" "$PROCESSED" "$TOTAL_DIRS" "$((100 * PROCESSED / TOTAL_DIRS))" "$(basename "$dir")"
+
     # Identify source file (first .py file that isn't a test)
     py_source=$(find "$dir" -maxdepth 1 -name "*.py" ! -name "test_*" | head -n 1)
-    
+
     if [ -z "$py_source" ]; then
-        echo "⚠️  SKIP: $dir (No Python source found)"
+        echo " SKIP (No Python source)"
         continue
     fi
 
     # Transpile FRESH (Overwrites previous output)
-    # NOTE: We output to 'out.rs' as per reprorusted convention
     "$DEPYLER_BIN" transpile "$py_source" --output "$dir/out.rs" --cargo-toml > /dev/null 2>&1
-    
+
     # Validation Gate
     if [ -f "$dir/Cargo.toml" ]; then
-        # Use cargo check to handle dependencies (clap, serde, etc.)
         if cargo check --manifest-path "$dir/Cargo.toml" --quiet 2>/dev/null; then
-            echo "✅ PASS: $(basename "$dir")"
             ((PASS++))
         else
-            echo "❌ FAIL: $(basename "$dir")"
             ((FAIL++))
-            # Log specific error for triage
             echo "=== $(basename "$dir") ===" >> "$LOG_DIR/error_log.txt"
             cargo check --manifest-path "$dir/Cargo.toml" --message-format=short 2>&1 | grep "error\[" | head -n 3 >> "$LOG_DIR/error_log.txt"
         fi
     else
-        # Fallback for simple files (though Depyler should generate Cargo.toml)
         if rustc --crate-type lib "$dir/out.rs" --out-dir /tmp > /dev/null 2>&1; then
-             echo "✅ PASS: $(basename "$dir")"
              ((PASS++))
         else
-             echo "❌ FAIL: $(basename "$dir")"
              ((FAIL++))
              echo "=== $(basename "$dir") ===" >> "$LOG_DIR/error_log.txt"
              rustc --crate-type lib "$dir/out.rs" --out-dir /tmp 2>&1 | grep "error\[" | head -n 3 >> "$LOG_DIR/error_log.txt"
@@ -86,8 +103,10 @@ for dir in "$CORPUS_DIR"/example_*; do
     fi
 done
 
+echo ""
 echo "---------------------------------------------------"
 echo "Results: $PASS / $TOTAL Passed ($(( 100 * PASS / TOTAL ))%)"
+echo "Failed: $FAIL"
 echo "See details in $LOG_DIR/error_log.txt"
 ```
 
@@ -165,8 +184,10 @@ The campaign is complete when:
 
 | Task | Command |
 |------|---------|
-| **Scan** | (Copy/Paste Section 2) |
-| **Trace** | `DEPYLER_TRACE=1 depyler transpile ...` |
+| **Scan (Rich TUI)** | `depyler converge --input-dir $CORPUS_DIR --display rich` |
+| **Quick Status** | `depyler utol --corpus $CORPUS_DIR --status` |
+| **Converge** | `depyler converge --input-dir $CORPUS_DIR --target-rate 80` |
+| **Trace** | `depyler transpile <file.py> --trace-output trace.json` |
 | **Test Core** | `cargo test -p depyler-core` |
 | **Check Oracle** | `depyler oracle show` |
 | **Cache Stats** | `depyler cache stats` |
