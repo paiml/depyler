@@ -40,7 +40,7 @@ pub use classifier::{ErrorCategory, ErrorClassification, ErrorClassifier};
 pub use clusterer::{ErrorCluster, ErrorClusterer, RootCause};
 pub use compiler::{BatchCompiler, CompilationError, CompilationResult};
 pub use reporter::{ConvergenceReporter, IterationReport};
-pub use state::{AppliedFix, ConvergenceConfig, ConvergenceState, ExampleState};
+pub use state::{AppliedFix, ConvergenceConfig, ConvergenceState, DisplayMode, ExampleState};
 
 use anyhow::Result;
 
@@ -58,7 +58,7 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     let compiler = BatchCompiler::new(&config.input_dir);
     let classifier = ErrorClassifier::new();
     let clusterer = ErrorClusterer::new();
-    let reporter = ConvergenceReporter::new(config.verbose);
+    let reporter = ConvergenceReporter::with_display_mode(config.display_mode);
 
     reporter.report_start(&state);
 
@@ -140,6 +140,7 @@ mod tests {
             fix_confidence_threshold: 0.8,
             checkpoint_dir: None,
             parallel_jobs: 4,
+            display_mode: DisplayMode::default(),
         };
 
         let state = ConvergenceState::new(config);
@@ -166,6 +167,7 @@ mod tests {
             fix_confidence_threshold: 1.5, // Invalid: > 1.0
             checkpoint_dir: None,
             parallel_jobs: 0, // Invalid: must be > 0
+            display_mode: DisplayMode::default(),
         };
 
         let result = config.validate();
@@ -350,6 +352,7 @@ def broken_function():
             fix_confidence_threshold: 0.8,
             checkpoint_dir: None,
             parallel_jobs: 4,
+            display_mode: DisplayMode::default(),
         };
 
         let mut state = ConvergenceState::new(config);
@@ -389,6 +392,7 @@ def broken_function():
             fix_confidence_threshold: 0.8,
             checkpoint_dir: Some(temp_dir.path().to_path_buf()),
             parallel_jobs: 4,
+            display_mode: DisplayMode::default(),
         };
 
         let mut state = ConvergenceState::new(config.clone());
@@ -443,6 +447,7 @@ def broken_function():
             fix_confidence_threshold: 0.8,
             checkpoint_dir: None,
             parallel_jobs: 4,
+            display_mode: DisplayMode::default(),
         };
 
         let state = ConvergenceState::new(config);
@@ -480,6 +485,7 @@ def broken_function():
             fix_confidence_threshold: 0.8,
             checkpoint_dir: None,
             parallel_jobs: 4,
+            display_mode: DisplayMode::default(),
         };
 
         let mut state = ConvergenceState::new(config);
