@@ -109,6 +109,7 @@ impl TypeExtractor {
 
     /// DEPYLER-0740: Parse forward reference strings like "Container[U]"
     /// to extract generic type structure instead of treating as opaque string.
+    /// DEPYLER-0836: Also handles PEP 604 union syntax in forward refs "Container[T | None]"
     fn parse_forward_reference(s: &str) -> Result<Type> {
         let s = s.trim();
 
@@ -118,10 +119,10 @@ impl TypeExtractor {
                 let base = s[..bracket_pos].trim();
                 let params_str = &s[bracket_pos + 1..s.len() - 1];
 
-                // Parse the type parameters (handles simple cases like "T, U")
+                // Parse the type parameters, handling union types with |
                 let params: Vec<Type> = params_str
                     .split(',')
-                    .map(|p| Self::extract_simple_type(p.trim()))
+                    .map(|p| Self::parse_forward_ref_type_param(p.trim()))
                     .collect::<Result<Vec<_>>>()?;
 
                 if params.is_empty() {
@@ -135,7 +136,47 @@ impl TypeExtractor {
             }
         }
 
+        // Check for top-level union syntax: T | None
+        if s.contains('|') {
+            return Self::parse_forward_ref_type_param(s);
+        }
+
         // No generic syntax, fall back to simple type extraction
+        Self::extract_simple_type(s)
+    }
+
+    /// DEPYLER-0836: Parse a type parameter that might contain union syntax (T | None)
+    /// Converts "T | None" or "None | T" to Optional[T] (which becomes Type::Optional)
+    fn parse_forward_ref_type_param(s: &str) -> Result<Type> {
+        let s = s.trim();
+
+        // Check for PEP 604 union syntax: T | U
+        if s.contains('|') {
+            let parts: Vec<&str> = s.split('|').map(|p| p.trim()).collect();
+
+            // Check for Optional pattern: T | None or None | T
+            if parts.len() == 2 {
+                let has_none = parts.iter().any(|p| *p == "None");
+                if has_none {
+                    // Find the non-None type
+                    let non_none = parts.iter().find(|p| **p != "None");
+                    if let Some(inner) = non_none {
+                        let inner_type = Self::extract_simple_type(inner)?;
+                        return Ok(Type::Optional(Box::new(inner_type)));
+                    }
+                }
+            }
+
+            // General union: T | U | V -> Union[T, U, V]
+            let union_types: Vec<Type> = parts
+                .iter()
+                .map(|p| Self::extract_simple_type(p))
+                .collect::<Result<Vec<_>>>()?;
+
+            return Ok(Type::Union(union_types));
+        }
+
+        // No union syntax, fall back to simple type
         Self::extract_simple_type(s)
     }
 

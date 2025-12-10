@@ -3,11 +3,11 @@ use clap::Parser;
 use depyler::{
     agent_logs_command, agent_restart_command, agent_start_command, agent_status_command,
     agent_stop_command, analyze_command, check_command, compile_command, converge, debug_command,
-    docs_cmd::handle_docs_command, extract_doctests_command, inspect_command, interactive_command,
-    lambda_analyze_command, lambda_build_command, lambda_convert_command, lambda_deploy_command,
-    lambda_test_command, lsp_command, oracle_classify_command, oracle_export_oip_command,
-    oracle_improve_command, oracle_optimize_command, oracle_show_command, oracle_train_command,
-    profile_cmd::handle_profile_command, quality_check_command,
+    docs_cmd::handle_docs_command, explain_command, extract_doctests_command, inspect_command,
+    interactive_command, lambda_analyze_command, lambda_build_command, lambda_convert_command,
+    lambda_deploy_command, lambda_test_command, lsp_command, oracle_classify_command,
+    oracle_export_oip_command, oracle_improve_command, oracle_optimize_command, oracle_show_command,
+    oracle_train_command, profile_cmd::handle_profile_command, quality_check_command,
     report_cmd::{handle_report_command, ReportArgs},
     transpile_command, utol_cmd::handle_utol_command, AgentCommands, CacheCommands, Cli, Commands,
     LambdaCommands, OracleCommands,
@@ -325,40 +325,28 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
         CacheCommands::Warm {
             input_dir,
             cache_dir,
-            jobs,
+            jobs: _jobs,
         } => {
+            use depyler::converge::cache_warmer::CacheWarmer;
+
             let cache_path = get_cache_dir(cache_dir);
             println!("🔥 Warming cache from {}", input_dir.display());
             println!("   Cache directory: {}", cache_path.display());
-            println!("   Parallel jobs: {}", jobs);
 
-            // Find all Python files
-            let python_files: Vec<_> = walkdir::WalkDir::new(&input_dir)
-                .into_iter()
-                .filter_map(|e| e.ok())
-                .filter(|e| {
-                    e.path().extension().is_some_and(|ext| ext == "py")
-                        && !e.path().to_string_lossy().contains("__pycache__")
-                })
-                .map(|e| e.path().to_path_buf())
-                .collect();
+            let config = CacheConfig {
+                cache_dir: cache_path,
+                ..Default::default()
+            };
 
-            println!("📁 Found {} Python files", python_files.len());
-
-            let mut success = 0;
-            let cached = 0;
-            let failed = 0;
-
-            for _file in &python_files {
-                // Note: Full cache warming integration pending
-                // For now, count files that would be processed
-                success += 1;
-            }
+            let warmer = CacheWarmer::new(config);
+            let stats = warmer.warm_directory(&input_dir)?;
 
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            println!("✅ Transpiled: {}", success);
-            println!("📦 Already cached: {}", cached);
-            println!("❌ Failed: {}", failed);
+            println!("✅ Compiled & cached: {}", stats.compiled);
+            println!("📦 Already cached: {}", stats.cached);
+            println!("⚠️  Transpile failed: {}", stats.transpile_failed);
+            println!("❌ Compile failed: {}", stats.compile_failed);
+            println!("📊 Single-shot compile rate: {:.1}%", stats.compile_rate());
             Ok(())
         }
     }
@@ -415,6 +403,8 @@ async fn handle_command(command: Commands) -> Result<()> {
             source_map,
             trace,
             explain,
+            audit_trail,
+            trace_output,
             auto_fix,
             r#async,
             suggest_fixes,
@@ -432,6 +422,8 @@ async fn handle_command(command: Commands) -> Result<()> {
             source_map,
             trace,
             explain,
+            audit_trail,
+            trace_output,
             auto_fix,
             r#async,
             suggest_fixes,
@@ -619,6 +611,13 @@ async fn handle_command(command: Commands) -> Result<()> {
             watch,
             watch_debounce,
         ),
+        Commands::Explain {
+            input,
+            trace,
+            error_code,
+            verbose,
+            format,
+        } => explain_command(input, trace, error_code, verbose, format),
     }
 }
 

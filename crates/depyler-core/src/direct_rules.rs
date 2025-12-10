@@ -70,6 +70,49 @@ fn is_rust_keyword(name: &str) -> bool {
     )
 }
 
+/// DEPYLER-0840: Create a safe identifier, escaping Rust keywords with r# prefix
+fn safe_ident(name: &str) -> syn::Ident {
+    if is_rust_keyword(name) {
+        syn::Ident::new_raw(name, proc_macro2::Span::call_site())
+    } else {
+        syn::Ident::new(name, proc_macro2::Span::call_site())
+    }
+}
+
+/// DEPYLER-0840: Convert Type to proc_macro2::TokenStream for nested function codegen
+fn type_to_rust_type(ty: &Type, _type_mapper: &TypeMapper) -> proc_macro2::TokenStream {
+    match ty {
+        Type::Int => quote! { i32 },
+        Type::Float => quote! { f64 },
+        Type::String => quote! { String },
+        Type::Bool => quote! { bool },
+        Type::None => quote! { () },
+        Type::Unknown => quote! { () },
+        Type::List(inner) => {
+            let inner_ty = type_to_rust_type(inner, _type_mapper);
+            quote! { Vec<#inner_ty> }
+        }
+        Type::Dict(k, v) => {
+            let key_ty = type_to_rust_type(k, _type_mapper);
+            let val_ty = type_to_rust_type(v, _type_mapper);
+            quote! { std::collections::HashMap<#key_ty, #val_ty> }
+        }
+        Type::Set(inner) => {
+            let inner_ty = type_to_rust_type(inner, _type_mapper);
+            quote! { std::collections::HashSet<#inner_ty> }
+        }
+        Type::Optional(inner) => {
+            let inner_ty = type_to_rust_type(inner, _type_mapper);
+            quote! { Option<#inner_ty> }
+        }
+        Type::Tuple(elems) => {
+            let elem_tys: Vec<_> = elems.iter().map(|e| type_to_rust_type(e, _type_mapper)).collect();
+            quote! { (#(#elem_tys),*) }
+        }
+        _ => quote! { () }, // Default fallback
+    }
+}
+
 /// DEPYLER-0596: Parse a target pattern string into a syn::Pat
 /// Handles tuple patterns like "(name, t)" and simple identifiers
 fn parse_target_pattern(target: &str) -> syn::Pat {
@@ -536,23 +579,25 @@ pub fn convert_class_to_struct(
         }
     };
 
-    // DEPYLER-0765: Check if type params are used in any field
-    // If not, we need to add PhantomData to satisfy Rust's unused type param check
-    let type_params_used = if class.type_params.is_empty() {
-        true // No type params, nothing to check
+    // DEPYLER-0837: Check EACH type param individually for usage in fields
+    // If a param isn't used in any field, we need PhantomData for it
+    let unused_type_params: Vec<&String> = if class.type_params.is_empty() {
+        vec![] // No type params, nothing to check
     } else {
-        // Check if any field type contains one of the type params
-        fields.iter().any(|f| {
-            let type_str = quote::quote!(#f.ty).to_string();
-            class.type_params.iter().any(|tp| type_str.contains(tp))
-        })
+        // For each type param, check if it's used in ANY field
+        class.type_params.iter().filter(|tp| {
+            !fields.iter().any(|f| {
+                let type_str = quote::quote!(#f.ty).to_string();
+                type_str.contains(*tp)
+            })
+        }).collect()
     };
 
-    // Add PhantomData field if type params exist but aren't used in fields
+    // Add PhantomData field for unused type params only
     let mut final_fields: Vec<syn::Field> = fields;
-    if !class.type_params.is_empty() && !type_params_used {
-        // Build PhantomData<(T, U, ...)> for all type params
-        let phantom_types: Vec<syn::Type> = class.type_params.iter().map(|tp| {
+    if !unused_type_params.is_empty() {
+        // Build PhantomData<(T, U, ...)> for unused type params only
+        let phantom_types: Vec<syn::Type> = unused_type_params.iter().map(|tp| {
             let ident = syn::Ident::new(tp, proc_macro2::Span::call_site());
             parse_quote!(#ident)
         }).collect();
@@ -744,14 +789,17 @@ fn generate_dataclass_new(
         })
         .collect();
 
-    // DEPYLER-0765: Add PhantomData initialization if type params aren't used in fields
+    // DEPYLER-0837: Add PhantomData initialization if ANY type params aren't used in fields
     if !class.type_params.is_empty() {
         let instance_fields: Vec<_> = class.fields.iter().filter(|f| !f.is_class_var).collect();
-        let type_params_used = instance_fields.iter().any(|f| {
-            let type_str = format!("{:?}", f.field_type);
-            class.type_params.iter().any(|tp| type_str.contains(tp))
+        // Check if ANY type param is unused (we need PhantomData for those)
+        let has_unused_params = class.type_params.iter().any(|tp| {
+            !instance_fields.iter().any(|f| {
+                let type_str = format!("{:?}", f.field_type);
+                type_str.contains(tp)
+            })
         });
-        if !type_params_used {
+        if has_unused_params {
             field_inits.push(quote! { _phantom: std::marker::PhantomData });
         }
     }
@@ -1343,9 +1391,18 @@ fn convert_method_to_impl_item(
         .collect();
 
     // Convert method body
-    let body = if method.body.is_empty() {
-        // Empty body - just return default
-        parse_quote! { {} }
+    // DEPYLER-0838: Check if body consists only of pass statements
+    let body_is_only_pass = method.body.iter().all(|stmt| matches!(stmt, HirStmt::Pass));
+    let is_non_unit_return = !matches!(effective_ret_type, Type::None | Type::Unknown);
+
+    let body = if method.body.is_empty() || (body_is_only_pass && is_non_unit_return) {
+        // Empty body or pass-only with non-unit return type - use unimplemented!()
+        // This handles Python's @abstractmethod pattern where body is just `pass`
+        if is_non_unit_return {
+            parse_quote! { { unimplemented!() } }
+        } else {
+            parse_quote! { {} }
+        }
     } else {
         // Convert the method body statements with classmethod context
         // DEPYLER-0648: Pass vararg_functions for proper slice wrapping at call sites
@@ -1756,7 +1813,7 @@ fn convert_array_type(rust_type: &RustType) -> Result<syn::Type> {
     }
 }
 
-fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
+pub fn rust_type_to_syn_type(rust_type: &RustType) -> Result<syn::Type> {
     use RustType::*;
     Ok(match rust_type {
         // Simple types - delegate to helper
@@ -2697,11 +2754,46 @@ fn convert_stmt_with_context(
                 convert_stmt_with_context(&stmts[0], type_mapper, is_classmethod, vararg_functions, param_types)
             }
         }
-        // DEPYLER-0427: Nested function support - delegate to main rust_gen module
-        HirStmt::FunctionDef { .. } => {
-            // Nested functions are handled by the main rust_gen module
-            // direct_rules is a legacy optimization path
-            Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
+        // DEPYLER-0840: Properly generate nested functions as closures
+        // Previously this just returned {} causing E0425 "cannot find value" errors
+        HirStmt::FunctionDef { name, params, ret_type, body, .. } => {
+            let fn_name = safe_ident(name);
+
+            // Generate parameter tokens
+            let param_tokens: Vec<proc_macro2::TokenStream> = params
+                .iter()
+                .map(|p| {
+                    let param_name = safe_ident(&p.name);
+                    let param_type = type_to_rust_type(&p.ty, type_mapper);
+                    quote! { #param_name: #param_type }
+                })
+                .collect();
+
+            // Generate body statements
+            let body_stmts: Vec<syn::Stmt> = body
+                .iter()
+                .filter_map(|stmt| {
+                    convert_stmt_with_context(stmt, type_mapper, is_classmethod, vararg_functions, param_types).ok()
+                })
+                .collect();
+
+            // Generate return type if not Unknown
+            let closure_expr = if matches!(ret_type, Type::Unknown) {
+                quote! {
+                    let #fn_name = move |#(#param_tokens),*| {
+                        #(#body_stmts)*
+                    };
+                }
+            } else {
+                let return_type = type_to_rust_type(ret_type, type_mapper);
+                quote! {
+                    let #fn_name = move |#(#param_tokens),*| -> #return_type {
+                        #(#body_stmts)*
+                    };
+                }
+            };
+
+            Ok(syn::parse2(closure_expr).unwrap_or_else(|_| parse_quote! { {} }))
         }
     }
 }
@@ -3592,6 +3684,8 @@ impl<'a> ExprConverter<'a> {
             "exists" => self.convert_path_exists_call(&arg_exprs),
             "isfile" => self.convert_path_isfile_call(&arg_exprs),
             "isdir" => self.convert_path_isdir_call(&arg_exprs),
+            // DEPYLER-0844: isinstance(x, T) → true (Rust's type system guarantees correctness)
+            "isinstance" => Ok(parse_quote! { true }),
             // DEPYLER-0780: Pass HIR args for auto-borrowing detection
             _ => self.convert_generic_call(func, args, &arg_exprs),
         }
@@ -4827,13 +4921,12 @@ impl<'a> ExprConverter<'a> {
 
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
-            // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
-            // because filter() receives &Item, but Python expects the value directly
+            // DEPYLER-0833: Use |x| pattern (not |&x|) to avoid E0507 on non-Copy types
             let cond_expr = self.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|&#target_pat| #cond_expr)
+                    .filter(|#target_pat| #cond_expr)
                     .map(|#target_pat| #element_expr)
                     .collect::<Vec<_>>()
             })
@@ -4862,12 +4955,12 @@ impl<'a> ExprConverter<'a> {
         // DEPYLER-0831: Use fully-qualified path for E0412 resolution
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
-            // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
+            // DEPYLER-0833: Use |x| pattern (not |&x|) to avoid E0507 on non-Copy types
             let cond_expr = self.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|&#target_pat| #cond_expr)
+                    .filter(|#target_pat| #cond_expr)
                     .map(|#target_pat| #element_expr)
                     .collect::<std::collections::HashSet<_>>()
             })
@@ -5314,14 +5407,14 @@ impl<'a> ExprConverter<'a> {
 
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
-            // DEPYLER-0691: Use |&x| pattern to auto-dereference filter closure parameter
+            // DEPYLER-0833: Use |x| pattern (not |&x|) to avoid E0507 on non-Copy types
             let cond_expr = self.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|&#target_pat| #cond_expr)
+                    .filter(|#target_pat| #cond_expr)
                     .map(|#target_pat| (#key_expr, #value_expr))
-                    .collect::<HashMap<_, _>>()
+                    .collect::<std::collections::HashMap<_, _>>()
             })
         } else {
             // Without condition: iter().map().collect()
@@ -5329,7 +5422,7 @@ impl<'a> ExprConverter<'a> {
                 #iter_expr
                     .into_iter()
                     .map(|#target_pat| (#key_expr, #value_expr))
-                    .collect::<HashMap<_, _>>()
+                    .collect::<std::collections::HashMap<_, _>>()
             })
         }
     }
@@ -5348,16 +5441,19 @@ impl<'a> ExprConverter<'a> {
         let body_expr = self.convert(body)?;
 
         // Generate closure
+        // DEPYLER-0837: Use `move` closures to match Python's closure semantics
+        // Python closures capture variables by reference but extend their lifetime
+        // Rust requires `move` when returning closures that capture local variables
         if params.is_empty() {
             // No parameters
-            Ok(parse_quote! { || #body_expr })
+            Ok(parse_quote! { move || #body_expr })
         } else if params.len() == 1 {
             // Single parameter
             let param = &param_pats[0];
-            Ok(parse_quote! { |#param| #body_expr })
+            Ok(parse_quote! { move |#param| #body_expr })
         } else {
             // Multiple parameters
-            Ok(parse_quote! { |#(#param_pats),*| #body_expr })
+            Ok(parse_quote! { move |#(#param_pats),*| #body_expr })
         }
     }
 

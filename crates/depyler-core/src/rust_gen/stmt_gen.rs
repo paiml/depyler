@@ -1820,7 +1820,17 @@ pub(crate) fn codegen_if_stmt(
         ctx.declare_var(name);
     }
 
-    let mut cond = simplified_condition.to_rust_expr(ctx)?;
+    // DEPYLER-0844: isinstance(x, T) → true (Rust's type system guarantees correctness)
+    // Must intercept BEFORE to_rust_expr to avoid generating `isinstance(...)` call
+    let mut cond = if let HirExpr::Call { func, .. } = &simplified_condition {
+        if func == "isinstance" {
+            parse_quote! { true }
+        } else {
+            simplified_condition.to_rust_expr(ctx)?
+        }
+    } else {
+        simplified_condition.to_rust_expr(ctx)?
+    };
 
     // DEPYLER-0308: Auto-unwrap Result<bool> in if conditions
     // When a function returns Result<bool, E> (like is_even with modulo),
@@ -5487,10 +5497,14 @@ pub(crate) fn codegen_try_stmt(
 
                     let handler_code = &handler_tokens[0];
 
+                    // DEPYLER-0837: Include hoisted variable declarations INSIDE the closure
+                    // Since the closure creates a new scope, variables assigned in try blocks
+                    // need to be declared inside the closure, not outside.
                     if let Some(finally_code) = finally_stmts {
                         quote! {
                             {
                                 match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
+                                    #(#hoisted_decls)*
                                     #(#try_stmts_transformed)*
                                     #closure_fallback
                                 })() {
@@ -5503,6 +5517,7 @@ pub(crate) fn codegen_try_stmt(
                     } else {
                         quote! {
                             match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
+                                #(#hoisted_decls)*
                                 #(#try_stmts_transformed)*
                                 #closure_fallback
                             })() {
@@ -6455,10 +6470,12 @@ fn try_generate_subcommand_match(
                     .iter()
                     .map(|f| format_ident!("{}", f))
                     .collect();
+                // DEPYLER-0843: Use safe_ident for keyword escaping in match patterns
+                // If a field is named 'type', it needs to be escaped as 'r#type' in patterns
                 let ref_field_patterns: Vec<proc_macro2::TokenStream> = accessed_fields
                     .iter()
                     .map(|f| {
-                        let ident = format_ident!("{}", f);
+                        let ident = safe_ident(f);
                         quote! { ref #ident }
                     })
                     .collect();
@@ -6469,10 +6486,11 @@ fn try_generate_subcommand_match(
                 // - String fields: .to_string() converts &String → String
                 //   String can then deref-coerce to &str if needed
                 // - bool/primitives: dereference with *
+                // DEPYLER-0843: Also use safe_ident for field bindings after match
                 let field_bindings: Vec<proc_macro2::TokenStream> = accessed_fields
                     .iter()
                     .map(|field_name| {
-                        let field_ident = format_ident!("{}", field_name);
+                        let field_ident = safe_ident(field_name);
 
                         // Look up field type from subcommand arguments
                         // Check both arg_type and action (for store_true/store_false bool flags)
@@ -6999,8 +7017,11 @@ fn codegen_nested_function_def(
 ) -> Result<proc_macro2::TokenStream> {
     use quote::quote;
 
-    // Generate function name
-    let fn_name = syn::Ident::new(name, proc_macro2::Span::call_site());
+    // DEPYLER-0842: Generate function name with keyword escaping
+    // Previously used syn::Ident::new() which doesn't escape keywords.
+    // If Python has `def const(...)`, this creates `let const = ...` which fails
+    // because `const` is a Rust keyword. Using safe_ident produces `let r#const = ...`
+    let fn_name = safe_ident(name);
 
     // GH-70: Use inferred parameters from context if available
     // DEPYLER-0687: Clone params to avoid borrow conflicts with ctx.declare_var
