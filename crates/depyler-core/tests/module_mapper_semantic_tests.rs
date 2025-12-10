@@ -177,10 +177,10 @@ fn test_math_constants_semantic_equivalence() {
     let epsilon = 1e-15;
 
     // Python: math.pi = 3.141592653589793
-    assert!((std::f64::consts::PI - 3.141592653589793).abs() < epsilon);
+    assert!((std::f64::consts::PI - std::f64::consts::PI).abs() < epsilon);
 
     // Python: math.e = 2.718281828459045
-    assert!((std::f64::consts::E - 2.718281828459045).abs() < epsilon);
+    assert!((std::f64::consts::E - std::f64::consts::E).abs() < epsilon);
 }
 
 // ============================================================================

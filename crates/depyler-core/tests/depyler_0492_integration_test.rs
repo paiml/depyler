@@ -1,5 +1,7 @@
 //! DEPYLER-0492 Integration Test: Verify type inference on real-world code
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 #[test]

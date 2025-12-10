@@ -33,6 +33,8 @@
 //! - Try/except with finally
 //! - Mixed caught and propagated exceptions
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 #[test]

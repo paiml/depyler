@@ -13,6 +13,8 @@
 //! Strategy: Integration tests that transpile→verify generated Rust code
 //! Expected Coverage Gain: +23% (~2h effort, medium complexity)
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 // ============================================================================

@@ -10,6 +10,8 @@
 //! - Analyzer initialization
 //! - Basic decision-making logic
 
+#![allow(non_snake_case)]
+
 use depyler_annotations::TranspilationAnnotations;
 use depyler_core::hir::*;
 use depyler_core::inlining::*;

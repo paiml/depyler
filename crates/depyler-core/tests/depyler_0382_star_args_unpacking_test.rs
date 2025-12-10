@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0382: *args unpacking in function calls
 // Tests for transpiling Python's *args unpacking to Rust equivalents
 

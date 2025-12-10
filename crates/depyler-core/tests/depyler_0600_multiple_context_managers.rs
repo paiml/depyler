@@ -14,6 +14,8 @@
 //!   4. Context managers without targets
 //!   5. Nested body statements
 
+#![allow(non_snake_case)]
+
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::rust_gen::generate_rust_file;
 use depyler_core::type_mapper::TypeMapper;

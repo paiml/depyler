@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0303 Phase 2: Dictionary/HashMap Method Medium Wins Test
 // Tests for:
 // 1. Cow<str> over-complication → simple &str (1 error)

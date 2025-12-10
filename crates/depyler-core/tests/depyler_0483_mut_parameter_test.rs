@@ -2,6 +2,8 @@
 //!
 //! Tests that parameters used immutably are NOT inferred as &mut
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 #[test]

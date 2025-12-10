@@ -4,6 +4,8 @@
 //! the code generator produces invalid Rust: `x.len() as i32.bit_length()`
 //! instead of `(x.len() as i32).bit_length()`.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Test that len() followed by method call generates valid Rust

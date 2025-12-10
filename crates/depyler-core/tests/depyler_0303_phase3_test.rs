@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0303 Phase 3: Dictionary/HashMap Method Final Wins Test
 // Tests for:
 // 1. zip iterator ownership → .into_iter() for owned collections (1 error)

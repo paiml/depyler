@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0450: Missing Ok() Wrapper for Result Return Types
 //
 // Bug: Functions with Result<T, E> return types are missing the final Ok() wrapper,

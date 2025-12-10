@@ -4,6 +4,8 @@
 //! constructor patterns (::new(), ::open(), etc.) instead of calling structs
 //! as functions.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 #[test]

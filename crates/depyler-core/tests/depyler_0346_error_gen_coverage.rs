@@ -13,6 +13,8 @@
 //!
 //! Strategy: Integration tests via DepylerPipeline that trigger error type flags
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 // ============================================================================

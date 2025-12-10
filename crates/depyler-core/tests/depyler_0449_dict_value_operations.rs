@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0449: Dict Operations Generate Wrong Method Calls on serde_json::Value
 //
 // Bug: Dict operations (in, [], .get()) on serde_json::Value generate HashMap

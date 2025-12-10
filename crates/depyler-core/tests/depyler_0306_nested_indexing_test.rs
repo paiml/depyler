@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0306: Nested 2D Array Indexing Fix
 // Tests for fixing malformed code generation in nested loops with 2D indexing
 // Issue: range(len(matrix[i])) generated invalid syntax with block expressions
