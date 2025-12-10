@@ -35,6 +35,7 @@ depyler compile script.py
 |---------|---------|---------|
 | `compile` | Python → Native binary | `depyler compile script.py` |
 | `transpile` | Python → Rust source | `depyler transpile script.py` |
+| `explain` | Explain compilation errors | `depyler explain output.rs` |
 | `analyze` | Migration complexity | `depyler analyze script.py` |
 | `check` | Type safety validation | `depyler check script.py` |
 | `interactive` | REPL mode | `depyler interactive` |
@@ -347,6 +348,95 @@ depyler quality-check example.py \
   --max-tdg 2.0 \
   --max-complexity 10 \
   --min-coverage 85
+```
+
+---
+
+## `depyler explain` - Explainable Transpilation Errors (GH-214)
+
+**NEW in v3.22.0** - Analyze Rust compilation errors and correlate them with transpiler decisions.
+
+### Basic Usage
+
+```bash
+# Analyze transpiled Rust file for errors
+depyler explain output.rs
+
+# Filter to specific error type
+depyler explain output.rs --error-code E0277
+
+# Verbose output with decision traces
+depyler explain output.rs --verbose
+
+# JSON output for automation
+depyler explain output.rs --format json
+```
+
+### Options
+
+**`--trace <FILE>`** - Optional trace file from transpilation
+```bash
+depyler explain output.rs --trace output.trace
+```
+
+**`--error-code <CODE>`** - Filter to specific error code
+```bash
+depyler explain output.rs --error-code E0599
+```
+
+**`--verbose`** - Show detailed transpiler decision trace
+```bash
+depyler explain output.rs --verbose
+```
+
+**`--format <FORMAT>`** - Output format (terminal, json)
+```bash
+depyler explain output.rs --format json
+```
+
+### Example Output
+
+```
+🔍 Depyler Explain (Issue #214)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 Analyzing: output.rs
+
+📊 Found 5 compilation errors:
+
+  ❌ Error #1: E0277 - the trait bound is not satisfied
+     Location: output.rs:42:15
+     Category: TypeMapping
+     Decision: Transpiler chose HashMap but method expects trait
+
+  ❌ Error #2: E0599 - no method named `xyz` found
+     Location: output.rs:78:9
+     Category: MethodResolution
+     Decision: Python method not mapped to Rust equivalent
+
+📈 Error Summary:
+  E0277: 2 (Type trait errors)
+  E0599: 3 (Method resolution errors)
+```
+
+### Error Categories
+
+| Category | Description | Common Causes |
+|----------|-------------|---------------|
+| TypeMapping | Type trait errors | Missing type annotations |
+| MethodResolution | Method not found | Unmapped Python methods |
+| Ownership | Borrow checker | Complex ownership patterns |
+| LifetimeInfer | Lifetime errors | Reference patterns |
+
+### Workflow Integration
+
+```bash
+# Transpile and explain in one workflow
+depyler transpile script.py -o output.rs
+depyler explain output.rs --verbose
+
+# Or use explain after compilation fails
+rustc output.rs 2>&1 | tee compile.log
+depyler explain output.rs
 ```
 
 ---
