@@ -619,21 +619,43 @@ impl AstBridge {
         let docstring = self.extract_class_docstring(&class.body);
 
         // Check if it's a dataclass
+        // DEPYLER-0839: Also check for @dataclass(frozen=True) and other parameterized forms
         let is_dataclass = class.decorator_list.iter().any(|d| {
-            matches!(d, ast::Expr::Name(n) if n.id.as_str() == "dataclass")
-                || matches!(d, ast::Expr::Attribute(a) if a.attr.as_str() == "dataclass")
+            match d {
+                // Simple @dataclass
+                ast::Expr::Name(n) => n.id.as_str() == "dataclass",
+                // Module-qualified @dataclasses.dataclass
+                ast::Expr::Attribute(a) => a.attr.as_str() == "dataclass",
+                // Parameterized @dataclass(frozen=True), @dataclass(slots=True), etc.
+                ast::Expr::Call(c) => match c.func.as_ref() {
+                    ast::Expr::Name(n) => n.id.as_str() == "dataclass",
+                    ast::Expr::Attribute(a) => a.attr.as_str() == "dataclass",
+                    _ => false,
+                },
+                _ => false,
+            }
         });
 
-        // Extract base classes (for now, just store the names)
+        // DEPYLER-0841: Extract base classes including subscript expressions
+        // For `class Left(Either[L, R])`, capture "Either[L, R]"
+        // For `class Either(ABC, Generic[L, R])`, capture both "ABC" and "Generic[L, R]"
         let base_classes: Vec<String> = class
             .bases
             .iter()
-            .filter_map(|base| {
-                if let ast::Expr::Name(n) = base {
-                    Some(n.id.to_string())
-                } else {
-                    None
+            .filter_map(|base| match base {
+                // Simple name like ABC
+                ast::Expr::Name(n) => Some(n.id.to_string()),
+                // Generic subscript like Generic[L, R] or Either[L, R]
+                ast::Expr::Subscript(subscript) => {
+                    if let ast::Expr::Name(n) = subscript.value.as_ref() {
+                        // Format as "Name[params]" for full representation
+                        let params = self.format_subscript_slice(&subscript.slice);
+                        Some(format!("{}[{}]", n.id, params))
+                    } else {
+                        None
+                    }
                 }
+                _ => None,
             })
             .collect();
 
@@ -860,6 +882,19 @@ impl AstBridge {
             });
         }
 
+        // DEPYLER-0841: Extract varargs parameter (*args) for methods
+        if let Some(vararg) = &method.args.vararg {
+            let name = vararg.arg.to_string();
+            // Start with List<String> as a reasonable default
+            let ty = Type::List(Box::new(Type::String));
+            params.push(HirParam {
+                name,
+                ty,
+                default: None,
+                is_vararg: true,
+            });
+        }
+
         // Convert return type
         let ret_type = if let Some(ret) = &method.returns {
             TypeExtractor::extract_type(ret)?
@@ -982,6 +1017,19 @@ impl AstBridge {
             });
         }
 
+        // DEPYLER-0841: Extract varargs parameter (*args) for async methods
+        if let Some(vararg) = &method.args.vararg {
+            let name = vararg.arg.to_string();
+            // Start with List<String> as a reasonable default
+            let ty = Type::List(Box::new(Type::String));
+            params.push(HirParam {
+                name,
+                ty,
+                default: None,
+                is_vararg: true,
+            });
+        }
+
         // Convert return type
         let ret_type = if let Some(ret) = &method.returns {
             TypeExtractor::extract_type(ret)?
@@ -1029,54 +1077,123 @@ impl AstBridge {
     }
 
     fn extract_class_type_params(&mut self, class: &ast::StmtClassDef) -> Vec<String> {
-        // DEPYLER-0759: Extract type params from ANY subscripted base class
-        // This handles both direct `Generic[T, U]` and inherited `Container[T]` patterns
-        // Example: class Box(Container[T]) -> extracts T from Container[T]
+        // DEPYLER-0759/0835: Extract type params from multiple sources:
+        // 1. Explicit Generic[T, U] base class
+        // 2. Type variables in parameterized bases like Iter[tuple[int, T]]
+        // 3. Type variables used in field type annotations
         let mut type_params = Vec::new();
 
+        // First, check for explicit Generic[T, U] declaration
         for base in &class.bases {
             if let ast::Expr::Subscript(subscript) = base {
                 if let ast::Expr::Name(n) = subscript.value.as_ref() {
-                    // Check if this is Generic[T] directly
                     if n.id.as_str() == "Generic" {
-                        return self.extract_generic_params(&subscript.slice);
-                    }
-                    // DEPYLER-0759: Also extract from other subscripted bases like Container[T]
-                    // This fixes E0412 when dataclass inherits from generic parent
-                    let params = self.extract_generic_params(&subscript.slice);
-                    for p in params {
-                        // Only collect single-letter uppercase names (type variables)
-                        // This avoids collecting concrete types like `Container[str]`
-                        if p.len() == 1
-                            && p.chars().next().is_some_and(|c| c.is_uppercase())
-                            && !type_params.contains(&p)
-                        {
-                            type_params.push(p);
-                        }
+                        // Explicit Generic[T, U] takes precedence - use these params
+                        return self.extract_generic_params_recursive(&subscript.slice);
                     }
                 }
             }
         }
+
+        // DEPYLER-0835: Extract from all parameterized base classes recursively
+        // Example: class EnumerateIter(Iter[tuple[int, T]]) -> extracts T
+        for base in &class.bases {
+            if let ast::Expr::Subscript(subscript) = base {
+                let params = self.extract_generic_params_recursive(&subscript.slice);
+                for p in params {
+                    if self.is_type_variable(&p) && !type_params.contains(&p) {
+                        type_params.push(p);
+                    }
+                }
+            }
+        }
+
+        // DEPYLER-0835: Also extract from field type annotations
+        // Example: source: Iter[T] with T not yet collected -> add T
+        for stmt in &class.body {
+            if let ast::Stmt::AnnAssign(ann_assign) = stmt {
+                let field_type_vars = self.extract_type_vars_from_annotation(&ann_assign.annotation);
+                for tv in field_type_vars {
+                    if !type_params.contains(&tv) {
+                        type_params.push(tv);
+                    }
+                }
+            }
+        }
+
         type_params
     }
 
-    fn extract_generic_params(&mut self, slice: &ast::Expr) -> Vec<String> {
+    /// DEPYLER-0835: Check if a name looks like a type variable
+    /// Type variables are typically single uppercase letters (T, U, K, V)
+    fn is_type_variable(&self, name: &str) -> bool {
+        name.len() == 1 && name.chars().next().is_some_and(|c| c.is_uppercase())
+    }
+
+    /// DEPYLER-0841: Format the slice of a subscript expression
+    /// Converts AST slice to string like "L, R" from Generic[L, R]
+    fn format_subscript_slice(&self, slice: &ast::Expr) -> String {
         match slice {
-            ast::Expr::Name(n) => vec![n.id.to_string()],
+            // Single type parameter: Generic[T]
+            ast::Expr::Name(n) => n.id.to_string(),
+            // Multiple type parameters: Generic[L, R] or tuple[int, str]
             ast::Expr::Tuple(tuple) => tuple
                 .elts
                 .iter()
-                .filter_map(|elt| {
-                    if let ast::Expr::Name(n) = elt {
-                        Some(n.id.to_string())
-                    } else {
-                        None
-                    }
-                })
-                .collect(),
-            _ => Vec::new(),
+                .map(|e| self.format_subscript_slice(e))
+                .collect::<Vec<_>>()
+                .join(", "),
+            // Nested subscript: Dict[str, List[int]]
+            ast::Expr::Subscript(sub) => {
+                if let ast::Expr::Name(n) = sub.value.as_ref() {
+                    format!("{}[{}]", n.id, self.format_subscript_slice(&sub.slice))
+                } else {
+                    "?".to_string()
+                }
+            }
+            // Handle constants (None, strings, numbers)
+            // Note: In rustpython_ast, these are typically wrapped in Constant
+            _ => "?".to_string(),
         }
     }
+
+    /// DEPYLER-0835: Recursively extract type variables from nested types
+    /// Handles: T, tuple[int, T], list[T], dict[K, V], etc.
+    fn extract_generic_params_recursive(&mut self, expr: &ast::Expr) -> Vec<String> {
+        let mut params = Vec::new();
+        self.collect_type_vars_from_expr(expr, &mut params);
+        params
+    }
+
+    /// DEPYLER-0835: Collect type variables from any expression recursively
+    fn collect_type_vars_from_expr(&self, expr: &ast::Expr, params: &mut Vec<String>) {
+        match expr {
+            ast::Expr::Name(n) => {
+                let name = n.id.to_string();
+                if self.is_type_variable(&name) && !params.contains(&name) {
+                    params.push(name);
+                }
+            }
+            ast::Expr::Tuple(tuple) => {
+                for elt in &tuple.elts {
+                    self.collect_type_vars_from_expr(elt, params);
+                }
+            }
+            ast::Expr::Subscript(subscript) => {
+                // Recurse into the slice (e.g., T in list[T])
+                self.collect_type_vars_from_expr(&subscript.slice, params);
+            }
+            _ => {}
+        }
+    }
+
+    /// DEPYLER-0835: Extract type variables from a field type annotation
+    fn extract_type_vars_from_annotation(&self, annotation: &ast::Expr) -> Vec<String> {
+        let mut params = Vec::new();
+        self.collect_type_vars_from_expr(annotation, &mut params);
+        params
+    }
+
 
     fn convert_protocol_method(&self, func: &ast::StmtFunctionDef) -> Result<ProtocolMethod> {
         let name = func.name.to_string();

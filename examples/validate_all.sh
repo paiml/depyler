@@ -53,43 +53,92 @@ run_gate() {
     local file="$2"
     local temp_output="/tmp/depyler_validate_$$.log"
 
+    # Check for Cargo.toml in the same directory
+    local dir=$(dirname "$file")
+    local manifest="$dir/Cargo.toml"
+    local use_cargo=false
+    if [ -f "$manifest" ]; then
+        use_cargo=true
+    fi
+
     case "$gate" in
         rustc_deny_warnings)
-            rustc --crate-type lib "$file" --deny warnings 2>&1 >"$temp_output"
+            if [ "$use_cargo" = true ]; then
+                # Use cargo check to capture warnings/errors
+                # --message-format=short for grep compatibility
+                if cargo check --manifest-path "$manifest" --quiet --message-format=short 2>&1 >"$temp_output"; then
+                    # Check for warnings in output
+                    if grep -q "warning:" "$temp_output"; then
+                        # Warnings found, fail the gate
+                        return 1
+                    fi
+                else
+                    return 1
+                fi
+            else
+                rustc --crate-type lib "$file" --deny warnings 2>&1 >"$temp_output"
+            fi
             ;;
         rustfmt_check)
             # rustfmt needs HOME set and writable temp directory
             HOME="${HOME:-/tmp}" rustfmt --check "$file" 2>&1 >"$temp_output"
             ;;
         rustc_basic)
-            # Compile as library to /dev/null
-            rustc "$file" --crate-type lib --out-dir /tmp 2>&1 >"$temp_output"
-            rm -f /tmp/*.rlib 2>/dev/null || true
+            if [ "$use_cargo" = true ]; then
+                cargo check --manifest-path "$manifest" --quiet 2>&1 >"$temp_output"
+            else
+                # Compile as library to /dev/null
+                rustc "$file" --crate-type lib --out-dir /tmp 2>&1 >"$temp_output"
+                rm -f /tmp/*.rlib 2>/dev/null || true
+            fi
             ;;
         llvm_ir)
-            # Generate LLVM IR to temp directory
-            rustc "$file" --crate-type lib --emit=llvm-ir --out-dir /tmp 2>&1 >"$temp_output"
+            if [ "$use_cargo" = true ]; then
+                # Use cargo rustc to emit llvm-ir
+                cargo rustc --manifest-path "$manifest" --quiet -- --emit=llvm-ir --out-dir /tmp 2>&1 >"$temp_output"
+            else
+                # Generate LLVM IR to temp directory
+                rustc "$file" --crate-type lib --emit=llvm-ir --out-dir /tmp 2>&1 >"$temp_output"
+            fi
             rm -f /tmp/*.ll 2>/dev/null || true
             ;;
         assembly)
-            # Generate assembly to temp directory
-            rustc "$file" --crate-type lib --emit=asm --out-dir /tmp 2>&1 >"$temp_output"
+            if [ "$use_cargo" = true ]; then
+                cargo rustc --manifest-path "$manifest" --quiet -- --emit=asm --out-dir /tmp 2>&1 >"$temp_output"
+            else
+                # Generate assembly to temp directory
+                rustc "$file" --crate-type lib --emit=asm --out-dir /tmp 2>&1 >"$temp_output"
+            fi
             rm -f /tmp/*.s 2>/dev/null || true
             ;;
         mir)
-            # Generate MIR to temp directory
-            rustc "$file" --crate-type lib --emit=mir --out-dir /tmp 2>&1 >"$temp_output"
+            if [ "$use_cargo" = true ]; then
+                cargo rustc --manifest-path "$manifest" --quiet -- --emit=mir --out-dir /tmp 2>&1 >"$temp_output"
+            else
+                # Generate MIR to temp directory
+                rustc "$file" --crate-type lib --emit=mir --out-dir /tmp 2>&1 >"$temp_output"
+            fi
             rm -f /tmp/*.mir 2>/dev/null || true
             ;;
         syntax_check)
-            # Just check syntax with metadata emission (stable rust)
-            rustc "$file" --crate-type lib --emit=metadata --out-dir /tmp 2>&1 >"$temp_output"
-            rm -f /tmp/*.rmeta 2>/dev/null || true
+            if [ "$use_cargo" = true ]; then
+                cargo check --manifest-path "$manifest" --quiet 2>&1 >"$temp_output"
+            else
+                # Just check syntax with metadata emission (stable rust)
+                rustc "$file" --crate-type lib --emit=metadata --out-dir /tmp 2>&1 >"$temp_output"
+                rm -f /tmp/*.rmeta 2>/dev/null || true
+            fi
             ;;
         type_check)
-            # Type check only (allow warnings for this specific gate)
-            rustc "$file" --crate-type lib --out-dir /tmp 2>&1 | grep -i "error" >"$temp_output" || true
-            rm -f /tmp/*.rlib 2>/dev/null || true
+            if [ "$use_cargo" = true ]; then
+                if cargo check --manifest-path "$manifest" --quiet 2>&1 | grep -i "error" >"$temp_output"; then
+                    return 1
+                fi
+            else
+                # Type check only (allow warnings for this specific gate)
+                rustc "$file" --crate-type lib --out-dir /tmp 2>&1 | grep -i "error" >"$temp_output" || true
+                rm -f /tmp/*.rlib 2>/dev/null || true
+            fi
             # If no errors found in output, pass
             if [ ! -s "$temp_output" ]; then
                 return 0
