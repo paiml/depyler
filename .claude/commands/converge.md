@@ -10,9 +10,21 @@ Use the built-in converge command with rich progress feedback:
 # Build release binary first
 cargo build --release --bin depyler
 
-# Run convergence with TUI progress
-./target/release/depyler converge --input-dir /home/noah/src/reprorusted-python-cli/examples --target-rate 80 --display rich --verbose
+# Run convergence with rich TUI progress (progress bars, sparklines)
+./target/release/depyler converge --input-dir /home/noah/src/reprorusted-python-cli/examples --target-rate 80 --display rich
+
+# CI-friendly minimal output
+./target/release/depyler converge --input-dir /home/noah/src/reprorusted-python-cli/examples --target-rate 80 --display minimal
 ```
+
+## Display Modes
+
+| Mode | Description |
+|------|-------------|
+| `--display rich` | TUI with progress bars and detailed cluster info (default) |
+| `--display minimal` | Single-line CI-friendly output |
+| `--display json` | JSON output for automation |
+| `--display silent` | No output |
 
 ## Alternative: UTOL Automated Loop
 
@@ -31,8 +43,9 @@ cargo build --release --bin depyler
 | Task | Command |
 |------|---------|
 | Cache Warm | `depyler cache warm --input-dir $CORPUS` |
-| Converge | `depyler converge --input-dir $CORPUS --target-rate 80` |
-| UTOL | `depyler utol --corpus $CORPUS --target-rate 0.80` |
+| Converge (Rich) | `depyler converge --input-dir $CORPUS --target-rate 80 --display rich` |
+| Converge (CI) | `depyler converge --input-dir $CORPUS --target-rate 80 --display minimal` |
+| UTOL | `depyler utol --corpus $CORPUS --target-rate 0.80 --display rich` |
 | Status | `depyler utol --corpus $CORPUS --status` |
 | Explain | `depyler explain <file.rs> --trace <trace.json>` |
 

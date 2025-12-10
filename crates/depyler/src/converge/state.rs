@@ -7,6 +7,35 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
+/// Display mode for convergence output (DEPYLER-CONVERGE-RICH)
+/// Mirrors UTOL's DisplayMode for consistency
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum DisplayMode {
+    /// Rich TUI with progress bars and sparklines
+    #[default]
+    Rich,
+    /// Minimal single-line output (CI-friendly)
+    Minimal,
+    /// JSON output (automation)
+    Json,
+    /// No output (silent mode)
+    Silent,
+}
+
+impl DisplayMode {
+    /// Parse display mode from string
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "rich" => Self::Rich,
+            "minimal" => Self::Minimal,
+            "json" => Self::Json,
+            "silent" => Self::Silent,
+            _ => Self::Rich, // Default to rich
+        }
+    }
+}
+
 /// Configuration for the convergence loop
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConvergenceConfig {
@@ -28,6 +57,9 @@ pub struct ConvergenceConfig {
     pub checkpoint_dir: Option<PathBuf>,
     /// Number of parallel compilation jobs
     pub parallel_jobs: usize,
+    /// Display mode (rich, minimal, json, silent)
+    #[serde(default)]
+    pub display_mode: DisplayMode,
 }
 
 impl ConvergenceConfig {

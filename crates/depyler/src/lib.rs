@@ -458,6 +458,10 @@ pub enum Commands {
         /// Number of parallel compilation jobs
         #[arg(short, long, default_value = "4")]
         parallel_jobs: usize,
+
+        /// Display mode: rich (TUI), minimal (CI), json (automation), silent
+        #[arg(long, default_value = "rich")]
+        display: String,
     },
 
     /// Extract doctests from Python source files (GH-173, GH-174)
