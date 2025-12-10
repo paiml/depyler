@@ -2559,8 +2559,8 @@ roadmap:
 - id: DEPYLER-CONVERGE-RICH
   github_issue: null
   item_type: task
-  title: 'Add --display option to converge command for rich TUI progress'
-  status: done
+  title: Add --display option to converge command for rich TUI progress
+  status: completed
   priority: medium
   assigned_to: null
   created: 2025-12-10T16:09:10.069930333+00:00
@@ -2572,3 +2572,19 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: Added DisplayMode enum (rich, minimal, json, silent) to converge command for consistent progress feedback with UTOL
+- id: DEPYLER-CONVERGE-FULL
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-CONVERGE-FULL'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-10T16:54:11.584686494+00:00
+  updated: 2025-12-10T16:54:11.584686494+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
