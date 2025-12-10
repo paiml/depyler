@@ -1,9 +1,10 @@
 //! Progress reporting for convergence loop
 //!
 //! Provides formatted output for tracking convergence progress.
+//! Supports multiple display modes: rich (TUI), minimal (CI), json, silent.
 
 use super::clusterer::ErrorCluster;
-use super::state::ConvergenceState;
+use super::state::{ConvergenceState, DisplayMode};
 
 /// Report for a single iteration
 #[derive(Debug, Clone)]
@@ -35,78 +36,159 @@ pub struct ErrorClusterSummary {
     pub root_cause_description: String,
 }
 
+/// Progress bar rendering
+pub fn progress_bar(current: usize, total: usize, width: usize) -> String {
+    if total == 0 {
+        return "░".repeat(width);
+    }
+
+    let pct = (current as f64 / total as f64).clamp(0.0, 1.0);
+    let filled = (pct * width as f64).round() as usize;
+    let empty = width.saturating_sub(filled);
+
+    format!("{}{}", "█".repeat(filled), "░".repeat(empty))
+}
+
 /// Reporter for convergence progress
 pub struct ConvergenceReporter {
     /// Verbose mode
     verbose: bool,
+    /// Display mode (rich, minimal, json, silent)
+    display_mode: DisplayMode,
 }
 
 impl ConvergenceReporter {
     /// Create a new reporter
     pub fn new(verbose: bool) -> Self {
-        Self { verbose }
+        Self {
+            verbose,
+            display_mode: DisplayMode::Rich,
+        }
+    }
+
+    /// Create a reporter with specific display mode
+    pub fn with_display_mode(display_mode: DisplayMode) -> Self {
+        Self {
+            verbose: !matches!(display_mode, DisplayMode::Silent),
+            display_mode,
+        }
+    }
+
+    /// Check if output should be shown
+    fn should_output(&self) -> bool {
+        !matches!(self.display_mode, DisplayMode::Silent | DisplayMode::Json)
     }
 
     /// Report start of convergence loop
     pub fn report_start(&self, state: &ConvergenceState) {
-        println!("╔══════════════════════════════════════════════════════════════╗");
-        println!("║               DEPYLER CONVERGENCE LOOP                       ║");
-        println!("╠══════════════════════════════════════════════════════════════╣");
-        println!(
-            "║ Input Directory: {:43} ║",
-            truncate_path(&state.config.input_dir.display().to_string(), 43)
-        );
-        println!("║ Target Rate:     {:6.1}%                                     ║", state.config.target_rate);
-        println!("║ Max Iterations:  {:6}                                      ║", state.config.max_iterations);
-        println!("║ Auto-fix:        {:6}                                      ║", if state.config.auto_fix { "ON" } else { "OFF" });
-        println!("╚══════════════════════════════════════════════════════════════╝");
-        println!();
+        if !self.should_output() {
+            return;
+        }
+
+        match self.display_mode {
+            DisplayMode::Rich => {
+                println!("╔══════════════════════════════════════════════════════════════╗");
+                println!("║               DEPYLER CONVERGENCE LOOP                       ║");
+                println!("╠══════════════════════════════════════════════════════════════╣");
+                println!(
+                    "║ Input Directory: {:43} ║",
+                    truncate_path(&state.config.input_dir.display().to_string(), 43)
+                );
+                println!("║ Target Rate:     {:6.1}%                                     ║", state.config.target_rate);
+                println!("║ Max Iterations:  {:6}                                      ║", state.config.max_iterations);
+                println!("║ Auto-fix:        {:6}                                      ║", if state.config.auto_fix { "ON" } else { "OFF" });
+                println!("╚══════════════════════════════════════════════════════════════╝");
+                println!();
+            }
+            DisplayMode::Minimal => {
+                println!(
+                    "CONVERGE | Dir: {} | Target: {:.1}% | Max: {}",
+                    truncate_path(&state.config.input_dir.display().to_string(), 30),
+                    state.config.target_rate,
+                    state.config.max_iterations
+                );
+            }
+            DisplayMode::Json | DisplayMode::Silent => {}
+        }
     }
 
     /// Report iteration progress
     pub fn report_iteration(&self, state: &ConvergenceState, top_cluster: &ErrorCluster) {
+        if !self.should_output() {
+            return;
+        }
+
         let passing = state.examples.iter().filter(|e| e.compiles).count();
         let total = state.examples.len();
 
-        println!("┌──────────────────────────────────────────────────────────────┐");
-        println!(
-            "│ Iteration {:3} │ Rate: {:5.1}% │ Passing: {:4}/{:<4}           │",
-            state.iteration, state.compilation_rate, passing, total
-        );
-        println!("├──────────────────────────────────────────────────────────────┤");
-        println!(
-            "│ Top Cluster: {} ({} blocked, {:.0}% confidence){}│",
-            top_cluster.error_code,
-            top_cluster.examples_blocked.len(),
-            top_cluster.fix_confidence * 100.0,
-            " ".repeat(20 - top_cluster.error_code.len().min(20))
-        );
+        match self.display_mode {
+            DisplayMode::Rich => {
+                let prog_bar = progress_bar(state.iteration, state.config.max_iterations, 20);
+                let prog_pct = if state.config.max_iterations > 0 {
+                    (state.iteration as f64 / state.config.max_iterations as f64) * 100.0
+                } else {
+                    0.0
+                };
 
-        if self.verbose {
-            // Show root cause
-            let root_cause_str = match &top_cluster.root_cause {
-                super::clusterer::RootCause::TranspilerGap { gap_type, location } => {
-                    format!("{} @ {}", gap_type, location)
-                }
-                super::clusterer::RootCause::Unknown => "unknown".to_string(),
-            };
-            println!("│ Root Cause: {:50} │", truncate(&root_cause_str, 50));
+                println!("┌──────────────────────────────────────────────────────────────┐");
+                println!(
+                    "│ [{}] {}/{} ({:.0}%)                              │",
+                    prog_bar, state.iteration, state.config.max_iterations, prog_pct
+                );
+                println!(
+                    "│ Rate: {:5.1}% │ Passing: {:4}/{:<4}                           │",
+                    state.compilation_rate, passing, total
+                );
+                println!("├──────────────────────────────────────────────────────────────┤");
+                println!(
+                    "│ Top Cluster: {} ({} blocked, {:.0}% confidence){}│",
+                    top_cluster.error_code,
+                    top_cluster.examples_blocked.len(),
+                    top_cluster.fix_confidence * 100.0,
+                    " ".repeat(20 - top_cluster.error_code.len().min(20))
+                );
 
-            // Show sample errors
-            if !top_cluster.sample_errors.is_empty() {
-                println!("│ Sample Errors:                                               │");
-                for (i, error) in top_cluster.sample_errors.iter().take(3).enumerate() {
-                    println!(
-                        "│   {}. {}│",
-                        i + 1,
-                        truncate(&error.message, 55)
-                    );
+                if self.verbose {
+                    // Show root cause
+                    let root_cause_str = match &top_cluster.root_cause {
+                        super::clusterer::RootCause::TranspilerGap { gap_type, location } => {
+                            format!("{} @ {}", gap_type, location)
+                        }
+                        super::clusterer::RootCause::Unknown => "unknown".to_string(),
+                    };
+                    println!("│ Root Cause: {:50} │", truncate(&root_cause_str, 50));
+
+                    // Show sample errors
+                    if !top_cluster.sample_errors.is_empty() {
+                        println!("│ Sample Errors:                                               │");
+                        for (i, error) in top_cluster.sample_errors.iter().take(3).enumerate() {
+                            println!(
+                                "│   {}. {}│",
+                                i + 1,
+                                truncate(&error.message, 55)
+                            );
+                        }
+                    }
                 }
+
+                println!("└──────────────────────────────────────────────────────────────┘");
+                println!();
             }
+            DisplayMode::Minimal => {
+                // CI-friendly single line with progress
+                println!(
+                    "[{}/{}] {:.1}% | {}/{} passing | Top: {} ({} blocked)",
+                    state.iteration,
+                    state.config.max_iterations,
+                    state.compilation_rate,
+                    passing,
+                    total,
+                    top_cluster.error_code,
+                    top_cluster.examples_blocked.len()
+                );
+            }
+            DisplayMode::Json | DisplayMode::Silent => {}
         }
-
-        println!("└──────────────────────────────────────────────────────────────┘");
-        println!();
     }
 
     /// Format iteration data for external use
@@ -127,40 +209,61 @@ impl ConvergenceReporter {
 
     /// Report finish of convergence loop
     pub fn report_finish(&self, state: &ConvergenceState) {
+        if !self.should_output() {
+            return;
+        }
+
         let passing = state.examples.iter().filter(|e| e.compiles).count();
         let total = state.examples.len();
         let reached_target = state.compilation_rate >= state.config.target_rate;
 
-        println!();
-        println!("╔══════════════════════════════════════════════════════════════╗");
-        println!("║                    CONVERGENCE COMPLETE                      ║");
-        println!("╠══════════════════════════════════════════════════════════════╣");
-        println!(
-            "║ Status:          {:43} ║",
-            if reached_target { "✅ TARGET REACHED" } else { "⚠️  TARGET NOT REACHED" }
-        );
-        println!("║ Final Rate:      {:5.1}% ({}/{})                              ║",
-            state.compilation_rate, passing, total);
-        println!("║ Iterations:      {:6}                                      ║", state.iteration);
-        println!("║ Fixes Applied:   {:6}                                      ║", state.fixes_applied.len());
-        println!("╚══════════════════════════════════════════════════════════════╝");
-
-        if self.verbose && !state.fixes_applied.is_empty() {
-            println!();
-            println!("Applied Fixes:");
-            for (i, fix) in state.fixes_applied.iter().enumerate() {
+        match self.display_mode {
+            DisplayMode::Rich => {
+                println!();
+                println!("╔══════════════════════════════════════════════════════════════╗");
+                println!("║                    CONVERGENCE COMPLETE                      ║");
+                println!("╠══════════════════════════════════════════════════════════════╣");
                 println!(
-                    "  {}. [{}] {} ({})",
-                    i + 1,
-                    fix.error_code,
-                    fix.description,
-                    if fix.verified { "verified" } else { "unverified" }
+                    "║ Status:          {:43} ║",
+                    if reached_target { "TARGET REACHED" } else { "TARGET NOT REACHED" }
+                );
+                println!("║ Final Rate:      {:5.1}% ({}/{})                              ║",
+                    state.compilation_rate, passing, total);
+                println!("║ Iterations:      {:6}                                      ║", state.iteration);
+                println!("║ Fixes Applied:   {:6}                                      ║", state.fixes_applied.len());
+                println!("╚══════════════════════════════════════════════════════════════╝");
+
+                if self.verbose && !state.fixes_applied.is_empty() {
+                    println!();
+                    println!("Applied Fixes:");
+                    for (i, fix) in state.fixes_applied.iter().enumerate() {
+                        println!(
+                            "  {}. [{}] {} ({})",
+                            i + 1,
+                            fix.error_code,
+                            fix.description,
+                            if fix.verified { "verified" } else { "unverified" }
+                        );
+                    }
+                }
+            }
+            DisplayMode::Minimal => {
+                let status = if reached_target { "CONVERGED" } else { "NOT_CONVERGED" };
+                println!(
+                    "DONE | {} | {:.1}% ({}/{}) | {} iterations | {} fixes",
+                    status,
+                    state.compilation_rate,
+                    passing,
+                    total,
+                    state.iteration,
+                    state.fixes_applied.len()
                 );
             }
+            DisplayMode::Json | DisplayMode::Silent => {}
         }
 
-        // Show remaining error clusters
-        if !reached_target && !state.error_clusters.is_empty() {
+        // Show remaining error clusters (rich mode only)
+        if matches!(self.display_mode, DisplayMode::Rich) && !reached_target && !state.error_clusters.is_empty() {
             println!();
             println!("Remaining Error Clusters:");
             for (i, cluster) in state.error_clusters.iter().take(5).enumerate() {
@@ -235,6 +338,7 @@ mod tests {
             fix_confidence_threshold: 0.8,
             checkpoint_dir: None,
             parallel_jobs: 4,
+            display_mode: super::super::state::DisplayMode::default(),
         }
     }
 
