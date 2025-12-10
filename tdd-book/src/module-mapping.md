@@ -104,3 +104,84 @@ All mappings are verified via semantic equivalence tests ensuring Python behavio
 | `os.getcwd()` | `env::current_dir()` | Same directory |
 
 See [semantic tests](../crates/depyler-core/tests/module_mapper_semantic_tests.rs) for full coverage.
+
+## Enterprise Library Mapping (DEPYLER-0903)
+
+For enterprise environments requiring custom library mappings, depyler provides an extensible mapping system with priority chains.
+
+### Architecture
+
+```text
+┌─────────────────────────────────────────────────────┐
+│                  MappingRegistry                     │
+├─────────────────────────────────────────────────────┤
+│  Priority 1: User Overrides (highest)               │
+│  Priority 2: Enterprise Extensions                  │
+│  Priority 3: Core Mappings (shipped with depyler)   │
+└─────────────────────────────────────────────────────┘
+```
+
+### Usage
+
+```rust
+use depyler_core::library_mapping::{MappingRegistry, LibraryMapping, ItemMapping, TransformPattern};
+
+// Start with default core mappings
+let mut registry = MappingRegistry::with_defaults();
+
+// Lookup follows priority chain: overrides > extensions > core
+if let Some(item) = registry.lookup("json", "loads") {
+    println!("Rust name: {}", item.rust_name);  // "from_str"
+}
+```
+
+### Transform Patterns
+
+| Pattern | Description | Example |
+|---------|-------------|---------|
+| `Direct` | 1:1 rename | `loads` → `from_str` |
+| `MethodCall` | Extra args | `head(n)` → `head(n, None)` |
+| `Constructor` | Type::new() | `DataFrame()` → `DataFrame::new()` |
+| `ReorderArgs` | Swap args | `(a, b, c)` → `(a, c, b)` |
+| `TypedTemplate` | Poka-yoke templates | Type-safe code generation |
+
+### TOML Plugin Configuration
+
+Enterprise extensions can be defined in TOML:
+
+```toml
+[plugin]
+id = "my-enterprise-plugin"
+version = "1.0.0"
+
+[[mappings]]
+python_module = "company.ml"
+rust_crate = "company_ml_rs"
+python_version_req = ">=3.9"
+rust_crate_version = "2.0"
+confidence = "Verified"
+provenance = "internal://docs/ml-rs"
+
+[mappings.items]
+train = { rust_name = "train_model", pattern = "MethodCall" }
+```
+
+### Loading Plugins
+
+```rust
+use depyler_core::library_mapping::toml_plugin::TomlPlugin;
+use std::path::Path;
+
+// Load from file
+let plugin = TomlPlugin::from_file(Path::new("enterprise-mappings.toml"))?;
+
+// Register with registry
+plugin.register(&mut registry);
+
+// Plugin validation (ReorderArgs permutation check, TypedTemplate param check)
+plugin.validate()?;
+```
+
+### Specification
+
+Full specification: [DEPYLER-0903](../docs/specification/tractable-external-lib-mapping-with-customization.md)
