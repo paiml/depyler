@@ -34,18 +34,25 @@ rm -f "$LOG_DIR/baseline_results.txt" "$LOG_DIR/error_log.txt"
 
 ## 2. Measurement Cycle (The "Scanner")
 
-### Option A: Built-in Converge Command (RECOMMENDED)
+### Option A: Built-in Commands (RECOMMENDED)
 
-Use the built-in `converge` command with rich progress feedback:
+Use the built-in commands with progress feedback:
 
 ```bash
-# Rich TUI with progress bar, ETA, and live statistics
-"$DEPYLER_BIN" converge --input-dir "$CORPUS_DIR" --target-rate 80 --verbose
+# Converge command with rich TUI display (progress bars, sparklines)
+"$DEPYLER_BIN" converge --input-dir "$CORPUS_DIR" --target-rate 80 --display rich
+
+# Converge with minimal output (CI-friendly)
+"$DEPYLER_BIN" converge --input-dir "$CORPUS_DIR" --target-rate 80 --display minimal
+
+# UTOL with rich TUI display (Toyota Way)
+"$DEPYLER_BIN" utol --corpus "$CORPUS_DIR" --target-rate 0.80 --display rich
 
 # Display modes: rich (TUI), minimal (CI), json (automation), silent
-"$DEPYLER_BIN" converge --input-dir "$CORPUS_DIR" --display rich
+"$DEPYLER_BIN" converge --input-dir "$CORPUS_DIR" --display minimal
+"$DEPYLER_BIN" utol --corpus "$CORPUS_DIR" --display minimal
 
-# Check status without running (quick summary)
+# Quick status check without running
 "$DEPYLER_BIN" utol --corpus "$CORPUS_DIR" --status
 ```
 
@@ -185,8 +192,9 @@ The campaign is complete when:
 | Task | Command |
 |------|---------|
 | **Scan (Rich TUI)** | `depyler converge --input-dir $CORPUS_DIR --display rich` |
+| **Scan (Minimal/CI)** | `depyler converge --input-dir $CORPUS_DIR --display minimal` |
 | **Quick Status** | `depyler utol --corpus $CORPUS_DIR --status` |
-| **Converge** | `depyler converge --input-dir $CORPUS_DIR --target-rate 80` |
+| **Converge** | `depyler converge --input-dir $CORPUS_DIR --target-rate 80 --display rich` |
 | **Trace** | `depyler transpile <file.py> --trace-output trace.json` |
 | **Test Core** | `cargo test -p depyler-core` |
 | **Check Oracle** | `depyler oracle show` |

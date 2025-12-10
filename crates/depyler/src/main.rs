@@ -55,7 +55,7 @@ fn agent_list_projects_command() -> Result<()> {
     Ok(())
 }
 
-/// Handle converge command (GH-158)
+/// Handle converge command (GH-158, DEPYLER-CONVERGE-RICH)
 /// Runs the convergence loop to achieve target compilation rate
 /// Complexity: 3 (within ≤10 target)
 #[allow(clippy::too_many_arguments)]
@@ -68,17 +68,21 @@ async fn handle_converge_command(
     fix_confidence: f64,
     checkpoint_dir: Option<PathBuf>,
     parallel_jobs: usize,
+    display: String,
 ) -> Result<()> {
+    let display_mode = converge::DisplayMode::from_str(&display);
+
     let config = converge::ConvergenceConfig {
         input_dir,
         target_rate,
         max_iterations,
         auto_fix,
         dry_run,
-        verbose: true, // Always verbose for CLI
+        verbose: !matches!(display_mode, converge::DisplayMode::Silent),
         fix_confidence_threshold: fix_confidence,
         checkpoint_dir,
         parallel_jobs,
+        display_mode,
     };
 
     // Validate configuration
@@ -89,7 +93,9 @@ async fn handle_converge_command(
 
     // Return success if target was reached
     if state.compilation_rate >= state.config.target_rate {
-        println!("✅ Target rate reached: {:.1}%", state.compilation_rate);
+        if !matches!(state.config.display_mode, converge::DisplayMode::Silent | converge::DisplayMode::Json) {
+            println!("✅ Target rate reached: {:.1}%", state.compilation_rate);
+        }
         Ok(())
     } else {
         anyhow::bail!(
@@ -540,6 +546,7 @@ async fn handle_command(command: Commands) -> Result<()> {
             fix_confidence,
             checkpoint_dir,
             parallel_jobs,
+            display,
         } => {
             handle_converge_command(
                 input_dir,
@@ -550,6 +557,7 @@ async fn handle_command(command: Commands) -> Result<()> {
                 fix_confidence,
                 checkpoint_dir,
                 parallel_jobs,
+                display,
             )
             .await
         }
