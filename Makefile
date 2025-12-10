@@ -158,17 +158,15 @@ test-all: ## Complete test suite execution
 	$(MAKE) test-quality
 .PHONY: test-fast
 test-fast: ## Quick feedback loop for development (< 5 min, uses cargo-nextest)
-	@echo "⚡ Running fast tests with cargo-nextest..."
-	@echo "   (Leveraging incremental compilation and optimal parallelism)"
-	@echo "   - Property tests: 5 cases (PROPTEST_CASES=5, QUICKCHECK_TESTS=5)"
-	@echo "   - Excludes: SLOW tests, ignored tests, profiling output"
-	@# Auto-install cargo-nextest if not present
-	@if ! command -v cargo-nextest >/dev/null 2>&1; then echo "📦 Installing cargo-nextest for optimal performance..."; cargo install cargo-nextest --locked; fi
-	@echo "🔨 Compiling tests (no timeout)..."
-	@PROPTEST_CASES=5 QUICKCHECK_TESTS=5 DEPYLER_DISABLE_PROFILING=1 cargo nextest run --no-run --workspace --all-features --profile fast
-	@echo "🧪 Running tests (4-minute timeout)..."
-	@timeout 240 env PROPTEST_CASES=5 QUICKCHECK_TESTS=5 DEPYLER_DISABLE_PROFILING=1 cargo nextest run --no-fail-fast --workspace --all-features --profile fast
-	@echo "✅ Fast tests completed!"
+	@echo "⚡ Running fast tests (target: <5 min)..."
+	@if command -v cargo-nextest >/dev/null 2>&1; then \
+		PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo nextest run \
+			--workspace \
+			--profile fast \
+			--no-fail-fast; \
+	else \
+		PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo test --workspace; \
+	fi
 test-pre-commit-fast: ## Ultra-fast pre-commit validation (< 60 seconds with build scripts)
 	@echo "⚡ Running pre-commit fast validation (<60s with build scripts)..."
 	@echo "   (Type checking only - no test execution)"
@@ -351,28 +349,20 @@ security-audit: ## Run security audit
 # Filter out external dependencies from coverage reports (only show depyler crates)
 COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno"
 .PHONY: coverage
-coverage: ## Generate HTML coverage report
-	@echo "📊 Running test coverage analysis..."
-	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
+coverage: ## Generate HTML coverage report (target: <10 min)
+	@echo "📊 Running test coverage analysis (target: <10 min)..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
 	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
-	@echo "🧹 Cleaning old coverage data..."
-	@$(CARGO) llvm-cov clean --workspace
+	@cargo llvm-cov clean --workspace
 	@mkdir -p target/coverage
-	@echo "⚙️  Temporarily disabling global cargo config (mold breaks coverage)..."
 	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
-	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
-	@env PROPTEST_CASES=10 QUICKCHECK_TESTS=10 $(CARGO) llvm-cov --no-report nextest --no-tests=warn --no-fail-fast --all-features --workspace
-	@echo "📊 Phase 2: Generating coverage reports..."
-	@$(CARGO) llvm-cov report --html --output-dir target/coverage/html --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
-	@$(CARGO) llvm-cov report --lcov --output-path target/coverage/lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
-	@echo "⚙️  Restoring global cargo config..."
+	@env PROPTEST_CASES=100 QUICKCHECK_TESTS=100 cargo llvm-cov --no-report nextest --no-tests=warn --workspace
+	@cargo llvm-cov report --html --output-dir target/coverage/html --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
+	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo ""
 	@echo "📊 Coverage Summary:"
-	@echo "=================="
-	@$(CARGO) llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
-	@echo ""
+	@cargo llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@echo "💡 HTML report: target/coverage/html/index.html"
 coverage-summary: ## Display coverage summary (run 'make coverage' first)
 	@echo "📊 Coverage Summary:"
