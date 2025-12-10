@@ -29,6 +29,7 @@ depyler-annotations = { version = "3.19.18", path = "../depyler-annotations" }
 colored.workspace = true
 fnv.workspace = true
 tempfile.workspace = true
+toml.workspace = true
 
 [features]
 default = []
@@ -88,6 +89,5 @@ insta.workspace = true
 proptest.workspace = true
 quickcheck.workspace = true
 tempfile.workspace = true
-toml.workspace = true
 verificar = "0.5.0"
 regex.workspace = true
