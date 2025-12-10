@@ -462,6 +462,18 @@ pub enum Commands {
         /// Display mode: rich (TUI), minimal (CI), json (automation), silent
         #[arg(long, default_value = "rich")]
         display: String,
+
+        /// Enable Oracle ML-based error classification (DEPYLER-CONVERGE-FULL)
+        #[arg(long)]
+        oracle: bool,
+
+        /// Enable explainability traces for transpiler decisions (DEPYLER-CONVERGE-FULL)
+        #[arg(long)]
+        explain: bool,
+
+        /// Enable O(1) compilation cache for unchanged files (DEPYLER-CONVERGE-FULL)
+        #[arg(long, default_value = "true")]
+        cache: bool,
     },
 
     /// Extract doctests from Python source files (GH-173, GH-174)

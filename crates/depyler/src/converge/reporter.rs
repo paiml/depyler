@@ -339,6 +339,9 @@ mod tests {
             checkpoint_dir: None,
             parallel_jobs: 4,
             display_mode: super::super::state::DisplayMode::default(),
+            oracle: false,
+            explain: false,
+            use_cache: true,
         }
     }
 

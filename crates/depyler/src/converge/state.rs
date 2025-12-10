@@ -68,6 +68,19 @@ pub struct ConvergenceConfig {
     /// Display mode (rich, minimal, json, silent)
     #[serde(default)]
     pub display_mode: DisplayMode,
+    /// Enable Oracle ML-based error classification
+    #[serde(default)]
+    pub oracle: bool,
+    /// Enable explainability traces for transpiler decisions
+    #[serde(default)]
+    pub explain: bool,
+    /// Enable O(1) compilation cache for unchanged files
+    #[serde(default = "default_use_cache")]
+    pub use_cache: bool,
+}
+
+fn default_use_cache() -> bool {
+    true
 }
 
 impl ConvergenceConfig {
