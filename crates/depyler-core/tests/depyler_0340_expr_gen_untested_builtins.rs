@@ -12,6 +12,8 @@
 //! - reversed(), enumerate() edge cases
 //! - range() with negative/positive steps
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 // ============================================================================

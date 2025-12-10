@@ -522,13 +522,13 @@ mod tests {
 
         assert_eq!(result.total_error_types, 5);
         assert!(!result.clusters.is_empty());
-        assert!(result.silhouette_score >= -1.0 && result.silhouette_score <= 1.0);
+        assert!((-1.0..=1.0).contains(&result.silhouette_score));
     }
 
     #[test]
     fn test_error_cluster_label() {
         let analyzer = ClusterAnalyzer::new();
-        let features = vec![
+        let features = [
             ErrorFeatures::from_error("E0308", 10, 100),
             ErrorFeatures::from_error("E0307", 5, 100),
         ];
@@ -565,7 +565,7 @@ mod tests {
         let score = analyzer.calculate_silhouette(&data, &assignments);
 
         // Silhouette should be between -1 and 1
-        assert!(score >= -1.0 && score <= 1.0);
+        assert!((-1.0..=1.0).contains(&score));
     }
 
     #[test]

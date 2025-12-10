@@ -7,6 +7,8 @@
 //! - Write failing tests BEFORE implementing the fix
 //! - Tests demonstrate the expected behavior after integration
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Test that function parameter `cmd` is inferred as Vec<String>

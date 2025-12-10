@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0302 Phase 3: String Slicing with Negative Indices
 // Tests for fixing string slicing code generation
 // Issue: String slicing generated Vec operations (.to_vec(), .iter()) instead of string operations (.chars())

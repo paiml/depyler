@@ -13,6 +13,8 @@
 //!
 //! Testing approach: Integration tests via DepylerPipeline to validate end-to-end behavior
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 // ============================================================================

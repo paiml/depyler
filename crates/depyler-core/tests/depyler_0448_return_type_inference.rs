@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0448: Return Type and Constant Type Inference Defaults to i32
 //
 // Bug: Type inference for function return types and constants defaults to i32

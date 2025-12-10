@@ -8,6 +8,8 @@
 //! 3. Variable annotations collected (x: int = value)
 //! 4. Existing HIR generation still works
 
+#![allow(non_snake_case)]
+
 use depyler_core::ast_bridge;
 use depyler_core::hir::{HirModule, Type};
 use depyler_core::type_system::type_environment::TypeEnvironment;

@@ -8,6 +8,8 @@
 //!
 //! **Solution**: Add guard condition to skip hoisting for already-declared variables.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Unit Test 1: Simple If-Elif-Else Variable Reassignment

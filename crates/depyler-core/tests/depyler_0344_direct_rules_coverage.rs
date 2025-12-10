@@ -14,6 +14,8 @@
 //!
 //! Expected Impact: +15% coverage (~150-200 lines), TDG 1.5-1.8 → 1.2-1.4
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 // ============================================================================

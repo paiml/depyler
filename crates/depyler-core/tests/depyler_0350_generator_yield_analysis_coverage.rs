@@ -12,6 +12,8 @@
 //! - Edge cases (no yields, nested yields, multiple paths)
 //! - Property-based testing for robustness
 
+#![allow(non_snake_case)]
+
 use depyler_annotations::TranspilationAnnotations;
 use depyler_core::generator_yield_analysis::*;
 use depyler_core::hir::*;

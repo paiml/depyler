@@ -11,6 +11,8 @@
 //! 3. Integration tests for real-world usage
 //! 4. Mutation testing coverage (via cargo-mutants)
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Helper function to transpile Python code (compilation verification simplified)

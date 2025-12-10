@@ -11,6 +11,8 @@
 //! - LifetimeInfo and LifetimeSource structures
 //! - Basic constraint tracking
 
+#![allow(non_snake_case)]
+
 use depyler_core::lifetime_analysis::*;
 
 // ============================================================================

@@ -4,6 +4,8 @@
 //! Golden Trace: Python `count < limit` where limit can be None works seamlessly
 //! Rust: Needs `.unwrap_or()` or pattern matching
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 use std::io::Write;
 

@@ -9,6 +9,8 @@
 //! 4. Why? convert_nested_function_params() never checks args.vararg field
 //! 5. ROOT: Missing code to handle ast::Arguments::vararg
 
+#![allow(non_snake_case)]
+
 use depyler_core::ast_bridge;
 use rustpython_ast::Suite;
 use rustpython_parser::{ast, Parse};

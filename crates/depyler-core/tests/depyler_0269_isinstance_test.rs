@@ -3,6 +3,8 @@
 //! Tests that isinstance() calls are properly handled in transpilation.
 //! For statically-typed Rust, isinstance(x, T) where x: T is always true.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 #[test]

@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0498: Integer type cast errors (i32 ↔ i64)
 // Test auto-insertion of casts when integer types don't match
 

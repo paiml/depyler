@@ -541,7 +541,7 @@ mod tests {
 
         // Compile rate should be calculable
         let rate = stats.compile_rate();
-        assert!(rate >= 0.0 && rate <= 100.0);
+        assert!((0.0..=100.0).contains(&rate));
     }
 
     // ========================================================================
@@ -581,7 +581,7 @@ mod tests {
                         read_errors: 0,
                     };
                     let rate = stats.compile_rate();
-                    assert!(rate >= 0.0 && rate <= 100.0);
+                    assert!((0.0..=100.0).contains(&rate));
                 }
             }
         }

@@ -8,6 +8,8 @@
 //! Solution: Add `expr_returns_int_direct` function and cast integer variables
 //! to `f64` when comparing with float expressions.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Test float param compared to integer variable (not literal)

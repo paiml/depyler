@@ -3,6 +3,8 @@
 //! Tests to verify that keyword arguments are properly preserved during AST→HIR conversion
 //! and correctly handled throughout the transpilation pipeline.
 
+#![allow(non_snake_case)]
+
 use anyhow::Result;
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::hir::{HirExpr, HirModule, HirStmt, Literal};

@@ -9,6 +9,8 @@
 //! 4. Why? Somewhere confusing dict[0] with Generic[T]
 //! 5. ROOT: TBD - need to find exact call site
 
+#![allow(non_snake_case)]
+
 use depyler_core::ast_bridge;
 use rustpython_ast::Suite;
 use rustpython_parser::{ast, Parse};

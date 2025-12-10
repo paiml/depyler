@@ -1117,7 +1117,7 @@ impl HashChainCollector {
     }
 }
 
-/// Global trace collector (thread-local for performance)
+// Global trace collector (thread-local for performance)
 #[cfg(feature = "decision-tracing")]
 thread_local! {
     pub static TRACE_COLLECTOR: RefCell<Option<Box<dyn TraceCollector>>> = const { RefCell::new(None) };

@@ -12,6 +12,8 @@
 //! - generate_debug_macros: Debug macro generation
 //! - Edge cases and property-based tests
 
+#![allow(non_snake_case)]
+
 use depyler_core::debug::*;
 use depyler_core::hir::{FunctionProperties, HirFunction, Type};
 use smallvec::SmallVec;

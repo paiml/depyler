@@ -13,6 +13,8 @@
 //! Equivalent to: `[x for x in range(10) if (x > 5) and (x % 2 == 0)]`
 //! Rust: filter(|x| x > 5 && x % 2 == 0)
 
+#![allow(non_snake_case)]
+
 use depyler_core::ast_bridge;
 use rustpython_ast::Suite;
 use rustpython_parser::{ast, Parse};

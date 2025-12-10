@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0303 Phase 1: Dictionary/HashMap Method Quick Wins Test
 // Tests for:
 // 1. &&str vs &str fixes (contains_key, remove)

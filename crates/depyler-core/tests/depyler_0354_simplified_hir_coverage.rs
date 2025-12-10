@@ -19,6 +19,8 @@
 //! - Serde serialization/deserialization
 //! - Nested and recursive structures
 
+#![allow(non_snake_case)]
+
 use depyler_core::simplified_hir::*;
 
 // ============================================================================
