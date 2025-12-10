@@ -146,11 +146,11 @@ pub fn convert_defaultdict_builtin(
 pub fn convert_dict_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
     ctx.needs_hashmap = true;
     if args.is_empty() {
-        Ok(parse_quote! { HashMap::new() })
+        Ok(parse_quote! { std::collections::HashMap::new() })
     } else if args.len() == 1 {
         let arg = &args[0];
         Ok(parse_quote! {
-            #arg.into_iter().collect::<HashMap<_, _>>()
+            #arg.into_iter().collect::<std::collections::HashMap<_, _>>()
         })
     } else {
         bail!("dict() takes at most 1 argument ({} given)", args.len())

@@ -25,6 +25,7 @@
 //! ```
 
 mod cache;
+pub mod cache_warmer;
 mod classifier;
 mod clusterer;
 mod compiler;

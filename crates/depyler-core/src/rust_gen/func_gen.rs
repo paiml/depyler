@@ -476,8 +476,145 @@ fn collect_nested_function_names(stmts: &[HirStmt], names: &mut Vec<String>) {
 }
 
 // ============================================================================
-// DEPYLER-0762: Loop-Escaping Variable Hoisting
+// DEPYLER-0762, DEPYLER-0834: Block-Escaping Variable Hoisting
 // ============================================================================
+
+/// DEPYLER-0834: Collect variables assigned in if blocks that escape to outer scope.
+///
+/// In Python, variables assigned inside if/elif/else blocks are visible in the outer scope.
+/// In Rust, block scoping means these variables aren't accessible outside the if.
+///
+/// This function finds variables that are:
+/// - Assigned in ANY branch of an if statement (not just both branches)
+/// - Used in statements AFTER the if statement
+///
+/// These variables need to be hoisted to function scope.
+///
+/// Algorithm:
+/// 1. Scan statement list for if statements
+/// 2. For each if, collect variables assigned in ANY branch (union)
+/// 3. For statements AFTER the if, check if those variables are used
+/// 4. Return the set of variables that need hoisting
+fn collect_if_escaping_variables(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
+    use std::collections::HashSet;
+    let mut escaping_vars = HashSet::new();
+
+    for (i, stmt) in stmts.iter().enumerate() {
+        // Check if this is an if statement
+        let if_assigned_vars = match stmt {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                // DEPYLER-0834: Collect from ANY branch (union), not both (intersection)
+                // Variables assigned in either then or else block escape to outer scope
+                let then_vars = extract_toplevel_assigned_symbols(then_body);
+                let else_vars = if let Some(else_stmts) = else_body {
+                    extract_toplevel_assigned_symbols(else_stmts)
+                } else {
+                    HashSet::new()
+                };
+                // Union of both branches
+                let mut all_vars = then_vars;
+                all_vars.extend(else_vars);
+
+                // Also recurse into nested blocks
+                let mut nested_escaping = collect_if_escaping_variables(then_body);
+                if let Some(else_stmts) = else_body {
+                    nested_escaping.extend(collect_if_escaping_variables(else_stmts));
+                }
+                escaping_vars.extend(nested_escaping);
+
+                all_vars
+            }
+            // Recurse into for/while loops to find nested ifs
+            HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
+                escaping_vars.extend(collect_if_escaping_variables(body));
+                continue;
+            }
+            // Recurse into try/except blocks
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
+                let mut vars = collect_if_escaping_variables(body);
+                for handler in handlers {
+                    vars.extend(collect_if_escaping_variables(&handler.body));
+                }
+                if let Some(finally) = finalbody {
+                    vars.extend(collect_if_escaping_variables(finally));
+                }
+                escaping_vars.extend(vars);
+                continue;
+            }
+            _ => continue,
+        };
+
+        // Check if any of these variables are used in statements AFTER this if
+        if !if_assigned_vars.is_empty() {
+            let remaining_stmts = &stmts[i + 1..];
+            for var in if_assigned_vars {
+                if is_var_used_in_remaining_stmts(&var, remaining_stmts) {
+                    escaping_vars.insert(var);
+                }
+            }
+        }
+    }
+
+    escaping_vars
+}
+
+/// Extract variables assigned at the TOP LEVEL of a block only (not in nested loops)
+/// DEPYLER-0476: Used for if-block variable hoisting to avoid hoisting loop variables twice
+fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
+    use std::collections::HashSet;
+    let mut vars = HashSet::new();
+
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                ..
+            } => {
+                vars.insert(name.clone());
+            }
+            // Recurse into if/else blocks (they're not loops, so include their vars)
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                vars.extend(extract_toplevel_assigned_symbols(then_body));
+                if let Some(else_stmts) = else_body {
+                    vars.extend(extract_toplevel_assigned_symbols(else_stmts));
+                }
+            }
+            // DO NOT recurse into for/while - those are handled by loop hoisting
+            HirStmt::For { .. } | HirStmt::While { .. } => {}
+            // Recurse into try/except blocks
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
+                vars.extend(extract_toplevel_assigned_symbols(body));
+                for handler in handlers {
+                    vars.extend(extract_toplevel_assigned_symbols(&handler.body));
+                }
+                if let Some(finally) = finalbody {
+                    vars.extend(extract_toplevel_assigned_symbols(finally));
+                }
+            }
+            _ => {}
+        }
+    }
+
+    vars
+}
 
 /// DEPYLER-0762: Collect variables assigned inside for/while loops that are used after the loop.
 /// Python has function-level scoping, so variables assigned in loops are visible after the loop.
@@ -889,6 +1026,21 @@ pub(crate) fn codegen_function_body(
     // DEPYLER-0763: Use safe_ident to escape Rust keywords (e.g. match -> r#match)
     let loop_escaping_vars = collect_loop_escaping_variables(&func.body);
     for var_name in &loop_escaping_vars {
+        if !ctx.is_declared(var_name) {
+            let ident = safe_ident(var_name);
+            body_stmts.push(quote! { let mut #ident = Default::default(); });
+            ctx.declare_var(var_name);
+        }
+    }
+
+    // DEPYLER-0834: Hoist if-escaping variables
+    // Python has function-level scoping, so variables assigned in if/else blocks
+    // are visible after the if statement. Rust has block-level scoping, so we must
+    // hoist these variable declarations to function scope.
+    // We initialize with Default::default() to avoid E0381 "possibly-uninitialized"
+    // errors, since the if branch may not be taken.
+    let if_escaping_vars = collect_if_escaping_variables(&func.body);
+    for var_name in &if_escaping_vars {
         if !ctx.is_declared(var_name) {
             let ident = safe_ident(var_name);
             body_stmts.push(quote! { let mut #ident = Default::default(); });
@@ -4105,6 +4257,68 @@ impl RustCodeGen for HirFunction {
         let (return_type, rust_ret_type, can_fail, error_type) =
             codegen_return_type(self, &lifetime_result, ctx)?;
 
+        // DEPYLER-0839: Fix E0700 "hidden type captures lifetime" for impl Fn returns
+        // When a function returns `impl Fn(...)` and captures reference parameters,
+        // the return type must include a lifetime bound: `impl Fn(...) + 'a`
+        // and the function must have the lifetime parameter: `fn foo<'a>(p: &'a str) -> impl Fn(...) + 'a`
+        // Additionally, reference parameters must have the 'a lifetime: `&str` -> `&'a str`
+        let (generic_params, return_type, params) = if let crate::type_mapper::RustType::Custom(ref type_str) = rust_ret_type {
+            if type_str.contains("impl Fn") {
+                // Check if any parameter is a reference (borrowed)
+                // Access from ctx since param_borrows was moved into function_param_borrows earlier
+                let has_ref_params = ctx.function_param_borrows
+                    .get(&self.name)
+                    .map(|borrows| borrows.iter().any(|&b| b))
+                    .unwrap_or(false);
+                if has_ref_params {
+                    // Add 'a lifetime to generic params if not already present
+                    let mut lifetime_params_with_a = lifetime_result.lifetime_params.clone();
+                    if !lifetime_params_with_a.contains(&"'a".to_string()) {
+                        lifetime_params_with_a.push("'a".to_string());
+                    }
+                    let new_generic_params = codegen_generic_params(&type_params, &lifetime_params_with_a);
+
+                    // Modify return type to add + 'a bound
+                    // The return type looks like "-> impl Fn(...) -> R" and we need "-> impl Fn(...) -> R + 'a"
+                    let return_str = return_type.to_string();
+                    let modified_return = if return_str.contains("impl Fn") {
+                        // Find the impl Fn type and add + 'a at the end
+                        // Handle both simple `impl Fn(T) -> R` and complex cases
+                        let modified = format!("{} + 'a", return_str.trim());
+                        syn::parse_str::<proc_macro2::TokenStream>(&modified)
+                            .unwrap_or(return_type.clone())
+                    } else {
+                        return_type.clone()
+                    };
+
+                    // DEPYLER-0839: Also add 'a to reference parameter types
+                    // `&str` -> `&'a str`, `& mut T` -> `&'a mut T`
+                    let modified_params: Vec<proc_macro2::TokenStream> = params
+                        .into_iter()
+                        .map(|p| {
+                            let param_str = p.to_string();
+                            // Add 'a lifetime to references that don't already have a lifetime
+                            // Pattern: `& ` (reference without lifetime) -> `& 'a `
+                            // Pattern: `& mut ` (mutable reference without lifetime) -> `& 'a mut `
+                            let modified_param = param_str
+                                .replace("& str", "& 'a str")
+                                .replace("& mut ", "& 'a mut ");
+                            syn::parse_str::<proc_macro2::TokenStream>(&modified_param)
+                                .unwrap_or(p)
+                        })
+                        .collect();
+
+                    (new_generic_params, modified_return, modified_params)
+                } else {
+                    (generic_params.clone(), return_type, params)
+                }
+            } else {
+                (generic_params.clone(), return_type, params)
+            }
+        } else {
+            (generic_params.clone(), return_type, params)
+        };
+
         // DEPYLER-0425: Analyze subcommand field access BEFORE generating body
         // This sets ctx.current_subcommand_fields so expression generation can rewrite args.field → field
         let subcommand_info = if ctx.argparser_tracker.has_subcommands() {
@@ -4150,6 +4364,18 @@ impl RustCodeGen for HirFunction {
 
         // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
+
+        // DEPYLER-0838: If function body is effectively empty (only pass statements) AND
+        // return type is not unit, add unimplemented!() to satisfy the return type.
+        // This handles Python's @abstractmethod pattern where body is just `pass`.
+        {
+            use quote::quote;
+            let body_is_empty = body_stmts.iter().all(|stmt| stmt.is_empty());
+            let is_non_unit_return = !matches!(rust_ret_type, crate::type_mapper::RustType::Unit);
+            if body_is_empty && is_non_unit_return {
+                body_stmts.push(quote! { unimplemented!() });
+            }
+        }
 
         // DEPYLER-0694: If function returns unit type (no return annotation in Python),
         // ensure trailing expressions don't accidentally return a value.
