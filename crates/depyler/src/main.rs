@@ -55,7 +55,7 @@ fn agent_list_projects_command() -> Result<()> {
     Ok(())
 }
 
-/// Handle converge command (GH-158, DEPYLER-CONVERGE-RICH)
+/// Handle converge command (GH-158, DEPYLER-CONVERGE-RICH, DEPYLER-CONVERGE-FULL)
 /// Runs the convergence loop to achieve target compilation rate
 /// Complexity: 3 (within ≤10 target)
 #[allow(clippy::too_many_arguments)]
@@ -69,6 +69,9 @@ async fn handle_converge_command(
     checkpoint_dir: Option<PathBuf>,
     parallel_jobs: usize,
     display: String,
+    oracle: bool,
+    explain: bool,
+    use_cache: bool,
 ) -> Result<()> {
     let display_mode = converge::DisplayMode::parse(&display);
 
@@ -83,6 +86,9 @@ async fn handle_converge_command(
         checkpoint_dir,
         parallel_jobs,
         display_mode,
+        oracle,
+        explain,
+        use_cache,
     };
 
     // Validate configuration
@@ -547,6 +553,9 @@ async fn handle_command(command: Commands) -> Result<()> {
             checkpoint_dir,
             parallel_jobs,
             display,
+            oracle,
+            explain,
+            cache,
         } => {
             handle_converge_command(
                 input_dir,
@@ -558,6 +567,9 @@ async fn handle_command(command: Commands) -> Result<()> {
                 checkpoint_dir,
                 parallel_jobs,
                 display,
+                oracle,
+                explain,
+                cache,
             )
             .await
         }

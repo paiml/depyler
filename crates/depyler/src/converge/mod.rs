@@ -141,6 +141,9 @@ mod tests {
             checkpoint_dir: None,
             parallel_jobs: 4,
             display_mode: DisplayMode::default(),
+            oracle: false,
+            explain: false,
+            use_cache: true,
         };
 
         let state = ConvergenceState::new(config);
@@ -168,6 +171,9 @@ mod tests {
             checkpoint_dir: None,
             parallel_jobs: 0, // Invalid: must be > 0
             display_mode: DisplayMode::default(),
+            oracle: false,
+            explain: false,
+            use_cache: true,
         };
 
         let result = config.validate();
@@ -353,6 +359,9 @@ def broken_function():
             checkpoint_dir: None,
             parallel_jobs: 4,
             display_mode: DisplayMode::default(),
+            oracle: false,
+            explain: false,
+            use_cache: true,
         };
 
         let mut state = ConvergenceState::new(config);
@@ -393,6 +402,9 @@ def broken_function():
             checkpoint_dir: Some(temp_dir.path().to_path_buf()),
             parallel_jobs: 4,
             display_mode: DisplayMode::default(),
+            oracle: false,
+            explain: false,
+            use_cache: true,
         };
 
         let mut state = ConvergenceState::new(config.clone());
@@ -448,6 +460,9 @@ def broken_function():
             checkpoint_dir: None,
             parallel_jobs: 4,
             display_mode: DisplayMode::default(),
+            oracle: false,
+            explain: false,
+            use_cache: true,
         };
 
         let state = ConvergenceState::new(config);
@@ -486,6 +501,9 @@ def broken_function():
             checkpoint_dir: None,
             parallel_jobs: 4,
             display_mode: DisplayMode::default(),
+            oracle: false,
+            explain: false,
+            use_cache: true,
         };
 
         let mut state = ConvergenceState::new(config);
@@ -521,5 +539,109 @@ def broken_function():
         };
 
         assert!(cluster.impact_score() >= 0.0);
+    }
+
+    // ============================================================================
+    // DEPYLER-CONVERGE-FULL: RED PHASE TESTS
+    // These tests MUST FAIL until implementation is complete
+    // ============================================================================
+
+    // --------------------------------------------------------------------------
+    // Test: ConvergenceConfig has oracle flag
+    // --------------------------------------------------------------------------
+    #[test]
+    fn test_converge_full_config_has_oracle_flag() {
+        let config = ConvergenceConfig {
+            input_dir: PathBuf::from("/tmp"),
+            target_rate: 80.0,
+            max_iterations: 10,
+            auto_fix: false,
+            dry_run: false,
+            verbose: false,
+            fix_confidence_threshold: 0.8,
+            checkpoint_dir: None,
+            parallel_jobs: 4,
+            display_mode: DisplayMode::default(),
+            // NEW: oracle flag must exist
+            oracle: true,
+            explain: false,
+            use_cache: true,
+        };
+        assert!(config.oracle);
+    }
+
+    // --------------------------------------------------------------------------
+    // Test: ConvergenceConfig has explain flag
+    // --------------------------------------------------------------------------
+    #[test]
+    fn test_converge_full_config_has_explain_flag() {
+        let config = ConvergenceConfig {
+            input_dir: PathBuf::from("/tmp"),
+            target_rate: 80.0,
+            max_iterations: 10,
+            auto_fix: false,
+            dry_run: false,
+            verbose: false,
+            fix_confidence_threshold: 0.8,
+            checkpoint_dir: None,
+            parallel_jobs: 4,
+            display_mode: DisplayMode::default(),
+            oracle: false,
+            // NEW: explain flag must exist
+            explain: true,
+            use_cache: true,
+        };
+        assert!(config.explain);
+    }
+
+    // --------------------------------------------------------------------------
+    // Test: ConvergenceConfig has use_cache flag
+    // --------------------------------------------------------------------------
+    #[test]
+    fn test_converge_full_config_has_cache_flag() {
+        let config = ConvergenceConfig {
+            input_dir: PathBuf::from("/tmp"),
+            target_rate: 80.0,
+            max_iterations: 10,
+            auto_fix: false,
+            dry_run: false,
+            verbose: false,
+            fix_confidence_threshold: 0.8,
+            checkpoint_dir: None,
+            parallel_jobs: 4,
+            display_mode: DisplayMode::default(),
+            oracle: false,
+            explain: false,
+            // NEW: use_cache flag must exist
+            use_cache: true,
+        };
+        assert!(config.use_cache);
+    }
+
+    // --------------------------------------------------------------------------
+    // Test: Default config enables cache, disables oracle/explain
+    // --------------------------------------------------------------------------
+    #[test]
+    fn test_converge_full_default_flags() {
+        let config = ConvergenceConfig {
+            input_dir: PathBuf::from("/tmp"),
+            target_rate: 80.0,
+            max_iterations: 10,
+            auto_fix: false,
+            dry_run: false,
+            verbose: false,
+            fix_confidence_threshold: 0.8,
+            checkpoint_dir: None,
+            parallel_jobs: 4,
+            display_mode: DisplayMode::default(),
+            oracle: false,
+            explain: false,
+            use_cache: true,
+        };
+        // Cache ON by default (performance)
+        assert!(config.use_cache);
+        // Oracle/explain OFF by default (opt-in)
+        assert!(!config.oracle);
+        assert!(!config.explain);
     }
 }
