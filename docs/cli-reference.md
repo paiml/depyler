@@ -605,6 +605,9 @@ Options:
   -p, --parallel-jobs <N>      Number of parallel compilation jobs [default: 4]
       --display <MODE>         Display mode [default: rich]
                                [possible values: rich, minimal, json, silent]
+      --oracle                 Enable Oracle ML-based error classification
+      --explain                Enable explainability traces for transpiler decisions
+      --cache                  Enable O(1) compilation cache [default: true]
 ```
 
 #### Examples
