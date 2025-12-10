@@ -156,7 +156,7 @@ impl TypeExtractor {
 
             // Check for Optional pattern: T | None or None | T
             if parts.len() == 2 {
-                let has_none = parts.iter().any(|p| *p == "None");
+                let has_none = parts.contains(&"None");
                 if has_none {
                     // Find the non-None type
                     let non_none = parts.iter().find(|p| **p != "None");
