@@ -70,7 +70,7 @@ async fn handle_converge_command(
     parallel_jobs: usize,
     display: String,
 ) -> Result<()> {
-    let display_mode = converge::DisplayMode::from_str(&display);
+    let display_mode = converge::DisplayMode::parse(&display);
 
     let config = converge::ConvergenceConfig {
         input_dir,
