@@ -75,6 +75,7 @@ pub mod lambda_inference;
 pub mod lambda_optimizer;
 pub mod lambda_testing;
 pub mod lambda_types;
+pub mod library_mapping;
 pub mod lifetime_analysis;
 pub mod lsp;
 pub mod migration_suggestions;
