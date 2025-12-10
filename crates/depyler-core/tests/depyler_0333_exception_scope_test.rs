@@ -10,6 +10,8 @@
 //!
 //! All tests should FAIL initially, then pass after implementation.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 // ============================================================================

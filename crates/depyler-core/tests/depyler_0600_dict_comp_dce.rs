@@ -14,6 +14,8 @@
 //!
 //! Fix: Add DictComp case to collect used vars from key, value, and generators.
 
+#![allow(non_snake_case)]
+
 use depyler_core::ast_bridge::AstBridge;
 use depyler_core::hir::HirModule;
 use depyler_core::optimizer::{Optimizer, OptimizerConfig};

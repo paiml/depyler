@@ -17,6 +17,8 @@
 //!
 //! Strategy: Test construction and derived traits (Debug, Clone, PartialEq, Serialize, Deserialize)
 
+#![allow(non_snake_case)]
+
 use depyler_core::simplified_hir::*;
 
 // ============================================================================

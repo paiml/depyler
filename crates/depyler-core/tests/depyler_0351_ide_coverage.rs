@@ -15,6 +15,8 @@
 //!
 //! NOTE: All tests use PUBLIC APIs only (no direct field access)
 
+#![allow(non_snake_case)]
+
 use depyler_annotations::TranspilationAnnotations;
 use depyler_core::hir::*;
 use depyler_core::ide::*;

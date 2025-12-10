@@ -11,6 +11,8 @@
 //! Expected:
 //!   pub fn email_address(value: &str) -> Result<String, Box<dyn std::error::Error>>
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Helper to transpile Python code

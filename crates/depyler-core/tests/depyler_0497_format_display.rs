@@ -7,6 +7,8 @@
 //!
 //! These tests use the actual fibonacci.rs errors as test cases.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Helper: transpile Python to Rust

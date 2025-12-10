@@ -6,6 +6,8 @@
 //!
 //! Solution: Wrap cast expressions in parentheses: `(self.field.len() as i32) < x`
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Test that len() of class field followed by comparison generates valid Rust

@@ -9,6 +9,8 @@
 //! 4. Why? Original implementation (DEPYLER-0XXX) only handled simple case
 //! 5. ROOT: HIR architecture limited to single-generator comprehensions
 
+#![allow(non_snake_case)]
+
 use depyler_core::ast_bridge;
 use rustpython_ast::Suite;
 use rustpython_parser::{ast, Parse};

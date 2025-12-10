@@ -1320,7 +1320,6 @@ mod tests {
             drift_threshold: 0.5,
             warning_threshold: 0.3,
             max_consecutive_errors: 100, // Disable consecutive check
-            ..Default::default()
         };
         let mut trigger = RetrainTrigger::new(oracle, config);
 

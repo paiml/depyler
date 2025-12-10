@@ -13,6 +13,8 @@
 //! - Caching with complex types
 //! - Edge cases (nested types, custom types, TypeVar)
 
+#![allow(non_snake_case)]
+
 use depyler_core::hir::Type;
 use depyler_core::union_enum_gen::UnionEnumGenerator;
 

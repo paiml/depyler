@@ -8,6 +8,8 @@
 //!
 //! **Solution**: Detect None-placeholder pattern and skip initial None assignment.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 /// Unit Test 1: Simple None + If-Else

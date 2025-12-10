@@ -1,3 +1,4 @@
+#![allow(non_snake_case)]
 // DEPYLER-0514: Missing variable assignments for ternary conditional expressions before try/with blocks
 //
 // Bug: When a ternary assignment appears before a try/with block, the assignment statement

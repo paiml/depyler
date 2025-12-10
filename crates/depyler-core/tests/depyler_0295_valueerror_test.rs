@@ -19,6 +19,8 @@
 //! - Compilation verification
 //! - Behavior correctness
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 
 #[test]

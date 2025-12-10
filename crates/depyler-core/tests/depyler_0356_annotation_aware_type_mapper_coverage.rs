@@ -9,6 +9,8 @@
 //! - Constructor methods (new, with_base_mapper, Default)
 //! - needs_reference_with_annotations() for all ownership models
 
+#![allow(non_snake_case)]
+
 #![allow(clippy::field_reassign_with_default)]
 //! - Conservative string strategy
 //! - Borrowed/Shared ownership variants for collections
