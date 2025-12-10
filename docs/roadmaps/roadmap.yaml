@@ -2476,3 +2476,83 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-CACHE-002
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-CACHE-002'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-09T18:55:00.807132808+00:00
+  updated: 2025-12-09T18:59:50.408193244+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0834
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0834'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-09T21:14:13.042594374+00:00
+  updated: 2025-12-09T21:27:22.259336279+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0835
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0835'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-09T21:26:37.088177674+00:00
+  updated: 2025-12-09T21:51:17.720975803+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0836
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0836'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-09T22:18:06.959302706+00:00
+  updated: 2025-12-09T22:18:27.634173651+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-EXPLAIN-001
+  github_issue: 214
+  item_type: task
+  title: 'Explainable Single-Shot Transpilation: Decision Traces for Every Compile'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-10T12:55:49.708614526+00:00
+  updated: 2025-12-10T17:35:00.000000000+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: 'Added explain command with error categorization, decision tracing, and documentation'

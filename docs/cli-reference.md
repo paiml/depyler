@@ -488,6 +488,103 @@ depyler transpile input.py --debug --source-map
 depyler transpile input.py --debug --source-map --verify-level none
 ```
 
+### `explain` - Explainable Transpilation Errors (GH-214)
+
+Analyze Rust compilation errors and correlate them with transpiler decisions.
+Provides human-readable explanations of why transpilation produced certain errors.
+
+```bash
+depyler explain [OPTIONS] <INPUT>
+
+Arguments:
+  <INPUT>               Rust source file (.rs) from transpilation
+
+Options:
+  --trace <FILE>        Optional trace file from transpilation
+  --error-code <CODE>   Filter to specific error code (e.g., E0277)
+  --verbose             Show detailed transpiler decision trace
+  --format <FORMAT>     Output format [default: terminal]
+                        [possible values: terminal, json]
+```
+
+#### Examples
+
+```bash
+# Analyze transpiled Rust file for errors
+depyler explain output.rs
+
+# Filter to specific error type
+depyler explain output.rs --error-code E0277
+
+# Get detailed verbose output
+depyler explain output.rs --verbose
+
+# JSON output for automation
+depyler explain output.rs --format json
+```
+
+#### Output Format (Terminal)
+
+```
+🔍 Depyler Explain (Issue #214)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📄 Analyzing: output.rs
+
+📊 Found 5 compilation errors:
+
+  ❌ Error #1: E0277 - the trait bound is not satisfied
+     Location: output.rs:42:15
+     Category: TypeMapping
+     Decision: Transpiler chose HashMap but method expects trait
+
+  ❌ Error #2: E0599 - no method named `xyz` found
+     Location: output.rs:78:9
+     Category: MethodResolution
+     Decision: Python method not mapped to Rust equivalent
+
+📈 Error Summary:
+  E0277: 2 (Type trait errors)
+  E0599: 3 (Method resolution errors)
+
+💡 Recommendations:
+  - E0277: Add type annotations in Python source
+  - E0599: Check stdlib mapping documentation
+```
+
+#### Output Format (JSON)
+
+```json
+{
+  "file": "output.rs",
+  "total_errors": 5,
+  "errors": [
+    {
+      "code": "E0277",
+      "message": "the trait bound is not satisfied",
+      "line": 42,
+      "column": 15,
+      "category": "TypeMapping",
+      "decision_trace": "Transpiler chose HashMap for dict type"
+    }
+  ],
+  "summary": {
+    "E0277": 2,
+    "E0599": 3
+  }
+}
+```
+
+#### Error Categories
+
+| Category | Description | Common Causes |
+|----------|-------------|---------------|
+| TypeMapping | Type trait errors | Missing type annotations |
+| MethodResolution | Method not found | Unmapped Python methods |
+| Ownership | Borrow checker | Complex ownership patterns |
+| LifetimeInfer | Lifetime errors | Reference patterns |
+
+---
+
 ### `converge` - Automated Compilation Convergence (GH-158)
 
 Automated convergence loop to achieve 100% compilation rate across all examples.
