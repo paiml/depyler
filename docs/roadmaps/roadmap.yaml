@@ -2580,7 +2580,87 @@ roadmap:
   priority: medium
   assigned_to: null
   created: 2025-12-10T16:54:11.584686494+00:00
-  updated: 2025-12-10T16:54:11.584686494+00:00
+  updated: 2025-12-10T18:48:06.531930111+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-TUI-HANG: Converge TUI hangs instead of showing progress'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-TUI-HANG: Converge TUI hangs instead of showing progress'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-10T17:57:46.711976175+00:00
+  updated: 2025-12-10T17:57:46.711976175+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: docs/prompts/converge-corpus.md
+  github_issue: null
+  item_type: task
+  title: 'New task: docs/prompts/converge-corpus.md'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-10T22:21:54.023861684+00:00
+  updated: 2025-12-10T22:21:54.023861684+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0911
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0911'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-11T08:43:12.780066238+00:00
+  updated: 2025-12-11T08:43:12.780066238+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0914
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0914'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-11T09:15:22.422441858+00:00
+  updated: 2025-12-11T09:15:22.422441858+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0925-INFRASTRUCTURE-FIRST
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0925-INFRASTRUCTURE-FIRST'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-11T10:42:34.289909769+00:00
+  updated: 2025-12-11T10:50:50.737553246+00:00
   spec: null
   acceptance_criteria: []
   phases: []

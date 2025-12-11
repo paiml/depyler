@@ -68,6 +68,7 @@ pub mod generic_inference;
 pub mod hir;
 pub mod hunt_mode;
 pub mod ide;
+pub mod infrastructure;
 pub mod inlining;
 pub mod lambda_codegen;
 pub mod lambda_errors;
