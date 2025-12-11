@@ -3276,19 +3276,22 @@ pub(crate) fn codegen_assign_stmt(
             .unwrap_or_else(|| "command".to_string());
 
         if let Some(cmd_name) = is_subcommand_check(value, &dest_field, ctx) {
-            if let AssignTarget::Symbol(cse_var) = target {
-                use quote::{format_ident, quote};
-                let variant_name = format_ident!("{}", to_pascal_case_subcommand(&cmd_name));
-                let var_ident = safe_ident(cse_var);
+            // DEPYLER-0940: Skip if cmd_name is empty to prevent panic in format_ident!()
+            if !cmd_name.is_empty() {
+                if let AssignTarget::Symbol(cse_var) = target {
+                    use quote::{format_ident, quote};
+                    let variant_name = format_ident!("{}", to_pascal_case_subcommand(&cmd_name));
+                    let var_ident = safe_ident(cse_var);
 
-                // DEPYLER-0456 Bug #2: Track this CSE temp so is_subcommand_check() can find it
-                ctx.cse_subcommand_temps
-                    .insert(cse_var.clone(), cmd_name.clone());
+                    // DEPYLER-0456 Bug #2: Track this CSE temp so is_subcommand_check() can find it
+                    ctx.cse_subcommand_temps
+                        .insert(cse_var.clone(), cmd_name.clone());
 
-                // DEPYLER-0456 Bug #3 FIX: Always use "command" as Rust field name
-                return Ok(quote! {
-                    let #var_ident = matches!(args.command, Commands::#variant_name { .. });
-                });
+                    // DEPYLER-0456 Bug #3 FIX: Always use "command" as Rust field name
+                    return Ok(quote! {
+                        let #var_ident = matches!(args.command, Commands::#variant_name { .. });
+                    });
+                }
             }
         }
     }
@@ -6481,8 +6484,10 @@ fn try_generate_subcommand_match(
     });
 
     // Generate match arms
+    // DEPYLER-0940: Filter out empty command names to prevent panic in format_ident!()
     let arms: Vec<proc_macro2::TokenStream> = branches
         .iter()
+        .filter(|(cmd_name, _)| !cmd_name.is_empty())
         .map(|(cmd_name, body)| {
             // Convert command name to PascalCase variant
             let variant_name = format_ident!("{}", to_pascal_case_subcommand(cmd_name));
