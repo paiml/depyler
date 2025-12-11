@@ -549,6 +549,8 @@ pub fn generate_commands_enum(tracker: &ArgParserTracker) -> proc_macro2::TokenS
     let variants: Vec<proc_macro2::TokenStream> = tracker
         .subcommands
         .values()
+        // DEPYLER-0940: Filter out empty subcommand names to prevent panic in format_ident!()
+        .filter(|subcommand| !subcommand.name.is_empty())
         .map(|subcommand| {
             emit_decision!("argparse.enum.variant.added", &subcommand.name);
             // Convert "clone" -> "Clone" (PascalCase)
@@ -561,10 +563,21 @@ pub fn generate_commands_enum(tracker: &ArgParserTracker) -> proc_macro2::TokenS
                 quote! {}
             };
 
-            // Generate fields from subcommand arguments
+            // DEPYLER-0929: Generate fields from subcommand arguments, deduplicating by field name
+            // Duplicates can occur when preregister_subcommands_from_hir is called multiple times
+            let mut seen_field_names = std::collections::HashSet::new();
             let fields: Vec<proc_macro2::TokenStream> = subcommand
                 .arguments
                 .iter()
+                .filter(|arg| {
+                    let field_name = arg.rust_field_name();
+                    if seen_field_names.contains(&field_name) {
+                        false
+                    } else {
+                        seen_field_names.insert(field_name);
+                        true
+                    }
+                })
                 .map(|arg| {
                     // DEPYLER-0674: Use safe_ident to escape Rust keywords like 'type'
                     let field_name = safe_ident(&arg.rust_field_name());
@@ -1613,19 +1626,29 @@ pub fn preregister_subcommands_from_hir(
                         // Extract command name and help text
                         if !args.is_empty() {
                             let command_name = extract_string_from_hir(&args[0]);
-                            emit_decision!("argparse.subcommand.detected", &command_name);
-                            let help = extract_kwarg_string_from_hir(kwargs, "help");
+                            // DEPYLER-0940: Skip registration if command name is empty
+                            // This occurs when add_parser() is called with a variable (e.g., in a loop)
+                            // instead of a string literal. Empty names would cause panic in format_ident!()
+                            if command_name.is_empty() {
+                                emit_decision!(
+                                    "argparse.subcommand.skipped.variable_name",
+                                    "add_parser() called with non-literal expression"
+                                );
+                            } else {
+                                emit_decision!("argparse.subcommand.detected", &command_name);
+                                let help = extract_kwarg_string_from_hir(kwargs, "help");
 
-                            // Register subcommand (use command name as key for expression statements)
-                            let subcommand_info = SubcommandInfo {
-                                name: command_name.clone(),
-                                help,
-                                arguments: vec![],
-                                subparsers_var: subparsers_var.clone(),
-                            };
+                                // Register subcommand (use command name as key for expression statements)
+                                let subcommand_info = SubcommandInfo {
+                                    name: command_name.clone(),
+                                    help,
+                                    arguments: vec![],
+                                    subparsers_var: subparsers_var.clone(),
+                                };
 
-                            tracker.register_subcommand(command_name.clone(), subcommand_info);
-                            emit_decision!("argparse.subcommand.registered", &command_name);
+                                tracker.register_subcommand(command_name.clone(), subcommand_info);
+                                emit_decision!("argparse.subcommand.registered", &command_name);
+                            }
                         }
                     }
                 }
@@ -1727,7 +1750,15 @@ pub fn preregister_subcommands_from_hir(
                                 }
                             }
 
-                            subcommand_info.arguments.push(arg);
+                            // DEPYLER-0929: Check for duplicate argument names before adding
+                            // This can happen when preregister_subcommands_from_hir is called twice
+                            if !subcommand_info
+                                .arguments
+                                .iter()
+                                .any(|existing| existing.name == arg.name)
+                            {
+                                subcommand_info.arguments.push(arg);
+                            }
                         }
                     }
                 }

@@ -763,6 +763,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             {
                 Ok(parse_quote! { #left_expr.add(&#right_expr).unwrap() })
             }
+            // DEPYLER-0928: Vector + scalar - element-wise addition
+            BinOp::Add if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
+                Ok(parse_quote! {
+                    Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x + #right_expr as f32).collect())
+                })
+            }
+            // DEPYLER-0928: scalar + Vector - element-wise addition (commutative)
+            BinOp::Add if self.expr_returns_float(left) && self.is_numpy_array_expr(right) => {
+                Ok(parse_quote! {
+                    Vector::from_vec(#right_expr.as_slice().iter().map(|&x| x + #left_expr as f32).collect())
+                })
+            }
             // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
             BinOp::Add => self.convert_add_op(left, right, left_expr, right_expr, op),
             BinOp::FloorDiv => {
@@ -1218,6 +1230,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // DEPYLER-0926: scalar-Vector multiplication for trueno (commutative)
             _ if self.expr_returns_float(left) && self.is_numpy_array_expr(right) => {
+                Ok(parse_quote! { #right_expr.scale(#left_expr as f32).unwrap() })
+            }
+            // DEPYLER-0928: Vector * integer - convert integer to f32 for scale()
+            _ if self.is_numpy_array_expr(left)
+                && matches!(right, HirExpr::Literal(Literal::Int(_))) =>
+            {
+                Ok(parse_quote! { #left_expr.scale(#right_expr as f32).unwrap() })
+            }
+            // DEPYLER-0928: integer * Vector - convert integer to f32 for scale()
+            _ if matches!(left, HirExpr::Literal(Literal::Int(_)))
+                && self.is_numpy_array_expr(right) =>
+            {
                 Ok(parse_quote! { #right_expr.scale(#left_expr as f32).unwrap() })
             }
             // Default multiplication
@@ -15424,7 +15448,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if var_name == "args" && self.ctx.cmd_handler_args_fields.contains(&attr.to_string())
                 {
                     // Transform args.field → field (the field is now a direct parameter)
-                    let attr_ident = syn::Ident::new(attr, proc_macro2::Span::call_site());
+                    // DEPYLER-0941: Handle Rust keywords like "type" with raw identifier syntax
+                    let attr_ident = if Self::is_rust_keyword(attr) {
+                        syn::Ident::new_raw(attr, proc_macro2::Span::call_site())
+                    } else {
+                        syn::Ident::new(attr, proc_macro2::Span::call_site())
+                    };
                     return Ok(parse_quote! { #attr_ident });
                 }
             }
@@ -16203,7 +16232,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0804: Check var_types first to avoid false positives
             // Variables with known scalar types (Float, Int) are NOT numpy arrays
             HirExpr::Var(name) => {
-                // First check var_types for definitive type info
+                // DEPYLER-0932: First check numpy_vars set (most reliable)
+                // This tracks variables explicitly assigned from numpy operations
+                if self.ctx.numpy_vars.contains(name) {
+                    return true;
+                }
+
+                // Next check var_types for definitive type info
                 if let Some(ty) = self.ctx.var_types.get(name) {
                     // Scalar types are never numpy arrays
                     if matches!(ty, Type::Float | Type::Int | Type::Bool | Type::String) {
@@ -16756,9 +16791,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 // Common float result variable names from numpy operations
                 // DEPYLER-0668: Remove "result" - too general, often used for ints/bools
+                // DEPYLER-0927: Sync with expr_returns_f32 - include norm_a, norm_b, dot etc.
+                // DEPYLER-0928: Added min_val, max_val for Vector-scalar operations
                 matches!(
                     name.as_str(),
-                    "mean" | "std" | "variance" | "sum" | "norm"
+                    "mean" | "std" | "variance" | "sum" | "norm" | "norm_a" | "norm_b"
+                        | "stddev" | "var" | "denom" | "dot" | "min_val" | "max_val"
                 )
             }
             // DEPYLER-0577: Attribute access (e.g., args.x) - check if attr is float type
@@ -16777,10 +16815,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             }
             // NumPy/trueno methods that return f32
+            // DEPYLER-0927: Added norm_l2 and dot for trueno compatibility
             HirExpr::MethodCall { method, .. } => {
                 matches!(
                     method.as_str(),
-                    "mean" | "sum" | "std" | "stddev" | "var" | "variance" | "min" | "max" | "norm"
+                    "mean" | "sum" | "std" | "stddev" | "var" | "variance" | "min" | "max"
+                        | "norm" | "norm_l2" | "dot"
                 )
             }
             // DEPYLER-0799: Function calls - check return type from function_return_types
@@ -16831,6 +16871,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0920: Check if expression returns f32 specifically (trueno/numpy results)
     /// Used to generate f32 literals instead of f64 in comparisons
+    /// DEPYLER-0927: Synced with expr_returns_float for consistent detection
     fn expr_returns_f32(&self, expr: &HirExpr) -> bool {
         match expr {
             // Variable names commonly used for trueno f32 results
@@ -16838,15 +16879,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 matches!(
                     name.as_str(),
                     "mean" | "std" | "variance" | "sum" | "norm" | "norm_a" | "norm_b"
-                        | "stddev" | "var" | "denom"
+                        | "stddev" | "var" | "denom" | "dot"
                 )
             }
             // Method calls on trueno Vectors return f32
             HirExpr::MethodCall { method, .. } => {
                 matches!(
                     method.as_str(),
-                    "mean" | "sum" | "stddev" | "var" | "variance" | "min" | "max"
-                        | "norm_l2" | "dot"
+                    "mean" | "sum" | "std" | "stddev" | "var" | "variance" | "min" | "max"
+                        | "norm" | "norm_l2" | "dot"
                 )
             }
             _ => false,
@@ -17495,6 +17536,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! {
                 if #test_expr { Box::new(#body_expr) as Box<dyn std::io::Write> } else { Box::new(#orelse_expr) }
             });
+        }
+
+        // DEPYLER-0927: Type unification for numeric IfExpr branches
+        // When body returns float and orelse is integer literal, coerce orelse to float
+        // Example: `dot / (norm_a * norm_b) if cond else 0` → `... else 0.0`
+        let body_is_float = self.expr_returns_float(body);
+        let body_is_f32 = self.expr_returns_f32(body);
+        let orelse_is_int_literal = matches!(orelse, HirExpr::Literal(Literal::Int(_)));
+
+        if body_is_float && orelse_is_int_literal {
+            if let HirExpr::Literal(Literal::Int(n)) = orelse {
+                let coerced_orelse: syn::Expr = if body_is_f32 {
+                    let float_val = *n as f32;
+                    parse_quote! { #float_val }
+                } else {
+                    let float_val = *n as f64;
+                    parse_quote! { #float_val }
+                };
+                return Ok(parse_quote! {
+                    if #test_expr { #body_expr } else { #coerced_orelse }
+                });
+            }
         }
 
         Ok(parse_quote! {
