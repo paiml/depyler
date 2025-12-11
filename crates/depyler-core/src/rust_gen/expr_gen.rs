@@ -488,6 +488,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     fn convert_variable(&self, name: &str) -> Result<syn::Expr> {
+        // DEPYLER-0934: Handle Python builtin types used as function references
+        // When int, float, str, bool are used as arguments (e.g., result.map(int)),
+        // convert them to closures that perform the type conversion
+        // int → |x| x as i32
+        // float → |x| x as f64
+        // str → |x| x.to_string()
+        // bool → |x| x != 0
+        match name {
+            "int" => return Ok(parse_quote! { |x| x as i32 }),
+            "float" => return Ok(parse_quote! { |x| x as f64 }),
+            "str" => return Ok(parse_quote! { |x: &_| x.to_string() }),
+            "bool" => return Ok(parse_quote! { |x| x != 0 }),
+            _ => {}
+        }
+
         // DEPYLER-0627: Check if variable is an unwrapped Option (inside if-let body)
         // When we're inside `if let Some(ref x_val) = x { ... }`, references to `x`
         // should use `x_val` (the unwrapped inner value) instead
