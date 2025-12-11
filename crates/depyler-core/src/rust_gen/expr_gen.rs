@@ -2004,12 +2004,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
                     .unwrap_or(false)
             }
-            HirExpr::MethodCall { method, .. } => {
-                // Methods that return PathBuf
-                matches!(
+            HirExpr::MethodCall { object, method, .. } => {
+                // Methods that return PathBuf - only match when receiver is PathBuf
+                // DEPYLER-0930: `join` on String is different from `join` on PathBuf
+                let is_pathbuf_method = matches!(
                     method.as_str(),
-                    "parent" | "with_name" | "with_suffix" | "with_stem" | "join"
-                )
+                    "parent" | "with_name" | "with_suffix" | "with_stem"
+                );
+                if is_pathbuf_method {
+                    return true;
+                }
+                // For `join`, check if receiver is PathBuf type
+                if method == "join" {
+                    if let HirExpr::Var(var_name) = object.as_ref() {
+                        return self
+                            .ctx
+                            .var_types
+                            .get(var_name)
+                            .map(|t| {
+                                matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")
+                            })
+                            .unwrap_or(false);
+                    }
+                }
+                false
             }
             HirExpr::Attribute { value, attr } => {
                 // path.parent returns PathBuf
