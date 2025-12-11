@@ -570,7 +570,9 @@ fn generate_adt_enum(
     all_classes: &[HirClass],
     type_mapper: &crate::type_mapper::TypeMapper,
 ) -> Result<proc_macro2::TokenStream> {
-    let enum_name = syn::Ident::new(&parent.name, proc_macro2::Span::call_site());
+    // DEPYLER-0900: Rename enum if it shadows stdlib type (e.g., Option -> PyOption)
+    let safe_name = crate::direct_rules::safe_class_name(&parent.name);
+    let enum_name = syn::Ident::new(&safe_name, proc_macro2::Span::call_site());
 
     // Build generic params with Clone bound
     let type_params: Vec<syn::Ident> = parent.type_params.iter()
@@ -595,7 +597,9 @@ fn generate_adt_enum(
     for child_name in children {
         let child = all_classes.iter().find(|c| &c.name == child_name);
         if let Some(child_class) = child {
-            let variant_name = syn::Ident::new(&child_class.name, proc_macro2::Span::call_site());
+            // DEPYLER-0900: Rename variant if it shadows stdlib type (e.g., Some -> PySome)
+            let safe_variant = crate::direct_rules::safe_class_name(&child_class.name);
+            let variant_name = syn::Ident::new(&safe_variant, proc_macro2::Span::call_site());
 
             // Collect field types for this variant
             let field_types: Vec<proc_macro2::TokenStream> = child_class.fields.iter()
@@ -655,8 +659,10 @@ fn generate_adt_methods(
     let mut methods = Vec::new();
 
     for child_name in children {
-        let variant_name = syn::Ident::new(child_name, proc_macro2::Span::call_site());
-        let method_name_str = format!("is_{}", child_name.to_lowercase());
+        // DEPYLER-0900: Rename variant if it shadows stdlib type (e.g., Some -> PySome)
+        let safe_variant = crate::direct_rules::safe_class_name(child_name);
+        let variant_name = syn::Ident::new(&safe_variant, proc_macro2::Span::call_site());
+        let method_name_str = format!("is_{}", safe_variant.to_lowercase());
         let method_name = syn::Ident::new(&method_name_str, proc_macro2::Span::call_site());
 
         methods.push(quote! {
@@ -670,8 +676,10 @@ fn generate_adt_methods(
     for child_name in children {
         let child = all_classes.iter().find(|c| &c.name == child_name);
         if let Some(child_class) = child {
-            let variant_name = syn::Ident::new(&child_class.name, proc_macro2::Span::call_site());
-            let method_name_str = format!("new_{}", child_class.name.to_lowercase());
+            // DEPYLER-0900: Rename variant if it shadows stdlib type (e.g., Some -> PySome)
+            let safe_variant = crate::direct_rules::safe_class_name(&child_class.name);
+            let variant_name = syn::Ident::new(&safe_variant, proc_macro2::Span::call_site());
+            let method_name_str = format!("new_{}", safe_variant.to_lowercase());
             let method_name = syn::Ident::new(&method_name_str, proc_macro2::Span::call_site());
 
             let fields: Vec<_> = child_class.fields.iter()
@@ -866,6 +874,14 @@ fn generate_import_tokens(
 
     // Add external imports (deduplicated)
     for import in external_imports {
+        // DEPYLER-0936: Skip hashlib module alias
+        // hashlib maps to sha2, but hashlib.md5() uses md-5 crate, hashlib.sha256() uses sha2, etc.
+        // The method calls are handled inline in expr_gen.rs with correct crate imports.
+        // Generating `use sha2 as hashlib;` causes E0432 when only md5 is used.
+        if import.alias.as_deref() == Some("hashlib") {
+            continue;
+        }
+
         // Create unique key from path + alias
         let key = format!("{}:{:?}", import.path, import.alias);
         if !seen_paths.insert(key) {
@@ -1574,7 +1590,8 @@ pub fn generate_rust_file(
         needs_bufread: false,   // DEPYLER-0522
         needs_once_cell: false, // DEPYLER-REARCH-001
         needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
-            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
+        numpy_vars: HashSet::new(), // DEPYLER-0932: Track numpy array variables
+        needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
         needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
         needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
         vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
@@ -1831,6 +1848,20 @@ pub fn generate_rust_file(
         formatted_code = format_rust_code(formatted_code);
     }
 
+    // DEPYLER-0902: Add module-level allow attributes to suppress non-critical warnings
+    // Generated code may have unused imports (due to import mapping), unused mut (from conservative
+    // defaults), unreachable patterns (from exhaustive match + catch-all), and unused variables
+    // (from CSE temporaries). These don't affect correctness, so suppress them.
+    let allow_attrs = "\
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
+";
+    formatted_code = format!("{}{}", allow_attrs, formatted_code);
+
     Ok((formatted_code, dependencies))
 }
 
@@ -1890,6 +1921,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            numpy_vars: HashSet::new(), // DEPYLER-0932: Track numpy array variables
             needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct

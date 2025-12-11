@@ -440,6 +440,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            numpy_vars: std::collections::HashSet::new(), // DEPYLER-0932
             needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![std::collections::HashSet::new()],
@@ -583,6 +584,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            numpy_vars: HashSet::new(), // DEPYLER-0932
             needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
@@ -723,6 +725,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            numpy_vars: HashSet::new(), // DEPYLER-0932
             needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
@@ -867,6 +870,7 @@ mod tests {
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            numpy_vars: HashSet::new(), // DEPYLER-0932
             needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
