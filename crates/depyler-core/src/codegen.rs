@@ -672,6 +672,15 @@ fn stmt_to_rust_tokens_with_scope(
                     .map(|s| stmt_to_rust_tokens_with_scope(s, scope_tracker))
                     .collect::<Result<Vec<_>>>()?;
 
+                // DEPYLER-0937: Use actual exception variable name if present
+                // This fixes E0425 where handler body references 'e' but pattern used '_e'
+                let err_pattern = if let Some(exc_var) = &handler.name {
+                    let exc_ident = syn::Ident::new(exc_var, proc_macro2::Span::call_site());
+                    quote! { Err(#exc_ident) }
+                } else {
+                    quote! { Err(_) }
+                };
+
                 if let Some(finally_code) = finally_stmts {
                     Ok(quote! {
                         {
@@ -679,7 +688,7 @@ fn stmt_to_rust_tokens_with_scope(
                                 #(#try_stmts)*
                                 Ok(())
                             })();
-                            if let Err(_e) = _result {
+                            if let #err_pattern = _result {
                                 #(#handler_stmts)*
                             }
                             #finally_code
@@ -692,7 +701,7 @@ fn stmt_to_rust_tokens_with_scope(
                                 #(#try_stmts)*
                                 Ok(())
                             })();
-                            if let Err(_e) = _result {
+                            if let #err_pattern = _result {
                                 #(#handler_stmts)*
                             }
                         }
