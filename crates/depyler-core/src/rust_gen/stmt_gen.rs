@@ -1788,6 +1788,17 @@ fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> std::collections::Has
             } => {
                 symbols.insert(name.clone());
             }
+            // DEPYLER-0939: Handle tuple unpacking assignments like `(success, error) = operation()`
+            HirStmt::Assign {
+                target: AssignTarget::Tuple(targets),
+                ..
+            } => {
+                for t in targets {
+                    if let AssignTarget::Symbol(name) = t {
+                        symbols.insert(name.clone());
+                    }
+                }
+            }
             // Recursively check nested if/else blocks (these are still at the same conceptual level)
             HirStmt::If {
                 then_body,
