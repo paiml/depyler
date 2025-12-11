@@ -686,19 +686,11 @@ impl Optimizer {
                 }
             }
 
-            // Rename variables that have side effects but aren't actually used to `_varname`
-            // This prevents Rust's unused_variables warning while preserving the side effect
-            for stmt in &mut func.body {
-                if let HirStmt::Assign {
-                    target: AssignTarget::Symbol(name),
-                    ..
-                } = stmt
-                {
-                    if side_effect_vars.contains(name) && !used_vars.contains_key(name) {
-                        *name = format!("_{}", name);
-                    }
-                }
-            }
+            // DEPYLER-0934: DISABLED variable renaming to `_varname`
+            // The previous approach only renamed definitions, not usages, causing E0425 errors.
+            // Example: `let _args = Args::parse();` but `args.command` still used original name.
+            // Instead of renaming, we suppress warnings with #[allow(unused_variables)] at file level.
+            // A proper fix would require a full rename pass that updates all references.
 
             // Remove truly dead assignments (not used and no side effects)
             func.body.retain(|stmt| {
@@ -707,9 +699,9 @@ impl Optimizer {
                     ..
                 } = stmt
                 {
-                    // Keep if: truly used OR has side effects (including renamed _varname)
-                    used_vars.contains_key(name)
-                        || side_effect_vars.contains(name.trim_start_matches('_'))
+                    // Keep if: truly used OR has side effects
+                    // DEPYLER-0934: Removed .trim_start_matches('_') since we no longer rename
+                    used_vars.contains_key(name) || side_effect_vars.contains(name)
                 } else {
                     true
                 }
@@ -724,7 +716,7 @@ impl Optimizer {
 
     /// DEPYLER-0270 Fix #1 (Updated): Collect truly used variables (referenced, not just assigned)
     /// This version does NOT mark side-effect assignments as used - that's handled separately
-    /// in eliminate_dead_code_function to allow renaming them to `_varname`.
+    /// in eliminate_dead_code_function which preserves side-effect assignments.
     fn collect_truly_used_vars_stmt(&self, stmt: &HirStmt, used: &mut HashMap<String, bool>) {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
@@ -1251,17 +1243,28 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 collect_used_vars_expr_inner(v, used);
             }
         }
-        HirExpr::Call { func, args, .. } => {
+        HirExpr::Call { func, args, kwargs } => {
             // Mark the function name as used (important for lambda variables)
             used.insert(func.clone(), true);
             for arg in args {
                 collect_used_vars_expr_inner(arg, used);
             }
+            // DEPYLER-0935: Collect variables from kwargs values
+            // This was causing DCE to incorrectly remove assignments like `data = rows[1:]`
+            // when `data` was used in `sorted(data, key=lambda...)` - the kwargs lambda
+            // body might reference variables that need to be preserved.
+            for (_, v) in kwargs {
+                collect_used_vars_expr_inner(v, used);
+            }
         }
-        HirExpr::MethodCall { object, args, .. } => {
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
             collect_used_vars_expr_inner(object, used);
             for arg in args {
                 collect_used_vars_expr_inner(arg, used);
+            }
+            // DEPYLER-0935: Collect variables from kwargs values
+            for (_, v) in kwargs {
+                collect_used_vars_expr_inner(v, used);
             }
         }
         HirExpr::Lambda { body, .. } => {
@@ -1366,6 +1369,16 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
             collect_used_vars_expr_inner(test, used);
             collect_used_vars_expr_inner(body, used);
             collect_used_vars_expr_inner(orelse, used);
+        }
+        // DEPYLER-0935: Collect variables from SortByKey expression
+        // sorted(data, key=lambda r: r[0]) is converted to HirExpr::SortByKey
+        // We must collect variables from iterable, key_body, and reverse_expr
+        HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
+            collect_used_vars_expr_inner(iterable, used);
+            collect_used_vars_expr_inner(key_body, used);
+            if let Some(rev) = reverse_expr {
+                collect_used_vars_expr_inner(rev, used);
+            }
         }
         _ => {}
     }
