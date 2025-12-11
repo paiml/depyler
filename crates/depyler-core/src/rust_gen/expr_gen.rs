@@ -1988,6 +1988,51 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-0930: Check if expression is a PathBuf type that needs .display()
+    ///
+    /// PathBuf doesn't implement Display trait, so we need to detect it and wrap
+    /// with .display() when used in print statements or format strings.
+    ///
+    /// # Complexity: 4
+    fn is_pathbuf_expr(&self, hir_arg: &HirExpr) -> bool {
+        match hir_arg {
+            HirExpr::Var(name) => {
+                // Check var_types for PathBuf/Path type
+                self.ctx
+                    .var_types
+                    .get(name)
+                    .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
+                    .unwrap_or(false)
+            }
+            HirExpr::MethodCall { method, .. } => {
+                // Methods that return PathBuf
+                matches!(
+                    method.as_str(),
+                    "parent" | "with_name" | "with_suffix" | "with_stem" | "join"
+                )
+            }
+            HirExpr::Attribute { value, attr } => {
+                // path.parent returns PathBuf
+                if matches!(attr.as_str(), "parent") {
+                    if let HirExpr::Var(var_name) = value.as_ref() {
+                        self.ctx
+                            .var_types
+                            .get(var_name)
+                            .map(|t| {
+                                matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")
+                            })
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
     /// DEPYLER-REFACTOR-001 Phase 2.16: Extracted numeric type token inference helper
     ///
     /// Infers the numeric type token for sum/aggregate operations based on
@@ -2059,14 +2104,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .unwrap_or(false);
             let arg = &arg_exprs[0];
 
+            // DEPYLER-0930: Check if argument is PathBuf - needs .display()
+            let is_pathbuf = self.is_pathbuf_expr(&args[0]);
+
             if use_stderr {
                 if needs_debug {
                     Ok(parse_quote! { eprintln!("{:?}", #arg) })
+                } else if is_pathbuf {
+                    // DEPYLER-0930: PathBuf needs .display() for Display trait
+                    Ok(parse_quote! { eprintln!("{}", #arg.display()) })
                 } else {
                     Ok(parse_quote! { eprintln!("{}", #arg) })
                 }
             } else if needs_debug {
                 Ok(parse_quote! { println!("{:?}", #arg) })
+            } else if is_pathbuf {
+                // DEPYLER-0930: PathBuf needs .display() for Display trait
+                Ok(parse_quote! { println!("{}", #arg.display()) })
             } else {
                 Ok(parse_quote! { println!("{}", #arg) })
             }
@@ -16303,7 +16357,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // Variable named 'path' or with path-like semantics
             // DEPYLER-0188: Include common module-level path constants (SCRIPT, FILE, etc.)
+            // DEPYLER-0930: Also check var_types for PathBuf type (e.g., result = Path(...))
             HirExpr::Var(name) => {
+                // First check if variable is typed as PathBuf/Path
+                let is_typed_path = self
+                    .ctx
+                    .var_types
+                    .get(name)
+                    .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
+                    .unwrap_or(false);
+                if is_typed_path {
+                    return true;
+                }
+                // Fall back to name-based heuristics
                 let n = name.as_str();
                 let n_lower = n.to_lowercase();
                 matches!(n, "path" | "filepath" | "dir_path" | "file_path" | "base_path" | "root_path"
@@ -17463,6 +17529,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                     // DEPYLER-0446: Wrap argparse Option types to handle Display trait
                     // Only wrap argparse Optional fields, not regular Option variables
+                    // DEPYLER-0930: Check if expression is a PathBuf type that needs .display()
+                    // PathBuf doesn't implement Display, so we need to call .display() to format it
+                    let is_pathbuf = match expr.as_ref() {
+                        HirExpr::Var(var_name) => self
+                            .ctx
+                            .var_types
+                            .get(var_name)
+                            .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
+                            .unwrap_or(false),
+                        HirExpr::MethodCall { method, .. } => {
+                            // Methods that return PathBuf
+                            matches!(
+                                method.as_str(),
+                                "parent" | "with_name" | "with_suffix" | "with_stem" | "join"
+                            )
+                        }
+                        HirExpr::Attribute { value, attr } => {
+                            // path.parent returns PathBuf
+                            if matches!(attr.as_str(), "parent") {
+                                if let HirExpr::Var(var_name) = value.as_ref() {
+                                    self.ctx
+                                        .var_types
+                                        .get(var_name)
+                                        .map(|t| {
+                                            matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")
+                                        })
+                                        .unwrap_or(false)
+                                } else {
+                                    false
+                                }
+                            } else {
+                                false
+                            }
+                        }
+                        _ => false,
+                    };
+
                     let final_arg = if is_argparse_option {
                         // Argparse Option<T> should display as value or "None" string
                         parse_quote! {
@@ -17473,14 +17576,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 }
                             }
                         }
+                    } else if is_pathbuf {
+                        // DEPYLER-0930: PathBuf needs .display() to implement Display
+                        parse_quote! { #arg_expr.display() }
                     } else {
                         arg_expr
                     };
 
                     // DEPYLER-0497: Use {:?} for non-Display types (Result, Vec, collections, Option)
                     // Use {} for Display types (primitives, String, wrapped argparse Options)
-                    if is_argparse_option {
-                        // Argparse Option was wrapped to String, use {}
+                    // DEPYLER-0930: PathBuf with .display() can use {} (Display trait)
+                    if is_argparse_option || is_pathbuf {
+                        // Argparse Option was wrapped to String, PathBuf has .display(), use {}
                         template.push_str("{}");
                     } else if needs_debug_fmt {
                         // Non-Display types (Vec, Result, Option, collections) need {:?}
