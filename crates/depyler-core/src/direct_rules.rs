@@ -79,6 +79,45 @@ fn safe_ident(name: &str) -> syn::Ident {
     }
 }
 
+/// DEPYLER-0900: Check if a class name shadows a Rust stdlib/prelude type
+/// These names would cause compilation issues or infinite recursion if used as struct names
+pub fn is_stdlib_shadowing_name(name: &str) -> bool {
+    matches!(
+        name,
+        // Core primitive types
+        "bool" | "char" | "str" | "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+            | "u8" | "u16" | "u32" | "u64" | "u128" | "usize" | "f32" | "f64"
+            // Prelude types that are commonly used
+            | "Box" | "Vec" | "String" | "Option" | "Result" | "Some" | "None" | "Ok" | "Err"
+            // Collections
+            | "HashMap" | "HashSet" | "BTreeMap" | "BTreeSet" | "VecDeque" | "LinkedList"
+            // Smart pointers
+            | "Rc" | "Arc" | "RefCell" | "Cell" | "Mutex" | "RwLock"
+            // Common traits used as types
+            | "Iterator" | "IntoIterator" | "Clone" | "Copy" | "Debug" | "Default"
+            | "Display" | "Drop" | "Eq" | "Hash" | "Ord" | "PartialEq" | "PartialOrd"
+            // I/O types
+            | "Read" | "Write" | "Seek" | "BufRead" | "BufWriter" | "BufReader"
+            // Error types
+            | "Error"
+            // Other common std types
+            | "Path" | "PathBuf" | "OsStr" | "OsString" | "CStr" | "CString"
+            | "Duration" | "Instant" | "SystemTime"
+            | "Range" | "RangeInclusive" | "Bound"
+            | "Cow" | "Borrow" | "ToOwned"
+    )
+}
+
+/// DEPYLER-0900: Rename class name if it shadows a Rust stdlib type
+/// Appends "Py" suffix to avoid conflicts (e.g., Vec -> PyVec, Option -> PyOption)
+pub fn safe_class_name(name: &str) -> String {
+    if is_stdlib_shadowing_name(name) {
+        format!("Py{}", name)
+    } else {
+        name.to_string()
+    }
+}
+
 /// DEPYLER-0840: Convert Type to proc_macro2::TokenStream for nested function codegen
 fn type_to_rust_type(ty: &Type, _type_mapper: &TypeMapper) -> proc_macro2::TokenStream {
     match ty {
@@ -507,7 +546,9 @@ pub fn convert_class_to_struct(
     vararg_functions: &std::collections::HashSet<String>, // DEPYLER-0648: Track vararg functions
 ) -> Result<Vec<syn::Item>> {
     let mut items = Vec::new();
-    let struct_name = make_ident(&class.name);
+    // DEPYLER-0900: Rename class if it shadows stdlib type (e.g., Vec -> PyVec)
+    let safe_name = safe_class_name(&class.name);
+    let struct_name = make_ident(&safe_name);
 
     // Separate instance fields from class fields (constants/statics)
     let (instance_fields, class_fields): (Vec<_>, Vec<_>) =
@@ -1646,7 +1687,9 @@ fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
                     .unwrap_or_else(|_| panic!("Failed to parse type: {}", name));
                 parse_quote! { #ty }
             } else {
-                let ident = make_ident(name);
+                // DEPYLER-0900: Rename type if it shadows stdlib type (e.g., Vec -> PyVec)
+                let safe_name = safe_class_name(name);
+                let ident = make_ident(&safe_name);
                 parse_quote! { #ident }
             }
         }
@@ -1659,7 +1702,9 @@ fn convert_simple_type(rust_type: &RustType) -> Result<syn::Type> {
             if name == "UnionType" {
                 resolve_union_enum_to_syn(variants)
             } else {
-                let ident = make_ident(name);
+                // DEPYLER-0900: Rename enum if it shadows stdlib type (e.g., Option -> PyOption)
+                let safe_name = safe_class_name(name);
+                let ident = make_ident(&safe_name);
                 parse_quote! { #ident }
             }
         }
@@ -1768,7 +1813,9 @@ fn convert_complex_type(rust_type: &RustType) -> Result<syn::Type> {
             parse_quote! { (#(#type_tokens),*) }
         }
         Generic { base, params } => {
-            let base_ident = make_ident(base);
+            // DEPYLER-0900: Rename generic base if it shadows stdlib type (e.g., Box<U> -> PyBox<U>)
+            let safe_base = safe_class_name(base);
+            let base_ident = make_ident(&safe_base);
             let param_types: anyhow::Result<std::vec::Vec<_>> =
                 params.iter().map(rust_type_to_syn_type).collect();
             let param_types = param_types?;
@@ -2688,6 +2735,15 @@ fn convert_stmt_with_context(
                 let handler_block =
                     convert_block_with_context(&handler.body, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
+                // DEPYLER-0937: Use actual exception variable name if present
+                // This fixes E0425 where handler body references 'e' but pattern used '_e'
+                let err_pattern: syn::Pat = if let Some(exc_var) = &handler.name {
+                    let exc_ident = syn::Ident::new(exc_var, proc_macro2::Span::call_site());
+                    parse_quote! { Err(#exc_ident) }
+                } else {
+                    parse_quote! { Err(_) }
+                };
+
                 let block_expr = if let Some(finally_stmts) = finally_block {
                     parse_quote! {
                         {
@@ -2695,7 +2751,7 @@ fn convert_stmt_with_context(
                                 #try_stmts
                                 Ok(())
                             })();
-                            if let Err(_e) = _result {
+                            if let #err_pattern = _result {
                                 #handler_block
                             }
                             #finally_stmts
@@ -2708,7 +2764,7 @@ fn convert_stmt_with_context(
                                 #try_stmts
                                 Ok(())
                             })();
-                            if let Err(_e) = _result {
+                            if let #err_pattern = _result {
                                 #handler_block
                             }
                         }
@@ -3686,6 +3742,12 @@ impl<'a> ExprConverter<'a> {
             "isdir" => self.convert_path_isdir_call(&arg_exprs),
             // DEPYLER-0844: isinstance(x, T) → true (Rust's type system guarantees correctness)
             "isinstance" => Ok(parse_quote! { true }),
+            // DEPYLER-0906: ord(c) → c.chars().next().unwrap() as i32
+            // Python ord() returns Unicode code point as int
+            "ord" => self.convert_ord_call(&arg_exprs),
+            // DEPYLER-0906: chr(n) → char::from_u32(n as u32).unwrap().to_string()
+            // Python chr() returns single character string from Unicode code point
+            "chr" => self.convert_chr_call(&arg_exprs),
             // DEPYLER-0780: Pass HIR args for auto-borrowing detection
             _ => self.convert_generic_call(func, args, &arg_exprs),
         }
@@ -3699,6 +3761,34 @@ impl<'a> ExprConverter<'a> {
         // DEPYLER-0693: Cast len() to i32 for Python compatibility
         // Python int maps to Rust i32, and len() in Python returns int
         Ok(parse_quote! { #arg.len() as i32 })
+    }
+
+    /// DEPYLER-0906: Convert Python ord(c) to Rust char code point
+    ///
+    /// Python: ord('a') → 97
+    /// Rust: 'a'.chars().next().unwrap() as i32
+    ///
+    /// For single-char strings, get first char and convert to i32.
+    fn convert_ord_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("ord() requires exactly one argument");
+        }
+        let char_str = &args[0];
+        Ok(parse_quote! { #char_str.chars().next().unwrap() as i32 })
+    }
+
+    /// DEPYLER-0906: Convert Python chr(n) to Rust char string
+    ///
+    /// Python: chr(97) → 'a'
+    /// Rust: char::from_u32(97u32).unwrap().to_string()
+    ///
+    /// Converts Unicode code point to single-character String.
+    fn convert_chr_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("chr() requires exactly one argument");
+        }
+        let code = &args[0];
+        Ok(parse_quote! { char::from_u32(#code as u32).unwrap().to_string() })
     }
 
     fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -4050,8 +4140,10 @@ impl<'a> ExprConverter<'a> {
             .map(|c| c.is_uppercase())
             .unwrap_or(false)
         {
+            // DEPYLER-0900: Rename constructor if it shadows stdlib type (e.g., Box -> PyBox)
             // Treat as constructor call - ClassName::new(args)
-            let class_ident = make_ident(func);
+            let safe_name = safe_class_name(func);
+            let class_ident = make_ident(&safe_name);
             if args.is_empty() {
                 // Note: Constructor default parameter handling uses simple heuristics.
                 // Ideally this would be context-aware and know the actual default values
@@ -4492,6 +4584,118 @@ impl<'a> ExprConverter<'a> {
             if module_name == "os" {
                 if let Some(rust_expr) = self.try_convert_os_method(method, args)? {
                     return Ok(rust_expr);
+                }
+            }
+        }
+
+        // DEPYLER-0912: Handle colorsys module method calls in class methods
+        // colorsys.rgb_to_hsv(r, g, b) → inline color conversion
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "colorsys" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                match method {
+                    "rgb_to_hsv" if arg_exprs.len() == 3 => {
+                        let r = &arg_exprs[0];
+                        let g = &arg_exprs[1];
+                        let b = &arg_exprs[2];
+                        return Ok(parse_quote! {
+                            {
+                                let (r, g, b) = (#r as f64, #g as f64, #b as f64);
+                                let max_c = r.max(g).max(b);
+                                let min_c = r.min(g).min(b);
+                                let v = max_c;
+                                if min_c == max_c { (0.0, 0.0, v) }
+                                else {
+                                    let s = (max_c - min_c) / max_c;
+                                    let rc = (max_c - r) / (max_c - min_c);
+                                    let gc = (max_c - g) / (max_c - min_c);
+                                    let bc = (max_c - b) / (max_c - min_c);
+                                    let h = if r == max_c { bc - gc }
+                                        else if g == max_c { 2.0 + rc - bc }
+                                        else { 4.0 + gc - rc };
+                                    let h = (h / 6.0) % 1.0;
+                                    let h = if h < 0.0 { h + 1.0 } else { h };
+                                    (h, s, v)
+                                }
+                            }
+                        });
+                    }
+                    "hsv_to_rgb" if arg_exprs.len() == 3 => {
+                        let h = &arg_exprs[0];
+                        let s = &arg_exprs[1];
+                        let v = &arg_exprs[2];
+                        return Ok(parse_quote! {
+                            {
+                                let (h, s, v) = (#h as f64, #s as f64, #v as f64);
+                                if s == 0.0 { (v, v, v) }
+                                else {
+                                    let i = (h * 6.0).floor();
+                                    let f = (h * 6.0) - i;
+                                    let p = v * (1.0 - s);
+                                    let q = v * (1.0 - s * f);
+                                    let t = v * (1.0 - s * (1.0 - f));
+                                    let i = i as i32 % 6;
+                                    match i { 0 => (v, t, p), 1 => (q, v, p), 2 => (p, v, t),
+                                              3 => (p, q, v), 4 => (t, p, v), _ => (v, p, q) }
+                                }
+                            }
+                        });
+                    }
+                    "rgb_to_hls" if arg_exprs.len() == 3 => {
+                        let r = &arg_exprs[0];
+                        let g = &arg_exprs[1];
+                        let b = &arg_exprs[2];
+                        return Ok(parse_quote! {
+                            {
+                                let (r, g, b) = (#r as f64, #g as f64, #b as f64);
+                                let max_c = r.max(g).max(b);
+                                let min_c = r.min(g).min(b);
+                                let l = (min_c + max_c) / 2.0;
+                                if min_c == max_c { (0.0, l, 0.0) }
+                                else {
+                                    let s = if l <= 0.5 { (max_c - min_c) / (max_c + min_c) }
+                                        else { (max_c - min_c) / (2.0 - max_c - min_c) };
+                                    let rc = (max_c - r) / (max_c - min_c);
+                                    let gc = (max_c - g) / (max_c - min_c);
+                                    let bc = (max_c - b) / (max_c - min_c);
+                                    let h = if r == max_c { bc - gc }
+                                        else if g == max_c { 2.0 + rc - bc }
+                                        else { 4.0 + gc - rc };
+                                    let h = (h / 6.0) % 1.0;
+                                    let h = if h < 0.0 { h + 1.0 } else { h };
+                                    (h, l, s)
+                                }
+                            }
+                        });
+                    }
+                    "hls_to_rgb" if arg_exprs.len() == 3 => {
+                        let h = &arg_exprs[0];
+                        let l = &arg_exprs[1];
+                        let s = &arg_exprs[2];
+                        return Ok(parse_quote! {
+                            {
+                                let (h, l, s) = (#h as f64, #l as f64, #s as f64);
+                                if s == 0.0 { (l, l, l) }
+                                else {
+                                    let m2 = if l <= 0.5 { l * (1.0 + s) } else { l + s - (l * s) };
+                                    let m1 = 2.0 * l - m2;
+                                    let _v = |hue: f64| {
+                                        let hue = hue % 1.0;
+                                        let hue = if hue < 0.0 { hue + 1.0 } else { hue };
+                                        if hue < 1.0/6.0 { m1 + (m2 - m1) * hue * 6.0 }
+                                        else if hue < 0.5 { m2 }
+                                        else if hue < 2.0/3.0 { m1 + (m2 - m1) * (2.0/3.0 - hue) * 6.0 }
+                                        else { m1 }
+                                    };
+                                    (_v(h + 1.0/3.0), _v(h), _v(h - 1.0/3.0))
+                                }
+                            }
+                        });
+                    }
+                    _ => {} // Fall through for other colorsys methods
                 }
             }
         }
