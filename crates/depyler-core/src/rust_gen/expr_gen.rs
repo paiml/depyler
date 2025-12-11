@@ -632,28 +632,52 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0575: Coerce integer literal to float when comparing with float expression
             // DEPYLER-0720: Extended to ALL integer literals, not just 0
             // DEPYLER-0828: Extended to ALL integer expressions (variables, not just literals)
+            // DEPYLER-0920: Use f32 literals for trueno/numpy f32 results
             // Example: `self.balance > 0` -> `self.balance > 0.0` when balance is f64
+            // Example: `std > 0` -> `std > 0f32` when std is trueno f32 result
             // Example: `x < y` where x:f64, y:i32 -> `x < (y as f64)`
             let left_is_float = self.expr_returns_float(left);
             let right_is_float = self.expr_returns_float(right);
+            let left_is_f32 = self.expr_returns_f32(left);
+            let right_is_f32 = self.expr_returns_f32(right);
 
             if left_is_float && !right_is_float {
                 if let HirExpr::Literal(Literal::Int(n)) = right {
                     // Integer literal: convert at compile time
-                    let float_val = *n as f64;
-                    right_expr = parse_quote! { #float_val };
+                    // DEPYLER-0920: Use f32 for trueno results
+                    if left_is_f32 {
+                        let float_val = *n as f32;
+                        right_expr = parse_quote! { #float_val };
+                    } else {
+                        let float_val = *n as f64;
+                        right_expr = parse_quote! { #float_val };
+                    }
                 } else {
                     // DEPYLER-0828: Integer variable/expression: cast at runtime
-                    right_expr = parse_quote! { (#right_expr as f64) };
+                    if left_is_f32 {
+                        right_expr = parse_quote! { (#right_expr as f32) };
+                    } else {
+                        right_expr = parse_quote! { (#right_expr as f64) };
+                    }
                 }
             } else if right_is_float && !left_is_float {
                 if let HirExpr::Literal(Literal::Int(n)) = left {
                     // Integer literal: convert at compile time
-                    let float_val = *n as f64;
-                    left_expr = parse_quote! { #float_val };
+                    // DEPYLER-0920: Use f32 for trueno results
+                    if right_is_f32 {
+                        let float_val = *n as f32;
+                        left_expr = parse_quote! { #float_val };
+                    } else {
+                        let float_val = *n as f64;
+                        left_expr = parse_quote! { #float_val };
+                    }
                 } else {
                     // DEPYLER-0828: Integer variable/expression: cast at runtime
-                    left_expr = parse_quote! { (#left_expr as f64) };
+                    if right_is_f32 {
+                        left_expr = parse_quote! { (#left_expr as f32) };
+                    } else {
+                        left_expr = parse_quote! { (#left_expr as f64) };
+                    }
                 }
             }
 
@@ -732,6 +756,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-REFACTOR-001 Phase 2.7: Delegate to extracted helper
             BinOp::In => self.convert_containment_op(false, left, right, left_expr, right_expr),
             BinOp::NotIn => self.convert_containment_op(true, left, right, left_expr, right_expr),
+            // DEPYLER-0926: Vector-Vector addition for trueno
+            // trueno Vector doesn't implement Add trait, use method call instead
+            BinOp::Add
+                if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) =>
+            {
+                Ok(parse_quote! { #left_expr.add(&#right_expr).unwrap() })
+            }
             // DEPYLER-REFACTOR-001 Phase 2.8: Delegate to extracted helper
             BinOp::Add => self.convert_add_op(left, right, left_expr, right_expr, op),
             BinOp::FloorDiv => {
@@ -785,6 +816,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x - #right_expr).collect())
                 })
             }
+            // DEPYLER-0926: Vector-Vector subtraction for trueno
+            // trueno Vector doesn't implement Sub trait, use method call instead
+            BinOp::Sub
+                if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) =>
+            {
+                Ok(parse_quote! { #left_expr.sub(&#right_expr).unwrap() })
+            }
             BinOp::Sub => {
                 // Check if we're subtracting from a .len() call to prevent underflow
                 if self.is_len_call(left) {
@@ -813,6 +851,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! {
                     Vector::from_vec(#left_expr.as_slice().iter().map(|&x| x / #right_expr).collect())
                 })
+            }
+            // DEPYLER-0926: Vector-Vector division for trueno
+            // trueno Vector doesn't implement Div trait, use method call instead
+            BinOp::Div
+                if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) =>
+            {
+                Ok(parse_quote! { #left_expr.div(&#right_expr).unwrap() })
             }
             BinOp::Div => {
                 // DEPYLER-0188: Check if this is pathlib Path division (path / "segment")
@@ -1050,14 +1095,46 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         op: BinOp,
     ) -> Result<syn::Expr> {
         // DEPYLER-0302: String repetition
-        let left_is_string = self.is_string_base(left);
-        let right_is_string = self.is_string_base(right);
-        let left_is_int = matches!(left, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
-        let right_is_int = matches!(right, HirExpr::Literal(Literal::Int(_)) | HirExpr::Var(_));
+        // DEPYLER-0908: Fixed false positive when variable could be either string or int
+        // ONLY use .repeat() when one side is DEFINITELY a string LITERAL
+        // Variables are NEVER treated as strings for multiplication because:
+        // 1. var_types can have stale type info from different branches
+        // 2. It's safer to generate `*` which will fail at compile time if wrong
+        //    than to generate `.repeat()` which produces wrong semantics silently
+        let left_is_string_literal = matches!(left, HirExpr::Literal(Literal::String(_)));
+        let right_is_string_literal = matches!(right, HirExpr::Literal(Literal::String(_)));
+        let left_is_int_literal = matches!(left, HirExpr::Literal(Literal::Int(_)));
+        let right_is_int_literal = matches!(right, HirExpr::Literal(Literal::Int(_)));
 
-        if left_is_string && right_is_int {
+        // DEPYLER-0908: Only trust literals, not variable type inference
+        // This is conservative but correct - produces compile error rather than wrong behavior
+        if left_is_string_literal && right_is_int_literal {
             return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
-        } else if left_is_int && right_is_string {
+        } else if left_is_int_literal && right_is_string_literal {
+            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+        }
+
+        // For variable * literal patterns, check if variable is DEFINITELY not numeric
+        // by looking for clear string method calls in its lineage
+        let left_is_string_var = if let HirExpr::Var(sym) = left {
+            // Only consider it string if we see string-specific patterns
+            // NOT from var_types which can be stale across branches
+            let name = sym.as_str();
+            name == "text" || name == "s" || name == "line" || name.ends_with("_str")
+        } else {
+            false
+        };
+        let right_is_string_var = if let HirExpr::Var(sym) = right {
+            let name = sym.as_str();
+            name == "text" || name == "s" || name == "line" || name.ends_with("_str")
+        } else {
+            false
+        };
+
+        // Variable * int literal - only use repeat if variable name strongly suggests string
+        if left_is_string_var && right_is_int_literal {
+            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+        } else if left_is_int_literal && right_is_string_var {
             return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
         }
 
@@ -1066,9 +1143,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Returns Vec<u8> which matches Python bytes behavior
         let left_is_bytes = matches!(left, HirExpr::Literal(Literal::Bytes(_)));
         let right_is_bytes = matches!(right, HirExpr::Literal(Literal::Bytes(_)));
-        if left_is_bytes && right_is_int {
+        if left_is_bytes && right_is_int_literal {
             return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
-        } else if left_is_int && right_is_bytes {
+        } else if left_is_int_literal && right_is_bytes {
             return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
         }
 
@@ -1128,6 +1205,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             (_, HirExpr::List(elts)) if elts.len() == 1 => {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
                 Ok(parse_quote! { vec![#elem; (#left_expr) as usize] })
+            }
+            // DEPYLER-0926: Vector-Vector multiplication for trueno
+            // trueno Vector doesn't implement Mul trait, use method call instead
+            _ if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
+                Ok(parse_quote! { #left_expr.mul(&#right_expr).unwrap() })
+            }
+            // DEPYLER-0926: Vector-scalar multiplication for trueno
+            // trueno Vector has scale() method for scalar multiplication
+            _ if self.is_numpy_array_expr(left) && self.expr_returns_float(right) => {
+                Ok(parse_quote! { #left_expr.scale(#right_expr as f32).unwrap() })
+            }
+            // DEPYLER-0926: scalar-Vector multiplication for trueno (commutative)
+            _ if self.expr_returns_float(left) && self.is_numpy_array_expr(right) => {
+                Ok(parse_quote! { #right_expr.scale(#left_expr as f32).unwrap() })
             }
             // Default multiplication
             _ => {
@@ -3649,8 +3740,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .map(|c| c.is_uppercase())
             .unwrap_or(false)
         {
+            // DEPYLER-0900: Rename constructor if it shadows stdlib type (e.g., Box -> PyBox)
             // Treat as constructor call - ClassName::new(args)
-            let class_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+            let safe_name = crate::direct_rules::safe_class_name(func);
+            let class_ident = syn::Ident::new(&safe_name, proc_macro2::Span::call_site());
             if args.is_empty() {
                 // DEPYLER-0233: Only apply default argument heuristics for Python stdlib types
                 // User-defined classes should always generate ClassName::new() with no args
@@ -5720,11 +5813,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "clip" => {
+                // DEPYLER-0920: Cast min/max to f32 for trueno::Vector::clamp compatibility
                 if arg_exprs.len() >= 3 {
                     let arr = &arg_exprs[0];
                     let min = &arg_exprs[1];
                     let max = &arg_exprs[2];
-                    parse_quote! { #arr.clamp(#min, #max).unwrap() }
+                    parse_quote! { #arr.clamp(#min as f32, #max as f32).unwrap() }
                 } else {
                     bail!("np.clip() requires 3 arguments (array, min, max)");
                 }
@@ -13356,6 +13450,144 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-0912: Handle colorsys module method calls
+        // colorsys.rgb_to_hsv(r, g, b) → inline HSV conversion
+        // colorsys.hsv_to_rgb(h, s, v) → inline RGB conversion
+        if let HirExpr::Var(module) = object {
+            if module == "colorsys" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| arg.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()?;
+                match method {
+                    "rgb_to_hsv" if arg_exprs.len() == 3 => {
+                        let r = &arg_exprs[0];
+                        let g = &arg_exprs[1];
+                        let b = &arg_exprs[2];
+                        // Python colorsys.rgb_to_hsv formula
+                        return Ok(parse_quote! {
+                            {
+                                let (r, g, b) = (#r as f64, #g as f64, #b as f64);
+                                let max_c = r.max(g).max(b);
+                                let min_c = r.min(g).min(b);
+                                let v = max_c;
+                                if min_c == max_c {
+                                    (0.0, 0.0, v)
+                                } else {
+                                    let s = (max_c - min_c) / max_c;
+                                    let rc = (max_c - r) / (max_c - min_c);
+                                    let gc = (max_c - g) / (max_c - min_c);
+                                    let bc = (max_c - b) / (max_c - min_c);
+                                    let h = if r == max_c {
+                                        bc - gc
+                                    } else if g == max_c {
+                                        2.0 + rc - bc
+                                    } else {
+                                        4.0 + gc - rc
+                                    };
+                                    let h = (h / 6.0) % 1.0;
+                                    let h = if h < 0.0 { h + 1.0 } else { h };
+                                    (h, s, v)
+                                }
+                            }
+                        });
+                    }
+                    "hsv_to_rgb" if arg_exprs.len() == 3 => {
+                        let h = &arg_exprs[0];
+                        let s = &arg_exprs[1];
+                        let v = &arg_exprs[2];
+                        // Python colorsys.hsv_to_rgb formula
+                        return Ok(parse_quote! {
+                            {
+                                let (h, s, v) = (#h as f64, #s as f64, #v as f64);
+                                if s == 0.0 {
+                                    (v, v, v)
+                                } else {
+                                    let i = (h * 6.0).floor();
+                                    let f = (h * 6.0) - i;
+                                    let p = v * (1.0 - s);
+                                    let q = v * (1.0 - s * f);
+                                    let t = v * (1.0 - s * (1.0 - f));
+                                    let i = i as i32 % 6;
+                                    match i {
+                                        0 => (v, t, p),
+                                        1 => (q, v, p),
+                                        2 => (p, v, t),
+                                        3 => (p, q, v),
+                                        4 => (t, p, v),
+                                        _ => (v, p, q),
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    "rgb_to_hls" if arg_exprs.len() == 3 => {
+                        let r = &arg_exprs[0];
+                        let g = &arg_exprs[1];
+                        let b = &arg_exprs[2];
+                        // Python colorsys.rgb_to_hls formula
+                        return Ok(parse_quote! {
+                            {
+                                let (r, g, b) = (#r as f64, #g as f64, #b as f64);
+                                let max_c = r.max(g).max(b);
+                                let min_c = r.min(g).min(b);
+                                let l = (min_c + max_c) / 2.0;
+                                if min_c == max_c {
+                                    (0.0, l, 0.0)
+                                } else {
+                                    let s = if l <= 0.5 {
+                                        (max_c - min_c) / (max_c + min_c)
+                                    } else {
+                                        (max_c - min_c) / (2.0 - max_c - min_c)
+                                    };
+                                    let rc = (max_c - r) / (max_c - min_c);
+                                    let gc = (max_c - g) / (max_c - min_c);
+                                    let bc = (max_c - b) / (max_c - min_c);
+                                    let h = if r == max_c {
+                                        bc - gc
+                                    } else if g == max_c {
+                                        2.0 + rc - bc
+                                    } else {
+                                        4.0 + gc - rc
+                                    };
+                                    let h = (h / 6.0) % 1.0;
+                                    let h = if h < 0.0 { h + 1.0 } else { h };
+                                    (h, l, s)
+                                }
+                            }
+                        });
+                    }
+                    "hls_to_rgb" if arg_exprs.len() == 3 => {
+                        let h = &arg_exprs[0];
+                        let l = &arg_exprs[1];
+                        let s = &arg_exprs[2];
+                        // Python colorsys.hls_to_rgb formula
+                        return Ok(parse_quote! {
+                            {
+                                let (h, l, s) = (#h as f64, #l as f64, #s as f64);
+                                if s == 0.0 {
+                                    (l, l, l)
+                                } else {
+                                    let m2 = if l <= 0.5 { l * (1.0 + s) } else { l + s - (l * s) };
+                                    let m1 = 2.0 * l - m2;
+                                    let _v = |hue: f64| {
+                                        let hue = hue % 1.0;
+                                        let hue = if hue < 0.0 { hue + 1.0 } else { hue };
+                                        if hue < 1.0/6.0 { m1 + (m2 - m1) * hue * 6.0 }
+                                        else if hue < 0.5 { m2 }
+                                        else if hue < 2.0/3.0 { m1 + (m2 - m1) * (2.0/3.0 - hue) * 6.0 }
+                                        else { m1 }
+                                    };
+                                    (_v(h + 1.0/3.0), _v(h), _v(h - 1.0/3.0))
+                                }
+                            }
+                        });
+                    }
+                    _ => {} // Fall through for other colorsys methods
+                }
+            }
+        }
+
         // DEPYLER-0778: Handle dict.fromkeys(keys, default) class method
         // dict.fromkeys(keys, default) → keys.iter().map(|k| (k.clone(), default)).collect()
         if let HirExpr::Var(var_name) = object {
@@ -13547,8 +13779,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .unwrap_or(false);
 
             if starts_uppercase && !is_const {
+                // DEPYLER-0900: Rename class if it shadows stdlib type (e.g., Box -> PyBox)
                 // This is likely a static method call - convert to ClassName::method(args)
-                let class_ident = syn::Ident::new(class_name, proc_macro2::Span::call_site());
+                let safe_name = crate::direct_rules::safe_class_name(class_name);
+                let class_ident = syn::Ident::new(&safe_name, proc_macro2::Span::call_site());
                 let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
                 let arg_exprs: Vec<syn::Expr> = args
                     .iter()
@@ -15758,7 +15992,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
             } else if self.is_numpy_array_expr(&gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
-                parse_quote! { #iter_expr.as_slice().iter().copied() }
+                // DEPYLER-0909: Use .cloned() instead of .copied() for compatibility with non-Copy types
+                parse_quote! { #iter_expr.as_slice().iter().cloned() }
             } else if self.is_json_value_iteration(&gen.iter) {
                 // DEPYLER-0607: JSON Value iteration in list comprehension
                 // serde_json::Value doesn't implement IntoIterator, must convert first
@@ -15988,12 +16223,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Fall back to name heuristics only for unknown types
                 // DEPYLER-0804: Removed "x", "y" - too generic, often scalars
                 // DEPYLER-0836: "result" is included when in numpy context (needs_trueno)
+                // DEPYLER-0926: Added "a", "b" for common numpy vector arithmetic patterns
                 let n = name.as_str();
                 let is_numpy_context = self.ctx.needs_trueno;
                 matches!(n, "arr" | "array" | "data" | "values" | "vec" | "vector")
                     || n.starts_with("arr_") || n.ends_with("_arr")
                     || n.starts_with("vec_") || n.ends_with("_vec")
-                    || (is_numpy_context && n == "result")
+                    || (is_numpy_context && matches!(n, "result" | "a" | "b" | "v1" | "v2"))
             }
             // Recursive: binary op on vector yields vector
             HirExpr::Binary { left, .. } => self.is_numpy_array_expr(left),
@@ -16588,6 +16824,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || self.expr_returns_float(right)
                     || self.is_float_var(left)
                     || self.is_float_var(right)
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-0920: Check if expression returns f32 specifically (trueno/numpy results)
+    /// Used to generate f32 literals instead of f64 in comparisons
+    fn expr_returns_f32(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Variable names commonly used for trueno f32 results
+            HirExpr::Var(name) => {
+                matches!(
+                    name.as_str(),
+                    "mean" | "std" | "variance" | "sum" | "norm" | "norm_a" | "norm_b"
+                        | "stddev" | "var" | "denom"
+                )
+            }
+            // Method calls on trueno Vectors return f32
+            HirExpr::MethodCall { method, .. } => {
+                matches!(
+                    method.as_str(),
+                    "mean" | "sum" | "stddev" | "var" | "variance" | "min" | "max"
+                        | "norm_l2" | "dot"
+                )
             }
             _ => false,
         }
@@ -17448,7 +17708,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 parse_quote! { std::io::BufReader::new(#iter_expr).lines().map(|l| l.unwrap_or_default()) }
             } else if self.is_numpy_array_expr(&gen.iter) {
                 // DEPYLER-0575: trueno Vector uses .as_slice().iter()
-                parse_quote! { #iter_expr.as_slice().iter().copied() }
+                // DEPYLER-0909: Use .cloned() instead of .copied() for compatibility with non-Copy types
+                parse_quote! { #iter_expr.as_slice().iter().cloned() }
             } else if self.is_json_value_iteration(&gen.iter) {
                 // DEPYLER-0607: JSON Value iteration in generator expression
                 // serde_json::Value doesn't implement IntoIterator, must convert first
