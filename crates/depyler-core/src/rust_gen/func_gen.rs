@@ -3003,6 +3003,10 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 "zeros" | "ones" | "full" => Type::List(Box::new(Type::Int)),
                 // DEPYLER-0623: open() returns a file handle (owned std::fs::File)
                 "open" => Type::Custom("std::fs::File".to_string()),
+                // DEPYLER-0942: pathlib.Path() and variants return PathBuf
+                "Path" | "PurePath" | "PurePosixPath" | "PureWindowsPath" => {
+                    Type::Custom("PathBuf".to_string())
+                }
                 _ => Type::Unknown,
             }
         }
