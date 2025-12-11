@@ -782,15 +782,17 @@ fn generate_dataclass_new(
     _struct_name: &syn::Ident,
     type_mapper: &TypeMapper,
 ) -> Result<syn::ImplItemFn> {
-    // Generate parameters from fields (skip fields with defaults and class variables)
+    // Generate parameters from fields (include all instance fields)
+    // DEPYLER-0939: Include fields with defaults in new() signature to match Python semantics
+    // Defaults should be handled at call site or via builder pattern
     let mut inputs = syn::punctuated::Punctuated::new();
-    let fields_without_defaults: Vec<_> = class
+    let instance_fields: Vec<_> = class
         .fields
         .iter()
-        .filter(|f| !f.is_class_var && f.default_value.is_none())
+        .filter(|f| !f.is_class_var)
         .collect();
 
-    for field in &fields_without_defaults {
+    for field in &instance_fields {
         let param_ident = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
         let rust_type = type_mapper.map_type(&field.field_type);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
@@ -816,17 +818,8 @@ fn generate_dataclass_new(
         .filter(|f| !f.is_class_var) // Skip class constants
         .map(|field| {
             let field_ident = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
-            if field.default_value.is_some() {
-                // Use default value - for now just use Default::default() or 0 for int
-                if field.field_type == Type::Int {
-                    quote! { #field_ident: 0 }
-                } else {
-                    quote! { #field_ident: Default::default() }
-                }
-            } else {
-                // Use parameter
-                quote! { #field_ident }
-            }
+            // DEPYLER-0939: Always use parameter since we now accept all fields in new()
+            quote! { #field_ident }
         })
         .collect();
 
@@ -3748,6 +3741,10 @@ impl<'a> ExprConverter<'a> {
             // DEPYLER-0906: chr(n) → char::from_u32(n as u32).unwrap().to_string()
             // Python chr() returns single character string from Unicode code point
             "chr" => self.convert_chr_call(&arg_exprs),
+            // DEPYLER-0931: list() builtin for class method bodies
+            // list() → Vec::new()
+            // list(iterable) → iterable.into_iter().collect::<Vec<_>>()
+            "list" => self.convert_list_call(&arg_exprs),
             // DEPYLER-0780: Pass HIR args for auto-borrowing detection
             _ => self.convert_generic_call(func, args, &arg_exprs),
         }
@@ -3789,6 +3786,41 @@ impl<'a> ExprConverter<'a> {
         }
         let code = &args[0];
         Ok(parse_quote! { char::from_u32(#code as u32).unwrap().to_string() })
+    }
+
+    /// DEPYLER-0931: Convert Python list() builtin to Rust Vec
+    ///
+    /// list() → Vec::new()
+    /// list(iterable) → iterable.into_iter().collect::<Vec<_>>()
+    /// list(dict.keys()) → dict.keys().cloned().collect::<Vec<_>>()
+    fn convert_list_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() {
+            // list() → Vec::new()
+            Ok(parse_quote! { Vec::new() })
+        } else if args.len() == 1 {
+            let iterable = &args[0];
+            // DEPYLER-0931: Check if the iterable is a method call returning references
+            // dict.keys(), dict.values(), list.iter() all return iterators of references
+            // that need .cloned() before .collect()
+            let needs_clone = if let syn::Expr::MethodCall(method_call) = iterable {
+                matches!(
+                    method_call.method.to_string().as_str(),
+                    "keys" | "values" | "iter" | "items"
+                )
+            } else {
+                false
+            };
+
+            if needs_clone {
+                // For reference iterators: use .cloned().collect()
+                Ok(parse_quote! { #iterable.cloned().collect::<Vec<_>>() })
+            } else {
+                // For owned iterators: use .into_iter().collect()
+                Ok(parse_quote! { #iterable.into_iter().collect::<Vec<_>>() })
+            }
+        } else {
+            bail!("list() takes at most 1 argument ({} given)", args.len())
+        }
     }
 
     fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
