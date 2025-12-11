@@ -167,6 +167,84 @@ fn is_iterator_producing_expr(expr: &HirExpr) -> bool {
     }
 }
 
+/// DEPYLER-0932: Check if an expression produces a numpy/trueno Vector value
+///
+/// This detects:
+/// - Direct numpy function calls (np.array, np.zeros, etc.)
+/// - Binary operations on numpy arrays
+/// - Ternary expressions where branches are numpy expressions
+/// - Variables already tracked as numpy
+///
+/// Complexity: 5 (recursive pattern matching)
+fn is_numpy_value_expr(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
+    match expr {
+        // np.array([...]) or numpy.array([...])
+        HirExpr::Call { func, .. } => {
+            matches!(
+                func.as_str(),
+                "array"
+                    | "zeros"
+                    | "ones"
+                    | "empty"
+                    | "linspace"
+                    | "arange"
+                    | "full"
+                    | "copy"
+                    | "abs"
+                    | "sqrt"
+                    | "sin"
+                    | "cos"
+                    | "exp"
+                    | "log"
+                    | "clip"
+                    | "clamp"
+                    | "normalize"
+            )
+        }
+
+        // np.method() via MethodCall
+        HirExpr::MethodCall { object, method, .. } => {
+            // Check if object is numpy module
+            let _is_numpy_module = matches!(object.as_ref(), HirExpr::Var(name) if name == "np" || name == "numpy");
+            let is_numpy_method = matches!(
+                method.as_str(),
+                "array"
+                    | "zeros"
+                    | "ones"
+                    | "abs"
+                    | "sqrt"
+                    | "sin"
+                    | "cos"
+                    | "exp"
+                    | "log"
+                    | "clip"
+                    | "clamp"
+                    | "unwrap"
+                    | "scale"
+            );
+            is_numpy_method
+        }
+
+        // Binary operations on numpy arrays propagate numpy-ness
+        HirExpr::Binary { left, right, .. } => {
+            is_numpy_value_expr(left, ctx) || is_numpy_value_expr(right, ctx)
+        }
+
+        // Ternary: result = numpy_expr if cond else numpy_expr
+        HirExpr::IfExpr { body, orelse, .. } => {
+            is_numpy_value_expr(body, ctx) || is_numpy_value_expr(orelse, ctx)
+        }
+
+        // Variable already tracked as numpy
+        HirExpr::Var(name) => {
+            ctx.numpy_vars.contains(name)
+                || matches!(name.as_str(), "arr" | "array" | "data" | "values" | "vec" | "vector")
+        }
+
+        _ => false,
+    }
+}
+
 /// Check if a type annotation requires explicit conversion
 ///
 /// DEPYLER-0272 FIX: Now checks the actual expression to determine if cast is needed.
@@ -404,7 +482,16 @@ pub(crate) fn codegen_expr_stmt(
                             }
                         }
 
-                        subcommand_info.arguments.push(arg);
+                        // DEPYLER-0930: Check for duplicate argument names before adding
+                        // This mirrors the fix in argparse_transform.rs for DEPYLER-0929
+                        // Without this check, E0416 "identifier bound more than once" occurs
+                        if !subcommand_info
+                            .arguments
+                            .iter()
+                            .any(|existing| existing.name == arg.name)
+                        {
+                            subcommand_info.arguments.push(arg);
+                        }
                     }
                     return Ok(quote! {});
                 }
@@ -1392,11 +1479,42 @@ fn apply_truthiness_conversion(
         }
     }
 
-    // DEPYLER-0446: Check if this is an attribute access to an optional argparse field
-    // Python: if args.output (where output is optional)
-    // Rust: if args.output.is_some()
+    // DEPYLER-0904: Handle self.* attribute access for class fields
+    // Python: if not self.heap (where heap is a list)
+    // Rust: if self.heap.is_empty() (Vec truthiness = non-empty)
     if let HirExpr::Attribute { value, attr } = condition {
         if let HirExpr::Var(obj_name) = value.as_ref() {
+            // Check for self.* access and use class_field_types
+            if obj_name == "self" {
+                if let Some(field_type) = ctx.class_field_types.get(attr) {
+                    return match field_type {
+                        // Already boolean - no conversion needed
+                        Type::Bool => cond_expr,
+
+                        // String/List/Dict/Set - check if empty
+                        Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
+                            parse_quote! { !#cond_expr.is_empty() }
+                        }
+
+                        // Optional - check if Some
+                        Type::Optional(_) => {
+                            parse_quote! { #cond_expr.is_some() }
+                        }
+
+                        // Numeric types - check if non-zero
+                        Type::Int => {
+                            parse_quote! { #cond_expr != 0 }
+                        }
+                        Type::Float => {
+                            parse_quote! { #cond_expr != 0.0 }
+                        }
+
+                        // Unknown or other types - use as-is
+                        _ => cond_expr,
+                    };
+                }
+            }
+
             // Check if this is accessing an args variable from ArgumentParser
             let is_args_var = ctx.argparser_tracker.parsers.values().any(|parser_info| {
                 parser_info
@@ -3247,6 +3365,15 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
+    // DEPYLER-0932: Track variables assigned from numpy operations
+    // When result = numpy_expr, add "result" to numpy_vars so is_numpy_array_expr() can detect it
+    // This enables correct iteration with .as_slice().iter() instead of bare .iter()
+    if let AssignTarget::Symbol(var_name) = target {
+        if is_numpy_value_expr(value, ctx) {
+            ctx.numpy_vars.insert(var_name.clone());
+        }
+    }
+
     // DEPYLER-0837: Mark csv.DictReader variables as mutable
     // csv::Reader needs mutable borrows for .headers() and iteration (.records())
     // Pattern: reader = csv.DictReader(f) → let mut reader = csv::ReaderBuilder::new()...
@@ -3529,6 +3656,26 @@ pub(crate) fn codegen_assign_stmt(
                 if let HirExpr::Var(module) = object.as_ref() {
                     if module == "os" {
                         ctx.var_types.insert(var_name.clone(), Type::String);
+                    }
+                }
+            }
+            // DEPYLER-0907: Check for os.environ.get(key) - 1 argument means returns Option<String>
+            // Python: config_file = os.environ.get("CONFIG_FILE")  # Returns None if not set
+            // Rust: config_file = std::env::var("CONFIG_FILE").ok()  # Returns Option<String>
+            else if method == "get" && args.len() == 1 {
+                if let HirExpr::Attribute {
+                    value: attr_obj,
+                    attr,
+                } = object.as_ref()
+                {
+                    if let HirExpr::Var(module) = attr_obj.as_ref() {
+                        if module == "os" && attr == "environ" {
+                            // os.environ.get(key) returns Option<String>
+                            ctx.var_types.insert(
+                                var_name.clone(),
+                                Type::Optional(Box::new(Type::String)),
+                            );
+                        }
                     }
                 }
             }
@@ -6111,8 +6258,14 @@ fn extract_fields_recursive(
                 }
             }
             HirStmt::With {
-                body: with_body, ..
+                context,
+                body: with_body,
+                ..
             } => {
+                // DEPYLER-0931: Extract fields from With context expression
+                // Pattern: `with open(args.file) as f:` - args.file is in context
+                // This was missing, causing E0425 errors for fields used in context
+                extract_fields_from_expr(context, args_var, dest_field, fields);
                 extract_fields_recursive(with_body, args_var, dest_field, fields);
             }
             _ => {}
@@ -6625,17 +6778,27 @@ fn try_generate_subcommand_match(
                                 }
                             }
                             Some(Type::String) => {
-                                // DEPYLER-0526: Heuristic for known String fields
-                                // File/path fields usually need owned String: convert with .to_string()
-                                // Content/pattern fields usually need &str: keep as &String (auto-derefs)
+                                // DEPYLER-0933: First check if this is an Optional String field
+                                // (NOT required AND NOT positional AND NO default)
+                                let has_default = maybe_arg
+                                    .as_ref()
+                                    .map(|a| a.default.is_some())
+                                    .unwrap_or(false);
+                                let is_required = maybe_arg
+                                    .as_ref()
+                                    .map(|a| a.required.unwrap_or(false))
+                                    .unwrap_or(false);
+                                let is_positional = maybe_arg
+                                    .as_ref()
+                                    .map(|a| a.is_positional)
+                                    .unwrap_or(false);
+                                let is_option_without_default =
+                                    !is_required && !is_positional && !has_default;
+
+                                // DEPYLER-0526: Name-based heuristics for String handling
                                 let field_lower = field_name.to_lowercase();
                                 let owned_indicators = [
-                                    "file",
-                                    "path",
-                                    "filepath",
-                                    "input",
-                                    "output",
-                                    "dir",
+                                    "file", "path", "filepath", "input", "output", "dir",
                                     "directory",
                                 ];
                                 let borrowed_indicators =
@@ -6652,15 +6815,23 @@ fn try_generate_subcommand_match(
                                         || field_lower.starts_with(ind)
                                 });
 
-                                if needs_borrowed {
-                                    // Keep as &String, auto-derefs to &str
-                                    quote! {}
-                                } else if needs_owned {
-                                    // Convert to owned String
-                                    quote! { let #field_ident = #field_ident.to_string(); }
+                                if is_option_without_default || has_default {
+                                    // DEPYLER-0933: Option<String> field - unwrap with default
+                                    // Use as_deref() to get Option<&str>, then unwrap_or("")
+                                    // This gives &str which works for both &str and String params
+                                    quote! { let #field_ident = #field_ident.as_deref().unwrap_or_default(); }
                                 } else {
-                                    // Default for String: convert to owned (safer for function calls)
-                                    quote! { let #field_ident = #field_ident.to_string(); }
+                                    // Required field - regular String handling
+                                    if needs_borrowed {
+                                        // Keep as &String, auto-derefs to &str
+                                        quote! {}
+                                    } else if needs_owned {
+                                        // Convert to owned String
+                                        quote! { let #field_ident = #field_ident.to_string(); }
+                                    } else {
+                                        // Default: convert to owned (safer for function calls)
+                                        quote! { let #field_ident = #field_ident.to_string(); }
+                                    }
                                 }
                             }
                             Some(Type::Optional(_))
@@ -6670,6 +6841,22 @@ fn try_generate_subcommand_match(
                                 quote! { let #field_ident = #field_ident.clone(); }
                             }
                             None => {
+                                // DEPYLER-0933: Check if this is an Optional field (unknown type)
+                                let has_default = maybe_arg
+                                    .as_ref()
+                                    .map(|a| a.default.is_some())
+                                    .unwrap_or(false);
+                                let is_required = maybe_arg
+                                    .as_ref()
+                                    .map(|a| a.required.unwrap_or(false))
+                                    .unwrap_or(false);
+                                let is_positional = maybe_arg
+                                    .as_ref()
+                                    .map(|a| a.is_positional)
+                                    .unwrap_or(false);
+                                let is_option_without_default =
+                                    !is_required && !is_positional && !has_default;
+
                                 // Unknown type: use name-based heuristics
                                 let field_lower = field_name.to_lowercase();
                                 let owned_indicators = [
@@ -6688,6 +6875,7 @@ fn try_generate_subcommand_match(
                                     "str", "string", "name", "line", "word", "char", "cmd",
                                     "url", "uri", "host", "token", "key", "id", "code",
                                     "hex", "oct", // hex/oct values are string representations
+                                    "suffix", // DEPYLER-0933: suffix is a string field
                                 ];
                                 // DEPYLER-0576: Numeric field indicators (likely f64 with defaults)
                                 // DEPYLER-0592: Removed single letters - too ambiguous, often strings
@@ -6724,11 +6912,21 @@ fn try_generate_subcommand_match(
                                             || field_lower.starts_with(ind)
                                     });
 
-                                if needs_borrowed {
-                                    // Keep as reference
+                                // DEPYLER-0933: If optional without default and looks like string,
+                                // use as_deref() to get &str which works for both &str and String params
+                                if is_option_without_default && looks_like_string {
+                                    quote! { let #field_ident = #field_ident.as_deref().unwrap_or_default(); }
+                                } else if is_option_without_default && (needs_owned || needs_borrowed) {
+                                    // Optional string-like field, unwrap with as_deref for &str
+                                    quote! { let #field_ident = #field_ident.as_deref().unwrap_or_default(); }
+                                } else if needs_borrowed || (is_positional && needs_owned) {
+                                    // DEPYLER-0933: Keep as reference for:
+                                    // - borrowed indicators (content, pattern, text, etc.)
+                                    // - positional string fields that match owned indicators
+                                    //   (file, path, output, etc.) - these are &String, not &Option<String>
                                     quote! {}
                                 } else if needs_owned || looks_like_string {
-                                    // Convert to owned String
+                                    // Convert to owned String (for optional fields that weren't caught above)
                                     quote! { let #field_ident = #field_ident.to_string(); }
                                 } else if needs_numeric_unwrap {
                                     // DEPYLER-0576: Likely numeric Option<T> field, unwrap with default
