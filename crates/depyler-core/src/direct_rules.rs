@@ -4749,6 +4749,31 @@ impl<'a> ExprConverter<'a> {
             }
         }
 
+        // DEPYLER-0932: Handle dict.fromkeys(keys, default) class method
+        // dict.fromkeys(keys, default) → keys.iter().map(|k| (k.clone(), default)).collect()
+        if let HirExpr::Var(var_name) = object {
+            if var_name == "dict" && method == "fromkeys" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+
+                if arg_exprs.len() >= 2 {
+                    let keys_expr = &arg_exprs[0];
+                    let default_expr = &arg_exprs[1];
+                    return Ok(parse_quote! {
+                        #keys_expr.iter().map(|k| (k.clone(), #default_expr)).collect()
+                    });
+                } else if arg_exprs.len() == 1 {
+                    // dict.fromkeys(keys) with implicit None default
+                    let keys_expr = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #keys_expr.iter().map(|k| (k.clone(), ())).collect()
+                    });
+                }
+            }
+        }
+
         // Check if this is a static method call on a class (e.g., Counter.create_with_value)
         if let HirExpr::Var(class_name) = object {
             if class_name
