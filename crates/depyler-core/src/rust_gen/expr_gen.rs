@@ -15548,7 +15548,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Python: path.suffix → Rust: path.extension().map(|e| format!(".{}", e.to_str().unwrap())).unwrap_or_default()
             // DEPYLER-0706: Removed `var_name == "p"` - too many false positives (e.g., Person p, Point p)
             // Only use explicit path naming patterns to avoid confusing struct field access with path operations
-            let is_likely_path = var_name == "path" || var_name.ends_with("_path");
+            // DEPYLER-0942: Also check var_types for PathBuf/Path type assignment
+            let is_named_path = var_name == "path" || var_name.ends_with("_path");
+            let is_typed_path = self
+                .ctx
+                .var_types
+                .get(var_name)
+                .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
+                .unwrap_or(false);
+            let is_likely_path = is_named_path || is_typed_path;
 
             if is_likely_path {
                 let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
