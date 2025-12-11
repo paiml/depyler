@@ -13709,6 +13709,49 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-0933: Handle int.from_bytes(bytes, byteorder) class method
+        // int.from_bytes(bytes, "big") → i64::from_be_bytes(bytes.try_into().unwrap())
+        // int.from_bytes(bytes, "little") → i64::from_le_bytes(bytes.try_into().unwrap())
+        if let HirExpr::Var(var_name) = object {
+            if var_name == "int" && method == "from_bytes" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| arg.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()?;
+
+                if arg_exprs.len() >= 2 {
+                    let bytes_expr = &arg_exprs[0];
+                    // Check if second arg is "big" or "little" string literal
+                    let is_big_endian = if let HirExpr::Literal(Literal::String(s)) = &args[1] {
+                        s == "big"
+                    } else {
+                        true // Default to big endian
+                    };
+
+                    if is_big_endian {
+                        return Ok(parse_quote! {
+                            i64::from_be_bytes({
+                                let mut arr = [0u8; 8];
+                                let bytes: &[u8] = #bytes_expr.as_ref();
+                                let start = 8usize.saturating_sub(bytes.len());
+                                arr[start..].copy_from_slice(bytes);
+                                arr
+                            })
+                        });
+                    } else {
+                        return Ok(parse_quote! {
+                            i64::from_le_bytes({
+                                let mut arr = [0u8; 8];
+                                let bytes: &[u8] = #bytes_expr.as_ref();
+                                arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
+                                arr
+                            })
+                        });
+                    }
+                }
+            }
+        }
+
         // DEPYLER-0558: Handle hasher methods (hexdigest, update) for incremental hashing
         if method == "hexdigest" {
             self.ctx.needs_hex = true;
