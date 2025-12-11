@@ -234,7 +234,9 @@ impl ModuleMapper {
                     ("defaultdict".to_string(), "HashMap".to_string()),
                     ("Counter".to_string(), "HashMap".to_string()),
                     ("deque".to_string(), "VecDeque".to_string()),
-                    ("OrderedDict".to_string(), "IndexMap".to_string()), // requires indexmap crate
+                    // DEPYLER-0936: Map OrderedDict to HashMap (not IndexMap which needs external crate)
+                    // HashMap in Rust 1.36+ preserves insertion order, so this is semantically correct
+                    ("OrderedDict".to_string(), "HashMap".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },

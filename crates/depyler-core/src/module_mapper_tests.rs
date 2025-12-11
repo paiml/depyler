@@ -235,9 +235,10 @@ fn test_collections_mapping() {
         collections_mapping.item_map.get("deque").unwrap(),
         "VecDeque"
     );
+    // DEPYLER-0936: OrderedDict maps to HashMap (Rust 1.36+ preserves insertion order)
     assert_eq!(
         collections_mapping.item_map.get("OrderedDict").unwrap(),
-        "IndexMap"
+        "HashMap"
     );
 }
 
