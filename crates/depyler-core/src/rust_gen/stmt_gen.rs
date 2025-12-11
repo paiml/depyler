@@ -3053,6 +3053,30 @@ pub(crate) fn codegen_for_stmt(
                 None
             }
         }
+        // DEPYLER-0930: Handle method call iteration
+        HirExpr::MethodCall { object, method, .. } => {
+            // Check for Path.glob() which yields PathBuf
+            if method == "glob" {
+                if let HirExpr::Var(var_name) = object.as_ref() {
+                    let is_path = ctx
+                        .var_types
+                        .get(var_name)
+                        .map(|t| {
+                            matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")
+                        })
+                        .unwrap_or(false);
+                    if is_path {
+                        Some(Type::Custom("PathBuf".to_string()))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        }
         _ => None,
     };
 
