@@ -4774,6 +4774,49 @@ impl<'a> ExprConverter<'a> {
             }
         }
 
+        // DEPYLER-0933: Handle int.from_bytes(bytes, byteorder) class method in class methods
+        // int.from_bytes(bytes, "big") → i64::from_be_bytes(...)
+        // int.from_bytes(bytes, "little") → i64::from_le_bytes(...)
+        if let HirExpr::Var(var_name) = object {
+            if var_name == "int" && method == "from_bytes" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+
+                if arg_exprs.len() >= 2 {
+                    let bytes_expr = &arg_exprs[0];
+                    // Check if second arg is "big" or "little" string literal
+                    let is_big_endian = if let HirExpr::Literal(Literal::String(s)) = &args[1] {
+                        s == "big"
+                    } else {
+                        true // Default to big endian
+                    };
+
+                    if is_big_endian {
+                        return Ok(parse_quote! {
+                            i64::from_be_bytes({
+                                let mut arr = [0u8; 8];
+                                let bytes: &[u8] = #bytes_expr.as_ref();
+                                let start = 8usize.saturating_sub(bytes.len());
+                                arr[start..].copy_from_slice(bytes);
+                                arr
+                            })
+                        });
+                    } else {
+                        return Ok(parse_quote! {
+                            i64::from_le_bytes({
+                                let mut arr = [0u8; 8];
+                                let bytes: &[u8] = #bytes_expr.as_ref();
+                                arr[..bytes.len().min(8)].copy_from_slice(&bytes[..bytes.len().min(8)]);
+                                arr
+                            })
+                        });
+                    }
+                }
+            }
+        }
+
         // Check if this is a static method call on a class (e.g., Counter.create_with_value)
         if let HirExpr::Var(class_name) = object {
             if class_name
