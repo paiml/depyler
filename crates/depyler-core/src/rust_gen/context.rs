@@ -80,6 +80,7 @@ pub struct CodeGenContext<'a> {
     pub needs_bufread: bool, // DEPYLER-0522: Track std::io::BufRead trait for .lines() method
     pub needs_once_cell: bool, // DEPYLER-REARCH-001: Track once_cell for lazy static initialization
     pub needs_trueno: bool,    // Phase 3: NumPy→Trueno codegen (SIMD-accelerated tensor lib)
+    pub numpy_vars: HashSet<String>, // DEPYLER-0932: Track variables assigned from numpy operations
     pub needs_tokio: bool,     // DEPYLER-0747: asyncio→tokio async runtime mapping
     pub needs_glob: bool,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
     pub declared_vars: Vec<HashSet<String>>,
@@ -299,6 +300,12 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0821: Track Counter variables created from strings (HashMap<char, i32>)
     /// Used to mark key variables as char when iterating with .items()
     pub char_counter_vars: HashSet<String>,
+
+    /// DEPYLER-0936: Track ADT child→parent mappings for type rewriting
+    /// When a Python ABC hierarchy is converted to a Rust enum (e.g., Iter with children
+    /// ListIter, RangeIter), return types mentioning children must be rewritten to parent.
+    /// Maps child name (e.g., "ListIter") → parent name (e.g., "Iter")
+    pub adt_child_to_parent: HashMap<String, String>,
 }
 
 impl<'a> CodeGenContext<'a> {
