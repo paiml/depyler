@@ -1547,18 +1547,42 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
         } else {
-            // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
-            // Works for both HashMap and serde_json::Value
-            if negate {
-                if needs_borrow {
-                    Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
+            // DEPYLER-0935: Check if left side is a string - if so, this is likely a substring check
+            // Python: pattern in entry (where both are strings) → Rust: entry.contains(&*pattern)
+            // This handles cases where type inference didn't detect the right side as a string
+            let left_is_string = self.is_string_type(left);
+
+            if left_is_string {
+                // Substring containment check - use .contains()
+                let pattern: syn::Expr = match left {
+                    HirExpr::Literal(Literal::String(s)) => {
+                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                        parse_quote! { #lit }
+                    }
+                    _ => {
+                        // Use &* to deref-reborrow for Pattern trait compatibility
+                        parse_quote! { &*#left_expr }
+                    }
+                };
+                if negate {
+                    Ok(parse_quote! { !#right_expr.contains(#pattern) })
                 } else {
-                    Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
+                    Ok(parse_quote! { #right_expr.contains(#pattern) })
                 }
-            } else if needs_borrow {
-                Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
             } else {
-                Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
+                // DEPYLER-0449: Dict/HashMap uses .get(key).is_some() for compatibility
+                // Works for both HashMap and serde_json::Value
+                if negate {
+                    if needs_borrow {
+                        Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() })
+                    } else {
+                        Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() })
+                    }
+                } else if needs_borrow {
+                    Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() })
+                } else {
+                    Ok(parse_quote! { #right_expr.get(#left_expr).is_some() })
+                }
             }
         }
     }
@@ -1691,6 +1715,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 };
                 Some(Ok(parse_quote! {
                     chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
+                }))
+            }
+
+            // DEPYLER-0938: time() with no args → NaiveTime at midnight
+            "time" if args.is_empty() => {
+                self.ctx.needs_chrono = true;
+                Some(Ok(parse_quote! {
+                    chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
+                }))
+            }
+
+            // DEPYLER-0938: time(hour) → NaiveTime::from_hms_opt(h, 0, 0).unwrap()
+            "time" if args.len() == 1 => {
+                self.ctx.needs_chrono = true;
+                let hour = match args[0].to_rust_expr(self.ctx) {
+                    Ok(e) => e,
+                    Err(e) => return Some(Err(e)),
+                };
+                Some(Ok(parse_quote! {
+                    chrono::NaiveTime::from_hms_opt(#hour as u32, 0, 0).unwrap()
                 }))
             }
 
@@ -2122,6 +2166,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } if matches!(&**attr_value, HirExpr::Var(module) if module == "sys") && attr == "stderr")
         });
 
+        // DEPYLER-0945: Process arguments to handle PathBuf.display() correctly
+        // This handles both single and multiple arguments uniformly
+        let processed_args: Vec<syn::Expr> = args.iter().zip(arg_exprs.iter()).map(|(hir, syn)| {
+            if self.is_pathbuf_expr(hir) {
+                parse_quote! { #syn.display() }
+            } else {
+                syn.clone()
+            }
+        }).collect();
+
         let result = if args.is_empty() {
             // print() with no arguments
             if use_stderr {
@@ -2135,27 +2189,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .first()
                 .map(|a| self.needs_debug_format(a))
                 .unwrap_or(false);
-            let arg = &arg_exprs[0];
+            let arg = &processed_args[0];
 
-            // DEPYLER-0930: Check if argument is PathBuf - needs .display()
-            let is_pathbuf = self.is_pathbuf_expr(&args[0]);
+            let format_str = if needs_debug { "{:?}" } else { "{}" };
 
             if use_stderr {
-                if needs_debug {
-                    Ok(parse_quote! { eprintln!("{:?}", #arg) })
-                } else if is_pathbuf {
-                    // DEPYLER-0930: PathBuf needs .display() for Display trait
-                    Ok(parse_quote! { eprintln!("{}", #arg.display()) })
-                } else {
-                    Ok(parse_quote! { eprintln!("{}", #arg) })
-                }
-            } else if needs_debug {
-                Ok(parse_quote! { println!("{:?}", #arg) })
-            } else if is_pathbuf {
-                // DEPYLER-0930: PathBuf needs .display() for Display trait
-                Ok(parse_quote! { println!("{}", #arg.display()) })
+                Ok(parse_quote! { eprintln!(#format_str, #arg) })
             } else {
-                Ok(parse_quote! { println!("{}", #arg) })
+                Ok(parse_quote! { println!(#format_str, #arg) })
             }
         } else {
             // Multiple arguments - build format string with per-arg detection
@@ -2172,9 +2213,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let format_str = format_specs.join(" ");
 
             if use_stderr {
-                Ok(parse_quote! { eprintln!(#format_str, #(#arg_exprs),*) })
+                Ok(parse_quote! { eprintln!(#format_str, #(#processed_args),*) })
             } else {
-                Ok(parse_quote! { println!(#format_str, #(#arg_exprs),*) })
+                Ok(parse_quote! { println!(#format_str, #(#processed_args),*) })
             }
         };
 
@@ -5111,7 +5152,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() < 2 {
                     bail!("time.strftime() requires at least 2 arguments (format, time_tuple)");
                 }
-                let format = &arg_exprs[0];
+                // DEPYLER-0935: chrono's format() takes &str, not String
+                // Extract bare string literal for compatibility
+                let format = match args.first() {
+                    Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
                 let _time_tuple = &arg_exprs[1];
 
                 // time.strftime(format, time_tuple) → chrono formatting
@@ -5127,7 +5173,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("time.strptime() requires at least 2 arguments (string, format)");
                 }
                 let time_str = &arg_exprs[0];
-                let format = &arg_exprs[1];
+                // DEPYLER-0935: chrono's parse_from_str() takes &str, not String
+                // Extract bare string literal for compatibility
+                let format = match args.get(1) {
+                    Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
+                    _ => arg_exprs[1].clone(),
+                };
 
                 // time.strptime(string, format) → chrono parsing
                 parse_quote! {
@@ -9324,6 +9375,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         &mut self,
         dt_expr: &syn::Expr,
         method: &str,
+        hir_args: &[HirExpr],
         arg_exprs: &[syn::Expr],
     ) -> Result<syn::Expr> {
         // Mark that we need the chrono crate
@@ -9352,11 +9404,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // datetime.strftime(fmt) → dt.format(fmt).to_string()
+            // DEPYLER-0935: chrono's format() takes &str, not String
+            // Extract bare string literal for compatibility
             "strftime" => {
                 if arg_exprs.is_empty() {
                     bail!("strftime() requires 1 argument (format string)");
                 }
-                let fmt = &arg_exprs[0];
+                let fmt = match hir_args.first() {
+                    Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
+                    _ => arg_exprs[0].clone(),
+                };
                 parse_quote! { #dt_expr.format(#fmt).to_string() }
             }
 
@@ -9581,6 +9638,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let dt = &arg_exprs[0];
                 let new_year = &arg_exprs[1];
                 parse_quote! { #dt.with_year(#new_year as i32).unwrap() }
+            }
+
+            // DEPYLER-0938: datetime.combine(date, time) → NaiveDateTime::new(date, time)
+            "combine" => {
+                if arg_exprs.len() != 2 {
+                    bail!("combine() requires exactly 2 arguments (date, time)");
+                }
+                let date_expr = &arg_exprs[0];
+                let time_expr = &arg_exprs[1];
+                parse_quote! { chrono::NaiveDateTime::new(#date_expr, #time_expr) }
+            }
+
+            // DEPYLER-0938: datetime.fromisoformat(string) → NaiveDateTime::parse_from_str
+            "fromisoformat" => {
+                if arg_exprs.len() != 1 {
+                    bail!("fromisoformat() requires exactly 1 argument (string)");
+                }
+                let s = &arg_exprs[0];
+                parse_quote! {
+                    chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%dT%H:%M:%S")
+                        .or_else(|_| chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%d %H:%M:%S"))
+                        .or_else(|_| chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%d"))
+                        .unwrap()
+                }
             }
 
             _ => return Ok(None), // Not a recognized datetime method
@@ -14038,7 +14119,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .iter()
                 .map(|arg| arg.to_rust_expr(self.ctx))
                 .collect::<Result<Vec<_>>>()?;
-            return self.convert_datetime_instance_method(&object_expr, method, &arg_exprs);
+            return self.convert_datetime_instance_method(&object_expr, method, args, &arg_exprs);
         }
 
         // DEPYLER-0416: Check if this is a static method call on a class (e.g., Point.origin())
