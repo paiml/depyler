@@ -2202,6 +2202,79 @@ pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
     }
 }
 
+/// DEPYLER-0936: Rewrite ADT child types to parent enum types
+/// When a Python ABC hierarchy is converted to a Rust enum (e.g., Iter with ListIter, RangeIter),
+/// return types mentioning child classes must be rewritten to parent enum names.
+/// Example: `ListIter[T]` → `Iter[T]` when ListIter is a variant of Iter
+pub(crate) fn rewrite_adt_child_type(
+    ty: &Type,
+    child_to_parent: &std::collections::HashMap<String, String>,
+) -> Type {
+    match ty {
+        // Check if Custom type name is an ADT child - rewrite to parent
+        Type::Custom(name) => {
+            // Extract base name from generics (e.g., "ListIter" from "ListIter[T]")
+            let base_name = name.split('[').next().unwrap_or(name);
+            if let Some(parent_name) = child_to_parent.get(base_name) {
+                // Preserve generic params: "ListIter[T]" → "Iter[T]"
+                if let Some(generic_part) = name.strip_prefix(base_name) {
+                    Type::Custom(format!("{}{}", parent_name, generic_part))
+                } else {
+                    Type::Custom(parent_name.clone())
+                }
+            } else {
+                ty.clone()
+            }
+        }
+        // DEPYLER-0936: Handle Generic type with base name that's an ADT child
+        // Example: Generic { base: "ListIter", params: [T] } → Generic { base: "Iter", params: [T] }
+        Type::Generic { base, params } => {
+            if let Some(parent_name) = child_to_parent.get(base) {
+                // Rewrite base to parent, keep params with recursive rewriting
+                Type::Generic {
+                    base: parent_name.clone(),
+                    params: params
+                        .iter()
+                        .map(|t| rewrite_adt_child_type(t, child_to_parent))
+                        .collect(),
+                }
+            } else {
+                // No rewrite needed, but still recursively process params
+                Type::Generic {
+                    base: base.clone(),
+                    params: params
+                        .iter()
+                        .map(|t| rewrite_adt_child_type(t, child_to_parent))
+                        .collect(),
+                }
+            }
+        }
+        // Recursively handle container types
+        Type::List(inner) => Type::List(Box::new(rewrite_adt_child_type(inner, child_to_parent))),
+        Type::Optional(inner) => {
+            Type::Optional(Box::new(rewrite_adt_child_type(inner, child_to_parent)))
+        }
+        Type::Tuple(types) => Type::Tuple(
+            types
+                .iter()
+                .map(|t| rewrite_adt_child_type(t, child_to_parent))
+                .collect(),
+        ),
+        Type::Dict(k, v) => Type::Dict(
+            Box::new(rewrite_adt_child_type(k, child_to_parent)),
+            Box::new(rewrite_adt_child_type(v, child_to_parent)),
+        ),
+        Type::Union(types) => Type::Union(
+            types
+                .iter()
+                .map(|t| rewrite_adt_child_type(t, child_to_parent))
+                .collect(),
+        ),
+        // Other types pass through unchanged
+        _ => ty.clone(),
+    }
+}
+
 // ========== DEPYLER-0410: Return Type Inference from Body ==========
 
 /// Infer return type from function body when no annotation is provided
@@ -4016,6 +4089,11 @@ pub(crate) fn codegen_return_type(
     } else {
         effective_ret_type
     };
+
+    // DEPYLER-0936: Rewrite ADT child types to parent enum types
+    // When a Python ABC hierarchy is converted to a Rust enum, return types mentioning
+    // child classes (e.g., ListIter[T]) must be rewritten to parent (e.g., Iter[T])
+    let effective_ret_type = rewrite_adt_child_type(&effective_ret_type, &ctx.adt_child_to_parent);
 
     // Convert return type using annotation-aware mapping
     let mapped_ret_type = ctx
