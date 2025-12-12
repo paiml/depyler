@@ -474,12 +474,13 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
 /// Processes all classes and generates token streams.
 /// DEPYLER-0839: Detects ADT patterns (ABC with Generic[T,U] + child dataclasses)
 /// and generates Rust enums instead of separate structs.
+/// DEPYLER-0936: Also returns child→parent mapping for type rewriting
 /// Complexity: 6 (within ≤10 target)
 fn convert_classes_to_rust(
     classes: &[HirClass],
     type_mapper: &crate::type_mapper::TypeMapper,
     vararg_functions: &std::collections::HashSet<String>, // DEPYLER-0648: Track vararg functions
-) -> Result<Vec<proc_macro2::TokenStream>> {
+) -> Result<(Vec<proc_macro2::TokenStream>, HashMap<String, String>)> {
     // DEPYLER-0839: Phase 1 - Detect ADT patterns
     let adt_info = detect_adt_patterns(classes);
 
@@ -515,7 +516,8 @@ fn convert_classes_to_rust(
             class_items.push(tokens);
         }
     }
-    Ok(class_items)
+    // DEPYLER-0936: Return both class items and child→parent mapping
+    Ok((class_items, adt_info.child_to_parent))
 }
 
 /// Information about ADT patterns detected in the class hierarchy
@@ -523,6 +525,9 @@ fn convert_classes_to_rust(
 struct AdtPatternInfo {
     /// Maps ABC class names to their child class names
     abc_to_children: HashMap<String, Vec<String>>,
+    /// DEPYLER-0936: Reverse mapping from child class names to parent enum names
+    /// Used to rewrite return types like `ListIter<T>` → `Iter<T>`
+    child_to_parent: HashMap<String, String>,
 }
 
 /// Detect ADT patterns in the class hierarchy
@@ -559,7 +564,15 @@ fn detect_adt_patterns(classes: &[HirClass]) -> AdtPatternInfo {
             .unwrap_or(false)
     });
 
-    AdtPatternInfo { abc_to_children }
+    // DEPYLER-0936: Build reverse mapping from children to parents
+    let mut child_to_parent = HashMap::new();
+    for (parent, children) in &abc_to_children {
+        for child in children {
+            child_to_parent.insert(child.clone(), parent.clone());
+        }
+    }
+
+    AdtPatternInfo { abc_to_children, child_to_parent }
 }
 
 /// Generate a Rust enum for an ADT pattern
@@ -1663,6 +1676,7 @@ pub fn generate_rust_file(
         force_dict_value_option_wrap: false, // DEPYLER-0741: Force dict values to use Option wrapping
         char_iter_vars: HashSet::new(), // DEPYLER-0795: Track loop vars iterating over string.chars()
         char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
+        adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
     };
 
     // Analyze all functions first for string optimization
@@ -1746,7 +1760,9 @@ pub fn generate_rust_file(
 
     // Convert classes first (they might be used by functions)
     // DEPYLER-0648: Pass vararg_functions for proper call site generation
-    let classes = convert_classes_to_rust(&module.classes, ctx.type_mapper, &ctx.vararg_functions)?;
+    // DEPYLER-0936: Also get child→parent mapping for ADT type rewriting
+    let (classes, adt_child_to_parent) = convert_classes_to_rust(&module.classes, ctx.type_mapper, &ctx.vararg_functions)?;
+    ctx.adt_child_to_parent = adt_child_to_parent;
 
     // Convert all functions to detect what imports we need
     let functions = convert_functions_to_rust(&module.functions, &mut ctx)?;
@@ -1995,6 +2011,7 @@ mod tests {
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: HashSet::new(), // DEPYLER-0795: Track loop vars iterating over string.chars()
             char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
+            adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
         }
     }
 
