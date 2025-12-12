@@ -2069,6 +2069,12 @@ pub(crate) fn codegen_if_stmt(
         ctx.declare_var(var_name);
     }
 
+    // DEPYLER-0935: Save and restore is_final_statement for if body
+    // Return statements inside if bodies are NOT final statements of the function
+    // because there may be code after the if statement
+    let saved_is_final = ctx.is_final_statement;
+    ctx.is_final_statement = false;
+
     ctx.enter_scope();
     let then_stmts: Vec<_> = then_body
         .iter()
@@ -2101,6 +2107,9 @@ pub(crate) fn codegen_if_stmt(
             }
         })
     };
+
+    // DEPYLER-0935: Restore is_final_statement flag
+    ctx.is_final_statement = saved_is_final;
 
     // DEPYLER-0455 Bug 2: Clean up hoisted inference vars after if-statement
     // Remove variables from tracking set since they're only relevant within this if-statement
