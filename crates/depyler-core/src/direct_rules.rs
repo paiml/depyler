@@ -3745,6 +3745,18 @@ impl<'a> ExprConverter<'a> {
             // list() → Vec::new()
             // list(iterable) → iterable.into_iter().collect::<Vec<_>>()
             "list" => self.convert_list_call(&arg_exprs),
+            // DEPYLER-0935: bytes() builtin for class method bodies
+            // bytes() → Vec::<u8>::new()
+            // bytes(iterable) → iterable.into_iter().map(|x| x as u8).collect::<Vec<u8>>()
+            "bytes" => self.convert_bytes_call(&arg_exprs),
+            // DEPYLER-0936: bytearray() builtin for class method bodies
+            // bytearray() → Vec::<u8>::new()
+            // bytearray(n) → vec![0u8; n]
+            "bytearray" => self.convert_bytearray_call(&arg_exprs),
+            // DEPYLER-0937: tuple() builtin for class method bodies
+            // tuple() → Vec::new()
+            // tuple(iterable) → iterable.into_iter().collect::<Vec<_>>()
+            "tuple" => self.convert_tuple_call(&arg_exprs),
             // DEPYLER-0780: Pass HIR args for auto-borrowing detection
             _ => self.convert_generic_call(func, args, &arg_exprs),
         }
@@ -3820,6 +3832,52 @@ impl<'a> ExprConverter<'a> {
             }
         } else {
             bail!("list() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
+    /// DEPYLER-0935: bytes() builtin for class method bodies
+    /// In Python, bytes(n) creates n zero bytes, bytes([list]) collects the list
+    fn convert_bytes_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() {
+            // bytes() → Vec::<u8>::new()
+            Ok(parse_quote! { Vec::<u8>::new() })
+        } else if args.len() == 1 {
+            let arg = &args[0];
+            // Default to bytes(n) → vec![0u8; n as usize] for numeric expressions
+            // This is the most common case in real code
+            Ok(parse_quote! { vec![0u8; (#arg) as usize] })
+        } else {
+            bail!("bytes() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
+    /// DEPYLER-0936: bytearray() builtin for class method bodies
+    /// In Python, bytearray(n) creates n zero bytes, bytearray([list]) collects the list
+    fn convert_bytearray_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() {
+            // bytearray() → Vec::<u8>::new()
+            Ok(parse_quote! { Vec::<u8>::new() })
+        } else if args.len() == 1 {
+            let arg = &args[0];
+            // Default to bytearray(n) → vec![0u8; n as usize] for numeric expressions
+            // This is the most common case in real code
+            Ok(parse_quote! { vec![0u8; (#arg) as usize] })
+        } else {
+            bail!("bytearray() takes at most 1 argument ({} given)", args.len())
+        }
+    }
+
+    /// DEPYLER-0937: tuple() builtin for class method bodies
+    fn convert_tuple_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() {
+            // tuple() → Vec::new()
+            Ok(parse_quote! { Vec::new() })
+        } else if args.len() == 1 {
+            let iterable = &args[0];
+            // tuple(iterable) → iterable.into_iter().collect()
+            Ok(parse_quote! { #iterable.into_iter().collect::<Vec<_>>() })
+        } else {
+            bail!("tuple() takes at most 1 argument ({} given)", args.len())
         }
     }
 

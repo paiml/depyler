@@ -2820,6 +2820,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "dict" if !is_user_class => self.convert_dict_builtin(&arg_exprs),
             "deque" if !is_user_class => self.convert_deque_builtin(&arg_exprs),
             "list" if !is_user_class => self.convert_list_builtin(&all_hir_args, &arg_exprs),
+            // DEPYLER-0935: bytes() builtin - convert to Vec<u8>
+            "bytes" if !is_user_class => self.convert_bytes_builtin(&all_hir_args, &arg_exprs),
+            // DEPYLER-0936: bytearray() builtin - convert to Vec<u8>
+            "bytearray" if !is_user_class => self.convert_bytearray_builtin(&all_hir_args, &arg_exprs),
+            // DEPYLER-0937: tuple() builtin - convert iterable to collected tuple-like Vec
+            "tuple" if !is_user_class => self.convert_tuple_builtin(&all_hir_args, &arg_exprs),
             // DEPYLER-STDLIB-BUILTINS: Additional builtin functions
             "all" => self.convert_all_builtin(&arg_exprs),
             "any" => self.convert_any_builtin(&arg_exprs),
@@ -3145,12 +3151,80 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         collection_constructors::convert_list_builtin(self.ctx, args)
     }
 
+    /// DEPYLER-0935: Convert Python bytes() constructor to Vec<u8>
+    /// bytes() → Vec::<u8>::new()
+    /// bytes(n) → vec![0u8; n]
+    /// bytes([1, 2, 3]) → vec![1u8, 2u8, 3u8]
+    /// bytes(string) → string.as_bytes().to_vec()
+    fn convert_bytes_builtin(
+        &mut self,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if args.is_empty() {
+            // bytes() → Vec::<u8>::new()
+            return Ok(parse_quote! { Vec::<u8>::new() });
+        }
+
+        if args.len() == 1 {
+            let hir_arg = &hir_args[0];
+            let arg = &args[0];
+
+            // bytes([1, 2, 3]) → list collected as Vec<u8>
+            if matches!(hir_arg, HirExpr::List { .. }) {
+                return Ok(parse_quote! { #arg.into_iter().map(|x| x as u8).collect::<Vec<u8>>() });
+            }
+
+            // bytes(string) → string.as_bytes().to_vec()
+            if self.is_string_type(hir_arg) {
+                return Ok(parse_quote! { #arg.as_bytes().to_vec() });
+            }
+
+            // bytes(bytearray_or_bytes) → just return the bytes/bytearray variable
+            // Check if arg is a variable with list type (bytearray is Vec<u8> = List)
+            if let HirExpr::Var(name) = hir_arg {
+                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::List(_))) {
+                    return Ok(parse_quote! { #arg });
+                }
+            }
+
+            // DEPYLER-0935: bytes(n) where n is numeric expression → vec![0u8; n as usize]
+            // Check for int literal first
+            if matches!(hir_arg, HirExpr::Literal(crate::hir::Literal::Int(_))) {
+                return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
+            }
+
+            // Check for int variable
+            if let HirExpr::Var(name) = hir_arg {
+                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::Int)) {
+                    return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
+                }
+            }
+
+            // For method calls like .len(), assume they return size
+            if matches!(hir_arg, HirExpr::MethodCall { .. }) {
+                return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
+            }
+
+            // Default: assume it's a collection/bytes that should be returned as-is
+            // This handles bytes(some_bytearray) → some_bytearray
+            return Ok(parse_quote! { #arg });
+        }
+
+        // bytes with encoding args: bytes(source, encoding)
+        if args.len() >= 2 {
+            let arg = &args[0];
+            return Ok(parse_quote! { #arg.as_bytes().to_vec() });
+        }
+
+        Ok(parse_quote! { Vec::<u8>::new() })
+    }
+
     /// DEPYLER-0674: Convert Python bytearray() constructor to Vec<u8>
     /// bytearray() → Vec::new()
     /// bytearray(n) → vec![0u8; n]
     /// bytearray([1, 2, 3]) → vec![1u8, 2u8, 3u8]
     /// bytearray(b"hello") → b"hello".to_vec()
-    #[allow(dead_code)]
     fn convert_bytearray_builtin(
         &mut self,
         hir_args: &[HirExpr],
@@ -3165,17 +3239,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let hir_arg = &hir_args[0];
             let arg = &args[0];
 
-            // bytearray(n) where n is an int → vec![0u8; n as usize]
-            // Check for int literal or int variable
-            let is_int = matches!(hir_arg, HirExpr::Literal(crate::hir::Literal::Int(_)))
-                || matches!(
-                    hir_arg,
-                    HirExpr::Var(name) if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::Int))
-                );
-            if is_int {
-                return Ok(parse_quote! { vec![0u8; #arg as usize] });
-            }
-
             // bytearray([1, 2, 3]) → list.into_iter() and collect as Vec<u8>
             if matches!(hir_arg, HirExpr::List { .. }) {
                 return Ok(parse_quote! { #arg.into_iter().collect::<Vec<u8>>() });
@@ -3186,8 +3249,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(parse_quote! { #arg.as_bytes().to_vec() });
             }
 
-            // Default: try to collect iterable directly as Vec<u8>
-            return Ok(parse_quote! { #arg.into_iter().collect::<Vec<u8>>() });
+            // bytearray(bytes) → copy the bytes into a new vec
+            if let HirExpr::Var(name) = hir_arg {
+                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::List(_))) {
+                    return Ok(parse_quote! { #arg.to_vec() });
+                }
+            }
+
+            // DEPYLER-0936: bytearray(n) where n is numeric → vec![0u8; n as usize]
+            // Check for int literal
+            if matches!(hir_arg, HirExpr::Literal(crate::hir::Literal::Int(_))) {
+                return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
+            }
+
+            // Check for int variable
+            if let HirExpr::Var(name) = hir_arg {
+                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::Int)) {
+                    return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
+                }
+            }
+
+            // For method calls like .len(), assume they return size
+            if matches!(hir_arg, HirExpr::MethodCall { .. }) {
+                return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
+            }
+
+            // Default: assume it's a collection that should be collected
+            return Ok(parse_quote! { #arg.to_vec() });
         }
 
         // bytearray with multiple args (source, encoding, errors) - just get bytes
@@ -3197,6 +3285,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         Ok(parse_quote! { Vec::<u8>::new() })
+    }
+
+    /// DEPYLER-0937: Convert Python tuple() constructor to Vec
+    /// In Rust, we represent Python tuples as Vec since Rust tuples are fixed-size.
+    /// tuple() → vec![]
+    /// tuple([1, 2, 3]) → vec![1, 2, 3]
+    /// tuple(iterable) → iterable.into_iter().collect::<Vec<_>>()
+    fn convert_tuple_builtin(
+        &mut self,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
+        if args.is_empty() {
+            // tuple() → Vec::new()
+            return Ok(parse_quote! { Vec::new() });
+        }
+
+        if args.len() == 1 {
+            let hir_arg = &hir_args[0];
+            let arg = &args[0];
+
+            // tuple(string) → string.chars().collect()
+            if self.is_string_type(hir_arg) {
+                return Ok(parse_quote! { #arg.chars().collect::<Vec<_>>() });
+            }
+
+            // tuple(list) or tuple(iterable) → collect to Vec
+            return Ok(parse_quote! { #arg.into_iter().collect::<Vec<_>>() });
+        }
+
+        // tuple doesn't take multiple args, but fallback to first arg
+        let arg = &args[0];
+        Ok(parse_quote! { #arg.into_iter().collect::<Vec<_>>() })
     }
 
     // DEPYLER-STDLIB-BUILTINS: Additional builtin function converters
