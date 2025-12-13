@@ -1,6 +1,6 @@
 # Pareto-Complete Single-Shot Compilation: Root Cause Analysis and Path to 80%
 
-**Version**: 1.1.1
+**Version**: 1.2.0
 **Date**: December 13, 2025
 **Status**: Approved for Implementation
 **Methodology**: Five Whys Root Cause Analysis + Popperian Falsification
@@ -288,6 +288,28 @@ Week 3: Implement Flow-Sensitive Prototype (F2)
 Week 4: Analyze results, adjust strategy
 ```
 
+### 6.5 Automated Falsification CI
+
+To ensure continuous falsifiability, the following workflow will be added to `.github/workflows/falsification.yml`:
+
+```yaml
+name: Falsification Tests
+on: [push]
+jobs:
+  f1-type-annotation:
+    runs-on: ubuntu-latest
+    steps:
+      - run: depyler converge --corpus corpus-annotated --threshold 0.30
+        # Fails if < 30% (falsifies H₀)
+
+  f3-error-isolation:
+    runs-on: ubuntu-latest
+    steps:
+      - run: depyler converge --corpus corpus-type-fixed --threshold 0.50
+        # Fails if > 50% still failing (validates H₀)
+```
+
+
 ---
 
 ## 7. Quickest Path to 80%
@@ -409,6 +431,19 @@ pub fn unify(t1: &Type, t2: &Type) -> Result<Type, UnificationError> {
 }
 ```
 
+### 7.4 Reproducibility Protocol
+
+To ensure consistent measurements across environments:
+
+- **Oracle Random Seed**: `export DEPYLER_SEED=42`
+- **Corpus Snapshot**: `git tag -a sprint-X-baseline -m "Pre-sprint baseline"`
+- **Model Versioning**: 
+  ```bash
+  dvc add models/oracle-sprint-X.bin
+  git push && dvc push
+  ```
+
+
 ---
 
 ## 8. Implementation Roadmap
@@ -446,6 +481,22 @@ Checkpoint 4 (End of S4):
   □ Documentation complete
 ```
 
+### 8.3 Statistical Validation
+
+To validate improvements, each checkpoint must report:
+
+1. **Sample Size (n)**: Number of files tested (e.g., n=632).
+2. **Confidence Interval**: 95% CI for convergence rate (e.g., 30% ± 4%).
+3. **Effect Size**: Cohen's d quantifying improvement over baseline (e.g., d=0.45).
+4. **Raw Data**: Store metrics in `data/convergence-sprint-X.json` for independent verification.
+
+Example validation command:
+```bash
+$ depyler converge --corpus $CORPUS --output-stats stats.json
+$ pmat analyze stats stats.json --ci 0.95 --effect-size
+```
+
+
 ---
 
 ## 9. Risk Analysis
@@ -466,6 +517,38 @@ Checkpoint 4 (End of S4):
 | Return to Whack-a-Mole | High | Critical | Weekly root cause review |
 | Premature optimization | Medium | Medium | Convergence metric as gatekeeper |
 | Analysis paralysis | Low | Medium | Timeboxed falsification tests |
+
+### 9.3 Five Whys: Can We Achieve 80% in 10 Cycles?
+
+**Question**: Given 22% baseline and 80% target, can we close the 58-point gap in 10 cycles?
+
+**Five Whys Analysis (Optimistic Path)**:
+
+| Why | Question | Answer | Evidence |
+|-----|----------|--------|----------|
+| 1 | Why might 10 cycles work? | Each cycle targets architectural improvements, not symptoms | Phased approach yields compounding gains |
+| 2 | Why do architectural fixes compound? | Type inference fixes cascade—one fix enables many compilations | 71% of errors are type-related (E0308, E0599, E0277, E0425) |
+| 3 | Why is the current rate so low? | Whack-a-Mole pattern: 90+ patches, still 22% | Patches fix symptoms, not root cause |
+| 4 | Why will this approach differ? | Focus on flow-sensitive type inference, not error codes | Falsification criteria prevent regression to symptom-fixing |
+| 5 | Why are falsification criteria critical? | They detect when we slip back into Whack-a-Mole | F2: Flow-sensitive must yield +10 points minimum |
+
+**Conclusion**: **YES**, 80% is achievable in 10 cycles **IF**:
+
+1. **Cycles = Focused Sprints** (1-2 weeks each, not individual patches)
+2. **Architectural Focus**: Each cycle targets one of the 3 core improvements (bidirectional propagation, call-site specialization, unification)
+3. **Stop Whack-a-Mole**: No symptom-patching—only root cause fixes
+4. **Falsification Monitoring**: Weekly check of F1-F4 criteria to detect drift
+
+**Expected Trajectory**:
+
+| Cycle | Focus | Expected Convergence | Cumulative Gain |
+|-------|-------|---------------------|-----------------|
+| 1-2 | Phase 1 (Low-hanging fruit) | 35% | +13 points |
+| 3-5 | Phase 2a (Forward propagation) | 50% | +15 points |
+| 6-8 | Phase 2b (Backward + call-site) | 70% | +20 points |
+| 9-10 | Phase 3 (Unification + polish) | 80%+ | +10 points |
+
+**Failure Mode**: If by Cycle 5 we haven't reached 45%, falsification criterion F2 triggers—indicating bidirectional propagation is NOT the solution. At that point, we pivot to Alternative Root Cause (F4): likely **AST Bridge fidelity** or **stdlib mapping gaps**.
 
 ---
 
