@@ -4747,6 +4747,29 @@ impl RustCodeGen for HirFunction {
             ctx.vararg_functions.insert(self.name.clone());
         }
 
+        // DEPYLER-0964: Track parameters that are &mut Option<HashMap<K, V>>
+        // These occur when param type is Dict[K,V] with default None
+        // Inside the function body, we need special handling:
+        // - Assignment: `memo = {}` → `*memo = Some(HashMap::new())`
+        // - Method calls: `memo.get(k)` → `memo.as_ref().unwrap().get(&k)`
+        // - Subscript: `memo[k] = v` → `memo.as_mut().unwrap().insert(k, v)`
+        for param in &self.params {
+            let is_dict = matches!(&param.ty, Type::Dict { .. })
+                || matches!(&param.ty, Type::Custom(name) if name == "dict");
+            let has_none_default = matches!(
+                &param.default,
+                Some(HirExpr::Literal(Literal::None))
+            );
+            // Also check for Optional(Dict) type
+            let is_optional_dict = matches!(
+                &param.ty,
+                Type::Optional(inner) if matches!(inner.as_ref(), Type::Dict { .. })
+            );
+            if (is_dict && has_none_default) || is_optional_dict {
+                ctx.mut_option_dict_params.insert(param.name.clone());
+            }
+        }
+
         // Generate return type with Result wrapper and lifetime handling
         let (return_type, rust_ret_type, can_fail, error_type) =
             codegen_return_type(self, &lifetime_result, ctx)?;
