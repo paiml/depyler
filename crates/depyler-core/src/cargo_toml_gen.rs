@@ -517,6 +517,7 @@ mod tests {
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
+            mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -664,6 +665,7 @@ mod tests {
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
+            mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
         };
 
         let deps = extract_dependencies(&ctx);
@@ -808,6 +810,7 @@ mod tests {
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
+            mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
         };
 
         let deps = extract_dependencies(&ctx);
@@ -956,6 +959,7 @@ mod tests {
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
+            mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
         };
 
         let deps = extract_dependencies(&ctx);

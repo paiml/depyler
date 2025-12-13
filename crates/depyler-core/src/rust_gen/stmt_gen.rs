@@ -4488,6 +4488,23 @@ pub(crate) fn codegen_assign_symbol(
                 value_expr
             }
         };
+        // DEPYLER-0964: Handle &mut Option<Dict> parameter assignments
+        // When assigning to a parameter that is `&mut Option<HashMap<K, V>>`,
+        // we need to dereference and wrap in Some:
+        // - Python: `memo = {}` → Rust: `*memo = Some(HashMap::new())`
+        // This handles the common memoization pattern: `if memo is None: memo = {}`
+        if ctx.mut_option_dict_params.contains(symbol) {
+            // Check if value is already wrapped in Some or is None
+            let value_str = quote!(#value_expr).to_string();
+            if value_str.starts_with("Some") || value_str == "None" {
+                // Already wrapped, just dereference
+                return Ok(quote! { *#target_ident = #value_expr; });
+            } else {
+                // Wrap in Some and dereference
+                return Ok(quote! { *#target_ident = Some(#value_expr); });
+            }
+        }
+
         // DEPYLER-0604: Check if variable has Optional type and wrap value in Some()
         let final_value = if let Some(Type::Optional(inner_type)) = ctx.var_types.get(symbol) {
             // Check if the value is already wrapped in Some or is None
@@ -4598,6 +4615,28 @@ pub(crate) fn codegen_assign_index(
     value_expr: syn::Expr,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-0964: Handle subscript assignment to &mut Option<HashMap<K, V>> parameters
+    // When a parameter is Dict[K,V] with default None, it becomes &mut Option<HashMap>
+    // Subscript assignment needs to unwrap the Option first:
+    // - memo[k] = v → memo.as_mut().unwrap().insert(k, v)
+    if let HirExpr::Var(base_name) = base {
+        if ctx.mut_option_dict_params.contains(base_name) {
+            let base_ident = safe_ident(base_name);
+            let key_expr = index.to_rust_expr(ctx)?;
+            // Clone key if it's a variable to avoid move issues
+            let needs_clone = matches!(index, HirExpr::Var(_));
+            if needs_clone {
+                return Ok(quote! {
+                    #base_ident.as_mut().unwrap().insert(#key_expr.clone(), #value_expr);
+                });
+            } else {
+                return Ok(quote! {
+                    #base_ident.as_mut().unwrap().insert(#key_expr, #value_expr);
+                });
+            }
+        }
+    }
+
     let final_index = index.to_rust_expr(ctx)?;
 
     // DEPYLER-0304: Type-aware subscript assignment detection

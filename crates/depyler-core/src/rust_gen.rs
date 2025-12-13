@@ -1693,6 +1693,7 @@ pub fn generate_rust_file(
         char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
         adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
         function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
+        mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
     };
 
     // Analyze all functions first for string optimization
@@ -2039,6 +2040,7 @@ mod tests {
             char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
             adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
             function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
+            mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
         }
     }
 
