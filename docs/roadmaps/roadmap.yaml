@@ -2956,3 +2956,19 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-0962
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0962'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-13T12:06:01.088617545+00:00
+  updated: 2025-12-13T12:06:01.088617545+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

@@ -60,8 +60,9 @@ impl UnionEnumGenerator {
             })
             .collect();
 
+        // DEPYLER-0962: Add serde derives for JSON serialization/deserialization
         let enum_def = quote! {
-            #[derive(Debug, Clone, PartialEq)]
+            #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
             pub enum #enum_ident {
                 #(#variant_defs),*
             }
