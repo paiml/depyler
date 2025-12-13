@@ -2684,3 +2684,275 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-0927-NESTED-COMPARISONS
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0927-NESTED-COMPARISONS'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-11T11:00:54.735337711+00:00
+  updated: 2025-12-11T11:00:54.735337711+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0928
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0928'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-11T11:15:27.544027238+00:00
+  updated: 2025-12-11T18:26:25.699234037+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0930
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0930'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-11T11:49:59.507582741+00:00
+  updated: 2025-12-11T17:48:06.498285876+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0931
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0931'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-11T12:05:01.045558031+00:00
+  updated: 2025-12-11T12:11:45.923996619+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0932
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0932'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-11T12:14:30.248288212+00:00
+  updated: 2025-12-12T13:11:15.637124130+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0935
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0935'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-11T14:14:15.974918967+00:00
+  updated: 2025-12-11T14:14:15.974918967+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-COVERAGE-95: Fast coverage like bashrs with 95% target'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-COVERAGE-95: Fast coverage like bashrs with 95% target'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:06:56.478796900+00:00
+  updated: 2025-12-12T12:10:32.469946389+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0950: Implement Transparent Incremental Caching Layer for single-shot compilation scalability'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0950: Implement Transparent Incremental Caching Layer for single-shot compilation scalability'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:25:40.789801273+00:00
+  updated: 2025-12-12T17:14:43.934509473+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0951: Implement Depylint tool for proactive detection of unsupported Python features (eval, exec, metaclasses)'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0951: Implement Depylint tool for proactive detection of unsupported Python features (eval, exec, metaclasses)'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:25:46.260365406+00:00
+  updated: 2025-12-12T12:57:01.985481742+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0952: Implement Auto-Coercion Injection Pass for systemic E0308 type mismatch resolution'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0952: Implement Auto-Coercion Injection Pass for systemic E0308 type mismatch resolution'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:25:51.330453645+00:00
+  updated: 2025-12-12T12:36:14.867716047+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0953: Implement Flow-Sensitive Nullability Analysis for improved Option<T> inference'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0953: Implement Flow-Sensitive Nullability Analysis for improved Option<T> inference'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:25:56.684885448+00:00
+  updated: 2025-12-12T13:06:20.948405878+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0954: Integrate Test Impact Analysis (TIA) for 50-80% faster CI cycles'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0954: Integrate Test Impact Analysis (TIA) for 50-80% faster CI cycles'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:26:01.053212143+00:00
+  updated: 2025-12-12T12:56:00.556507630+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0955: Standardize Mutation Testing with cargo-mutants (target: 80% mutation score)'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0955: Standardize Mutation Testing with cargo-mutants (target: 80% mutation score)'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:26:05.666496952+00:00
+  updated: 2025-12-12T12:38:55.716310315+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0956: Integrate Renacer Golden Trace Validation into CI for regression detection'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0956: Integrate Renacer Golden Trace Validation into CI for regression detection'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:26:11.250137486+00:00
+  updated: 2025-12-12T13:03:20.842106683+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0957: Implement Risk-Based Testing (RBT) framework for release sprints'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0957: Implement Risk-Based Testing (RBT) framework for release sprints'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:26:16.099260543+00:00
+  updated: 2025-12-12T12:59:08.655977707+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: 'DEPYLER-0958: Expand WASM bindings for high-performance browser-based Python applications'
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0958: Expand WASM bindings for high-performance browser-based Python applications'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-12T12:26:21.787018057+00:00
+  updated: 2025-12-12T13:04:57.038826304+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-0960
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-0960'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2025-12-13T09:04:49.499354094+00:00
+  updated: 2025-12-13T10:43:55.103757106+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

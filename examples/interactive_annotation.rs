@@ -1,8 +1,8 @@
 use std::f64 as math;
-const STR_D: &'static str = "D";
-const STR_C: &'static str = "C";
 const STR_A: &'static str = "A";
+const STR_C: &'static str = "C";
 const STR_B: &'static str = "B";
+const STR_D: &'static str = "D";
 use serde_json;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -88,7 +88,7 @@ impl DataBuffer {
 }
 #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'a, 'b>(
+pub fn matrix_multiply<'b, 'a>(
     a: &'a Vec<Vec<f64>>,
     b: &'b Vec<Vec<f64>>,
 ) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>> {
@@ -133,7 +133,7 @@ pub fn matrix_multiply<'a, 'b>(
     Ok(result)
 }
 #[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "]
-pub fn process_text_data<'a, 'b>(
+pub fn process_text_data<'b, 'a>(
     texts: &'a Vec<String>,
     keywords: &'b Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
@@ -219,7 +219,7 @@ pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> 
 }
 #[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "]
 #[doc = " Depyler: proven to terminate"]
-pub fn safe_divide<'b, 'a>(
+pub fn safe_divide<'a, 'b>(
     numbers: &'a Vec<f64>,
     divisors: &'b Vec<f64>,
 ) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>> {
@@ -252,7 +252,7 @@ pub fn parallel_map(
     Ok(results)
 }
 #[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "]
-pub fn optimize_route<'c, 'a, 'b>(
+pub fn optimize_route<'b, 'c, 'a>(
     distances: &'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>,
     start: &'b str,
     end: &'c str,

@@ -121,9 +121,11 @@ def get_squares():
 
     // The dict comprehension should reference nums in the iterator
     // Note: formatted code may have newlines: "nums\n        .iter()"
+    // Also accepts "nums.as_slice().iter()" which is valid for Vec iteration
     let rust_no_whitespace: String = rust.chars().filter(|c| !c.is_whitespace()).collect();
     assert!(
-        rust_no_whitespace.contains("nums.iter()"),
+        rust_no_whitespace.contains("nums.iter()")
+            || rust_no_whitespace.contains("nums.as_slice().iter()"),
         "Dict comprehension should iterate over nums. Generated:\n{}",
         rust
     );

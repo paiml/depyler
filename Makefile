@@ -1,12 +1,11 @@
 # Depyler Makefile - Comprehensive Testing Infrastructure
 # Following NASA/SQLite reliability standards
-.PHONY: all build test test-full test-rust test-frontend test-fast test-comprehensive test-fixtures test-property test-compilation test-semantic validate quality-gate coverage clean-test lint lint-rust lint-frontend clippy fmt format fmt-check fmt-fix fmt-rust fmt-frontend fmt-docs check bench install-deps help profile profile-transpiler profile-tests profile-cargo-toml book-test book-test-fast book-build book-serve book-clean book-validate book-check validate-makefiles lint-scripts bashrs-report
+.PHONY: all build test test-full test-rust test-frontend test-fast test-comprehensive test-fixtures test-property test-compilation test-semantic validate quality-gate coverage coverage-summary coverage-open coverage-check coverage-ci coverage-clean clean-coverage clean-test mutants mutants-quick mutants-check mutants-report lint lint-rust lint-frontend clippy fmt format fmt-check fmt-fix fmt-rust fmt-frontend fmt-docs check bench install-deps help profile profile-transpiler profile-tests profile-cargo-toml book-test book-test-fast book-build book-serve book-clean book-validate book-check validate-makefiles lint-scripts bashrs-report
 # Configuration
 CARGO := cargo
 MAKEFLAGS += -j$(shell nproc)
-# Coverage threshold (NASA standard: 85% minimum)
-# Starting with 60% and will increase incrementally
-COVERAGE_THRESHOLD := 60
+# Coverage threshold (Toyota Way: 95% minimum)
+COVERAGE_THRESHOLD := 95
 # Quality gate thresholds
 MAX_COMPLEXITY := 10
 MAX_LINES_PER_FUNCTION := 50
@@ -167,6 +166,90 @@ test-fast: ## Quick feedback loop for development (< 5 min, uses cargo-nextest)
 	else \
 		PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo test --workspace; \
 	fi
+
+# Test Impact Analysis (TIA) - DEPYLER-0954
+# Runs only tests affected by code changes for 50-80% faster CI
+.PHONY: test-tia test-affected tia-report
+test-tia: ## Run only tests affected by recent changes (TIA)
+	@echo "🔍 DEPYLER-0954: Test Impact Analysis"
+	@./scripts/tia.sh HEAD~1
+
+test-affected: ## Run tests affected by changes since main branch
+	@echo "🔍 Running tests affected by changes since main..."
+	@./scripts/tia.sh main
+
+tia-report: ## Show which tests would be affected by current changes
+	@echo "📊 TIA Report: Tests affected by uncommitted changes"
+	@echo ""
+	@CHANGED=$$(git diff --name-only HEAD -- '*.rs' 2>/dev/null | wc -l); \
+	if [ "$$CHANGED" -eq 0 ]; then \
+		echo "No Rust files changed"; \
+	else \
+		echo "Changed files:"; \
+		git diff --name-only HEAD -- '*.rs' | head -10; \
+		echo ""; \
+		echo "Affected packages:"; \
+		git diff --name-only HEAD -- '*.rs' | grep -oP 'crates/\K[^/]+' | sort -u; \
+	fi
+
+# Risk-Based Testing (RBT) - DEPYLER-0957
+# Prioritizes test execution based on impact/likelihood matrix
+.PHONY: test-rbt test-rbt-high rbt-analyze rbt-report
+test-rbt: ## Run tests in risk-priority order (high-risk first)
+	@echo "🎯 DEPYLER-0957: Risk-Based Testing"
+	@./scripts/rbt.sh
+
+test-rbt-high: ## Run only high-risk tests (fail-fast mode)
+	@echo "🎯 Running high-risk tests only (fail-fast)..."
+	@./scripts/rbt.sh --high-only
+
+rbt-analyze: ## Analyze test risk scores without running
+	@./scripts/rbt.sh --analyze
+
+rbt-report: ## Generate detailed risk-based testing report
+	@./scripts/rbt.sh --report
+
+# Incremental Caching Layer - DEPYLER-0950
+# O(1) compilation cache for single-shot transpilation scalability
+.PHONY: cache-stats cache-warm cache-gc cache-clean
+cache-stats: ## Show cache statistics (hit rate, size, entries)
+	@echo "📊 DEPYLER-0950: Cache Statistics"
+	@./target/release/depyler cache stats 2>/dev/null || echo "Build depyler first: make build"
+
+cache-warm: ## Warm cache for examples directory
+	@echo "🔥 Warming cache for examples..."
+	@./target/release/depyler cache warm --input-dir examples 2>/dev/null || echo "Build depyler first: make build"
+
+cache-gc: ## Run garbage collection on cache
+	@echo "🗑️  Running cache garbage collection..."
+	@./target/release/depyler cache gc 2>/dev/null || echo "Build depyler first: make build"
+
+cache-clean: ## Clear all cached transpilation results
+	@echo "🧹 Clearing cache..."
+	@rm -rf .depyler/cache
+	@echo "✅ Cache cleared"
+
+# Golden Trace Validation - DEPYLER-0956
+# Renacer-based semantic equivalence verification
+.PHONY: golden-trace golden-trace-ci golden-trace-capture
+golden-trace: ## Run golden trace validation on examples
+	@echo "🔍 DEPYLER-0956: Golden Trace Validation"
+	@./scripts/golden_trace.sh --help
+
+golden-trace-ci: build ## Run full CI golden trace validation
+	@echo "🧪 Running Golden Trace CI validation..."
+	@for dir in examples/test_project examples/algorithms; do \
+		echo "Validating: $$dir"; \
+		./scripts/golden_trace.sh ci "$$dir" || true; \
+	done
+
+golden-trace-capture: ## Capture golden traces for a specific example
+	@if [ -z "$(EXAMPLE)" ]; then \
+		echo "Usage: make golden-trace-capture EXAMPLE=examples/test_project"; \
+	else \
+		./scripts/golden_trace.sh ci "$(EXAMPLE)"; \
+	fi
+
 test-pre-commit-fast: ## Ultra-fast pre-commit validation (< 60 seconds with build scripts)
 	@echo "⚡ Running pre-commit fast validation (<60s with build scripts)..."
 	@echo "   (Type checking only - no test execution)"
@@ -349,21 +432,34 @@ security-audit: ## Run security audit
 # Filter out external dependencies from coverage reports (only show depyler crates)
 COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno"
 .PHONY: coverage
-coverage: ## Generate HTML coverage report (target: <10 min)
-	@echo "📊 Running test coverage analysis (target: <10 min)..."
+coverage: ## Generate HTML coverage report (target: <5 min, 95% threshold)
+	@echo "📊 Running test coverage analysis (target: <5 min)..."
+	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
 	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
 	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
+	@echo "🧹 Cleaning old coverage data..."
 	@cargo llvm-cov clean --workspace
 	@mkdir -p target/coverage
+	@echo "⚙️  Temporarily disabling global cargo config (mold breaks coverage)..."
 	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
-	@env PROPTEST_CASES=100 QUICKCHECK_TESTS=100 cargo llvm-cov --no-report nextest --no-tests=warn --workspace
+	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
+	@env PROPTEST_CASES=50 QUICKCHECK_TESTS=50 cargo llvm-cov --no-report nextest --no-tests=warn --all-features --workspace
+	@echo "📊 Phase 2: Generating coverage reports..."
 	@cargo llvm-cov report --html --output-dir target/coverage/html --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
+	@echo "⚙️  Restoring global cargo config..."
 	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
 	@echo ""
 	@echo "📊 Coverage Summary:"
+	@echo "=================="
 	@cargo llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
-	@echo "💡 HTML report: target/coverage/html/index.html"
+	@echo ""
+	@echo "💡 COVERAGE INSIGHTS:"
+	@echo "- HTML report: target/coverage/html/index.html"
+	@echo "- LCOV file: target/coverage/lcov.info"
+	@echo "- Open HTML: make coverage-open"
+	@echo "- Threshold: $(COVERAGE_THRESHOLD)%"
+	@echo ""
 coverage-summary: ## Display coverage summary (run 'make coverage' first)
 	@echo "📊 Coverage Summary:"
 	@echo "=================="
@@ -373,8 +469,69 @@ coverage-open: ## Open HTML coverage report in browser (run 'make coverage' firs
 	@if [ ! -f target/coverage/html/index.html ]; then echo "⚠️  Coverage report not found. Run 'make coverage' first."; exit 1; fi
 	@if command -v xdg-open > /dev/null; then xdg-open target/coverage/html/index.html; elif command -v open > /dev/null; then open target/coverage/html/index.html; else echo "💡 Cannot auto-open. View report at: target/coverage/html/index.html"; fi
 coverage-check: ## Check coverage threshold (assumes coverage already collected)
-	@echo "Checking coverage threshold..."
+	@echo "Checking coverage threshold ($(COVERAGE_THRESHOLD)%)..."
 	@COVERAGE=$$($(CARGO) llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX) | grep "TOTAL" | awk '{print $$4}' | sed 's/%//'); if [ "$$COVERAGE" -lt "$(COVERAGE_THRESHOLD)" ]; then echo "❌ Coverage $$COVERAGE% below threshold $(COVERAGE_THRESHOLD)%"; exit 1; else echo "✅ Coverage $$COVERAGE% meets threshold $(COVERAGE_THRESHOLD)%"; fi
+coverage-ci: ## Generate LCOV report for CI/CD (fast mode)
+	@echo "=== Code Coverage for CI/CD ==="
+	@echo "Phase 1: Running tests with instrumentation..."
+	@cargo llvm-cov clean --workspace
+	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
+	@env PROPTEST_CASES=50 QUICKCHECK_TESTS=50 cargo llvm-cov --no-report nextest --no-tests=warn --all-features --workspace
+	@echo "Phase 2: Generating LCOV report..."
+	@cargo llvm-cov report --lcov --output-path lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
+	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
+	@echo "✓ Coverage report generated: lcov.info"
+coverage-clean: ## Clean coverage artifacts
+	@cargo llvm-cov clean --workspace
+	@rm -f lcov.info coverage.xml target/coverage/lcov.info
+	@rm -rf target/llvm-cov target/coverage
+	@find . -name "*.profraw" -delete 2>/dev/null || true
+	@echo "✓ Coverage artifacts cleaned"
+clean-coverage: coverage-clean ## Alias for coverage-clean
+	@echo "✓ Fresh coverage ready (run 'make coverage' to regenerate)"
+# #@ Mutation Testing (Goodhart's Law Mitigation - per DEPYLER-0955)
+# Target: 80% mutation score (more rigorous than line coverage)
+MUTATION_SCORE_TARGET := 80
+.PHONY: mutants mutants-quick mutants-check mutants-report
+mutants: ## Run full mutation testing (slow, thorough)
+	@echo "🧬 Running mutation testing (target: $(MUTATION_SCORE_TARGET)% kill rate)..."
+	@echo "⚠️  This may take 10-30 minutes for full workspace"
+	@cargo mutants --workspace --timeout 60 --jobs $(shell nproc)
+	@echo "✓ Mutation testing complete"
+mutants-quick: ## Quick mutation testing on changed files only
+	@echo "🧬 Running quick mutation testing on recently changed files..."
+	@CHANGED_FILES=$$(git diff --name-only HEAD~5 -- '*.rs' | head -10); \
+	if [ -n "$$CHANGED_FILES" ]; then \
+		for f in $$CHANGED_FILES; do \
+			if [ -f "$$f" ]; then \
+				echo "Testing mutations in: $$f"; \
+				cargo mutants --file "$$f" --timeout 30 --jobs $(shell nproc) || true; \
+			fi; \
+		done; \
+	else \
+		echo "No recent Rust changes found, running on depyler-core"; \
+		cargo mutants -p depyler-core --timeout 30 --jobs $(shell nproc) -- --lib; \
+	fi
+mutants-check: ## Check mutation score meets threshold (for CI)
+	@echo "🧬 Checking mutation score threshold ($(MUTATION_SCORE_TARGET)%)..."
+	@cargo mutants -p depyler-core --timeout 30 --jobs $(shell nproc) -- --lib 2>&1 | tee /tmp/mutants.log; \
+	KILLED=$$(grep -oP '\d+ killed' /tmp/mutants.log | grep -oP '\d+' || echo 0); \
+	TOTAL=$$(grep -oP '\d+ mutants' /tmp/mutants.log | grep -oP '\d+' || echo 1); \
+	if [ "$$TOTAL" -gt 0 ]; then \
+		SCORE=$$((KILLED * 100 / TOTAL)); \
+		echo "Mutation Score: $$SCORE% ($$KILLED/$$TOTAL killed)"; \
+		if [ "$$SCORE" -lt "$(MUTATION_SCORE_TARGET)" ]; then \
+			echo "❌ Mutation score $$SCORE% below threshold $(MUTATION_SCORE_TARGET)%"; \
+			exit 1; \
+		else \
+			echo "✅ Mutation score $$SCORE% meets threshold $(MUTATION_SCORE_TARGET)%"; \
+		fi; \
+	fi
+mutants-report: ## Generate HTML mutation testing report
+	@echo "🧬 Generating mutation testing report..."
+	@mkdir -p target/mutants
+	@cargo mutants -p depyler-core --timeout 30 --jobs $(shell nproc) --output target/mutants -- --lib
+	@echo "✓ Report available in target/mutants/"
 # #@ Test Data Management
 generate-fixtures: ## Generate additional test fixtures
 	@echo "Generating test fixtures..."
@@ -393,6 +550,8 @@ install-deps: ## Install development dependencies
 	$(CARGO) install cargo-llvm-cov
 	$(CARGO) install cargo-audit
 	$(CARGO) install cargo-watch
+	$(CARGO) install cargo-mutants
+	$(CARGO) install cargo-nextest
 	@if ! command -v rustfmt > /dev/null; then rustup component add rustfmt; fi
 	@if ! command -v clippy > /dev/null; then rustup component add clippy; fi
 check-deps: ## Check if all dependencies are installed

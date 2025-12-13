@@ -11,7 +11,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Detect OS and architecture
-OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+OS=$(uname -s | tr '[[:upper:]]' '[[:lower:]]')
 ARCH=$(uname -m)
 
 # Map to release naming convention
@@ -77,7 +77,7 @@ fi
 
 # Download and install
 TEMP_DIR=$(mktemp -d)
-cd "$TEMP_DIR"
+cd "$TEMP_DIR" || exit 1
 
 echo "📥 Downloading from: $LATEST_URL"
 curl -L -o depyler.tar.gz "$LATEST_URL"
@@ -106,8 +106,10 @@ else
 fi
 
 # Cleanup
-cd /
-rm -rf "$TEMP_DIR"
+cd / || exit 1
+if [ -n "$TEMP_DIR" ] && [ -d "$TEMP_DIR" ]; then
+    rm -rf "$TEMP_DIR"
+fi
 
 # Verify installation
 if command -v depyler &> /dev/null; then

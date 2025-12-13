@@ -561,6 +561,66 @@ impl DepylerWasm {
         env!("CARGO_PKG_VERSION").to_string()
     }
 
+    /// Lint Python code for unsupported features
+    ///
+    /// Proactively detects Python constructs that cannot be transpiled,
+    /// including eval(), exec(), metaclasses, and dynamic attribute access.
+    ///
+    /// # Arguments
+    ///
+    /// * `python_code` - The Python source code to lint
+    ///
+    /// # Returns
+    ///
+    /// A JSON array of lint warnings, each containing:
+    /// - code: Warning code (e.g., "DPL001" for eval)
+    /// - message: Human-readable description
+    /// - severity: "error", "warning", or "info"
+    /// - line: Line number (1-indexed)
+    /// - column: Column number
+    /// - suggestion: Recommended fix
+    ///
+    /// # Examples
+    ///
+    /// ```rust,ignore
+    /// let engine = DepylerWasm::new();
+    ///
+    /// let warnings = engine.lint(r#"
+    /// def dangerous():
+    ///     eval("user_input")  # DPL001: eval() not supported
+    ///     exec("code")        # DPL002: exec() not supported
+    /// "#).unwrap();
+    ///
+    /// // warnings contains DPL001 and DPL002
+    /// ```
+    #[wasm_bindgen]
+    pub fn lint(&self, python_code: &str) -> Result<JsValue, JsValue> {
+        if !self.initialized {
+            return Err(JsValue::from_str("DepylerWasm not initialized"));
+        }
+
+        let mut analyzer = depyler_core::depylint::DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(python_code);
+
+        // Convert to JS-friendly format
+        let lint_results: Vec<LintResult> = warnings
+            .iter()
+            .map(|w| {
+                let (line, col) = offset_to_line_col(python_code, w.offset);
+                LintResult {
+                    code: w.code.clone(),
+                    message: w.message.clone(),
+                    severity: format!("{}", w.severity),
+                    line,
+                    column: col,
+                    suggestion: w.suggestion.clone(),
+                }
+            })
+            .collect();
+
+        serde_wasm_bindgen::to_value(&lint_results).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
     /// Benchmark transpilation performance
     ///
     /// Runs the transpilation process multiple times to measure
@@ -636,6 +696,35 @@ pub struct BenchmarkResult {
     pub mean_ms: f64,
     pub median_ms: f64,
     pub std_dev_ms: f64,
+}
+
+/// Result of linting Python code for unsupported features
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LintResult {
+    pub code: String,
+    pub message: String,
+    pub severity: String,
+    pub line: usize,
+    pub column: usize,
+    pub suggestion: Option<String>,
+}
+
+/// Convert byte offset to line and column (1-indexed)
+fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
+    let mut line = 1;
+    let mut col = 1;
+    for (i, c) in source.char_indices() {
+        if i >= offset {
+            break;
+        }
+        if c == '\n' {
+            line += 1;
+            col = 1;
+        } else {
+            col += 1;
+        }
+    }
+    (line, col)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

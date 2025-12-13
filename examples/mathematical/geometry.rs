@@ -124,7 +124,7 @@ pub fn triangle_area_heron(a: f64, b: f64, c: f64) -> Result<f64, Box<dyn std::e
 }
 #[doc = "Find intersection of two lines defined by point pairs"]
 #[doc = " Depyler: proven to terminate"]
-pub fn line_intersection<'b, 'l1, 'c, 'a>(
+pub fn line_intersection<'l1, 'b, 'a, 'c>(
     p1: &'a Point,
     p2: &'b Point,
     p3: &'c Point,

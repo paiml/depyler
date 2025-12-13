@@ -502,6 +502,7 @@ mod tests {
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
             function_param_defaults: std::collections::HashMap::new(),
+            class_field_defaults: std::collections::HashMap::new(), // DEPYLER-0932
             function_param_optionals: std::collections::HashMap::new(),
             class_field_types: std::collections::HashMap::new(),
             boxed_dyn_write_vars: std::collections::HashSet::new(),
@@ -514,6 +515,8 @@ mod tests {
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
+            adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
+            function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -646,6 +649,7 @@ mod tests {
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
             function_param_defaults: std::collections::HashMap::new(),
+            class_field_defaults: std::collections::HashMap::new(), // DEPYLER-0932
             function_param_optionals: std::collections::HashMap::new(),
             class_field_types: std::collections::HashMap::new(),
             boxed_dyn_write_vars: std::collections::HashSet::new(),
@@ -658,6 +662,8 @@ mod tests {
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
+            adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
+            function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
         };
 
         let deps = extract_dependencies(&ctx);
@@ -787,6 +793,7 @@ mod tests {
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
             function_param_defaults: std::collections::HashMap::new(),
+            class_field_defaults: std::collections::HashMap::new(), // DEPYLER-0932
             function_param_optionals: std::collections::HashMap::new(),
             class_field_types: std::collections::HashMap::new(),
             boxed_dyn_write_vars: std::collections::HashSet::new(),
@@ -799,6 +806,8 @@ mod tests {
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
+            adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
+            function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
         };
 
         let deps = extract_dependencies(&ctx);
@@ -932,6 +941,7 @@ mod tests {
             hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
             function_param_defaults: std::collections::HashMap::new(),
+            class_field_defaults: std::collections::HashMap::new(), // DEPYLER-0932
             function_param_optionals: std::collections::HashMap::new(),
             class_field_types: std::collections::HashMap::new(),
             boxed_dyn_write_vars: std::collections::HashSet::new(),
@@ -944,6 +954,8 @@ mod tests {
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
+            adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
+            function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
         };
 
         let deps = extract_dependencies(&ctx);

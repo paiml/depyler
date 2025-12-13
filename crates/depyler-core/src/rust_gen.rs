@@ -1561,6 +1561,20 @@ pub fn generate_rust_file(
         }
     }
 
+    // DEPYLER-0932: Collect dataclass field defaults for constructor call site generation
+    // Maps class name -> Vec of Option<HirExpr> where each element corresponds to a field
+    // None if field has no default, Some(default_expr) if it has a default value
+    let mut class_field_defaults: std::collections::HashMap<String, Vec<Option<crate::hir::HirExpr>>> =
+        std::collections::HashMap::new();
+    for class in &module.classes {
+        let defaults: Vec<Option<crate::hir::HirExpr>> = class
+            .fields
+            .iter()
+            .map(|f| f.default_value.clone())
+            .collect();
+        class_field_defaults.insert(class.name.clone(), defaults);
+    }
+
     let mut ctx = CodeGenContext {
         type_mapper,
         annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
@@ -1638,6 +1652,7 @@ pub fn generate_rust_file(
         function_param_borrows: std::collections::HashMap::new(), // DEPYLER-0270: Track parameter borrowing
         function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
         function_param_defaults: std::collections::HashMap::new(),
+        class_field_defaults, // DEPYLER-0932: Dataclass field defaults for constructor call sites
         function_param_optionals: std::collections::HashMap::new(), // DEPYLER-0737: Track Optional params
         class_field_types: std::collections::HashMap::new(), // DEPYLER-0621: Track default param values
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
@@ -1677,6 +1692,7 @@ pub fn generate_rust_file(
         char_iter_vars: HashSet::new(), // DEPYLER-0795: Track loop vars iterating over string.chars()
         char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
         adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
+        function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
     };
 
     // Analyze all functions first for string optimization
@@ -1723,6 +1739,14 @@ pub fn generate_rust_file(
         if matches!(func.ret_type, Type::Optional(_)) {
             ctx.option_returning_functions.insert(func.name.clone());
         }
+    }
+
+    // DEPYLER-0950: Populate function parameter types for literal coercion at call sites
+    // When calling add(1, 2.5) where add expects (f64, f64), we need to coerce 1 to 1.0
+    for func in &module.functions {
+        let param_types: Vec<Type> = func.params.iter().map(|p| p.ty.clone()).collect();
+        ctx.function_param_types
+            .insert(func.name.clone(), param_types);
     }
 
     // DEPYLER-0648: Pre-populate vararg functions before codegen
@@ -1796,10 +1820,11 @@ pub fn generate_rust_file(
     items.extend(generate_error_type_definitions(&ctx));
 
     // DEPYLER-0627: Add CompletedProcess struct if subprocess.run is used
+    // DEPYLER-0931: Added Default derive for hoisting support in try/except blocks
     if ctx.needs_completed_process {
         let completed_process_struct = quote::quote! {
             /// Result of subprocess.run()
-            #[derive(Debug, Clone)]
+            #[derive(Debug, Clone, Default)]
             pub struct CompletedProcess {
                 pub returncode: i32,
                 pub stdout: String,
@@ -2004,6 +2029,7 @@ mod tests {
             function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
             option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
             function_param_defaults: HashMap::new(), // Track function parameter defaults
+            class_field_defaults: HashMap::new(), // DEPYLER-0932: Dataclass field defaults
             function_param_optionals: HashMap::new(), // DEPYLER-0737: Track Optional params
             class_field_types: HashMap::new(), // DEPYLER-0720: Track class field types
             type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions
@@ -2012,6 +2038,7 @@ mod tests {
             char_iter_vars: HashSet::new(), // DEPYLER-0795: Track loop vars iterating over string.chars()
             char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
             adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
+            function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
         }
     }
 

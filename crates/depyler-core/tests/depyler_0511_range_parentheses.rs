@@ -87,9 +87,12 @@ def test() -> list[int]:
 
     let rust_code = transpile_to_rust(python);
 
-    // Should contain (0..5).into_iter() NOT 0..5.into_iter()
+    // Should contain parenthesized range before .into_iter() NOT 0..5.into_iter()
+    // DEPYLER-0905 generates `(0..(5)).into_iter()` to handle complex expressions safely
     assert!(
-        rust_code.contains("(0..5).into_iter()") || rust_code.contains("(0_i32..5"),
+        rust_code.contains("(0..5).into_iter()")
+            || rust_code.contains("(0..(5)).into_iter()")
+            || rust_code.contains("(0_i32..5"),
         "DEPYLER-0511: Range should have parentheses before .into_iter(). Generated:\n{}",
         rust_code
     );
@@ -172,9 +175,12 @@ def test() -> list[int]:
 
     let rust_code = transpile_to_rust(python);
 
-    // Should have (2..7).into_iter()
+    // Should have parenthesized range before .into_iter()
+    // DEPYLER-0905 generates `((2)..(7)).into_iter()` to handle complex expressions safely
     assert!(
-        rust_code.contains("(2..7).into_iter()") || rust_code.contains("(2_i32..7"),
+        rust_code.contains("(2..7).into_iter()")
+            || rust_code.contains("((2)..(7)).into_iter()")
+            || rust_code.contains("(2_i32..7"),
         "DEPYLER-0511: Range with start/end should have parentheses. Generated:\n{}",
         rust_code
     );

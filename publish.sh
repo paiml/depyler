@@ -9,7 +9,7 @@ echo
 publish_crate() {
     local crate=$1
     echo "Publishing $crate..."
-    cargo publish -p $crate --no-verify
+    cargo publish -p "$crate" --no-verify
     echo "Published $crate. Waiting 30 seconds for crates.io to index..."
     sleep 30
     echo

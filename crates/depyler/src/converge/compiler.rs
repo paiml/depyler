@@ -147,6 +147,8 @@ impl BatchCompiler {
         py_file: &Path,
         result: &CompilationResult,
     ) {
+        use std::io::IsTerminal;
+
         let filename = py_file
             .file_name()
             .map(|s| s.to_string_lossy())
@@ -161,15 +163,28 @@ impl BatchCompiler {
                 } else {
                     0.0
                 };
-                // Use carriage return for in-place update
-                print!(
-                    "\r[{}] {:3.0}% {} {:40}",
-                    bar,
-                    pct,
-                    status,
-                    truncate_filename(&filename, 40)
-                );
-                let _ = std::io::stdout().flush();
+
+                // Use carriage return for TTY, newline for non-TTY (piped output)
+                if std::io::stdout().is_terminal() {
+                    // TTY: Use in-place update with carriage return
+                    print!(
+                        "\r[{}] {:3.0}% {} {:40}",
+                        bar,
+                        pct,
+                        status,
+                        truncate_filename(&filename, 40)
+                    );
+                    let _ = std::io::stdout().flush();
+                } else {
+                    // Non-TTY: Print each line (no carriage return tricks)
+                    println!(
+                        "[{}] {:3.0}% {} {}",
+                        bar,
+                        pct,
+                        status,
+                        truncate_filename(&filename, 40)
+                    );
+                }
             }
             DisplayMode::Minimal => {
                 // Only output on completion or every 10%
@@ -411,6 +426,17 @@ impl BatchCompiler {
     }
 
     /// Compile using cargo build (for projects with Cargo.toml)
+    ///
+    /// # CRITICAL: DO NOT ADD -D warnings FLAG
+    ///
+    /// This function must NOT treat warnings as errors. The `-D warnings` flag
+    /// has been incorrectly added here 100+ times and causes:
+    /// - Convergence rate to drop to near 0%
+    /// - Valid code to fail compilation due to unused imports
+    /// - Days of debugging wasted
+    ///
+    /// Code quality is enforced via clippy in CI, NOT during convergence.
+    /// Regression tests in this file will FAIL if -D warnings is added.
     async fn compile_with_cargo(
         &self,
         project_dir: &Path,
@@ -418,11 +444,14 @@ impl BatchCompiler {
     ) -> std::result::Result<(), Vec<CompilationError>> {
         use std::process::Command;
 
+        // DO NOT ADD: .env("RUSTFLAGS", "-D warnings")
+        // Regression tests will fail if you add -D warnings.
+        // See test_no_d_warnings_flag_in_source and
+        // test_regression_warnings_must_not_cause_failure.
         let output = Command::new("cargo")
             .arg("build")
             .arg("--message-format=short")
             .current_dir(project_dir)
-            .env("RUSTFLAGS", "-D warnings")
             .output()
             .map_err(|e| {
                 vec![CompilationError {
@@ -609,5 +638,167 @@ mod tests {
 
         assert_eq!(files.len(), 2);
         assert!(files.iter().all(|f| f.extension().unwrap() == "py"));
+    }
+
+    // ============================================================================
+    // EXTREME TDD: REGRESSION PREVENTION TESTS
+    // These tests MUST NEVER BE REMOVED or commented out.
+    // They exist to prevent the recurring bug where warnings are treated as errors.
+    //
+    // BUG HISTORY:
+    // - This bug has been "fixed" 100+ times
+    // - Each time, someone adds -D warnings back
+    // - Root cause: We want clean code but -D warnings breaks convergence
+    //
+    // SOLUTION: Allow warnings during compilation. Code quality is enforced via
+    // clippy in CI, NOT during convergence compilation.
+    // ============================================================================
+
+    /// CRITICAL REGRESSION TEST: Code with warnings MUST compile successfully.
+    ///
+    /// This test prevents the recurring bug where RUSTFLAGS=-D warnings
+    /// causes valid code to fail compilation during convergence.
+    ///
+    /// DO NOT REMOVE THIS TEST. DO NOT ADD -D warnings BACK.
+    #[tokio::test]
+    async fn test_regression_warnings_must_not_cause_failure() {
+        let temp_dir = TempDir::new().unwrap();
+        let project_dir = temp_dir.path();
+
+        // Create a Cargo.toml
+        let cargo_toml = r#"
+[package]
+name = "test_warnings"
+version = "0.1.0"
+edition = "2021"
+"#;
+        std::fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        // Create src directory
+        std::fs::create_dir_all(project_dir.join("src")).unwrap();
+
+        // Create Rust code with UNUSED IMPORTS (generates warnings, not errors)
+        // This MUST compile successfully even with warnings
+        let rust_code_with_warnings = r#"
+#![allow(dead_code)]
+
+// These unused imports generate warnings but NOT errors
+use std::path::PathBuf;
+use std::collections::HashMap;
+
+pub fn main() {
+    println!("Hello, world!");
+}
+"#;
+        std::fs::write(project_dir.join("src/main.rs"), rust_code_with_warnings).unwrap();
+
+        let compiler = BatchCompiler::new(project_dir);
+        let rust_file = project_dir.join("src/main.rs");
+
+        // THIS IS THE CRITICAL ASSERTION:
+        // compile_with_cargo MUST succeed even when code has warnings
+        let result = compiler.compile_with_cargo(project_dir, &rust_file).await;
+
+        assert!(
+            result.is_ok(),
+            "REGRESSION: Code with warnings must NOT fail compilation!\n\
+             This bug has been fixed 100+ times. DO NOT add -D warnings back.\n\
+             Error: {:?}",
+            result.err()
+        );
+    }
+
+    /// CRITICAL TEST: Verify compile_with_cargo does NOT use -D warnings flag.
+    ///
+    /// This is a static assertion test that verifies the source code
+    /// does not contain the actual `.env("RUSTFLAGS", "-D warnings")` call.
+    #[test]
+    fn test_no_d_warnings_flag_in_source() {
+        // Read this source file and verify .env("RUSTFLAGS", "-D warnings")
+        // is NOT present in the compile_with_cargo function
+        let source = include_str!("compiler.rs");
+
+        // Find the compile_with_cargo function
+        let fn_start = source.find("async fn compile_with_cargo(")
+            .expect("compile_with_cargo function must exist");
+
+        // Find the end of the function (next function or end of impl block)
+        let fn_section = &source[fn_start..];
+        let fn_end = fn_section.find("async fn compile_with_rustc(")
+            .unwrap_or(fn_section.len());
+        let fn_body = &fn_section[..fn_end];
+
+        // CRITICAL ASSERTION: The actual .env() call must NOT appear
+        // (comments mentioning it are fine, they serve as warnings)
+        let has_env_call = fn_body.lines().any(|line| {
+            let trimmed = line.trim();
+            // Only match actual code, not comments
+            !trimmed.starts_with("//") &&
+            !trimmed.starts_with("*") &&
+            !trimmed.starts_with("#") &&
+            trimmed.contains(".env(") &&
+            trimmed.contains("RUSTFLAGS")
+        });
+
+        assert!(
+            !has_env_call,
+            "REGRESSION DETECTED: compile_with_cargo contains .env(\"RUSTFLAGS\", ...)!\n\
+             This flag treats warnings as errors and breaks convergence.\n\
+             This bug has been fixed 100+ times. REMOVE the RUSTFLAGS env.\n\
+             \n\
+             Found non-comment lines with RUSTFLAGS:\n{}\n",
+            fn_body.lines()
+                .filter(|l| {
+                    let t = l.trim();
+                    !t.starts_with("//") && t.contains("RUSTFLAGS")
+                })
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+
+    /// CRITICAL TEST: Compile code that uses external dependencies with Cargo.toml.
+    ///
+    /// When Cargo.toml exists, we MUST use cargo build (not rustc).
+    /// This test ensures the cargo path is taken.
+    #[tokio::test]
+    async fn test_uses_cargo_when_cargo_toml_exists() {
+        let temp_dir = TempDir::new().unwrap();
+        let project_dir = temp_dir.path();
+
+        // Create Cargo.toml with a dependency
+        let cargo_toml = r#"
+[package]
+name = "test_cargo_deps"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# No deps needed for this test
+"#;
+        std::fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        // Create src directory
+        std::fs::create_dir_all(project_dir.join("src")).unwrap();
+
+        // Create simple Rust code
+        let rust_code = r#"
+pub fn add(a: i32, b: i32) -> i32 {
+    a + b
+}
+"#;
+        std::fs::write(project_dir.join("src/lib.rs"), rust_code).unwrap();
+
+        let compiler = BatchCompiler::new(project_dir);
+        let rust_file = project_dir.join("src/lib.rs");
+
+        // Verify compile_rust chooses the cargo path
+        let result = compiler.compile_rust(&rust_file).await;
+
+        assert!(
+            result.is_ok(),
+            "Compilation with Cargo.toml must succeed. Error: {:?}",
+            result.err()
+        );
     }
 }
