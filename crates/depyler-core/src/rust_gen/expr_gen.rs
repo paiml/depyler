@@ -16025,15 +16025,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-0962: Check if return type is a Union of dict and list (e.g., dict | list)
     /// Returns Some(union_enum_name) if it is, None otherwise
     fn return_type_is_dict_list_union(&self) -> Option<String> {
-        if let Some(ref ret_type) = self.ctx.current_return_type {
-            if let Type::Union(types) = ret_type {
-                // Check if union contains both Dict and List (in any order)
-                let has_dict = types.iter().any(|t| matches!(t, Type::Dict(_, _)));
-                let has_list = types.iter().any(|t| matches!(t, Type::List(_)));
-                if has_dict && has_list && types.len() == 2 {
-                    // Generate the union enum name (e.g., DictOrListUnion)
-                    return Some("DictOrListUnion".to_string());
-                }
+        if let Some(Type::Union(types)) = self.ctx.current_return_type.as_ref() {
+            // Check if union contains both Dict and List (in any order)
+            let has_dict = types.iter().any(|t| matches!(t, Type::Dict(_, _)));
+            let has_list = types.iter().any(|t| matches!(t, Type::List(_)));
+            if has_dict && has_list && types.len() == 2 {
+                // Generate the union enum name (e.g., DictOrListUnion)
+                return Some("DictOrListUnion".to_string());
             }
         }
         None
