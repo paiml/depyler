@@ -627,6 +627,133 @@ fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> std::collections::Has
     vars
 }
 
+/// DEPYLER-0963: Find the type of a variable from its assignments in the function body.
+/// Searches for the first assignment to the variable and infers the type from the value.
+/// Returns Some(Type) if found, None otherwise.
+///
+/// Takes optional parameter types map to resolve variable references like `result = n`
+/// where `n` is a function parameter with a known type.
+#[allow(dead_code)]
+fn find_var_type_in_body(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
+    find_var_type_in_body_with_params(var_name, stmts, &std::collections::HashMap::new())
+}
+
+/// DEPYLER-0963: Find the type of a variable from its assignments, with parameter type context.
+fn find_var_type_in_body_with_params(
+    var_name: &str,
+    stmts: &[HirStmt],
+    param_types: &std::collections::HashMap<String, Type>,
+) -> Option<Type> {
+    for stmt in stmts {
+        match stmt {
+            // Simple assignment: x = expr
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                type_annotation,
+                value,
+            } if name == var_name => {
+                // First try explicit type annotation
+                if type_annotation.is_some() {
+                    return type_annotation.clone();
+                }
+                // If assigned from a variable, check if it's a known parameter
+                if let HirExpr::Var(source_var) = value {
+                    if let Some(ty) = param_types.get(source_var) {
+                        return Some(ty.clone());
+                    }
+                }
+                // If no annotation, infer from the assigned value
+                let inferred = infer_expr_type_simple(value);
+                if !matches!(inferred, Type::Unknown) {
+                    return Some(inferred);
+                }
+                return None;
+            }
+            // Tuple unpacking: (a, b) = (1, 2)
+            HirStmt::Assign {
+                target: AssignTarget::Tuple(targets),
+                value,
+                ..
+            } => {
+                // Find var_name position in the targets
+                if let Some(pos) = targets.iter().position(|t| {
+                    matches!(t, AssignTarget::Symbol(name) if name == var_name)
+                }) {
+                    // Check if RHS is a tuple expression
+                    if let HirExpr::Tuple(elems) = value {
+                        if pos < elems.len() {
+                            let elem_type = infer_expr_type_simple(&elems[pos]);
+                            if !matches!(elem_type, Type::Unknown) {
+                                return Some(elem_type);
+                            }
+                        }
+                    }
+                    // Infer type from the RHS tuple type
+                    let rhs_type = infer_expr_type_simple(value);
+                    if let Type::Tuple(elem_types) = rhs_type {
+                        if pos < elem_types.len() {
+                            let elem_type = elem_types[pos].clone();
+                            if !matches!(elem_type, Type::Unknown) {
+                                return Some(elem_type);
+                            }
+                        }
+                    }
+                }
+            }
+            // Recurse into for loops
+            HirStmt::For { body, .. } => {
+                if let Some(ty) = find_var_type_in_body_with_params(var_name, body, param_types) {
+                    return Some(ty);
+                }
+            }
+            // Recurse into while loops
+            HirStmt::While { body, .. } => {
+                if let Some(ty) = find_var_type_in_body_with_params(var_name, body, param_types) {
+                    return Some(ty);
+                }
+            }
+            // Recurse into if/else blocks
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                if let Some(ty) = find_var_type_in_body_with_params(var_name, then_body, param_types) {
+                    return Some(ty);
+                }
+                if let Some(else_stmts) = else_body {
+                    if let Some(ty) = find_var_type_in_body_with_params(var_name, else_stmts, param_types) {
+                        return Some(ty);
+                    }
+                }
+            }
+            // Recurse into try/except blocks
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
+                if let Some(ty) = find_var_type_in_body_with_params(var_name, body, param_types) {
+                    return Some(ty);
+                }
+                for handler in handlers {
+                    if let Some(ty) = find_var_type_in_body_with_params(var_name, &handler.body, param_types) {
+                        return Some(ty);
+                    }
+                }
+                if let Some(finally) = finalbody {
+                    if let Some(ty) = find_var_type_in_body_with_params(var_name, finally, param_types) {
+                        return Some(ty);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+    None
+}
+
 /// DEPYLER-0762: Collect variables assigned inside for/while loops that are used after the loop.
 /// Python has function-level scoping, so variables assigned in loops are visible after the loop.
 /// Rust has block-level scoping, so we need to hoist these variable declarations.
@@ -1056,6 +1183,14 @@ pub(crate) fn codegen_function_body(
     // codegen_nested_function_def will emit `let name = move |...|` instead of `name = ...`
     let _ = all_nested_fns; // Silence unused warning
 
+    // DEPYLER-0963: Build parameter types map for variable type inference
+    // This allows us to infer types for variables assigned from parameters (e.g., result = n)
+    let param_types: std::collections::HashMap<String, Type> = func
+        .params
+        .iter()
+        .map(|p| (p.name.clone(), p.ty.clone()))
+        .collect();
+
     // DEPYLER-0762: Hoist loop-escaping variables
     // Python has function-level scoping, so variables assigned in for/while loops
     // are visible after the loop. Rust has block-level scoping, so we must hoist
@@ -1063,11 +1198,24 @@ pub(crate) fn codegen_function_body(
     // We initialize with Default::default() to avoid E0381 "possibly-uninitialized"
     // errors, since Rust can't prove the loop will always execute.
     // DEPYLER-0763: Use safe_ident to escape Rust keywords (e.g. match -> r#match)
+    // DEPYLER-0963: Add type annotations to avoid E0790 (can't call Default::default() on trait)
     let loop_escaping_vars = collect_loop_escaping_variables(&func.body);
     for var_name in &loop_escaping_vars {
         if !ctx.is_declared(var_name) {
             let ident = safe_ident(var_name);
-            body_stmts.push(quote! { let mut #ident = Default::default(); });
+            // Try to infer the variable's type from its assignments (with param context)
+            if let Some(ty) = find_var_type_in_body_with_params(var_name, &func.body, &param_types) {
+                let rust_type = ctx.type_mapper.map_type(&ty);
+                if let Ok(syn_type) = rust_type_to_syn(&rust_type) {
+                    body_stmts.push(quote! { let mut #ident: #syn_type = Default::default(); });
+                } else {
+                    // Fallback: use () as the type (rare edge case)
+                    body_stmts.push(quote! { let mut #ident: () = Default::default(); });
+                }
+            } else {
+                // Fallback: use () as the type to avoid E0790
+                body_stmts.push(quote! { let mut #ident: () = Default::default(); });
+            }
             ctx.declare_var(var_name);
         }
     }
@@ -1078,11 +1226,24 @@ pub(crate) fn codegen_function_body(
     // hoist these variable declarations to function scope.
     // We initialize with Default::default() to avoid E0381 "possibly-uninitialized"
     // errors, since the if branch may not be taken.
+    // DEPYLER-0963: Add type annotations to avoid E0790 (can't call Default::default() on trait)
     let if_escaping_vars = collect_if_escaping_variables(&func.body);
     for var_name in &if_escaping_vars {
         if !ctx.is_declared(var_name) {
             let ident = safe_ident(var_name);
-            body_stmts.push(quote! { let mut #ident = Default::default(); });
+            // Try to infer the variable's type from its assignments (with param context)
+            if let Some(ty) = find_var_type_in_body_with_params(var_name, &func.body, &param_types) {
+                let rust_type = ctx.type_mapper.map_type(&ty);
+                if let Ok(syn_type) = rust_type_to_syn(&rust_type) {
+                    body_stmts.push(quote! { let mut #ident: #syn_type = Default::default(); });
+                } else {
+                    // Fallback: use () as the type (rare edge case)
+                    body_stmts.push(quote! { let mut #ident: () = Default::default(); });
+                }
+            } else {
+                // Fallback: use () as the type to avoid E0790
+                body_stmts.push(quote! { let mut #ident: () = Default::default(); });
+            }
             ctx.declare_var(var_name);
         }
     }
