@@ -1342,11 +1342,36 @@ fn convert_method_to_impl_item(
     fields: &[HirField],
     class_type_params: &[String],
 ) -> Result<syn::ImplItemFn> {
+    // DEPYLER-0967: Map Python dunder methods to Rust equivalents
+    let rust_method_name = match method.name.as_str() {
+        "__len__" => "len".to_string(),
+        "__str__" => "to_string".to_string(),
+        "__repr__" => "fmt".to_string(), // Debug trait
+        "__getitem__" => "index".to_string(),
+        "__setitem__" => "index_mut".to_string(),
+        "__contains__" => "contains".to_string(),
+        "__iter__" => "iter".to_string(),
+        "__next__" => "next".to_string(),
+        "__eq__" => "eq".to_string(),
+        "__ne__" => "ne".to_string(),
+        "__lt__" => "lt".to_string(),
+        "__le__" => "le".to_string(),
+        "__gt__" => "gt".to_string(),
+        "__ge__" => "ge".to_string(),
+        "__add__" => "add".to_string(),
+        "__sub__" => "sub".to_string(),
+        "__mul__" => "mul".to_string(),
+        "__truediv__" => "div".to_string(),
+        "__neg__" => "neg".to_string(),
+        "__hash__" => "hash".to_string(),
+        _ => method.name.clone(),
+    };
+
     // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
-    let method_name = if is_rust_keyword(&method.name) {
-        syn::Ident::new_raw(&method.name, proc_macro2::Span::call_site())
+    let method_name = if is_rust_keyword(&rust_method_name) {
+        syn::Ident::new_raw(&rust_method_name, proc_macro2::Span::call_site())
     } else {
-        make_ident(&method.name)
+        make_ident(&rust_method_name)
     };
 
     // DEPYLER-0740: Collect type variables used in method signature
