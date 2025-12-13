@@ -4910,9 +4910,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("json.loads() requires exactly 1 argument");
                 }
                 let s = &arg_exprs[0];
-                // DEPYLER-0703: Check if return type is Dict[str, Any] → HashMap<String, Value>
-                // In that case, deserialize directly to HashMap instead of Value
-                if self.return_type_needs_json_dict() {
+
+                // DEPYLER-0962: Check if return type is a Union of dict|list
+                // In this case, we need to convert the parsed Value to the union type
+                if let Some(union_name) = self.return_type_is_dict_list_union() {
+                    self.ctx.needs_hashmap = true;
+                    let union_ident: syn::Ident =
+                        syn::Ident::new(&union_name, proc_macro2::Span::call_site());
+                    // Parse as Value, then convert to union type using match
+                    parse_quote! {
+                        {
+                            let __json_val = serde_json::from_str::<serde_json::Value>(&#s).unwrap();
+                            match __json_val {
+                                serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect()),
+                                serde_json::Value::Array(arr) => #union_ident::List(arr),
+                                _ => panic!("json.loads expected dict or list"),
+                            }
+                        }
+                    }
+                } else if self.return_type_needs_json_dict() {
+                    // DEPYLER-0703: Check if return type is Dict[str, Any] → HashMap<String, Value>
                     self.ctx.needs_hashmap = true;
                     // json.loads(s) when returning Dict[str, Any]
                     // → serde_json::from_str::<HashMap<String, Value>>(&s).unwrap()
@@ -4940,8 +4957,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("json.load() requires exactly 1 argument (file)");
                 }
                 let file = &arg_exprs[0];
-                // json.load(file) → serde_json::from_reader(file).unwrap()
-                parse_quote! { serde_json::from_reader::<_, serde_json::Value>(#file).unwrap() }
+
+                // DEPYLER-0962: Check if return type is a Union of dict|list
+                if let Some(union_name) = self.return_type_is_dict_list_union() {
+                    self.ctx.needs_hashmap = true;
+                    let union_ident: syn::Ident =
+                        syn::Ident::new(&union_name, proc_macro2::Span::call_site());
+                    parse_quote! {
+                        {
+                            let __json_val = serde_json::from_reader::<_, serde_json::Value>(#file).unwrap();
+                            match __json_val {
+                                serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect()),
+                                serde_json::Value::Array(arr) => #union_ident::List(arr),
+                                _ => panic!("json.load expected dict or list"),
+                            }
+                        }
+                    }
+                } else {
+                    // json.load(file) → serde_json::from_reader(file).unwrap()
+                    parse_quote! { serde_json::from_reader::<_, serde_json::Value>(#file).unwrap() }
+                }
             }
 
             _ => {
@@ -15985,6 +16020,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             })
         }
+    }
+
+    /// DEPYLER-0962: Check if return type is a Union of dict and list (e.g., dict | list)
+    /// Returns Some(union_enum_name) if it is, None otherwise
+    fn return_type_is_dict_list_union(&self) -> Option<String> {
+        if let Some(ref ret_type) = self.ctx.current_return_type {
+            if let Type::Union(types) = ret_type {
+                // Check if union contains both Dict and List (in any order)
+                let has_dict = types.iter().any(|t| matches!(t, Type::Dict(_, _)));
+                let has_list = types.iter().any(|t| matches!(t, Type::List(_)));
+                if has_dict && has_list && types.len() == 2 {
+                    // Generate the union enum name (e.g., DictOrListUnion)
+                    return Some("DictOrListUnion".to_string());
+                }
+            }
+        }
+        None
     }
 
     /// DEPYLER-0560: Check if function return type requires serde_json::Value for dicts
