@@ -14295,8 +14295,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0663: Handle serde_json::Value method calls
         // serde_json::Value doesn't have direct .len(), .iter(), .is_none(), .is_some() methods
         // We need to convert them to the appropriate serde_json::Value method chains
+        // DEPYLER-0969: H₃ Error Cascade Prevention - comprehensive method coverage
+        // This prevents E0599 cascades when Type::Unknown maps to serde_json::Value
         if self.is_serde_json_value_expr(object) || self.is_serde_json_value(object) {
             let object_expr = object.to_rust_expr(self.ctx)?;
+            let arg_exprs: Vec<syn::Expr> = args
+                .iter()
+                .map(|arg| arg.to_rust_expr(self.ctx))
+                .collect::<Result<Vec<_>>>()?;
             match method {
                 // value.len() → value.as_array().map(|a| a.len()).unwrap_or_else(|| value.as_object().map(|o| o.len()).unwrap_or(0))
                 "len" if args.is_empty() => {
@@ -14319,6 +14325,143 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // value.is_some() → !value.is_null()
                 "is_some" if args.is_empty() => {
                     return Ok(parse_quote! { !#object_expr.is_null() });
+                }
+                // DEPYLER-0969: H₃ - List-like methods for serde_json::Value arrays
+                // value.append(x) → value.as_array_mut().unwrap().push(x.into())
+                "append" | "push" if args.len() == 1 => {
+                    let arg = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
+                    });
+                }
+                // value.pop() → value.as_array_mut().and_then(|a| a.pop())
+                "pop" if args.is_empty() => {
+                    return Ok(parse_quote! {
+                        #object_expr.as_array_mut().and_then(|a| a.pop()).unwrap_or(serde_json::Value::Null)
+                    });
+                }
+                // value.pop_front/popleft() → value.as_array_mut().and_then(|a| if a.is_empty() { None } else { Some(a.remove(0)) })
+                "pop_front" | "popleft" if args.is_empty() => {
+                    return Ok(parse_quote! {
+                        #object_expr.as_array_mut().and_then(|a| if a.is_empty() { None } else { Some(a.remove(0)) }).unwrap_or(serde_json::Value::Null)
+                    });
+                }
+                // value.push_back(x) → value.as_array_mut().map(|a| a.push(x.into()))
+                "push_back" if args.len() == 1 => {
+                    let arg = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #object_expr.as_array_mut().map(|a| a.push(serde_json::json!(#arg)))
+                    });
+                }
+                // value.push_front(x) → value.as_array_mut().map(|a| a.insert(0, x.into()))
+                "push_front" | "appendleft" if args.len() == 1 => {
+                    let arg = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #object_expr.as_array_mut().map(|a| a.insert(0, serde_json::json!(#arg)))
+                    });
+                }
+                // value.is_empty() → value.as_array().map(|a| a.is_empty()).unwrap_or(true)
+                "is_empty" if args.is_empty() => {
+                    return Ok(parse_quote! {
+                        #object_expr.as_array().map(|a| a.is_empty()).unwrap_or_else(||
+                            #object_expr.as_object().map(|o| o.is_empty()).unwrap_or(true)
+                        )
+                    });
+                }
+                // DEPYLER-0969: H₃ - Dict-like methods for serde_json::Value objects
+                // value.get(key) → value.get(key)
+                "get" if args.len() >= 1 => {
+                    let key = &arg_exprs[0];
+                    if args.len() > 1 {
+                        let default = &arg_exprs[1];
+                        return Ok(parse_quote! {
+                            #object_expr.get(#key).cloned().unwrap_or(serde_json::json!(#default))
+                        });
+                    }
+                    return Ok(parse_quote! { #object_expr.get(#key).cloned() });
+                }
+                // value.keys() → value.as_object().into_iter().flat_map(|o| o.keys())
+                "keys" if args.is_empty() => {
+                    return Ok(parse_quote! {
+                        #object_expr.as_object().into_iter().flat_map(|o| o.keys().cloned()).collect::<Vec<_>>()
+                    });
+                }
+                // value.values() → value.as_object().into_iter().flat_map(|o| o.values())
+                "values" if args.is_empty() => {
+                    return Ok(parse_quote! {
+                        #object_expr.as_object().into_iter().flat_map(|o| o.values().cloned()).collect::<Vec<_>>()
+                    });
+                }
+                // value.items() → value.as_object().into_iter().flat_map(|o| o.iter())
+                "items" if args.is_empty() => {
+                    return Ok(parse_quote! {
+                        #object_expr.as_object().into_iter().flat_map(|o| o.iter().map(|(k, v)| (k.clone(), v.clone()))).collect::<Vec<_>>()
+                    });
+                }
+                // value.contains(x) → value.as_array().map(|a| a.contains(&x.into())).unwrap_or(false)
+                "contains" if args.len() == 1 => {
+                    let arg = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #object_expr.as_array().map(|a| a.iter().any(|v| v == &serde_json::json!(#arg))).unwrap_or(false)
+                    });
+                }
+                // value.contains_key(k) → value.as_object().map(|o| o.contains_key(k)).unwrap_or(false)
+                "contains_key" | "__contains__" if args.len() == 1 => {
+                    let key = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #object_expr.as_object().map(|o| o.contains_key(#key)).unwrap_or(false)
+                    });
+                }
+                // value.insert(k, v) → value.as_object_mut().map(|o| o.insert(k, v.into()))
+                "insert" if args.len() == 2 => {
+                    let key = &arg_exprs[0];
+                    let val = &arg_exprs[1];
+                    return Ok(parse_quote! {
+                        #object_expr.as_object_mut().map(|o| o.insert(#key.to_string(), serde_json::json!(#val)))
+                    });
+                }
+                // value.remove(k) → value.as_object_mut().and_then(|o| o.remove(k))
+                "remove" if args.len() == 1 => {
+                    let key = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #object_expr.as_object_mut().and_then(|o| o.remove(#key))
+                    });
+                }
+                // value.clear() → value.as_array_mut().map(|a| a.clear())
+                "clear" if args.is_empty() => {
+                    return Ok(parse_quote! {
+                        { if let Some(a) = #object_expr.as_array_mut() { a.clear() }
+                          else if let Some(o) = #object_expr.as_object_mut() { o.clear() } }
+                    });
+                }
+                // value.copy() / value.clone() → value.clone()
+                "copy" | "clone" if args.is_empty() => {
+                    return Ok(parse_quote! { #object_expr.clone() });
+                }
+                // value.extend(other) → merge JSON values
+                "extend" if args.len() == 1 => {
+                    let other = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        { if let (Some(a1), Some(a2)) = (#object_expr.as_array_mut(), #other.as_array()) {
+                            a1.extend(a2.iter().cloned());
+                        } else if let (Some(o1), Some(o2)) = (#object_expr.as_object_mut(), #other.as_object()) {
+                            for (k, v) in o2 { o1.insert(k.clone(), v.clone()); }
+                        } }
+                    });
+                }
+                // value.add(x) → for sets, use array push
+                "add" if args.len() == 1 => {
+                    let arg = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #object_expr.as_array_mut().map(|a| if !a.iter().any(|v| v == &serde_json::json!(#arg)) { a.push(serde_json::json!(#arg)) })
+                    });
+                }
+                // value.discard(x) → for sets, remove if present
+                "discard" if args.len() == 1 => {
+                    let arg = &arg_exprs[0];
+                    return Ok(parse_quote! {
+                        #object_expr.as_array_mut().map(|a| a.retain(|v| v != &serde_json::json!(#arg)))
+                    });
                 }
                 _ => {} // Fall through to other handlers
             }
@@ -17495,6 +17638,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-0540: Check if expression is typed as serde_json::Value
     /// serde_json::Value needs special handling for .keys(), .values(), .items()
     /// because it requires .as_object().unwrap() before iteration methods.
+    /// DEPYLER-0969: H₃ Error Cascade Prevention - Type::Unknown maps to serde_json::Value
+    /// so ALL Unknown-typed variables should use JSON method translations.
     fn is_serde_json_value(&self, expr: &HirExpr) -> bool {
         if let HirExpr::Var(name) = expr {
             // Check explicit type info first - this is authoritative
@@ -17510,17 +17655,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if matches!(var_type, Type::Dict(_, _)) {
                     return false;
                 }
-                // DEPYLER-0545: Type::Unknown should fall through to name heuristic
-                // This allows variables like "filters" to be detected as JSON even when
-                // their type is Unknown (common in nested closures/functions)
-                if !matches!(var_type, Type::Unknown) {
-                    // For other explicitly typed variables, not a JSON value
-                    return false;
+                // DEPYLER-0969: H₃ Error Cascade Prevention
+                // Type::Unknown maps to serde_json::Value in type_mapper.rs
+                // Therefore, ALL Unknown-typed variables need JSON method translations
+                // to prevent E0599 "no method named X found" cascading errors
+                if matches!(var_type, Type::Unknown) {
+                    return true;
                 }
-                // Type::Unknown falls through to name heuristic below
+                // For other explicitly typed variables, not a JSON value
+                return false;
             }
 
-            // DEPYLER-0540: Use name heuristic when NO type info OR Type::Unknown
+            // DEPYLER-0540: Use name heuristic when NO type info
             // (e.g., in nested closures where parent param types aren't tracked)
             // Be conservative - only match explicitly json-like names
             // Note: "filters", "config" are commonly used for serde_json::Value dicts

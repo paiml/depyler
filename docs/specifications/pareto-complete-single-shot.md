@@ -829,6 +829,58 @@ Per Popper's methodology, when a hypothesis is falsified, we must:
 
 **Recommendation**: Test H₃ (error cascade prevention) next, as cascade errors artificially inflate failure counts.
 
+#### H₃ Implementation Attempt and Findings (December 13, 2025)
+
+**Hypothesis**: H₃ (Error Cascade Prevention) - Adding comprehensive method translations for `serde_json::Value` will prevent E0599 cascades and improve convergence.
+
+**Implementation**:
+- Updated `is_serde_json_value()` to return `true` for `Type::Unknown` (lines 17638-17682 in expr_gen.rs)
+- Added 25+ method translations for `serde_json::Value` including:
+  - List-like: `append`, `push`, `pop`, `pop_front`/`popleft`, `push_back`, `push_front`/`appendleft`
+  - Collection: `is_empty`, `len`, `clear`, `copy`/`clone`, `extend`
+  - Dict-like: `get`, `keys`, `values`, `items`, `contains`, `contains_key`, `insert`, `remove`
+  - Set-like: `add`, `discard`
+
+**Result**: Convergence remained at 21.1% (134/635) - NO IMPROVEMENT.
+
+**Critical Discovery**: Analysis of failing files (e.g., `example_subprocess/task_runner.rs`) revealed the actual cascade source:
+
+```rust
+// Generated code (line 57):
+pub fn run_command(
+    cmd: &Vec<String>,
+    capture: bool,
+    check: bool,
+    cwd: Option<String>,
+) -> (serde_json::Value, String, String) {  // ← Return type has Value
+
+// Actual return (line 74):
+    (result.returncode, result.stdout, result.stderr)
+    // ↑ result.returncode is i32, but return type expects serde_json::Value
+```
+
+**Root Cause Analysis**:
+| Error | Expected | Actual | Source |
+|-------|----------|--------|--------|
+| E0308 | `serde_json::Value` | `i32` | Return type inference |
+| E0308 | `serde_json::Value` | `i32` | Tuple position mismatch |
+
+**Insight**: The cascade errors are **E0308 (type mismatch)**, not E0599 (method not found). The `serde_json::Value` appears in **return type positions**, not just variable types. Method translations cannot fix return type inference failures.
+
+**Five Whys on E0308 Cascade**:
+1. **Why E0308?** Return type `(serde_json::Value, String, String)` doesn't match actual `(i32, String, String)`
+2. **Why Value in return?** Type inference defaulted unknown Python `int` to `serde_json::Value`
+3. **Why didn't inference work?** `returncode` comes from attribute access on `CompletedProcess`
+4. **Why wasn't struct typed?** Struct was generated with `i32` fields, but function signature wasn't updated
+5. **Why signature mismatch?** Return type inference happens BEFORE function body analysis (forward-only)
+
+**Conclusion**: H₃ method translations provide **defense in depth** but cannot fix the root cause. The actual fix requires:
+1. **Return type inference from body** - Analyze function body to infer return type
+2. **Constraint propagation** - Propagate concrete types from struct fields to return positions
+3. **Bidirectional type flow** - Return type must flow backward from actual returns
+
+**Updated H₃ Definition**: Error Cascade Prevention should target **return type inference**, not method resolution.
+
 ---
 
 ## 10. Acceptance Criteria
