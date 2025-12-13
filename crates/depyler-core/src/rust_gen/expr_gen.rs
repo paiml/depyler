@@ -2593,6 +2593,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         false
                     }
+                } else if let HirExpr::Attribute { value, attr } = operand {
+                    // DEPYLER-0966: Check for self.field collection access (truthiness transformation)
+                    // Python: `if not self.heap:` where self.heap is list[int]
+                    // Rust: Must use `.is_empty()` instead of `!` for Vec types
+                    if matches!(value.as_ref(), HirExpr::Var(v) if v == "self") {
+                        if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+                            matches!(
+                                field_type,
+                                Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::String
+                            )
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
                 } else {
                     false
                 };
@@ -2603,6 +2619,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let is_optional_var = if let HirExpr::Var(var_name) = operand {
                     if let Some(var_type) = self.ctx.var_types.get(var_name) {
                         matches!(var_type, Type::Optional(_))
+                    } else {
+                        false
+                    }
+                } else if let HirExpr::Attribute { value, attr } = operand {
+                    // DEPYLER-0966: Check for self.field Optional access
+                    // Python: `if not self.cached_value:` where self.cached_value is Optional[T]
+                    if matches!(value.as_ref(), HirExpr::Var(v) if v == "self") {
+                        if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+                            matches!(field_type, Type::Optional(_))
+                        } else {
+                            false
+                        }
                     } else {
                         false
                     }
