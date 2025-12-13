@@ -24,7 +24,9 @@ cargo build --release --all-features
 
 # Create release directory
 RELEASE_DIR="release-${VERSION}"
-rm -rf "${RELEASE_DIR}"
+if [ -n "$RELEASE_DIR" ] && [ -d "$RELEASE_DIR" ]; then
+    rm -rf "$RELEASE_DIR"
+fi
 mkdir -p "${RELEASE_DIR}"
 
 # Copy current platform binary

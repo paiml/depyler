@@ -23,21 +23,29 @@ use syn::parse_quote;
 /// Convert Python range() call to Rust range expression
 ///
 /// Python range() has three forms:
-/// - `range(end)` → `0..end`
-/// - `range(start, end)` → `start..end`
+/// - `range(end)` → `0..(end)`
+/// - `range(start, end)` → `(start)..(end)`
 /// - `range(start, end, step)` → `(start..end).step_by(step)` or `(end..start).rev().step_by(step)`
+///
+/// # DEPYLER-0905: Range expressions require parenthesization
+/// When the end expression is a complex binary operation (e.g., `floor_div + 1`),
+/// the `..` operator has higher precedence than `+`, causing parse errors like:
+/// `for i in 0..{block} + 1 {` where the parser thinks `+ 1 {` starts the loop body.
+/// Solution: Always wrap range bounds in parentheses for safety.
 ///
 /// # Complexity: 3
 pub fn convert_range_call(args: &[syn::Expr]) -> Result<syn::Expr> {
     match args.len() {
         1 => {
             let end = &args[0];
-            Ok(parse_quote! { 0..#end })
+            // DEPYLER-0905: Parenthesize end to handle complex expressions like floor_div + 1
+            Ok(parse_quote! { 0..(#end) })
         }
         2 => {
             let start = &args[0];
             let end = &args[1];
-            Ok(parse_quote! { #start..#end })
+            // DEPYLER-0905: Parenthesize both bounds for complex expressions
+            Ok(parse_quote! { (#start)..(#end) })
         }
         3 => convert_range_with_step(&args[0], &args[1], &args[2]),
         _ => bail!("Invalid number of arguments for range()"),

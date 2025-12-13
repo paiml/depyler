@@ -128,6 +128,10 @@ pub struct CodeGenContext<'a> {
     /// Maps function name -> Vec of Option<HirExpr> (None if no default, Some if has default)
     /// Used to supply default arguments at call sites when fewer args are passed
     pub function_param_defaults: HashMap<String, Vec<Option<crate::hir::HirExpr>>>,
+    /// DEPYLER-0932: Track dataclass field default values
+    /// Maps class name -> Vec of Option<HirExpr> (None if no default, Some if has default)
+    /// Used to supply default arguments at constructor call sites when fewer args are passed
+    pub class_field_defaults: HashMap<String, Vec<Option<crate::hir::HirExpr>>>,
     /// DEPYLER-0720: Track class field types for self.field attribute access
     /// Maps field name -> Type, used to determine if self.X is float for int-to-float coercion
     pub class_field_types: HashMap<String, Type>,
@@ -306,6 +310,11 @@ pub struct CodeGenContext<'a> {
     /// ListIter, RangeIter), return types mentioning children must be rewritten to parent.
     /// Maps child name (e.g., "ListIter") → parent name (e.g., "Iter")
     pub adt_child_to_parent: HashMap<String, String>,
+
+    /// DEPYLER-0950: Track function parameter types for literal coercion at call sites
+    /// Maps function name → Vec<Type> for each parameter position
+    /// Used to coerce integer literals to float literals when callee expects f64
+    pub function_param_types: HashMap<String, Vec<Type>>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -427,6 +436,18 @@ impl<'a> CodeGenContext<'a> {
     /// 1 (simple pop)
     pub fn exit_exception_scope(&mut self) {
         self.exception_scopes.pop();
+    }
+
+    /// Returns the current exception scope nesting depth
+    ///
+    /// DEPYLER-0931: Used to detect nested try/except blocks for proper return wrapping.
+    /// When inside nested try/except, returns from inner match arms must be wrapped
+    /// in Ok() to match the outer closure's Result<T, E> return type.
+    ///
+    /// # Complexity
+    /// 1 (len() call)
+    pub fn exception_nesting_depth(&self) -> usize {
+        self.exception_scopes.len()
     }
 }
 

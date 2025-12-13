@@ -128,7 +128,7 @@ impl CSVParser {
     }
 }
 #[doc = "Calculate basic statistics for a numeric column in CSV"]
-pub fn calculate_column_stats<'b, 'a>(
+pub fn calculate_column_stats<'a, 'b>(
     csv_content: &'a str,
     column_name: &'b str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {

@@ -224,8 +224,8 @@ pub fn test_path_split() -> Result<(String, String), Box<dyn std::error::Error>>
         }
     }
     let _cse_temp_0 = last_slash >= 0;
-    let mut basename: String;
     let mut dirname: String;
+    let mut basename: String;
     if _cse_temp_0 {
         dirname = {
             let base = path;
@@ -288,8 +288,8 @@ pub fn test_path_splitext() -> Result<(String, String), Box<dyn std::error::Erro
         }
     }
     let _cse_temp_0 = last_dot > 0;
-    let mut name: String;
     let mut ext: String;
+    let mut name: String;
     if _cse_temp_0 {
         name = {
             let base = path;

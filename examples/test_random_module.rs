@@ -215,7 +215,7 @@ pub fn generate_random_password(length: i32) -> Result<String, Box<dyn std::erro
     Ok(password.to_string())
 }
 #[doc = "Simulate weighted random choice(manual implementation)"]
-pub fn weighted_random_choice<'a, 'b>(
+pub fn weighted_random_choice<'b, 'a>(
     items: &'a Vec<String>,
     weights: &'b Vec<i32>,
 ) -> Result<String, Box<dyn std::error::Error>> {
