@@ -811,12 +811,19 @@ impl AstBridge {
 
         let name = method.name.to_string();
 
-        // Skip dunder methods except __init__, __iter__, __next__, __enter__, __exit__
+        // DEPYLER-0967: Skip dunder methods except commonly-needed ones
+        // Allow: __init__, __iter__, __next__, __enter__, __exit__ (context managers)
+        // Allow: __len__, __str__, __repr__, __getitem__, __setitem__, __contains__ (collections)
+        // Allow: __eq__, __ne__, __lt__, __le__, __gt__, __ge__, __hash__ (comparisons)
+        // Allow: __add__, __sub__, __mul__, __truediv__, __neg__ (operators)
         if name.starts_with("__")
             && name.ends_with("__")
             && !matches!(
                 name.as_str(),
-                "__init__" | "__iter__" | "__next__" | "__enter__" | "__exit__"
+                "__init__" | "__iter__" | "__next__" | "__enter__" | "__exit__" |
+                "__len__" | "__str__" | "__repr__" | "__getitem__" | "__setitem__" | "__contains__" |
+                "__eq__" | "__ne__" | "__lt__" | "__le__" | "__gt__" | "__ge__" | "__hash__" |
+                "__add__" | "__sub__" | "__mul__" | "__truediv__" | "__neg__"
             )
         {
             return Ok(None);
@@ -938,20 +945,17 @@ impl AstBridge {
 
         let name = method.name.to_string();
 
-        // Skip dunder methods except __init__, __iter__, __next__, __enter__, __exit__, __aenter__, __aexit__
+        // DEPYLER-0967: Skip dunder methods except commonly-needed ones (async version)
+        // Allow: context managers, async iterators, collections, comparisons, operators
         if name.starts_with("__")
             && name.ends_with("__")
             && !matches!(
                 name.as_str(),
-                "__init__"
-                    | "__iter__"
-                    | "__next__"
-                    | "__enter__"
-                    | "__exit__"
-                    | "__aenter__"
-                    | "__aexit__"
-                    | "__anext__"
-                    | "__aiter__"
+                "__init__" | "__iter__" | "__next__" | "__enter__" | "__exit__" |
+                "__aenter__" | "__aexit__" | "__anext__" | "__aiter__" |
+                "__len__" | "__str__" | "__repr__" | "__getitem__" | "__setitem__" | "__contains__" |
+                "__eq__" | "__ne__" | "__lt__" | "__le__" | "__gt__" | "__ge__" | "__hash__" |
+                "__add__" | "__sub__" | "__mul__" | "__truediv__" | "__neg__"
             )
         {
             return Ok(None);
