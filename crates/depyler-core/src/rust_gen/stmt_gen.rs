@@ -1429,6 +1429,99 @@ pub(crate) fn codegen_with_stmt(
 // Complex handlers extracted from HirStmt::to_rust_tokens
 // ============================================================================
 
+/// DEPYLER-0966: Apply NEGATED truthiness conversion for `not x` patterns
+///
+/// When Python code uses `if not x:` where `x` is a collection/optional/numeric,
+/// we need to generate the INVERTED truthiness check:
+/// - `not collection` → `collection.is_empty()` (not `!collection.is_empty()`)
+/// - `not optional` → `optional.is_none()` (not `!optional.is_some()`)
+/// - `not number` → `number == 0` (not `number != 0`)
+///
+/// This prevents double-negation and generates cleaner Rust code.
+fn apply_negated_truthiness(
+    operand: &HirExpr,
+    cond_expr: syn::Expr,
+    ctx: &CodeGenContext,
+) -> syn::Expr {
+    // Extract the inner expression (strip the `!` from the already-converted cond_expr)
+    // The cond_expr is already `!inner_expr` from to_rust_expr, so we need the inner part
+    let inner_expr = if let syn::Expr::Unary(syn::ExprUnary {
+        op: syn::UnOp::Not(_),
+        expr,
+        ..
+    }) = &cond_expr
+    {
+        expr.as_ref().clone()
+    } else {
+        // Fallback: use the whole expression
+        cond_expr.clone()
+    };
+
+    // Helper to get the type for type-based truthiness
+    let get_type_for_operand = |op: &HirExpr| -> Option<Type> {
+        match op {
+            HirExpr::Var(var_name) => ctx.var_types.get(var_name).cloned(),
+            HirExpr::Attribute { value, attr } => {
+                if let HirExpr::Var(obj_name) = value.as_ref() {
+                    if obj_name == "self" {
+                        return ctx.class_field_types.get(attr).cloned();
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    };
+
+    // Get the type of the inner operand
+    if let Some(operand_type) = get_type_for_operand(operand) {
+        return match operand_type {
+            // Bool: keep the negation as-is
+            Type::Bool => cond_expr,
+
+            // String/List/Dict/Set: `not x` → `x.is_empty()` (inverted truthiness)
+            Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
+                parse_quote! { #inner_expr.is_empty() }
+            }
+
+            // Optional: `not x` → `x.is_none()` (inverted truthiness)
+            Type::Optional(_) => {
+                parse_quote! { #inner_expr.is_none() }
+            }
+
+            // Numeric: `not x` → `x == 0` (inverted truthiness)
+            Type::Int => {
+                parse_quote! { #inner_expr == 0 }
+            }
+            Type::Float => {
+                parse_quote! { #inner_expr == 0.0 }
+            }
+
+            // Unknown or other types: keep the negation
+            _ => cond_expr,
+        };
+    }
+
+    // DEPYLER-0966: Heuristic for self.* fields with common list/collection names
+    if let HirExpr::Attribute { value, attr } = operand {
+        if let HirExpr::Var(obj_name) = value.as_ref() {
+            if obj_name == "self" {
+                // Common list/collection field names
+                let list_attr_names = [
+                    "heap", "stack", "queue", "items", "elements", "data", "values",
+                    "list", "array", "nodes", "children", "entries", "records",
+                ];
+                if list_attr_names.contains(&attr.as_str()) {
+                    return parse_quote! { #inner_expr.is_empty() };
+                }
+            }
+        }
+    }
+
+    // Fallback: keep the original expression (including the negation)
+    cond_expr
+}
+
 /// Apply Python truthiness conversion to a condition expression
 ///
 /// In Python, any value can be used in a boolean context. This function
@@ -1447,6 +1540,18 @@ fn apply_truthiness_conversion(
     cond_expr: syn::Expr,
     ctx: &CodeGenContext,
 ) -> syn::Expr {
+    // DEPYLER-0966: Handle negated truthiness: `if not x:` where x is non-boolean
+    // For `not collection`, we should generate `collection.is_empty()` (no double negation)
+    // For `not optional`, we should generate `optional.is_none()`
+    if let HirExpr::Unary {
+        op: UnaryOp::Not,
+        operand,
+    } = condition
+    {
+        // Get the type of the inner operand and generate inverted truthiness
+        return apply_negated_truthiness(operand, cond_expr, ctx);
+    }
+
     // Check if this is a variable reference that needs truthiness conversion
     if let HirExpr::Var(var_name) = condition {
         if let Some(var_type) = ctx.var_types.get(var_name) {
