@@ -639,11 +639,16 @@ fn find_var_type_in_body(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
 }
 
 /// DEPYLER-0963: Find the type of a variable from its assignments, with parameter type context.
+/// DEPYLER-0965: Fixed to look at ALL assignments, not just the first one.
+/// When a variable has multiple assignments (e.g., `x = None` then `x = "hello"`),
+/// we should find the first assignment that gives us a concrete type.
 fn find_var_type_in_body_with_params(
     var_name: &str,
     stmts: &[HirStmt],
     param_types: &std::collections::HashMap<String, Type>,
 ) -> Option<Type> {
+    // DEPYLER-0965: Collect all types from assignments to this variable
+    // Return the first non-Unknown type found
     for stmt in stmts {
         match stmt {
             // Simple assignment: x = expr
@@ -664,10 +669,14 @@ fn find_var_type_in_body_with_params(
                 }
                 // If no annotation, infer from the assigned value
                 let inferred = infer_expr_type_simple(value);
-                if !matches!(inferred, Type::Unknown) {
+                // DEPYLER-0965: Skip Unknown and None types - continue looking for concrete types
+                // When variable is first assigned None (Type::None) but later assigned a string,
+                // we want to infer String, not None (which maps to () in Rust)
+                if !matches!(inferred, Type::Unknown | Type::None) {
                     return Some(inferred);
                 }
-                return None;
+                // DEPYLER-0965: Don't return None here - continue looking for more assignments
+                // The first assignment might be `x = None` but later ones might have concrete types
             }
             // Tuple unpacking: (a, b) = (1, 2)
             HirStmt::Assign {
