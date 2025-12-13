@@ -647,6 +647,104 @@ Per Karl Popper's scientific methodology, we must actively attempt to **falsify*
 
 **Per Popper**: A hypothesis that survives rigorous falsification attempts is provisionally accepted until new evidence emerges. We proceed with implementation while maintaining falsification monitoring (F1-F4 criteria from Section 6).
 
+### 9.5 Empirical Falsification Attempt: Five Whys on Current Progress (December 2025)
+
+After implementing Phase 1 "low-hanging fruit" fixes, we have NEW EMPIRICAL DATA. Per Popper's methodology, we must re-evaluate the hypothesis with this evidence.
+
+**Hypothesis H₀**: Architectural type inference improvements can achieve 80% convergence in 10 cycles.
+
+#### Empirical Data (December 13, 2025)
+
+| Metric | Value | Source |
+|--------|-------|--------|
+| Baseline Convergence | 22% (133/604) | Pre-Phase 1 |
+| Fixes Implemented | 3 | DEPYLER-0966, 0967, 0968 |
+| Post-Fix Convergence | ~23% (71/307 partial) | Post-Phase 1 |
+| Improvement | ~1 pp | Measured |
+| Per-Fix Improvement | ~0.33 pp | 1 pp / 3 fixes |
+
+#### Five Whys: Can We NOT Reach 80%?
+
+**Why #1**: Why might we NOT reach 80% in 10 cycles?
+- At current rate (0.33 pp/fix), we need 175 fixes to bridge 58 pp gap
+- 10 cycles ≈ 30-50 fixes maximum (3-5 per cycle)
+- **Gap**: Need 175, can deliver ~40. **Shortfall: 135 fixes**
+
+**Why #2**: Why is per-fix improvement so low (0.33 pp)?
+- The fixes implemented (truthiness, dunder, sum) are **surface-level** syntax transformations
+- They fix isolated patterns, not systemic type inference
+- Each fix addresses ~1-2% of failing files, but files have MULTIPLE failures
+- **Root cause**: Fixing one error in a file doesn't make the file compile if it has 5 other errors
+
+**Why #3**: Why do files have multiple failures?
+- Type inference failures CASCADE: one `Type::Unknown` causes 3-5 downstream errors
+- Example: `serde_json::Value` fallback causes E0599 + E0277 + E0308 in same file
+- Surface fixes address SYMPTOMS, not the CASCADE SOURCE
+- **Root cause**: We're pruning leaves, not cutting the root
+
+**Why #4**: Why are we fixing symptoms instead of root cause?
+- "Low-hanging fruit" strategy targets EASY fixes, not HIGH-IMPACT fixes
+- Easy fixes = isolated patterns with clear transformations
+- High-impact fixes = architectural type inference changes (harder)
+- **Root cause**: We optimized for "fixes per hour" not "convergence per fix"
+
+**Why #5**: Why haven't we done architectural type inference fixes?
+- Architectural changes require:
+  1. Understanding the full type inference pipeline
+  2. Implementing bidirectional propagation
+  3. Adding constraint solving
+  4. Testing for regressions
+- These are HARDER but have MULTIPLICATIVE impact (fix 1 root → fix 10 symptoms)
+- **Root cause**: We've been avoiding the hard work
+
+#### Falsification Verdict: PARTIAL FALSIFICATION
+
+**Evidence FOR Falsification** (hypothesis is FALSE):
+1. ✅ Current rate (0.33 pp/fix) mathematically cannot reach 80% in 10 cycles
+2. ✅ Surface fixes show diminishing returns (each subsequent fix helps fewer files)
+3. ✅ 3 fixes = 1 pp improvement = empirical proof of inadequacy
+
+**Evidence AGAINST Falsification** (hypothesis could still be TRUE):
+1. ⚠️ The 3 fixes were "low-hanging fruit", not "architectural changes"
+2. ⚠️ We haven't actually TRIED the architectural approach yet
+3. ⚠️ One architectural fix (e.g., `Type::Unknown` → proper inference) could fix 20+ pp at once
+4. ⚠️ The hypothesis specifies "architectural" changes, which we haven't done
+
+#### Critical Distinction
+
+The hypothesis says:
+> **Architectural** type inference improvements can achieve 80% in 10 cycles
+
+We tested:
+> **Surface-level** pattern fixes achieve 0.33 pp per fix
+
+**This is NOT a fair test of the hypothesis!**
+
+#### Revised Falsification Test
+
+To properly falsify H₀, we must:
+
+1. **Identify ONE architectural type inference issue** (not surface pattern)
+2. **Implement the fix** (e.g., bidirectional type propagation for one category)
+3. **Measure impact** on convergence rate
+4. **Calculate**: Can N such fixes reach 80%?
+
+If ONE architectural fix yields <5 pp improvement, THEN H₀ is likely FALSE.
+If ONE architectural fix yields ≥5 pp improvement, THEN H₀ survives and we continue.
+
+#### Action: Pivot from Surface Fixes to Architectural Fix
+
+**STOP**: Surface-level pattern fixes (truthiness, dunder, sum)
+**START**: Architectural type inference fix
+
+**Candidate Architectural Fix**: `serde_json::Value` fallback elimination
+- Current: Unknown types default to `serde_json::Value`
+- Problem: Value doesn't implement most traits, causing cascading E0599/E0277/E0308
+- Fix: Implement proper type inference from usage (bidirectional propagation)
+- Expected impact: If Value fallback causes 27% of E0425 errors, fixing could yield 10-15 pp
+
+**Falsification Threshold**: If Value fallback fix yields <5 pp, pivot strategy.
+
 ---
 
 ## 10. Acceptance Criteria

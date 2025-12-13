@@ -1554,32 +1554,76 @@ fn apply_truthiness_conversion(
 
     // Check if this is a variable reference that needs truthiness conversion
     if let HirExpr::Var(var_name) = condition {
+        // DEPYLER-0969: Check if type is tracked and handle known types
         if let Some(var_type) = ctx.var_types.get(var_name) {
-            return match var_type {
+            match var_type {
                 // Already boolean - no conversion needed
-                Type::Bool => cond_expr,
+                Type::Bool => return cond_expr,
 
                 // String/List/Dict/Set - check if empty
                 Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
-                    parse_quote! { !#cond_expr.is_empty() }
+                    return parse_quote! { !#cond_expr.is_empty() };
                 }
 
                 // Optional - check if Some
                 Type::Optional(_) => {
-                    parse_quote! { #cond_expr.is_some() }
+                    return parse_quote! { #cond_expr.is_some() };
                 }
 
                 // Numeric types - check if non-zero
                 Type::Int => {
-                    parse_quote! { #cond_expr != 0 }
+                    return parse_quote! { #cond_expr != 0 };
                 }
                 Type::Float => {
-                    parse_quote! { #cond_expr != 0.0 }
+                    return parse_quote! { #cond_expr != 0.0 };
                 }
 
-                // Unknown or other types - use as-is (may fail compilation)
-                _ => cond_expr,
-            };
+                // DEPYLER-0969: Custom types that are collections (VecDeque, BinaryHeap, etc.)
+                Type::Custom(type_name) => {
+                    if type_name.starts_with("VecDeque")
+                        || type_name.starts_with("std::collections::VecDeque")
+                        || type_name.starts_with("BinaryHeap")
+                        || type_name.starts_with("std::collections::BinaryHeap")
+                        || type_name.starts_with("LinkedList")
+                        || type_name.starts_with("std::collections::LinkedList")
+                        || type_name.starts_with("BTreeSet")
+                        || type_name.starts_with("BTreeMap")
+                        || type_name.starts_with("HashSet")
+                        || type_name.starts_with("HashMap")
+                        || type_name.contains("Deque")
+                        || type_name.contains("Queue")
+                        || type_name.contains("Stack")
+                        || type_name.contains("Heap")
+                    {
+                        return parse_quote! { !#cond_expr.is_empty() };
+                    }
+                    // Fall through to heuristics for non-collection custom types
+                }
+
+                // DEPYLER-0969: Generic types that are collections
+                Type::Generic { base, .. } => {
+                    if base == "VecDeque"
+                        || base == "BinaryHeap"
+                        || base == "LinkedList"
+                        || base == "BTreeSet"
+                        || base == "BTreeMap"
+                        || base == "HashSet"
+                        || base == "HashMap"
+                        || base == "Vec"
+                    {
+                        return parse_quote! { !#cond_expr.is_empty() };
+                    }
+                    // Fall through to heuristics for non-collection generic types
+                }
+
+                // Unknown - fall through to heuristics below
+                Type::Unknown => {
+                    // Don't return - let heuristics handle it
+                }
+
+                // Other concrete types - fall through to heuristics
+                _ => {}
+            }
         }
 
         // DEPYLER-0517: Heuristic fallback for common string variable names
@@ -1594,6 +1638,37 @@ fn apply_truthiness_conversion(
             || var_str.ends_with("_result")
             || var_str.ends_with("_str")
             || var_str.ends_with("_string")
+        {
+            return parse_quote! { !#cond_expr.is_empty() };
+        }
+
+        // DEPYLER-0969: Heuristic fallback for common collection variable names
+        // This is the ARCHITECTURAL FIX for truthiness - handles untracked collection types
+        // Pattern: `while queue:` where queue is VecDeque/Vec/etc not in var_types
+        // Rationale: Collection names like queue, stack, heap are almost always containers
+        if var_str == "queue"
+            || var_str == "stack"
+            || var_str == "heap"
+            || var_str == "items"
+            || var_str == "elements"
+            || var_str == "nodes"
+            || var_str == "visited"
+            || var_str == "seen"
+            || var_str == "pending"
+            || var_str == "worklist"
+            || var_str == "buffer"
+            || var_str == "entries"
+            || var_str == "results"
+            || var_str == "values"
+            || var_str == "keys"
+            || var_str == "children"
+            || var_str == "neighbors"
+            || var_str.ends_with("_queue")
+            || var_str.ends_with("_stack")
+            || var_str.ends_with("_heap")
+            || var_str.ends_with("_list")
+            || var_str.ends_with("_items")
+            || var_str.ends_with("_set")
         {
             return parse_quote! { !#cond_expr.is_empty() };
         }
