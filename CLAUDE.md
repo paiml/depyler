@@ -28,6 +28,33 @@ Depyler is a Python-to-Rust transpiler focusing on energy-efficient, safe code g
 3. Add failing test BEFORE fixing
 4. Validate all language features after fix
 
+## 🔴 CRITICAL: Never Add -D warnings to Convergence Compilation
+
+**THIS BUG HAS BEEN FIXED 100+ TIMES. DO NOT ADD IT BACK.**
+
+**File**: `crates/depyler/src/converge/compiler.rs`
+**Function**: `compile_with_cargo()`
+
+**THE BUG**: Adding `RUSTFLAGS=-D warnings` to cargo build during convergence causes:
+- Convergence rate drops from 80%+ to near 0%
+- Valid code fails compilation due to unused imports
+- Days of debugging wasted tracking phantom failures
+
+**THE FIX**: DO NOT treat warnings as errors during convergence compilation.
+- Code quality is enforced via clippy in CI, NOT during convergence
+- Convergence needs to know if code COMPILES, not if it's warning-free
+- Generated code often has unused imports that are harmless
+
+**REGRESSION TESTS**: Three tests in `compiler.rs` prevent this:
+1. `test_no_d_warnings_flag_in_source` - Static analysis, fails if -D warnings added
+2. `test_regression_warnings_must_not_cause_failure` - Integration test
+3. `test_uses_cargo_when_cargo_toml_exists` - Cargo path verification
+
+**IF YOU SEE CONVERGENCE RATE NEAR 0%**:
+1. Check `compile_with_cargo()` for RUSTFLAGS
+2. Run `cargo test -p depyler -- test_no_d_warnings_flag`
+3. If test fails, REMOVE the RUSTFLAGS line
+
 ## EXTREME CLI VALIDATION
 **15-Tool Validation Gates** (MANDATORY for ALL examples):
 1. rustc --deny warnings

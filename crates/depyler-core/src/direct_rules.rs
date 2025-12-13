@@ -550,6 +550,28 @@ pub fn convert_class_to_struct(
     let safe_name = safe_class_name(&class.name);
     let struct_name = make_ident(&safe_name);
 
+    // DEPYLER-0957: Check if class inherits from Exception
+    // Exception classes should default Unknown types to String (not serde_json::Value)
+    let is_exception_class = class.base_classes.iter().any(|base| {
+        matches!(
+            base.as_str(),
+            "Exception"
+                | "BaseException"
+                | "ValueError"
+                | "TypeError"
+                | "KeyError"
+                | "RuntimeError"
+                | "IOError"
+                | "OSError"
+                | "AttributeError"
+                | "IndexError"
+                | "StopIteration"
+                | "SyntaxError"
+                | "FileNotFoundError"
+                | "ZeroDivisionError"
+        )
+    });
+
     // Separate instance fields from class fields (constants/statics)
     let (instance_fields, class_fields): (Vec<_>, Vec<_>) =
         class.fields.iter().partition(|f| !f.is_class_var);
@@ -560,7 +582,13 @@ pub fn convert_class_to_struct(
 
     for field in instance_fields {
         let field_name = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
-        let rust_type = type_mapper.map_type(&field.field_type);
+        // DEPYLER-0957: For Exception classes, default Unknown types to String
+        let effective_field_type = if is_exception_class && field.field_type == Type::Unknown {
+            Type::String
+        } else {
+            field.field_type.clone()
+        };
+        let rust_type = type_mapper.map_type(&effective_field_type);
         let field_type = rust_type_to_syn_type(&rust_type)?;
 
         // DEPYLER-0611: Check if field type contains non-Clone types
@@ -877,6 +905,28 @@ fn convert_init_to_new(
     type_mapper: &TypeMapper,
     _vararg_functions: &std::collections::HashSet<String>,
 ) -> Result<syn::ImplItemFn> {
+    // DEPYLER-0957: Check if class inherits from Exception
+    // Exception classes should default Unknown types to String (not serde_json::Value)
+    let is_exception_class = class.base_classes.iter().any(|base| {
+        matches!(
+            base.as_str(),
+            "Exception"
+                | "BaseException"
+                | "ValueError"
+                | "TypeError"
+                | "KeyError"
+                | "RuntimeError"
+                | "IOError"
+                | "OSError"
+                | "AttributeError"
+                | "IndexError"
+                | "StopIteration"
+                | "SyntaxError"
+                | "FileNotFoundError"
+                | "ZeroDivisionError"
+        )
+    });
+
     // DEPYLER-0697: Collect field names to determine which params are used
     let field_names: std::collections::HashSet<&str> = class
         .fields
@@ -896,7 +946,13 @@ fn convert_init_to_new(
             format!("_{}", param.name)
         };
         let param_ident = make_ident(&param_name);
-        let rust_type = type_mapper.map_type(&param.ty);
+        // DEPYLER-0957: For Exception classes, default Unknown param types to String
+        let effective_param_type = if is_exception_class && param.ty == Type::Unknown {
+            Type::String
+        } else {
+            param.ty.clone()
+        };
+        let rust_type = type_mapper.map_type(&effective_param_type);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
         inputs.push(syn::FnArg::Typed(syn::PatType {
@@ -3401,8 +3457,22 @@ impl<'a> ExprConverter<'a> {
 
         match op {
             BinOp::In => {
-                // DEPYLER-0601: For strings, use .contains() instead of .contains_key()
-                if self.is_string_expr(right) {
+                // DEPYLER-0960: Check dict FIRST before string (overlapping names like "data", "result")
+                if self.is_dict_expr(right) {
+                    // Convert "x in dict" to "dict.contains_key(&x)" for dicts/maps
+                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                } else if self.is_tuple_or_list_expr(right) {
+                    // DEPYLER-0832: For tuples/lists, convert to array and use .contains()
+                    // Python: x in (A, B, C) -> Rust: [A, B, C].contains(&x)
+                    let elements: Vec<syn::Expr> = match right {
+                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
+                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
+                        }
+                        _ => vec![right_expr.clone()],
+                    };
+                    Ok(parse_quote! { [#(#elements),*].contains(&#left_expr) })
+                } else if self.is_string_expr(right) {
+                    // DEPYLER-0601: For strings, use .contains() instead of .contains_key()
                     // DEPYLER-0200: Use raw string literal or &* for Pattern trait
                     let pattern: syn::Expr = match left {
                         HirExpr::Literal(Literal::String(s)) => {
@@ -3416,24 +3486,28 @@ impl<'a> ExprConverter<'a> {
                         }
                     };
                     Ok(parse_quote! { #right_expr.contains(#pattern) })
+                } else {
+                    // Fallback: assume dict/HashMap
+                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
+                }
+            }
+            BinOp::NotIn => {
+                // DEPYLER-0960: Check dict FIRST before string (overlapping names like "data", "result")
+                if self.is_dict_expr(right) {
+                    // Convert "x not in dict" to "!dict.contains_key(&x)"
+                    Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
                 } else if self.is_tuple_or_list_expr(right) {
-                    // DEPYLER-0832: For tuples/lists, convert to array and use .contains()
-                    // Python: x in (A, B, C) -> Rust: [A, B, C].contains(&x)
+                    // DEPYLER-0832: For tuples/lists, convert to array and use !.contains()
+                    // Python: x not in (A, B, C) -> Rust: ![A, B, C].contains(&x)
                     let elements: Vec<syn::Expr> = match right {
                         HirExpr::Tuple(elems) | HirExpr::List(elems) => {
                             elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
                         }
                         _ => vec![right_expr.clone()],
                     };
-                    Ok(parse_quote! { [#(#elements),*].contains(&#left_expr) })
-                } else {
-                    // Convert "x in dict" to "dict.contains_key(&x)" for dicts/maps
-                    Ok(parse_quote! { #right_expr.contains_key(&#left_expr) })
-                }
-            }
-            BinOp::NotIn => {
-                // DEPYLER-0601: For strings, use !.contains() instead of !.contains_key()
-                if self.is_string_expr(right) {
+                    Ok(parse_quote! { ![#(#elements),*].contains(&#left_expr) })
+                } else if self.is_string_expr(right) {
+                    // DEPYLER-0601: For strings, use !.contains() instead of !.contains_key()
                     // DEPYLER-0200: Use raw string literal or &* for Pattern trait
                     let pattern: syn::Expr = match left {
                         HirExpr::Literal(Literal::String(s)) => {
@@ -3446,18 +3520,8 @@ impl<'a> ExprConverter<'a> {
                         }
                     };
                     Ok(parse_quote! { !#right_expr.contains(#pattern) })
-                } else if self.is_tuple_or_list_expr(right) {
-                    // DEPYLER-0832: For tuples/lists, convert to array and use !.contains()
-                    // Python: x not in (A, B, C) -> Rust: ![A, B, C].contains(&x)
-                    let elements: Vec<syn::Expr> = match right {
-                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
-                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
-                        }
-                        _ => vec![right_expr.clone()],
-                    };
-                    Ok(parse_quote! { ![#(#elements),*].contains(&#left_expr) })
                 } else {
-                    // Convert "x not in dict" to "!dict.contains_key(&x)"
+                    // Fallback: assume dict/HashMap
                     Ok(parse_quote! { !#right_expr.contains_key(&#left_expr) })
                 }
             }
@@ -4618,6 +4682,29 @@ impl<'a> ExprConverter<'a> {
         matches!(expr, HirExpr::Tuple(_) | HirExpr::List(_))
     }
 
+    /// DEPYLER-0960: Detect if expression is a dict/HashMap type.
+    /// Used to ensure `key in dict` generates `.contains_key()` not `.contains()`.
+    fn is_dict_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Dict literal
+            HirExpr::Dict { .. } => true,
+            // Variables with common dict-like names
+            HirExpr::Var(name) => {
+                let n = name.as_str();
+                n.contains("dict") || n.contains("map") || n.contains("hash")
+                    || n == "config" || n == "settings" || n == "params"
+                    || n == "options" || n == "env" || n == "data"
+                    || n == "result" || n == "cache" || n == "d" || n == "m"
+            }
+            // Calls to dict() or functions returning dicts
+            HirExpr::Call { func, .. } => {
+                func == "dict" || func.contains("json") || func.contains("config")
+                    || func.contains("load") || func.contains("parse")
+            }
+            _ => false,
+        }
+    }
+
     fn convert_set_operation(
         &self,
         op: BinOp,
@@ -5182,24 +5269,49 @@ impl<'a> ExprConverter<'a> {
                 )
             }
 
-            // DEPYLER-0200: String contains method - use raw string literal for Pattern trait
+            // DEPYLER-0200/DEPYLER-0960: String/Dict contains method
+            // String: use .contains() with raw string literal for Pattern trait
+            // Dict/HashMap: use .contains_key() - E0599 fix
             "__contains__" | "contains" => {
                 if args.len() != 1 {
                     bail!("contains() requires exactly one argument");
                 }
-                // For Pattern trait, use raw string literal or &* for Pattern trait
-                let pattern: syn::Expr = match &args[0] {
-                    HirExpr::Literal(Literal::String(s)) => {
-                        let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                        parse_quote! { #lit }
+
+                // DEPYLER-0960: Detect if object is a dict/HashMap type
+                let is_dict_like = match object {
+                    HirExpr::Var(name) => {
+                        let n = name.as_str();
+                        n.contains("dict") || n.contains("map") || n.contains("data")
+                            || n == "result" || n == "config" || n == "settings"
+                            || n == "params" || n == "options" || n == "env"
+                            || n == "d" || n == "m" || n == "cache"
                     }
-                    _ => {
-                        // Use &* to deref-reborrow - works for both String and &str
-                        let arg = self.convert(&args[0])?;
-                        parse_quote! { &*#arg }
+                    HirExpr::Call { func, .. } => {
+                        func.contains("dict") || func.contains("json") || func.contains("config")
+                            || func.contains("result") || func.contains("load")
                     }
+                    _ => false,
                 };
-                Ok(parse_quote! { #object_expr.contains(#pattern) })
+
+                if is_dict_like {
+                    // HashMap uses contains_key(&key)
+                    let key = self.convert(&args[0])?;
+                    Ok(parse_quote! { #object_expr.contains_key(&#key) })
+                } else {
+                    // String uses .contains(pattern) with Pattern trait
+                    let pattern: syn::Expr = match &args[0] {
+                        HirExpr::Literal(Literal::String(s)) => {
+                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                            parse_quote! { #lit }
+                        }
+                        _ => {
+                            // Use &* to deref-reborrow - works for both String and &str
+                            let arg = self.convert(&args[0])?;
+                            parse_quote! { &*#arg }
+                        }
+                    };
+                    Ok(parse_quote! { #object_expr.contains(#pattern) })
+                }
             }
 
             // DEPYLER-0613: Semaphore/Mutex method mappings
@@ -5456,12 +5568,14 @@ impl<'a> ExprConverter<'a> {
                 }),
                 _ => None,
             },
+            // DEPYLER-0950: json.loads/load need proper type annotation and borrowing
+            // serde_json::from_str expects &str, returns Result, needs type annotation
             "json" => match constructor {
                 "loads" | "load" => {
-                    arg_exprs.first().map(|arg| parse_quote! { serde_json::from_str(#arg)? })
+                    arg_exprs.first().map(|arg| parse_quote! { serde_json::from_str::<serde_json::Value>(&#arg).unwrap() })
                 }
                 "dumps" | "dump" => {
-                    arg_exprs.first().map(|arg| parse_quote! { serde_json::to_string(&#arg)? })
+                    arg_exprs.first().map(|arg| parse_quote! { serde_json::to_string(&#arg).unwrap() })
                 }
                 _ => None,
             },
@@ -5532,28 +5646,32 @@ impl<'a> ExprConverter<'a> {
                     bail!("os.{}() requires exactly 1 argument", method);
                 }
                 let path = &arg_exprs[0];
-                Some(parse_quote! { std::fs::remove_file(#path)? })
+                // DEPYLER-0956: Use .unwrap() to not require Result return type
+                Some(parse_quote! { std::fs::remove_file(#path).unwrap() })
             }
             "mkdir" => {
                 if arg_exprs.is_empty() {
                     bail!("os.mkdir() requires at least 1 argument");
                 }
                 let path = &arg_exprs[0];
-                Some(parse_quote! { std::fs::create_dir(#path)? })
+                // DEPYLER-0956: Use .unwrap() to not require Result return type
+                Some(parse_quote! { std::fs::create_dir(#path).unwrap() })
             }
             "makedirs" => {
                 if arg_exprs.is_empty() {
                     bail!("os.makedirs() requires at least 1 argument");
                 }
                 let path = &arg_exprs[0];
-                Some(parse_quote! { std::fs::create_dir_all(#path)? })
+                // DEPYLER-0956: Use .unwrap() to not require Result return type
+                Some(parse_quote! { std::fs::create_dir_all(#path).unwrap() })
             }
             "rmdir" => {
                 if arg_exprs.len() != 1 {
                     bail!("os.rmdir() requires exactly 1 argument");
                 }
                 let path = &arg_exprs[0];
-                Some(parse_quote! { std::fs::remove_dir(#path)? })
+                // DEPYLER-0956: Use .unwrap() to not require Result return type
+                Some(parse_quote! { std::fs::remove_dir(#path).unwrap() })
             }
             "rename" => {
                 if arg_exprs.len() != 2 {
@@ -5561,7 +5679,8 @@ impl<'a> ExprConverter<'a> {
                 }
                 let src = &arg_exprs[0];
                 let dst = &arg_exprs[1];
-                Some(parse_quote! { std::fs::rename(#src, #dst)? })
+                // DEPYLER-0956: Use .unwrap() to not require Result return type
+                Some(parse_quote! { std::fs::rename(#src, #dst).unwrap() })
             }
             "getcwd" => {
                 if !arg_exprs.is_empty() {

@@ -417,12 +417,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // Heuristic: common float parameter names
             let name_lower = name.to_lowercase();
-            return name_lower.contains("beta")
+            if name_lower.contains("beta")
                 || name_lower.contains("alpha")
                 || name_lower.contains("lr")
                 || name_lower.contains("eps")
                 || name_lower.contains("rate")
-                || name_lower.contains("momentum");
+                || name_lower.contains("momentum")
+            {
+                return true;
+            }
+            // DEPYLER-0950: Heuristic for colorsys color channel variables
+            // Single-letter color channel names like r, g, h, s, v, l are typically f64
+            // from colorsys.hsv_to_rgb(), rgb_to_hsv(), rgb_to_hls() etc.
+            // Only match exact single-letter names to avoid false positives
+            // DEPYLER-0954: Note: a, b, x, y are too generic and cause false positives
+            // (b, y were incorrectly included before - causes spurious float casts)
+            if matches!(
+                name.as_str(),
+                "r" | "g" | "h" | "s" | "v" | "l" | "c" | "m" | "k"
+            ) {
+                return true;
+            }
         }
         false
     }
@@ -1141,6 +1156,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
         }
 
+        // DEPYLER-0950: String literal * int variable (e.g., "=" * width)
+        // Safe because string literal is definite, and we verify int variable type
+        let right_is_int_var_from_type = if let HirExpr::Var(sym) = right {
+            matches!(
+                self.ctx.var_types.get(sym),
+                Some(crate::hir::Type::Int)
+            )
+        } else {
+            false
+        };
+        let left_is_int_var_from_type = if let HirExpr::Var(sym) = left {
+            matches!(
+                self.ctx.var_types.get(sym),
+                Some(crate::hir::Type::Int)
+            )
+        } else {
+            false
+        };
+
+        if left_is_string_literal && right_is_int_var_from_type {
+            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+        } else if left_is_int_var_from_type && right_is_string_literal {
+            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+        }
+
         // For variable * literal patterns, check if variable is DEFINITELY not numeric
         // by looking for clear string method calls in its lineage
         let left_is_string_var = if let HirExpr::Var(sym) = left {
@@ -1162,6 +1202,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if left_is_string_var && right_is_int_literal {
             return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
         } else if left_is_int_literal && right_is_string_var {
+            return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
+        }
+
+        // DEPYLER-0950: String var * int var - use explicit type annotations from context
+        // This is safer than arbitrary inference because param types come from annotations
+        let right_is_int_var = if let HirExpr::Var(sym) = right {
+            matches!(
+                self.ctx.var_types.get(sym),
+                Some(crate::hir::Type::Int)
+            )
+        } else {
+            false
+        };
+        let left_is_int_var = if let HirExpr::Var(sym) = left {
+            matches!(
+                self.ctx.var_types.get(sym),
+                Some(crate::hir::Type::Int)
+            )
+        } else {
+            false
+        };
+
+        // String-named var * int-typed var → use .repeat()
+        if left_is_string_var && right_is_int_var {
+            return Ok(parse_quote! { #left_expr.repeat(#right_expr as usize) });
+        } else if left_is_int_var && right_is_string_var {
             return Ok(parse_quote! { #right_expr.repeat(#left_expr as usize) });
         }
 
@@ -1435,6 +1501,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-0960: Check dict FIRST before string (overlapping names like "data", "result")
+        // Dict check must come before string check because some names are ambiguous
+        // Use .get().is_some() instead of .contains_key() for compatibility with both
+        // HashMap and serde_json::Value types
+        if self.is_dict_expr(right) {
+            // DEPYLER-0559: Check if left side needs borrowing
+            let needs_borrow = match left {
+                HirExpr::Var(var_name) => !self.is_borrowed_str_param(var_name),
+                HirExpr::Literal(Literal::String(_)) => false,
+                _ => true,
+            };
+            // Dict/HashMap uses .get(&key).is_some() for compatibility
+            if negate {
+                if needs_borrow {
+                    return Ok(parse_quote! { #right_expr.get(&#left_expr).is_none() });
+                } else {
+                    return Ok(parse_quote! { #right_expr.get(#left_expr).is_none() });
+                }
+            } else if needs_borrow {
+                return Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() });
+            } else {
+                return Ok(parse_quote! { #right_expr.get(#left_expr).is_some() });
+            }
+        }
+
         // DEPYLER-0321: Type-aware container detection
         let is_string = self.is_string_type(right);
         let is_set = self.is_set_expr(right) || self.is_set_var(right);
@@ -1547,6 +1638,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
         } else {
+            // DEPYLER-0449: Check for serde_json::Value FIRST (dict-like key lookup)
+            // Must check before left_is_string because dict keys are also strings
+            let right_is_json_value = self.is_serde_json_value_expr(right);
+            if right_is_json_value {
+                // Dict/HashMap/serde_json::Value uses .get(key).is_some() for compatibility
+                if negate {
+                    if needs_borrow {
+                        return Ok(parse_quote! { !#right_expr.get(&#left_expr).is_some() });
+                    } else {
+                        return Ok(parse_quote! { !#right_expr.get(#left_expr).is_some() });
+                    }
+                } else if needs_borrow {
+                    return Ok(parse_quote! { #right_expr.get(&#left_expr).is_some() });
+                } else {
+                    return Ok(parse_quote! { #right_expr.get(#left_expr).is_some() });
+                }
+            }
+
             // DEPYLER-0935: Check if left side is a string - if so, this is likely a substring check
             // Python: pattern in entry (where both are strings) → Rust: entry.contains(&*pattern)
             // This handles cases where type inference didn't detect the right side as a string
@@ -2640,10 +2749,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return result;
         }
 
-        // Handle max(generator_exp) → generator_exp.max()
+        // DEPYLER-0950: Handle max(generator_exp) → generator_exp.max().unwrap_or_default()
+        // Iterator::max() returns Option<T>, must unwrap for use in ranges/arithmetic
         if func == "max" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
             let gen_expr = args[0].to_rust_expr(self.ctx)?;
-            return Ok(parse_quote! { #gen_expr.max() });
+            return Ok(parse_quote! { #gen_expr.max().unwrap_or_default() });
+        }
+
+        // DEPYLER-0950: Handle min(generator_exp) → generator_exp.min().unwrap_or_default()
+        if func == "min" && args.len() == 1 && matches!(args[0], HirExpr::GeneratorExp { .. }) {
+            let gen_expr = args[0].to_rust_expr(self.ctx)?;
+            return Ok(parse_quote! { #gen_expr.min().unwrap_or_default() });
         }
 
         // DEPYLER-REFACTOR-001: sorted() and reversed() handlers consolidated
@@ -4031,7 +4147,47 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Ok(parse_quote! { #class_ident::new() })
             } else {
-                Ok(parse_quote! { #class_ident::new(#(#args),*) })
+                // DEPYLER-0932: Complete missing constructor arguments with defaults
+                // When Python calls Config("localhost") but Config has 3 fields with 2 defaults,
+                // we need to generate Config::new("localhost".to_string(), 8080, false)
+                let mut completed_args = args.to_vec();
+                if let Some(defaults) = self.ctx.class_field_defaults.get(func) {
+                    let num_provided = completed_args.len();
+                    let num_fields = defaults.len();
+
+                    if num_provided < num_fields {
+                        // Fill in missing arguments from defaults
+                        for i in num_provided..num_fields {
+                            if let Some(Some(default_expr)) = defaults.get(i) {
+                                use crate::hir::{HirExpr, Literal};
+                                let default_syn: syn::Expr = match default_expr {
+                                    HirExpr::Literal(Literal::None) => {
+                                        parse_quote! { None }
+                                    }
+                                    HirExpr::Literal(Literal::Int(n)) => {
+                                        let n_i32 = *n as i32;
+                                        parse_quote! { #n_i32 }
+                                    }
+                                    HirExpr::Literal(Literal::Float(f)) => {
+                                        let f = *f;
+                                        parse_quote! { #f }
+                                    }
+                                    HirExpr::Literal(Literal::Bool(b)) => {
+                                        let b = *b;
+                                        parse_quote! { #b }
+                                    }
+                                    HirExpr::Literal(Literal::String(s)) => {
+                                        parse_quote! { #s.to_string() }
+                                    }
+                                    // For complex defaults, skip
+                                    _ => continue,
+                                };
+                                completed_args.push(default_syn);
+                            }
+                        }
+                    }
+                }
+                Ok(parse_quote! { #class_ident::new(#(#completed_args),*) })
             }
         } else {
             // DEPYLER-0771: Fallback handling for isqrt if not found in imported_items
@@ -4066,6 +4222,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .zip(args.iter())
                 .enumerate()
                 .map(|(param_idx, (hir_arg, arg_expr))| {
+                    // DEPYLER-0950: Integer literal coercion at f64 call sites
+                    // When calling add(1, 2.5) where add expects (f64, f64), coerce 1 to 1.0
+                    if let HirExpr::Literal(Literal::Int(n)) = hir_arg {
+                        if let Some(param_types) = self.ctx.function_param_types.get(func) {
+                            if let Some(Type::Float) = param_types.get(param_idx) {
+                                // Integer literal passed where f64 expected - coerce to float
+                                let f_val = *n as f64;
+                                return parse_quote! { #f_val };
+                            }
+                        }
+                    }
+
                     // DEPYLER-0471: Clone args.config when passing to functions taking owned String
                     // This avoids "use after move" errors when args.config is used multiple times
                     if matches!(hir_arg, HirExpr::Attribute { value, attr }
@@ -4813,14 +4981,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Mark that we need regex crate
         self.ctx.needs_regex = true;
 
+        // DEPYLER-0961: Helper to extract bare string literals for regex methods
+        // Regex::new() and find() expect &str, not String
+        // String literals should be passed directly without .to_string()
+        let extract_str_arg = |idx: usize| -> syn::Expr {
+            match args.get(idx) {
+                Some(HirExpr::Literal(Literal::String(s))) => {
+                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                    parse_quote! { #lit }
+                }
+                _ => arg_exprs.get(idx).cloned().unwrap_or_else(|| parse_quote! { "" }),
+            }
+        };
+
         let result = match method {
             // Pattern matching functions
             "search" => {
                 if arg_exprs.len() < 2 {
                     bail!("re.search() requires at least 2 arguments (pattern, string)");
                 }
-                let pattern = &arg_exprs[0];
-                let text = &arg_exprs[1];
+                // DEPYLER-0961: Extract bare string literals for &str compatibility
+                let pattern = extract_str_arg(0);
+                let text = extract_str_arg(1);
 
                 // Handle optional flags (simplified - just check for IGNORECASE)
                 if arg_exprs.len() >= 3 {
@@ -4843,8 +5025,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() < 2 {
                     bail!("re.match() requires at least 2 arguments (pattern, string)");
                 }
-                let pattern = &arg_exprs[0];
-                let text = &arg_exprs[1];
+                // DEPYLER-0961: Extract bare string literals for &str compatibility
+                let pattern = extract_str_arg(0);
+                let text = extract_str_arg(1);
 
                 // DEPYLER-0389: re.match() in Python only matches at the beginning
                 // Returns Option<Match> to support .group() calls
@@ -4857,8 +5040,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() < 2 {
                     bail!("re.findall() requires at least 2 arguments (pattern, string)");
                 }
-                let pattern = &arg_exprs[0];
-                let text = &arg_exprs[1];
+                // DEPYLER-0961: Extract bare string literals for &str compatibility
+                let pattern = extract_str_arg(0);
+                let text = extract_str_arg(1);
 
                 // re.findall(pattern, text) → Regex::new(pattern).unwrap().find_iter(text).map(|m| m.as_str()).collect::<Vec<_>>()
                 parse_quote! {
@@ -4874,8 +5058,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() < 2 {
                     bail!("re.finditer() requires at least 2 arguments (pattern, string)");
                 }
-                let pattern = &arg_exprs[0];
-                let text = &arg_exprs[1];
+                // DEPYLER-0961: Extract bare string literals for &str compatibility
+                let pattern = extract_str_arg(0);
+                let text = extract_str_arg(1);
 
                 // re.finditer(pattern, text) → Regex::new(pattern).unwrap().find_iter(text)
                 parse_quote! {
@@ -4892,9 +5077,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() < 3 {
                     bail!("re.sub() requires at least 3 arguments (pattern, repl, string)");
                 }
-                let pattern = &arg_exprs[0];
-                let repl = &arg_exprs[1];
-                let text = &arg_exprs[2];
+                // DEPYLER-0961: Extract bare string literals for &str compatibility
+                let pattern = extract_str_arg(0);
+                let repl = extract_str_arg(1);
+                let text = extract_str_arg(2);
 
                 // re.sub(pattern, repl, text) → Regex::new(pattern).unwrap().replace_all(text, repl)
                 parse_quote! {
@@ -4909,9 +5095,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if arg_exprs.len() < 3 {
                     bail!("re.subn() requires at least 3 arguments (pattern, repl, string)");
                 }
-                let pattern = &arg_exprs[0];
-                let repl = &arg_exprs[1];
-                let text = &arg_exprs[2];
+                // DEPYLER-0961: Extract bare string literals for &str compatibility
+                let pattern = extract_str_arg(0);
+                let repl = extract_str_arg(1);
+                let text = extract_str_arg(2);
 
                 // re.subn(pattern, repl, text) → returns (result, count)
                 parse_quote! {
@@ -5533,42 +5720,48 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("os.{}() requires exactly 1 argument", method);
                 }
                 let path = &arg_exprs[0];
-                parse_quote! { std::fs::remove_file(#path)? }
+                // DEPYLER-0956: Use .unwrap() to not require Result return type
+                parse_quote! { std::fs::remove_file(#path).unwrap() }
             }
-            // DEPYLER-0196: os.mkdir(path) → std::fs::create_dir(path)?
+            // DEPYLER-0196: os.mkdir(path) → std::fs::create_dir(path).unwrap()
+            // DEPYLER-0956: Use .unwrap() to not require Result return type
             "mkdir" => {
                 if arg_exprs.is_empty() {
                     bail!("os.mkdir() requires at least 1 argument");
                 }
                 let path = &arg_exprs[0];
                 // Ignore mode argument (arg_exprs[1]) as Rust uses system defaults
-                parse_quote! { std::fs::create_dir(#path)? }
+                parse_quote! { std::fs::create_dir(#path).unwrap() }
             }
-            // DEPYLER-0196: os.makedirs(path) → std::fs::create_dir_all(path)?
+            // DEPYLER-0196: os.makedirs(path) → std::fs::create_dir_all(path).unwrap()
+            // DEPYLER-0956: Use .unwrap() instead of ? to not require Result return type
+            // This matches Python's semantics where OSError is raised (panics in Rust)
             "makedirs" => {
                 if arg_exprs.is_empty() {
                     bail!("os.makedirs() requires at least 1 argument");
                 }
                 let path = &arg_exprs[0];
                 // Ignore mode and exist_ok arguments as create_dir_all handles both
-                parse_quote! { std::fs::create_dir_all(#path)? }
+                parse_quote! { std::fs::create_dir_all(#path).unwrap() }
             }
-            // DEPYLER-0196: os.rmdir(path) → std::fs::remove_dir(path)?
+            // DEPYLER-0196: os.rmdir(path) → std::fs::remove_dir(path).unwrap()
+            // DEPYLER-0956: Use .unwrap() to not require Result return type
             "rmdir" => {
                 if arg_exprs.len() != 1 {
                     bail!("os.rmdir() requires exactly 1 argument");
                 }
                 let path = &arg_exprs[0];
-                parse_quote! { std::fs::remove_dir(#path)? }
+                parse_quote! { std::fs::remove_dir(#path).unwrap() }
             }
-            // DEPYLER-0196: os.rename(src, dst) → std::fs::rename(src, dst)?
+            // DEPYLER-0196: os.rename(src, dst) → std::fs::rename(src, dst).unwrap()
+            // DEPYLER-0956: Use .unwrap() to not require Result return type
             "rename" => {
                 if arg_exprs.len() != 2 {
                     bail!("os.rename() requires exactly 2 arguments");
                 }
                 let src = &arg_exprs[0];
                 let dst = &arg_exprs[1];
-                parse_quote! { std::fs::rename(#src, #dst)? }
+                parse_quote! { std::fs::rename(#src, #dst).unwrap() }
             }
             // DEPYLER-0196: os.getcwd() → std::env::current_dir()...
             // DEPYLER-0689: Use .expect() when not in Result-returning context
@@ -5804,6 +5997,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut capture_output = false;
         let mut _text = false;
         let mut cwd_expr: Option<syn::Expr> = None;
+        let mut cwd_is_option = false; // DEPYLER-0950: Track if cwd is Option type
         let mut _check = false;
 
         for (key, value) in kwargs {
@@ -5820,6 +6014,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 "cwd" => {
                     cwd_expr = Some(value.to_rust_expr(self.ctx)?);
+                    // DEPYLER-0950: Check if cwd value is likely an Option type
+                    // Variables with Optional type annotation or None default need if-let Some()
+                    // Expressions like list indexing (which use .expect()) are already unwrapped
+                    cwd_is_option = matches!(value, HirExpr::Var(v) if {
+                        self.ctx.var_types.get(v).is_some_and(|t| matches!(t, Type::Optional(_)))
+                    });
                 }
                 "check" => {
                     if let HirExpr::Literal(Literal::Bool(b)) = value {
@@ -5851,24 +6051,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         self.ctx.needs_completed_process = true;
 
         // DEPYLER-0517: Handle Option<String> for cwd parameter
-        // When cwd is a runtime variable (e.g., function parameter with default None),
-        // it may be Option<String>. Use if-let to safely handle this case.
+        // DEPYLER-0950: Only use if-let Some() when cwd is actually an Option type
+        // When cwd is a concrete expression (like list indexing), use it directly
         let result = if capture_output {
             // Use .output() to capture stdout/stderr
             if let Some(cwd) = cwd_expr {
-                parse_quote! {
-                    {
-                        let cmd_list = #cmd_expr;
-                        let mut cmd = std::process::Command::new(&cmd_list[0]);
-                        cmd.args(&cmd_list[1..]);
-                        if let Some(dir) = #cwd {
-                            cmd.current_dir(dir);
+                if cwd_is_option {
+                    // cwd is Option<String> - need if-let to unwrap
+                    parse_quote! {
+                        {
+                            let cmd_list = #cmd_expr;
+                            let mut cmd = std::process::Command::new(&cmd_list[0]);
+                            cmd.args(&cmd_list[1..]);
+                            if let Some(dir) = #cwd {
+                                cmd.current_dir(dir);
+                            }
+                            let output = cmd.output().expect("subprocess.run() failed");
+                            CompletedProcess {
+                                returncode: output.status.code().unwrap_or(-1),
+                                stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                            }
                         }
-                        let output = cmd.output().expect("subprocess.run() failed");
-                        CompletedProcess {
-                            returncode: output.status.code().unwrap_or(-1),
-                            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-                            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                    }
+                } else {
+                    // cwd is already a concrete path (String) - use directly
+                    parse_quote! {
+                        {
+                            let cmd_list = #cmd_expr;
+                            let mut cmd = std::process::Command::new(&cmd_list[0]);
+                            cmd.args(&cmd_list[1..]);
+                            cmd.current_dir(#cwd);
+                            let output = cmd.output().expect("subprocess.run() failed");
+                            CompletedProcess {
+                                returncode: output.status.code().unwrap_or(-1),
+                                stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+                                stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+                            }
                         }
                     }
                 }
@@ -5890,19 +6109,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             // Use .status() for exit code only (no capture)
             if let Some(cwd) = cwd_expr {
-                parse_quote! {
-                    {
-                        let cmd_list = #cmd_expr;
-                        let mut cmd = std::process::Command::new(&cmd_list[0]);
-                        cmd.args(&cmd_list[1..]);
-                        if let Some(dir) = #cwd {
-                            cmd.current_dir(dir);
+                if cwd_is_option {
+                    // cwd is Option<String> - need if-let to unwrap
+                    parse_quote! {
+                        {
+                            let cmd_list = #cmd_expr;
+                            let mut cmd = std::process::Command::new(&cmd_list[0]);
+                            cmd.args(&cmd_list[1..]);
+                            if let Some(dir) = #cwd {
+                                cmd.current_dir(dir);
+                            }
+                            let status = cmd.status().expect("subprocess.run() failed");
+                            CompletedProcess {
+                                returncode: status.code().unwrap_or(-1),
+                                stdout: String::new(),
+                                stderr: String::new(),
+                            }
                         }
-                        let status = cmd.status().expect("subprocess.run() failed");
-                        CompletedProcess {
-                            returncode: status.code().unwrap_or(-1),
-                            stdout: String::new(),
-                            stderr: String::new(),
+                    }
+                } else {
+                    // cwd is already a concrete path (String) - use directly
+                    parse_quote! {
+                        {
+                            let cmd_list = #cmd_expr;
+                            let mut cmd = std::process::Command::new(&cmd_list[0]);
+                            cmd.args(&cmd_list[1..]);
+                            cmd.current_dir(#cwd);
+                            let status = cmd.status().expect("subprocess.run() failed");
+                            CompletedProcess {
+                                returncode: status.code().unwrap_or(-1),
+                                stdout: String::new(),
+                                stderr: String::new(),
+                            }
                         }
                     }
                 }
@@ -5918,6 +6156,98 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             stdout: String::new(),
                             stderr: String::new(),
                         }
+                    }
+                }
+            }
+        };
+
+        Ok(result)
+    }
+
+    /// Convert subprocess.Popen() to std::process::Command::spawn()
+    /// DEPYLER-0931: Subprocess Popen for process management
+    ///
+    /// Maps Python subprocess.Popen() to Rust std::process::Command:
+    /// - subprocess.Popen(cmd) → Command::new(cmd).spawn().expect("...")
+    /// - subprocess.Popen(cmd, shell=True) → Command::new("sh").arg("-c").arg(cmd).spawn()
+    ///
+    /// Returns std::process::Child which has .wait(), .kill(), etc.
+    ///
+    /// # Complexity
+    /// ≤10 (linear processing of kwargs)
+    #[inline]
+    fn convert_subprocess_popen(
+        &mut self,
+        args: &[HirExpr],
+        kwargs: &[(Symbol, HirExpr)],
+    ) -> Result<syn::Expr> {
+        if args.is_empty() {
+            bail!("subprocess.Popen() requires at least 1 argument (command)");
+        }
+
+        // First argument is the command
+        let cmd_expr = args[0].to_rust_expr(self.ctx)?;
+
+        // Parse keyword arguments
+        let mut shell = false;
+        let mut cwd_expr: Option<syn::Expr> = None;
+
+        for (key, value) in kwargs {
+            match key.as_str() {
+                "shell" => {
+                    if let HirExpr::Literal(Literal::Bool(b)) = value {
+                        shell = *b;
+                    }
+                }
+                "cwd" => {
+                    cwd_expr = Some(value.to_rust_expr(self.ctx)?);
+                }
+                _ => {} // Ignore unknown kwargs for now
+            }
+        }
+
+        // Build the Command construction
+        // Python: subprocess.Popen(cmd, shell=True)
+        // Rust: Command::new("sh").arg("-c").arg(cmd).spawn().expect("...")
+        let result = if shell {
+            // shell=True: run through shell
+            if let Some(cwd) = cwd_expr {
+                parse_quote! {
+                    {
+                        let mut popen_cmd = std::process::Command::new("sh");
+                        popen_cmd.arg("-c").arg(#cmd_expr);
+                        popen_cmd.current_dir(#cwd);
+                        popen_cmd.spawn().expect("subprocess.Popen() failed")
+                    }
+                }
+            } else {
+                parse_quote! {
+                    {
+                        let mut popen_cmd = std::process::Command::new("sh");
+                        popen_cmd.arg("-c").arg(#cmd_expr);
+                        popen_cmd.spawn().expect("subprocess.Popen() failed")
+                    }
+                }
+            }
+        } else {
+            // No shell: cmd is a list
+            if let Some(cwd) = cwd_expr {
+                parse_quote! {
+                    {
+                        let popen_list = #cmd_expr;
+                        let mut popen_cmd = std::process::Command::new(&popen_list[0]);
+                        popen_cmd.args(&popen_list[1..]);
+                        popen_cmd.current_dir(#cwd);
+                        popen_cmd.spawn().expect("subprocess.Popen() failed")
+                    }
+                }
+            } else {
+                parse_quote! {
+                    {
+                        let popen_list = #cmd_expr;
+                        let mut popen_cmd = std::process::Command::new(&popen_list[0]);
+                        popen_cmd.args(&popen_list[1..]);
+                        popen_cmd.spawn().expect("subprocess.Popen() failed")
                     }
                 }
             }
@@ -11939,10 +12269,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if hir_args.len() != 1 {
                     bail!("startswith() requires exactly one argument");
                 }
-                // Extract bare string literal for Pattern trait compatibility
-                let prefix = match &hir_args[0] {
+                // DEPYLER-0945: Extract bare string literal for Pattern trait compatibility
+                // String doesn't implement Pattern, but &str does
+                // Only borrow if the arg is a String variable (not if already &str from fn_str_params)
+                let prefix: syn::Expr = match &hir_args[0] {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                    _ => arg_exprs[0].clone(),
+                    HirExpr::Var(name) if self.ctx.fn_str_params.contains(name) => {
+                        // Variable is already &str from function parameter, don't double-borrow
+                        arg_exprs[0].clone()
+                    }
+                    _ => {
+                        // Owned String variable, borrow it
+                        let arg = &arg_exprs[0];
+                        parse_quote! { &#arg }
+                    }
                 };
                 Ok(parse_quote! { #obj.starts_with(#prefix) })
             }
@@ -11950,10 +12290,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if hir_args.len() != 1 {
                     bail!("endswith() requires exactly one argument");
                 }
-                // Extract bare string literal for Pattern trait compatibility
-                let suffix = match &hir_args[0] {
+                // DEPYLER-0945: Extract bare string literal for Pattern trait compatibility
+                // String doesn't implement Pattern, but &str does
+                // Only borrow if the arg is a String variable (not if already &str from fn_str_params)
+                let suffix: syn::Expr = match &hir_args[0] {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                    _ => arg_exprs[0].clone(),
+                    HirExpr::Var(name) if self.ctx.fn_str_params.contains(name) => {
+                        // Variable is already &str from function parameter, don't double-borrow
+                        arg_exprs[0].clone()
+                    }
+                    _ => {
+                        // Owned String variable, borrow it
+                        let arg = &arg_exprs[0];
+                        parse_quote! { &#arg }
+                    }
                 };
                 Ok(parse_quote! { #obj.ends_with(#suffix) })
             }
@@ -11963,10 +12313,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         parse_quote! { #obj.split_whitespace().map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
                 } else if arg_exprs.len() == 1 {
-                    // DEPYLER-0225: Extract bare string literal for Pattern trait compatibility
-                    let sep = match &hir_args[0] {
+                    // DEPYLER-0225/0945: Extract bare string literal for Pattern trait compatibility
+                    // Only borrow if the arg is a String variable (not if already &str)
+                    let sep: syn::Expr = match &hir_args[0] {
                         HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                        _ => arg_exprs[0].clone(),
+                        HirExpr::Var(name) if self.ctx.fn_str_params.contains(name) => {
+                            arg_exprs[0].clone()
+                        }
+                        _ => {
+                            let arg = &arg_exprs[0];
+                            parse_quote! { &#arg }
+                        }
                     };
                     Ok(
                         parse_quote! { #obj.split(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
@@ -11974,9 +12331,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else if arg_exprs.len() == 2 {
                     // DEPYLER-0590: str.split(sep, maxsplit) → splitn(maxsplit+1, sep)
                     // Python's maxsplit is the max number of splits; Rust's splitn takes n parts
-                    let sep = match &hir_args[0] {
+                    let sep: syn::Expr = match &hir_args[0] {
                         HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                        _ => arg_exprs[0].clone(),
+                        HirExpr::Var(name) if self.ctx.fn_str_params.contains(name) => {
+                            arg_exprs[0].clone()
+                        }
+                        _ => {
+                            let arg = &arg_exprs[0];
+                            parse_quote! { &#arg }
+                        }
                     };
                     let maxsplit = &arg_exprs[1];
                     Ok(
@@ -11995,10 +12358,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         parse_quote! { #obj.split_whitespace().rev().map(|s| s.to_string()).collect::<Vec<String>>() },
                     )
                 } else if arg_exprs.len() == 1 {
-                    // DEPYLER-0202: Extract bare string literal for Pattern trait compatibility
-                    let sep = match &hir_args[0] {
+                    // DEPYLER-0202/0945: Extract bare string literal for Pattern trait compatibility
+                    // Only borrow if the arg is a String variable (not if already &str)
+                    let sep: syn::Expr = match &hir_args[0] {
                         HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                        _ => arg_exprs[0].clone(),
+                        HirExpr::Var(name) if self.ctx.fn_str_params.contains(name) => {
+                            arg_exprs[0].clone()
+                        }
+                        _ => {
+                            let arg = &arg_exprs[0];
+                            parse_quote! { &#arg }
+                        }
                     };
                     Ok(
                         parse_quote! { #obj.rsplit(#sep).map(|s| s.to_string()).collect::<Vec<String>>() },
@@ -12006,9 +12376,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else if arg_exprs.len() == 2 {
                     // DEPYLER-0202: str.rsplit(sep, maxsplit) → rsplitn(maxsplit+1, sep)
                     // Python's maxsplit is the max number of splits; Rust's rsplitn takes n parts
-                    let sep = match &hir_args[0] {
+                    let sep: syn::Expr = match &hir_args[0] {
                         HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                        _ => arg_exprs[0].clone(),
+                        HirExpr::Var(name) if self.ctx.fn_str_params.contains(name) => {
+                            arg_exprs[0].clone()
+                        }
+                        _ => {
+                            let arg = &arg_exprs[0];
+                            parse_quote! { &#arg }
+                        }
                     };
                     let maxsplit = &arg_exprs[1];
                     Ok(
@@ -12057,14 +12433,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if hir_args.len() > 3 {
                     bail!("replace() requires 2 or 3 arguments");
                 }
-                // Extract bare string literals for arguments
-                let old = match &hir_args[0] {
+                // DEPYLER-0945: Extract bare string literals for Pattern trait compatibility
+                // When argument is a variable, borrow it since String doesn't implement Pattern
+                // But skip borrowing if the variable is already &str from function parameter
+                let old: syn::Expr = match &hir_args[0] {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                    _ => arg_exprs[0].clone(),
+                    HirExpr::Var(name) if self.ctx.fn_str_params.contains(name) => {
+                        // Variable is already &str from function parameter, don't double-borrow
+                        arg_exprs[0].clone()
+                    }
+                    _ => {
+                        // Owned String variable, borrow it
+                        let arg = &arg_exprs[0];
+                        parse_quote! { &#arg }
+                    }
                 };
-                let new = match &hir_args[1] {
+                let new: syn::Expr = match &hir_args[1] {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                    _ => arg_exprs[1].clone(),
+                    HirExpr::Var(name) if self.ctx.fn_str_params.contains(name) => {
+                        // Variable is already &str from function parameter, don't double-borrow
+                        arg_exprs[1].clone()
+                    }
+                    _ => {
+                        // Owned String variable, borrow it
+                        let arg = &arg_exprs[1];
+                        parse_quote! { &#arg }
+                    }
                 };
 
                 if hir_args.len() == 3 {
@@ -12086,10 +12480,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("find() requires 1 or 2 arguments, got {}", hir_args.len());
                 }
 
-                // Extract bare string literal for Pattern trait compatibility
-                let substring = match &hir_args[0] {
+                // DEPYLER-0945: Extract bare string literal for Pattern trait compatibility
+                // When argument is a variable, borrow it since String doesn't implement Pattern
+                // But skip borrowing if the variable is already &str from function parameter
+                let substring: syn::Expr = match &hir_args[0] {
                     HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                    _ => arg_exprs[0].clone(),
+                    HirExpr::Var(name) if self.ctx.fn_str_params.contains(name) => {
+                        // Variable is already &str from function parameter, don't double-borrow
+                        arg_exprs[0].clone()
+                    }
+                    _ => {
+                        // Owned String variable, borrow it
+                        let arg = &arg_exprs[0];
+                        parse_quote! { &#arg }
+                    }
                 };
 
                 if hir_args.len() == 2 {
@@ -13289,54 +13693,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DEPYLER-0519: Handle regex Match.group() method
+        // DEPYLER-0961: Return String instead of &str for type compatibility
         // Python: match.group(0) or match.group(n)
-        // Rust: match.as_str() for group(0), or handle numbered groups
-        // NOTE: .find() returns Option<Match>, so we need to handle both cases:
-        //   - Direct Match object (from unwrapping or captures)
-        //   - Option<Match> (from .find() result)
-        // We use .as_ref().map(...).unwrap_or("") pattern for Option safety
+        // Rust: match.as_str().to_string() for group(0), or handle numbered groups
+        // NOTE: When called inside if-let patterns, the variable is already unwrapped (Match, not Option)
+        // so we should NOT use .as_ref().map() pattern - just call .as_str() directly
         if method == "group" {
-            // DEPYLER-0519: Check if this is likely an Option<Match> (from .find() result)
-            // Heuristic: variable names like "match", "m", or result of find/search
-            let is_likely_option_match = matches!(object, HirExpr::Var(name) if
-                name == "match" || name == "m" || name.ends_with("_match") || name.starts_with("match_"));
-
             if arg_exprs.is_empty() || hir_args.is_empty() {
                 // match.group() with no args defaults to group(0) in Python
-                if is_likely_option_match {
-                    return Ok(
-                        parse_quote! { #object_expr.as_ref().map(|m| m.as_str()).unwrap_or("") },
-                    );
-                }
-                return Ok(parse_quote! { #object_expr.as_str() });
+                // DEPYLER-0961: Return String for proper type inference
+                // Always use direct .as_str() since inside if-let the value is unwrapped
+                return Ok(parse_quote! { #object_expr.as_str().to_string() });
             }
 
             // Check if argument is literal 0
             if let HirExpr::Literal(Literal::Int(n)) = &hir_args[0] {
                 if *n == 0 {
-                    // match.group(0) → match.as_str() (or handle Option<Match>)
-                    if is_likely_option_match {
-                        return Ok(
-                            parse_quote! { #object_expr.as_ref().map(|m| m.as_str()).unwrap_or("") },
-                        );
-                    }
-                    return Ok(parse_quote! { #object_expr.as_str() });
+                    // match.group(0) → match.as_str().to_string()
+                    // DEPYLER-0961: Return String for proper type inference
+                    return Ok(parse_quote! { #object_expr.as_str().to_string() });
                 } else {
-                    // match.group(n) → match.get(n).map(|m| m.as_str()).unwrap_or("")
+                    // match.group(n) → match.get(n).map(|m| m.as_str().to_string()).unwrap_or_default()
+                    // DEPYLER-0961: Return String for proper type inference
                     let idx = &arg_exprs[0];
                     return Ok(parse_quote! {
-                        #object_expr.get(#idx).map(|m| m.as_str()).unwrap_or("")
+                        #object_expr.get(#idx).map(|m| m.as_str().to_string()).unwrap_or_default()
                     });
                 }
             }
 
             // Non-literal argument - use runtime check
+            // DEPYLER-0961: Return String for proper type inference
             let idx = &arg_exprs[0];
             return Ok(parse_quote! {
                 if #idx == 0 {
-                    #object_expr.as_str()
+                    #object_expr.as_str().to_string()
                 } else {
-                    #object_expr.get(#idx).map(|m| m.as_str()).unwrap_or("")
+                    #object_expr.get(#idx).map(|m| m.as_str().to_string()).unwrap_or_default()
                 }
             });
         }
@@ -13599,6 +13992,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Ok(parse_quote! { std::fs::read_to_string(#object_expr).unwrap() })
             }
 
+            // DEPYLER-0960: contains/__contains__ method - dict uses contains_key
+            "contains" | "__contains__" => {
+                if arg_exprs.len() != 1 {
+                    bail!("contains() requires exactly one argument");
+                }
+                let key = &arg_exprs[0];
+                // Check if object is a dict/HashMap - use contains_key
+                if self.is_dict_expr(object) {
+                    Ok(parse_quote! { #object_expr.contains_key(&#key) })
+                } else {
+                    // String/Set/List uses .contains()
+                    Ok(parse_quote! { #object_expr.contains(&#key) })
+                }
+            }
+
             // Default: generic method call
             _ => {
                 // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
@@ -13692,6 +14100,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             return Ok(parse_quote! { #has_ident });
                         } else {
                             return Ok(parse_quote! { !#has_ident });
+                        }
+                    }
+                }
+            }
+        }
+
+        // DEPYLER-0931: Handle subprocess.Child methods (.wait(), .kill(), etc.)
+        // proc.wait() → proc.as_mut().unwrap().wait().ok().and_then(|s| s.code()).unwrap_or(-1)
+        // When proc is Option<Child>, we need to unwrap and extract exit code
+        if method == "wait" && args.is_empty() {
+            if let HirExpr::Var(var_name) = object {
+                if let Some(var_type) = self.ctx.var_types.get(var_name) {
+                    let is_subprocess_child = matches!(
+                        var_type,
+                        Type::Custom(s) if s == "std::process::Child" || s == "Child"
+                    ) || matches!(
+                        var_type,
+                        Type::Optional(inner) if matches!(
+                            inner.as_ref(),
+                            Type::Custom(s) if s == "std::process::Child" || s == "Child"
+                        )
+                    );
+                    if is_subprocess_child {
+                        let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                        // Handle Option<Child> - unwrap, call wait, extract exit code
+                        if matches!(var_type, Type::Optional(_)) {
+                            return Ok(parse_quote! {
+                                #var_ident.as_mut().unwrap().wait().ok().and_then(|s| s.code()).unwrap_or(-1)
+                            });
+                        } else {
+                            return Ok(parse_quote! {
+                                #var_ident.wait().ok().and_then(|s| s.code()).unwrap_or(-1)
+                            });
                         }
                     }
                 }
@@ -14067,28 +14508,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Python: p = Path("/foo"); p.write_text(content)
         // Rust: PathBuf doesn't have write_text, must use std::fs::write
         // This catches path methods when object is a variable, not the pathlib module
-        if matches!(
-            method,
-            "write_text"
-                | "read_text"
-                | "read_bytes"
-                | "write_bytes"
-                | "exists"
-                | "is_file"
-                | "is_dir"
-                | "mkdir"
-                | "rmdir"
-                | "unlink"
-                | "iterdir"
-                | "glob"
-                | "rglob"
-                | "with_name"
-                | "with_suffix"
-                | "with_stem"
-                | "resolve"
-                | "absolute"
-                | "relative_to"
-        ) {
+        // DEPYLER-0956: Exclude "os" module - os.mkdir/os.rmdir are os module functions, not Path methods
+        let is_os_module = matches!(object, HirExpr::Var(name) if name == "os");
+        if !is_os_module
+            && matches!(
+                method,
+                "write_text"
+                    | "read_text"
+                    | "read_bytes"
+                    | "write_bytes"
+                    | "exists"
+                    | "is_file"
+                    | "is_dir"
+                    | "mkdir"
+                    | "rmdir"
+                    | "unlink"
+                    | "iterdir"
+                    | "glob"
+                    | "rglob"
+                    | "with_name"
+                    | "with_suffix"
+                    | "with_stem"
+                    | "resolve"
+                    | "absolute"
+                    | "relative_to"
+            )
+        {
             let object_expr = object.to_rust_expr(self.ctx)?;
             let arg_exprs: Vec<syn::Expr> = args
                 .iter()
@@ -15478,15 +15923,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             });
         }
 
-        // DEPYLER-0729: Check if target dict value type is String
-        // If so, string literal values need .to_string() conversion
-        let value_type_is_string = self
-            .ctx
-            .current_assign_type
-            .as_ref()
-            .map(|t| matches!(t, Type::Dict(_, v) if matches!(v.as_ref(), Type::String)))
-            .unwrap_or(false);
-
+        // DEPYLER-0953: String literal values are now always converted to String
+        // (Previously DEPYLER-0729 only converted when target type required it)
         let mut insert_stmts = Vec::new();
         for (key, value) in items {
             let mut key_expr = key.to_rust_expr(self.ctx)?;
@@ -15508,9 +15946,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 key_expr = parse_quote! { #key_expr.to_string() };
             }
 
-            // DEPYLER-0729: Convert string literal values to String when target type requires it
-            // HashMap<K, String> needs String values, not &str literals
-            if value_type_is_string && matches!(value, HirExpr::Literal(Literal::String(_))) {
+            // DEPYLER-0729/0953: ALWAYS convert string literal values to String
+            // HashMap<K, String> is the standard pattern, not HashMap<K, &str>
+            // This ensures consistent types across dict literal, access, and assignment
+            // Without this, `d = {"k": "v"}` creates HashMap<String, &str> which breaks
+            // when later accessing with d["k"] or assigning d["k2"] = "v2"
+            if matches!(value, HirExpr::Literal(Literal::String(_))) {
                 val_expr = parse_quote! { #val_expr.to_string() };
             }
 
@@ -16584,9 +17025,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if matches!(ty, Type::Float | Type::Int | Type::Bool | Type::String) {
                         return false;
                     }
-                    // List types could be numpy-like arrays
-                    if matches!(ty, Type::List(_)) {
-                        return true;
+                    // DEPYLER-0955: Only treat List types as numpy arrays if they contain
+                    // numeric primitives (Int, Float). Lists of tuples, strings, etc.
+                    // should NOT use .copied() which requires Copy trait.
+                    if let Type::List(inner) = ty {
+                        // Only numeric inner types are numpy-like
+                        if matches!(inner.as_ref(), Type::Int | Type::Float) {
+                            return true;
+                        }
+                        // Non-numeric lists (tuples, strings, etc.) are NOT numpy arrays
+                        return false;
                     }
                     // DEPYLER-0836: trueno::Vector<T> types are numpy arrays
                     if let Type::Custom(type_name) = ty {
@@ -16893,10 +17341,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0540: Use name heuristic when NO type info OR Type::Unknown
             // (e.g., in nested closures where parent param types aren't tracked)
             // Be conservative - only match explicitly json-like names
-            // Note: "filters" is commonly used for serde_json::Value filter dicts
+            // Note: "filters", "config" are commonly used for serde_json::Value dicts
             let is_json_by_name = matches!(
                 name.as_str(),
-                "filters" | "json_data" | "json_obj" | "json_value" | "json_config"
+                "filters" | "json_data" | "json_obj" | "json_value" | "json_config" | "config"
             );
             if is_json_by_name {
                 return true;
@@ -17437,14 +17885,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 iter_expr
             };
 
-            let mut chain: syn::Expr = if self.is_numpy_array_expr(&gen.iter) {
-                // DEPYLER-0575: trueno Vector uses .as_slice().iter()
-                parse_quote! { #iter_expr.as_slice().iter().copied() }
-            } else if matches!(&*gen.iter, HirExpr::Var(_)) {
-                // DEPYLER-0674: Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
+            // DEPYLER-0955: Dict comprehensions iterate over tuples which may contain String
+            // (e.g., {k: v for k, v in items} where items is List[(str, int)])
+            // Tuples with String don't implement Copy, so always use .cloned() for dict comp
+            // This avoids the "Copy is not satisfied for String" error with .copied()
+            let mut chain: syn::Expr = if matches!(&*gen.iter, HirExpr::Var(_)) {
+                // Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
                 parse_quote! { #iter_expr.iter().cloned() }
             } else {
-                // Direct expression (ranges, lists, etc.) - use .into_iter()
+                // Direct expression (list literals, etc.) - use .into_iter()
                 parse_quote! { #iter_expr.into_iter() }
             };
 
@@ -18363,6 +18812,12 @@ impl ToRustExpr for HirExpr {
                 if let HirExpr::Var(module_name) = &**object {
                     if module_name == "subprocess" && method == "run" {
                         return converter.convert_subprocess_run(args, kwargs);
+                    }
+
+                    // DEPYLER-0931: Handle subprocess.Popen() for process management
+                    // subprocess.Popen(cmd, shell=True) → Command::new(cmd).spawn()
+                    if module_name == "subprocess" && method == "Popen" {
+                        return converter.convert_subprocess_popen(args, kwargs);
                     }
 
                     // Phase 3: NumPy→Trueno codegen

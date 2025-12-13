@@ -182,9 +182,11 @@ cat >> "$REPORT_FILE" <<EOF
 
 EOF
 
-for file in "${PASSED_FILES[@]+"${PASSED_FILES[@]}"}"; do
-    echo "- ✅ $file" >> "$REPORT_FILE"
-done
+if [[ ${#PASSED_FILES[@]} -gt 0 ]]; then
+    for file in "${PASSED_FILES[@]}"; do
+        echo "- ✅ $file" >> "$REPORT_FILE"
+    done
+fi
 
 cat >> "$REPORT_FILE" <<EOF
 
@@ -192,11 +194,13 @@ cat >> "$REPORT_FILE" <<EOF
 
 EOF
 
-for file in "${FAILED_FILES[@]+"${FAILED_FILES[@]}"}"; do
-    filename="${file%:*}"
-    violations="${file#*:}"
-    echo "- ❌ $filename ($violations violations)" >> "$REPORT_FILE"
-done
+if [[ ${#FAILED_FILES[@]} -gt 0 ]]; then
+    for file in "${FAILED_FILES[@]}"; do
+        filename="${file%:*}"
+        violations="${file#*:}"
+        echo "- ❌ $filename ($violations violations)" >> "$REPORT_FILE"
+    done
+fi
 
 cat >> "$REPORT_FILE" <<EOF
 
@@ -204,9 +208,11 @@ cat >> "$REPORT_FILE" <<EOF
 
 EOF
 
-for file in "${SKIPPED_FILES[@]+"${SKIPPED_FILES[@]}"}"; do
-    echo "- ⊘ $file (no source Python file)" >> "$REPORT_FILE"
-done
+if [[ ${#SKIPPED_FILES[@]} -gt 0 ]]; then
+    for file in "${SKIPPED_FILES[@]}"; do
+        echo "- ⊘ $file (no source Python file)" >> "$REPORT_FILE"
+    done
+fi
 
 cat >> "$REPORT_FILE" <<EOF
 

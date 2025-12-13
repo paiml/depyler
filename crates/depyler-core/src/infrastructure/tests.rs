@@ -3,6 +3,8 @@
 //! RED PHASE: All tests written BEFORE implementation.
 //! These tests define the contract that implementations must satisfy.
 
+#![allow(non_snake_case)]
+
 use super::*;
 
 // =============================================================================
@@ -586,3 +588,4 @@ mod distiller_tests {
         assert!(!rule.contains("handle_pattern_snake-case-pattern"), "Should not have hyphens");
     }
 }
+

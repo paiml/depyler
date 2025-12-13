@@ -23,7 +23,7 @@ TESTED_EXAMPLES=(
 
 for example in "${TESTED_EXAMPLES[@]}"; do
     echo -n "Testing $example... "
-    if $DEPYLER_BIN transpile "$example" > /dev/null 2>&1; then
+    if $DEPYLER_BIN transpile "$example" >/dev/null 2>&1; then
         echo "✓ SUCCESS"
         ((SUCCESS_COUNT++))
     else
@@ -39,6 +39,6 @@ echo "Successful: $SUCCESS_COUNT"
 echo "Failed: $FAIL_COUNT"
 echo "Total: $((SUCCESS_COUNT + FAIL_COUNT))"
 
-if [ $FAIL_COUNT -gt 0 ]; then
+if [[ $FAIL_COUNT -gt 0 ]]; then
     exit 1
 fi

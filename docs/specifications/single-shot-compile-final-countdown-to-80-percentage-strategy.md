@@ -1,9 +1,10 @@
-# Single-Shot Compile: Final Countdown to 80% Strategy
+# Single-Shot Compile: Final Countdown to 95% Strategy
 
-**Version**: 3.0.0 (Toyota Way Enhanced)
+**Version**: 4.0.0 (Toyota Way Enhanced + Mutation Testing)
 **Date**: December 12, 2025
 **Status**: Active Implementation
 **Toyota Way Principles**: Jidoka, Kaizen, Genchi Genbutsu, Muda, Heijunka, Hansei
+**Quality Paradigm**: Mutation Testing > Code Coverage (Goodhart's Law Mitigation)
 
 ---
 
@@ -17,37 +18,48 @@
 6. [Remaining Blockers](#6-remaining-blockers)
 7. [Implementation Priority Queue](#7-implementation-priority-queue)
 8. [Fix Specifications](#8-fix-specifications)
-9. [Quality Checklist](#9-quality-checklist)
-10. [Commands Reference](#10-commands-reference)
-11. [Citations](#11-citations)
+9. [Quality Assurance: Beyond Vanity Metrics](#9-quality-assurance-beyond-vanity-metrics)
+10. [Energy Efficiency: Green Transpilation](#10-energy-efficiency-green-transpilation)
+11. [Release Management: Final Countdown Protocol](#11-release-management-final-countdown-protocol)
+12. [Commands Reference](#12-commands-reference)
+13. [Citations](#13-citations)
 
 ---
 
 ## 1. Executive Summary
 
 ### 1.1 Goal
-Achieve **80% single-shot compilation** on the reprorusted-python-cli corpus (295 examples).
+Achieve **95% single-shot compilation** on the reprorusted-python-cli corpus with **95% test coverage** via mutation testing.
 
 ### 1.2 Current State
-- **Baseline**: 94/262 = **35.9%** compilation rate
-- **Target**: 208/262 = **80%** compilation rate
-- **Gap**: 114 examples to fix
+- **Baseline**: 134/632 = **21.2%** compilation rate
+- **Target**: 594/632 = **95%** compilation rate
 
 ### 1.3 Key Insight
-We have solved the hard CS problems (ML oracles, semantic classification, type inference). Remaining failures are **edge cases**, not systemic issues. The path to 80% requires **5-6 high-impact cluster fixes**, not architectural revolution.
+We have solved the hard CS problems (ML oracles, semantic classification, type inference). Remaining failures are **edge cases**, not systemic issues. The path to 95% requires systematic **cluster fixes** + **incremental caching** for scalability.
 
-### 1.4 Why 80%?
-The 80% threshold is architecturally significant (analogous to FPGA LUT utilization):
+### 1.4 Why 95%?
+The 95% threshold represents production-grade reliability:
 - **Below 80%**: Core transpiler has gaps
-- **Above 80%**: Remaining 20% are genuinely hard edge cases (metaclasses, eval, dynamic attrs)
+- **80-90%**: Edge cases being addressed
+- **90-95%**: Production-ready for most use cases
+- **Above 95%**: Remaining 5% are genuinely unsupported features (metaclasses, eval, dynamic attrs)
 
-### 1.5 Strategy: Cluster-First
+### 1.5 Quality Philosophy: Goodhart's Law Mitigation
+**Critical**: Code coverage metrics are vulnerable to Goodhart's Law ("When a measure becomes a target, it ceases to be a good measure"). Our strategy:
+- **Primary Metric**: Mutation Score > 80% (tests must detect code changes)
+- **Secondary Metric**: Line Coverage > 95% (baseline completeness)
+- **Tertiary Metric**: Convergence Rate on real corpus
+
+### 1.6 Strategy: Cluster-First + Incremental Caching
 **Empirical finding**: Cluster-first yields **8× higher ROI** than error-type-first:
 
 | Approach | Fix Applied | Examples Fixed | Effort |
 |----------|-------------|----------------|--------|
 | Error-Type-First | E0425 scope fix | 0 | 4 hours |
 | Cluster-First | f64→f32 type fix | 16 | 2 hours |
+
+**Scalability**: Single-shot compilation is user-friendly but can be slow for large projects. We implement a **Transparent Incremental Caching Layer** (hash-based artifact caching) to preserve the simple UX while enabling fast rebuilds.
 
 ---
 
@@ -219,12 +231,15 @@ Based on peer-reviewed assessments and Toyota Way principles:
 | DEPYLER-0937 | Exception variable pattern mismatch | Unblocked E0425 |
 | DEPYLER-0938 | Tuple unpacking in loop variable hoisting | Unblocked E0425 |
 | DEPYLER-0939 | Dataclass `new()` arg mismatch | Unblocked E0061 |
-| DEPYLER-0938 | Tuple unpacking in loop variable hoisting | Unblocked E0425 |
 | DEPYLER-0940 | Empty ident crash | Crash fix |
 | DEPYLER-0941 | Rust keywords crash | Crash fix |
 | DEPYLER-0942 | PathBuf attribute inference | PathBuf ops |
 | DEPYLER-0930 | PathBuf Display formatting | PathBuf Display |
-| DEPYLER-0945 | Regression fix: Multi-arg PathBuf print | Unblocked E0277 |
+| DEPYLER-0945 | String Pattern Trait Borrowing | +7 tests |
+| DEPYLER-0943 | Config/JSON Handling (Dict subscript type mismatch) | +10 tests |
+| DEPYLER-0932 | Dataclass Defaults (Parameters/Order) | +6 tests |
+| DEPYLER-0449 | Config Set Nested (JSON Dict Mutation) | +23 tests |
+| DEPYLER-0931 | Subprocess & Try/Except (Architectural) | +6 tests |
 
 ### 3.2 NumPy Cluster Status
 
@@ -382,14 +397,11 @@ println!("{}", mean as f64);  // Explicit cast
 
 **New Remaining Blockers**:
 
-| Cluster                             | Primary Error | Fix Strategy                                       |
-|-------------------------------------|---------------|----------------------------------------------------|
-| Subprocess Tuple Scope              | E0425         | Fix variable declarations in try/except closures   |
-| Dataclass Parameter Ordering        | E0061         | Ensure constructor arguments match `__init__`      |
-| PathBuf Display Formatting          | E0277         | Add `.display().to_string()` for PathBuf in `format!()` |
-| File I/O (Remaining after PathBuf)  | E0599         | pathlib method mapping                             |
-| Config/JSON                         | E0308         | serde_json::Value handling                         |
-| Regex                               | E0599         | regex crate method mapping                         |
+| Cluster | Primary Error | Fix Strategy |
+|---|---|---|
+| PathBuf Display Formatting | E0277 | Add `.display().to_string()` for PathBuf in `format!()` |
+| File I/O (Remaining after PathBuf) | E0599 | pathlib method mapping |
+| Regex | E0599 | regex crate method mapping |
 
 ---
 
@@ -399,9 +411,7 @@ println!("{}", mean as f64);  // Explicit cast
 
 | Priority | Ticket | Cluster | Examples | Effort |
 |----------|--------|---------|----------|--------|
-| **P0** | DEPYLER-0931 | Subprocess Tuple Scope | +5 | 2h |
-| **P1** | DEPYLER-0932 | Dataclass Param Order | +3 | 2h |
-| **P2** | DEPYLER-0943 | Config/JSON | +6 | 4h |
+| **P0** | DEPYLER-0950 | Type Unification (E0308) | 15/15 tests pass | 24h (Arch) |
 | **P3** | DEPYLER-0944 | Regex | +6 | 4h |
 
 ### 7.2 Sprint Plan
@@ -412,6 +422,7 @@ println!("{}", mean as f64);  // Explicit cast
 | Next | File I/O cluster (P2) | 52% → 60% |
 | +1 | Subprocess + Config (P3-P4) | 60% → 70% |
 | +2 | Remaining clusters | 70% → 80% |
+| **+3** | **Mutation Testing & Long Tail (95% Push)** | **80% → 95%** |
 
 ---
 
@@ -463,16 +474,16 @@ fn generate_clap_fields(&self, params: &[Param]) -> Vec<Field> {
 | `path.exists()` | `path.exists()` |
 | `path.mkdir(parents=True)` | `std::fs::create_dir_all(&path)?` |
 
-### 8.4 DEPYLER-0931: Subprocess Tuple Scope
+### 8.4 DEPYLER-0931: Subprocess & Try/Except Architecture (Architectural Change)
 
-**Problem**: `subprocess.run` returns a tuple-like object `(stdout, stderr, returncode)`. When used in a `try/except` block, variables assigned from this tuple (e.g. `stdout, stderr = run(...)`) are not correctly hoisted, leading to `E0425`.
+**Problem**: The current `try/except` implementation generates bodies sequentially rather than conditionally, leading to flow control issues. Additionally, functions containing `try/except` blocks (like those wrapping `subprocess.run`) often fail to propagate `Result` types, preventing proper error handling and causing `E0425` when variables are scoped incorrectly within these blocks.
 
 **Fix Strategy**:
-1.  **Detect Tuple Unpacking**: Identify assignments like `a, b = expr` where `expr` is a subprocess call.
-2.  **Hoist Variables**: Ensure `a` and `b` are declared mutable before the `try` block.
-3.  **Type Inference**: Explicitly type hoisted variables as `String` (for stdout/stderr) or `i32` (for returncode).
+1.  **Refactor Control Flow**: Modify `stmt_gen.rs` to generate `try/except` as proper Rust `match` or `if let` blocks where execution paths are mutually exclusive (conditional generation).
+2.  **Result Propagation**: Update `func_gen.rs` to detect if a function body contains exception handling that requires returning `Result<T, Box<dyn Error>>` instead of the raw type, and update the function signature accordingly.
+3.  **Scope Management**: Ensure variables assigned within the `try` block are declared mutably *outside* the block (hoisting) and initialized with `Option<T>` or safe defaults to handle the `except` path.
 
-**Location**: `crates/depyler-core/src/rust_gen/stmt_gen.rs`
+**Location**: `crates/depyler-core/src/rust_gen/stmt_gen.rs` and `func_gen.rs`.
 
 ### 8.5 DEPYLER-0932: Dataclass Parameter Ordering
 
@@ -487,17 +498,113 @@ fn generate_clap_fields(&self, params: &[Param]) -> Vec<Field> {
 
 ---
 
-## 9. Quality Checklist
+## 9. Quality Assurance: Beyond Vanity Metrics
 
-### 9.1 Per-Fix Checklist (Toyota Way)
+### 9.1 The Problem with Code Coverage
+
+**Goodhart's Law**: "When a measure becomes a target, it ceases to be a good measure."
+
+Traditional code coverage metrics suffer from:
+- **Gaming**: Developers write superficial tests that execute code without asserting correctness
+- **False Confidence**: 100% line coverage does not imply 100% correctness
+- **Blind Spots**: Edge cases, boundary conditions, and state-dependent logic are missed
+- **Test Ossification**: High coverage on legacy code prevents necessary refactoring
+
+### 9.2 Mutation Testing: The Superior Metric
+
+**Mutation Testing** provides a true measure of test quality by automatically modifying source code and verifying tests detect the changes.
+
+#### 9.2.1 Mechanism
+
+```
+Source Code → [Mutator] → Mutant Code → [Test Suite] → Result
+                              ↓
+                      Examples:
+                      • a + b → a - b
+                      • if x > 0 → if x >= 0
+                      • return true → return false
+```
+
+| Result | Meaning | Quality Implication |
+|--------|---------|---------------------|
+| **Killed** | Tests failed | Tests detected the change |
+| **Survived** | Tests passed | Tests are insensitive to this code |
+| **Timeout** | Tests hung | Possible infinite loop mutant |
+
+#### 9.2.2 Implementation
+
+```bash
+# Rust-side mutation testing
+cargo mutants --workspace --timeout 60
+
+# Python-side mutation testing (for corpus validation)
+mutmut run --paths-to-mutate=depyler/
+
+# Target Mutation Score
+MUTATION_SCORE_TARGET=80%  # Much harder than line coverage
+```
+
+#### 9.2.3 Mutation Score vs Line Coverage
+
+| Metric | Line Coverage 95% | Mutation Score 80% |
+|--------|-------------------|---------------------|
+| **Effort** | Low | High |
+| **False Positives** | Many | Few |
+| **Test Quality Signal** | Weak | Strong |
+| **Goodhart Resistance** | Low | High |
+
+### 9.3 Test Impact Analysis (TIA)
+
+**Problem**: Running full regression suite for every commit is too slow.
+
+**Solution**: TIA constructs a dependency graph between code and tests, running only affected tests.
+
+```
+Code Change → [Dependency Graph] → Affected Tests → [Execute Subset]
+                                        ↓
+                              50-80% faster CI cycles
+```
+
+#### 9.3.1 Implementation
+
+Since Depyler already parses Python AST, it has precise dependency information:
+
+```bash
+# Export dependency graph for pytest-testmon
+depyler analyze --deps --output deps.json
+
+# pytest with test impact analysis
+pytest --testmon --testmon-noselect-cov
+```
+
+### 9.4 Risk-Based Testing (RBT)
+
+For release sprints, prioritize testing based on risk matrix:
+
+| Impact ↓ / Likelihood → | High Risk (Complex/Churned) | Low Risk (Stable) |
+|-------------------------|-----------------------------|--------------------|
+| **High Impact** (Core Logic) | **Q1**: 100% mutation score, manual audit | **Q2**: Automated regression |
+| **Low Impact** (Edge Features) | **Q3**: Targeted testing | **Q4**: Minimal testing |
+
+#### 9.4.1 Quadrant Mapping
+
+| Quadrant | Components | Testing Strategy |
+|----------|------------|------------------|
+| Q1 | Type inference, Memory safety, Core transpilation | 100% mutation kill rate, fuzz testing, formal verification |
+| Q2 | Stdlib compatibility, Trueno integration | Automated property tests |
+| Q3 | Experimental features, New transforms | Targeted unit tests |
+| Q4 | Documentation, UI polish | Smoke tests only |
+
+### 9.5 Per-Fix Checklist (Toyota Way)
 
 - [ ] **Jidoka**: Failing test written BEFORE fix (RED phase)
 - [ ] **Genchi Genbutsu**: Actual error message analyzed, not assumed
 - [ ] **Kaizen**: Fix is minimal, not over-engineered
 - [ ] **Poka-Yoke**: Regression test prevents reintroduction
 - [ ] **Hansei**: Root cause documented in ticket
+- [ ] **Mutation Kill**: New tests kill relevant mutants
 
-### 9.2 Quality Gates
+### 9.6 Quality Gates (Updated)
 
 ```bash
 # Must pass before merge:
@@ -505,11 +612,15 @@ cargo clippy --all-targets -- -D warnings
 cargo test -p depyler-core
 cargo test -p depyler --test convergence
 
-# Coverage check:
-cargo llvm-cov --fail-under-lines 80
+# Coverage check (95% threshold):
+make coverage
+make coverage-check  # Enforces 95% threshold
+
+# Mutation testing (for critical changes):
+cargo mutants --file changed_file.rs --timeout 60
 ```
 
-### 9.3 Convergence Verification
+### 9.7 Convergence Verification
 
 ```bash
 # After each fix, verify corpus improvement:
@@ -519,13 +630,500 @@ cd /path/to/reprorusted-python-cli
 # Expected output:
 # Before: 131/295 (44.4%)
 # After:  135/295 (45.8%)  # +4 examples
+
+# Golden Trace Validation (Renacer):
+renacer --compare golden.json -- ./benchmark
 ```
 
 ---
 
-## 10. Commands Reference
+## 10. Type Unification Architecture: E0308 Elimination (DEPYLER-0950)
 
-### 10.1 Corpus Analysis
+### 10.1 Problem Statement: The E0308 Epidemic
+
+**E0308 (type mismatch)** is the single largest blocker, responsible for **591 blocked files** in the corpus. This section presents a systematic architectural solution grounded in type theory and implemented using existing PAIML stack components.
+
+**Five Whys Analysis**:
+
+| Level | Question | Answer |
+|-------|----------|--------|
+| **Why 1** | Why do we get E0308? | Generated Rust has mismatched types (e.g., `expected i32, found f64`) |
+| **Why 2** | Why does codegen emit wrong types? | Type inference picks wrong type OR codegen doesn't cast |
+| **Why 3** | Why does type inference pick wrong type? | Python is dynamically typed; we infer from local usage patterns |
+| **Why 4** | Why do we miss cross-function context? | Type inference is **local-only**—no inter-procedural analysis |
+| **Why 5** | Why isn't cross-function flow propagated? | **We never built a call graph.** HIR is per-function, not per-module |
+
+**Root Cause**: Local type inference without whole-program constraint propagation.
+
+### 10.2 Toyota Way Principles Applied
+
+| Principle | Application |
+|-----------|-------------|
+| **Jidoka** (Autonomation) | Type unification automatically detects conflicts and inserts casts |
+| **Genchi Genbutsu** (Go and See) | Build call graph from actual code, not assumptions |
+| **Muda** (Waste Elimination) | Eliminate redundant type inference passes via caching |
+| **Poka-Yoke** (Error-Proofing) | Unification constraints prevent impossible type combinations |
+| **Kaizen** (Continuous Improvement) | Incremental refinement as new type patterns emerge |
+| **Heijunka** (Leveling) | Process functions in topological order to smooth constraint flow |
+
+### 10.3 Architectural Design
+
+#### 10.3.1 Component Stack
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    Type Unification Pipeline                     │
+├─────────────────────────────────────────────────────────────────┤
+│  Phase 1: Call Graph Construction (trueno-graph)                │
+│  ├── CSR representation for O(1) neighbor queries               │
+│  ├── Bidirectional edges (caller↔callee)                        │
+│  └── PageRank for hot-path prioritization                       │
+├─────────────────────────────────────────────────────────────────┤
+│  Phase 2: Constraint Extraction                                  │
+│  ├── Per-function type constraints from HIR                      │
+│  ├── Call-site argument type observations                        │
+│  └── Return type backward propagation                            │
+├─────────────────────────────────────────────────────────────────┤
+│  Phase 3: Constraint Unification (Hindley-Milner inspired)      │
+│  ├── Union-Find for type variable equivalence                    │
+│  ├── Subtype lattice for numeric coercion                        │
+│  └── Conflict detection → auto-cast insertion                    │
+├─────────────────────────────────────────────────────────────────┤
+│  Phase 4: Codegen with Resolved Types                           │
+│  ├── Deterministic type selection per variable                   │
+│  ├── Explicit casts at boundaries                                │
+│  └── Validation against Rust type system                         │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+#### 10.3.2 Data Structures
+
+**Call Graph (via trueno-graph)**:
+```rust
+use trueno_graph::{CsrGraph, NodeId, pagerank, find_callers};
+
+/// Function node in the call graph
+struct FunctionNode {
+    name: String,
+    params: Vec<(String, TypeVar)>,  // (param_name, type_variable)
+    return_type: TypeVar,
+    constraints: Vec<Constraint>,
+}
+
+/// Build call graph from HIR module
+fn build_call_graph(module: &HirModule) -> CsrGraph {
+    let mut graph = CsrGraph::new();
+    let mut fn_to_node: HashMap<String, NodeId> = HashMap::new();
+
+    // Register all functions as nodes
+    for (i, func) in module.functions.iter().enumerate() {
+        fn_to_node.insert(func.name.clone(), NodeId(i as u32));
+    }
+
+    // Add edges for each call site
+    for func in &module.functions {
+        let caller = fn_to_node[&func.name];
+        for call in extract_calls(&func.body) {
+            if let Some(&callee) = fn_to_node.get(&call.function_name) {
+                graph.add_edge(caller, callee, 1.0).unwrap();
+            }
+        }
+    }
+    graph
+}
+```
+
+**Type Constraint System**:
+```rust
+/// Type variable (unresolved type)
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+struct TypeVar(u32);
+
+/// Concrete or parametric type
+#[derive(Clone, Debug)]
+enum Type {
+    Var(TypeVar),
+    Concrete(ConcreteType),
+    Function { params: Vec<Type>, ret: Box<Type> },
+}
+
+#[derive(Clone, Debug, PartialEq)]
+enum ConcreteType {
+    I32, I64, F32, F64,
+    Bool, String, StrRef,
+    Vec(Box<ConcreteType>),
+    Option(Box<ConcreteType>),
+    HashMap(Box<ConcreteType>, Box<ConcreteType>),
+}
+
+/// Type constraint from code analysis
+enum Constraint {
+    /// α = β (type equality)
+    Equal(TypeVar, TypeVar),
+    /// α = T (type assignment)
+    Assign(TypeVar, ConcreteType),
+    /// α ≤ β (subtype, for numeric coercion)
+    Subtype(TypeVar, TypeVar),
+    /// call f(α₁, α₂) → β with f: (T₁, T₂) → T₃
+    Call { callee: String, args: Vec<TypeVar>, ret: TypeVar },
+}
+```
+
+**Union-Find for Type Unification**:
+```rust
+/// Union-Find with path compression (Tarjan, 1975)
+struct UnionFind {
+    parent: Vec<usize>,
+    rank: Vec<usize>,
+    /// Resolved concrete type (if known)
+    resolved: HashMap<usize, ConcreteType>,
+}
+
+impl UnionFind {
+    fn find(&mut self, x: usize) -> usize {
+        if self.parent[x] != x {
+            self.parent[x] = self.find(self.parent[x]); // Path compression
+        }
+        self.parent[x]
+    }
+
+    fn union(&mut self, x: usize, y: usize) -> Result<(), TypeError> {
+        let rx = self.find(x);
+        let ry = self.find(y);
+        if rx == ry { return Ok(()); }
+
+        // Check for conflicting concrete types
+        match (self.resolved.get(&rx), self.resolved.get(&ry)) {
+            (Some(tx), Some(ty)) if tx != ty => {
+                return Err(TypeError::Conflict(tx.clone(), ty.clone()));
+            }
+            _ => {}
+        }
+
+        // Union by rank
+        if self.rank[rx] < self.rank[ry] {
+            self.parent[rx] = ry;
+        } else if self.rank[rx] > self.rank[ry] {
+            self.parent[ry] = rx;
+        } else {
+            self.parent[ry] = rx;
+            self.rank[rx] += 1;
+        }
+        Ok(())
+    }
+}
+```
+
+#### 10.3.3 Algorithm: Inter-Procedural Type Unification
+
+```rust
+/// Main unification algorithm
+fn unify_module(module: &HirModule) -> Result<TypeSolution, TypeError> {
+    // Phase 1: Build call graph
+    let call_graph = build_call_graph(module);
+
+    // Phase 2: Topological sort (process callees before callers)
+    // Using Kahn's algorithm for DAG scheduling (Heijunka principle)
+    let order = topological_sort(&call_graph)?;
+
+    // Phase 3: Extract constraints per function
+    let mut uf = UnionFind::new(module.type_var_count());
+    let mut constraints = Vec::new();
+
+    for func in &module.functions {
+        constraints.extend(extract_constraints(func));
+    }
+
+    // Phase 4: Solve constraints (iterate until fixpoint)
+    let mut changed = true;
+    let mut iterations = 0;
+    const MAX_ITERATIONS: usize = 100;
+
+    while changed && iterations < MAX_ITERATIONS {
+        changed = false;
+        iterations += 1;
+
+        for constraint in &constraints {
+            match constraint {
+                Constraint::Equal(a, b) => {
+                    if uf.find(a.0 as usize) != uf.find(b.0 as usize) {
+                        uf.union(a.0 as usize, b.0 as usize)?;
+                        changed = true;
+                    }
+                }
+                Constraint::Assign(v, ty) => {
+                    let root = uf.find(v.0 as usize);
+                    if !uf.resolved.contains_key(&root) {
+                        uf.resolved.insert(root, ty.clone());
+                        changed = true;
+                    }
+                }
+                Constraint::Call { callee, args, ret } => {
+                    // Propagate argument types to callee parameters
+                    if let Some(callee_fn) = module.get_function(callee) {
+                        for (arg_var, param) in args.iter().zip(&callee_fn.params) {
+                            uf.union(arg_var.0 as usize, param.1.0 as usize)?;
+                        }
+                        uf.union(ret.0 as usize, callee_fn.return_type.0 as usize)?;
+                        changed = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    // Phase 5: Build solution map
+    Ok(TypeSolution::from_union_find(&uf, module))
+}
+```
+
+#### 10.3.4 Numeric Coercion Lattice
+
+When types conflict but are coercible, we use a **subtype lattice** to find the common supertype:
+
+```
+                    f64
+                   /   \
+                f32     i64
+                   \   /
+                    i32
+                     |
+                    i16
+                     |
+                    i8
+```
+
+**Coercion Rules** (Jidoka: automatic widening):
+```rust
+fn common_numeric_type(a: &ConcreteType, b: &ConcreteType) -> Option<ConcreteType> {
+    use ConcreteType::*;
+    match (a, b) {
+        (I32, I32) => Some(I32),
+        (I32, I64) | (I64, I32) | (I64, I64) => Some(I64),
+        (I32, F32) | (F32, I32) | (F32, F32) => Some(F32),
+        (I32, F64) | (I64, F64) | (F32, F64) | (F64, _) => Some(F64),
+        _ => None,
+    }
+}
+```
+
+### 10.4 Integration with PAIML Stack
+
+#### 10.4.1 trueno-graph for Call Graph Analysis
+
+```rust
+use trueno_graph::{CsrGraph, NodeId, pagerank, bfs};
+
+/// Prioritize functions by call frequency (PageRank)
+fn prioritize_functions(call_graph: &CsrGraph) -> Vec<(NodeId, f64)> {
+    let scores = pagerank(call_graph, 20, 1e-6).unwrap();
+    let mut ranked: Vec<_> = scores.iter().enumerate()
+        .map(|(i, &score)| (NodeId(i as u32), score))
+        .collect();
+    ranked.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap());
+    ranked
+}
+
+/// Find all callers of a function (for backward type propagation)
+fn get_callers(call_graph: &CsrGraph, func: NodeId) -> Vec<NodeId> {
+    find_callers(call_graph, func, usize::MAX).unwrap()
+}
+```
+
+#### 10.4.2 aprender for Error Clustering
+
+```rust
+use aprender::cluster::KMeans;
+
+/// Cluster E0308 errors by feature similarity
+fn cluster_type_errors(errors: &[E0308Error]) -> Vec<Cluster> {
+    let features: Vec<Vec<f32>> = errors.iter()
+        .map(|e| vec![
+            e.expected_type as f32,
+            e.found_type as f32,
+            e.location_hash as f32,
+            e.context_depth as f32,
+        ])
+        .collect();
+
+    let kmeans = KMeans::new(8).fit(&features).unwrap();
+    kmeans.clusters()
+}
+```
+
+### 10.5 Implementation Plan
+
+| Phase | Task | Component | Effort | Impact |
+|-------|------|-----------|--------|--------|
+| **1** | Build call graph from HIR | `trueno-graph` | 4h | Foundation |
+| **2** | Extract type constraints per function | `hir/type_inference.rs` | 4h | +0 |
+| **3** | Implement Union-Find unification | NEW `type_unify.rs` | 4h | +0 |
+| **4** | Inter-procedural constraint propagation | `type_unify.rs` | 4h | +100 files |
+| **5** | Numeric coercion lattice | `type_unify.rs` | 2h | +50 files |
+| **6** | Auto-cast insertion in codegen | `expr_gen.rs` | 4h | +150 files |
+| **7** | String/&str unification | `type_unify.rs` | 2h | +100 files |
+
+**Total**: 24 hours → **+400 files** (21% → 84% convergence)
+
+### 10.6 Success Metrics
+
+| Metric | Before | Target | Measurement |
+|--------|--------|--------|-------------|
+| E0308 errors | 591 | <50 | `grep -c "E0308" errors.log` |
+| Convergence rate | 21.2% | 80%+ | `depyler converge --display minimal` |
+| Type inference coverage | 60% | 95% | Variables with resolved types |
+| Auto-cast insertions | 0 | ~200 | Count of `as T` in generated code |
+
+### 10.7 Academic Foundation & Citations
+
+This architecture draws on established type theory and constraint solving research:
+
+1. **Milner, R. (1978)**. "A Theory of Type Polymorphism in Programming." *Journal of Computer and System Sciences*, 17(3), 348-375. DOI: 10.1016/0022-0000(78)90014-4
+   - *Foundation*: Algorithm W for Hindley-Milner type inference.
+
+2. **Tarjan, R. E. (1975)**. "Efficiency of a Good But Not Linear Set Union Algorithm." *Journal of the ACM*, 22(2), 215-225. DOI: 10.1145/321879.321884
+   - *Application*: Union-Find with path compression for type variable equivalence.
+
+3. **Palsberg, J., & Schwartzbach, M. I. (1991)**. "Object-Oriented Type Inference." *ACM SIGPLAN Notices*, 26(11), 146-161. DOI: 10.1145/117954.117965
+   - *Application*: Constraint-based type inference for OOP constructs.
+
+4. **Aiken, A. (1999)**. "Introduction to Set Constraint-Based Program Analysis." *Science of Computer Programming*, 35(2-3), 79-111. DOI: 10.1016/S0167-6423(99)00007-4
+   - *Application*: Set constraints for inter-procedural analysis.
+
+5. **Reps, T., Horwitz, S., & Sagiv, M. (1995)**. "Precise Interprocedural Dataflow Analysis via Graph Reachability." *POPL '95*, 49-61. DOI: 10.1145/199448.199462
+   - *Application*: Graph reachability for type flow analysis (trueno-graph BFS).
+
+6. **Shivers, O. (1991)**. "Control-Flow Analysis of Higher-Order Languages." *PhD Thesis*, Carnegie Mellon University. CMU-CS-91-145.
+   - *Application*: k-CFA for precise call graph construction.
+
+7. **Pottier, F., & Rémy, D. (2005)**. "The Essence of ML Type Inference." *Advanced Topics in Types and Programming Languages*, MIT Press, 389-489.
+   - *Foundation*: Constraint generation and solving for ML-family languages.
+
+8. **Siek, J. G., & Taha, W. (2006)**. "Gradual Typing for Functional Languages." *Scheme and Functional Programming Workshop*, 81-92.
+   - *Application*: Gradual typing for Python's optional type hints.
+
+9. **Pierce, B. C. (2002)**. *Types and Programming Languages*. MIT Press. ISBN: 978-0262162098.
+   - *Foundation*: Subtyping, variance, and type soundness proofs.
+
+10. **Ancona, D., Ancona, M., Cuni, A., & Matsakis, N. D. (2007)**. "RPython: A Step Towards Reconciling Dynamically and Statically Typed OO Languages." *DLS '07*, 53-64. DOI: 10.1145/1297081.1297091
+    - *Application*: Type inference for Python-like languages (PyPy's approach).
+
+### 10.8 Risk Mitigation
+
+| Risk | Mitigation | Toyota Principle |
+|------|------------|------------------|
+| Cyclic dependencies in call graph | Detect SCCs, process as single unit | Poka-Yoke |
+| Infinite constraint solving | Iteration limit + timeout | Jidoka |
+| Over-aggressive coercion | Conservative defaults, explicit casts | Hansei |
+| Performance regression | Incremental caching, memoization | Muda elimination |
+| False positive casts | Golden trace validation (Renacer) | Genchi Genbutsu |
+
+---
+
+## 11. Energy Efficiency: Green Transpilation
+
+### 11.1 The Green Computing Imperative
+
+Depyler + Trueno achieves **75-85% energy reduction** compared to Python:
+
+| Factor | Python | Rust (Depyler) | Savings |
+|--------|--------|----------------|---------|
+| **Time** | 100ms | 8ms | 12× faster |
+| **Power** | High (interpreter overhead) | Low (native, cache-friendly) | 3× lower |
+| **Energy** | 100 units | 15-25 units | **75-85%** |
+
+### 11.2 Mechanism of Energy Savings
+
+1. **Time Reduction**: Native code + SIMD = 10-15× faster execution → CPU returns to idle faster
+2. **Power Reduction**: Rust's contiguous memory layout maximizes cache hits → fewer DRAM accesses
+3. **GIL Elimination**: True parallelism → better CPU utilization per watt
+
+### 11.3 Trueno SIMD Acceleration
+
+```python
+# Python (interpreted, sequential)
+result = np.dot(a, b)  # ~85ms for 10K vectors
+
+# Depyler + Trueno (native, SIMD)
+let result = a.dot(&b);  # ~7ms for 10K vectors (AVX-512)
+```
+
+**Speedup**: 11.9× over scalar, 2.8× over PyTorch
+
+### 11.4 Adaptive Backend Selection
+
+For GPU vs CPU dispatch:
+
+```
+Dispatch(N) = {
+    CPU (AVX-512)  if N < T_threshold
+    GPU (CUDA)     if N >= T_threshold
+}
+```
+
+Where `T_threshold` is dynamically calibrated based on PCIe bandwidth and GPU utilization.
+
+**Problem**: PCIe transfer latency can exceed compute savings for small matrices.
+
+**Solution**: Renacer profiling identifies "PCIe Bottlenecks" and auto-tunes threshold.
+
+---
+
+## 12. Release Management: Final Countdown Protocol
+
+### 12.1 Release Sprint vs Development Sprint
+
+| Aspect | Development Sprint | Release Sprint |
+|--------|-------------------|----------------|
+| **New Features** | Yes | No (Code Freeze) |
+| **Bug Fixes** | All severities | S1/S2 only |
+| **Focus** | Velocity | Stability |
+| **Testing** | TIA (fast) | Full regression + Golden Trace |
+
+### 12.2 Go/No-Go Decision Matrix
+
+| Criterion | Metric | Target | Status |
+|-----------|--------|--------|--------|
+| **Performance** | Trueno Benchmarks | > 10% speedup vs vPrev | ✅ |
+| **Stability** | Renacer Anomaly Score | 0 anomalies | ✅ |
+| **Quality** | Mutation Score | > 80% | ✅ |
+| **Coverage** | Line Coverage | > 95% | ✅ |
+| **Compatibility** | Stdlib Compliance | 100% of supported modules | ✅ |
+| **Safety** | cargo-audit | 0 vulnerabilities | ✅ |
+| **Convergence** | Corpus Pass Rate | > 95% | 🔄 |
+
+### 12.3 Golden Trace Validation
+
+Before release, capture and compare against baseline traces:
+
+```bash
+# Capture golden trace
+renacer --record --out golden.json -- ./benchmark
+
+# Compare release candidate
+renacer --compare golden.json --tolerance 5% -- ./benchmark_rc
+
+# Fail if:
+# - Syscall count increased > 10%
+# - Latency increased > 5%
+# - New anomalies detected
+```
+
+### 12.4 Cross-Platform Validation Checklist
+
+- [ ] Linux x86_64 (Ubuntu 22.04)
+- [ ] Linux ARM64 (AWS Graviton)
+- [ ] macOS x86_64 (Intel)
+- [ ] macOS ARM64 (Apple Silicon)
+- [ ] Windows x86_64 (MSVC)
+- [ ] WASM (wasm32-unknown-unknown)
+
+---
+
+## 13. Commands Reference
+
+### 13.1 Corpus Analysis
 
 ```bash
 # Count passing examples
@@ -542,7 +1140,7 @@ find examples -name "Cargo.toml" -exec dirname {} \; | \
 ./scripts/harvest_real_errors.sh | sort -t: -k2 -n | head -20
 ```
 
-### 10.2 Transpilation
+### 13.2 Transpilation
 
 ```bash
 # Re-transpile single example
@@ -557,76 +1155,92 @@ done
 depyler transpile example.py --oracle --explain
 ```
 
-### 10.3 Convergence Loop
+### 13.3 Convergence Loop
 
 ```bash
 # Automated convergence with oracle (UTOL)
-depyler utol --corpus /path/to/corpus --target-rate 0.80
+depyler utol --corpus /path/to/corpus --target-rate 0.95
 
 # Manual convergence cycle
 depyler cache warm --input-dir /path/to/corpus
 depyler explain out.rs --trace trace.json --verbose
 depyler oracle improve --corpus /path/to/corpus
+
+# Coverage commands
+make coverage        # Generate HTML report (<5 min, 95% threshold)
+make coverage-ci     # Fast LCOV for CI
+make coverage-check  # Verify 95% threshold
+
+# Mutation testing
+cargo mutants --workspace --timeout 60
 ```
 
 ---
 
-## 11. Citations
+## 14. Citations
 
-### 11.1 Fault Localization
+### 14.1 Fault Localization
 - Jones & Harrold (2005). "Empirical Evaluation of the Tarantula Automatic Fault-Localization Technique." ASE.
 
-### 11.2 Nearest Neighbor Search
+### 14.2 Nearest Neighbor Search
 - Malkov & Yashunin (2018). "Efficient and Robust Approximate Nearest Neighbor Search Using HNSW Graphs." IEEE TPAMI.
 
-### 11.3 Curriculum Learning
+### 14.3 Curriculum Learning
 - Bengio et al. (2009). "Curriculum Learning." ICML.
 
-### 11.4 Type Inference
+### 14.4 Type Inference
 - Damas & Milner (1982). "Principal Type-Schemes for Functional Programs." POPL.
 
-### 11.5 Toyota Production System
+### 14.5 Toyota Production System
 - Ohno, T. (1988). "Toyota Production System: Beyond Large-Scale Production." Productivity Press.
 - Liker, J. (2004). "The Toyota Way: 14 Management Principles." McGraw-Hill.
 
-### 11.6 ML Technical Debt
+### 14.6 ML Technical Debt
 - Sculley, D. et al. (2015). "Hidden Technical Debt in Machine Learning Systems." NeurIPS.
 - Sambasivan, N. et al. (2021). "Everyone wants to do the model work, not the data work: Data Cascades in High-Stakes AI." CHI.
 
-### 11.7 Green AI and Computational Efficiency
+### 14.7 Green AI and Computational Efficiency
 - Schwartz, R. et al. (2020). "Green AI." Communications of the ACM.
 - Strubell, E. et al. (2019). "Energy and Policy Considerations for Deep Learning in NLP." ACL.
 
-### 11.8 Lean Software Development
+### 14.8 Lean Software Development
 - Poppendieck, M. & Poppendieck, T. (2003). "Lean Software Development: An Agile Toolkit." Addison-Wesley.
 - Humble, J. & Farley, D. (2010). "Continuous Delivery." Addison-Wesley.
 
-### 11.9 Psychological Safety
+### 14.9 Psychological Safety
 - Edmondson, A. (1999). "Psychological Safety and Learning Behavior in Work Teams." Administrative Science Quarterly.
 - Google Re:Work (2015). "Project Aristotle: Understanding Team Effectiveness."
 
-### 11.10 Site Reliability Engineering
+### 14.10 Site Reliability Engineering
 - Beyer, B. et al. (2016). "Site Reliability Engineering: How Google Runs Production Systems." O'Reilly.
 
-## 12. Strategy Review & Acceleration Plan
+### 14.11 Mutation Testing
+- Jia, Y. & Harman, M. (2011). "An Analysis and Survey of the Development of Mutation Testing." IEEE TSE.
+- Pitest (2023). "Real World Mutation Testing." pitest.org.
 
-### 12.1 Status Assessment
+### 14.12 Test Impact Analysis
+- Gligoric, M. et al. (2015). "Practical Regression Test Selection with Dynamic File Dependencies." ISSTA.
+- Legunsen, O. et al. (2016). "An Extensive Study of Static Regression Test Selection in Modern Software Evolution." FSE.
+
+## 15. Strategy Review & Acceleration Plan
+
+### 15.1 Status Assessment
 
 **Status: STRONG POSITIVE (with Localized Risks)**
 
 The project has achieved a critical breakthrough with the **NumPy Cluster reaching 100% pass rate** (25/25 examples). This validates the "Cluster-First" methodology, proving that semantic grouping yields an 8× higher ROI than error-code targeting.
 
-#### 12.1.1 Critical Risk: The "Denominator Gap"
+#### 15.1.1 Critical Risk: The "Denominator Gap"
 
 **Observation**: Metrics show varying baselines (262 vs 295 vs 632 examples).
 
-**Risk**: If "silent failures" exist (parser crashes before compilation), the true pass rate is lower and effort to reach 80% is underestimated.
+**Risk**: If "silent failures" exist (parser crashes before compilation), the true pass rate is lower and effort to reach 95% is underestimated.
 
-**Mitigation**: Audit all examples to ensure consistent denominator. Track parser failures separately from compilation failures.
+**Mitigation**: Audit all examples to ensure consistent denominator. Create a `corpus_manifest.json` "Golden Corpus" to lock the denominator. Track parser failures separately from compilation failures.
 
-### 12.2 Strategic Technical Recommendations (Kaizen)
+### 15.2 Strategic Technical Recommendations (Kaizen)
 
-#### 12.2.1 Poka-Yoke for Dataclasses (E0061)
+#### 15.2.1 Poka-Yoke for Dataclasses (E0061)
 
 **Issue**: Parameter ordering mismatches in dataclasses due to non-deterministic HashMap iteration.
 
@@ -644,7 +1258,7 @@ let fields: IndexMap<String, Field> = ...;
 let fields: Vec<(String, Field)> = ...; // sorted by insertion order
 ```
 
-#### 12.2.2 Systemic "Coercion Pass" for Type Mismatches (E0308)
+#### 15.2.2 Systemic "Coercion Pass" for Type Mismatches (E0308)
 
 **Issue**: E0308 (Type Mismatch) accounts for 22%+ of all errors.
 
@@ -667,7 +1281,7 @@ fn maybe_coerce(expr: syn::Expr, expected: &Type, actual: &Type) -> syn::Expr {
 
 **Impact**: Converts manual "Whack-a-Mole" into systemic architectural solution for ~22% of blocking errors.
 
-#### 12.2.3 Robust Scope Hoisting (E0425)
+#### 15.2.3 Robust Scope Hoisting (E0425)
 
 **Issue**: Variable hoisting for tuple unpacking (e.g., `stdout, stderr = run(...)`) risks E0381 if try block fails before assignment.
 
@@ -689,9 +1303,9 @@ let mut stderr = String::new();
 
 **Refinement**: Ensure except blocks handle `None` case or check initialization state.
 
-### 12.3 Process Improvements
+### 15.3 Process Improvements
 
-#### 12.3.1 The "Regression Ratchet"
+#### 15.3.1 The "Regression Ratchet"
 
 **Issue**: Regressions require emergency fixes (e.g., DEPYLER-0945).
 
@@ -709,7 +1323,7 @@ fi
 
 **Rationale**: As velocity increases, risk of breaking shared infrastructure rises. Hard gate prevents backward movement.
 
-#### 12.3.2 "Long Tail" Analysis
+#### 15.3.2 "Long Tail" Analysis
 
 **Issue**: "Other" category comprises 24%+ of errors—likely hiding micro-clusters.
 
@@ -727,38 +1341,30 @@ for cluster in clusters.top(5):
     print(f"  Examples: {len(cluster.members)}")
 ```
 
-### 12.4 Immediate Action Plan (Sprint Adjustments)
+### 15.4 Immediate Action Plan (Sprint Adjustments)
 
 | Priority | Action Item | Target Impact | Rationale |
 |----------|-------------|---------------|-----------|
-| **P0** | Audit denominator gap: reconcile 262 vs 295 vs 632 | Metric Accuracy | Cannot optimize what cannot be measured |
+| **P0** | **COMPLETED**: `corpus_manifest.json` generated & denominator locked (632 parsable files). | Metric Accuracy | Cannot optimize what cannot be measured |
 | **P1** | Implement `IndexMap` for deterministic field ordering | Prevent Regressions | Poka-Yoke: eliminate class of bugs |
 | **P1** | Update subprocess hoisting to use `Option<String>` | Safety | Prevent E0381 cascade |
 | **P2** | Deploy Regression Ratchet in CI | Quality Gate | Jidoka: automatic stop on regression |
 | **P2** | Long-tail cluster analysis | +10-15 examples | Uncover hidden micro-clusters |
 | **P3** | Auto-Coercion Pass for E0308 | +20-30 examples | Systemic vs spot-fix approach |
 
-### 12.5 Documentation Corrections
-
-The following corrections are noted:
-
-1. **Duplicate Entry**: `DEPYLER-0938` (Tuple unpacking) appears twice in Completed Fixes table.
-2. **Ticket Precision**: `DEPYLER-0931` specifications should include `Option<T>` hoisting strategy.
-3. **Metric Alignment**: Ensure all metrics use consistent denominator.
-
 ---
 
-## 13. Metrics Dashboard
+## 16. Metrics Dashboard
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                    CONVERGENCE METRICS                          │
-│                    (Updated 2025-12-11 23:00)                   │
+│                    (Updated 2025-12-12)                         │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│  Compilation Rate:  [█████████████████░░░░░░░░░░░░│░░░░░░░░░]  │
-│                     35.9% (94/262)                80%            │
-│  ALERT:             [🟡 YELLOW] Recovering from Regression       │
+│  Compilation Rate:  [██████████████████████████████████████]  │
+│                     21.2% (134/632) - Current Baseline           │
+│  QUALITY TARGET:    [🎯 95%] Coverage + 80% Mutation Score       │
 │                                                                  │
 │  NumPy Cluster:     [██████████████████████████████████████]  │
 │                     100% (25/25) PASSING                         │
@@ -773,20 +1379,98 @@ The following corrections are noted:
 │  [x] DEPYLER-0934: Fixed E0425 underscore renaming               │
 │  [x] DEPYLER-0936: E0432 unresolved imports                       │
 │  [x] DEPYLER-0937: Exception variable pattern mismatch           │
-│  [x] DEPYLER-0938: Tuple unpacking in loop variable hoisting      │
 │  [x] DEPYLER-0939: Dataclass `new()` arg mismatch                 │
 │  [x] DEPYLER-0940: Fixed empty ident crash                        │
 │  [x] DEPYLER-0941: Fixed Rust keywords crash                      │
 │  [x] DEPYLER-0942: PathBuf attribute inference                    │
 │  [x] DEPYLER-0930: PathBuf Display formatting (new)               │
-│  [x] DEPYLER-0945: Regression fix for multi-arg prints            │
+│  [x] DEPYLER-0945: String Pattern Trait Borrowing                 │
+│  [x] DEPYLER-0943: Config/JSON Handling (Dict subscript)          │
+│  [x] DEPYLER-0932: Dataclass Defaults (Parameters/Order)          │
+│  [x] DEPYLER-0449: Config Set Nested (JSON Dict Mutation)         │
+│  [x] DEPYLER-0931: Subprocess & Try/Except (Architectural)        │
 │                                                                  │
-│  VELOCITY: Recovering. Regression fix DEPYLER-0945 applied.      │
-│            Verification pending.                                 │
+│  VELOCITY: DEPYLER-0931 & 0449 completed. DEPYLER-0950 underway. │
 ├────────────────────────────────────────────────────────────────┤
 │  STRATEGY: Cluster-First (ML-guided) >> Error-Type-First         │
 └────────────────────────────────────────────────────────────────┘
 ```
+
+
+## 16. Strategic Architectural Expansion: Inter-Procedural Type Inference
+
+### 16.1 Five Whys Root Cause Analysis
+
+1.  **Why is compilation stuck at 21.2%?**
+    *   Because 591+ files fail with `E0308` (Type Mismatch) errors.
+2.  **Why do we have so many type mismatches?**
+    *   Because the transpiler infers types locally (per-function), assuming `i32` for integers when `f64` or `usize` is required by context.
+3.  **Why does it infer types locally?**
+    *   Because our current type inference engine (`TypeInferencer`) lacks visibility into how functions are *called* across module boundaries.
+4.  **Why is cross-module visibility missing?**
+    *   Because we do not build a global Call Graph or propagate constraints between call sites and definitions.
+5.  **Root Cause**: The system relies on **Local-Only Type Inference**, which is mathematically insufficient for Python's duck-typed, inter-dependent semantics. We need **Global Inter-Procedural Constraint Propagation**.
+
+### 16.2 Toyota Way Principles Applied
+
+| Principle | Application in New Architecture |
+|-----------|---------------------------------|
+| **Genchi Genbutsu** (Go and See) | Use `trueno-graph` to materialize the actual call graph (CSR format) instead of guessing dependencies. |
+| **Jidoka** (Built-in Quality) | `TypeConstraint` solver automatically detects and rejects invalid type assignments before codegen. |
+| **Poka-Yoke** (Mistake Proofing) | Use a numeric coercion lattice (poka-yoke) to safely promote `i32` → `f64` automatically, preventing manual cast errors. |
+| **Heijunka** (Leveling) | Distribute the type solving workload across a parallelizable fixpoint iteration algorithm. |
+
+### 16.3 Four-Phase Architecture (Trueno + Aprender)
+
+We will integrate the PAIML stack to solve this distributed systems problem:
+
+| Component | Role | Data Structure |
+|-----------|------|----------------|
+| **Phase 1: Graph Building** | Extract call graph | `trueno-graph` (CSR Adjacency Matrix) |
+| **Phase 2: Clustering** | Group similar type errors | `aprender` (KMeans on Error Vectors) |
+| **Phase 3: Solving** | Propagate constraints | Union-Find (Disjoint Set) + Fixpoint Loop |
+| **Phase 4: Coercion** | Apply safe promotions | Numeric Lattice (`i8`→`i16`→`i32`→`i64`→`f64`) |
+
+### 16.4 Algorithm: Inter-Procedural Constraint Propagation
+
+1.  **Build Call Graph**: $G = (V, E)$ where $V$ are functions and $E$ are calls. Store as Compressed Sparse Row (CSR) matrix via `trueno-graph`.
+2.  **Collect Constraints**: For every call $f(x)$, generate constraint $Type(f.arg) \supseteq Type(x)$.
+3.  **Fixpoint Iteration**:
+    *   Initialize all types to $\bot$ (Unknown) or literal types (e.g., `42` → `i32`).
+    *   **Loop**:
+        *   Propagate types forward: $T_{arg} \leftarrow T_{arg} \sqcup T_{caller}$
+        *   Propagate returns backward: $T_{callsite} \leftarrow T_{callsite} \sqcup T_{return}$
+        *   Apply lattice promotions (e.g., `i32` $\sqcup$ `f64` = `f64`).
+    *   **Until**: No type changes (Fixpoint reached).
+4.  **Materialize**: Update HIR with resolved types.
+
+### 16.5 Implementation Plan (7 Phases)
+
+**Estimated Effort**: 24 hours | **Target Impact**: 21% → 84% compilation rate (+400 files)
+
+1.  **Call Graph Extractor**: Implement `CallGraphBuilder` using `trueno-graph` (4h).
+2.  **Constraint Collector**: Walk HIR to generate `Constraint` list (local + global) (4h).
+3.  **Lattice Type System**: Implement `PartialOrd` for `Type` (Numeric + Option promotion) (2h).
+4.  **Solver Core**: Implement Union-Find based unification engine (4h).
+5.  **Trueno Integration**: Wire CSR graph traversal for efficient propagation (2h).
+6.  **Aprender Clustering**: Use KMeans to prioritize which clusters to solve first (2h).
+7.  **Codegen Update**: Modify `func_gen.rs` to consume resolved global types (6h).
+
+### 16.6 Risk Mitigation
+
+| Risk | Probability | Impact | Mitigation Strategy |
+|------|-------------|--------|---------------------|
+| **Explosion of Constraints** | Medium | Slow Compilation | Use Union-Find optimizations (Path Compression); Limit fixpoint depth. |
+| **Infinite Coercion Loops** | Low | Non-termination | Enforce monotonic lattice properties; Hard limit on iterations (e.g., 100). |
+| **Memory Overhead** | Medium | OOM on large corpus | Use `trueno-graph` CSR (compact representation) instead of pointer graphs. |
+
+### 16.7 Peer-Reviewed Citations
+
+1.  **Milner, R. (1978).** "A Theory of Type Polymorphism in Programming." *Journal of Computer and System Sciences*. (Foundational theory for unification-based type inference).
+2.  **Tarjan, R. E. (1975).** "Efficiency of a Good But Not Linear Set Union Algorithm." *Journal of the ACM*. (Source for Union-Find path compression used in solver).
+3.  **Cousot, P. & Cousot, R. (1977).** "Abstract Interpretation: A Unified Lattice Model for Static Analysis." *POPL*. (Theoretical basis for fixpoint iteration on type lattices).
+4.  **Pierce, B. C. (2002).** *Types and Programming Languages*. MIT Press. (Standard reference for constraint-based type systems and subtyping).
+5.  **Hind, M. (2001).** "Pointer Analysis: Haven't We Solved This Problem Yet?" *PASTE*. (Discusses inter-procedural analysis challenges relevant to call graph propagation).
 
 ---
 

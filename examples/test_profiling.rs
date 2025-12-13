@@ -102,7 +102,7 @@ pub fn type_check_heavy(values: &Vec<serde_json::Value>) -> i32 {
 }
 #[doc = "Matrix multiplication - triple nested loop."]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'a, 'b>(
+pub fn matrix_multiply<'b, 'a>(
     a: &'a Vec<Vec<f64>>,
     b: &'b Vec<Vec<f64>>,
 ) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>> {

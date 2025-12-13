@@ -1518,6 +1518,13 @@ fn is_param_used_in_stmt(param_name: &str, stmt: &HirStmt) -> bool {
         HirStmt::FunctionDef { body, .. } => {
             body.iter().any(|s| is_param_used_in_stmt(param_name, s))
         }
+        // DEPYLER-0950: Check assert statements for parameter usage
+        HirStmt::Assert { test, msg } => {
+            is_param_used_in_expr(param_name, test)
+                || msg
+                    .as_ref()
+                    .is_some_and(|e| is_param_used_in_expr(param_name, e))
+        }
         _ => false,
     }
 }
@@ -3085,9 +3092,38 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
         }
         // DEPYLER-0414: Add MethodCall expression type inference
         HirExpr::MethodCall { object, method, .. } => {
+            // DEPYLER-0931: Check if this is subprocess module call
+            if let HirExpr::Var(obj_var) = object.as_ref() {
+                if obj_var == "subprocess" {
+                    return match method.as_str() {
+                        // subprocess.Popen() returns std::process::Child
+                        "Popen" => Type::Custom("std::process::Child".to_string()),
+                        // subprocess.run() returns CompletedProcess
+                        "run" => Type::Custom("CompletedProcess".to_string()),
+                        // subprocess.call() returns int (exit code)
+                        "call" | "check_call" => Type::Int,
+                        // subprocess.check_output() returns bytes/string
+                        "check_output" => Type::String,
+                        _ => Type::Unknown,
+                    };
+                }
+            }
+            // DEPYLER-0931: Check if object is a subprocess Child (from proc = subprocess.Popen(...))
+            // In Python: proc.wait() returns int (exit code)
+            // In Rust: Child::wait() returns io::Result<ExitStatus>, we extract code()
+            if method == "wait" {
+                // Check if object type is Child (it will be after assignment from Popen)
+                let obj_type = infer_expr_type_simple(object);
+                if matches!(&obj_type, Type::Custom(s) if s.contains("Child")) {
+                    return Type::Int;
+                }
+            }
             match method.as_str() {
                 // DEPYLER-REARCH-001: .copy() returns same type as object
                 "copy" => infer_expr_type_simple(object),
+                // DEPYLER-0931: Process management methods
+                "wait" => Type::Int, // Child.wait() returns exit code
+                "poll" => Type::Optional(Box::new(Type::Int)), // Child.poll() returns Option<i32>
                 // String methods that return String
                 "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "title"
                 | "capitalize" | "join" | "format" => Type::String,
@@ -3334,6 +3370,21 @@ fn infer_type_from_expr_usage(param_name: &str, expr: &HirExpr) -> Option<Type> 
     match expr {
         // Pattern: print(param) or println(param) → param needs Display → String
         HirExpr::Call { func, args, kwargs } => {
+            // DEPYLER-0950: Pattern: param(args...) → param is Callable
+            // When a parameter is used as the callee of a function call, it's a callable
+            // Example: def apply(f, x): return f(x) → f is Callable[[int], int]
+            if func == param_name {
+                // Infer param types from args (default to Int for untyped)
+                // For now, use simple heuristic: count args and default to Int types
+                let param_types: Vec<Type> = args.iter().map(|_| Type::Int).collect();
+                // Return type defaults to Int (most common case)
+                // This could be refined with more context
+                return Some(Type::Generic {
+                    base: "Callable".to_string(),
+                    params: vec![Type::Tuple(param_types), Type::Int],
+                });
+            }
+
             // func is a Symbol (String), check if it's print/println
             if func == "print" || func == "println" {
                 // Check if our parameter is used as an argument

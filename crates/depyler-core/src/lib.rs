@@ -57,6 +57,7 @@ pub mod codegen;
 pub mod const_generic_inference;
 pub mod debug;
 pub mod decision_trace;
+pub mod depylint;
 pub mod direct_rules;
 pub mod doctest_extractor;
 pub mod documentation;
@@ -300,8 +301,18 @@ fn propagate_call_site_types(hir: &mut hir::HirModule) {
     // Phase 4: Apply call site types to function parameters
     for func in &mut hir.functions {
         for (idx, param) in func.params.iter_mut().enumerate() {
-            if matches!(param.ty, hir::Type::Unknown) {
-                if let Some(inferred_type) = call_site_types.get(&(func.name.clone(), idx)) {
+            if let Some(inferred_type) = call_site_types.get(&(func.name.clone(), idx)) {
+                // DEPYLER-0950: Call-site evidence from literals is authoritative
+                // Override Unknown types AND heuristic String inferences
+                // when there's concrete literal evidence (Int/Float/Bool)
+                let should_apply = matches!(param.ty, hir::Type::Unknown)
+                    || (matches!(param.ty, hir::Type::String)
+                        && matches!(
+                            inferred_type,
+                            hir::Type::Int | hir::Type::Float | hir::Type::Bool
+                        ));
+
+                if should_apply {
                     param.ty = inferred_type.clone();
                     eprintln!(
                         "DEPYLER-0575: Applied call-site type: {}::{} -> {:?}",
@@ -629,18 +640,32 @@ fn collect_call_site_types_from_expr(
             if func_param_counts.contains_key(func) {
                 // For each argument, if it's a variable with known type, record it
                 for (idx, arg) in args.iter().enumerate() {
-                    if let hir::HirExpr::Var(var_name) = arg {
-                        // Look up the variable's type in the caller's scope
-                        if let Some(ty) =
-                            var_types.get(&(caller_func_name.to_string(), var_name.clone()))
-                        {
-                            // DEPYLER-0575: Skip Unknown and Optional types
-                            // Optional types often get unwrapped before use, so don't propagate them
-                            let should_propagate =
-                                !matches!(ty, hir::Type::Unknown | hir::Type::Optional(_));
-                            if should_propagate {
-                                call_site_types.insert((func.clone(), idx), ty.clone());
-                            }
+                    // DEPYLER-0950: Handle both variable and literal arguments
+                    let arg_type = match arg {
+                        hir::HirExpr::Var(var_name) => {
+                            // Look up the variable's type in the caller's scope
+                            var_types
+                                .get(&(caller_func_name.to_string(), var_name.clone()))
+                                .cloned()
+                        }
+                        // Handle literal arguments (e.g., process(10), add(1, 2.5))
+                        hir::HirExpr::Literal(lit) => Some(match lit {
+                            hir::Literal::Int(_) => hir::Type::Int,
+                            hir::Literal::Float(_) => hir::Type::Float,
+                            hir::Literal::String(_) => hir::Type::String,
+                            hir::Literal::Bool(_) => hir::Type::Bool,
+                            _ => hir::Type::Unknown,
+                        }),
+                        _ => None,
+                    };
+
+                    if let Some(ty) = arg_type {
+                        // DEPYLER-0575: Skip Unknown and Optional types
+                        // Optional types often get unwrapped before use, so don't propagate them
+                        let should_propagate =
+                            !matches!(ty, hir::Type::Unknown | hir::Type::Optional(_));
+                        if should_propagate {
+                            call_site_types.insert((func.clone(), idx), ty.clone());
                         }
                     }
                 }
@@ -999,6 +1024,13 @@ impl DepylerPipeline {
             }
         }
 
+        // DEPYLER-0950: Inter-procedural type unification
+        // Builds call graph and propagates types across function boundaries
+        if let Err(e) = type_system::unify_module_types(&mut hir) {
+            // Log but don't fail - type conflicts are informational
+            eprintln!("Type unification warning: {:?}", e);
+        }
+
         // Apply optimization passes based on annotations
         optimization::optimize_module(&mut hir);
 
@@ -1162,6 +1194,13 @@ impl DepylerPipeline {
                     }
                 }
             }
+        }
+
+        // DEPYLER-0950: Inter-procedural type unification
+        // Builds call graph and propagates types across function boundaries
+        if let Err(e) = type_system::unify_module_types(&mut hir) {
+            // Log but don't fail - type conflicts are informational
+            eprintln!("Type unification warning: {:?}", e);
         }
 
         // Apply optimization passes based on annotations
