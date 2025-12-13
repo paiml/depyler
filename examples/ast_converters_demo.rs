@@ -232,7 +232,7 @@ impl DemoClass {
     }
 }
 #[doc = "Show various statement types."]
-pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
+pub fn demonstrate_statements() -> Result<Option<i32>, Box<dyn std::error::Error>> {
     let mut x = 10;
     let mut y = 20;
     x = x + 5;
@@ -298,11 +298,11 @@ pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
     }
     let _cse_temp_5 = x > 100;
     if _cse_temp_5 {
-        Ok(x)
+        Ok(Some(x))
     } else {
         let _cse_temp_6 = x > 50;
         if _cse_temp_6 {
-            Ok(x * 2)
+            Ok(Some(x * 2))
         } else {
             Ok(None)
         }

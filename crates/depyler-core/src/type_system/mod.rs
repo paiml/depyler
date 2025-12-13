@@ -40,6 +40,9 @@ pub mod type_environment;
 // DEPYLER-0202: Constraint collection for HM solver integration
 pub mod constraint_collector;
 
+// DEPYLER-0950: Inter-procedural type unification
+pub mod type_unify;
+
 // Legacy Hindley-Milner (kept for backward compatibility)
 pub mod hindley_milner;
 
@@ -52,3 +55,6 @@ pub use type_environment::{TypeEnvironment, TypeInfo, VarId};
 
 // Legacy exports
 pub use hindley_milner::{Constraint, TypeConstraintSolver, TypeError};
+
+// DEPYLER-0950 exports
+pub use type_unify::{unify_module_types, CallGraph, TypeUnifier};

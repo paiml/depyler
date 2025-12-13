@@ -122,7 +122,7 @@ pub fn test_date_subtraction() -> chrono::NaiveDate {
 }
 #[doc = "Calculate age in years given birth date"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_age<'b, 'a>(
+pub fn calculate_age<'a, 'b>(
     birth_date: &'a chrono::NaiveDate,
     current_date: &'b chrono::NaiveDate,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -149,7 +149,7 @@ pub fn calculate_age<'b, 'a>(
 #[doc = "Calculate days until a future event"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn days_until_event<'a, 'b>(
+pub fn days_until_event<'b, 'a>(
     event_date: &'a chrono::NaiveDate,
     current_date: &'b chrono::NaiveDate,
 ) -> i32 {
@@ -253,7 +253,7 @@ pub fn test_date_comparison() -> bool {
 }
 #[doc = "Calculate working days between two dates(excluding weekends)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn working_days_between<'b, 'a>(
+pub fn working_days_between<'a, 'b>(
     start: &'a chrono::NaiveDate,
     end: &'b chrono::NaiveDate,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -312,7 +312,7 @@ pub fn test_datetime_formatting() -> String {
 }
 #[doc = "Generate list of dates in range"]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_date_range<'a, 'b>(
+pub fn test_date_range<'b, 'a>(
     start: &'a chrono::NaiveDate,
     end: &'b chrono::NaiveDate,
 ) -> Vec<chrono::NaiveDate> {

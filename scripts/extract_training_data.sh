@@ -13,7 +13,8 @@ mkdir -p "${OUTPUT_DIR}"
 
 # Temporary files
 TEMP_DIR=$(mktemp -d)
-trap 'rm -rf "${TEMP_DIR}"' EXIT
+# shellcheck disable=SEC011
+trap '[[ -n "$TEMP_DIR" ]] && [[ -d "$TEMP_DIR" ]] && [[ "$TEMP_DIR" == /tmp/* ]] && rm -rf "$TEMP_DIR"' EXIT
 
 echo "=== Depyler Oracle Training Data Extraction ==="
 echo "Output: ${ERRORS_FILE}"
@@ -43,7 +44,8 @@ echo "${PYTHON_FILES}" | while read -r pyfile; do
     COUNT=$((COUNT + 1))
 
     # Get relative path for file identification
-    REL_PATH="${pyfile#${REPRORUSTED_DIR}/}"
+    prefix="${REPRORUSTED_DIR}/"
+    REL_PATH="${pyfile#$prefix}"
     FILE_STEM=$(basename "${pyfile}" .py)
 
     # Create temp project directory
@@ -104,7 +106,8 @@ EOF
     done
 
     # Clean up project directory
-    rm -rf "${PROJ_DIR}"
+    # shellcheck disable=SEC011
+    [[ -n "$PROJ_DIR" ]] && [[ -d "$PROJ_DIR" ]] && [[ "$PROJ_DIR" == /tmp/* ]] && rm -rf "$PROJ_DIR"
 
     # Progress
     if [ $((COUNT % 50)) -eq 0 ]; then

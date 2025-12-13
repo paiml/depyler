@@ -838,6 +838,16 @@ pub(crate) fn codegen_return_stmt(
             expr_tokens = parse_quote! { serde_json::json!(#expr_tokens) };
         }
 
+        // DEPYLER-0943: Convert serde_json::Value to String when return type is String
+        // Dict subscript access returns serde_json::Value, but if the function return type
+        // is String, we need to extract the string value from the JSON Value.
+        let is_string_return = matches!(ctx.current_return_type.as_ref(), Some(Type::String));
+        let is_dict_subscript = is_dict_index_access(e);
+        if is_string_return && is_dict_subscript {
+            // Convert Value to String: value.as_str().unwrap_or("").to_string()
+            expr_tokens = parse_quote! { #expr_tokens.as_str().unwrap_or("").to_string() };
+        }
+
         // Check if return type is Optional and wrap value in Some()
         let is_optional_return =
             matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)));
@@ -865,14 +875,28 @@ pub(crate) fn codegen_return_stmt(
         let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
 
         // DEPYLER-0744: Check if expression is already Option-typed (e.g., param with default=None)
+        // DEPYLER-0951: Extended to check method calls that return Option
         // Don't wrap in Some() if the expression is already Option<T>
         let is_already_optional = if let HirExpr::Var(var_name) = e {
             ctx.var_types
                 .get(var_name)
                 .map(|ty| matches!(ty, Type::Optional(_)))
                 .unwrap_or(false)
+        } else if let HirExpr::MethodCall { method, .. } = e {
+            // DEPYLER-0951: These methods return Option<T>, don't wrap in Some()
+            // - dict.get(key) -> Option<&V>
+            // - environ.get(key) -> Option<String> (via std::env::var().ok())
+            // - Result.ok() -> Option<T>
+            // - Option.cloned() -> Option<T>
+            matches!(
+                method.as_str(),
+                "get" | "ok" | "cloned" | "copied" | "pop" | "first" | "last"
+            )
         } else {
-            false
+            // DEPYLER-0951: Also check if the generated tokens end with .ok() or contain .get(
+            // This catches cases where the HIR doesn't directly show the Option-returning method
+            let expr_str = quote!(#expr_tokens).to_string();
+            expr_str.ends_with(". ok ()") || expr_str.contains(". get (")
         };
 
         // DEPYLER-0498: Check if expression is if-expr with None arm (ternary with None)
@@ -926,7 +950,22 @@ pub(crate) fn codegen_return_stmt(
                 // Python pattern: `def main() -> int: ... return 1`
                 // Rust main() can only return () or Result<(), E>, so integer returns
                 // must be converted to process::exit() for non-zero or Ok(()) for zero
-                if let HirExpr::Literal(Literal::Int(exit_code)) = e {
+                //
+                // DEPYLER-0950: Only apply main() special handling for int/void returns.
+                // If main() returns other types like f64, treat it as a normal function.
+                let is_main_entry_point_return = matches!(
+                    ctx.current_return_type.as_ref(),
+                    None | Some(Type::Int) | Some(Type::None)
+                );
+                if !is_main_entry_point_return {
+                    // main() with non-int/non-void return type (e.g., `def main() -> float`)
+                    // Treat as normal function - generate standard return with Ok() wrapper
+                    if use_return_keyword {
+                        Ok(quote! { return Ok(#expr_tokens); })
+                    } else {
+                        Ok(quote! { Ok(#expr_tokens) })
+                    }
+                } else if let HirExpr::Literal(Literal::Int(exit_code)) = e {
                     if *exit_code == 0 {
                         // Success exit code -> Ok(())
                         if use_return_keyword {
@@ -1010,7 +1049,22 @@ pub(crate) fn codegen_return_stmt(
             // Python pattern: `def main() -> int: ... return 0`
             // Rust main() can only return () or Result<(), E>, so integer returns
             // must be converted to process::exit() for non-zero or () for zero
-            if let HirExpr::Literal(Literal::Int(exit_code)) = e {
+            //
+            // DEPYLER-0950: Only apply main() special handling for int/void returns.
+            // If main() returns other types like f64, treat it as a normal function.
+            let is_main_entry_point_return = matches!(
+                ctx.current_return_type.as_ref(),
+                None | Some(Type::Int) | Some(Type::None)
+            );
+            if !is_main_entry_point_return {
+                // main() with non-int/non-void return type (e.g., `def main() -> float`)
+                // Treat as normal function - generate standard return
+                if use_return_keyword {
+                    Ok(quote! { return #expr_tokens; })
+                } else {
+                    Ok(quote! { #expr_tokens })
+                }
+            } else if let HirExpr::Literal(Literal::Int(exit_code)) = e {
                 if *exit_code == 0 {
                     // Success exit code -> ()
                     if use_return_keyword {
@@ -1513,6 +1567,18 @@ fn apply_truthiness_conversion(
                         _ => cond_expr,
                     };
                 }
+
+                // DEPYLER-0950: Fallback heuristic for self.* when field type is unknown
+                // Common String field names that need !.is_empty() check
+                let string_attr_names = [
+                    "email", "name", "text", "content", "message", "title", "description",
+                    "path", "url", "value", "data", "body", "subject", "address", "filename",
+                    "username", "password", "token", "key", "secret", "label", "output",
+                    "input", "stdout", "stderr", "error", "warning", "info", "debug",
+                ];
+                if string_attr_names.contains(&attr.as_str()) {
+                    return parse_quote! { !#cond_expr.is_empty() };
+                }
             }
 
             // Check if this is accessing an args variable from ArgumentParser
@@ -1624,6 +1690,19 @@ fn apply_truthiness_conversion(
                     // but it's semantically correct for Python truthiness
                     return parse_quote! { !#cond_expr.is_empty() };
                 }
+            }
+
+            // DEPYLER-0950: Heuristic for common String attribute names
+            // Pattern: if obj.email, obj.name, obj.text, etc.
+            // These are typically String fields that need !.is_empty() check
+            let string_attr_names = [
+                "email", "name", "text", "content", "message", "title", "description",
+                "path", "url", "value", "data", "body", "subject", "address", "filename",
+                "username", "password", "token", "key", "secret", "label", "output",
+                "input", "stdout", "stderr", "error", "warning", "info", "debug",
+            ];
+            if string_attr_names.contains(&attr.as_str()) {
+                return parse_quote! { !#cond_expr.is_empty() };
             }
         }
     }
@@ -2223,7 +2302,89 @@ fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
                 }
                 return None;
             }
+            // DEPYLER-0931: Handle tuple unpacking (a, b, c) = (1, 2, 3)
+            // Extract individual element types from the tuple
+            HirStmt::Assign {
+                target: AssignTarget::Tuple(targets),
+                value,
+                ..
+            } => {
+                // Find var_name position in the targets
+                if let Some(pos) = find_var_position_in_tuple(var_name, targets) {
+                    // Infer type from the RHS tuple
+                    let rhs_type = crate::rust_gen::func_gen::infer_expr_type_simple(value);
+                    if let Type::Tuple(elem_types) = rhs_type {
+                        if pos < elem_types.len() {
+                            let elem_type = elem_types[pos].clone();
+                            if !matches!(elem_type, Type::Unknown) {
+                                return Some(elem_type);
+                            }
+                        }
+                    }
+                    // If RHS is not a tuple, check if it's a literal tuple expression
+                    if let HirExpr::Tuple(elems) = value {
+                        if pos < elems.len() {
+                            let elem_type =
+                                crate::rust_gen::func_gen::infer_expr_type_simple(&elems[pos]);
+                            if !matches!(elem_type, Type::Unknown) {
+                                return Some(elem_type);
+                            }
+                        }
+                    }
+                }
+            }
+            // DEPYLER-0931: Recursively search nested try/except blocks
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
+                // Search in try body
+                if let Some(ty) = find_variable_type(var_name, body) {
+                    return Some(ty);
+                }
+                // Search in handlers
+                for handler in handlers {
+                    if let Some(ty) = find_variable_type(var_name, &handler.body) {
+                        return Some(ty);
+                    }
+                }
+                // Search in finally
+                if let Some(finally) = finalbody {
+                    if let Some(ty) = find_variable_type(var_name, finally) {
+                        return Some(ty);
+                    }
+                }
+            }
+            // DEPYLER-0931: Recursively search if/else blocks
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                if let Some(ty) = find_variable_type(var_name, then_body) {
+                    return Some(ty);
+                }
+                if let Some(else_stmts) = else_body {
+                    if let Some(ty) = find_variable_type(var_name, else_stmts) {
+                        return Some(ty);
+                    }
+                }
+            }
             _ => {}
+        }
+    }
+    None
+}
+
+/// DEPYLER-0931: Find position of variable in tuple assignment target
+fn find_var_position_in_tuple(var_name: &str, targets: &[AssignTarget]) -> Option<usize> {
+    for (i, target) in targets.iter().enumerate() {
+        if let AssignTarget::Symbol(name) = target {
+            if name == var_name {
+                return Some(i);
+            }
         }
     }
     None
@@ -2258,6 +2419,40 @@ fn is_stdio_expr(expr: &HirExpr) -> bool {
         }
     }
     false
+}
+
+/// DEPYLER-0943: Check if expression is a dict/HashMap index access
+/// Dict subscript like `config["name"]` returns serde_json::Value, which needs
+/// conversion when returning as String. This detects:
+/// - Direct dict[key] access
+/// - Variables known to be dict-like (config, data, settings, etc.)
+fn is_dict_index_access(expr: &HirExpr) -> bool {
+    match expr {
+        // Direct dict[key] pattern
+        HirExpr::Index { base, index } => {
+            // String key indicates dict access (not list/array)
+            let has_string_key = matches!(index.as_ref(), HirExpr::Literal(Literal::String(_)));
+            if has_string_key {
+                return true;
+            }
+            // Check if base is a known dict-like variable
+            if let HirExpr::Var(name) = base.as_ref() {
+                let n = name.as_str();
+                return n.contains("dict")
+                    || n.contains("config")
+                    || n.contains("data")
+                    || n.contains("settings")
+                    || n.contains("params")
+                    || n.contains("options")
+                    || n.contains("env")
+                    || n.contains("json")
+                    || n == "d"
+                    || n == "m";
+            }
+            false
+        }
+        _ => false,
+    }
 }
 
 /// DEPYLER-0625: Find the expression assigned to a variable in a statement block
@@ -4178,7 +4373,14 @@ pub(crate) fn codegen_assign_stmt(
 
         (Some(quote! { : #target_syn_type }), is_const)
     } else {
-        (None, false)
+        // DEPYLER-0952: When value is bare None literal without type annotation,
+        // Rust needs a type annotation because it can't infer Option<_>.
+        // Python: `x = None` → Rust: `let x: Option<()> = None;`
+        if matches!(value, HirExpr::Literal(Literal::None)) {
+            (Some(quote! { : Option<()> }), false)
+        } else {
+            (None, false)
+        }
     };
 
     // DEPYLER-0455 Bug 2: String literal normalization for hoisted inference variables
@@ -4563,25 +4765,8 @@ pub(crate) fn codegen_assign_index(
     // DEPYLER-0560: Also detect if base is HashMap<String, serde_json::Value>
     let (needs_as_object_mut, needs_json_value_wrap) = if let HirExpr::Var(base_name) = base {
         if !is_numeric_index {
-            // Check actual type from var_types
-            if let Some(base_type) = ctx.var_types.get(base_name) {
-                match base_type {
-                    // Pure serde_json::Value - needs .as_object_mut()
-                    Type::Custom(s) if s == "serde_json::Value" || s == "Value" => (true, false),
-                    // HashMap<String, serde_json::Value> - needs json!() wrap on values
-                    Type::Dict(_, val_type) => {
-                        let val_needs_json = match val_type.as_ref() {
-                            Type::Unknown => true,
-                            Type::Custom(s) => s == "serde_json::Value" || s == "Value",
-                            _ => false,
-                        };
-                        (false, val_needs_json)
-                    }
-                    _ => (false, false),
-                }
-            } else {
-                // Fallback heuristic: check variable name patterns
-                let name_str = base_name.as_str();
+            // DEPYLER-0449: Helper function to check if name looks like JSON value
+            let check_json_name_heuristic = |name_str: &str| {
                 let is_value_name = name_str == "config"
                     || name_str == "data"
                     || name_str == "value"
@@ -4596,6 +4781,33 @@ pub(crate) fn codegen_assign_index(
                     || name_str == "output"
                     || name_str == "response";
                 (is_value_name, is_dict_value_name)
+            };
+
+            // Check actual type from var_types
+            if let Some(base_type) = ctx.var_types.get(base_name) {
+                match base_type {
+                    // Pure serde_json::Value - needs .as_object_mut()
+                    Type::Custom(s) if s == "serde_json::Value" || s == "Value" => (true, false),
+                    // HashMap<String, serde_json::Value> - needs json!() wrap on values
+                    // DEPYLER-0449: Dict with serde_json::Value values is actually a
+                    // serde_json::Value JSON object, so we need .as_object_mut()
+                    Type::Dict(_, val_type) => {
+                        let val_is_json = match val_type.as_ref() {
+                            Type::Unknown => true,
+                            Type::Custom(s) => s == "serde_json::Value" || s == "Value",
+                            _ => false,
+                        };
+                        // When dict has Value values, it's a serde_json::Value JSON object
+                        (val_is_json, val_is_json)
+                    }
+                    // DEPYLER-0449: Unknown type - fall back to name heuristic
+                    Type::Unknown => check_json_name_heuristic(base_name.as_str()),
+                    // Any other type - also try heuristic for common JSON var names
+                    _ => check_json_name_heuristic(base_name.as_str()),
+                }
+            } else {
+                // Fallback heuristic: check variable name patterns
+                check_json_name_heuristic(base_name.as_str())
             }
         } else {
             (false, false)
@@ -4982,16 +5194,16 @@ pub(crate) fn codegen_assign_tuple_groups(
 /// Returns None if the try block doesn't return a value, Some(type) otherwise
 /// This is used to generate the correct closure return type for try/except
 #[inline]
-fn infer_try_body_return_type(body: &[HirStmt]) -> Option<Type> {
+fn infer_try_body_return_type(body: &[HirStmt], ctx: &CodeGenContext) -> Option<Type> {
     for stmt in body {
         match stmt {
             HirStmt::Return(Some(expr)) => {
                 // Found a return with a value - infer its type
-                return Some(infer_expr_return_type(expr));
+                return Some(infer_expr_return_type(expr, ctx));
             }
             HirStmt::While { body: inner, .. } | HirStmt::For { body: inner, .. } => {
                 // Check inside loops
-                if let Some(ty) = infer_try_body_return_type(inner) {
+                if let Some(ty) = infer_try_body_return_type(inner, ctx) {
                     return Some(ty);
                 }
             }
@@ -5001,11 +5213,36 @@ fn infer_try_body_return_type(body: &[HirStmt]) -> Option<Type> {
                 ..
             } => {
                 // Check inside if/else
-                if let Some(ty) = infer_try_body_return_type(then_body) {
+                if let Some(ty) = infer_try_body_return_type(then_body, ctx) {
                     return Some(ty);
                 }
                 if let Some(else_stmts) = else_body {
-                    if let Some(ty) = infer_try_body_return_type(else_stmts) {
+                    if let Some(ty) = infer_try_body_return_type(else_stmts, ctx) {
+                        return Some(ty);
+                    }
+                }
+            }
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                if let Some(ty) = infer_try_body_return_type(body, ctx) {
+                    return Some(ty);
+                }
+                for h in handlers {
+                    if let Some(ty) = infer_try_body_return_type(&h.body, ctx) {
+                        return Some(ty);
+                    }
+                }
+                if let Some(else_stmts) = orelse {
+                    if let Some(ty) = infer_try_body_return_type(else_stmts, ctx) {
+                        return Some(ty);
+                    }
+                }
+                if let Some(final_stmts) = finalbody {
+                    if let Some(ty) = infer_try_body_return_type(final_stmts, ctx) {
                         return Some(ty);
                     }
                 }
@@ -5018,8 +5255,12 @@ fn infer_try_body_return_type(body: &[HirStmt]) -> Option<Type> {
 
 /// DEPYLER-0565: Infer the type of an expression for try/except closure return type
 #[inline]
-fn infer_expr_return_type(expr: &HirExpr) -> Type {
+fn infer_expr_return_type(expr: &HirExpr, ctx: &CodeGenContext) -> Type {
     match expr {
+        HirExpr::Var(name) => {
+            // Look up variable type in context
+            ctx.var_types.get(name).cloned().unwrap_or(Type::Unknown)
+        }
         HirExpr::Literal(lit) => match lit {
             Literal::Int(_) => Type::Int,
             Literal::Float(_) => Type::Float,
@@ -5034,10 +5275,17 @@ fn infer_expr_return_type(expr: &HirExpr) -> Type {
                 "hexdigest" | "encode" | "decode" | "strip" | "upper" | "lower" | "to_string" => {
                     Type::String
                 }
-                "len" | "count" => Type::Int,
+                "len" | "count" | "wait" | "poll" | "returncode" => Type::Int,
                 "is_empty" | "startswith" | "endswith" | "exists" | "is_file" | "is_dir" => {
                     Type::Bool
                 }
+                _ => Type::Unknown,
+            }
+        }
+        HirExpr::Attribute { attr, .. } => {
+            match attr.as_str() {
+                "returncode" => Type::Int,
+                "stdout" | "stderr" => Type::String,
                 _ => Type::Unknown,
             }
         }
@@ -5058,15 +5306,43 @@ fn infer_expr_return_type(expr: &HirExpr) -> Type {
 /// DEPYLER-0565: Convert HIR Type to closure return type tokens
 #[inline]
 fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
+    // Delegate to the main type mapper to support all types (Option, Vec, etc.)
+    // Create a temporary context since type mapping shouldn't depend on it for basic types
+    // (hir_type_to_tokens only uses ctx for advanced resolution which we might miss here,
+    // but it's better than hardcoding)
+    // Actually, hir_type_to_tokens ignores ctx in most cases.
+    // We can't easily construct a dummy context here, but we can call it if we update the signature.
+    // However, since we can't update signature easily without changing all calls, let's duplicate
+    // the delegation logic or simplified version.
+    
+    // Better: Update to match hir_type_to_tokens logic for common types
     match ty {
-        // DEPYLER-0437: Use i32 to match what int() codegen actually produces
-        // (int(s) generates s.parse::<i32>(), not i64)
         Type::Int => quote! { i32 },
         Type::Float => quote! { f64 },
         Type::String => quote! { String },
         Type::Bool => quote! { bool },
-        Type::None | Type::Unknown => quote! { () },
-        _ => quote! { () },
+        Type::None => quote! { () },
+        Type::Unknown => quote! { () },
+        _ => {
+            // Fallback: We can't call hir_type_to_tokens because we don't have ctx.
+            // But we can handle the Option<Value> case which is common for hoisted vars.
+            if let Type::Optional(inner) = ty {
+                let inner_tokens = try_return_type_to_tokens(inner);
+                quote! { Option<#inner_tokens> }
+            } else if let Type::Custom(name) = ty {
+                if name == "serde_json::Value" || name == "Value" {
+                    quote! { serde_json::Value }
+                } else {
+                    let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                    quote! { #ident }
+                }
+            } else if let Type::Tuple(elems) = ty {
+                let elem_tokens: Vec<_> = elems.iter().map(try_return_type_to_tokens).collect();
+                quote! { (#(#elem_tokens),*) }
+            } else {
+                quote! { () }
+            }
+        }
     }
 }
 
@@ -5274,9 +5550,53 @@ pub(crate) fn codegen_try_stmt(
     let mut hoisted_decls = Vec::new();
     for var_name in &hoisted_try_vars {
         let var_ident = safe_ident(var_name);
+        
+        // Find the variable's type from the first assignment in either try block or handlers
+        let var_type = find_variable_type(var_name, body).or_else(|| {
+            handlers.iter().find_map(|h| find_variable_type(var_name, &h.body))
+        });
+
+        if let Some(ty) = var_type {
+            // DEPYLER-0931: Check if type implements Default
+            // Types like std::process::Child don't implement Default, so wrap in Option
+            let needs_option_wrap = matches!(
+                &ty,
+                Type::Custom(s) if s == "std::process::Child" || s == "Child"
+            );
+
+            if needs_option_wrap {
+                // Wrap non-Default types in Option
+                let opt_type = Type::Optional(Box::new(ty.clone()));
+                let rust_type = ctx.type_mapper.map_type(&opt_type);
+                let syn_type = rust_type_to_syn(&rust_type)?;
+                hoisted_decls.push(quote! { let mut #var_ident: #syn_type = None; });
+                ctx.var_types.insert(var_name.clone(), opt_type);
+            } else {
+                let rust_type = ctx.type_mapper.map_type(&ty);
+                let syn_type = rust_type_to_syn(&rust_type)?;
+                // DEPYLER-0931: Initialize with Default::default() to prevent E0381
+                // Variables hoisted from try/except must be initialized because the try block might fail
+                // before assignment, and we need a valid state for the except block (or after).
+                // This also allows closure capturing by reference.
+                hoisted_decls.push(quote! { let mut #var_ident: #syn_type = Default::default(); });
+                ctx.var_types.insert(var_name.clone(), ty);
+            }
+        } else {
+            // No type annotation - DEPYLER-0931: Default to Option<serde_json::Value>
+            // This ensures we have a safe container for whatever value is assigned
+            // and handles the "uninitialized" state via None.
+            let value_type = crate::hir::Type::Custom("serde_json::Value".to_string());
+            let opt_type = crate::hir::Type::Optional(Box::new(value_type));
+            
+            ctx.var_types.insert(var_name.clone(), opt_type);
+            hoisted_decls.push(quote! { let mut #var_ident: Option<serde_json::Value> = None; });
+
+            // DEPYLER-0455 Bug 2: Track hoisted inference vars
+            ctx.hoisted_inference_vars.insert(var_name.clone());
+        }
+
         // Declare variable in outer scope so it's accessible after try block
         ctx.declare_var(var_name);
-        hoisted_decls.push(quote! { let mut #var_ident; });
     }
 
     // DEPYLER-0578: Detect json.load(sys.stdin) pattern with exit handler
@@ -5463,7 +5783,30 @@ pub(crate) fn codegen_try_stmt(
         // DEPYLER-0333: Exit handler scope
         ctx.exit_exception_scope();
 
-        handler_tokens.push(quote! { #(#handler_stmts)* });
+        // DEPYLER-0931: Transform handler returns to wrap in Ok() when inside nested exception scope
+        // Handler code returns from the outer try/except closure which expects Result<T, E>
+        let is_nested = ctx.exception_nesting_depth() > 0;
+        let handler_stmts_transformed: Vec<_> = if is_nested {
+            handler_stmts
+                .iter()
+                .map(|stmt| {
+                    let stmt_str = stmt.to_string();
+                    if stmt_str.starts_with("return ") && !stmt_str.starts_with("return Ok (") {
+                        if let Some(expr_part) = stmt_str.strip_prefix("return ") {
+                            if let Some(expr) = expr_part.strip_suffix(" ;") {
+                                let wrapped = format!("return Ok({}) ;", expr);
+                                return wrapped.parse().unwrap_or_else(|_| stmt.clone());
+                            }
+                        }
+                    }
+                    stmt.clone()
+                })
+                .collect()
+        } else {
+            handler_stmts
+        };
+
+        handler_tokens.push(quote! { #(#handler_stmts_transformed)* });
     }
 
     // Generate finally clause if present
@@ -5616,424 +5959,148 @@ pub(crate) fn codegen_try_stmt(
                 }
             }
         } else {
-            // DEPYLER-0489: General exception handling with variable binding
-            // Generate proper match expression for all handlers, not just special cases
-            // This ensures exception variables (except E as e:) are always available
+            // DEPYLER-0931: Always use closure pattern for robust control flow & scoping
+            // This guarantees that:
+            // 1. Variables are hoisted and accessible after the block (declared outside)
+            // 2. Control flow (return/raise) inside try block correctly jumps to handler or exits
+            // 3. Variables assigned in try block are correctly captured by mutable reference
 
-            // Check if any handler needs exception variable binding
-            let needs_error_binding = handlers.iter().any(|h| h.name.is_some());
+            // Infer return type from try body
+            let try_return_type = infer_try_body_return_type(body, ctx);
+            let return_type_tokens = try_return_type
+                .as_ref()
+                .map(try_return_type_to_tokens)
+                .unwrap_or_else(|| quote! { () });
+            let ok_value = try_return_type
+                .as_ref()
+                .map(|_| quote! { _result })
+                .unwrap_or_else(|| quote! { () });
 
-            if needs_error_binding {
-                // DEPYLER-0489: Generate Result-returning closure + match pattern
-                // DEPYLER-0565: Infer closure return type from try body return statements
-                // Pattern: (|| -> Result<T, Box<dyn std::error::Error>> { try_body })().unwrap_or_else(|e| { handler })
-
-                // DEPYLER-0565: Infer return type from try body
-                let try_return_type = infer_try_body_return_type(body);
-                let return_type_tokens = try_return_type
-                    .as_ref()
-                    .map(try_return_type_to_tokens)
-                    .unwrap_or_else(|| quote! { () });
-                let ok_value = try_return_type
-                    .as_ref()
-                    .map(|_| quote! { _result })
-                    .unwrap_or_else(|| quote! { () });
-                // DEPYLER-0437: The Ok arm extracts _result from Result, returns it directly
-                // DEPYLER-0819: When handlers contain raise, the function returns Result<T, E>
-                // and we must wrap the success value in Ok()
-                let any_handler_raises = handlers.iter().any(|h| handler_contains_raise(&h.body));
-                let ok_arm_body = if try_return_type.is_some() {
-                    if any_handler_raises {
-                        quote! { return Ok(_result); }
-                    } else {
-                        quote! { return _result; }
-                    }
+            // The Ok arm extracts _result from Result
+            // DEPYLER-0819: When handlers contain raise, the function returns Result<T, E>
+            // and we must wrap the success value in Ok()
+            // DEPYLER-0931: Always use Ok(_result) when returning from try/except closure
+            // because we're inside a Result-returning closure (even for nested try/except)
+            let any_handler_raises = handlers.iter().any(|h| handler_contains_raise(&h.body));
+            let ok_arm_body = if try_return_type.is_some() {
+                // Always wrap in Ok() - we're returning from a Result<T, E> closure
+                // If any_handler_raises, the outer function also returns Result, but that's handled by transform
+                if any_handler_raises || ctx.exception_nesting_depth() > 0 {
+                    quote! { return Ok(_result); }
                 } else {
-                    quote! {}
-                };
-
-                // DEPYLER-0437: Transform try body return statements to wrap values in Ok()
-                // The closure returns Result<T, E>, so `return expr;` must become `return Ok(expr);`
-                let try_stmts_transformed: Vec<_> = try_stmts
-                    .iter()
-                    .map(|stmt| {
-                        let stmt_str = stmt.to_string();
-                        // Transform `return expr ;` to `return Ok ( expr ) ;`
-                        if stmt_str.starts_with("return ") && !stmt_str.starts_with("return Ok (") {
-                            // Extract the expression between "return " and " ;"
-                            if let Some(expr_part) = stmt_str.strip_prefix("return ") {
-                                if let Some(expr) = expr_part.strip_suffix(" ;") {
-                                    let wrapped = format!("return Ok({}) ;", expr);
-                                    return wrapped.parse().unwrap_or_else(|_| stmt.clone());
-                                }
-                            }
-                        }
-                        stmt.clone()
-                    })
-                    .collect();
-
-                // DEPYLER-0437: Only add fallback Ok(Default::default()) when try body has no return
-                // If try body has returns, they're already wrapped in Ok() and there's no need for fallback
-                let closure_fallback = if try_return_type.is_none() {
-                    quote! { Ok(Default::default()) }
-                } else {
-                    quote! {}
-                };
-
-                let handler_body = if handlers.len() == 1 {
-                    // Single handler - use match pattern
-                    let err_pattern = if let Some(exc_var) = &handlers[0].name {
-                        let exc_ident = safe_ident(exc_var);
-                        quote! { Err(#exc_ident) }
-                    } else {
-                        quote! { Err(_) }
-                    };
-
-                    let handler_code = &handler_tokens[0];
-
-                    // DEPYLER-0837: Include hoisted variable declarations INSIDE the closure
-                    // Since the closure creates a new scope, variables assigned in try blocks
-                    // need to be declared inside the closure, not outside.
-                    if let Some(finally_code) = finally_stmts {
-                        quote! {
-                            {
-                                match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                                    #(#hoisted_decls)*
-                                    #(#try_stmts_transformed)*
-                                    #closure_fallback
-                                })() {
-                                    Ok(#ok_value) => { #ok_arm_body },
-                                    #err_pattern => { #handler_code }
-                                }
-                                #finally_code
-                            }
-                        }
-                    } else {
-                        quote! {
-                            match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                                #(#hoisted_decls)*
-                                #(#try_stmts_transformed)*
-                                #closure_fallback
-                            })() {
-                                Ok(#ok_value) => { #ok_arm_body },
-                                #err_pattern => { #handler_code }
-                            }
-                        }
-                    }
-                } else {
-                    // DEPYLER-0489: Multiple handlers with exception variable binding
-                    // Find ANY handler that has a variable binding (not just the first)
-                    // Full multi-handler support with type checking would require more complex codegen
-                    let exc_var_opt = handlers.iter().find_map(|h| h.name.as_ref());
-
-                    if let Some(exc_var) = exc_var_opt {
-                        let exc_ident = safe_ident(exc_var);
-                        let handler_code = quote! { #(#handler_tokens)* };
-
-                        if let Some(finally_code) = finally_stmts {
-                            quote! {
-                                {
-                                    match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                                        #(#try_stmts_transformed)*
-                                        #closure_fallback
-                                    })() {
-                                        Ok(#ok_value) => { #ok_arm_body },
-                                        Err(#exc_ident) => { #handler_code }
-                                    }
-                                    #finally_code
-                                }
-                            }
-                        } else {
-                            quote! {
-                                match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
-                                    #(#try_stmts_transformed)*
-                                    #closure_fallback
-                                })() {
-                                    Ok(#ok_value) => { #ok_arm_body },
-                                    Err(#exc_ident) => { #handler_code }
-                                }
-                            }
-                        }
-                    } else {
-                        // No binding needed - simple concatenation
-                        // DEPYLER-0681: Include hoisted declarations for try block variables
-                        let handler_code = quote! { #(#handler_tokens)* };
-                        if let Some(finally_code) = finally_stmts {
-                            quote! {
-                                #(#hoisted_decls)*
-                                {
-                                    #(#try_stmts)*
-                                    #handler_code
-                                    #finally_code
-                                }
-                            }
-                        } else {
-                            quote! {
-                                #(#hoisted_decls)*
-                                {
-                                    #(#try_stmts)*
-                                    #handler_code
-                                }
-                            }
-                        }
-                    }
-                };
-
-                return Ok(handler_body);
-            }
-
-            // DEPYLER-0357: Non-simple patterns - use original concatenation logic
-            // Execute try block statements, then if we have a single handler, use it
-            if handlers.len() == 1 {
-                // DEPYLER-0359: Check if handler has exception binding for proper match generation
-                if handlers[0].name.is_some() && body.len() == 1 {
-                    if let HirStmt::Return(Some(HirExpr::Call { func, args, .. })) = &body[0] {
-                        if func == "int" && args.len() == 1 {
-                            // Single handler with exception binding - use match with Err(e)
-                            let arg_expr = args[0].to_rust_expr(ctx)?;
-                            let handler_body = &handler_tokens[0];
-                            let err_var = handlers[0]
-                                .name
-                                .as_ref()
-                                .map(|s| {
-                                    safe_ident(s) // DEPYLER-0023
-                                })
-                                .unwrap();
-
-                            if let Some(finally_body) = finalbody {
-                                let finally_stmts: Vec<_> = finally_body
-                                    .iter()
-                                    .map(|s| s.to_rust_tokens(ctx))
-                                    .collect::<Result<Vec<_>>>()?;
-                                return Ok(quote! {
-                                    {
-                                        match #arg_expr.parse::<i32>() {
-                                            Ok(__value) => __value,
-                                            Err(#err_var) => {
-                                                #handler_body
-                                            }
-                                        }
-                                        #(#finally_stmts)*
-                                    }
-                                });
-                            } else {
-                                return Ok(quote! {
-                                    match #arg_expr.parse::<i32>() {
-                                        Ok(__value) => __value,
-                                        Err(#err_var) => {
-                                            #handler_body
-                                        }
-                                    }
-                                });
-                            }
-                        }
-                    }
+                    quote! { return _result; }
                 }
+            } else {
+                quote! {}
+            };
 
-                // DEPYLER-0362/0444: Check if try block has error handling (unwrap_or_default, .expect())
-                // If so, don't concatenate handler as it creates invalid syntax or unreachable code
-                let try_code_str = quote! { #(#try_stmts)* }.to_string();
-                let has_error_handling = try_code_str.contains("unwrap_or_default")
-                    || try_code_str.contains("unwrap_or(")
-                    || try_code_str.contains(".expect(");
-
-                if has_error_handling {
-                    // Try block already handles errors, don't add handler
-                    // DEPYLER-0437: Include hoisted declarations for try block variables
-                    if let Some(finally_code) = finally_stmts {
-                        Ok(quote! {
-                            {
-                                #(#hoisted_decls)*
-                                #(#try_stmts)*
-                                #finally_code
+            // Transform try body return statements to wrap values in Ok()
+            // The closure returns Result<T, E>, so `return expr;` must become `return Ok(expr);`
+            let try_stmts_transformed: Vec<_> = try_stmts
+                .iter()
+                .map(|stmt| {
+                    let stmt_str = stmt.to_string();
+                    // Transform `return expr ;` to `return Ok ( expr ) ;`
+                    // Simple text-based transformation for now (robust enough for generated code)
+                    if stmt_str.starts_with("return ") && !stmt_str.starts_with("return Ok (") {
+                        if let Some(expr_part) = stmt_str.strip_prefix("return ") {
+                            if let Some(expr) = expr_part.strip_suffix(" ;") {
+                                let wrapped = format!("return Ok({}) ;", expr);
+                                return wrapped.parse().unwrap_or_else(|_| stmt.clone());
                             }
-                        })
-                    } else if hoisted_decls.is_empty() {
-                        Ok(quote! { #(#try_stmts)* })
-                    } else {
-                        Ok(quote! {
-                            #(#hoisted_decls)*
-                            #(#try_stmts)*
-                        })
+                        }
                     }
+                    stmt.clone()
+                })
+                .collect();
+
+            // Check if try body always returns (to avoid unreachable code warning)
+            let always_returns = body.iter().any(|s| matches!(s, HirStmt::Return(_)));
+
+            // Only add fallback Ok(Default::default()) when try body has no return
+            // If try body has returns, they're already wrapped in Ok() and there's no need for fallback
+            let closure_fallback = if always_returns {
+                quote! {}
+            } else if try_return_type.is_none() {
+                quote! { Ok(()) } // Return unit for fallthrough
+            } else {
+                // If try body returns a value, we need a fallback for fallthrough path
+                // (e.g., if try block finishes without returning)
+                // Use Default::default() for the return type
+                quote! { Ok(Default::default()) }
+            };
+
+            // Generate handler matching logic
+            let match_expr = if handlers.len() == 1 {
+                // Single handler - use match pattern
+                let err_pattern = if let Some(exc_var) = &handlers[0].name {
+                    let exc_ident = safe_ident(exc_var);
+                    quote! { Err(#exc_ident) }
                 } else {
-                    // DEPYLER-0444: Check if handler has exception variable binding
-                    // If so, skip handler code since we can't bind it in unconditional context
-                    let has_exception_binding = handlers[0].name.is_some();
+                    quote! { Err(_) }
+                };
 
-                    if has_exception_binding {
-                        // Skip handler code - it would reference unbound exception variable
-                        // NOTE: This means exception handlers are not fully implemented (tracked in DEPYLER-0424)
-                        // DEPYLER-0681: Include hoisted declarations for try block variables
-                        if let Some(finally_code) = finally_stmts {
-                            Ok(quote! {
-                                #(#hoisted_decls)*
-                                {
-                                    #(#try_stmts)*
-                                    #finally_code
-                                }
-                            })
-                        } else {
-                            Ok(quote! {
-                                #(#hoisted_decls)*
-                                #(#try_stmts)*
-                            })
-                        }
-                    } else {
-                        let handler_code = &handler_tokens[0];
+                let handler_code = &handler_tokens[0];
 
-                        // DEPYLER-0681: Include hoisted declarations for try block variables
-                        if let Some(finally_code) = finally_stmts {
-                            Ok(quote! {
-                                #(#hoisted_decls)*
-                                {
-                                    #(#try_stmts)*
-                                    #handler_code
-                                    #finally_code
-                                }
-                            })
-                        } else {
-                            // DEPYLER-0357: Include handler code after try block
-                            // NOTE: This executes both unconditionally - need proper conditional logic (tracked in DEPYLER-0424)
-                            // based on which operations can panic (ZeroDivisionError, IndexError, etc.)
-                            Ok(quote! {
-                                #(#hoisted_decls)*
-                                {
-                                    #(#try_stmts)*
-                                    #handler_code
-                                }
-                            })
-                        }
+                quote! {
+                    match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
+                        #(#try_stmts_transformed)*
+                        #closure_fallback
+                    })() {
+                        Ok(#ok_value) => { #ok_arm_body },
+                        #err_pattern => { #handler_code }
                     }
                 }
             } else {
-                // DEPYLER-0359: Multiple handlers - generate conditional error handling
-                // For operations like int(data) with multiple exception types, we need proper
-                // match-based error handling instead of simple unwrap_or
+                // Multiple handlers - find one with binding or fallback to catch-all
+                // TODO: Implement proper type-based dispatch for multiple handlers
+                let exc_var_opt = handlers.iter().find_map(|h| h.name.as_ref());
+                let handler_code = if let Some(idx) = handlers.iter().position(|h| h.name.is_some()) {
+                    &handler_tokens[idx]
+                } else {
+                    &handler_tokens[0]
+                };
 
-                // Check if try block is simple return with parse operation
-                if body.len() == 1 {
-                    if let HirStmt::Return(Some(HirExpr::Call { func, args, .. })) = &body[0] {
-                        if func == "int" && args.len() == 1 {
-                            let arg_expr = args[0].to_rust_expr(ctx)?;
-
-                            // Check if any handler binds the exception variable
-                            let has_exception_binding = handlers.iter().any(|h| h.name.is_some());
-
-                            if has_exception_binding && handlers.len() == 1 {
-                                // Single handler with exception binding - use match with Err(e)
-                                let handler_body = &handler_tokens[0];
-                                let err_var = handlers[0]
-                                    .name
-                                    .as_ref()
-                                    .map(|s| {
-                                        safe_ident(s) // DEPYLER-0023
-                                    })
-                                    .unwrap();
-
-                                if let Some(finally_code) = finally_stmts {
-                                    return Ok(quote! {
-                                        {
-                                            match #arg_expr.parse::<i32>() {
-                                                Ok(__value) => __value,
-                                                Err(#err_var) => {
-                                                    #handler_body
-                                                }
-                                            }
-                                            #finally_code
-                                        }
-                                    });
-                                } else {
-                                    return Ok(quote! {
-                                        match #arg_expr.parse::<i32>() {
-                                            Ok(__value) => __value,
-                                            Err(#err_var) => {
-                                                #handler_body
-                                            }
-                                        }
-                                    });
-                                }
-                            } else if handlers.len() >= 2 {
-                                // DEPYLER-0361: Multiple handlers for int() - include ALL handlers
-                                // Convert: try { return int(data) } except ValueError {...} except TypeError {...}
-                                // To: if let Ok(v) = data.parse::<i32>() { v } else { handler1; handler2; }
-
-                                // NOTE: Rust's parse() returns a single error type, so we can't dispatch
-                                // to specific handlers. We execute all handlers sequentially.
-                                // This is semantically incorrect but compiles. NOTE: Improve error dispatch logic (tracked in DEPYLER-0424)
-
-                                if let Some(finally_code) = finally_stmts {
-                                    return Ok(quote! {
-                                        {
-                                            if let Ok(__parse_result) = #arg_expr.parse::<i32>() {
-                                                __parse_result
-                                            } else {
-                                                #(#handler_tokens)*
-                                            }
-                                            #finally_code
-                                        }
-                                    });
-                                } else {
-                                    return Ok(quote! {
-                                        {
-                                            if let Ok(__parse_result) = #arg_expr.parse::<i32>() {
-                                                __parse_result
-                                            } else {
-                                                #(#handler_tokens)*
-                                            }
-                                        }
-                                    });
-                                }
-                            }
+                if let Some(exc_var) = exc_var_opt {
+                    let exc_ident = safe_ident(exc_var);
+                    quote! {
+                        match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
+                            #(#try_stmts_transformed)*
+                            #closure_fallback
+                        })() {
+                            Ok(#ok_value) => { #ok_arm_body },
+                            Err(#exc_ident) => { #handler_code }
+                        }
+                    }
+                } else {
+                    quote! {
+                        match (|| -> Result<#return_type_tokens, Box<dyn std::error::Error>> {
+                            #(#try_stmts_transformed)*
+                            #closure_fallback
+                        })() {
+                            Ok(#ok_value) => { #ok_arm_body },
+                            Err(_) => { #handler_code }
                         }
                     }
                 }
+            };
 
-                // DEPYLER-0362: Check if try block already handles errors (e.g., unwrap_or_default)
-                // In that case, don't concatenate handler tokens as it creates invalid syntax
-                let try_code_str = quote! { #(#try_stmts)* }.to_string();
-                let has_error_handling = try_code_str.contains("unwrap_or_default")
-                    || try_code_str.contains("unwrap_or(");
-
-                // DEPYLER-0681: Include hoisted declarations for try block variables
-                if has_error_handling {
-                    // Try block has built-in error handling, don't add handlers
-                    if let Some(finally_code) = finally_stmts {
-                        Ok(quote! {
-                            #(#hoisted_decls)*
-                            {
-                                #(#try_stmts)*
-                                #finally_code
-                            }
-                        })
-                    } else {
-                        Ok(quote! {
-                            #(#hoisted_decls)*
-                            #(#try_stmts)*
-                        })
+            // DEPYLER-0931: Emit hoisted declarations OUTSIDE the match/closure
+            // This ensures variables are captured by mutable reference and retain values
+            // after the try/except block.
+            if let Some(finally_code) = finally_stmts {
+                Ok(quote! {
+                    #(#hoisted_decls)*
+                    {
+                        #match_expr
+                        #finally_code
                     }
-                } else {
-                    // DEPYLER-0359: Multiple handlers - include them all
-                    // Note: Floor division with ZeroDivisionError is handled earlier (line 1366)
-                    if let Some(finally_code) = finally_stmts {
-                        Ok(quote! {
-                            #(#hoisted_decls)*
-                            {
-                                #(#try_stmts)*
-                                #(#handler_tokens)*
-                                #finally_code
-                            }
-                        })
-                    } else {
-                        Ok(quote! {
-                            #(#hoisted_decls)*
-                            {
-                                #(#try_stmts)*
-                                #(#handler_tokens)*
-                            }
-                        })
-                    }
-                }
+                })
+            } else {
+                Ok(quote! {
+                    #(#hoisted_decls)*
+                    #match_expr
+                })
             }
         }
     }

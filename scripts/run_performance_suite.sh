@@ -31,7 +31,7 @@ run_timed_test() {
     print_status $BLUE "Running ${test_name}..."
     start_time=$(date +%s.%N)
     
-    if eval $test_command; then
+    if bash -c "$test_command"; then
         end_time=$(date +%s.%N)
         duration=$(echo "$end_time - $start_time" | bc -l)
         print_status $GREEN "✓ ${test_name} completed in ${duration}s"

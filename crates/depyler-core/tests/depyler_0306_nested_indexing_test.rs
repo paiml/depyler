@@ -37,10 +37,12 @@ def find_first_match(matrix: list[list[int]], target: int) -> tuple[int, int]:
 
     // Should have valid range expression - check for matrix.get() in the for loop context
     // Note: Formatting may split this across lines, so check semantically
-    let has_valid_range = rust_code.contains("for j in 0..matrix")
-        && rust_code.contains(".get(i as usize)");
+    // Remove whitespace for comparison to handle line breaks
+    let code_no_ws: String = rust_code.split_whitespace().collect();
+    let has_valid_range = code_no_ws.contains("forjin0..(matrix")
+        || code_no_ws.contains("forjin0..matrix");
     assert!(
-        has_valid_range,
+        has_valid_range && rust_code.contains(".get(i as usize)"),
         "Should have valid range expression with matrix.get()\nGenerated:\n{}",
         rust_code
     );

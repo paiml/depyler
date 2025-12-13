@@ -41,9 +41,11 @@ if __name__ == "__main__":
     let rust_code = result.unwrap();
 
     // Must contain pattern matching to extract url from Commands::Clone
+    // Pattern can be: if let Commands::Clone, or match Commands::Clone { ref url, .. }
     assert!(
         rust_code.contains("if let Commands::Clone") ||
-        rust_code.contains("Commands::Clone { url }"),
+        rust_code.contains("Commands::Clone { url }") ||
+        rust_code.contains("Commands::Clone { ref url"),
         "Generated code must pattern match Commands::Clone variant to access url field.\nGenerated:\n{}",
         rust_code
     );

@@ -60,7 +60,7 @@ pub fn list_processing(items: &mut Vec<serde_json::Value>) -> Vec<serde_json::Va
     result
 }
 #[doc = "Multiple inference sources for better confidence."]
-pub fn mixed_inference<'b, 'a>(
+pub fn mixed_inference<'a, 'b>(
     data: &'a Vec<i32>,
     multiplier: i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -88,7 +88,7 @@ pub fn type_conversions_hint(value: &str) -> (String, i32, f64) {
 #[doc = "Boolean operations suggest bool type."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn boolean_logic<'b, 'c, 'a>(a: bool, b: bool, c: bool) -> bool {
+pub fn boolean_logic<'c, 'a, 'b>(a: bool, b: bool, c: bool) -> bool {
     let _cse_temp_0 = (a) && (b);
     if !_cse_temp_0.is_empty() {
         true
@@ -131,7 +131,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'b, 'a>(
+pub fn confidence_levels_demo<'a, 'b>(
     certain_str: &'a str,
     probable_num: i32,
     possible_container: &'b Vec<serde_json::Value>,
