@@ -315,6 +315,14 @@ pub struct CodeGenContext<'a> {
     /// Maps function name → Vec<Type> for each parameter position
     /// Used to coerce integer literals to float literals when callee expects f64
     pub function_param_types: HashMap<String, Vec<Type>>,
+
+    /// DEPYLER-0964: Track function parameters that are `&mut Option<Dict>` type
+    /// When a parameter has type Dict[K,V] with default None, it becomes &mut Option<HashMap>
+    /// Inside the function body, assignments and method calls need special handling:
+    /// - Assignment: `memo = {}` → `*memo = Some(HashMap::new())`
+    /// - Method calls: `memo.get(k)` → `memo.as_ref().unwrap().get(&k)`
+    /// - Subscript: `memo[k] = v` → `memo.as_mut().unwrap().insert(k, v)`
+    pub mut_option_dict_params: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {

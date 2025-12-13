@@ -1501,6 +1501,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-0964: Handle containment check on &mut Option<HashMap<K, V>> parameters
+        // When checking `key in memo` where memo is a mut_option_dict_param,
+        // we need to unwrap the Option first: memo.as_ref().unwrap().get(&key).is_some()
+        if let HirExpr::Var(var_name) = right {
+            if self.ctx.mut_option_dict_params.contains(var_name) {
+                let needs_borrow = match left {
+                    HirExpr::Var(var_name) => !self.is_borrowed_str_param(var_name),
+                    HirExpr::Literal(Literal::String(_)) => false,
+                    _ => true,
+                };
+                if negate {
+                    if needs_borrow {
+                        return Ok(parse_quote! { #right_expr.as_ref().unwrap().get(&#left_expr).is_none() });
+                    } else {
+                        return Ok(parse_quote! { #right_expr.as_ref().unwrap().get(#left_expr).is_none() });
+                    }
+                } else if needs_borrow {
+                    return Ok(parse_quote! { #right_expr.as_ref().unwrap().get(&#left_expr).is_some() });
+                } else {
+                    return Ok(parse_quote! { #right_expr.as_ref().unwrap().get(#left_expr).is_some() });
+                }
+            }
+        }
+
         // DEPYLER-0960: Check dict FIRST before string (overlapping names like "data", "result")
         // Dict check must come before string check because some names are ambiguous
         // Use .get().is_some() instead of .contains_key() for compatibility with both
@@ -4474,7 +4498,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .copied()
                             .unwrap_or(false);
 
-                        if needs_mut {
+                        // DEPYLER-0964: Don't add &mut if variable is already &mut (mut_option_dict_params)
+                        // These parameters are already &mut Option<HashMap>, so adding &mut would create &&mut
+                        // In this case, pass the variable directly without any borrowing
+                        let is_already_mut_ref = if let HirExpr::Var(var_name) = hir_arg {
+                            self.ctx.mut_option_dict_params.contains(var_name)
+                        } else {
+                            false
+                        };
+
+                        if is_already_mut_ref {
+                            // Variable is already &mut, pass it directly
+                            arg_expr.clone()
+                        } else if needs_mut {
                             parse_quote! { &mut #arg_expr }
                         } else {
                             parse_quote! { &#arg_expr }
@@ -14121,6 +14157,60 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             confidence = 0.88
         );
 
+        // DEPYLER-0964: Handle method calls on &mut Option<HashMap<K, V>> parameters
+        // When a parameter is Dict[K,V] with default None, it becomes &mut Option<HashMap>
+        // Method calls need to unwrap the Option first:
+        // - memo.get(k) → memo.as_ref().unwrap().get(&k)
+        // - memo.insert(k, v) → memo.as_mut().unwrap().insert(k, v)
+        // - memo.contains_key(k) → memo.as_ref().unwrap().contains_key(&k)
+        if let HirExpr::Var(var_name) = object {
+            if self.ctx.mut_option_dict_params.contains(var_name) {
+                let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+                match method {
+                    "get" => {
+                        if args.is_empty() {
+                            // dict.get() with no args - shouldn't happen for dict but handle gracefully
+                            return Ok(parse_quote! { #var_ident.as_ref().unwrap().get() });
+                        }
+                        let key_expr = args[0].to_rust_expr(self.ctx)?;
+                        // Check if we need default value (2-arg form)
+                        if args.len() > 1 {
+                            let default_expr = args[1].to_rust_expr(self.ctx)?;
+                            return Ok(parse_quote! {
+                                #var_ident.as_ref().unwrap().get(&#key_expr).cloned().unwrap_or(#default_expr)
+                            });
+                        } else {
+                            // Single arg form - return Option<&V>
+                            return Ok(parse_quote! {
+                                #var_ident.as_ref().unwrap().get(&#key_expr).cloned()
+                            });
+                        }
+                    }
+                    "contains_key" | "__contains__" => {
+                        if !args.is_empty() {
+                            let key_expr = args[0].to_rust_expr(self.ctx)?;
+                            return Ok(parse_quote! {
+                                #var_ident.as_ref().unwrap().contains_key(&#key_expr)
+                            });
+                        }
+                    }
+                    "keys" if args.is_empty() => {
+                        return Ok(parse_quote! { #var_ident.as_ref().unwrap().keys() });
+                    }
+                    "values" if args.is_empty() => {
+                        return Ok(parse_quote! { #var_ident.as_ref().unwrap().values() });
+                    }
+                    "items" if args.is_empty() => {
+                        return Ok(parse_quote! { #var_ident.as_ref().unwrap().iter() });
+                    }
+                    "len" if args.is_empty() => {
+                        return Ok(parse_quote! { #var_ident.as_ref().unwrap().len() as i32 });
+                    }
+                    _ => {} // Fall through to other handlers
+                }
+            }
+        }
+
         // DEPYLER-0108: Handle is_some/is_none on precomputed argparse Option fields
         // This prevents borrow-after-move when Option field is passed to a function then checked
         if (method == "is_some" || method == "is_none") && args.is_empty() {
@@ -14690,6 +14780,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let index_expr = index.to_rust_expr(self.ctx)?;
                     return Ok(parse_quote! { std::env::var(#index_expr).unwrap_or_default() });
                 }
+            }
+        }
+
+        // DEPYLER-0964: Handle subscript access on &mut Option<HashMap<K, V>> parameters
+        // When accessing `memo[key]` where memo is a mut_option_dict_param,
+        // we need to unwrap the Option first: memo.as_ref().unwrap().get(&key).cloned()
+        if let HirExpr::Var(var_name) = base {
+            if self.ctx.mut_option_dict_params.contains(var_name) {
+                let base_ident = crate::rust_gen::keywords::safe_ident(var_name);
+                let index_expr = index.to_rust_expr(self.ctx)?;
+                // Use .get() which returns Option<&V>, then .cloned() for owned value
+                return Ok(parse_quote! {
+                    #base_ident.as_ref().unwrap().get(&#index_expr).cloned().unwrap_or_default()
+                });
             }
         }
 

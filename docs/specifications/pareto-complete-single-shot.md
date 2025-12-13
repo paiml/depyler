@@ -19,8 +19,9 @@
 7. [Quickest Path to 80%](#7-quickest-path-to-80)
 8. [Implementation Roadmap](#8-implementation-roadmap)
 9. [Risk Analysis](#9-risk-analysis)
-10. [Peer-Reviewed Citations](#10-peer-reviewed-citations)
-11. [Conclusion](#11-conclusion)
+10. [Acceptance Criteria](#10-acceptance-criteria)
+11. [Peer-Reviewed Citations](#11-peer-reviewed-citations)
+12. [Conclusion](#12-conclusion)
 
 ---
 
@@ -451,7 +452,37 @@ Checkpoint 4 (End of S4):
 
 ---
 
-## 10. Peer-Reviewed Citations
+## 10. Acceptance Criteria
+
+The following testable criteria MUST be satisfied for this specification to be considered complete:
+
+### 10.1 Convergence Metrics (Primary)
+
+- [ ] **AC-1**: Convergence rate on `reprorusted-python-cli` corpus reaches ≥80% (up from 22% baseline)
+- [ ] **AC-2**: All tests in `docs/qa/100pointqa-checklist-single-shot-80%goal.md` pass (≥95/100)
+- [ ] **AC-3**: No regression in existing passing examples after each phase
+
+### 10.2 Type Inference (Implementation)
+
+- [ ] **AC-4**: Explicit type fallback generates valid Rust types for all unknown Python types
+- [ ] **AC-5**: Bidirectional type propagation infers types from both definition and usage sites
+- [ ] **AC-6**: Call-site specialization correctly infers generic function return types
+- [ ] **AC-7**: Type unification resolves conflicting type constraints without errors
+
+### 10.3 Testing (Verification)
+
+- [ ] **AC-8**: Each phase includes ≥5 regression tests covering the specific fix
+- [ ] **AC-9**: Property-based tests validate type inference soundness (1000+ iterations)
+- [ ] **AC-10**: Integration tests verify end-to-end transpilation with `cargo check`
+
+### 10.4 Performance (Non-functional)
+
+- [ ] **AC-11**: Transpilation time does not increase by more than 2x from baseline
+- [ ] **AC-12**: Generated Rust code passes `clippy -D warnings` without errors
+
+---
+
+## 11. Peer-Reviewed Citations
 
 1. **Sculley, D., et al.** (2015). "Hidden Technical Debt in Machine Learning Systems." *NIPS 2015*. Google Research. [Establishes CACE principle and pipeline jungles]
 
@@ -475,13 +506,13 @@ Checkpoint 4 (End of S4):
 
 ---
 
-## 11. Conclusion
+## 12. Conclusion
 
-### 11.1 Diagnosis
+### 12.1 Diagnosis
 
 The Depyler project is **not stuck**—it is **misdiagnosed**. The QA checklist creates an illusion of 95% progress while actual compilation remains at 22%. The root cause is **flow-insensitive type inference**, not insufficient feature coverage.
 
-### 11.2 Prescription
+### 12.2 Prescription
 
 Stop the Whack-a-Mole antipattern. Implement Pareto-complete type inference in 4 focused sprints:
 
@@ -490,7 +521,7 @@ Stop the Whack-a-Mole antipattern. Implement Pareto-complete type inference in 4
 3. **Sprint 3**: Backward propagation + call-site → 70%
 4. **Sprint 4**: Unification → 80%+
 
-### 11.3 Falsifiability
+### 12.3 Falsifiability
 
 This analysis can be **disproven** by:
 - Full type annotation yielding <30% convergence (F1)
@@ -499,7 +530,7 @@ This analysis can be **disproven** by:
 
 If any falsification criterion is met, we return to root cause analysis.
 
-### 11.4 Toyota Way Alignment
+### 12.4 Toyota Way Alignment
 
 | Principle | Application |
 |-----------|-------------|
