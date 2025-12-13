@@ -3889,6 +3889,10 @@ impl<'a> ExprConverter<'a> {
             // tuple() → Vec::new()
             // tuple(iterable) → iterable.into_iter().collect::<Vec<_>>()
             "tuple" => self.convert_tuple_call(&arg_exprs),
+            // DEPYLER-0968: sum() builtin for class method bodies
+            // sum(iterable) → iterable.iter().sum::<T>()
+            // sum(generator_expr) → generator_expr.sum::<T>()
+            "sum" => self.convert_sum_call(args, &arg_exprs),
             // DEPYLER-0780: Pass HIR args for auto-borrowing detection
             _ => self.convert_generic_call(func, args, &arg_exprs),
         }
@@ -4011,6 +4015,88 @@ impl<'a> ExprConverter<'a> {
         } else {
             bail!("tuple() takes at most 1 argument ({} given)", args.len())
         }
+    }
+
+    /// DEPYLER-0968: sum() builtin for class method bodies
+    ///
+    /// Handles Python sum() function conversion to Rust iterator patterns.
+    ///
+    /// Variants:
+    /// - sum(generator_exp) → generator_expr.sum::<T>()
+    /// - sum(range(...)) → (range_expr).sum::<T>()
+    /// - sum(d.values()) / sum(d.keys()) → d.values().cloned().sum::<T>()
+    /// - sum(iterable) → iterable.iter().sum::<T>()
+    fn convert_sum_call(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if hir_args.len() != 1 || arg_exprs.len() != 1 {
+            bail!("sum() requires exactly one argument");
+        }
+
+        let arg_expr = &arg_exprs[0];
+
+        // Detect target type from class field types or default to f64
+        let target_type: syn::Type = self.infer_sum_type(&hir_args[0]);
+
+        // Check if argument is a generator expression (already converted to .iter().map())
+        // or a method call like .values()/.keys()
+        match &hir_args[0] {
+            // Generator expression: sum(x*x for x in items) → items.iter().map(|x| x*x).sum::<T>()
+            // The generator is already converted to .iter().map(), so just append .sum()
+            HirExpr::GeneratorExp { .. } => {
+                Ok(parse_quote! { #arg_expr.sum::<#target_type>() })
+            }
+            // Range call: sum(range(n)) → (0..n).sum::<T>()
+            HirExpr::Call { func, .. } if func == "range" => {
+                Ok(parse_quote! { (#arg_expr).sum::<#target_type>() })
+            }
+            // Method call: sum(d.values()) → d.values().cloned().sum::<T>()
+            HirExpr::MethodCall { method, args: method_args, .. }
+                if (method == "values" || method == "keys") && method_args.is_empty() =>
+            {
+                Ok(parse_quote! { #arg_expr.cloned().sum::<#target_type>() })
+            }
+            // Default: sum(iterable) → iterable.iter().sum::<T>()
+            _ => {
+                // Check if the converted expression already has .iter()/.map()
+                let expr_str = quote::quote!(#arg_expr).to_string();
+                if expr_str.contains(".iter()") || expr_str.contains(".map(") {
+                    // Already an iterator, just append .sum()
+                    Ok(parse_quote! { #arg_expr.sum::<#target_type>() })
+                } else {
+                    // Need to add .iter()
+                    Ok(parse_quote! { #arg_expr.iter().sum::<#target_type>() })
+                }
+            }
+        }
+    }
+
+    /// Infer the target type for sum() based on the expression context
+    fn infer_sum_type(&self, expr: &HirExpr) -> syn::Type {
+        // Check if we can determine the type from class field types
+        match expr {
+            HirExpr::Attribute { value, attr } => {
+                if matches!(value.as_ref(), HirExpr::Var(v) if v == "self") {
+                    if let Some(field_type) = self.class_field_types.get(attr) {
+                        return match field_type {
+                            Type::List(elem_type) => match elem_type.as_ref() {
+                                Type::Int => parse_quote! { i32 },
+                                Type::Float => parse_quote! { f64 },
+                                _ => parse_quote! { f64 },
+                            },
+                            _ => parse_quote! { f64 },
+                        };
+                    }
+                }
+            }
+            HirExpr::GeneratorExp { generators, .. } => {
+                // Try to infer from the iteration target (first generator)
+                if let Some(gen) = generators.first() {
+                    return self.infer_sum_type(&gen.iter);
+                }
+            }
+            _ => {}
+        }
+        // Default to f64 for floating point operations
+        parse_quote! { f64 }
     }
 
     fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
