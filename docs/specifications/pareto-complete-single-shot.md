@@ -745,6 +745,90 @@ If ONE architectural fix yields ≥5 pp improvement, THEN H₀ survives and we c
 
 **Falsification Threshold**: If Value fallback fix yields <5 pp, pivot strategy.
 
+### 9.6 Falsification Results: Architectural Fixes Tested (December 13, 2025)
+
+Following the Popperian protocol, we implemented TWO architectural fixes and measured their impact:
+
+#### Attempt #1: Collection Truthiness Heuristics (DEPYLER-0969)
+
+**Hypothesis**: Adding comprehensive collection truthiness heuristics to `apply_truthiness_conversion()` will yield ≥5pp improvement.
+
+**Implementation**:
+- Added `Type::Custom` handling for VecDeque, BinaryHeap, LinkedList, BTreeSet, etc.
+- Added `Type::Generic` handling for parameterized collection types
+- Added `Type::Unknown` fall-through to heuristics for untracked types
+- Added variable name heuristics: queue, stack, heap, items, elements, nodes, visited, etc.
+
+**Result**:
+| Metric | Before | After | Delta |
+|--------|--------|-------|-------|
+| Convergence | 22.0% | 23.6% | **+1.6 pp** |
+| Passing files | 133/604 | 68/288 | - |
+
+**Verdict**: 1.6 pp < 5 pp threshold. PARTIAL EVIDENCE FOR FALSIFICATION.
+
+#### Attempt #2: Bidirectional Type Propagation for Deque (DEPYLER-0969 cont.)
+
+**Hypothesis**: Tracking `deque()` constructor calls in `var_types` to enable proper truthiness conversion will yield additional improvement.
+
+**Implementation**:
+- Added `deque()`, `collections.deque`, `Deque` tracking in `stmt_gen.rs`
+- Added `Queue`, `LifoQueue`, `PriorityQueue` tracking
+- Added `heappush`, `heapify` tracking for BinaryHeap
+- Variables now track as `Type::Custom("std::collections::VecDeque<i32>")`
+
+**Result**:
+| Metric | Before | After | Delta |
+|--------|--------|-------|-------|
+| Convergence | 23.6% | 21.1% | **-2.5 pp (REGRESSION)** |
+| Passing files | 68/288 | 134/635 | +66 files, +347 total |
+
+**Analysis**: The corpus grew by 347 files (288 → 635), but passing files only increased by 66. This means the NEW files have LOWER convergence than the baseline, indicating:
+1. The architectural fix had marginal impact on existing files
+2. New corpus files exposed additional type inference gaps
+3. The fix may have introduced regressions in edge cases
+
+**Verdict**: -2.5 pp (REGRESSION) < 5 pp threshold. STRONG EVIDENCE FOR FALSIFICATION.
+
+#### Combined Falsification Result
+
+**Aggregate Evidence**:
+| Attempt | Type | Impact | Threshold | Pass? |
+|---------|------|--------|-----------|-------|
+| #1 Truthiness heuristics | Architectural | +1.6 pp | ≥5 pp | ❌ NO |
+| #2 Type tracking | Architectural | -2.5 pp | ≥5 pp | ❌ NO |
+| **Combined** | | **-0.9 pp** | | ❌ NO |
+
+**HYPOTHESIS H₀ IS FALSIFIED**
+
+We cannot achieve 80% convergence in 10 cycles through architectural type inference improvements alone. The evidence shows:
+
+1. **Surface-level fixes**: ~0.33 pp per fix
+2. **Architectural fixes**: ~0.8 pp per fix (before regression)
+3. **Required improvement**: 58 pp (22% → 80%)
+4. **Fixes needed at current rate**: 58 / 0.5 = **116 fixes**
+5. **Achievable in 10 cycles**: ~30-50 fixes
+6. **Conclusion**: MATHEMATICALLY IMPOSSIBLE with current approach
+
+#### Post-Falsification: What Now?
+
+Per Popper's methodology, when a hypothesis is falsified, we must:
+
+1. **Acknowledge the failure** - Type inference alone cannot solve the problem
+2. **Generate new hypotheses** - What else might work?
+3. **Test new hypotheses** - Apply the same rigorous falsification
+
+**New Hypotheses to Test**:
+
+| ID | Hypothesis | Falsification Test |
+|----|------------|-------------------|
+| H₁ | Full corpus cleanup (remove unfixable files) | Remove all files with >10 errors, measure remaining |
+| H₂ | Template-based codegen for common patterns | Implement 5 templates, measure impact |
+| H₃ | Error cascade prevention (stop at first error) | Measure unique vs cascade errors |
+| H₄ | Target 50% instead of 80% | Can we reach 50% in 10 cycles? |
+
+**Recommendation**: Test H₃ (error cascade prevention) next, as cascade errors artificially inflate failure counts.
+
 ---
 
 ## 10. Acceptance Criteria
