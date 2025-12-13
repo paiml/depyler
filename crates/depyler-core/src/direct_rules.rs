@@ -3756,7 +3756,50 @@ impl<'a> ExprConverter<'a> {
     fn convert_unary(&self, op: UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = self.convert(operand)?;
         match op {
-            UnaryOp::Not => Ok(parse_quote! { !#operand_expr }),
+            UnaryOp::Not => {
+                // DEPYLER-0966: Check if operand is a collection type for truthiness transformation
+                // Python: `if not self.heap:` where self.heap is list[int]
+                // Rust: Must use `.is_empty()` instead of `!` for Vec types
+                let is_collection = if let HirExpr::Attribute { value, attr } = operand {
+                    if matches!(value.as_ref(), HirExpr::Var(v) if v == "self") {
+                        if let Some(field_type) = self.class_field_types.get(attr) {
+                            matches!(
+                                field_type,
+                                Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::String
+                            )
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                // DEPYLER-0966: Check if operand is an Optional class field
+                let is_optional = if let HirExpr::Attribute { value, attr } = operand {
+                    if matches!(value.as_ref(), HirExpr::Var(v) if v == "self") {
+                        if let Some(field_type) = self.class_field_types.get(attr) {
+                            matches!(field_type, Type::Optional(_))
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_collection {
+                    Ok(parse_quote! { #operand_expr.is_empty() })
+                } else if is_optional {
+                    Ok(parse_quote! { #operand_expr.is_none() })
+                } else {
+                    Ok(parse_quote! { !#operand_expr })
+                }
+            }
             UnaryOp::Neg => Ok(parse_quote! { -#operand_expr }),
             UnaryOp::Pos => Ok(operand_expr), // No +x in Rust
             UnaryOp::BitNot => Ok(parse_quote! { !#operand_expr }),
