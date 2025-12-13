@@ -312,7 +312,8 @@ Based on Pareto analysis (20% of effort for 80% of results):
 Phase 1: Low-Hanging Fruit (1 sprint)
 ├── Explicit Type Fallback: When inference fails, use Any instead of Value
 ├── Import Type Tracking: Propagate types from import statements
-└── Expected: 22% → 30% (+8 points)
+├── Python Truthiness: Transform `if x:` to `!x.is_empty()` for collections
+└── Expected: 22% → 35% (+13 points)
 
 Phase 2: Core Type Flow (2 sprints)
 ├── Bidirectional Type Propagation: Infer types forward AND backward
@@ -343,6 +344,22 @@ pub enum Type {
 // File: crates/depyler-core/src/type_system/import_tracker.rs (NEW)
 pub struct ImportTypeTracker {
     module_types: HashMap<String, HashMap<String, Type>>,
+}
+
+// Task 1.3: Python Truthiness Transformation (CRITICAL - found in E0308 analysis)
+// File: crates/depyler-core/src/rust_gen/stmt_gen.rs
+// Problem: `if self.heap:` becomes `if self.heap.clone() { }` → E0308: expected bool, found Vec
+// Solution: Transform truthiness checks to explicit Rust patterns
+pub fn transform_truthiness(expr: &HirExpr, expr_type: &Type) -> String {
+    match expr_type {
+        Type::List(_) | Type::Vec(_) => format!("!{}.is_empty()", gen_expr(expr)),
+        Type::Dict(_) => format!("!{}.is_empty()", gen_expr(expr)),
+        Type::Option(_) => format!("{}.is_some()", gen_expr(expr)),
+        Type::String | Type::Str => format!("!{}.is_empty()", gen_expr(expr)),
+        Type::Int | Type::I32 | Type::I64 => format!("{} != 0", gen_expr(expr)),
+        Type::Float | Type::F64 => format!("{} != 0.0", gen_expr(expr)),
+        _ => gen_expr(expr).to_string(), // Fallback for actual booleans
+    }
 }
 ```
 
@@ -468,17 +485,18 @@ The following testable criteria MUST be satisfied for this specification to be c
 - [ ] **AC-5**: Bidirectional type propagation infers types from both definition and usage sites
 - [ ] **AC-6**: Call-site specialization correctly infers generic function return types
 - [ ] **AC-7**: Type unification resolves conflicting type constraints without errors
+- [ ] **AC-8**: Python truthiness (`if x:` for collections/strings) transforms to explicit Rust checks
 
 ### 10.3 Testing (Verification)
 
-- [ ] **AC-8**: Each phase includes ≥5 regression tests covering the specific fix
-- [ ] **AC-9**: Property-based tests validate type inference soundness (1000+ iterations)
-- [ ] **AC-10**: Integration tests verify end-to-end transpilation with `cargo check`
+- [ ] **AC-9**: Each phase includes ≥5 regression tests covering the specific fix
+- [ ] **AC-10**: Property-based tests validate type inference soundness (1000+ iterations)
+- [ ] **AC-11**: Integration tests verify end-to-end transpilation with `cargo check`
 
 ### 10.4 Performance (Non-functional)
 
-- [ ] **AC-11**: Transpilation time does not increase by more than 2x from baseline
-- [ ] **AC-12**: Generated Rust code passes `clippy -D warnings` without errors
+- [ ] **AC-12**: Transpilation time does not increase by more than 2x from baseline
+- [ ] **AC-13**: Generated Rust code passes `clippy -D warnings` without errors
 
 ---
 
