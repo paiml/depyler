@@ -4134,6 +4134,31 @@ pub(crate) fn codegen_assign_stmt(
                     ctx.var_types
                         .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
                 }
+                // DEPYLER-0969: Track deque() constructor for VecDeque truthiness conversion
+                // This enables `while queue:` → `while !queue.is_empty()` conversion
+                // Python: queue = deque([start]) → Rust: VecDeque::from(vec![start])
+                else if func == "deque" || func == "collections.deque" || func == "Deque" {
+                    // Track as Custom type for VecDeque - enables .is_empty() truthiness
+                    ctx.var_types.insert(
+                        var_name.clone(),
+                        Type::Custom("std::collections::VecDeque<i32>".to_string()),
+                    );
+                }
+                // DEPYLER-0969: Track queue.Queue() and similar constructors
+                else if func == "Queue" || func == "LifoQueue" || func == "PriorityQueue" {
+                    ctx.var_types.insert(
+                        var_name.clone(),
+                        Type::Custom("std::collections::VecDeque<i32>".to_string()),
+                    );
+                }
+                // DEPYLER-0969: Track heapq-related variables (BinaryHeap)
+                else if func == "heappush" || func == "heapify" {
+                    // These don't create new variables, but let's track if called as constructor
+                    ctx.var_types.insert(
+                        var_name.clone(),
+                        Type::Custom("std::collections::BinaryHeap<i32>".to_string()),
+                    );
+                }
                 // DEPYLER-0269: Track user-defined function return types
                 // Lookup function return type and track it for Display trait selection
                 // Enables: result = merge(&a, &b) where merge returns list[int]
