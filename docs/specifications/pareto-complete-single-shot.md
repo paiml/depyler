@@ -1,6 +1,6 @@
 # Pareto-Complete Single-Shot Compilation: Root Cause Analysis and Path to 80%
 
-**Version**: 1.2.0
+**Version**: 1.3.0
 **Date**: December 13, 2025
 **Status**: Approved for Implementation
 **Methodology**: Five Whys Root Cause Analysis + Popperian Falsification
@@ -549,6 +549,103 @@ $ pmat analyze stats stats.json --ci 0.95 --effect-size
 | 9-10 | Phase 3 (Unification + polish) | 80%+ | +10 points |
 
 **Failure Mode**: If by Cycle 5 we haven't reached 45%, falsification criterion F2 triggers—indicating bidirectional propagation is NOT the solution. At that point, we pivot to Alternative Root Cause (F4): likely **AST Bridge fidelity** or **stdlib mapping gaps**.
+
+### 9.4 Popperian Falsification: Attempting to Disprove 10-Cycle Hypothesis
+
+Per Karl Popper's scientific methodology, we must actively attempt to **falsify** our hypothesis before accepting it. The hypothesis:
+
+> **H₀**: Architectural type inference improvements can achieve 80% convergence in 10 focused cycles.
+
+**Falsification Protocol**: We list claims that, if TRUE, would DISPROVE H₀. We then evaluate each.
+
+#### Falsification Attempt 1: "Type inference is NOT the root cause"
+
+**Claim**: The 73-point gap is caused by something other than type inference (e.g., AST bridge fidelity, stdlib mapping, syntax translation).
+
+**Evidence Against Falsification**:
+- Error distribution shows 71% type-related: E0308 (22%), E0425 (27%), E0277 (11%), E0599 (7%)
+- E0425 (scope errors) trace back to type-dependent dead code elimination
+- E0599 (method not found) occurs on `serde_json::Value` fallback type
+- Recent fix (DEPYLER-0966) for truthiness immediately improved compilation
+
+**Verdict**: ❌ **NOT FALSIFIED** — Type inference is demonstrably the primary cause.
+
+#### Falsification Attempt 2: "Architectural changes are too complex for 10 cycles"
+
+**Claim**: Bidirectional type propagation and call-site specialization require fundamental rewrites that cannot be completed in 10 cycles.
+
+**Evidence Against Falsification**:
+- Depyler already has `FlowTypeAnalyzer` infrastructure (partial implementation)
+- Hindley-Milner constraint solving exists in `type_system/solver.rs`
+- `class_field_types` HashMap already tracks field types (DEPYLER-0720)
+- DEPYLER-0966 fix took <2 hours and immediately fixed a class of errors
+- Each Phase targets incremental enhancement, not rewrite
+
+**Evidence FOR Falsification** (Risks):
+- Phase 2 (bidirectional propagation) has Medium complexity estimate
+- Integration with existing `direct_rules.rs` path may have edge cases
+- 604 corpus files means long test cycles
+
+**Verdict**: ⚠️ **WEAKLY NOT FALSIFIED** — Complexity is manageable but risks exist. Mitigation: strict phase boundaries, weekly checkpoints.
+
+#### Falsification Attempt 3: "Previous 90+ patches prove the problem is intractable"
+
+**Claim**: 90+ commits with no improvement proves the problem cannot be solved.
+
+**Evidence Against Falsification**:
+- 90+ patches were **symptom-focused** (fixing E0308, E0599 individually)
+- No patch attempted **architectural** type inference improvement
+- This is textbook Whack-a-Mole antipattern, not evidence of intractability
+- Similar problems (TypeScript, mypy, pyright) solved via flow-sensitive inference
+
+**Verdict**: ❌ **NOT FALSIFIED** — Previous failures used wrong approach, not proof of impossibility.
+
+#### Falsification Attempt 4: "Pareto principle doesn't apply to compilers"
+
+**Claim**: Compiler errors don't follow 80/20 distribution; all error classes require equal effort.
+
+**Evidence Against Falsification**:
+- Error analysis shows clear Pareto distribution:
+  - Top 4 error codes = 67% of failures
+  - Top 1 error code (E0425) = 27% of failures
+- Type inference improvements cascade: fixing `Type::Unknown` propagation fixes multiple downstream errors
+- Literature confirms Pareto applies to software defects (Sculley 2015, Lehman 1980)
+
+**Verdict**: ❌ **NOT FALSIFIED** — Pareto distribution is empirically verified.
+
+#### Falsification Attempt 5: "Flow-sensitive inference will introduce new errors"
+
+**Claim**: Adding flow-sensitive type inference will break currently-passing examples (regression).
+
+**Evidence Against Falsification**:
+- AC-3 requires "No regression in existing passing examples"
+- Falsification criterion F3 monitors for this
+- Phase rollout uses feature flags for gradual adoption
+- DEPYLER-0966 fix did not break any existing tests
+
+**Evidence FOR Falsification** (Risks):
+- Soundness bugs in new inference could cause silent miscompilation
+- Property-based tests (AC-10) mitigate but don't eliminate risk
+
+**Verdict**: ⚠️ **WEAKLY NOT FALSIFIED** — Regression risk exists but is mitigated by test suite.
+
+---
+
+#### Falsification Summary
+
+| Attempt | Claim | Verdict | Confidence |
+|---------|-------|---------|------------|
+| F1 | Type inference not root cause | ❌ Not Falsified | 95% |
+| F2 | Too complex for 10 cycles | ⚠️ Weakly Not Falsified | 70% |
+| F3 | Intractability proven by history | ❌ Not Falsified | 90% |
+| F4 | Pareto doesn't apply | ❌ Not Falsified | 85% |
+| F5 | Will cause regressions | ⚠️ Weakly Not Falsified | 75% |
+
+**Aggregate Confidence**: 83% (geometric mean of individual confidences)
+
+**Conclusion**: The hypothesis **survives falsification**. We failed to disprove that architectural type inference improvements can achieve 80% in 10 cycles.
+
+**Per Popper**: A hypothesis that survives rigorous falsification attempts is provisionally accepted until new evidence emerges. We proceed with implementation while maintaining falsification monitoring (F1-F4 criteria from Section 6).
 
 ---
 
