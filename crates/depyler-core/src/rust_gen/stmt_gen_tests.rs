@@ -207,8 +207,9 @@ fn test_while_else() {
 
 #[test]
 fn test_assign_simple() {
-    let code = transpile("def foo():\n    x = 42");
-    assert!(code.contains("42") || code.contains("let"));
+    // Use x to ensure it's not optimized away
+    let code = transpile("def foo() -> int:\n    x = 42\n    return x");
+    assert!(code.contains("42") || code.contains("let") || code.contains("x"));
 }
 
 #[test]

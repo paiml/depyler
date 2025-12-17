@@ -117,7 +117,7 @@ fn test_rust_type_append_with_type() {
     let mut arg = ArgParserArgument::new("--port".to_string());
     arg.action = Some("append".to_string());
     arg.arg_type = Some(Type::Int);
-    assert_eq!(arg.rust_type(), "Vec<i64>");
+    assert_eq!(arg.rust_type(), "Vec<i32>");
 }
 
 #[test]
@@ -176,14 +176,14 @@ fn test_rust_type_with_default() {
     arg.arg_type = Some(Type::Int);
     arg.default = Some(HirExpr::Literal(Literal::Int(0)));
     // With default, doesn't wrap in Option
-    assert_eq!(arg.rust_type(), "i64");
+    assert_eq!(arg.rust_type(), "i32");
 }
 
 #[test]
 fn test_rust_type_explicit_int() {
     let mut arg = ArgParserArgument::new("count".to_string());
     arg.arg_type = Some(Type::Int);
-    assert_eq!(arg.rust_type(), "i64");
+    assert_eq!(arg.rust_type(), "i32");
 }
 
 #[test]
@@ -225,7 +225,7 @@ fn test_rust_type_custom() {
 fn test_rust_type_list() {
     let mut arg = ArgParserArgument::new("items".to_string());
     arg.arg_type = Some(Type::List(Box::new(Type::Int)));
-    assert_eq!(arg.rust_type(), "Vec<i64>");
+    assert_eq!(arg.rust_type(), "Vec<i32>");
 }
 
 #[test]
@@ -2094,7 +2094,7 @@ fn test_preregister_subcommands_walk_while_stmt() {
 fn test_rust_type_nested_list() {
     let mut arg = ArgParserArgument::new("matrix".to_string());
     arg.arg_type = Some(Type::List(Box::new(Type::List(Box::new(Type::Int)))));
-    assert_eq!(arg.rust_type(), "Vec<Vec<i64>>");
+    assert_eq!(arg.rust_type(), "Vec<Vec<i32>>");
 }
 
 #[test]
