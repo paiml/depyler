@@ -2863,3 +2863,654 @@ fn test_fstring_nested_braces() {
 fn test_fstring_multiple_values() {
     assert!(transpile_ok("def foo():\n    a, b = 1, 2\n    x = f'{a} + {b} = {a + b}'"));
 }
+
+// ============================================================================
+// COVERAGE BOOST: ExpressionConverter Helper Methods
+// These tests target specific uncovered code paths in expr_gen.rs
+// ============================================================================
+
+// --- is_rust_keyword helper ---
+#[test]
+fn test_rust_keyword_type_var() {
+    // Variable named after Rust keyword 'type'
+    assert!(transpile_ok("def foo():\n    type = 'int'\n    return type"));
+}
+
+#[test]
+fn test_rust_keyword_match_coverage() {
+    // Coverage for match keyword handling
+    assert!(transpile_ok("def foo():\n    match = 'pattern'\n    return match"));
+}
+
+#[test]
+fn test_rust_keyword_loop_coverage() {
+    assert!(transpile_ok("def foo():\n    loop = 10\n    return loop"));
+}
+
+#[test]
+fn test_rust_keyword_async_await_coverage() {
+    assert!(transpile_ok("def foo():\n    async_ = 1\n    await_ = 2\n    return async_ + await_"));
+}
+
+// --- is_non_raw_keyword helper ---
+#[test]
+fn test_non_raw_keyword_self_var() {
+    // 'self' in non-method context
+    assert!(transpile_ok("def foo():\n    self_val = 42\n    return self_val"));
+}
+
+// --- collect_walrus_vars helpers ---
+#[test]
+fn test_walrus_in_condition() {
+    assert!(transpile_ok(r#"def foo():
+    if (x := get_value()) > 0:
+        return x"#));
+}
+
+#[test]
+fn test_walrus_nested_in_binary() {
+    assert!(transpile_ok(r#"def foo():
+    if (a := 1) + (b := 2) > 0:
+        return a + b"#));
+}
+
+#[test]
+fn test_walrus_in_unary() {
+    assert!(transpile_ok(r#"def foo():
+    if not (done := check_done()):
+        continue_work(done)"#));
+}
+
+#[test]
+fn test_walrus_in_call_args() {
+    assert!(transpile_ok(r#"def foo():
+    if process(x := get_x()):
+        return x"#));
+}
+
+#[test]
+fn test_walrus_in_method_call() {
+    assert!(transpile_ok(r#"def foo(obj):
+    if obj.validate(x := get_value()):
+        return x"#));
+}
+
+#[test]
+fn test_walrus_in_ifexpr() {
+    assert!(transpile_ok(r#"def foo(cond):
+    y = (x := 1) if cond else (x := 2)
+    return x + y"#));
+}
+
+#[test]
+fn test_walrus_in_tuple() {
+    assert!(transpile_ok(r#"def foo():
+    tup = ((a := 1), (b := 2))
+    return a + b"#));
+}
+
+#[test]
+fn test_walrus_in_list() {
+    assert!(transpile_ok(r#"def foo():
+    lst = [(x := 1), (y := 2)]
+    return x + y"#));
+}
+
+// --- looks_like_option_expr helper ---
+#[test]
+fn test_option_expr_get_or_none() {
+    assert!(transpile_ok(r#"def foo(d):
+    x = d.get("key")
+    if x is None:
+        return 0
+    return x"#));
+}
+
+#[test]
+fn test_option_expr_next_default() {
+    assert!(transpile_ok(r#"def foo(it):
+    x = next(it, None)
+    return x"#));
+}
+
+// --- coerce_int_to_float_if_needed helper ---
+#[test]
+fn test_int_to_float_coercion_add() {
+    assert!(transpile_ok(r#"def foo(x: float) -> float:
+    return x + 1"#));
+}
+
+#[test]
+fn test_int_to_float_coercion_mul() {
+    assert!(transpile_ok(r#"def foo(x: float) -> float:
+    return x * 2"#));
+}
+
+#[test]
+fn test_int_to_float_coercion_div() {
+    assert!(transpile_ok(r#"def foo(x: float) -> float:
+    return x / 2"#));
+}
+
+#[test]
+fn test_int_to_float_in_comparison() {
+    assert!(transpile_ok(r#"def foo(x: float) -> bool:
+    return x > 0"#));
+}
+
+// --- is_int_expr / is_int_var helpers ---
+#[test]
+fn test_is_int_expr_literal() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return 42 + 10"#));
+}
+
+#[test]
+fn test_is_int_expr_len() {
+    assert!(transpile_ok(r#"def foo(lst) -> int:
+    return len(lst)"#));
+}
+
+#[test]
+fn test_is_int_var_typed() {
+    assert!(transpile_ok(r#"def foo(x: int) -> int:
+    return x * 2"#));
+}
+
+// --- is_float_var helper ---
+#[test]
+fn test_is_float_var_typed() {
+    assert!(transpile_ok(r#"def foo(x: float) -> float:
+    return x * 2.0"#));
+}
+
+#[test]
+fn test_is_float_var_inferred() {
+    assert!(transpile_ok(r#"def foo() -> float:
+    x = 3.14
+    return x"#));
+}
+
+// --- borrow_if_needed helper ---
+#[test]
+fn test_borrow_string_param() {
+    assert!(transpile_ok(r#"def foo(s: str) -> int:
+    return len(s)"#));
+}
+
+#[test]
+fn test_borrow_list_param() {
+    assert!(transpile_ok(r#"def foo(lst: list) -> int:
+    return len(lst)"#));
+}
+
+// --- convert_binary helpers ---
+#[test]
+fn test_binary_power_int() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return 2 ** 10"#));
+}
+
+#[test]
+fn test_binary_power_float() {
+    assert!(transpile_ok(r#"def foo() -> float:
+    return 2.0 ** 0.5"#));
+}
+
+#[test]
+fn test_binary_floor_div() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return 7 // 3"#));
+}
+
+#[test]
+fn test_binary_modulo() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return 10 % 3"#));
+}
+
+#[test]
+fn test_binary_matmul() {
+    assert!(transpile_ok(r#"import numpy as np
+def foo():
+    a = np.array([[1, 2], [3, 4]])
+    b = np.array([[5, 6], [7, 8]])
+    return a @ b"#));
+}
+
+// --- convert_containment_op helper ---
+#[test]
+fn test_containment_in_list() {
+    assert!(transpile_ok(r#"def foo() -> bool:
+    return 1 in [1, 2, 3]"#));
+}
+
+#[test]
+fn test_containment_not_in_list() {
+    assert!(transpile_ok(r#"def foo() -> bool:
+    return 5 not in [1, 2, 3]"#));
+}
+
+#[test]
+fn test_containment_in_string() {
+    assert!(transpile_ok(r#"def foo() -> bool:
+    return 'a' in 'abc'"#));
+}
+
+#[test]
+fn test_containment_in_dict() {
+    assert!(transpile_ok(r#"def foo() -> bool:
+    d = {"a": 1}
+    return "a" in d"#));
+}
+
+#[test]
+fn test_containment_in_set() {
+    assert!(transpile_ok(r#"def foo() -> bool:
+    s = {1, 2, 3}
+    return 2 in s"#));
+}
+
+// --- convert_stdlib_type_call helper ---
+#[test]
+fn test_stdlib_dataclass() {
+    assert!(transpile_ok(r#"from dataclasses import dataclass
+@dataclass
+class Point:
+    x: int
+    y: int"#));
+}
+
+// --- convert_numeric_type_call helper ---
+#[test]
+fn test_numeric_cast_int() {
+    assert!(transpile_ok(r#"def foo(s: str) -> int:
+    return int(s)"#));
+}
+
+#[test]
+fn test_numeric_cast_float() {
+    assert!(transpile_ok(r#"def foo(s: str) -> float:
+    return float(s)"#));
+}
+
+#[test]
+fn test_numeric_cast_str() {
+    assert!(transpile_ok(r#"def foo(x: int) -> str:
+    return str(x)"#));
+}
+
+#[test]
+fn test_numeric_cast_bool() {
+    assert!(transpile_ok(r#"def foo(x: int) -> bool:
+    return bool(x)"#));
+}
+
+// --- convert_iterator_util_call helper ---
+#[test]
+fn test_iterator_enumerate() {
+    assert!(transpile_ok(r#"def foo(items):
+    for i, x in enumerate(items):
+        print(i, x)"#));
+}
+
+#[test]
+fn test_iterator_zip() {
+    assert!(transpile_ok(r#"def foo(a, b):
+    for x, y in zip(a, b):
+        print(x, y)"#));
+}
+
+#[test]
+fn test_iterator_reversed() {
+    assert!(transpile_ok(r#"def foo(items):
+    for x in reversed(items):
+        print(x)"#));
+}
+
+#[test]
+fn test_iterator_sorted() {
+    assert!(transpile_ok(r#"def foo(items):
+    for x in sorted(items):
+        print(x)"#));
+}
+
+#[test]
+fn test_iterator_filter() {
+    assert!(transpile_ok(r#"def foo(items):
+    for x in filter(lambda i: i > 0, items):
+        print(x)"#));
+}
+
+// --- needs_debug_format helper ---
+#[test]
+fn test_print_debug_format() {
+    assert!(transpile_ok(r#"def foo():
+    x = {"a": 1}
+    print(x)"#));
+}
+
+// --- is_pathbuf_expr helper ---
+#[test]
+fn test_pathbuf_from_path() {
+    assert!(transpile_ok(r#"from pathlib import Path
+def foo():
+    p = Path("test.txt")
+    return p"#));
+}
+
+// --- convert_print_call helper ---
+#[test]
+fn test_print_single_arg() {
+    assert!(transpile_ok(r#"def foo():
+    print("hello")"#));
+}
+
+#[test]
+fn test_print_multiple_args() {
+    assert!(transpile_ok(r#"def foo():
+    print("a", "b", "c")"#));
+}
+
+#[test]
+fn test_print_with_sep() {
+    assert!(transpile_ok(r#"def foo():
+    print("a", "b", sep=",")"#));
+}
+
+#[test]
+fn test_print_with_end() {
+    assert!(transpile_ok(r#"def foo():
+    print("hello", end="")"#));
+}
+
+// --- convert_sum_call helper ---
+#[test]
+fn test_sum_simple() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return sum([1, 2, 3])"#));
+}
+
+#[test]
+fn test_sum_with_start() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return sum([1, 2, 3], 10)"#));
+}
+
+// --- convert_minmax_call helper ---
+#[test]
+fn test_min_args() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return min(1, 2, 3)"#));
+}
+
+#[test]
+fn test_max_args() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return max(1, 2, 3)"#));
+}
+
+#[test]
+fn test_min_iterable() {
+    assert!(transpile_ok(r#"def foo(lst) -> int:
+    return min(lst)"#));
+}
+
+#[test]
+fn test_max_iterable() {
+    assert!(transpile_ok(r#"def foo(lst) -> int:
+    return max(lst)"#));
+}
+
+// --- convert_any_all_call helper ---
+#[test]
+fn test_any_list() {
+    assert!(transpile_ok(r#"def foo() -> bool:
+    return any([True, False, True])"#));
+}
+
+#[test]
+fn test_all_list() {
+    assert!(transpile_ok(r#"def foo() -> bool:
+    return all([True, True, True])"#));
+}
+
+#[test]
+fn test_any_generator() {
+    assert!(transpile_ok(r#"def foo(items) -> bool:
+    return any(x > 0 for x in items)"#));
+}
+
+#[test]
+fn test_all_generator() {
+    assert!(transpile_ok(r#"def foo(items) -> bool:
+    return all(x > 0 for x in items)"#));
+}
+
+// --- convert_unary helper ---
+#[test]
+fn test_unary_not_coverage() {
+    assert!(transpile_ok(r#"def foo(x) -> bool:
+    return not x"#));
+}
+
+#[test]
+fn test_unary_neg_coverage() {
+    assert!(transpile_ok(r#"def foo(x: int) -> int:
+    return -x"#));
+}
+
+#[test]
+fn test_unary_pos_coverage() {
+    assert!(transpile_ok(r#"def foo(x: int) -> int:
+    return +x"#));
+}
+
+#[test]
+fn test_unary_invert_coverage() {
+    assert!(transpile_ok(r#"def foo(x: int) -> int:
+    return ~x"#));
+}
+
+// --- Builtin conversion helpers ---
+#[test]
+fn test_divmod_builtin() {
+    assert!(transpile_ok(r#"def foo():
+    q, r = divmod(10, 3)
+    return q, r"#));
+}
+
+#[test]
+fn test_round_builtin() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return round(3.7)"#));
+}
+
+#[test]
+fn test_abs_builtin_int() {
+    assert!(transpile_ok(r#"def foo(x: int) -> int:
+    return abs(x)"#));
+}
+
+#[test]
+fn test_abs_builtin_float() {
+    assert!(transpile_ok(r#"def foo(x: float) -> float:
+    return abs(x)"#));
+}
+
+#[test]
+fn test_pow_builtin() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return pow(2, 10)"#));
+}
+
+#[test]
+fn test_hex_builtin() {
+    assert!(transpile_ok(r#"def foo() -> str:
+    return hex(255)"#));
+}
+
+#[test]
+fn test_bin_builtin() {
+    assert!(transpile_ok(r#"def foo() -> str:
+    return bin(10)"#));
+}
+
+#[test]
+fn test_oct_builtin() {
+    assert!(transpile_ok(r#"def foo() -> str:
+    return oct(8)"#));
+}
+
+#[test]
+fn test_chr_builtin() {
+    assert!(transpile_ok(r#"def foo() -> str:
+    return chr(65)"#));
+}
+
+#[test]
+fn test_ord_builtin() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return ord('A')"#));
+}
+
+#[test]
+fn test_hash_builtin() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return hash("hello")"#));
+}
+
+#[test]
+fn test_repr_builtin() {
+    assert!(transpile_ok(r#"def foo() -> str:
+    return repr([1, 2, 3])"#));
+}
+
+#[test]
+fn test_format_builtin() {
+    assert!(transpile_ok(r#"def foo() -> str:
+    return format(3.14, ".2f")"#));
+}
+
+// --- Collection constructors ---
+#[test]
+fn test_set_constructor() {
+    assert!(transpile_ok(r#"def foo():
+    s = set([1, 2, 3])
+    return s"#));
+}
+
+#[test]
+fn test_frozenset_constructor() {
+    assert!(transpile_ok(r#"def foo():
+    fs = frozenset([1, 2, 3])
+    return fs"#));
+}
+
+#[test]
+fn test_dict_constructor() {
+    assert!(transpile_ok(r#"def foo():
+    d = dict()
+    return d"#));
+}
+
+#[test]
+fn test_list_constructor_empty() {
+    assert!(transpile_ok(r#"def foo():
+    l = list()
+    return l"#));
+}
+
+#[test]
+fn test_list_constructor_from_iterable() {
+    assert!(transpile_ok(r#"def foo():
+    l = list(range(10))
+    return l"#));
+}
+
+#[test]
+fn test_tuple_constructor() {
+    assert!(transpile_ok(r#"def foo():
+    t = tuple([1, 2, 3])
+    return t"#));
+}
+
+#[test]
+fn test_bytes_constructor() {
+    assert!(transpile_ok(r#"def foo():
+    b = bytes([65, 66, 67])
+    return b"#));
+}
+
+#[test]
+fn test_bytearray_constructor() {
+    assert!(transpile_ok(r#"def foo():
+    ba = bytearray([65, 66, 67])
+    return ba"#));
+}
+
+// --- Collections module builtins ---
+#[test]
+fn test_counter_constructor() {
+    assert!(transpile_ok(r#"from collections import Counter
+def foo():
+    c = Counter("hello")
+    return c"#));
+}
+
+#[test]
+fn test_defaultdict_constructor() {
+    assert!(transpile_ok(r#"from collections import defaultdict
+def foo():
+    dd = defaultdict(list)
+    return dd"#));
+}
+
+#[test]
+fn test_deque_constructor() {
+    assert!(transpile_ok(r#"from collections import deque
+def foo():
+    dq = deque([1, 2, 3])
+    return dq"#));
+}
+
+// --- File operations ---
+#[test]
+fn test_open_read() {
+    assert!(transpile_ok(r#"def foo():
+    with open("test.txt", "r") as f:
+        return f.read()"#));
+}
+
+#[test]
+fn test_open_write() {
+    assert!(transpile_ok(r#"def foo():
+    with open("test.txt", "w") as f:
+        f.write("hello")"#));
+}
+
+// --- Map with zip ---
+#[test]
+fn test_map_with_lambda() {
+    assert!(transpile_ok(r#"def foo(items):
+    return list(map(lambda x: x * 2, items))"#));
+}
+
+// --- Precedence handling ---
+#[test]
+fn test_precedence_mul_add() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return 1 + 2 * 3"#));
+}
+
+#[test]
+fn test_precedence_parenthesized() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return (1 + 2) * 3"#));
+}
+
+#[test]
+fn test_precedence_complex() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    return 1 + 2 * 3 - 4 / 2"#));
+}
