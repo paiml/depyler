@@ -741,3 +741,410 @@ fn test_func_empty_return() {
 fn test_func_implicit_none_return() {
     assert!(transpile_ok("def foo():\n    x = 1"));
 }
+
+// ============================================================================
+// COVERAGE BOOST: func_gen.rs Helper Functions
+// These tests target specific uncovered code paths in func_gen.rs
+// ============================================================================
+
+// --- is_rust_keyword helper ---
+#[test]
+fn test_func_param_rust_keyword_type() {
+    // Parameter named with Rust keyword
+    assert!(transpile_ok("def foo(type: str) -> str:\n    return type"));
+}
+
+#[test]
+fn test_func_param_rust_keyword_match() {
+    assert!(transpile_ok("def foo(match: int) -> int:\n    return match * 2"));
+}
+
+// --- extract_args_field_accesses helper ---
+#[test]
+fn test_argparse_field_access() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verbose")
+    args = parser.parse_args()
+    if args.verbose:
+        print("verbose mode")"#));
+}
+
+#[test]
+fn test_argparse_multiple_field_access() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input")
+    parser.add_argument("--output")
+    args = parser.parse_args()
+    process(args.input, args.output)"#));
+}
+
+// --- stmt_always_returns helper ---
+#[test]
+fn test_func_unconditional_return() {
+    assert!(transpile_ok("def foo():\n    return 42"));
+}
+
+#[test]
+fn test_func_if_else_both_return() {
+    assert!(transpile_ok("def foo(x):\n    if x:\n        return 1\n    else:\n        return 0"));
+}
+
+#[test]
+fn test_func_raise_always() {
+    assert!(transpile_ok("def foo():\n    raise ValueError('always fails')"));
+}
+
+// --- codegen_generic_params helper ---
+#[test]
+fn test_func_generic_type_param() {
+    assert!(transpile_ok(r#"from typing import TypeVar, Generic
+T = TypeVar('T')
+def identity(x: T) -> T:
+    return x"#));
+}
+
+// --- collect_nested_function_names helper ---
+#[test]
+fn test_func_nested_functions() {
+    assert!(transpile_ok(r#"def outer():
+    def inner1():
+        return 1
+    def inner2():
+        return 2
+    return inner1() + inner2()"#));
+}
+
+#[test]
+fn test_func_deeply_nested() {
+    assert!(transpile_ok(r#"def level1():
+    def level2():
+        def level3():
+            return 3
+        return level3()
+    return level2()"#));
+}
+
+// --- collect_if_escaping_variables helper ---
+#[test]
+fn test_func_escaping_var_from_if() {
+    assert!(transpile_ok(r#"def foo(cond):
+    if cond:
+        result = "yes"
+    else:
+        result = "no"
+    return result"#));
+}
+
+#[test]
+fn test_func_escaping_var_multiple_branches() {
+    assert!(transpile_ok(r#"def foo(x):
+    if x > 0:
+        sign = "positive"
+    elif x < 0:
+        sign = "negative"
+    else:
+        sign = "zero"
+    return sign"#));
+}
+
+// --- extract_toplevel_assigned_symbols helper ---
+#[test]
+fn test_func_toplevel_assignments() {
+    assert!(transpile_ok(r#"def foo():
+    a = 1
+    b = 2
+    c = a + b
+    return c"#));
+}
+
+#[test]
+fn test_func_tuple_unpack_toplevel() {
+    assert!(transpile_ok(r#"def foo():
+    a, b, c = (1, 2, 3)
+    return a + b + c"#));
+}
+
+// --- find_var_type_in_body helper ---
+#[test]
+fn test_func_var_type_from_literal() {
+    assert!(transpile_ok(r#"def foo() -> int:
+    x = 42
+    return x"#));
+}
+
+#[test]
+fn test_func_var_type_from_annotation() {
+    assert!(transpile_ok(r#"def foo() -> str:
+    x: str = "hello"
+    return x"#));
+}
+
+// --- collect_loop_escaping_variables helper ---
+#[test]
+fn test_func_escaping_from_for_loop() {
+    assert!(transpile_ok(r#"def foo(items):
+    found = None
+    for item in items:
+        if item > 0:
+            found = item
+            break
+    return found"#));
+}
+
+#[test]
+fn test_func_escaping_from_while_loop() {
+    assert!(transpile_ok(r#"def foo():
+    count = 0
+    while count < 10:
+        count += 1
+    return count"#));
+}
+
+// --- collect_all_assigned_variables helper ---
+#[test]
+fn test_func_all_assigned_vars() {
+    assert!(transpile_ok(r#"def foo():
+    a = 1
+    b = 2
+    if True:
+        c = 3
+    for i in range(5):
+        d = i
+    return a + b"#));
+}
+
+// --- is_var_used_in_remaining_stmts helper ---
+#[test]
+fn test_func_var_used_later() {
+    assert!(transpile_ok(r#"def foo():
+    x = 1
+    y = 2
+    return x + y"#));
+}
+
+#[test]
+fn test_func_var_unused_later() {
+    assert!(transpile_ok(r#"def foo():
+    x = 1
+    return 0"#));
+}
+
+// --- is_field_used_as_bool_condition helper ---
+#[test]
+fn test_argparse_bool_field_condition() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args()
+    if args.verbose:
+        print("verbose")"#));
+}
+
+// --- infer_numeric_type_from_arithmetic_usage helper ---
+#[test]
+fn test_argparse_numeric_field() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--count", type=int)
+    args = parser.parse_args()
+    result = args.count * 2
+    return result"#));
+}
+
+#[test]
+fn test_argparse_float_field() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--factor", type=float)
+    args = parser.parse_args()
+    result = args.factor * 2.0
+    return result"#));
+}
+
+// --- is_param_used_in_body helper ---
+#[test]
+fn test_func_unused_param() {
+    assert!(transpile_ok("def foo(x, y, z):\n    return x"));
+}
+
+#[test]
+fn test_func_all_params_used() {
+    assert!(transpile_ok("def foo(x, y, z):\n    return x + y + z"));
+}
+
+// --- codegen_single_param helper ---
+#[test]
+fn test_func_varargs_coverage() {
+    assert!(transpile_ok("def foo(*args):\n    return sum(args)"));
+}
+
+#[test]
+fn test_func_kwargs_coverage() {
+    assert!(transpile_ok("def foo(**kwargs):\n    return len(kwargs)"));
+}
+
+#[test]
+fn test_func_args_and_kwargs_coverage() {
+    assert!(transpile_ok("def foo(*args, **kwargs):\n    return len(args) + len(kwargs)"));
+}
+
+// --- apply_param_borrowing_strategy helper ---
+#[test]
+fn test_func_borrowed_string_param() {
+    assert!(transpile_ok("def foo(s: str) -> int:\n    return len(s)"));
+}
+
+#[test]
+fn test_func_borrowed_list_param() {
+    assert!(transpile_ok("def foo(lst: list) -> int:\n    return len(lst)"));
+}
+
+#[test]
+fn test_func_borrowed_dict_param() {
+    assert!(transpile_ok("def foo(d: dict) -> int:\n    return len(d)"));
+}
+
+// --- apply_borrowing_to_type helper ---
+#[test]
+fn test_func_borrowed_optional_param() {
+    assert!(transpile_ok(r#"from typing import Optional
+def foo(x: Optional[str] = None) -> int:
+    if x:
+        return len(x)
+    return 0"#));
+}
+
+// --- classify_string_method helper ---
+#[test]
+fn test_func_string_method_returns_owned() {
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.upper()"));
+}
+
+#[test]
+fn test_func_string_method_returns_slice() {
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.strip()"));
+}
+
+// --- contains_owned_string_method helper ---
+#[test]
+fn test_func_string_concatenation() {
+    assert!(transpile_ok("def foo(a: str, b: str) -> str:\n    return a + b"));
+}
+
+// --- function_returns_owned_string helper ---
+#[test]
+fn test_func_returns_format_string() {
+    assert!(transpile_ok("def foo(name: str) -> str:\n    return f'Hello, {name}!'"));
+}
+
+#[test]
+fn test_func_returns_replace() {
+    assert!(transpile_ok("def foo(s: str) -> str:\n    return s.replace('a', 'b')"));
+}
+
+// --- return_type_expects_float helper ---
+#[test]
+fn test_func_float_return_type() {
+    assert!(transpile_ok("def foo() -> float:\n    return 3.14"));
+}
+
+#[test]
+fn test_func_float_return_coercion() {
+    assert!(transpile_ok("def foo(x: float) -> float:\n    return x + 1"));
+}
+
+// --- Additional function patterns ---
+#[test]
+fn test_func_classmethod() {
+    assert!(transpile_ok(r#"class Foo:
+    @classmethod
+    def create(cls):
+        return cls()"#));
+}
+
+#[test]
+fn test_func_staticmethod() {
+    assert!(transpile_ok(r#"class Foo:
+    @staticmethod
+    def helper(x):
+        return x * 2"#));
+}
+
+#[test]
+fn test_func_property() {
+    assert!(transpile_ok(r#"class Foo:
+    @property
+    def value(self):
+        return self._value"#));
+}
+
+#[test]
+fn test_func_docstring_coverage() {
+    assert!(transpile_ok(r#"def foo():
+    """This is a docstring."""
+    return 42"#));
+}
+
+#[test]
+fn test_func_multiline_docstring_coverage() {
+    assert!(transpile_ok(r#"def foo():
+    """
+    This is a multiline docstring.
+
+    Args:
+        None
+
+    Returns:
+        int: Always 42
+    """
+    return 42"#));
+}
+
+// --- Complex function patterns ---
+#[test]
+fn test_func_closure_coverage() {
+    assert!(transpile_ok(r#"def outer(x):
+    def inner(y):
+        return x + y
+    return inner"#));
+}
+
+#[test]
+fn test_func_decorator_coverage() {
+    assert!(transpile_ok(r#"def decorator(func):
+    def wrapper(*args):
+        return func(*args)
+    return wrapper
+
+@decorator
+def foo():
+    return 42"#));
+}
+
+#[test]
+fn test_func_recursive_coverage() {
+    assert!(transpile_ok(r#"def factorial(n):
+    if n <= 1:
+        return 1
+    return n * factorial(n - 1)"#));
+}
+
+#[test]
+fn test_func_mutual_recursion() {
+    assert!(transpile_ok(r#"def is_even(n):
+    if n == 0:
+        return True
+    return is_odd(n - 1)
+
+def is_odd(n):
+    if n == 0:
+        return False
+    return is_even(n - 1)"#));
+}
