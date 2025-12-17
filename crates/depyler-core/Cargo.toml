@@ -33,7 +33,6 @@ toml.workspace = true
 
 [features]
 default = []
-wasm = ["web-time"]
 deterministic = []
 ruchy = []
 # PHF compile-time perfect hash optimization (DEPYLER-O1MAP-001)
@@ -51,9 +50,6 @@ chaos-full = ["chaos-network", "chaos-byzantine"]
 # Generative repair via entrenar MCTS/GAN (DEPYLER-ENTRENAR-001)
 generative = ["entrenar"]
 
-[dependencies.web-time]
-workspace = true
-optional = true
 
 # Decision tracing dependencies (optional)
 [dependencies.memmap2]

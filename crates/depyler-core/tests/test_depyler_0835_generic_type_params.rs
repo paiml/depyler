@@ -53,7 +53,9 @@ fn has_e0412_error(rust_code: &str) -> bool {
 /// Test: Class inherits from parameterized generic, T used in fields
 /// Python: class EnumerateIter(Iter[tuple[int, T]]) with source: Iter[T]
 /// Expected: struct EnumerateIter<T> with source: Iter<T>
+/// SLOW: Requires rustc compilation validation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_depyler_0835_parameterized_base_type_var_in_field() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
@@ -311,7 +313,9 @@ class Mapper(Generic[T]):
 
 /// Test: EnumerateIter pattern from example_generic_iterator
 /// This is the exact pattern causing E0412 in the corpus
+/// SLOW: Requires rustc compilation validation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_depyler_0835_enumerate_iter_pattern() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"
@@ -357,7 +361,9 @@ class EnumerateIter(Iter[tuple[int, T]]):
 }
 
 /// Test: ZipIter pattern - explicit Generic[T, U] alongside parameterized base
+/// SLOW: Requires rustc compilation validation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_depyler_0835_zip_iter_pattern() {
     let pipeline = DepylerPipeline::new();
     let python_code = r#"

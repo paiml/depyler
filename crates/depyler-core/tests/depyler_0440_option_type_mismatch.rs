@@ -11,6 +11,18 @@
 #![allow(non_snake_case)]
 
 use depyler_core::DepylerPipeline;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// DEPYLER-1028: Use unique temp files to prevent race conditions in parallel tests
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_path() -> (String, String) {
+    let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let pid = std::process::id();
+    let rs_file = format!("/tmp/depyler_0440_{}_{}.rs", pid, id);
+    let rlib_file = format!("/tmp/libdepyler_0440_{}_{}.rlib", pid, id);
+    (rs_file, rlib_file)
+}
 
 /// Unit Test 1: Simple None + If-Else
 ///
@@ -49,8 +61,8 @@ def test_func():
     );
 
     // Verify compilation
-    let temp_file = "/tmp/depyler_0440_test1.rs";
-    std::fs::write(temp_file, &rust_code).unwrap();
+    let (temp_file, temp_rlib) = unique_temp_path();
+    std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
         .args([
@@ -58,9 +70,9 @@ def test_func():
             "lib",
             "--edition",
             "2021",
-            temp_file,
+            &temp_file,
             "-o",
-            "/tmp/libdepyler_0440_test1.rlib",
+            &temp_rlib,
         ])
         .output()
         .unwrap();
@@ -74,8 +86,8 @@ def test_func():
     );
 
     // Cleanup
-    let _ = std::fs::remove_file(temp_file);
-    let _ = std::fs::remove_file("/tmp/libdepyler_0440_test1.rlib");
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&temp_rlib);
 }
 
 /// Unit Test 2: None + Triple Elif Chain
@@ -114,8 +126,8 @@ def test_func():
     );
 
     // Verify compilation
-    let temp_file = "/tmp/depyler_0440_test2.rs";
-    std::fs::write(temp_file, &rust_code).unwrap();
+    let (temp_file, temp_rlib) = unique_temp_path();
+    std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
         .args([
@@ -123,9 +135,9 @@ def test_func():
             "lib",
             "--edition",
             "2021",
-            temp_file,
+            &temp_file,
             "-o",
-            "/tmp/libdepyler_0440_test2.rlib",
+            &temp_rlib,
         ])
         .output()
         .unwrap();
@@ -139,8 +151,8 @@ def test_func():
     );
 
     // Cleanup
-    let _ = std::fs::remove_file(temp_file);
-    let _ = std::fs::remove_file("/tmp/libdepyler_0440_test2.rlib");
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&temp_rlib);
 }
 
 /// Unit Test 3: Multiple Variables with None
@@ -184,8 +196,8 @@ def test_func():
     );
 
     // Verify compilation
-    let temp_file = "/tmp/depyler_0440_test3.rs";
-    std::fs::write(temp_file, &rust_code).unwrap();
+    let (temp_file, temp_rlib) = unique_temp_path();
+    std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
         .args([
@@ -193,9 +205,9 @@ def test_func():
             "lib",
             "--edition",
             "2021",
-            temp_file,
+            &temp_file,
             "-o",
-            "/tmp/libdepyler_0440_test3.rlib",
+            &temp_rlib,
         ])
         .output()
         .unwrap();
@@ -209,8 +221,8 @@ def test_func():
     );
 
     // Cleanup
-    let _ = std::fs::remove_file(temp_file);
-    let _ = std::fs::remove_file("/tmp/libdepyler_0440_test3.rlib");
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&temp_rlib);
 }
 
 /// Unit Test 4: None NOT Reassigned - Keep None (Edge Case)
@@ -275,8 +287,8 @@ def test_func():
     // (Implementation may vary, but must compile)
 
     // Verify compilation
-    let temp_file = "/tmp/depyler_0440_test5.rs";
-    std::fs::write(temp_file, &rust_code).unwrap();
+    let (temp_file, temp_rlib) = unique_temp_path();
+    std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
         .args([
@@ -284,9 +296,9 @@ def test_func():
             "lib",
             "--edition",
             "2021",
-            temp_file,
+            &temp_file,
             "-o",
-            "/tmp/libdepyler_0440_test5.rlib",
+            &temp_rlib,
         ])
         .output()
         .unwrap();
@@ -300,8 +312,8 @@ def test_func():
     );
 
     // Cleanup
-    let _ = std::fs::remove_file(temp_file);
-    let _ = std::fs::remove_file("/tmp/libdepyler_0440_test5.rlib");
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&temp_rlib);
 }
 
 /// Unit Test 6: Nested If with None
@@ -347,8 +359,8 @@ def test_func():
     );
 
     // Verify compilation
-    let temp_file = "/tmp/depyler_0440_test6.rs";
-    std::fs::write(temp_file, &rust_code).unwrap();
+    let (temp_file, temp_rlib) = unique_temp_path();
+    std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
         .args([
@@ -356,9 +368,9 @@ def test_func():
             "lib",
             "--edition",
             "2021",
-            temp_file,
+            &temp_file,
             "-o",
-            "/tmp/libdepyler_0440_test6.rlib",
+            &temp_rlib,
         ])
         .output()
         .unwrap();
@@ -372,8 +384,8 @@ def test_func():
     );
 
     // Cleanup
-    let _ = std::fs::remove_file(temp_file);
-    let _ = std::fs::remove_file("/tmp/libdepyler_0440_test6.rlib");
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&temp_rlib);
 }
 
 /// Unit Test 7: CLI Output Format Pattern (Real World)
@@ -413,8 +425,8 @@ def process_args():
     );
 
     // Verify compilation
-    let temp_file = "/tmp/depyler_0440_test7.rs";
-    std::fs::write(temp_file, &rust_code).unwrap();
+    let (temp_file, temp_rlib) = unique_temp_path();
+    std::fs::write(&temp_file, &rust_code).unwrap();
 
     let output = std::process::Command::new("rustc")
         .args([
@@ -422,9 +434,9 @@ def process_args():
             "lib",
             "--edition",
             "2021",
-            temp_file,
+            &temp_file,
             "-o",
-            "/tmp/libdepyler_0440_test7.rlib",
+            &temp_rlib,
         ])
         .output()
         .unwrap();
@@ -438,8 +450,8 @@ def process_args():
     );
 
     // Cleanup
-    let _ = std::fs::remove_file(temp_file);
-    let _ = std::fs::remove_file("/tmp/libdepyler_0440_test7.rlib");
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&temp_rlib);
 }
 
 /// Unit Test 8: Property Test - None Placeholder Must Compile
@@ -503,7 +515,7 @@ def test_func():
     for (i, source) in test_cases.iter().enumerate() {
         let rust_code = pipeline.transpile(source).unwrap();
 
-        let temp_file = format!("/tmp/depyler_0440_test8_{}.rs", i);
+        let (temp_file, temp_rlib) = unique_temp_path();
         std::fs::write(&temp_file, &rust_code).unwrap();
 
         let output = std::process::Command::new("rustc")
@@ -514,7 +526,7 @@ def test_func():
                 "2021",
                 &temp_file,
                 "-o",
-                &format!("/tmp/libdepyler_0440_test8_{}.rlib", i),
+                &temp_rlib,
             ])
             .output()
             .unwrap();
@@ -529,6 +541,6 @@ def test_func():
 
         // Cleanup
         let _ = std::fs::remove_file(&temp_file);
-        let _ = std::fs::remove_file(format!("/tmp/libdepyler_0440_test8_{}.rlib", i));
+        let _ = std::fs::remove_file(&temp_rlib);
     }
 }

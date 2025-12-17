@@ -22,6 +22,18 @@ use depyler_core::type_mapper::TypeMapper;
 use rustpython_parser::{parse, Mode};
 use std::fs;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// DEPYLER-1028: Use unique temp files to prevent race conditions in parallel tests
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_path() -> (String, String) {
+    let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let pid = std::process::id();
+    let rs_file = format!("/tmp/depyler_0516_{}_{}.rs", pid, id);
+    let rlib_file = format!("/tmp/depyler_0516_{}_{}.rlib", pid, id);
+    (rs_file, rlib_file)
+}
 
 fn transpile_to_rust(python_code: &str) -> Result<String, String> {
     let ast = parse(python_code, Mode::Module, "<test>").map_err(|e| e.to_string())?;
@@ -34,19 +46,23 @@ fn transpile_to_rust(python_code: &str) -> Result<String, String> {
 }
 
 fn check_rust_compiles(rust_code: &str) -> Result<(), String> {
-    let temp_file = "/tmp/depyler_0516_test.rs";
-    fs::write(temp_file, rust_code).map_err(|e| format!("Failed to write temp file: {}", e))?;
+    let (temp_file, temp_rlib) = unique_temp_path();
+    fs::write(&temp_file, rust_code).map_err(|e| format!("Failed to write temp file: {}", e))?;
 
     let output = Command::new("rustc")
         .arg("--crate-type")
         .arg("lib")
         .arg("--deny")
         .arg("warnings")
-        .arg(temp_file)
+        .arg(&temp_file)
         .arg("-o")
-        .arg("/tmp/depyler_0516_test.rlib")
+        .arg(&temp_rlib)
         .output()
         .map_err(|e| format!("Failed to run rustc: {}", e))?;
+
+    // Cleanup
+    let _ = fs::remove_file(&temp_file);
+    let _ = fs::remove_file(&temp_rlib);
 
     if !output.status.success() {
         return Err(format!(

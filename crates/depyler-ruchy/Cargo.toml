@@ -12,31 +12,14 @@ categories = ["development-tools", "compilers"]
 [dependencies]
 # Core dependencies
 anyhow = "1.0"
-thiserror = "2.0"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 
 # Ruchy language integration - updated to v1.5.0 (self-hosting!)
 ruchy = { version = "1.5.0", optional = true }
-pmcp = { version = "1.6.0", optional = true }
-tokio = { version = "1.46", features = ["full"], optional = true }
 polars = { version = "0.51", optional = true }
-
-# AST and code generation
-proc-macro2 = "1.0"
-quote = "1.0"
-syn = { version = "2.0", features = ["full", "visit", "extra-traits"] }
-
-# Python parsing (from rustpython)
-rustpython-parser = { version = "0.4", features = ["full-lexer"] }
-rustpython-ast = { version = "0.4" }
 
 # Internal dependencies
 depyler-core = { path = "../depyler-core", version = "3.19.18" }
-
-# Logging and diagnostics
-tracing = "0.1"
-colored = "2.0"
 
 [dev-dependencies]
 pretty_assertions = "1.4"
@@ -48,10 +31,10 @@ insta = { version = "1.40", features = ["yaml"] }
 
 [features]
 default = ["interpreter"]
-interpreter = ["ruchy", "pmcp", "tokio"]
+interpreter = ["ruchy"]
 validation = []
 dataframe = ["polars"]
-actor = ["tokio"]
+actor = []
 
 # Note: Benchmark disabled temporarily - needs update for new HirModule API (v3.2.0)
 # [[bench]]

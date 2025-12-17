@@ -95,13 +95,15 @@ impl DocGenerator {
         doc.push_str("This documentation was automatically generated from Python source code ");
         doc.push_str("by the Depyler transpiler.\n\n");
 
-        if self.config.include_python_source && self.python_source.is_some() {
-            doc.push_str("<details>\n");
-            doc.push_str("<summary>Original Python Source</summary>\n\n");
-            doc.push_str("```python\n");
-            doc.push_str(self.python_source.as_ref().unwrap());
-            doc.push_str("\n```\n\n");
-            doc.push_str("</details>\n\n");
+        if self.config.include_python_source {
+            if let Some(python_source) = &self.python_source {
+                doc.push_str("<details>\n");
+                doc.push_str("<summary>Original Python Source</summary>\n\n");
+                doc.push_str("```python\n");
+                doc.push_str(python_source);
+                doc.push_str("\n```\n\n");
+                doc.push_str("</details>\n\n");
+            }
         }
     }
 

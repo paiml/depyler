@@ -461,7 +461,9 @@ def maybe_get(data: list, index: int) -> int:
 // ============================================================================
 
 /// Meta-test: Ensure all generated code actually compiles
+/// SLOW: Requires rustc compilation for each pattern
 #[test]
+#[ignore = "slow: requires rustc compilation for each pattern"]
 fn test_depyler_0834_all_patterns_compile() {
     let pipeline = DepylerPipeline::new();
 

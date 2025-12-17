@@ -1,3 +1,9 @@
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -41,13 +47,13 @@ pub fn generate_number(min_val: i32, max_val: i32) -> Result<i32, Box<dyn std::e
 pub fn get_hint(guess: i32, target: i32) -> String {
     let _cse_temp_0 = guess < target;
     if _cse_temp_0 {
-        "Marco!(Too low)".to_string()
+        return "Marco!(Too low)".to_string();
     } else {
         let _cse_temp_1 = guess > target;
         if _cse_temp_1 {
-            "Marco!(Too high)".to_string()
+            return "Marco!(Too high)".to_string();
         } else {
-            "Polo!".to_string()
+            return "Polo!".to_string();
         }
     }
 }
@@ -76,37 +82,37 @@ pub fn calculate_score(attempts: i32, rounds: i32) -> i32 {
 pub fn get_difficulty_name(level: i32) -> String {
     let _cse_temp_0 = level == 1;
     if _cse_temp_0 {
-        "Easy".to_string()
+        return "Easy".to_string();
     } else {
         let _cse_temp_1 = level == 2;
         if _cse_temp_1 {
-            "Medium".to_string()
+            return "Medium".to_string();
         } else {
             let _cse_temp_2 = level == 3;
             if _cse_temp_2 {
-                "Hard".to_string()
+                return "Hard".to_string();
             } else {
-                "Unknown".to_string()
+                return "Unknown".to_string();
             }
         }
     }
 }
 #[doc = "Calculate average with safety check."]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_average(total: i32, count: i32) -> Result<f64, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = count == 0;
+pub fn calculate_average(total: f64, count: f64) -> Result<f64, Box<dyn std::error::Error>> {
+    let _cse_temp_0 = count == 0f64;
     if _cse_temp_0 {
         return Ok(0.0);
     }
-    Ok((total as f64) / (count as f64))
+    Ok(((total) as f64) / ((count) as f64))
 }
 #[doc = "Format game statistics as string."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn format_statistics(
     score: i32,
-    attempts: i32,
-    rounds: i32,
+    attempts: f64,
+    rounds: f64,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let avg = calculate_average(attempts, rounds)?;
     let mut result = "Game Statistics:\n".to_string();
@@ -138,7 +144,8 @@ pub fn validate_guess(guess: i32, min_val: i32, max_val: i32) -> bool {
 #[doc = "Simulate a round with fixed guesses."]
 #[doc = " Depyler: verified panic-free"]
 pub fn play_simple_round(target: i32, max_attempts: i32) -> i32 {
-    let mut attempts = 0;
+    let mut attempts: i32 = Default::default();
+    attempts = 0;
     let mut guess = 50;
     while attempts < max_attempts {
         attempts = attempts + 1;

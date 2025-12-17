@@ -45,9 +45,6 @@ serde_json.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 
-# Logging
-tracing.workspace = true
-
 # Regex for pattern matching in autofixer
 regex.workspace = true
 

@@ -17,23 +17,13 @@ certeza-tier2 = []  # Medium tests (1-5 min)
 certeza-tier3 = []  # Exhaustive tests (hours)
 
 [dependencies]
-# Core
-anyhow.workspace = true
-thiserror.workspace = true
 serde.workspace = true
-serde_json.workspace = true
 
 # Process execution
 which = "7.0"
 
 # Path manipulation
 tempfile.workspace = true
-
-# Testing utilities
-proptest = { workspace = true, optional = true }
-
-# Synthetic test generation
-verificar.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

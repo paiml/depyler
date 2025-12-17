@@ -14370,7 +14370,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 // DEPYLER-0969: H₃ - Dict-like methods for serde_json::Value objects
                 // value.get(key) → value.get(key)
-                "get" if args.len() >= 1 => {
+                "get" if !args.is_empty() => {
                     let key = &arg_exprs[0];
                     if args.len() > 1 {
                         let default = &arg_exprs[1];
@@ -17914,10 +17914,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Literal(Literal::Float(_)) => true,
             // Variable with Float type, or variable from numpy float methods
             HirExpr::Var(name) => {
-                if matches!(self.ctx.var_types.get(name), Some(Type::Float)) {
-                    return true;
+                // DEPYLER-1026: If we have explicit type info, use it exclusively
+                // Don't fall through to heuristics when type is known
+                if let Some(ty) = self.ctx.var_types.get(name) {
+                    return matches!(ty, Type::Float);
                 }
                 // Common float result variable names from numpy operations
+                // ONLY used when no type info is available
                 // DEPYLER-0668: Remove "result" - too general, often used for ints/bools
                 // DEPYLER-0927: Sync with expr_returns_f32 - include norm_a, norm_b, dot etc.
                 // DEPYLER-0928: Added min_val, max_val for Vector-scalar operations
@@ -18004,6 +18007,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             // Variable names commonly used for trueno f32 results
             HirExpr::Var(name) => {
+                // DEPYLER-1026: If we have explicit type info, don't use heuristics
+                if self.ctx.var_types.contains_key(name) {
+                    return false; // f32 detection is only for trueno contexts without type info
+                }
                 matches!(
                     name.as_str(),
                     "mean" | "std" | "variance" | "sum" | "norm" | "norm_a" | "norm_b"
