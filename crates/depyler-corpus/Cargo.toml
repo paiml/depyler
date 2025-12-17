@@ -12,14 +12,12 @@ categories = ["development-tools", "compilers"]
 [dependencies]
 # Core
 anyhow.workspace = true
-thiserror.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
 
 # File system
 walkdir = "2.5"
-glob = "0.3"
 
 # Hashing for determinism
 blake3 = "1.5"
@@ -29,7 +27,6 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # CLI integration
 clap.workspace = true
-indicatif.workspace = true
 colored.workspace = true
 
 # Statistics (minimal implementation)

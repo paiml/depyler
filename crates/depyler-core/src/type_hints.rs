@@ -130,6 +130,18 @@ impl TypeHintProvider {
         self.context.constraints.clear();
         self.context.usage_patterns.clear();
         self.context.loop_var_sources.clear();
+
+        // DEPYLER-0265: Add explicit parameter types as constraints
+        // This allows infer_var_type to find parameter types when analyzing
+        // assignments like `longest = words[0]` where `words: list[str]`
+        for param in &func.params {
+            if !matches!(param.ty, Type::Unknown) {
+                self.context.constraints.push(TypeConstraint::Compatible {
+                    var: param.name.clone(),
+                    ty: param.ty.clone(),
+                });
+            }
+        }
     }
 
     fn collect_parameter_hints(&mut self, func: &HirFunction, hints: &mut Vec<TypeHint>) {
@@ -461,8 +473,16 @@ impl TypeHintProvider {
                 self.context.non_list_variables.insert(var_name.to_string());
             }
             // Variable assigned from indexing (e.g., value = config["key"])
-            HirExpr::Index { .. } => {
+            // DEPYLER-0265: Infer element type from base list/dict type
+            HirExpr::Index { base, .. } => {
                 self.context.non_list_variables.insert(var_name.to_string());
+                // If base is a variable, try to get its type and extract element type
+                if let HirExpr::Var(base_name) = base.as_ref() {
+                    let base_type = self.infer_var_type(base_name);
+                    if let Some(elem_type) = self.extract_element_type(&base_type) {
+                        self.add_compatible_constraint(var_name, elem_type);
+                    }
+                }
             }
             // Variable assigned from dict literal
             HirExpr::Dict(_) => {

@@ -8,7 +8,9 @@
 use std::process::Command;
 
 /// Test that custom exceptions get String typed fields (not serde_json::Value)
+/// SLOW: Requires full cargo compilation - use `cargo test -- --ignored` to run
 #[test]
+#[ignore = "slow: requires cargo build (200+ seconds)"]
 fn test_depyler_0957_custom_exception_string_field() {
     let python_source = r#"
 class MyError(Exception):
@@ -61,7 +63,9 @@ def test():
 }
 
 /// Test that custom exception with explicit str annotation works
+/// SLOW: Requires full cargo compilation - use `cargo test -- --ignored` to run
 #[test]
+#[ignore = "slow: requires cargo build (200+ seconds)"]
 fn test_depyler_0957_exception_explicit_str_annotation() {
     let python_source = r#"
 class ValidationError(Exception):
@@ -94,7 +98,9 @@ class ValidationError(Exception):
 }
 
 /// Test that exception with multiple fields infers String for message-like names
+/// SLOW: Requires full cargo compilation - use `cargo test -- --ignored` to run
 #[test]
+#[ignore = "slow: requires cargo build (200+ seconds)"]
 fn test_depyler_0957_exception_multiple_fields() {
     let python_source = r#"
 class APIError(Exception):

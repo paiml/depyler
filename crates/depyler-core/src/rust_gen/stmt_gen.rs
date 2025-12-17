@@ -1443,6 +1443,17 @@ fn apply_negated_truthiness(
     cond_expr: syn::Expr,
     ctx: &CodeGenContext,
 ) -> syn::Expr {
+    // DEPYLER-1027: Check if cond_expr is already a truthiness-converted method call
+    // to_rust_expr for UnaryOp::Not may have already converted `not x` to `x.is_empty()`
+    // or `x.is_none()`. In that case, return it directly to avoid double conversion.
+    if let syn::Expr::MethodCall(method_call) = &cond_expr {
+        let method_name = method_call.method.to_string();
+        if method_name == "is_empty" || method_name == "is_none" {
+            // Already converted by to_rust_expr - return as-is
+            return cond_expr;
+        }
+    }
+
     // Extract the inner expression (strip the `!` from the already-converted cond_expr)
     // The cond_expr is already `!inner_expr` from to_rust_expr, so we need the inner part
     let inner_expr = if let syn::Expr::Unary(syn::ExprUnary {

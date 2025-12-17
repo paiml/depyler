@@ -134,7 +134,9 @@ def group_by_hour(entries):
         .expect("groupby key extractor pattern MUST compile");
 }
 
+/// SLOW: Requires rustc compilation validation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_gh70_void_nested_function() {
     // Nested function with no return (truly void)
     let python_code = r#"

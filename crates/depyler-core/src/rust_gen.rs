@@ -24,6 +24,38 @@ pub mod keywords; // DEPYLER-0023: Centralized keyword escaping
 mod stmt_gen;
 mod type_gen;
 
+// Helper modules (v3.21.0)
+mod string_method_helpers;
+mod truthiness_helpers;
+
+// Test modules (DEPYLER-QUALITY-002: 95% coverage target)
+#[cfg(test)]
+mod argparse_transform_tests;
+#[cfg(test)]
+mod builtin_conversions_tests;
+#[cfg(test)]
+mod comprehensive_integration_tests;
+#[cfg(test)]
+mod deep_coverage_tests;
+#[cfg(test)]
+mod direct_rules_tests;
+#[cfg(test)]
+mod expr_gen_tests;
+#[cfg(test)]
+mod func_gen_tests;
+#[cfg(test)]
+mod generator_gen_tests;
+#[cfg(test)]
+mod stmt_gen_tests;
+#[cfg(test)]
+mod targeted_expr_tests;
+#[cfg(test)]
+mod targeted_func_tests;
+#[cfg(test)]
+mod targeted_stmt_tests;
+#[cfg(test)]
+mod type_gen_tests;
+
 // Internal imports
 use error_gen::generate_error_type_definitions;
 use format::format_rust_code;

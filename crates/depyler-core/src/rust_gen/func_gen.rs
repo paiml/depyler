@@ -667,6 +667,26 @@ fn find_var_type_in_body_with_params(
                         return Some(ty.clone());
                     }
                 }
+                // DEPYLER-0265: If assigned from subscript (e.g., longest = words[0]),
+                // infer element type from the base variable's type
+                if let HirExpr::Index { base, .. } = value {
+                    if let HirExpr::Var(base_var) = base.as_ref() {
+                        if let Some(base_type) = param_types.get(base_var) {
+                            let elem_type = match base_type {
+                                Type::List(elem) => Some(*elem.clone()),
+                                Type::Dict(_, val) => Some(*val.clone()),
+                                Type::String => Some(Type::String),
+                                Type::Tuple(elems) => elems.first().cloned(),
+                                _ => None,
+                            };
+                            if let Some(ty) = elem_type {
+                                if !matches!(ty, Type::Unknown) {
+                                    return Some(ty);
+                                }
+                            }
+                        }
+                    }
+                }
                 // If no annotation, infer from the assigned value
                 let inferred = infer_expr_type_simple(value);
                 // DEPYLER-0965: Skip Unknown and None types - continue looking for concrete types

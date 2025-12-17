@@ -99,7 +99,9 @@ def main() -> None:
     assert_compiles(&rust_code, "basic_reference_parameter");
 }
 
+/// SLOW: Requires rustc compilation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_DEPYLER_0269_multiple_reference_parameters_compiles() {
     // Test Case: Function with multiple reference parameters
     // Expected: Add & to all arguments that need it

@@ -5,12 +5,22 @@
 
 use depyler_core::DepylerPipeline;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// DEPYLER-1028: Use unique temp files to prevent race conditions in parallel tests
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_dir() -> String {
+    let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let pid = std::process::id();
+    format!("/tmp/depyler_0943_{}_{}", pid, id)
+}
 
 /// Helper to check if generated Rust code compiles
 fn compiles_with_cargo(code: &str) -> bool {
     // Create temp directory with Cargo.toml
-    let temp_dir = "/tmp/depyler_0943_test";
-    let _ = std::fs::remove_dir_all(temp_dir);
+    let temp_dir = unique_temp_dir();
+    let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(format!("{}/src", temp_dir)).unwrap();
     std::fs::write(
         format!("{}/Cargo.toml", temp_dir),
@@ -28,17 +38,20 @@ serde_json = "1.0"
 
     let output = Command::new("cargo")
         .args(["build"])
-        .current_dir(temp_dir)
+        .current_dir(&temp_dir)
         .output()
         .expect("Failed to run cargo");
+
+    // Cleanup
+    let _ = std::fs::remove_dir_all(&temp_dir);
 
     output.status.success()
 }
 
 /// Get compilation errors
 fn compile_errors_cargo(code: &str) -> String {
-    let temp_dir = "/tmp/depyler_0943_test";
-    let _ = std::fs::remove_dir_all(temp_dir);
+    let temp_dir = unique_temp_dir();
+    let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(format!("{}/src", temp_dir)).unwrap();
     std::fs::write(
         format!("{}/Cargo.toml", temp_dir),
@@ -56,9 +69,12 @@ serde_json = "1.0"
 
     let output = Command::new("cargo")
         .args(["build"])
-        .current_dir(temp_dir)
+        .current_dir(&temp_dir)
         .output()
         .expect("Failed to run cargo");
+
+    // Cleanup
+    let _ = std::fs::remove_dir_all(&temp_dir);
 
     String::from_utf8_lossy(&output.stderr).to_string()
 }

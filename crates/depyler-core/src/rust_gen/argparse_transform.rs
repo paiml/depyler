@@ -713,13 +713,13 @@ pub fn generate_args_struct(
                 // 3. Short only: "-v" → #[arg(short = 'v')]
                 // DEPYLER-0371: If dest is present, use long = "flag_name"
 
-                if arg.long.is_some() {
+                if let Some(long) = &arg.long {
                     // Case 1: Both short and long flags
                     let short_str = arg.name.trim_start_matches('-');
                     if let Some(short) = short_str.chars().next() {
                         // DEPYLER-0371: If dest is present, specify long name explicitly
                         if arg.dest.is_some() {
-                            let long_name = arg.long.as_ref().unwrap().trim_start_matches("--");
+                            let long_name = long.trim_start_matches("--");
                             attrs.push(quote! {
                                 #[arg(short = #short, long = #long_name)]
                             });

@@ -1,6 +1,7 @@
 deep_context.md
 # Rust
 /target/
+**/target/
 /Cargo.lock
 **/*.rs.bk
 *.pdb
