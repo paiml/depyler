@@ -400,3 +400,539 @@ fn test_class_referencing_another() {
     let code = transpile("class Node:\n    def __init__(self, value):\n        self.value = value\n        self.next = None\n\nclass LinkedList:\n    def __init__(self):\n        self.head = None");
     assert!(code.contains("struct Node") || code.contains("struct LinkedList"));
 }
+
+// ============================================================================
+// COVERAGE BOOST: direct_rules.rs Helper Functions
+// These tests target specific uncovered code paths
+// ============================================================================
+
+// --- is_rust_keyword / safe_ident helpers ---
+#[test]
+fn test_class_with_keyword_field() {
+    // Field named with Rust keyword
+    assert!(transpile_ok("class Foo:\n    def __init__(self):\n        self.type = 'int'"));
+}
+
+#[test]
+fn test_class_with_keyword_method() {
+    // Method named with Rust keyword
+    assert!(transpile_ok("class Foo:\n    def match(self, pattern):\n        return pattern"));
+}
+
+// --- is_stdlib_shadowing_name helper ---
+#[test]
+fn test_class_shadowing_stdlib() {
+    // Class name that shadows stdlib type
+    assert!(transpile_ok("class Vec:\n    def __init__(self):\n        self.data = []"));
+}
+
+#[test]
+fn test_class_shadowing_string() {
+    assert!(transpile_ok("class String:\n    def __init__(self, s):\n        self.value = s"));
+}
+
+#[test]
+fn test_class_shadowing_option() {
+    assert!(transpile_ok("class Option:\n    def __init__(self, value):\n        self.value = value"));
+}
+
+// --- Class field inference ---
+#[test]
+fn test_class_field_typed_int() {
+    assert!(transpile_ok(r#"class Counter:
+    def __init__(self):
+        self.count: int = 0"#));
+}
+
+#[test]
+fn test_class_field_typed_str() {
+    assert!(transpile_ok(r#"class Person:
+    def __init__(self, name: str):
+        self.name = name"#));
+}
+
+#[test]
+fn test_class_field_typed_list() {
+    assert!(transpile_ok(r#"from typing import List
+class Container:
+    def __init__(self):
+        self.items: List[int] = []"#));
+}
+
+#[test]
+fn test_class_field_typed_dict() {
+    assert!(transpile_ok(r#"from typing import Dict
+class Cache:
+    def __init__(self):
+        self.data: Dict[str, int] = {}"#));
+}
+
+#[test]
+fn test_class_field_optional() {
+    assert!(transpile_ok(r#"from typing import Optional
+class Node:
+    def __init__(self):
+        self.next: Optional[Node] = None"#));
+}
+
+// --- Dunder method conversions (comprehensive coverage) ---
+#[test]
+fn test_class_str_method_coverage() {
+    assert!(transpile_ok(r#"class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def __str__(self):
+        return f"({self.x}, {self.y})""#));
+}
+
+#[test]
+fn test_class_repr_method_coverage() {
+    assert!(transpile_ok(r#"class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def __repr__(self):
+        return f"Point({self.x}, {self.y})""#));
+}
+
+#[test]
+fn test_class_eq_method_coverage() {
+    assert!(transpile_ok(r#"class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def __eq__(self, other):
+        return self.x == other.x and self.y == other.y"#));
+}
+
+#[test]
+fn test_class_hash_method_coverage() {
+    assert!(transpile_ok(r#"class Point:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def __hash__(self):
+        return hash((self.x, self.y))"#));
+}
+
+#[test]
+fn test_class_len_method_coverage() {
+    assert!(transpile_ok(r#"class Container:
+    def __init__(self):
+        self.items = []
+    def __len__(self):
+        return len(self.items)"#));
+}
+
+#[test]
+fn test_class_getitem_method_coverage() {
+    assert!(transpile_ok(r#"class Container:
+    def __init__(self):
+        self.items = []
+    def __getitem__(self, index):
+        return self.items[index]"#));
+}
+
+#[test]
+fn test_class_setitem_method_coverage() {
+    assert!(transpile_ok(r#"class Container:
+    def __init__(self):
+        self.items = []
+    def __setitem__(self, index, value):
+        self.items[index] = value"#));
+}
+
+#[test]
+fn test_class_iter_method_coverage() {
+    assert!(transpile_ok(r#"class Container:
+    def __init__(self):
+        self.items = []
+    def __iter__(self):
+        return iter(self.items)"#));
+}
+
+#[test]
+fn test_class_contains_method_coverage() {
+    assert!(transpile_ok(r#"class Container:
+    def __init__(self):
+        self.items = []
+    def __contains__(self, item):
+        return item in self.items"#));
+}
+
+// --- Arithmetic dunder methods (comprehensive coverage) ---
+#[test]
+fn test_class_add_method_coverage() {
+    assert!(transpile_ok(r#"class Vector:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def __add__(self, other):
+        return Vector(self.x + other.x, self.y + other.y)"#));
+}
+
+#[test]
+fn test_class_sub_method_coverage() {
+    assert!(transpile_ok(r#"class Vector:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def __sub__(self, other):
+        return Vector(self.x - other.x, self.y - other.y)"#));
+}
+
+#[test]
+fn test_class_mul_method_coverage() {
+    assert!(transpile_ok(r#"class Vector:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def __mul__(self, scalar):
+        return Vector(self.x * scalar, self.y * scalar)"#));
+}
+
+#[test]
+fn test_class_truediv_method() {
+    assert!(transpile_ok(r#"class Fraction:
+    def __init__(self, num, den):
+        self.num = num
+        self.den = den
+    def __truediv__(self, other):
+        return Fraction(self.num * other.den, self.den * other.num)"#));
+}
+
+#[test]
+fn test_class_floordiv_method() {
+    assert!(transpile_ok(r#"class MyInt:
+    def __init__(self, val):
+        self.val = val
+    def __floordiv__(self, other):
+        return MyInt(self.val // other.val)"#));
+}
+
+#[test]
+fn test_class_mod_method() {
+    assert!(transpile_ok(r#"class MyInt:
+    def __init__(self, val):
+        self.val = val
+    def __mod__(self, other):
+        return MyInt(self.val % other.val)"#));
+}
+
+#[test]
+fn test_class_neg_method() {
+    assert!(transpile_ok(r#"class Vector:
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+    def __neg__(self):
+        return Vector(-self.x, -self.y)"#));
+}
+
+// --- Comparison dunder methods (comprehensive coverage) ---
+#[test]
+fn test_class_lt_method_coverage() {
+    assert!(transpile_ok(r#"class Point:
+    def __init__(self, x):
+        self.x = x
+    def __lt__(self, other):
+        return self.x < other.x"#));
+}
+
+#[test]
+fn test_class_le_method() {
+    assert!(transpile_ok(r#"class Point:
+    def __init__(self, x):
+        self.x = x
+    def __le__(self, other):
+        return self.x <= other.x"#));
+}
+
+#[test]
+fn test_class_gt_method() {
+    assert!(transpile_ok(r#"class Point:
+    def __init__(self, x):
+        self.x = x
+    def __gt__(self, other):
+        return self.x > other.x"#));
+}
+
+#[test]
+fn test_class_ge_method() {
+    assert!(transpile_ok(r#"class Point:
+    def __init__(self, x):
+        self.x = x
+    def __ge__(self, other):
+        return self.x >= other.x"#));
+}
+
+#[test]
+fn test_class_ne_method() {
+    assert!(transpile_ok(r#"class Point:
+    def __init__(self, x):
+        self.x = x
+    def __ne__(self, other):
+        return self.x != other.x"#));
+}
+
+// --- Context manager dunder methods ---
+#[test]
+fn test_class_enter_exit_methods() {
+    assert!(transpile_ok(r#"class FileHandler:
+    def __init__(self, path):
+        self.path = path
+    def __enter__(self):
+        return self
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass"#));
+}
+
+// --- Class inheritance ---
+#[test]
+fn test_class_single_inheritance() {
+    assert!(transpile_ok(r#"class Animal:
+    def speak(self):
+        pass
+
+class Dog(Animal):
+    def speak(self):
+        return "bark""#));
+}
+
+#[test]
+fn test_class_multiple_inheritance() {
+    assert!(transpile_ok(r#"class A:
+    def a(self):
+        return 1
+
+class B:
+    def b(self):
+        return 2
+
+class C(A, B):
+    def c(self):
+        return self.a() + self.b()"#));
+}
+
+#[test]
+fn test_class_call_super() {
+    assert!(transpile_ok(r#"class Animal:
+    def __init__(self, name):
+        self.name = name
+
+class Dog(Animal):
+    def __init__(self, name, breed):
+        super().__init__(name)
+        self.breed = breed"#));
+}
+
+// --- Dataclass patterns (comprehensive coverage) ---
+#[test]
+fn test_dataclass_simple_coverage() {
+    assert!(transpile_ok(r#"from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int"#));
+}
+
+#[test]
+fn test_dataclass_with_default() {
+    assert!(transpile_ok(r#"from dataclasses import dataclass
+
+@dataclass
+class Config:
+    name: str
+    value: int = 0"#));
+}
+
+#[test]
+fn test_dataclass_with_field() {
+    assert!(transpile_ok(r#"from dataclasses import dataclass, field
+from typing import List
+
+@dataclass
+class Container:
+    items: List[int] = field(default_factory=list)"#));
+}
+
+#[test]
+fn test_dataclass_frozen_coverage() {
+    assert!(transpile_ok(r#"from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class Point:
+    x: int
+    y: int"#));
+}
+
+// --- Method with self access patterns ---
+#[test]
+fn test_method_access_field() {
+    assert!(transpile_ok(r#"class Counter:
+    def __init__(self):
+        self.count = 0
+    def get(self):
+        return self.count"#));
+}
+
+#[test]
+fn test_method_modify_field() {
+    assert!(transpile_ok(r#"class Counter:
+    def __init__(self):
+        self.count = 0
+    def set(self, value):
+        self.count = value"#));
+}
+
+#[test]
+fn test_method_call_other_method() {
+    assert!(transpile_ok(r#"class Counter:
+    def __init__(self):
+        self.count = 0
+    def increment(self):
+        self.count += 1
+    def double_increment(self):
+        self.increment()
+        self.increment()"#));
+}
+
+// --- Class with constants ---
+#[test]
+fn test_class_constant() {
+    assert!(transpile_ok(r#"class Math:
+    PI = 3.14159
+    E = 2.71828"#));
+}
+
+#[test]
+fn test_class_constant_access() {
+    assert!(transpile_ok(r#"class Circle:
+    PI = 3.14159
+    def __init__(self, r):
+        self.r = r
+    def area(self):
+        return Circle.PI * self.r ** 2"#));
+}
+
+// --- Enum patterns ---
+#[test]
+fn test_enum_simple() {
+    assert!(transpile_ok(r#"from enum import Enum
+
+class Color(Enum):
+    RED = 1
+    GREEN = 2
+    BLUE = 3"#));
+}
+
+#[test]
+fn test_enum_string() {
+    assert!(transpile_ok(r#"from enum import Enum
+
+class Status(Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    DONE = "done""#));
+}
+
+#[test]
+fn test_enum_auto_coverage() {
+    assert!(transpile_ok(r#"from enum import Enum, auto
+
+class Color(Enum):
+    RED = auto()
+    GREEN = auto()
+    BLUE = auto()"#));
+}
+
+// --- Property patterns ---
+#[test]
+fn test_property_getter() {
+    assert!(transpile_ok(r#"class Person:
+    def __init__(self, name):
+        self._name = name
+    @property
+    def name(self):
+        return self._name"#));
+}
+
+#[test]
+fn test_property_setter() {
+    assert!(transpile_ok(r#"class Person:
+    def __init__(self, name):
+        self._name = name
+    @property
+    def name(self):
+        return self._name
+    @name.setter
+    def name(self, value):
+        self._name = value"#));
+}
+
+#[test]
+fn test_property_deleter() {
+    assert!(transpile_ok(r#"class Person:
+    def __init__(self, name):
+        self._name = name
+    @property
+    def name(self):
+        return self._name
+    @name.deleter
+    def name(self):
+        self._name = None"#));
+}
+
+// --- Complex class patterns (comprehensive coverage) ---
+#[test]
+fn test_class_with_slots_coverage() {
+    assert!(transpile_ok(r#"class Point:
+    __slots__ = ['x', 'y']
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y"#));
+}
+
+#[test]
+fn test_class_nested() {
+    assert!(transpile_ok(r#"class Outer:
+    class Inner:
+        def __init__(self):
+            self.value = 1
+    def __init__(self):
+        self.inner = Outer.Inner()"#));
+}
+
+#[test]
+fn test_class_method_default_mutable() {
+    // Common Python pattern to avoid mutable defaults
+    assert!(transpile_ok(r#"class Container:
+    def add(self, items=None):
+        if items is None:
+            items = []
+        return items"#));
+}
+
+// --- Type annotations in classes ---
+#[test]
+fn test_class_annotation_classvar() {
+    assert!(transpile_ok(r#"from typing import ClassVar
+
+class Counter:
+    count: ClassVar[int] = 0"#));
+}
+
+#[test]
+fn test_class_annotation_generic_field() {
+    assert!(transpile_ok(r#"from typing import List, Optional
+
+class Node:
+    children: List['Node']
+    parent: Optional['Node']
+
+    def __init__(self):
+        self.children = []
+        self.parent = None"#));
+}
