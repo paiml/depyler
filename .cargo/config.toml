@@ -1,39 +1,42 @@
-# Cargo configuration for Depyler
-# Fixes linker issues by using system cc instead of lld
+# Cargo configuration for Depyler (bashrs-style quality tooling)
+# Spec: docs/specifications/bashrs-style-quality.md
 
 [target.x86_64-unknown-linux-gnu]
-linker = "cc"
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+[target.'cfg(all())']
+rustflags = [
+    # PHASE 1: Safety lints (WARN - promote to DENY after cleanup)
+    "-W", "clippy::unwrap_used",
+    "-W", "clippy::expect_used",
+    "-W", "clippy::panic",
+    "-W", "clippy::indexing_slicing",
+
+    # PHASE 2: Development hygiene
+    "-W", "clippy::todo",
+    "-W", "clippy::unimplemented",
+    "-W", "clippy::dbg_macro",
+
+    # PHASE 3: Quality lints
+    "-W", "clippy::cargo",
+]
 
 [build]
-# Use multiple CPU cores for parallel compilation
-# jobs = 8  # Uncomment to limit parallel jobs
+# Centralize build artifacts to prevent nested target directories
+target-dir = "target"
 
-[profile.dev]
-# Faster builds for development
-opt-level = 0
-debug = true
-
-[profile.release]
-# Optimize for performance
-opt-level = 3
-lto = "thin"
-codegen-units = 1
-
-[profile.min-size]
-# Optimize for binary size
-inherits = "release"
-opt-level = "z"
-lto = "fat"
-strip = true
-panic = "abort"
-
-# Environment variables
 [env]
-# Disable colored output in CI environments
 CARGO_TERM_COLOR = { value = "always", force = true }
 
 # Cargo aliases for common tasks
 [alias]
+# Strict clippy (CI mode)
+xclippy = "clippy --all-targets --all-features -- -D warnings"
+xtest = "test --all-features"
+xbuild = "build --all-features"
+xcheck = "check --all-features"
+
 # Two-phase coverage workflow (production pattern)
 cov = "llvm-cov --no-report nextest"
 cov-test = "llvm-cov --no-report test --workspace --all-features"

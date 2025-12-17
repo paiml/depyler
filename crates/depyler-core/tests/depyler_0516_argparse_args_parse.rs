@@ -241,8 +241,8 @@ if __name__ == "__main__":
 
     let rust_code = result.unwrap();
 
-    // Write to temp file and try to compile
-    std::fs::write("/tmp/depyler_0516_test.rs", &rust_code).unwrap();
+    // Write to temp file and try to compile (note: just for debugging, doesn't actually compile)
+    // No need to write temp file - structural check is sufficient
 
     // Note: We can't actually compile here without rustc, but we can check the structure
     let _has_struct = rust_code.contains("struct Args");
@@ -284,8 +284,7 @@ if __name__ == "__main__":
 
     let rust_code = result.unwrap();
 
-    // Write to temp file for debugging
-    std::fs::write("/tmp/depyler_0516_main_return.rs", &rust_code).unwrap();
+    // Note: Temp file write removed for parallel test safety (DEPYLER-1028)
 
     // CRITICAL: Must have Args::parse() call
     assert!(

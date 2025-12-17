@@ -11,6 +11,18 @@
 #![allow(non_snake_case)]
 
 use depyler_core::DepylerPipeline;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// DEPYLER-1028: Use unique temp files to prevent race conditions in parallel tests
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_path() -> (String, String) {
+    let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let pid = std::process::id();
+    let rs_file = format!("/tmp/depyler_0439_{}_{}.rs", pid, id);
+    let rlib_file = format!("/tmp/libdepyler_0439_{}_{}.rlib", pid, id);
+    (rs_file, rlib_file)
+}
 
 /// Unit Test 1: Simple If-Elif-Else Variable Reassignment
 ///
@@ -286,8 +298,8 @@ def test_func():
     let result = pipeline.transpile(source).unwrap();
 
     // Write to temp file and attempt compilation
-    let temp_file = "/tmp/depyler_0439_compile_test.rs";
-    std::fs::write(temp_file, &result).unwrap();
+    let (temp_file, temp_rlib) = unique_temp_path();
+    std::fs::write(&temp_file, &result).unwrap();
 
     let output = std::process::Command::new("rustc")
         .args([
@@ -295,9 +307,9 @@ def test_func():
             "lib", // Use lib instead of bin (no main needed)
             "--edition",
             "2021",
-            temp_file,
+            &temp_file,
             "-o",
-            "/tmp/libdepyler_0439_test.rlib",
+            &temp_rlib,
         ])
         .output()
         .unwrap();
@@ -312,8 +324,8 @@ def test_func():
     );
 
     // Cleanup
-    let _ = std::fs::remove_file(temp_file);
-    let _ = std::fs::remove_file("/tmp/libdepyler_0439_test.rlib");
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&temp_rlib);
 }
 
 /// Unit Test 8: Deeply Nested Elif Chain (Stress Test)

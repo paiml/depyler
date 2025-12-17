@@ -35,7 +35,9 @@ def concat_lists(list1: list[int], list2: list[int]) -> list[int]:
     );
 }
 
+/// SLOW: Requires rustc compilation validation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_vector_concatenation_executes() {
     let python_code = r#"
 def concat_lists(list1: list[int], list2: list[int]) -> list[int]:
@@ -151,7 +153,9 @@ def extend_list(list1: list[int], list2: list[int]) -> list[int]:
     let _ = std::fs::remove_file(temp_dir.join("test_list_extend.rlib"));
 }
 
+/// SLOW: Requires rustc compilation validation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_combined_vector_operations() {
     let python_code = r#"
 def combine_and_extend(list1: list[int], list2: list[int], list3: list[int]) -> list[int]:

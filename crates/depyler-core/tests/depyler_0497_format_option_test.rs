@@ -11,11 +11,21 @@
 
 use depyler_core::DepylerPipeline;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// DEPYLER-1028: Use unique temp files to prevent race conditions in parallel tests
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_path() -> String {
+    let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let pid = std::process::id();
+    format!("/tmp/depyler_0497_{}_{}.rs", pid, id)
+}
 
 /// Helper function to compile generated Rust code and check for errors
-fn compile_rust_code(rust_code: &str, test_name: &str) -> Result<(), String> {
+fn compile_rust_code(rust_code: &str, _test_name: &str) -> Result<(), String> {
     // Write to temporary file with unique name per test
-    let temp_file = format!("/tmp/depyler_0497_{}.rs", test_name);
+    let temp_file = unique_temp_path();
     std::fs::write(&temp_file, rust_code).map_err(|e| format!("Write failed: {}", e))?;
 
     // Try to compile
@@ -23,6 +33,9 @@ fn compile_rust_code(rust_code: &str, test_name: &str) -> Result<(), String> {
         .args(["--crate-type", "lib", "--deny", "warnings", &temp_file])
         .output()
         .map_err(|e| format!("Rustc execution failed: {}", e))?;
+
+    // Cleanup
+    let _ = std::fs::remove_file(&temp_file);
 
     if output.status.success() {
         Ok(())

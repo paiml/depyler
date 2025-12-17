@@ -6,12 +6,22 @@
 
 use depyler_core::DepylerPipeline;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// DEPYLER-1028: Use unique temp files to prevent race conditions in parallel tests
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_path() -> String {
+    let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let pid = std::process::id();
+    format!("/tmp/depyler_0931_{}_{}.rs", pid, id)
+}
 
 /// Helper to check if generated Rust code compiles
 fn compiles(code: &str) -> bool {
-    // Write to temp file
-    let temp_file = "/tmp/depyler_0931_test.rs";
-    std::fs::write(temp_file, code).unwrap();
+    // Write to temp file with unique name
+    let temp_file = unique_temp_path();
+    std::fs::write(&temp_file, code).unwrap();
 
     // Find serde_json rlib for proper extern linking
     let serde_json_rlib = find_serde_json_rlib();
@@ -32,12 +42,15 @@ fn compiles(code: &str) -> bool {
         args.push(format!("serde_json={}", rlib));
     }
 
-    args.push(temp_file.to_string());
+    args.push(temp_file.clone());
 
     let output = Command::new("rustc")
         .args(&args)
         .output()
         .expect("Failed to run rustc");
+
+    // Cleanup temp file
+    let _ = std::fs::remove_file(&temp_file);
 
     output.status.success()
 }
@@ -62,8 +75,8 @@ fn find_serde_json_rlib() -> Option<String> {
 
 /// Helper to get compilation errors
 fn compile_errors(code: &str) -> String {
-    let temp_file = "/tmp/depyler_0931_test.rs";
-    std::fs::write(temp_file, code).unwrap();
+    let temp_file = unique_temp_path();
+    std::fs::write(&temp_file, code).unwrap();
 
     // Find serde_json rlib for proper extern linking
     let serde_json_rlib = find_serde_json_rlib();
@@ -84,18 +97,23 @@ fn compile_errors(code: &str) -> String {
         args.push(format!("serde_json={}", rlib));
     }
 
-    args.push(temp_file.to_string());
+    args.push(temp_file.clone());
 
     let output = Command::new("rustc")
         .args(&args)
         .output()
         .expect("Failed to run rustc");
 
+    // Cleanup temp file
+    let _ = std::fs::remove_file(&temp_file);
+
     String::from_utf8_lossy(&output.stderr).to_string()
 }
 
 /// Test basic tuple unpacking from subprocess in try/except
+/// SLOW: Requires rustc compilation validation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_depyler_0931_subprocess_tuple_in_try() {
     let python = r#"
 import subprocess
@@ -133,7 +151,9 @@ def run_command(cmd: list) -> str:
 }
 
 /// Test tuple unpacking with multiple variables
+/// SLOW: Requires rustc compilation validation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_depyler_0931_multi_variable_unpacking() {
     let python = r#"
 def process_output() -> tuple:

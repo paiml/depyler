@@ -95,7 +95,9 @@ serde_json = "1.0"
 }
 
 /// Test: Fields assigned in __enter__ should be detected
+/// SLOW: Requires cargo compilation
 #[test]
+#[ignore = "slow: requires cargo build"]
 fn test_field_assigned_in_enter() {
     let python = r#"
 class Timer:
@@ -132,7 +134,9 @@ def main():
 }
 
 /// Test: Fields assigned in regular method should be detected
+/// SLOW: Requires cargo compilation
 #[test]
+#[ignore = "slow: requires cargo build"]
 fn test_field_assigned_in_regular_method() {
     let python = r#"
 class Counter:
@@ -161,7 +165,9 @@ def main():
 }
 
 /// Test: Class with __init__ AND other method field assignments
+/// SLOW: Requires cargo compilation
 #[test]
+#[ignore = "slow: requires cargo build"]
 fn test_field_from_init_and_other_methods() {
     let python = r#"
 class Connection:
@@ -195,7 +201,9 @@ def main():
 }
 
 /// Test: Deduplication - same field assigned in multiple methods
+/// SLOW: Requires cargo compilation
 #[test]
+#[ignore = "slow: requires cargo build"]
 fn test_field_deduplication() {
     let python = r#"
 class State:

@@ -11,6 +11,18 @@
 #![allow(non_snake_case)] // Test naming convention
 
 use depyler_core::DepylerPipeline;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// DEPYLER-1028: Use unique temp files to prevent race conditions in parallel tests
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_path() -> (String, String) {
+    let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let pid = std::process::id();
+    let rs_file = format!("/tmp/depyler_0436_{}_{}.rs", pid, id);
+    let rlib_file = format!("/tmp/depyler_0436_{}_{}.rlib", pid, id);
+    (rs_file, rlib_file)
+}
 
 /// Helper to transpile Python code
 fn transpile_python(python: &str) -> anyhow::Result<String> {
@@ -150,7 +162,8 @@ def port_number(value):
     let rust = result.unwrap();
 
     // Write to temp file and try to compile
-    std::fs::write("/tmp/depyler_0436_test.rs", &rust).unwrap();
+    let (temp_file, temp_rlib) = unique_temp_path();
+    std::fs::write(&temp_file, &rust).unwrap();
 
     let compile_result = std::process::Command::new("rustc")
         .args([
@@ -158,11 +171,15 @@ def port_number(value):
             "lib",
             "--edition",
             "2021",
-            "/tmp/depyler_0436_test.rs",
+            &temp_file,
             "-o",
-            "/tmp/depyler_0436_test.rlib",
+            &temp_rlib,
         ])
         .output();
+
+    // Cleanup
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&temp_rlib);
 
     assert!(
         compile_result.is_ok(),

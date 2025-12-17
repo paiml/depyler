@@ -11,7 +11,7 @@ retries = 0
 # Target: < 5 minutes for quick feedback during development
 # Excludes SLOW tests, benchmark tests, integration benchmarks, and integration tests that spawn rustc
 # Note: Property test case reduction handled by Makefile via env vars
-filter-expr = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(property_test_benchmarks) and not test(integration_benchmarks) and not test(~test_gh158) and not test(~test_citl) and not test(~cache_warmer) and not test(~hunt_mode)"
+default-filter = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(property_test_benchmarks) and not test(integration_benchmarks) and not test(~test_gh158) and not test(~test_citl) and not test(~cache_warmer) and not test(~hunt_mode)"
 slow-timeout = { period = "30s", grace-period = "5s" }
 retries = 0
 test-threads = "num-cpus"
