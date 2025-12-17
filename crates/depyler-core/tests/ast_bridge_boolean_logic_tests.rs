@@ -158,8 +158,8 @@ class Config:
     let bridge = AstBridge::new();
     let (hir, _type_env) = bridge.python_to_hir(ast).expect("conversion failed");
 
-    // Should skip __str__ and __repr__ but keep normal_method
-    // The AND condition requires BOTH starts and ends with "__"
+    // DEPYLER-0967: __str__ and __repr__ are now ALLOWED (collection protocol methods)
+    // The filter keeps commonly-needed dunder methods including __str__ and __repr__
     assert_eq!(hir.classes.len(), 1);
     let methods: Vec<&str> = hir.classes[0]
         .methods
@@ -167,8 +167,8 @@ class Config:
         .map(|m| m.name.as_str())
         .collect();
 
-    assert!(!methods.contains(&"__str__"), "Should skip __str__");
-    assert!(!methods.contains(&"__repr__"), "Should skip __repr__");
+    assert!(methods.contains(&"__str__"), "Should keep __str__ (collection protocol)");
+    assert!(methods.contains(&"__repr__"), "Should keep __repr__ (collection protocol)");
     assert!(
         methods.contains(&"normal_method"),
         "Should keep normal_method"
@@ -365,13 +365,13 @@ class DataModel:
         "Dataclass should have only explicit fields"
     );
 
-    // Should have methods: __iter__, display_name, fetch_details
-    // Should NOT have: __init__ (no body), __str__ (filtered dunder)
+    // Should have methods: __iter__, __str__, display_name, fetch_details
+    // DEPYLER-0967: __str__ is now KEPT (collection protocol method)
     let method_names: Vec<&str> = class.methods.iter().map(|m| m.name.as_str()).collect();
 
     assert!(
         method_names.contains(&"__iter__"),
         "Should keep special __iter__"
     );
-    assert!(!method_names.contains(&"__str__"), "Should skip __str__");
+    assert!(method_names.contains(&"__str__"), "Should keep __str__ (collection protocol)");
 }

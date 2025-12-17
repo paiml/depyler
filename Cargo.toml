@@ -7,7 +7,6 @@ members = [
     "crates/depyler-annotations",
     "crates/depyler-quality",
     "crates/depyler",
-    "crates/depyler-wasm",
     "crates/depyler-ruchy",
     "crates/depyler-testing",
     "crates/depyler-oracle",
@@ -67,9 +66,6 @@ rustpython-ast = "0.4"
 syn = { version = "2.0", features = ["full", "extra-traits", "visit-mut"] }
 quote = "1.0"
 proc-macro2 = "1.0"
-
-# Analysis
-petgraph = "0.6"
 indexmap = "2.0"
 smallvec = { version = "1.0", features = ["serde"] }
 regex = "1.10"
@@ -95,34 +91,12 @@ dialoguer = "0.11"
 # Async (for MCP)
 tokio = { version = "1.0", features = ["full"] }
 tokio-util = "0.7"
-reqwest = { version = "0.11", default-features = false, features = ["json", "rustls-tls"] }
 
 # MCP SDK
 pmcp = { version = "1.6.0", features = ["validation", "websocket", "http"] }
-pmat = { version = "2.3.0", features = ["rust-ast", "syn"] }
 async-trait = "0.1"
-url = "2.5"
 
-# Security Note: slab v0.4.10 vulnerability (RUSTSEC-2025-0047, CVE-2025-55159)
-# - Transitive dependency from pmcp/futures-util
-# - Vulnerability in get_disjoint_mut() function (likely not used by us)
-# - Cannot upgrade without breaking swc_common compatibility
-# - Waiting for upstream pmcp/pmat to update dependencies
-# - Risk: LOW (function not in our code paths)
-
-# Benchmarking
-criterion = { version = "0.5", features = ["html_reports"] }
-pprof = { version = "0.13", features = ["criterion", "flamegraph"] }
-
-# Testing infrastructure
-verificar = "0.3.2"
-
-# WASM dependencies
-wasm-bindgen = "0.2.100"
-serde-wasm-bindgen = "0.6"
-js-sys = "0.3"
-web-sys = "0.3"
-web-time = "1.1"  # Replaces unmaintained `instant` crate
+# Serialization
 toml = "0.8"
 
 [profile.release]
@@ -157,16 +131,6 @@ incremental = true
 inherits = "release"
 debug = true              # Keep debug info for profiling
 strip = false            # Keep symbols for flamegraphs
-
-# WASM production build profile
-[profile.wasm-production]
-inherits = "release"
-opt-level = "z"          # Size optimization
-lto = "fat"              # Cross-crate inlining
-codegen-units = 1        # Single compilation unit
-strip = true             # Remove debug symbols
-panic = "abort"          # No unwinding
-incremental = false      # Deterministic builds
 
 # Optimize dependencies in all profiles
 [profile.release.package."*"]

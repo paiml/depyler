@@ -22,7 +22,6 @@ tracing.workspace = true
 tokio = { workspace = true, features = ["sync"] }
 tokio-util.workspace = true
 pmcp.workspace = true
-pmat.workspace = true
 async-trait.workspace = true
 syn.workspace = true
 quote.workspace = true

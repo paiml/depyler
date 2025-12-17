@@ -6,29 +6,49 @@
 
 use depyler_core::DepylerPipeline;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+// DEPYLER-1028: Use unique temp files to prevent race conditions in parallel tests
+static TEMP_COUNTER: AtomicU64 = AtomicU64::new(0);
+
+fn unique_temp_path() -> (String, String) {
+    let id = TEMP_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let pid = std::process::id();
+    let rs_file = format!("/tmp/depyler_0945_{}_{}.rs", pid, id);
+    let out_file = format!("/tmp/depyler_0945_{}_{}", pid, id);
+    (rs_file, out_file)
+}
 
 /// Helper to check if generated Rust code compiles
 fn compiles_with_rustc(code: &str) -> bool {
-    let temp_file = "/tmp/depyler_0945_test.rs";
-    std::fs::write(temp_file, code).unwrap();
+    let (temp_file, out_file) = unique_temp_path();
+    std::fs::write(&temp_file, code).unwrap();
 
     let output = Command::new("rustc")
-        .args(["--edition", "2021", temp_file, "--crate-type", "lib", "-o", "/tmp/depyler_0945_test"])
+        .args(["--edition", "2021", &temp_file, "--crate-type", "lib", "-o", &out_file])
         .output()
         .expect("Failed to run rustc");
+
+    // Cleanup
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&out_file);
 
     output.status.success()
 }
 
 /// Get compilation errors
 fn compile_errors(code: &str) -> String {
-    let temp_file = "/tmp/depyler_0945_test.rs";
-    std::fs::write(temp_file, code).unwrap();
+    let (temp_file, out_file) = unique_temp_path();
+    std::fs::write(&temp_file, code).unwrap();
 
     let output = Command::new("rustc")
-        .args(["--edition", "2021", temp_file, "--crate-type", "lib", "-o", "/tmp/depyler_0945_test"])
+        .args(["--edition", "2021", &temp_file, "--crate-type", "lib", "-o", &out_file])
         .output()
         .expect("Failed to run rustc");
+
+    // Cleanup
+    let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&out_file);
 
     String::from_utf8_lossy(&output.stderr).to_string()
 }

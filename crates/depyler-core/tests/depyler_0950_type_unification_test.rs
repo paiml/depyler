@@ -505,8 +505,7 @@ def main() -> List[int]:
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
     // This is a stretch goal - may not compile initially
-    if result.is_ok() {
-        let code = result.unwrap();
+    if let Ok(code) = result {
         if compiles_with_rustc(&code) {
             // Great! We support higher-order functions
         }

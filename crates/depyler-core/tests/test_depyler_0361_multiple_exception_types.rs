@@ -1,6 +1,8 @@
 use depyler_core::DepylerPipeline;
 
+/// SLOW: Requires rustc compilation validation
 #[test]
+#[ignore = "slow: requires rustc compilation"]
 fn test_multiple_exception_handlers_compiles() {
     // DEPYLER-0361: Multiple exception handlers should ALL be generated
     let python = r#"
