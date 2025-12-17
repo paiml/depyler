@@ -2043,3 +2043,434 @@ def foo():
     for char, count in c.most_common(3):
         print(char, count)"#));
 }
+
+// ============================================================================
+// COVERAGE BOOST: Helper Function Tests
+// These tests specifically target uncovered code paths in stmt_gen.rs
+// ============================================================================
+
+// --- expr_returns_usize helper ---
+#[test]
+fn test_expr_returns_usize_len() {
+    // Tests the len() method returning usize path
+    assert!(transpile_ok(r#"def foo():
+    items = [1, 2, 3]
+    x: int = len(items)
+    return x"#));
+}
+
+#[test]
+fn test_expr_returns_usize_count() {
+    // Tests count() method path
+    assert!(transpile_ok(r#"def foo():
+    s = "hello world"
+    x: int = s.count("l")
+    return x"#));
+}
+
+#[test]
+fn test_expr_returns_usize_capacity() {
+    // Tests capacity path
+    assert!(transpile_ok(r#"def foo():
+    items = [1, 2, 3]
+    x = len(items) + len(items)"#));
+}
+
+#[test]
+fn test_expr_returns_usize_binary() {
+    // Tests binary operation with usize
+    assert!(transpile_ok(r#"def foo():
+    items = [1, 2, 3]
+    x: int = len(items) + 1"#));
+}
+
+// --- expr_infers_float helper ---
+#[test]
+fn test_expr_infers_float_literal() {
+    // Float literal path
+    assert!(transpile_ok(r#"def foo():
+    x = 3.14
+    return x"#));
+}
+
+#[test]
+fn test_expr_infers_float_variable() {
+    // Float variable path
+    assert!(transpile_ok(r#"def foo():
+    x: float = 3.14
+    y = x * 2
+    return y"#));
+}
+
+#[test]
+fn test_expr_infers_float_call() {
+    // Function call returning float
+    assert!(transpile_ok(r#"def get_pi() -> float:
+    return 3.14
+
+def foo():
+    x = get_pi()
+    return x"#));
+}
+
+#[test]
+fn test_expr_infers_float_binary() {
+    // Binary operation with float
+    assert!(transpile_ok(r#"def foo():
+    x = 3.14 * 2
+    return x"#));
+}
+
+#[test]
+fn test_expr_infers_float_unary() {
+    // Unary operation preserving float
+    assert!(transpile_ok(r#"def foo():
+    x = -3.14
+    return x"#));
+}
+
+#[test]
+fn test_expr_infers_float_ifexpr() {
+    // IfExpr with both branches float
+    assert!(transpile_ok(r#"def foo(cond):
+    x = 3.14 if cond else 2.71
+    return x"#));
+}
+
+// --- is_iterator_producing_expr helper ---
+#[test]
+fn test_is_iterator_generator_expr() {
+    // Generator expression produces iterator
+    assert!(transpile_ok(r#"def foo():
+    gen = (x * 2 for x in range(10))
+    for item in gen:
+        print(item)"#));
+}
+
+#[test]
+fn test_is_iterator_map_chain() {
+    // Method chain ending in iterator adapter
+    assert!(transpile_ok(r#"def foo(items):
+    for item in items.iter().map(lambda x: x * 2):
+        print(item)"#));
+}
+
+#[test]
+fn test_is_iterator_filter_chain() {
+    assert!(transpile_ok(r#"def foo(items):
+    for item in items.iter().filter(lambda x: x > 0):
+        print(item)"#));
+}
+
+#[test]
+fn test_is_iterator_enumerate_builtin() {
+    // enumerate() produces iterator
+    assert!(transpile_ok(r#"def foo(items):
+    for i, x in enumerate(items):
+        print(i, x)"#));
+}
+
+#[test]
+fn test_is_iterator_zip_builtin() {
+    // zip() produces iterator
+    assert!(transpile_ok(r#"def foo(a, b):
+    for x, y in zip(a, b):
+        print(x, y)"#));
+}
+
+#[test]
+fn test_is_iterator_reversed_builtin() {
+    // reversed() produces iterator
+    assert!(transpile_ok(r#"def foo(items):
+    for item in reversed(items):
+        print(item)"#));
+}
+
+// --- is_numpy_value_expr helper ---
+#[test]
+fn test_is_numpy_array_call() {
+    // np.array() detection
+    assert!(transpile_ok(r#"import numpy as np
+def foo():
+    arr = np.array([1, 2, 3])
+    return arr"#));
+}
+
+#[test]
+fn test_is_numpy_zeros() {
+    // np.zeros() detection
+    assert!(transpile_ok(r#"import numpy as np
+def foo():
+    arr = np.zeros(10)
+    return arr"#));
+}
+
+#[test]
+fn test_is_numpy_binary_op() {
+    // Binary operation on numpy arrays
+    assert!(transpile_ok(r#"import numpy as np
+def foo():
+    a = np.array([1, 2, 3])
+    b = np.array([4, 5, 6])
+    c = a + b
+    return c"#));
+}
+
+#[test]
+fn test_is_numpy_method_call() {
+    // numpy method call (abs, sqrt, etc.)
+    assert!(transpile_ok(r#"import numpy as np
+def foo():
+    arr = np.array([1, 2, 3])
+    result = np.abs(arr)
+    return result"#));
+}
+
+#[test]
+fn test_is_numpy_ternary() {
+    // Ternary with numpy branches
+    assert!(transpile_ok(r#"import numpy as np
+def foo(cond):
+    a = np.zeros(3) if cond else np.ones(3)
+    return a"#));
+}
+
+// --- needs_type_conversion / apply_type_conversion helpers ---
+#[test]
+fn test_needs_conversion_int_from_len() {
+    // len() -> int requires conversion
+    assert!(transpile_ok(r#"def foo() -> int:
+    items = [1, 2, 3]
+    return len(items)"#));
+}
+
+#[test]
+fn test_needs_conversion_string_from_var() {
+    // Variable as String requires .to_string()
+    assert!(transpile_ok(r#"def foo(s: str) -> str:
+    return s"#));
+}
+
+#[test]
+fn test_apply_conversion_i32_cast() {
+    // Test as i32 cast application
+    assert!(transpile_ok(r#"def foo():
+    items = [1, 2, 3]
+    x: int = len(items) + len(items)
+    return x"#));
+}
+
+// --- extract_nested_indices_tokens helper ---
+#[test]
+fn test_nested_dict_access() {
+    // Nested dictionary access for assignment
+    assert!(transpile_ok(r#"def foo():
+    d = {"a": {"b": 1}}
+    d["a"]["b"] = 42"#));
+}
+
+#[test]
+fn test_deep_nested_dict_access() {
+    // Deep nested dictionary access
+    assert!(transpile_ok(r#"def foo():
+    d = {"a": {"b": {"c": 1}}}
+    d["a"]["b"]["c"] = 42"#));
+}
+
+#[test]
+fn test_nested_list_access() {
+    // Nested list access
+    assert!(transpile_ok(r#"def foo():
+    m = [[1, 2], [3, 4]]
+    m[0][1] = 10"#));
+}
+
+// --- Argparse handler coverage ---
+#[test]
+fn test_argparse_add_argument_basic() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("file")
+    args = parser.parse_args()
+    print(args.file)"#));
+}
+
+#[test]
+fn test_argparse_add_argument_with_type() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--count", type=int)
+    args = parser.parse_args()
+    print(args.count)"#));
+}
+
+#[test]
+fn test_argparse_add_argument_with_help() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verbose", help="Enable verbose mode")
+    args = parser.parse_args()"#));
+}
+
+#[test]
+fn test_argparse_add_argument_with_action() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--verbose", action="store_true")
+    args = parser.parse_args()"#));
+}
+
+#[test]
+fn test_argparse_add_argument_with_nargs() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("files", nargs="+")
+    args = parser.parse_args()"#));
+}
+
+#[test]
+fn test_argparse_add_argument_required() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", required=True)
+    args = parser.parse_args()"#));
+}
+
+#[test]
+fn test_argparse_subparsers() {
+    assert!(transpile_ok(r#"import argparse
+def main():
+    parser = argparse.ArgumentParser()
+    subparsers = parser.add_subparsers()
+    sub = subparsers.add_parser("run")
+    sub.add_argument("--fast")
+    args = parser.parse_args()"#));
+}
+
+// --- Callable type inference ---
+#[test]
+fn test_callable_float_return() {
+    // Callable with float return type inference
+    assert!(transpile_ok(r#"from typing import Callable
+def foo(f: Callable[[float], float], x: float) -> float:
+    return f(x)"#));
+}
+
+#[test]
+fn test_callable_int_return() {
+    assert!(transpile_ok(r#"from typing import Callable
+def foo(f: Callable[[int], int], x: int) -> int:
+    return f(x)"#));
+}
+
+// --- Additional statement patterns ---
+#[test]
+fn test_global_statement_coverage() {
+    // Additional coverage for global keyword
+    assert!(transpile_ok(r#"x = 0
+y = 0
+def foo():
+    global x, y
+    x = 42
+    y = 100"#));
+}
+
+#[test]
+fn test_nonlocal_statement_coverage() {
+    // Additional coverage for nonlocal in nested function
+    assert!(transpile_ok(r#"def outer():
+    x = 0
+    y = 0
+    def inner():
+        nonlocal x, y
+        x = 42
+        y = 100
+    inner()
+    return x + y"#));
+}
+
+#[test]
+fn test_delete_statement_coverage() {
+    // Additional coverage for del statement
+    assert!(transpile_ok(r#"def foo():
+    x = 42
+    y = 10
+    del x
+    del y"#));
+}
+
+#[test]
+fn test_import_from_statement_coverage() {
+    // Additional coverage for from import
+    assert!(transpile_ok(r#"from math import sqrt, pi, ceil
+def foo():
+    return ceil(sqrt(pi))"#));
+}
+
+#[test]
+fn test_import_as_statement_coverage() {
+    // Additional coverage for import as
+    assert!(transpile_ok(r#"import math as m
+import os as operating_system
+def foo():
+    return m.sqrt(2)"#));
+}
+
+// --- Exception handling edge cases ---
+#[test]
+fn test_reraise_exception() {
+    assert!(transpile_ok(r#"def foo():
+    try:
+        raise ValueError("error")
+    except:
+        raise"#));
+}
+
+#[test]
+fn test_exception_with_message() {
+    assert!(transpile_ok(r#"def foo():
+    raise ValueError("something went wrong")"#));
+}
+
+// --- Float comparison coercion ---
+#[test]
+fn test_float_comparison_zero() {
+    // Float comparison with literal 0
+    assert!(transpile_ok(r#"def foo(x: float) -> bool:
+    return x > 0"#));
+}
+
+#[test]
+fn test_float_binary_comparison() {
+    // Complex float expression comparison
+    assert!(transpile_ok(r#"def foo(a: float, b: float) -> bool:
+    return a * b > 0"#));
+}
+
+// --- Augmented assignment edge cases ---
+#[test]
+fn test_augmented_assign_dict_key() {
+    assert!(transpile_ok(r#"def foo():
+    d = {"count": 0}
+    d["count"] += 1"#));
+}
+
+#[test]
+fn test_augmented_assign_list_index() {
+    assert!(transpile_ok(r#"def foo():
+    lst = [1, 2, 3]
+    lst[0] += 10"#));
+}
+
+#[test]
+fn test_augmented_assign_nested() {
+    assert!(transpile_ok(r#"def foo():
+    d = {"a": {"b": 0}}
+    d["a"]["b"] += 1"#));
+}
