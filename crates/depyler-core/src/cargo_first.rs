@@ -132,11 +132,25 @@ impl EphemeralWorkspace {
     /// # Poka-Yoke Principle
     /// Uses `--message-format=json` for structured error parsing,
     /// making it impossible to miss or misinterpret compiler messages.
+    ///
+    /// # Coverage Mode Compatibility
+    /// Clears LLVM coverage environment variables to prevent interference
+    /// when running under cargo-llvm-cov. These vars cause compilation
+    /// issues in spawned cargo subprocesses.
     pub fn check(&self) -> Result<CheckResult> {
         let output = Command::new("cargo")
             .arg("check")
             .arg("--message-format=json")
             .current_dir(self.dir.path())
+            // Clear LLVM coverage environment to prevent interference with sub-cargo
+            .env_remove("CARGO_LLVM_COV")
+            .env_remove("CARGO_LLVM_COV_SHOW_ENV")
+            .env_remove("CARGO_LLVM_COV_TARGET_DIR")
+            .env_remove("LLVM_PROFILE_FILE")
+            .env_remove("RUSTFLAGS")
+            .env_remove("CARGO_INCREMENTAL")
+            .env_remove("CARGO_BUILD_JOBS")
+            .env_remove("CARGO_TARGET_DIR")
             .output()
             .context("Failed to run cargo check")?;
 

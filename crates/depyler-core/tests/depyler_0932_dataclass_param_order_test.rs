@@ -37,6 +37,15 @@ edition = "2021"
     let output = Command::new("cargo")
         .args(["build"])
         .current_dir(&temp_dir)
+        // Clear LLVM coverage env to prevent interference under cargo-llvm-cov
+        .env_remove("CARGO_LLVM_COV")
+        .env_remove("CARGO_LLVM_COV_SHOW_ENV")
+        .env_remove("CARGO_LLVM_COV_TARGET_DIR")
+        .env_remove("LLVM_PROFILE_FILE")
+        .env_remove("RUSTFLAGS")
+        .env_remove("CARGO_INCREMENTAL")
+        .env_remove("CARGO_BUILD_JOBS")
+        .env_remove("CARGO_TARGET_DIR")
         .output()
         .expect("Failed to run cargo");
 
@@ -65,6 +74,15 @@ edition = "2021"
     let output = Command::new("cargo")
         .args(["build"])
         .current_dir(&temp_dir)
+        // Clear LLVM coverage env to prevent interference under cargo-llvm-cov
+        .env_remove("CARGO_LLVM_COV")
+        .env_remove("CARGO_LLVM_COV_SHOW_ENV")
+        .env_remove("CARGO_LLVM_COV_TARGET_DIR")
+        .env_remove("LLVM_PROFILE_FILE")
+        .env_remove("RUSTFLAGS")
+        .env_remove("CARGO_INCREMENTAL")
+        .env_remove("CARGO_BUILD_JOBS")
+        .env_remove("CARGO_TARGET_DIR")
         .output()
         .expect("Failed to run cargo");
 
