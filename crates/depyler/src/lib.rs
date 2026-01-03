@@ -75,8 +75,10 @@ use std::process::Command;
 use std::time::{Duration, Instant};
 
 pub mod agent;
+pub mod analyze_shim;
 pub mod annotation_analyzer;
 pub mod compilation_trainer;
+pub mod compilation_trainer_shim;
 pub mod compile_cmd;
 pub mod converge;
 pub mod debug_cmd;
@@ -84,7 +86,9 @@ pub mod docs_cmd;
 pub mod interactive;
 pub mod profile_cmd;
 pub mod report_cmd;
+pub mod report_shim;
 pub mod training_monitor;
+pub mod transpile_shim;
 pub mod utol_cmd;
 
 #[derive(Parser)]

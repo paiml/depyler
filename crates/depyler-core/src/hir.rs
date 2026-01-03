@@ -647,3 +647,426 @@ impl Type {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use smallvec::smallvec;
+
+    #[test]
+    fn test_type_is_numeric() {
+        assert!(Type::Int.is_numeric());
+        assert!(Type::Float.is_numeric());
+        assert!(!Type::String.is_numeric());
+        assert!(!Type::Bool.is_numeric());
+        assert!(!Type::None.is_numeric());
+    }
+
+    #[test]
+    fn test_type_is_container() {
+        assert!(Type::List(Box::new(Type::Int)).is_container());
+        assert!(Type::Dict(Box::new(Type::String), Box::new(Type::Int)).is_container());
+        assert!(Type::Tuple(vec![Type::Int, Type::String]).is_container());
+        assert!(Type::Set(Box::new(Type::Int)).is_container());
+        assert!(!Type::Int.is_container());
+        assert!(!Type::String.is_container());
+    }
+
+    #[test]
+    fn test_type_equality() {
+        assert_eq!(Type::Int, Type::Int);
+        assert_eq!(Type::String, Type::String);
+        assert_ne!(Type::Int, Type::Float);
+    }
+
+    #[test]
+    fn test_type_clone() {
+        let ty = Type::List(Box::new(Type::Int));
+        let cloned = ty.clone();
+        assert_eq!(ty, cloned);
+    }
+
+    #[test]
+    fn test_hir_module_creation() {
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+        };
+        assert!(module.functions.is_empty());
+        assert!(module.imports.is_empty());
+    }
+
+    #[test]
+    fn test_hir_function_creation() {
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        assert_eq!(func.name, "test");
+        assert_eq!(func.ret_type, Type::Int);
+    }
+
+    #[test]
+    fn test_hir_param_new() {
+        let param = HirParam::new("x".to_string(), Type::Int);
+        assert_eq!(param.name, "x");
+        assert_eq!(param.ty, Type::Int);
+        assert!(param.default.is_none());
+    }
+
+    #[test]
+    fn test_hir_param_with_default() {
+        let param = HirParam::with_default("y".to_string(), Type::Int, HirExpr::Literal(Literal::Int(42)));
+        assert_eq!(param.name, "y");
+        assert!(param.default.is_some());
+    }
+
+    #[test]
+    fn test_function_properties_default() {
+        let props = FunctionProperties::default();
+        assert!(!props.is_generator);
+        assert!(!props.is_async);
+        assert!(!props.is_pure);
+        assert!(!props.can_fail);
+    }
+
+    #[test]
+    fn test_literal_types() {
+        assert_eq!(Literal::Int(42), Literal::Int(42));
+        assert_eq!(Literal::Float(3.14), Literal::Float(3.14));
+        assert_eq!(Literal::String("test".to_string()), Literal::String("test".to_string()));
+        assert_eq!(Literal::Bool(true), Literal::Bool(true));
+        assert_eq!(Literal::None, Literal::None);
+    }
+
+    #[test]
+    fn test_assign_target_symbol() {
+        let target = AssignTarget::Symbol("x".to_string());
+        assert!(matches!(target, AssignTarget::Symbol(_)));
+    }
+
+    #[test]
+    fn test_assign_target_tuple() {
+        let target = AssignTarget::Tuple(vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ]);
+        if let AssignTarget::Tuple(items) = target {
+            assert_eq!(items.len(), 2);
+        } else {
+            panic!("Expected Tuple");
+        }
+    }
+
+    #[test]
+    fn test_binop_variants() {
+        let ops = [
+            BinOp::Add, BinOp::Sub, BinOp::Mul, BinOp::Div,
+            BinOp::Mod, BinOp::Pow, BinOp::Eq, BinOp::NotEq,
+            BinOp::Lt, BinOp::LtEq, BinOp::Gt, BinOp::GtEq,
+            BinOp::And, BinOp::Or, BinOp::FloorDiv,
+            BinOp::BitAnd, BinOp::BitOr, BinOp::BitXor,
+            BinOp::LShift, BinOp::RShift, BinOp::In, BinOp::NotIn,
+        ];
+        for op in ops {
+            assert_eq!(op, op);
+        }
+    }
+
+    #[test]
+    fn test_unaryop_variants() {
+        assert_eq!(UnaryOp::Not, UnaryOp::Not);
+        assert_eq!(UnaryOp::Neg, UnaryOp::Neg);
+    }
+
+    #[test]
+    fn test_hir_expr_var() {
+        let expr = HirExpr::Var("x".to_string());
+        if let HirExpr::Var(name) = expr {
+            assert_eq!(name, "x");
+        } else {
+            panic!("Expected Var");
+        }
+    }
+
+    #[test]
+    fn test_hir_expr_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        if let HirExpr::Literal(Literal::Int(n)) = expr {
+            assert_eq!(n, 42);
+        } else {
+            panic!("Expected Int literal");
+        }
+    }
+
+    #[test]
+    fn test_hir_expr_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        if let HirExpr::Binary { op, .. } = expr {
+            assert_eq!(op, BinOp::Add);
+        } else {
+            panic!("Expected Binary");
+        }
+    }
+
+    #[test]
+    fn test_hir_expr_unary() {
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(42))),
+        };
+        assert!(matches!(expr, HirExpr::Unary { op: UnaryOp::Neg, .. }));
+    }
+
+    #[test]
+    fn test_hir_expr_call() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
+            kwargs: vec![],
+        };
+        if let HirExpr::Call { func, args, .. } = expr {
+            assert_eq!(func, "print");
+            assert_eq!(args.len(), 1);
+        } else {
+            panic!("Expected Call");
+        }
+    }
+
+    #[test]
+    fn test_hir_expr_list() {
+        let expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        if let HirExpr::List(items) = expr {
+            assert_eq!(items.len(), 2);
+        } else {
+            panic!("Expected List");
+        }
+    }
+
+    #[test]
+    fn test_hir_expr_tuple() {
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("test".to_string())),
+        ]);
+        if let HirExpr::Tuple(items) = expr {
+            assert_eq!(items.len(), 2);
+        } else {
+            panic!("Expected Tuple");
+        }
+    }
+
+    #[test]
+    fn test_hir_expr_dict() {
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Literal(Literal::Int(42)),
+        )]);
+        if let HirExpr::Dict(pairs) = expr {
+            assert_eq!(pairs.len(), 1);
+        } else {
+            panic!("Expected Dict");
+        }
+    }
+
+    #[test]
+    fn test_hir_stmt_assign() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        };
+        assert!(matches!(stmt, HirStmt::Assign { .. }));
+    }
+
+    #[test]
+    fn test_hir_stmt_return() {
+        let stmt1 = HirStmt::Return(None);
+        let stmt2 = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))));
+        assert!(matches!(stmt1, HirStmt::Return(None)));
+        assert!(matches!(stmt2, HirStmt::Return(Some(_))));
+    }
+
+    #[test]
+    fn test_hir_stmt_if() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![],
+            else_body: Some(vec![]),
+        };
+        if let HirStmt::If { else_body, .. } = stmt {
+            assert!(else_body.is_some());
+        } else {
+            panic!("Expected If");
+        }
+    }
+
+    #[test]
+    fn test_hir_stmt_for() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::List(vec![]),
+            body: vec![],
+        };
+        if let HirStmt::For { target, .. } = stmt {
+            assert!(matches!(target, AssignTarget::Symbol(_)));
+        } else {
+            panic!("Expected For");
+        }
+    }
+
+    #[test]
+    fn test_hir_stmt_while() {
+        let stmt = HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![],
+        };
+        assert!(matches!(stmt, HirStmt::While { .. }));
+    }
+
+    #[test]
+    fn test_hir_stmt_expr() {
+        let stmt = HirStmt::Expr(HirExpr::Literal(Literal::Int(42)));
+        if let HirStmt::Expr(e) = stmt {
+            assert!(matches!(e, HirExpr::Literal(Literal::Int(42))));
+        } else {
+            panic!("Expected Expr");
+        }
+    }
+
+    #[test]
+    fn test_import_and_import_item() {
+        let import = Import {
+            module: "os".to_string(),
+            items: vec![ImportItem::Named("path".to_string())],
+        };
+        assert_eq!(import.module, "os");
+        assert_eq!(import.items.len(), 1);
+
+        let aliased = ImportItem::Aliased {
+            name: "path".to_string(),
+            alias: "p".to_string(),
+        };
+        assert!(matches!(aliased, ImportItem::Aliased { .. }));
+    }
+
+    #[test]
+    fn test_const_generic() {
+        assert_eq!(ConstGeneric::Literal(5), ConstGeneric::Literal(5));
+        assert_eq!(ConstGeneric::Parameter("N".to_string()), ConstGeneric::Parameter("N".to_string()));
+        assert_eq!(ConstGeneric::Expression("N + 1".to_string()), ConstGeneric::Expression("N + 1".to_string()));
+    }
+
+    #[test]
+    fn test_type_with_generics() {
+        let ty = Type::Generic {
+            base: "List".to_string(),
+            params: vec![Type::Int],
+        };
+        if let Type::Generic { base, params } = ty {
+            assert_eq!(base, "List");
+            assert_eq!(params.len(), 1);
+        } else {
+            panic!("Expected Generic");
+        }
+    }
+
+    #[test]
+    fn test_type_union() {
+        let ty = Type::Union(vec![Type::Int, Type::String]);
+        if let Type::Union(types) = ty {
+            assert_eq!(types.len(), 2);
+        } else {
+            panic!("Expected Union");
+        }
+    }
+
+    #[test]
+    fn test_type_optional() {
+        let ty = Type::Optional(Box::new(Type::Int));
+        assert!(matches!(ty, Type::Optional(_)));
+    }
+
+    #[test]
+    fn test_type_function() {
+        let ty = Type::Function {
+            params: vec![Type::Int, Type::Int],
+            ret: Box::new(Type::Int),
+        };
+        if let Type::Function { params, ret } = ty {
+            assert_eq!(params.len(), 2);
+            assert_eq!(*ret, Type::Int);
+        } else {
+            panic!("Expected Function");
+        }
+    }
+
+    #[test]
+    fn test_hir_expr_borrow() {
+        let expr = HirExpr::Borrow {
+            expr: Box::new(HirExpr::Var("x".to_string())),
+            mutable: false,
+        };
+        assert!(matches!(expr, HirExpr::Borrow { mutable: false, .. }));
+
+        let mut_expr = HirExpr::Borrow {
+            expr: Box::new(HirExpr::Var("x".to_string())),
+            mutable: true,
+        };
+        assert!(matches!(mut_expr, HirExpr::Borrow { mutable: true, .. }));
+    }
+
+    #[test]
+    fn test_hir_expr_index() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(matches!(expr, HirExpr::Index { .. }));
+    }
+
+    #[test]
+    fn test_hir_expr_attribute() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        if let HirExpr::Attribute { attr, .. } = expr {
+            assert_eq!(attr, "field");
+        } else {
+            panic!("Expected Attribute");
+        }
+    }
+
+    #[test]
+    fn test_hir_expr_method_call() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("lst".to_string())),
+            method: "append".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        if let HirExpr::MethodCall { method, args, .. } = expr {
+            assert_eq!(method, "append");
+            assert_eq!(args.len(), 1);
+        } else {
+            panic!("Expected MethodCall");
+        }
+    }
+}

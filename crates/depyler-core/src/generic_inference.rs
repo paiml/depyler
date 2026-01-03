@@ -851,6 +851,344 @@ mod tests {
     use super::*;
     use crate::hir::*;
 
+    // ========== TypeVarRegistry Tests ==========
+
+    #[test]
+    fn test_type_var_registry_new() {
+        let registry = TypeVarRegistry::new();
+        assert!(registry.type_vars.is_empty());
+        assert!(registry.function_type_params.is_empty());
+    }
+
+    #[test]
+    fn test_type_var_registry_register() {
+        let mut registry = TypeVarRegistry::new();
+        let constraints = TypeVarConstraints {
+            name: "T".to_string(),
+            bounds: vec![TypeBound::TraitBound("Clone".to_string())],
+            variance: Variance::Covariant,
+            default: None,
+        };
+        registry.register_type_var("T".to_string(), constraints);
+        assert!(registry.type_vars.contains_key("T"));
+    }
+
+    #[test]
+    fn test_apply_substitutions_unknown() {
+        let mut subs = HashMap::new();
+        subs.insert("T".to_string(), Type::String);
+
+        let result = TypeVarRegistry::apply_substitutions(&Type::Unknown, &subs);
+        assert_eq!(result, Type::String);
+    }
+
+    #[test]
+    fn test_apply_substitutions_no_match() {
+        let subs = HashMap::new();
+        let result = TypeVarRegistry::apply_substitutions(&Type::Unknown, &subs);
+        assert_eq!(result, Type::Unknown);
+    }
+
+    #[test]
+    fn test_apply_substitutions_list() {
+        let mut subs = HashMap::new();
+        subs.insert("T".to_string(), Type::Int);
+
+        let list_type = Type::List(Box::new(Type::Unknown));
+        let result = TypeVarRegistry::apply_substitutions(&list_type, &subs);
+        assert_eq!(result, Type::List(Box::new(Type::Int)));
+    }
+
+    #[test]
+    fn test_apply_substitutions_dict() {
+        let mut subs = HashMap::new();
+        subs.insert("T".to_string(), Type::Int);
+
+        let dict_type = Type::Dict(Box::new(Type::String), Box::new(Type::Unknown));
+        let result = TypeVarRegistry::apply_substitutions(&dict_type, &subs);
+        assert_eq!(result, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
+    }
+
+    #[test]
+    fn test_apply_substitutions_optional() {
+        let mut subs = HashMap::new();
+        subs.insert("T".to_string(), Type::Float);
+
+        let opt_type = Type::Optional(Box::new(Type::Unknown));
+        let result = TypeVarRegistry::apply_substitutions(&opt_type, &subs);
+        assert_eq!(result, Type::Optional(Box::new(Type::Float)));
+    }
+
+    #[test]
+    fn test_apply_substitutions_tuple() {
+        let mut subs = HashMap::new();
+        subs.insert("T".to_string(), Type::Bool);
+
+        let tuple_type = Type::Tuple(vec![Type::Int, Type::Unknown, Type::String]);
+        let result = TypeVarRegistry::apply_substitutions(&tuple_type, &subs);
+        assert_eq!(result, Type::Tuple(vec![Type::Int, Type::Bool, Type::String]));
+    }
+
+    #[test]
+    fn test_apply_substitutions_concrete() {
+        let subs = HashMap::new();
+        let result = TypeVarRegistry::apply_substitutions(&Type::Int, &subs);
+        assert_eq!(result, Type::Int);
+    }
+
+    #[test]
+    fn test_is_generic_with_type_var() {
+        let mut registry = TypeVarRegistry::new();
+        registry.register_type_var(
+            "T".to_string(),
+            TypeVarConstraints {
+                name: "T".to_string(),
+                bounds: vec![],
+                variance: Variance::Invariant,
+                default: None,
+            },
+        );
+
+        assert!(registry.is_generic(&Type::Custom("T".to_string())));
+        assert!(!registry.is_generic(&Type::Custom("String".to_string())));
+    }
+
+    #[test]
+    fn test_is_generic_nested() {
+        let mut registry = TypeVarRegistry::new();
+        registry.register_type_var(
+            "T".to_string(),
+            TypeVarConstraints {
+                name: "T".to_string(),
+                bounds: vec![],
+                variance: Variance::Invariant,
+                default: None,
+            },
+        );
+
+        assert!(registry.is_generic(&Type::List(Box::new(Type::Custom("T".to_string())))));
+        assert!(registry.is_generic(&Type::Optional(Box::new(Type::Custom("T".to_string())))));
+        assert!(registry.is_generic(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Custom("T".to_string()))
+        )));
+    }
+
+    #[test]
+    fn test_is_generic_tuple() {
+        let mut registry = TypeVarRegistry::new();
+        registry.register_type_var(
+            "T".to_string(),
+            TypeVarConstraints {
+                name: "T".to_string(),
+                bounds: vec![],
+                variance: Variance::Invariant,
+                default: None,
+            },
+        );
+
+        assert!(registry.is_generic(&Type::Tuple(vec![Type::Int, Type::Custom("T".to_string())])));
+        assert!(!registry.is_generic(&Type::Tuple(vec![Type::Int, Type::String])));
+    }
+
+    #[test]
+    fn test_is_generic_function() {
+        let mut registry = TypeVarRegistry::new();
+        registry.register_type_var(
+            "T".to_string(),
+            TypeVarConstraints {
+                name: "T".to_string(),
+                bounds: vec![],
+                variance: Variance::Invariant,
+                default: None,
+            },
+        );
+
+        assert!(registry.is_generic(&Type::Function {
+            params: vec![Type::Custom("T".to_string())],
+            ret: Box::new(Type::Int),
+        }));
+        assert!(registry.is_generic(&Type::Function {
+            params: vec![Type::Int],
+            ret: Box::new(Type::Custom("T".to_string())),
+        }));
+    }
+
+    #[test]
+    fn test_to_rust_generic_no_params() {
+        let registry = TypeVarRegistry::new();
+        assert_eq!(registry.to_rust_generic("Vec", &[]), "Vec");
+    }
+
+    #[test]
+    fn test_to_rust_generic_with_params() {
+        let registry = TypeVarRegistry::new();
+        let result = registry.to_rust_generic("HashMap", &[Type::String, Type::Int]);
+        assert_eq!(result, "HashMap<String, i32>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string() {
+        let registry = TypeVarRegistry::new();
+        assert_eq!(registry.type_to_rust_string(&Type::Int), "i32");
+        assert_eq!(registry.type_to_rust_string(&Type::Float), "f64");
+        assert_eq!(registry.type_to_rust_string(&Type::String), "String");
+        assert_eq!(registry.type_to_rust_string(&Type::Bool), "bool");
+        assert_eq!(registry.type_to_rust_string(&Type::None), "()");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_containers() {
+        let registry = TypeVarRegistry::new();
+        assert_eq!(
+            registry.type_to_rust_string(&Type::List(Box::new(Type::Int))),
+            "Vec<i32>"
+        );
+        assert_eq!(
+            registry.type_to_rust_string(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))),
+            "HashMap<String, i32>"
+        );
+        assert_eq!(
+            registry.type_to_rust_string(&Type::Optional(Box::new(Type::Int))),
+            "Option<i32>"
+        );
+    }
+
+    #[test]
+    fn test_type_to_rust_string_tuple() {
+        let registry = TypeVarRegistry::new();
+        let tuple = Type::Tuple(vec![Type::Int, Type::String, Type::Bool]);
+        assert_eq!(registry.type_to_rust_string(&tuple), "(i32, String, bool)");
+    }
+
+    // ========== TypeVarConstraints Tests ==========
+
+    #[test]
+    fn test_type_var_constraints_clone() {
+        let constraints = TypeVarConstraints {
+            name: "T".to_string(),
+            bounds: vec![TypeBound::TraitBound("Clone".to_string())],
+            variance: Variance::Covariant,
+            default: Some(Type::Int),
+        };
+        let cloned = constraints.clone();
+        assert_eq!(cloned.name, "T");
+        assert_eq!(cloned.variance, Variance::Covariant);
+    }
+
+    #[test]
+    fn test_type_var_constraints_debug() {
+        let constraints = TypeVarConstraints {
+            name: "T".to_string(),
+            bounds: vec![],
+            variance: Variance::Invariant,
+            default: None,
+        };
+        let debug = format!("{:?}", constraints);
+        assert!(debug.contains("TypeVarConstraints"));
+        assert!(debug.contains("name"));
+    }
+
+    // ========== TypeBound Tests ==========
+
+    #[test]
+    fn test_type_bound_equality() {
+        let bound1 = TypeBound::TraitBound("Clone".to_string());
+        let bound2 = TypeBound::TraitBound("Clone".to_string());
+        let bound3 = TypeBound::TraitBound("Debug".to_string());
+        assert_eq!(bound1, bound2);
+        assert_ne!(bound1, bound3);
+    }
+
+    #[test]
+    fn test_type_bound_upper_bound() {
+        let bound = TypeBound::UpperBound(Type::String);
+        assert!(matches!(bound, TypeBound::UpperBound(Type::String)));
+    }
+
+    #[test]
+    fn test_type_bound_union_bound() {
+        let bound = TypeBound::UnionBound(vec![Type::Int, Type::String]);
+        if let TypeBound::UnionBound(types) = bound {
+            assert_eq!(types.len(), 2);
+        } else {
+            panic!("Expected UnionBound");
+        }
+    }
+
+    // ========== Variance Tests ==========
+
+    #[test]
+    fn test_variance_equality() {
+        assert_eq!(Variance::Invariant, Variance::Invariant);
+        assert_eq!(Variance::Covariant, Variance::Covariant);
+        assert_eq!(Variance::Contravariant, Variance::Contravariant);
+        assert_ne!(Variance::Invariant, Variance::Covariant);
+    }
+
+    #[test]
+    fn test_variance_copy() {
+        let v = Variance::Covariant;
+        let v2 = v; // Copy
+        assert_eq!(v, v2);
+    }
+
+    // ========== TypeParameter Tests ==========
+
+    #[test]
+    fn test_type_parameter_clone() {
+        let param = TypeParameter {
+            name: "T".to_string(),
+            bounds: vec!["Clone".to_string(), "Debug".to_string()],
+            default: Some(Type::Int),
+        };
+        let cloned = param.clone();
+        assert_eq!(cloned.name, "T");
+        assert_eq!(cloned.bounds.len(), 2);
+    }
+
+    // ========== GenericType Tests ==========
+
+    #[test]
+    fn test_generic_type_type_var() {
+        let gt = GenericType::TypeVar("T".to_string());
+        assert!(matches!(gt, GenericType::TypeVar(s) if s == "T"));
+    }
+
+    #[test]
+    fn test_generic_type_generic() {
+        let gt = GenericType::Generic {
+            base: Type::List(Box::new(Type::Unknown)),
+            params: vec![GenericType::TypeVar("T".to_string())],
+        };
+        if let GenericType::Generic { params, .. } = gt {
+            assert_eq!(params.len(), 1);
+        }
+    }
+
+    #[test]
+    fn test_generic_type_union() {
+        let gt = GenericType::Union(vec![Type::Int, Type::String]);
+        if let GenericType::Union(types) = gt {
+            assert_eq!(types.len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_generic_type_concrete() {
+        let gt = GenericType::Concrete(Type::Int);
+        assert_eq!(gt, GenericType::Concrete(Type::Int));
+    }
+
+    #[test]
+    fn test_generic_type_clone() {
+        let gt = GenericType::TypeVar("T".to_string());
+        let cloned = gt.clone();
+        assert_eq!(gt, cloned);
+    }
+
+    // ========== TypeVarCollector Tests ==========
+
     #[test]
     fn test_type_var_detection() {
         let mut collector = TypeVarCollector::new();
@@ -863,6 +1201,69 @@ mod tests {
         assert!(collector.type_vars.contains("U"));
         assert!(!collector.type_vars.contains("MyClass"));
     }
+
+    #[test]
+    fn test_type_var_collector_type_var_type() {
+        let mut collector = TypeVarCollector::new();
+        collector.collect_from_type(&Type::TypeVar("V".to_string()));
+        assert!(collector.type_vars.contains("V"));
+    }
+
+    #[test]
+    fn test_type_var_collector_dict_key() {
+        let mut collector = TypeVarCollector::new();
+        let dict = Type::Dict(
+            Box::new(Type::TypeVar("K".to_string())),
+            Box::new(Type::TypeVar("V".to_string())),
+        );
+        collector.collect_from_type(&dict);
+        assert!(collector.type_vars.contains("K"));
+        assert!(collector.type_vars.contains("V"));
+        assert!(collector.dict_key_type_vars.contains("K"));
+    }
+
+    #[test]
+    fn test_type_var_collector_function() {
+        let mut collector = TypeVarCollector::new();
+        let func = Type::Function {
+            params: vec![Type::Custom("T".to_string())],
+            ret: Box::new(Type::Custom("U".to_string())),
+        };
+        collector.collect_from_type(&func);
+        assert!(collector.type_vars.contains("T"));
+        assert!(collector.type_vars.contains("U"));
+    }
+
+    #[test]
+    fn test_type_var_collector_generic() {
+        let mut collector = TypeVarCollector::new();
+        let generic = Type::Generic {
+            base: "Either".to_string(),
+            params: vec![Type::Custom("L".to_string()), Type::Custom("R".to_string())],
+        };
+        collector.collect_from_type(&generic);
+        assert!(collector.type_vars.contains("L"));
+        assert!(collector.type_vars.contains("R"));
+    }
+
+    #[test]
+    fn test_type_var_collector_union() {
+        let mut collector = TypeVarCollector::new();
+        let union = Type::Union(vec![Type::Custom("A".to_string()), Type::Custom("B".to_string())]);
+        collector.collect_from_type(&union);
+        assert!(collector.type_vars.contains("A"));
+        assert!(collector.type_vars.contains("B"));
+    }
+
+    #[test]
+    fn test_type_var_collector_set() {
+        let mut collector = TypeVarCollector::new();
+        let set = Type::Set(Box::new(Type::Custom("T".to_string())));
+        collector.collect_from_type(&set);
+        assert!(collector.type_vars.contains("T"));
+    }
+
+    // ========== Function Inference Tests ==========
 
     #[test]
     fn test_generic_function_inference() {
@@ -887,6 +1288,30 @@ mod tests {
     }
 
     #[test]
+    fn test_infer_type_substitutions() {
+        let registry = TypeVarRegistry::new();
+
+        let func = HirFunction {
+            name: "get_first".to_string(),
+            params: smallvec::smallvec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::String))
+            )],
+            ret_type: Type::String,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let subs = registry.infer_type_substitutions(&func).unwrap();
+        // No type vars in this function, so no substitutions
+        assert!(subs.is_empty() || subs.get("T").is_some());
+    }
+
+    // ========== TypeInference Tests ==========
+
+    #[test]
     fn test_constraint_inference() {
         let mut inference = TypeInference::new();
 
@@ -895,5 +1320,38 @@ mod tests {
         assert!(inference.constraints["T"]
             .iter()
             .any(|c| { matches!(c, TypeConstraint::MustImplement(s) if s == "HasLen") }));
+    }
+
+    #[test]
+    fn test_type_inference_new() {
+        let inference = TypeInference::new();
+        assert!(inference.constraints.is_empty());
+        assert!(inference.substitutions.is_empty());
+    }
+
+    #[test]
+    fn test_add_method_constraint_push() {
+        let mut inference = TypeInference::new();
+        inference.add_method_constraint("T", "push");
+        assert!(inference.constraints["T"]
+            .iter()
+            .any(|c| matches!(c, TypeConstraint::MustImplement(s) if s == "VecLike")));
+    }
+
+    #[test]
+    fn test_add_method_constraint_clone() {
+        let mut inference = TypeInference::new();
+        inference.add_method_constraint("T", "clone");
+        assert!(inference.constraints["T"]
+            .iter()
+            .any(|c| matches!(c, TypeConstraint::MustImplement(s) if s == "Clone")));
+    }
+
+    #[test]
+    fn test_add_method_constraint_unknown() {
+        let mut inference = TypeInference::new();
+        inference.add_method_constraint("T", "unknown_method");
+        // Unknown methods don't add constraints
+        assert!(!inference.constraints.contains_key("T"));
     }
 }

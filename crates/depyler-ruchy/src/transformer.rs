@@ -469,13 +469,182 @@ impl Default for PatternTransformer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::BinaryOp;
+    use crate::ast::{BinaryOp, UnaryOp};
+
+    #[test]
+    fn test_transformer_new() {
+        let t = PatternTransformer::new();
+        assert!(t.enable_pipeline_transform);
+        assert!(t.enable_string_interpolation);
+        assert!(t.enable_dataframe_opt);
+    }
+
+    #[test]
+    fn test_transformer_default() {
+        let t = PatternTransformer::default();
+        assert!(t.enable_pipeline_transform);
+    }
+
+    #[test]
+    fn test_transformer_with_config() {
+        use crate::RuchyConfig;
+        let config = RuchyConfig {
+            use_pipelines: false,
+            use_string_interpolation: false,
+            use_actors: true,
+            optimize_dataframes: false,
+            ..Default::default()
+        };
+        let t = PatternTransformer::with_config(&config);
+        assert!(!t.enable_pipeline_transform);
+        assert!(!t.enable_string_interpolation);
+    }
+
+    #[test]
+    fn test_transform_block() {
+        let transformer = PatternTransformer::new();
+        let block = RuchyExpr::Block(vec![
+            RuchyExpr::Literal(Literal::Integer(1)),
+            RuchyExpr::Literal(Literal::Integer(2)),
+        ]);
+        let result = transformer.transform(block).unwrap();
+        assert!(matches!(result, RuchyExpr::Block(_)));
+    }
+
+    #[test]
+    fn test_transform_if_expr() {
+        let transformer = PatternTransformer::new();
+        let if_expr = RuchyExpr::If {
+            condition: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            then_branch: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            else_branch: Some(Box::new(RuchyExpr::Literal(Literal::Integer(2)))),
+        };
+        let result = transformer.transform(if_expr).unwrap();
+        assert!(matches!(result, RuchyExpr::If { .. }));
+    }
+
+    #[test]
+    fn test_transform_if_no_else() {
+        let transformer = PatternTransformer::new();
+        let if_expr = RuchyExpr::If {
+            condition: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            then_branch: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            else_branch: None,
+        };
+        let result = transformer.transform(if_expr).unwrap();
+        assert!(matches!(result, RuchyExpr::If { else_branch: None, .. }));
+    }
+
+    #[test]
+    fn test_transform_function() {
+        let transformer = PatternTransformer::new();
+        let func = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Literal(Literal::Integer(42))),
+            is_async: false,
+            return_type: None,
+        };
+        let result = transformer.transform(func).unwrap();
+        assert!(matches!(result, RuchyExpr::Function { .. }));
+    }
+
+    #[test]
+    fn test_transform_binary() {
+        let transformer = PatternTransformer::new();
+        let binary = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            op: BinaryOp::Add,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+        };
+        let result = transformer.transform(binary).unwrap();
+        assert!(matches!(result, RuchyExpr::Binary { .. }));
+    }
+
+    #[test]
+    fn test_transform_unary() {
+        let transformer = PatternTransformer::new();
+        let unary = RuchyExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(RuchyExpr::Literal(Literal::Bool(false))),
+        };
+        let result = transformer.transform(unary).unwrap();
+        assert!(matches!(result, RuchyExpr::Unary { .. }));
+    }
+
+    #[test]
+    fn test_transform_lambda() {
+        let transformer = PatternTransformer::new();
+        let lambda = RuchyExpr::Lambda {
+            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
+            body: Box::new(RuchyExpr::Identifier("x".to_string())),
+        };
+        let result = transformer.transform(lambda).unwrap();
+        assert!(matches!(result, RuchyExpr::Lambda { .. }));
+    }
+
+    #[test]
+    fn test_transform_list() {
+        let transformer = PatternTransformer::new();
+        let list = RuchyExpr::List(vec![
+            RuchyExpr::Literal(Literal::Integer(1)),
+            RuchyExpr::Literal(Literal::Integer(2)),
+        ]);
+        let result = transformer.transform(list).unwrap();
+        assert!(matches!(result, RuchyExpr::List(_)));
+    }
+
+    #[test]
+    fn test_transform_method_call() {
+        let transformer = PatternTransformer::new();
+        let call = RuchyExpr::MethodCall {
+            receiver: Box::new(RuchyExpr::Identifier("obj".to_string())),
+            method: "foo".to_string(),
+            args: vec![],
+        };
+        let result = transformer.transform(call).unwrap();
+        assert!(matches!(result, RuchyExpr::MethodCall { .. }));
+    }
+
+    #[test]
+    fn test_transform_match() {
+        let transformer = PatternTransformer::new();
+        let m = RuchyExpr::Match {
+            expr: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            arms: vec![],
+        };
+        let result = transformer.transform(m).unwrap();
+        assert!(matches!(result, RuchyExpr::Match { .. }));
+    }
+
+    #[test]
+    fn test_transform_while() {
+        let transformer = PatternTransformer::new();
+        let w = RuchyExpr::While {
+            condition: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            body: Box::new(RuchyExpr::Literal(Literal::Unit)),
+        };
+        let result = transformer.transform(w).unwrap();
+        assert!(matches!(result, RuchyExpr::While { .. }));
+    }
+
+    #[test]
+    fn test_transform_let() {
+        let transformer = PatternTransformer::new();
+        let l = RuchyExpr::Let {
+            name: "x".to_string(),
+            value: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            body: Box::new(RuchyExpr::Identifier("x".to_string())),
+            is_mutable: false,
+        };
+        let result = transformer.transform(l).unwrap();
+        assert!(matches!(result, RuchyExpr::Let { .. }));
+    }
 
     #[test]
     fn test_pipeline_transformation() {
         let transformer = PatternTransformer::new();
 
-        // Simulated list comprehension structure
         let comp_expr = RuchyExpr::Call {
             func: Box::new(RuchyExpr::Identifier("list_comp".to_string())),
             args: vec![
@@ -499,8 +668,6 @@ mod tests {
         };
 
         let result = transformer.transform(comp_expr).unwrap();
-
-        // Should be transformed to pipeline
         assert!(matches!(result, RuchyExpr::Pipeline { .. }));
     }
 
@@ -508,7 +675,6 @@ mod tests {
     fn test_string_interpolation_transformation() {
         let transformer = PatternTransformer::new();
 
-        // Simulated string.format() call
         let format_expr = RuchyExpr::Call {
             func: Box::new(RuchyExpr::FieldAccess {
                 object: Box::new(RuchyExpr::Literal(Literal::String(
@@ -520,8 +686,6 @@ mod tests {
         };
 
         let result = transformer.transform(format_expr).unwrap();
-
-        // Should be transformed to string interpolation
         assert!(matches!(result, RuchyExpr::StringInterpolation { .. }));
     }
 }

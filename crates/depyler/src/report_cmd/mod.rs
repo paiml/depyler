@@ -1077,3 +1077,187 @@ fn build_co_occurrence_map(results: &[CompileResult]) -> HashMap<(String, String
     // Build co-occurrence from file errors
     extract_co_occurrences(&file_errors)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_error_rust_error_code() {
+        let stderr = "error[E0425]: cannot find value `x` in this scope";
+        let (code, msg) = extract_error(stderr);
+        assert_eq!(code, "E0425");
+        assert!(msg.contains("cannot find value"));
+    }
+
+    #[test]
+    fn test_extract_error_transpile() {
+        let stderr = "Error: Failed to transpile\nCaused by:\n  Expression type not yet supported: Lambda";
+        let (code, msg) = extract_error(stderr);
+        assert_eq!(code, "TRANSPILE");
+        assert!(msg.contains("Expression type not yet supported"));
+    }
+
+    #[test]
+    fn test_extract_error_unsupported() {
+        let stderr = "Error: Failed to transpile\nCaused by:\n  Unsupported syntax";
+        let (code, msg) = extract_error(stderr);
+        assert_eq!(code, "TRANSPILE");
+        assert!(msg.contains("Unsupported"));
+    }
+
+    #[test]
+    fn test_extract_error_depyler() {
+        let stderr = "Error: Something went wrong";
+        let (code, msg) = extract_error(stderr);
+        assert_eq!(code, "DEPYLER");
+    }
+
+    #[test]
+    fn test_extract_error_unknown() {
+        let stderr = "some random output";
+        let (code, _) = extract_error(stderr);
+        assert_eq!(code, "UNKNOWN");
+    }
+
+    #[test]
+    fn test_extract_error_strips_ansi() {
+        let stderr = "error[E0308]: \x1b[31mmismatched types\x1b[0m";
+        let (code, msg) = extract_error(stderr);
+        assert_eq!(code, "E0308");
+        assert!(!msg.contains("\x1b"));
+    }
+
+    #[test]
+    fn test_analyze_results_all_pass() {
+        let results = vec![
+            CompileResult { name: "a".into(), success: true, error_code: None, error_message: None, python_source: None },
+            CompileResult { name: "b".into(), success: true, error_code: None, error_message: None, python_source: None },
+        ];
+        let (pass, fail, taxonomy) = analyze_results(&results);
+        assert_eq!(pass, 2);
+        assert_eq!(fail, 0);
+        assert!(taxonomy.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_results_with_failures() {
+        let results = vec![
+            CompileResult { name: "a".into(), success: true, error_code: None, error_message: None, python_source: None },
+            CompileResult { name: "b".into(), success: false, error_code: Some("E0425".into()), error_message: Some("not found".into()), python_source: None },
+            CompileResult { name: "c".into(), success: false, error_code: Some("E0425".into()), error_message: Some("not found".into()), python_source: None },
+            CompileResult { name: "d".into(), success: false, error_code: Some("E0308".into()), error_message: Some("type mismatch".into()), python_source: None },
+        ];
+        let (pass, fail, taxonomy) = analyze_results(&results);
+        assert_eq!(pass, 1);
+        assert_eq!(fail, 3);
+        assert_eq!(taxonomy.get("E0425").unwrap().count, 2);
+        assert_eq!(taxonomy.get("E0308").unwrap().count, 1);
+    }
+
+    #[test]
+    fn test_analyze_results_samples_limited() {
+        let results: Vec<_> = (0..10)
+            .map(|i| CompileResult {
+                name: format!("file{}", i),
+                success: false,
+                error_code: Some("E0425".into()),
+                error_message: Some(format!("error {}", i)),
+                python_source: None,
+            })
+            .collect();
+        let (_, _, taxonomy) = analyze_results(&results);
+        assert_eq!(taxonomy.get("E0425").unwrap().count, 10);
+        assert_eq!(taxonomy.get("E0425").unwrap().samples.len(), 3); // Limited to 3
+    }
+
+    #[test]
+    fn test_error_description_known_codes() {
+        assert!(error_description("E0425").contains("undefined"));
+        assert!(error_description("E0308").contains("type"));
+        assert!(error_description("E0277").contains("Trait"));
+        assert!(error_description("TRANSPILE").contains("transpiler"));
+    }
+
+    #[test]
+    fn test_error_description_unknown() {
+        assert!(error_description("E9999").contains("rustc --explain"));
+    }
+
+    #[test]
+    fn test_fix_recommendation_known_codes() {
+        assert!(fix_recommendation("E0425").contains("codegen"));
+        assert!(fix_recommendation("E0308").contains("type"));
+        assert!(fix_recommendation("TRANSPILE").contains("expr_gen"));
+    }
+
+    #[test]
+    fn test_ascii_bar_full() {
+        let bar = ascii_bar(1.0, 10);
+        assert!(bar.contains("█"));
+    }
+
+    #[test]
+    fn test_ascii_bar_empty() {
+        let bar = ascii_bar(0.0, 10);
+        assert!(bar.contains("░"));
+    }
+
+    #[test]
+    fn test_ascii_bar_half() {
+        let bar = ascii_bar(0.5, 10);
+        // Should have roughly 5 filled and 5 empty
+        assert!(bar.len() > 0);
+    }
+
+    #[test]
+    fn test_ascii_bar_clamps() {
+        let bar1 = ascii_bar(-0.5, 10);
+        let bar2 = ascii_bar(1.5, 10);
+        // Both should produce valid output without panic
+        assert!(bar1.len() > 0);
+        assert!(bar2.len() > 0);
+    }
+
+    #[test]
+    fn test_build_co_occurrence_map_empty() {
+        let results: Vec<CompileResult> = vec![];
+        let map = build_co_occurrence_map(&results);
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn test_build_co_occurrence_map_success_only() {
+        let results = vec![
+            CompileResult { name: "a".into(), success: true, error_code: None, error_message: None, python_source: None },
+        ];
+        let map = build_co_occurrence_map(&results);
+        assert!(map.is_empty());
+    }
+
+    #[test]
+    fn test_default_corpus_path() {
+        // Just verify it returns a PathBuf without panicking
+        let path = default_corpus_path();
+        assert!(path.as_os_str().len() > 0);
+    }
+
+    #[test]
+    fn test_report_args_defaults() {
+        let args = ReportArgs {
+            corpus: None,
+            format: "terminal".into(),
+            output: None,
+            skip_clean: false,
+            target_rate: 0.8,
+            filter: None,
+            tag: None,
+            limit: None,
+            sample: None,
+            bisect: false,
+            fail_fast: false,
+        };
+        assert_eq!(args.target_rate, 0.8);
+        assert!(!args.bisect);
+    }
+}

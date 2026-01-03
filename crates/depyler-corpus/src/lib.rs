@@ -131,11 +131,94 @@ impl CorpusAnalyzer {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+    use taxonomy::BlockerPriority;
 
     #[test]
     fn test_corpus_analyzer_creation() {
         let config = CorpusConfig::default();
         let analyzer = CorpusAnalyzer::new(config);
         assert!(!analyzer.config.skip_clean);
+    }
+
+    #[test]
+    fn test_corpus_analyzer_config_accessor() {
+        let mut config = CorpusConfig::default();
+        config.skip_clean = true;
+        let analyzer = CorpusAnalyzer::new(config);
+        assert!(analyzer.config().skip_clean);
+    }
+
+    #[test]
+    fn test_corpus_config_with_corpus_path() {
+        let config = CorpusConfig::default()
+            .with_corpus_path(PathBuf::from("/tmp/test"));
+        assert_eq!(config.corpus_path, PathBuf::from("/tmp/test"));
+    }
+
+    #[test]
+    fn test_corpus_config_skip_clean() {
+        let mut config = CorpusConfig::default();
+        config.skip_clean = true;
+        assert!(config.skip_clean);
+    }
+
+    #[test]
+    fn test_error_category_all_variants() {
+        assert_eq!(ErrorCategory::from_error_code("E0308"), ErrorCategory::TypeMismatch);
+        assert_eq!(ErrorCategory::from_error_code("E0412"), ErrorCategory::UndefinedType);
+        assert_eq!(ErrorCategory::from_error_code("E0425"), ErrorCategory::UndefinedValue);
+        assert_eq!(ErrorCategory::from_error_code("E0282"), ErrorCategory::TypeAnnotation);
+        assert_eq!(ErrorCategory::from_error_code("E0277"), ErrorCategory::TraitBound);
+        assert_eq!(ErrorCategory::from_error_code("E0502"), ErrorCategory::BorrowCheck);
+        assert_eq!(ErrorCategory::from_error_code("E0503"), ErrorCategory::BorrowCheck);
+        assert_eq!(ErrorCategory::from_error_code("E0505"), ErrorCategory::BorrowCheck);
+        assert_eq!(ErrorCategory::from_error_code("E0106"), ErrorCategory::Lifetime);
+        assert_eq!(ErrorCategory::from_error_code("E0621"), ErrorCategory::Lifetime);
+        assert_eq!(ErrorCategory::from_error_code("E0061"), ErrorCategory::Syntax);
+        assert_eq!(ErrorCategory::from_error_code("E0433"), ErrorCategory::Syntax);
+        assert_eq!(ErrorCategory::from_error_code("E9999"), ErrorCategory::Other);
+    }
+
+    #[test]
+    fn test_error_category_descriptions() {
+        assert!(!ErrorCategory::TypeMismatch.description().is_empty());
+        assert!(!ErrorCategory::UndefinedType.description().is_empty());
+        assert!(!ErrorCategory::UndefinedValue.description().is_empty());
+        assert!(!ErrorCategory::TypeAnnotation.description().is_empty());
+        assert!(!ErrorCategory::TraitBound.description().is_empty());
+        assert!(!ErrorCategory::BorrowCheck.description().is_empty());
+        assert!(!ErrorCategory::Lifetime.description().is_empty());
+        assert!(!ErrorCategory::Syntax.description().is_empty());
+        assert!(!ErrorCategory::Other.description().is_empty());
+    }
+
+    #[test]
+    fn test_rust_error_parse_all_categories() {
+        let e0308 = RustError::parse("error[E0308]: type mismatch").unwrap();
+        assert_eq!(e0308.category, ErrorCategory::TypeMismatch);
+
+        let e0277 = RustError::parse("error[E0277]: trait not satisfied").unwrap();
+        assert_eq!(e0277.category, ErrorCategory::TraitBound);
+    }
+
+    #[test]
+    fn test_blocker_priority_edge_cases() {
+        assert_eq!(BlockerPriority::from_frequency(0, 0), BlockerPriority::P3Low);
+        assert_eq!(BlockerPriority::from_frequency(100, 100), BlockerPriority::P0Critical);
+        assert_eq!(BlockerPriority::from_frequency(11, 100), BlockerPriority::P1High);
+        assert_eq!(BlockerPriority::from_frequency(6, 100), BlockerPriority::P2Medium);
+    }
+
+    #[test]
+    fn test_semantic_classifier_reexport() {
+        let _classifier = SemanticClassifier::default();
+    }
+
+    #[test]
+    fn test_artifact_cleaner_new() {
+        let cleaner = ArtifactCleaner::new(&PathBuf::from("/tmp"));
+        // Just verify it creates without panic
+        let _ = cleaner;
     }
 }
