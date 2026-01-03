@@ -13,7 +13,6 @@ categories = ["development-tools"]
 default = ["gpu", "compressed-models"]
 gpu = ["aprender/gpu"]  # Enable GPU acceleration for ML training
 compressed-models = ["aprender/format-compression"]  # Zstd compression (lossless, 14x smaller)
-local-llm = ["llama-cpp-2"]
 
 [[bin]]
 name = "extract-training-data"
@@ -68,9 +67,6 @@ clap = { version = "4", features = ["derive"] }
 
 # HTTP client for API fallback
 ureq = { version = "2.9", features = ["json"] }
-
-# Local LLM inference via llama.cpp
-llama-cpp-2 = { version = "0.1", optional = true }
 
 [dev-dependencies]
 tempfile.workspace = true

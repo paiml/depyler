@@ -8216,3 +8216,1144 @@ fn captures_outer_scope(
     body.iter()
         .any(|stmt| check_stmt_for_capture(stmt, &local_vars, outer_vars))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::{BinOp, HirExpr, Literal, Type};
+
+    // ============ expr_returns_usize tests ============
+
+    #[test]
+    fn test_expr_returns_usize_len_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("arr".to_string())),
+            method: "len".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_returns_usize(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_count_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("iter".to_string())),
+            method: "count".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_returns_usize(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_capacity_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("vec".to_string())),
+            method: "capacity".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_returns_usize(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_len_call() {
+        let expr = HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![HirExpr::Var("arr".to_string())],
+            kwargs: vec![],
+        };
+        assert!(expr_returns_usize(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_range_call() {
+        let expr = HirExpr::Call {
+            func: "range".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(10))],
+            kwargs: vec![],
+        };
+        assert!(expr_returns_usize(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_binary_with_usize() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("vec".to_string())),
+                method: "len".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(expr_returns_usize(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_simple_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!expr_returns_usize(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_simple_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!expr_returns_usize(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_other_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("vec".to_string())),
+            method: "push".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!expr_returns_usize(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_other_call() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!expr_returns_usize(&expr));
+    }
+
+    // ============ is_iterator_producing_expr tests ============
+
+    #[test]
+    fn test_is_iterator_producing_generator_exp() {
+        let expr = HirExpr::GeneratorExp {
+            element: Box::new(HirExpr::Var("x".to_string())),
+            generators: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_iter_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("vec".to_string())),
+            method: "iter".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_map_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("vec".to_string())),
+                method: "iter".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            method: "map".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_filter_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("iter".to_string())),
+            method: "filter".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_enumerate_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("iter".to_string())),
+            method: "enumerate".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_zip_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("iter".to_string())),
+            method: "zip".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_take_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("iter".to_string())),
+            method: "take".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_skip_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("iter".to_string())),
+            method: "skip".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_rev_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("iter".to_string())),
+            method: "rev".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_call_map() {
+        let expr = HirExpr::Call {
+            func: "map".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_call_filter() {
+        let expr = HirExpr::Call {
+            func: "filter".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_call_reversed() {
+        let expr = HirExpr::Call {
+            func: "reversed".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_simple_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_producing_non_iter_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("vec".to_string())),
+            method: "push".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_iterator_producing_expr(&expr));
+    }
+
+    // ============ looks_like_option_expr tests ============
+
+    #[test]
+    fn test_looks_like_option_ok_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("result".to_string())),
+            method: "ok".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_get_one_arg() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_get_with_default() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "get".to_string(),
+            args: vec![
+                HirExpr::Literal(Literal::String("key".to_string())),
+                HirExpr::Literal(Literal::Int(0)),
+            ],
+            kwargs: vec![],
+        };
+        assert!(!looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_other_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("vec".to_string())),
+            method: "push".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_simple_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!looks_like_option_expr(&expr));
+    }
+
+    // ============ is_file_creating_expr tests ============
+
+    #[test]
+    fn test_is_file_creating_open_call() {
+        let expr = HirExpr::Call {
+            func: "open".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_file_create() {
+        // File.create() is a method call, not a Call with "File::create" func
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("File".to_string())),
+            method: "create".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_file_open_method() {
+        // File.open() is a method call, not a Call
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("File".to_string())),
+            method: "open".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_other_call() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_file_creating_expr(&expr));
+    }
+
+    // ============ is_stdio_expr tests ============
+
+    #[test]
+    fn test_is_stdio_stdout() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "stdout".to_string(),
+        };
+        assert!(is_stdio_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_stderr() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "stderr".to_string(),
+        };
+        assert!(is_stdio_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_other_attr() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "path".to_string(),
+        };
+        assert!(!is_stdio_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_non_attribute() {
+        let expr = HirExpr::Var("stdout".to_string());
+        assert!(!is_stdio_expr(&expr));
+    }
+
+    // ============ is_dict_index_access tests ============
+
+    #[test]
+    fn test_is_dict_index_access_str_key() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("config".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_var_key_dict_name() {
+        // Variable named "dict" with var key - still returns true because of dict-like name heuristics
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("dict".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_var_key_array_name() {
+        // Variable with non-dict name and var key - returns false
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(!is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_int_key() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(!is_dict_index_access(&expr));
+    }
+
+    // ============ is_pure_expression tests ============
+
+    #[test]
+    fn test_is_pure_expr_literal() {
+        assert!(is_pure_expression(&HirExpr::Literal(Literal::Int(42))));
+        assert!(is_pure_expression(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(is_pure_expression(&HirExpr::Literal(Literal::Bool(true))));
+        assert!(is_pure_expression(&HirExpr::Literal(Literal::String("test".to_string()))));
+    }
+
+    #[test]
+    fn test_is_pure_expr_var() {
+        assert!(is_pure_expression(&HirExpr::Var("x".to_string())));
+    }
+
+    #[test]
+    fn test_is_pure_expr_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(is_pure_expression(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expr_call() {
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expr_method_call() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression(&expr));
+    }
+
+    // ============ extract_exception_type tests ============
+
+    #[test]
+    fn test_extract_exception_type_var() {
+        let expr = HirExpr::Var("ValueError".to_string());
+        assert_eq!(extract_exception_type(&expr), "ValueError");
+    }
+
+    #[test]
+    fn test_extract_exception_type_call() {
+        let expr = HirExpr::Call {
+            func: "RuntimeError".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("message".to_string()))],
+            kwargs: vec![],
+        };
+        assert_eq!(extract_exception_type(&expr), "RuntimeError");
+    }
+
+    #[test]
+    fn test_extract_exception_type_other() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert_eq!(extract_exception_type(&expr), "Exception");
+    }
+
+    // ============ Additional helper tests ============
+
+    #[test]
+    fn test_is_iterator_chain_multiple() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::MethodCall {
+                object: Box::new(HirExpr::MethodCall {
+                    object: Box::new(HirExpr::Var("vec".to_string())),
+                    method: "iter".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                }),
+                method: "map".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            method: "filter".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_chain_non_iter_then_iter() {
+        // vec.push(...).iter() - push doesn't produce iterator, but iter does
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("vec".to_string())),
+                method: "push".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            method: "iter".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_iterator_producing_expr(&expr));
+    }
+
+    #[test]
+    fn test_expr_returns_usize_nested_binary() {
+        // (x + y.len()) + 1
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::MethodCall {
+                    object: Box::new(HirExpr::Var("y".to_string())),
+                    method: "len".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                }),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(expr_returns_usize(&expr));
+    }
+
+    // ============ apply_type_conversion tests ============
+
+    #[test]
+    fn test_apply_type_conversion_to_string() {
+        let value_expr: syn::Expr = syn::parse_quote!(x);
+        let result = apply_type_conversion(value_expr, &Type::String);
+        assert!(result.to_token_stream().to_string().contains("to_string"));
+    }
+
+    #[test]
+    fn test_apply_type_conversion_to_other() {
+        let value_expr: syn::Expr = syn::parse_quote!(x);
+        let result = apply_type_conversion(value_expr, &Type::Bool);
+        // For non-numeric non-string types, just returns the original
+        assert_eq!(result.to_token_stream().to_string(), "x");
+    }
+
+    // ============ looks_like_option_expr tests ============
+
+    #[test]
+    fn test_looks_like_option_expr_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_method_ok() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("result".to_string())),
+            method: "ok".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_method_get_no_default() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_method_get_with_default() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "get".to_string(),
+            args: vec![
+                HirExpr::Literal(Literal::String("key".to_string())),
+                HirExpr::Literal(Literal::Int(0)),
+            ],
+            kwargs: vec![],
+        };
+        // With default, it's not Option
+        assert!(!looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Eq,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::None)),
+        };
+        // Binary comparisons don't trigger option detection
+        assert!(!looks_like_option_expr(&expr));
+    }
+
+    // ============ extract_assigned_symbols tests ============
+
+    #[test]
+    fn test_extract_assigned_symbols_simple() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+        ];
+        let symbols = extract_assigned_symbols(&stmts);
+        assert!(symbols.contains("x"));
+    }
+
+    #[test]
+    fn test_extract_assigned_symbols_multiple() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::Literal(Literal::Int(2)),
+                type_annotation: None,
+            },
+        ];
+        let symbols = extract_assigned_symbols(&stmts);
+        assert!(symbols.contains("x"));
+        assert!(symbols.contains("y"));
+    }
+
+    #[test]
+    fn test_extract_assigned_symbols_in_if() {
+        let stmts = vec![
+            HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: HirExpr::Literal(Literal::Int(1)),
+                    type_annotation: None,
+                }],
+                else_body: None,
+            },
+        ];
+        let symbols = extract_assigned_symbols(&stmts);
+        assert!(symbols.contains("x"));
+    }
+
+    // ============ extract_toplevel_assigned_symbols tests ============
+
+    #[test]
+    fn test_extract_toplevel_assigned_symbols_simple() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+        ];
+        let symbols = extract_toplevel_assigned_symbols(&stmts);
+        assert!(symbols.contains("x"));
+    }
+
+    #[test]
+    fn test_extract_toplevel_assigned_symbols_in_if() {
+        let stmts = vec![
+            HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("nested".to_string()),
+                    value: HirExpr::Literal(Literal::Int(1)),
+                    type_annotation: None,
+                }],
+                else_body: None,
+            },
+        ];
+        let symbols = extract_toplevel_assigned_symbols(&stmts);
+        // Includes assignments from if body (considered same scope level)
+        assert!(symbols.contains("nested"));
+    }
+
+    // ============ is_var_used_in_expr tests ============
+
+    #[test]
+    fn test_is_var_used_in_expr_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(is_var_used_in_expr("x", &expr));
+        assert!(!is_var_used_in_expr("y", &expr));
+    }
+
+    #[test]
+    fn test_is_var_used_in_expr_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(is_var_used_in_expr("x", &expr));
+        assert!(!is_var_used_in_expr("y", &expr));
+    }
+
+    #[test]
+    fn test_is_var_used_in_expr_call() {
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_var_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_is_var_used_in_expr_index() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Var("i".to_string())),
+        };
+        assert!(is_var_used_in_expr("arr", &expr));
+        assert!(is_var_used_in_expr("i", &expr));
+    }
+
+    // ============ is_var_used_in_assign_target tests ============
+
+    #[test]
+    fn test_is_var_used_in_assign_target_symbol_match() {
+        let target = AssignTarget::Symbol("x".to_string());
+        // Returns true when symbol name matches
+        assert!(is_var_used_in_assign_target("x", &target));
+    }
+
+    #[test]
+    fn test_is_var_used_in_assign_target_symbol_no_match() {
+        let target = AssignTarget::Symbol("x".to_string());
+        assert!(!is_var_used_in_assign_target("y", &target));
+    }
+
+    #[test]
+    fn test_is_var_used_in_assign_target_index() {
+        let target = AssignTarget::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Var("i".to_string())),
+        };
+        assert!(is_var_used_in_assign_target("i", &target));
+        assert!(is_var_used_in_assign_target("arr", &target));
+    }
+
+    #[test]
+    fn test_is_var_used_in_assign_target_tuple() {
+        let target = AssignTarget::Tuple(vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ]);
+        // Recursively checks tuple elements
+        assert!(is_var_used_in_assign_target("a", &target));
+        assert!(!is_var_used_in_assign_target("c", &target));
+    }
+
+    // ============ is_var_reassigned_in_stmt tests ============
+
+    #[test]
+    fn test_is_var_reassigned_in_stmt_assign() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        };
+        assert!(is_var_reassigned_in_stmt("x", &stmt));
+        assert!(!is_var_reassigned_in_stmt("y", &stmt));
+    }
+
+    #[test]
+    fn test_is_var_reassigned_in_stmt_for_empty_body() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(10))],
+                kwargs: vec![],
+            },
+            body: vec![],
+        };
+        // For checks body for reassignment, not the loop target
+        assert!(!is_var_reassigned_in_stmt("i", &stmt));
+    }
+
+    #[test]
+    fn test_is_var_reassigned_in_stmt_for_with_body() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(10))],
+                kwargs: vec![],
+            },
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            }],
+        };
+        assert!(is_var_reassigned_in_stmt("x", &stmt));
+        assert!(!is_var_reassigned_in_stmt("i", &stmt));
+    }
+
+    // ============ is_var_used_in_stmt tests ============
+
+    #[test]
+    fn test_is_var_used_in_stmt_expr() {
+        let stmt = HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        });
+        assert!(is_var_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_is_var_used_in_stmt_assign_value() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("y".to_string()),
+            value: HirExpr::Var("x".to_string()),
+            type_annotation: None,
+        };
+        assert!(is_var_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_is_var_used_in_stmt_if_condition() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Var("x".to_string()),
+            then_body: vec![],
+            else_body: None,
+        };
+        assert!(is_var_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_is_var_used_in_stmt_while() {
+        let stmt = HirStmt::While {
+            condition: HirExpr::Binary {
+                op: BinOp::Lt,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(10))),
+            },
+            body: vec![],
+        };
+        assert!(is_var_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_is_var_used_in_stmt_return() {
+        let stmt = HirStmt::Return(Some(HirExpr::Var("x".to_string())));
+        assert!(is_var_used_in_stmt("x", &stmt));
+    }
+
+    // ============ is_dict_augassign_pattern tests ============
+
+    #[test]
+    fn test_is_dict_augassign_pattern_not_binary() {
+        // is_dict_augassign_pattern requires value to be a Binary expr with Index left
+        let target = AssignTarget::Index {
+            base: Box::new(HirExpr::Var("counts".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        let value = HirExpr::Literal(Literal::Int(1));
+        // Literal is not a Binary, so returns false
+        assert!(!is_dict_augassign_pattern(&target, &value));
+    }
+
+    #[test]
+    fn test_is_dict_augassign_pattern_non_subscript() {
+        let target = AssignTarget::Symbol("x".to_string());
+        let value = HirExpr::Literal(Literal::Int(1));
+        assert!(!is_dict_augassign_pattern(&target, &value));
+    }
+
+    // ============ is_dict_with_value_type tests ============
+
+    #[test]
+    fn test_is_dict_with_value_type_unknown() {
+        // is_dict_with_value_type returns true for Dict with Unknown or Value/json custom type
+        let t = Type::Dict(Box::new(Type::String), Box::new(Type::Unknown));
+        assert!(is_dict_with_value_type(&t));
+    }
+
+    #[test]
+    fn test_is_dict_with_value_type_json_value() {
+        let t = Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Custom("serde_json::Value".to_string())),
+        );
+        assert!(is_dict_with_value_type(&t));
+    }
+
+    #[test]
+    fn test_is_dict_with_value_type_not_dict() {
+        let t = Type::Int;
+        assert!(!is_dict_with_value_type(&t));
+    }
+
+    // ============ find_var_position_in_tuple tests ============
+
+    #[test]
+    fn test_find_var_position_in_tuple_found() {
+        let targets = vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+            AssignTarget::Symbol("c".to_string()),
+        ];
+        assert_eq!(find_var_position_in_tuple("b", &targets), Some(1));
+    }
+
+    #[test]
+    fn test_find_var_position_in_tuple_not_found() {
+        let targets = vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ];
+        assert_eq!(find_var_position_in_tuple("x", &targets), None);
+    }
+
+    #[test]
+    fn test_find_var_position_in_tuple_nested() {
+        let targets = vec![
+            AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("inner".to_string()),
+            ]),
+            AssignTarget::Symbol("outer".to_string()),
+        ];
+        // Does not search in nested tuples
+        assert_eq!(find_var_position_in_tuple("inner", &targets), None);
+        assert_eq!(find_var_position_in_tuple("outer", &targets), Some(1));
+    }
+
+    // ============ codegen helper tests ============
+
+    #[test]
+    fn test_codegen_pass_stmt() {
+        let result = codegen_pass_stmt();
+        assert!(result.is_ok());
+        // pass generates empty tokens
+        let tokens = result.unwrap().to_string();
+        assert!(tokens.is_empty() || tokens.trim().is_empty());
+    }
+
+    #[test]
+    fn test_codegen_break_stmt_no_label() {
+        let result = codegen_break_stmt(&None);
+        assert!(result.is_ok());
+        let tokens = result.unwrap().to_string();
+        assert!(tokens.contains("break"));
+    }
+
+    #[test]
+    fn test_codegen_break_stmt_with_label() {
+        let result = codegen_break_stmt(&Some("outer".to_string()));
+        assert!(result.is_ok());
+        let tokens = result.unwrap().to_string();
+        assert!(tokens.contains("break"));
+        assert!(tokens.contains("outer"));
+    }
+
+    #[test]
+    fn test_codegen_continue_stmt_no_label() {
+        let result = codegen_continue_stmt(&None);
+        assert!(result.is_ok());
+        let tokens = result.unwrap().to_string();
+        assert!(tokens.contains("continue"));
+    }
+
+    #[test]
+    fn test_codegen_continue_stmt_with_label() {
+        let result = codegen_continue_stmt(&Some("outer".to_string()));
+        assert!(result.is_ok());
+        let tokens = result.unwrap().to_string();
+        assert!(tokens.contains("continue"));
+        assert!(tokens.contains("outer"));
+    }
+
+    // ============ extract_walrus tests ============
+
+    #[test]
+    fn test_extract_walrus_from_condition_no_walrus() {
+        let condition = HirExpr::Var("x".to_string());
+        let (assigns, new_cond) = extract_walrus_from_condition(&condition);
+        assert!(assigns.is_empty());
+        assert!(matches!(new_cond, HirExpr::Var(name) if name == "x"));
+    }
+
+    #[test]
+    fn test_extract_walrus_from_condition_with_walrus() {
+        let condition = HirExpr::NamedExpr {
+            target: "y".to_string(),
+            value: Box::new(HirExpr::Call {
+                func: "get_value".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+        };
+        let (assigns, new_cond) = extract_walrus_from_condition(&condition);
+        assert_eq!(assigns.len(), 1);
+        assert_eq!(assigns[0].0, "y");
+        // New condition should be the variable
+        assert!(matches!(new_cond, HirExpr::Var(name) if name == "y"));
+    }
+
+    #[test]
+    fn test_extract_walrus_recursive_in_binary() {
+        let mut assigns = Vec::new();
+        let expr = HirExpr::Binary {
+            op: BinOp::And,
+            left: Box::new(HirExpr::NamedExpr {
+                target: "a".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Int(1))),
+            }),
+            right: Box::new(HirExpr::Var("b".to_string())),
+        };
+        let _result = extract_walrus_recursive(&expr, &mut assigns);
+        assert_eq!(assigns.len(), 1);
+        assert_eq!(assigns[0].0, "a");
+    }
+
+    // ============ needs_boxed_dyn_write tests ============
+
+    #[test]
+    fn test_needs_boxed_dyn_write_both_branches_use_var() {
+        let then_body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("f".to_string())),
+            method: "write".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        let else_body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("f".to_string())),
+            method: "write".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        // Without knowing the assignments, this returns false
+        // because f is not assigned in the branches
+        assert!(!needs_boxed_dyn_write("f", &then_body, &else_body));
+    }
+
+    // ============ is_var_used_as_dict_key tests ============
+
+    #[test]
+    fn test_is_var_used_as_dict_key_in_expr_index() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("dict".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_var_used_as_dict_key_in_expr("key", &expr));
+        assert!(!is_var_used_as_dict_key_in_expr("dict", &expr));
+    }
+
+    #[test]
+    fn test_is_var_used_as_dict_key_in_expr_not_index() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!is_var_used_as_dict_key_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_is_var_used_as_dict_key_in_stmt_assign() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Index {
+                base: Box::new(HirExpr::Var("dict".to_string())),
+                index: Box::new(HirExpr::Var("k".to_string())),
+            },
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        };
+        assert!(is_var_used_as_dict_key_in_stmt("k", &stmt));
+    }
+
+    // ============ is_var_direct_or_simple_in_expr tests ============
+
+    #[test]
+    fn test_is_var_direct_simple_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(is_var_direct_or_simple_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_is_var_direct_simple_in_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        // Only matches direct Var, not nested in Binary
+        assert!(!is_var_direct_or_simple_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_is_var_direct_simple_not_found() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!is_var_direct_or_simple_in_expr("x", &expr));
+    }
+}

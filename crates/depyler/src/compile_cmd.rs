@@ -154,12 +154,19 @@ fn create_cargo_project(
 
 /// Build the Cargo project
 ///
-/// Complexity: 2 (within ≤10 target)
+/// DEPYLER-0380-FIX: Explicitly set target-dir to avoid inheriting parent project's
+/// .cargo/config.toml target-dir setting which would cause builds to go to wrong location.
+///
+/// Complexity: 3 (within ≤10 target)
 fn build_cargo_project(project_dir: &Path, profile: &str) -> Result<()> {
     let mut cmd = Command::new("cargo");
     cmd.arg("build")
         .arg("--manifest-path")
-        .arg(project_dir.join("Cargo.toml"));
+        .arg(project_dir.join("Cargo.toml"))
+        // Explicitly set target directory to project's own target dir
+        // This prevents inheriting the parent project's .cargo/config.toml target-dir
+        .arg("--target-dir")
+        .arg(project_dir.join("target"));
 
     if profile == "release" {
         cmd.arg("--release");

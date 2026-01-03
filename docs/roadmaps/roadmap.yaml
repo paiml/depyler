@@ -2784,11 +2784,11 @@ roadmap:
   github_issue: null
   item_type: task
   title: 'New task: DEPYLER-COVERAGE-95: Fast coverage like bashrs with 95% target'
-  status: completed
+  status: inprogress
   priority: medium
   assigned_to: null
   created: 2025-12-12T12:06:56.478796900+00:00
-  updated: 2025-12-12T12:10:32.469946389+00:00
+  updated: 2026-01-02T19:07:58.835130266+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -3012,7 +3012,7 @@ roadmap:
   priority: medium
   assigned_to: null
   created: 2025-12-17T09:20:52.667759557+00:00
-  updated: 2025-12-17T09:20:52.667759557+00:00
+  updated: 2026-01-02T17:38:06.402539826+00:00
   spec: null
   acceptance_criteria: []
   phases: []

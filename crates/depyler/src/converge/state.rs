@@ -213,3 +213,188 @@ impl ConvergenceState {
         Ok(state)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_display_mode_from_str() {
+        assert_eq!("rich".parse::<DisplayMode>().unwrap(), DisplayMode::Rich);
+        assert_eq!("RICH".parse::<DisplayMode>().unwrap(), DisplayMode::Rich);
+        assert_eq!("minimal".parse::<DisplayMode>().unwrap(), DisplayMode::Minimal);
+        assert_eq!("json".parse::<DisplayMode>().unwrap(), DisplayMode::Json);
+        assert_eq!("silent".parse::<DisplayMode>().unwrap(), DisplayMode::Silent);
+        assert_eq!("unknown".parse::<DisplayMode>().unwrap(), DisplayMode::Rich);
+    }
+
+    #[test]
+    fn test_display_mode_parse() {
+        assert_eq!(DisplayMode::parse("rich"), DisplayMode::Rich);
+        assert_eq!(DisplayMode::parse("minimal"), DisplayMode::Minimal);
+        assert_eq!(DisplayMode::parse("json"), DisplayMode::Json);
+        assert_eq!(DisplayMode::parse("silent"), DisplayMode::Silent);
+        assert_eq!(DisplayMode::parse("invalid"), DisplayMode::Rich);
+    }
+
+    #[test]
+    fn test_display_mode_default() {
+        assert_eq!(DisplayMode::default(), DisplayMode::Rich);
+    }
+
+    fn test_config() -> ConvergenceConfig {
+        ConvergenceConfig {
+            input_dir: PathBuf::from("/tmp/test"),
+            target_rate: 80.0,
+            max_iterations: 10,
+            auto_fix: false,
+            dry_run: false,
+            verbose: false,
+            fix_confidence_threshold: 0.8,
+            checkpoint_dir: None,
+            parallel_jobs: 4,
+            display_mode: DisplayMode::Rich,
+            oracle: false,
+            explain: false,
+            use_cache: true,
+        }
+    }
+
+    #[test]
+    fn test_convergence_config_validate_valid() {
+        let config = test_config();
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_convergence_config_validate_invalid_target_rate_negative() {
+        let mut config = test_config();
+        config.target_rate = -1.0;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_convergence_config_validate_invalid_target_rate_over_100() {
+        let mut config = test_config();
+        config.target_rate = 101.0;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_convergence_config_validate_invalid_max_iterations() {
+        let mut config = test_config();
+        config.max_iterations = 0;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_convergence_config_validate_invalid_confidence_threshold_negative() {
+        let mut config = test_config();
+        config.fix_confidence_threshold = -0.1;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_convergence_config_validate_invalid_confidence_threshold_over_1() {
+        let mut config = test_config();
+        config.fix_confidence_threshold = 1.1;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_convergence_config_validate_invalid_parallel_jobs() {
+        let mut config = test_config();
+        config.parallel_jobs = 0;
+        assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn test_example_state_new() {
+        let state = ExampleState::new(PathBuf::from("test.py"), true);
+        assert_eq!(state.path, PathBuf::from("test.py"));
+        assert!(state.compiles);
+        assert!(state.errors.is_empty());
+        assert!(state.last_compiled.is_none());
+    }
+
+    #[test]
+    fn test_convergence_state_new() {
+        let config = test_config();
+        let state = ConvergenceState::new(config.clone());
+        assert_eq!(state.iteration, 0);
+        assert_eq!(state.compilation_rate, 0.0);
+        assert!(state.examples.is_empty());
+        assert!(state.error_clusters.is_empty());
+        assert!(state.fixes_applied.is_empty());
+    }
+
+    #[test]
+    fn test_convergence_state_update_compilation_rate_empty() {
+        let config = test_config();
+        let mut state = ConvergenceState::new(config);
+        state.update_compilation_rate();
+        assert_eq!(state.compilation_rate, 0.0);
+    }
+
+    #[test]
+    fn test_convergence_state_update_compilation_rate_all_pass() {
+        let config = test_config();
+        let mut state = ConvergenceState::new(config);
+        state.examples = vec![
+            ExampleState::new(PathBuf::from("a.py"), true),
+            ExampleState::new(PathBuf::from("b.py"), true),
+        ];
+        state.update_compilation_rate();
+        assert_eq!(state.compilation_rate, 100.0);
+    }
+
+    #[test]
+    fn test_convergence_state_update_compilation_rate_mixed() {
+        let config = test_config();
+        let mut state = ConvergenceState::new(config);
+        state.examples = vec![
+            ExampleState::new(PathBuf::from("a.py"), true),
+            ExampleState::new(PathBuf::from("b.py"), false),
+            ExampleState::new(PathBuf::from("c.py"), true),
+            ExampleState::new(PathBuf::from("d.py"), false),
+        ];
+        state.update_compilation_rate();
+        assert_eq!(state.compilation_rate, 50.0);
+    }
+
+    #[test]
+    fn test_convergence_state_checkpoint_roundtrip() {
+        let config = test_config();
+        let mut state = ConvergenceState::new(config);
+        state.iteration = 5;
+        state.compilation_rate = 75.0;
+        state.examples = vec![
+            ExampleState::new(PathBuf::from("test.py"), true),
+        ];
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        state.save_checkpoint(temp_dir.path()).unwrap();
+
+        let loaded = ConvergenceState::load_checkpoint(temp_dir.path()).unwrap();
+        assert_eq!(loaded.iteration, 5);
+        assert_eq!(loaded.compilation_rate, 75.0);
+        assert_eq!(loaded.examples.len(), 1);
+    }
+
+    #[test]
+    fn test_applied_fix_serialization() {
+        let fix = AppliedFix {
+            iteration: 1,
+            error_code: "E0425".to_string(),
+            description: "Fixed undefined variable".to_string(),
+            file_modified: PathBuf::from("src/lib.rs"),
+            commit_hash: Some("abc123".to_string()),
+            verified: true,
+        };
+        let json = serde_json::to_string(&fix).unwrap();
+        let parsed: AppliedFix = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.iteration, 1);
+        assert_eq!(parsed.error_code, "E0425");
+        assert!(parsed.verified);
+    }
+}
