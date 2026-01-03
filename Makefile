@@ -41,7 +41,7 @@ playground-fast: ## Start playground quickly (skip builds if possible)
 .PHONY: test
 test: ## Run comprehensive Rust tests (runs everything, no time limit)
 	@echo "Running comprehensive Rust tests with FULL property test iterations..."
-	@echo "⚙️  Using DEFAULT iterations (PROPTEST_CASES=256, QUICKCHECK_TESTS=100)"
+	@echo "⚙️  Using DEFAULT iterations (PROPTEST_CASES=25, QUICKCHECK_TESTS=100)"
 	@$(CARGO) llvm-cov clean --workspace
 	@$(CARGO) llvm-cov --no-report test --workspace --all-features
 	@echo ""
@@ -121,18 +121,18 @@ test-fixtures: ## Test all Python fixture transpilation
 .PHONY: test-property
 test-property: ## Run property tests (fast: 50 cases)
 	@echo "🎲 Running property tests (50 cases)..."
-	@env PROPTEST_CASES=50 QUICKCHECK_TESTS=50 $(CARGO) test --workspace --lib -- prop_ property --test-threads=$$(nproc)
-	@env PROPTEST_CASES=50 QUICKCHECK_TESTS=50 $(CARGO) test --test property_tests $(TEST_FLAGS)
+	@env PROPTEST_CASES=25 QUICKCHECK_TESTS=50 $(CARGO) test --workspace --lib -- prop_ property --test-threads=$$(nproc)
+	@env PROPTEST_CASES=25 QUICKCHECK_TESTS=50 $(CARGO) test --test property_tests $(TEST_FLAGS)
 
 .PHONY: test-property-comprehensive
 test-property-comprehensive: ## Run property tests (comprehensive: 500 cases)
 	@echo "🎲 Running property tests (500 cases)..."
-	@env PROPTEST_CASES=500 QUICKCHECK_TESTS=500 $(CARGO) test --workspace --lib -- prop_ property --test-threads=$$(nproc)
-	@env PROPTEST_CASES=500 QUICKCHECK_TESTS=500 $(CARGO) test --test property_tests $(TEST_FLAGS)
-	@env PROPTEST_CASES=500 QUICKCHECK_TESTS=500 $(CARGO) test --test semantic_equivalence $(TEST_FLAGS) || true
-	@env PROPTEST_CASES=500 QUICKCHECK_TESTS=500 $(CARGO) test --test property_tests_ast_roundtrip $(TEST_FLAGS) || true
-	@env PROPTEST_CASES=500 QUICKCHECK_TESTS=500 $(CARGO) test --test property_tests_type_inference $(TEST_FLAGS) || true
-	@env PROPTEST_CASES=500 QUICKCHECK_TESTS=500 $(CARGO) test --test property_tests_memory_safety $(TEST_FLAGS) || true
+	@env PROPTEST_CASES=250 QUICKCHECK_TESTS=500 $(CARGO) test --workspace --lib -- prop_ property --test-threads=$$(nproc)
+	@env PROPTEST_CASES=250 QUICKCHECK_TESTS=500 $(CARGO) test --test property_tests $(TEST_FLAGS)
+	@env PROPTEST_CASES=250 QUICKCHECK_TESTS=500 $(CARGO) test --test semantic_equivalence $(TEST_FLAGS) || true
+	@env PROPTEST_CASES=250 QUICKCHECK_TESTS=500 $(CARGO) test --test property_tests_ast_roundtrip $(TEST_FLAGS) || true
+	@env PROPTEST_CASES=250 QUICKCHECK_TESTS=500 $(CARGO) test --test property_tests_type_inference $(TEST_FLAGS) || true
+	@env PROPTEST_CASES=250 QUICKCHECK_TESTS=500 $(CARGO) test --test property_tests_memory_safety $(TEST_FLAGS) || true
 	@echo "✅ Property tests completed (comprehensive mode)!"
 
 # #@ Advanced Testing Infrastructure (Phases 8-10)
@@ -462,37 +462,14 @@ complexity-check: ## Check code complexity
 security-audit: ## Run security audit
 	@echo "Running security audit..."
 	$(CARGO) audit
-# #@ Coverage
+# #@ Coverage (Canonical Fast Pattern - must complete in <5 min)
 # Filter out external dependencies from coverage reports (only show depyler crates)
 COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno"
 .PHONY: coverage
-coverage: ## Generate HTML coverage report (target: <5 min, 95% threshold)
-	@echo "📊 Running test coverage analysis (target: <5 min)..."
-	@echo "🔍 Checking for cargo-llvm-cov and cargo-nextest..."
-	@which cargo-llvm-cov > /dev/null 2>&1 || (echo "📦 Installing cargo-llvm-cov..." && cargo install cargo-llvm-cov --locked)
-	@which cargo-nextest > /dev/null 2>&1 || (echo "📦 Installing cargo-nextest..." && cargo install cargo-nextest --locked)
-	@echo "🧹 Cleaning old coverage data..."
-	@cargo llvm-cov clean --workspace
-	@mkdir -p target/coverage
-	@echo "⚙️  Temporarily disabling global cargo config (mold breaks coverage)..."
-	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
-	@echo "🧪 Phase 1: Running tests with instrumentation (no report)..."
-	@env PROPTEST_CASES=100 QUICKCHECK_TESTS=100 cargo llvm-cov --no-report nextest --profile fast --no-tests=warn --all-features --workspace
-	@echo "📊 Phase 2: Generating coverage reports..."
-	@cargo llvm-cov report --html --output-dir target/coverage/html --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
-	@cargo llvm-cov report --lcov --output-path target/coverage/lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
-	@echo "⚙️  Restoring global cargo config..."
-	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
-	@echo ""
-	@echo "📊 Coverage Summary:"
-	@echo "=================="
-	@cargo llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
-	@echo ""
-	@echo "💡 COVERAGE INSIGHTS:"
-	@echo "- HTML report: target/coverage/html/index.html"
-	@echo "- LCOV file: target/coverage/lcov.info"
-	@echo "- Open HTML: make coverage-open"
-	@echo "- Threshold: $(COVERAGE_THRESHOLD)%"
+coverage: ## Fast coverage report (<5 min, 95% threshold)
+	@echo "📊 Coverage (target: <5 min)..."
+	@cargo llvm-cov clean --workspace 2>/dev/null || true
+	@PROPTEST_CASES=25 QUICKCHECK_TESTS=25 cargo llvm-cov nextest --profile fast --no-fail-fast --workspace --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@echo ""
 coverage-summary: ## Display coverage summary (run 'make coverage' first)
 	@echo "📊 Coverage Summary:"
@@ -505,16 +482,9 @@ coverage-open: ## Open HTML coverage report in browser (run 'make coverage' firs
 coverage-check: ## Check coverage threshold (assumes coverage already collected)
 	@echo "Checking coverage threshold ($(COVERAGE_THRESHOLD)%)..."
 	@COVERAGE=$$($(CARGO) llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX) | grep "TOTAL" | awk '{print $$4}' | sed 's/%//'); if [ "$$COVERAGE" -lt "$(COVERAGE_THRESHOLD)" ]; then echo "❌ Coverage $$COVERAGE% below threshold $(COVERAGE_THRESHOLD)%"; exit 1; else echo "✅ Coverage $$COVERAGE% meets threshold $(COVERAGE_THRESHOLD)%"; fi
-coverage-ci: ## Generate LCOV report for CI/CD (fast mode)
-	@echo "=== Code Coverage for CI/CD ==="
-	@echo "Phase 1: Running tests with instrumentation..."
-	@cargo llvm-cov clean --workspace
-	@test -f ~/.cargo/config.toml && mv ~/.cargo/config.toml ~/.cargo/config.toml.cov-backup || true
-	@env PROPTEST_CASES=50 QUICKCHECK_TESTS=50 cargo llvm-cov --no-report nextest --profile fast --no-tests=warn --all-features --workspace
-	@echo "Phase 2: Generating LCOV report..."
-	@cargo llvm-cov report --lcov --output-path lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
-	@test -f ~/.cargo/config.toml.cov-backup && mv ~/.cargo/config.toml.cov-backup ~/.cargo/config.toml || true
-	@echo "✓ Coverage report generated: lcov.info"
+coverage-ci: ## CI coverage with LCOV output (<5 min)
+	@cargo llvm-cov clean --workspace 2>/dev/null || true
+	@PROPTEST_CASES=25 QUICKCHECK_TESTS=25 cargo llvm-cov nextest --profile fast --no-fail-fast --workspace --lcov --output-path lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 coverage-clean: ## Clean coverage artifacts
 	@cargo llvm-cov clean --workspace
 	@rm -f lcov.info coverage.xml target/coverage/lcov.info

@@ -2474,3 +2474,230 @@ fn test_augmented_assign_nested() {
     d = {"a": {"b": 0}}
     d["a"]["b"] += 1"#));
 }
+
+// ============================================================================
+// ERROR PATH TESTS - Exercise bail! and error handling in stmt_gen
+// ============================================================================
+
+fn transpile_err(code: &str) -> bool {
+    let pipeline = DepylerPipeline::new();
+    pipeline.transpile(code).is_err()
+}
+
+// --- for loop paths ---
+#[test]
+fn test_for_complex_unpack_ok() {
+    // Complex tuple unpacking in for loops is supported
+    assert!(transpile_ok(r#"def foo():
+    for ((a, b), c) in [((1, 2), 3)]:
+        print(a)"#));
+}
+
+// --- Pass statement coverage ---
+#[test]
+fn test_pass_in_if_path() {
+    assert!(transpile_ok(r#"def foo():
+    if True:
+        pass"#));
+}
+
+#[test]
+fn test_pass_in_function_path() {
+    assert!(transpile_ok(r#"def foo():
+    pass"#));
+}
+
+// --- Continue/Break paths ---
+#[test]
+fn test_continue_in_for_path() {
+    assert!(transpile_ok(r#"def foo():
+    for i in range(10):
+        if i % 2 == 0:
+            continue
+        print(i)"#));
+}
+
+#[test]
+fn test_break_in_for_path() {
+    assert!(transpile_ok(r#"def foo():
+    for i in range(10):
+        if i > 5:
+            break
+        print(i)"#));
+}
+
+// --- Complex while conditions ---
+#[test]
+fn test_while_and_path() {
+    assert!(transpile_ok(r#"def foo():
+    i = 0
+    while i < 10 and i % 2 == 0:
+        i += 1"#));
+}
+
+#[test]
+fn test_while_or_path() {
+    assert!(transpile_ok(r#"def foo():
+    i = 0
+    while i < 5 or i == 7:
+        i += 1"#));
+}
+
+// --- Complex if conditions ---
+#[test]
+fn test_if_elif_else_chain_path() {
+    assert!(transpile_ok(r#"def foo(x: int) -> str:
+    if x < 0:
+        return "negative"
+    elif x == 0:
+        return "zero"
+    elif x < 10:
+        return "small"
+    else:
+        return "large""#));
+}
+
+#[test]
+fn test_if_in_operator_path() {
+    assert!(transpile_ok(r#"def foo(x: int) -> bool:
+    if x in [1, 2, 3]:
+        return True
+    return False"#));
+}
+
+// --- Try-except paths ---
+#[test]
+fn test_try_else_path() {
+    assert!(transpile_ok(r#"def foo():
+    try:
+        risky()
+    except:
+        print("error")
+    else:
+        print("success")"#));
+}
+
+// --- With statement paths ---
+#[test]
+fn test_nested_with_path() {
+    assert!(transpile_ok(r#"def foo():
+    with open("outer.txt") as f:
+        with open("inner.txt") as g:
+            return f.read() + g.read()"#));
+}
+
+// --- Return paths ---
+#[test]
+fn test_return_implicit_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 42"#));
+}
+
+// --- Tuple unpacking error paths ---
+#[test]
+fn test_tuple_unpack_nested_err() {
+    // Nested tuple unpacking not fully supported yet
+    assert!(transpile_err(r#"def foo():
+    (a, b), c = (1, 2), 3"#));
+}
+
+// --- Augmented assignment operators paths ---
+#[test]
+fn test_aug_assign_sub_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 10
+    x -= 3"#));
+}
+
+#[test]
+fn test_aug_assign_mul_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 5
+    x *= 2"#));
+}
+
+#[test]
+fn test_aug_assign_div_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 10.0
+    x /= 2"#));
+}
+
+#[test]
+fn test_aug_assign_floor_div_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 10
+    x //= 3"#));
+}
+
+#[test]
+fn test_aug_assign_mod_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 10
+    x %= 3"#));
+}
+
+#[test]
+fn test_aug_assign_pow_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 2
+    x **= 3"#));
+}
+
+#[test]
+fn test_aug_assign_bitand_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 0xFF
+    x &= 0x0F"#));
+}
+
+#[test]
+fn test_aug_assign_bitor_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 0x0F
+    x |= 0xF0"#));
+}
+
+#[test]
+fn test_aug_assign_bitxor_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 0xFF
+    x ^= 0xAA"#));
+}
+
+#[test]
+fn test_aug_assign_lshift_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 1
+    x <<= 4"#));
+}
+
+#[test]
+fn test_aug_assign_rshift_path() {
+    assert!(transpile_ok(r#"def foo():
+    x = 16
+    x >>= 2"#));
+}
+
+// --- Match with guard path ---
+#[test]
+fn test_match_guard_path() {
+    assert!(transpile_ok(r#"def foo(x: int) -> str:
+    match x:
+        case n if n < 0:
+            return "negative"
+        case n if n > 0:
+            return "positive"
+        case _:
+            return "zero""#));
+}
+
+// --- Raise with cause path ---
+#[test]
+fn test_raise_cause_path() {
+    assert!(transpile_ok(r#"def foo():
+    try:
+        risky()
+    except Exception as e:
+        raise RuntimeError("wrapper") from e"#));
+}

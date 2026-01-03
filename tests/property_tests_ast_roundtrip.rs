@@ -24,8 +24,11 @@ fn prop_ast_hir_roundtrip(python_source: String) -> TestResult {
 /// Property: HIR should preserve function names
 #[quickcheck_macros::quickcheck(tests = 10, max_tests = 20)]
 fn prop_function_name_preservation(func_name: String, params: Vec<String>) -> TestResult {
-    // Skip invalid function names
-    if func_name.is_empty() || !func_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+    // Skip invalid function names (must not start with digit, e.g., "0j" is a complex literal)
+    if func_name.is_empty()
+        || !func_name.chars().all(|c| c.is_alphanumeric() || c == '_')
+        || func_name.chars().next().is_some_and(|c| c.is_ascii_digit())
+    {
         return TestResult::discard();
     }
 
@@ -121,7 +124,12 @@ fn prop_control_flow_preservation(condition: i32, then_val: i32, else_val: i32) 
 /// Property: Variable assignments should create proper HIR statements
 #[quickcheck_macros::quickcheck(tests = 5, max_tests = 10)]
 fn prop_variable_assignment_preservation(var_name: String, value: i32) -> TestResult {
-    if var_name.is_empty() || !var_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+    // Must be non-empty, contain only alphanumeric/underscore, and NOT start with digit
+    // (e.g., "0j" is a complex number literal, not a valid variable name)
+    if var_name.is_empty()
+        || !var_name.chars().all(|c| c.is_alphanumeric() || c == '_')
+        || var_name.chars().next().is_some_and(|c| c.is_ascii_digit())
+    {
         return TestResult::discard();
     }
 

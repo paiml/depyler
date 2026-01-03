@@ -747,7 +747,7 @@ fn test_slice_step() {
 // ============================================================================
 
 #[test]
-fn test_attribute_access() {
+fn test_attribute_access_path() {
     let code = transpile("x = obj.attr");
     assert!(code.contains(".attr") || code.contains("obj"));
 }
@@ -837,7 +837,7 @@ fn test_fstring_format_spec() {
 // ============================================================================
 
 #[test]
-fn test_await_expr() {
+fn test_await_expr_path() {
     assert!(transpile_ok("async def foo():\n    x = await bar()"));
 }
 
@@ -1773,7 +1773,7 @@ fn test_string_slice_negative() {
 // ============================================================================
 
 #[test]
-fn test_compare_chain() {
+fn test_compare_chain_path() {
     assert!(transpile_ok("x = 1 < 2 < 3"));
 }
 
@@ -2244,7 +2244,7 @@ fn test_lambda_nested() {
 // ============================================================================
 
 #[test]
-fn test_attribute_chain() {
+fn test_attribute_chain_path() {
     assert!(transpile_ok("x = obj.attr1.attr2.attr3"));
 }
 
@@ -3513,4 +3513,299 @@ fn test_precedence_parenthesized() {
 fn test_precedence_complex() {
     assert!(transpile_ok(r#"def foo() -> int:
     return 1 + 2 * 3 - 4 / 2"#));
+}
+
+// ============================================================================
+// ERROR PATH TESTS - Exercise bail! and error handling paths
+// ============================================================================
+
+fn transpile_err(code: &str) -> bool {
+    let pipeline = DepylerPipeline::new();
+    pipeline.transpile(code).is_err()
+}
+
+// --- all() error paths ---
+#[test]
+fn test_all_wrong_arg_count_zero() {
+    // all() requires exactly 1 argument
+    assert!(transpile_err(r#"def foo():
+    return all()"#));
+}
+
+#[test]
+fn test_all_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return all([1, 2], [3, 4])"#));
+}
+
+// --- any() error paths ---
+#[test]
+fn test_any_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return any()"#));
+}
+
+#[test]
+fn test_any_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return any([1], [2])"#));
+}
+
+// --- divmod() error paths ---
+#[test]
+fn test_divmod_wrong_arg_count_one() {
+    assert!(transpile_err(r#"def foo():
+    return divmod(10)"#));
+}
+
+#[test]
+fn test_divmod_wrong_arg_count_three() {
+    assert!(transpile_err(r#"def foo():
+    return divmod(10, 3, 2)"#));
+}
+
+// --- enumerate() error paths ---
+#[test]
+fn test_enumerate_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return list(enumerate())"#));
+}
+
+#[test]
+fn test_enumerate_wrong_arg_count_three() {
+    assert!(transpile_err(r#"def foo():
+    return list(enumerate([1], 0, "extra"))"#));
+}
+
+// --- zip() error paths ---
+#[test]
+fn test_zip_wrong_arg_count_one() {
+    assert!(transpile_err(r#"def foo():
+    return list(zip([1, 2]))"#));
+}
+
+// --- reversed() error paths ---
+#[test]
+fn test_reversed_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return list(reversed())"#));
+}
+
+#[test]
+fn test_reversed_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return list(reversed([1], [2]))"#));
+}
+
+// --- sorted() error paths ---
+#[test]
+fn test_sorted_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return sorted()"#));
+}
+
+// --- filter() error paths ---
+#[test]
+fn test_filter_wrong_arg_count_one() {
+    assert!(transpile_err(r#"def foo():
+    return list(filter(lambda x: x))"#));
+}
+
+#[test]
+fn test_filter_wrong_arg_count_three() {
+    assert!(transpile_err(r#"def foo():
+    return list(filter(lambda x: x, [1], [2]))"#));
+}
+
+// --- sum() error paths ---
+#[test]
+fn test_sum_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return sum()"#));
+}
+
+#[test]
+fn test_sum_wrong_arg_count_three() {
+    assert!(transpile_err(r#"def foo():
+    return sum([1], 0, 1)"#));
+}
+
+// --- round() error paths ---
+#[test]
+fn test_round_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return round()"#));
+}
+
+#[test]
+fn test_round_wrong_arg_count_three() {
+    assert!(transpile_err(r#"def foo():
+    return round(1.5, 1, 2)"#));
+}
+
+// --- abs() error paths ---
+#[test]
+fn test_abs_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return abs()"#));
+}
+
+#[test]
+fn test_abs_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return abs(-5, 1)"#));
+}
+
+// --- min()/max() error paths ---
+#[test]
+fn test_min_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return min()"#));
+}
+
+#[test]
+fn test_max_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return max()"#));
+}
+
+// --- pow() error paths ---
+#[test]
+fn test_pow_wrong_arg_count_one() {
+    assert!(transpile_err(r#"def foo():
+    return pow(2)"#));
+}
+
+#[test]
+fn test_pow_wrong_arg_count_four() {
+    assert!(transpile_err(r#"def foo():
+    return pow(2, 3, 5, 7)"#));
+}
+
+// --- hex()/bin()/oct() error paths ---
+#[test]
+fn test_hex_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return hex()"#));
+}
+
+#[test]
+fn test_hex_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return hex(255, 16)"#));
+}
+
+#[test]
+fn test_bin_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return bin()"#));
+}
+
+#[test]
+fn test_oct_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return oct()"#));
+}
+
+// --- chr()/ord() error paths ---
+#[test]
+fn test_chr_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return chr()"#));
+}
+
+#[test]
+fn test_chr_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return chr(65, 66)"#));
+}
+
+#[test]
+fn test_ord_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return ord()"#));
+}
+
+#[test]
+fn test_ord_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return ord('a', 'b')"#));
+}
+
+// --- hash() error paths ---
+#[test]
+fn test_hash_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return hash()"#));
+}
+
+#[test]
+fn test_hash_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return hash("a", "b")"#));
+}
+
+// --- repr() error paths ---
+#[test]
+fn test_repr_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return repr()"#));
+}
+
+#[test]
+fn test_repr_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return repr(1, 2)"#));
+}
+
+// --- next() error paths ---
+#[test]
+fn test_next_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return next()"#));
+}
+
+#[test]
+fn test_next_wrong_arg_count_three() {
+    assert!(transpile_err(r#"def foo(it):
+    return next(it, None, "extra")"#));
+}
+
+// --- iter() error paths ---
+#[test]
+fn test_iter_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return iter()"#));
+}
+
+#[test]
+fn test_iter_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return iter([1], [2])"#));
+}
+
+// --- type() error paths ---
+#[test]
+fn test_type_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return type()"#));
+}
+
+#[test]
+fn test_type_wrong_arg_count_two() {
+    assert!(transpile_err(r#"def foo():
+    return type(1, 2)"#));
+}
+
+// --- open() error paths ---
+#[test]
+fn test_open_wrong_arg_count_zero() {
+    assert!(transpile_err(r#"def foo():
+    return open()"#));
+}
+
+#[test]
+fn test_open_wrong_arg_count_three() {
+    assert!(transpile_err(r#"def foo():
+    return open("f", "r", "extra")"#));
 }

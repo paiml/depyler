@@ -496,8 +496,6 @@ mod tests {
         optimizer.analyze_function(&func);
 
         let context = StringContext::Literal("result".to_string());
-        // v3.16.0 Phase 3: Simple returned strings use owned String, not Cow
-        // Only use Cow for mixed usage (returned AND borrowed elsewhere)
         assert_eq!(
             optimizer.get_optimal_type(&context),
             OptimalStringType::OwnedString
@@ -537,9 +535,587 @@ mod tests {
     fn test_generate_optimized_string_code() {
         let optimizer = StringOptimizer::new();
 
-        // Test static string generation
         let code =
             generate_optimized_string(&optimizer, &StringContext::Literal("hello".to_string()));
         assert!(code == "\"hello\".to_string()" || code == "\"hello\"");
+    }
+
+    #[test]
+    fn test_new_creates_default() {
+        let optimizer = StringOptimizer::new();
+        assert!(!optimizer.should_intern("any"));
+        assert!(optimizer.get_interned_name("any").is_none());
+    }
+
+    #[test]
+    fn test_mixed_usage_strings_get_cow() {
+        let mut optimizer = StringOptimizer::new();
+
+        // Parameter that is both used and returned - but immutable params take precedence
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![HirParam::new("s".to_string(), Type::String)].into(),
+            ret_type: Type::String,
+            body: vec![
+                HirStmt::Expr(HirExpr::Var("s".to_string())),
+                HirStmt::Return(Some(HirExpr::Var("s".to_string()))),
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        // Even though it's in mixed_usage_strings, immutable_params takes precedence
+        let context = StringContext::Parameter("s".to_string());
+        assert_eq!(
+            optimizer.get_optimal_type(&context),
+            OptimalStringType::BorrowedStr {
+                lifetime: Some("'a".to_string())
+            }
+        );
+
+        // Verify it IS in mixed_usage though
+        assert!(optimizer.mixed_usage_strings.contains("s"));
+    }
+
+    #[test]
+    fn test_mutated_parameter_loses_immutability() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![HirParam::new("s".to_string(), Type::String)].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("s".to_string()),
+                value: HirExpr::Literal(Literal::String("new".to_string())),
+                type_annotation: None,
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        let context = StringContext::Parameter("s".to_string());
+        assert_eq!(
+            optimizer.get_optimal_type(&context),
+            OptimalStringType::OwnedString
+        );
+    }
+
+    #[test]
+    fn test_string_interning_threshold() {
+        let mut optimizer = StringOptimizer::new();
+
+        // Use the same string 4 times to trigger interning
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![
+                HirStmt::Expr(HirExpr::Literal(Literal::String("common".to_string()))),
+                HirStmt::Expr(HirExpr::Literal(Literal::String("common".to_string()))),
+                HirStmt::Expr(HirExpr::Literal(Literal::String("common".to_string()))),
+                HirStmt::Expr(HirExpr::Literal(Literal::String("common".to_string()))),
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        assert!(optimizer.should_intern("common"));
+    }
+
+    #[test]
+    fn test_finalize_interned_names_no_collision() {
+        let mut optimizer = StringOptimizer::new();
+        optimizer.interned_strings.insert("hello".to_string());
+        optimizer.finalize_interned_names();
+
+        let name = optimizer.get_interned_name("hello").unwrap();
+        assert_eq!(name, "STR_HELLO");
+    }
+
+    #[test]
+    fn test_finalize_interned_names_with_collision() {
+        let mut optimizer = StringOptimizer::new();
+        // "hello!" and "hello?" both become STR_HELLO_
+        optimizer.interned_strings.insert("hello!".to_string());
+        optimizer.interned_strings.insert("hello?".to_string());
+        optimizer.finalize_interned_names();
+
+        let name1 = optimizer.get_interned_name("hello!").unwrap();
+        let name2 = optimizer.get_interned_name("hello?").unwrap();
+
+        assert!(name1.starts_with("STR_HELLO_"));
+        assert!(name2.starts_with("STR_HELLO_"));
+        assert_ne!(name1, name2);
+    }
+
+    #[test]
+    fn test_finalize_interned_names_already_finalized() {
+        let mut optimizer = StringOptimizer::new();
+        optimizer.interned_strings.insert("test".to_string());
+        optimizer.finalize_interned_names();
+
+        // Call again - should be a no-op
+        optimizer.finalize_interned_names();
+
+        assert!(optimizer.get_interned_name("test").is_some());
+    }
+
+    #[test]
+    fn test_generate_base_const_name_empty() {
+        let optimizer = StringOptimizer::new();
+        let name = optimizer.generate_base_const_name("");
+        assert_eq!(name, "STR_EMPTY");
+    }
+
+    #[test]
+    fn test_generate_base_const_name_special_chars() {
+        let optimizer = StringOptimizer::new();
+        let name = optimizer.generate_base_const_name("hello world!");
+        assert_eq!(name, "STR_HELLO_WORLD_");
+    }
+
+    #[test]
+    fn test_generate_interned_constants() {
+        let mut optimizer = StringOptimizer::new();
+        optimizer.interned_strings.insert("test".to_string());
+        optimizer.finalize_interned_names();
+
+        let constants = optimizer.generate_interned_constants();
+        assert_eq!(constants.len(), 1);
+        assert!(constants[0].contains("STR_TEST"));
+        assert!(constants[0].contains("\"test\""));
+    }
+
+    #[test]
+    fn test_analyze_if_stmt_with_else() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
+                    "then".to_string(),
+                )))],
+                else_body: Some(vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
+                    "else".to_string(),
+                )))]),
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        assert!(optimizer.is_read_only("then"));
+        assert!(optimizer.is_read_only("else"));
+    }
+
+    #[test]
+    fn test_analyze_while_stmt() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::While {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
+                    "loop".to_string(),
+                )))],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        assert!(optimizer.is_read_only("loop"));
+    }
+
+    #[test]
+    fn test_analyze_for_stmt() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::List(vec![]),
+                body: vec![HirStmt::Expr(HirExpr::Literal(Literal::String(
+                    "body".to_string(),
+                )))],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        assert!(optimizer.is_read_only("body"));
+    }
+
+    #[test]
+    fn test_analyze_string_concatenation() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::Expr(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Literal(Literal::String("a".to_string()))),
+                right: Box::new(HirExpr::Literal(Literal::String("b".to_string()))),
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        // Binary expression with Add triggers analysis on both sides
+        // The analyze_binary_expr calls mark_as_owned, then analyze_expr which re-adds to read_only
+        // So they end up in read_only_strings (is_read_only returns true if in read_only AND not returned)
+        assert!(optimizer.read_only_strings.contains("a"));
+        assert!(optimizer.read_only_strings.contains("b"));
+    }
+
+    #[test]
+    fn test_analyze_mutating_call() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![HirParam::new("s".to_string(), Type::String)].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "push_str".to_string(),
+                args: vec![HirExpr::Var("s".to_string())],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        // Mutated parameter loses immutability
+        assert!(!optimizer.immutable_params.contains("s"));
+    }
+
+    #[test]
+    fn test_analyze_list_and_tuple() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![
+                HirStmt::Expr(HirExpr::List(vec![HirExpr::Literal(Literal::String(
+                    "list".to_string(),
+                ))])),
+                HirStmt::Expr(HirExpr::Tuple(vec![HirExpr::Literal(Literal::String(
+                    "tuple".to_string(),
+                ))])),
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        assert!(optimizer.is_read_only("list"));
+        assert!(optimizer.is_read_only("tuple"));
+    }
+
+    #[test]
+    fn test_analyze_dict() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::Expr(HirExpr::Dict(vec![(
+                HirExpr::Literal(Literal::String("key".to_string())),
+                HirExpr::Literal(Literal::String("value".to_string())),
+            )]))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+
+        assert!(optimizer.is_read_only("key"));
+        assert!(optimizer.is_read_only("value"));
+    }
+
+    #[test]
+    fn test_is_string_expr_call() {
+        let optimizer = StringOptimizer::new();
+
+        assert!(optimizer.is_string_expr(&HirExpr::Call {
+            func: "str".to_string(),
+            args: vec![],
+            kwargs: vec![]
+        }));
+        assert!(optimizer.is_string_expr(&HirExpr::Call {
+            func: "format".to_string(),
+            args: vec![],
+            kwargs: vec![]
+        }));
+        assert!(optimizer.is_string_expr(&HirExpr::Call {
+            func: "to_string".to_string(),
+            args: vec![],
+            kwargs: vec![]
+        }));
+        assert!(optimizer.is_string_expr(&HirExpr::Call {
+            func: "join".to_string(),
+            args: vec![],
+            kwargs: vec![]
+        }));
+        assert!(!optimizer.is_string_expr(&HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![],
+            kwargs: vec![]
+        }));
+    }
+
+    #[test]
+    fn test_is_mutating_method() {
+        let optimizer = StringOptimizer::new();
+
+        assert!(optimizer.is_mutating_method("push_str"));
+        assert!(optimizer.is_mutating_method("push"));
+        assert!(optimizer.is_mutating_method("insert"));
+        assert!(optimizer.is_mutating_method("insert_str"));
+        assert!(optimizer.is_mutating_method("replace_range"));
+        assert!(optimizer.is_mutating_method("clear"));
+        assert!(optimizer.is_mutating_method("truncate"));
+        assert!(!optimizer.is_mutating_method("len"));
+    }
+
+    #[test]
+    fn test_get_optimal_type_return_context() {
+        let optimizer = StringOptimizer::new();
+        assert_eq!(
+            optimizer.get_optimal_type(&StringContext::Return),
+            OptimalStringType::OwnedString
+        );
+    }
+
+    #[test]
+    fn test_get_optimal_type_concatenation_context() {
+        let optimizer = StringOptimizer::new();
+        assert_eq!(
+            optimizer.get_optimal_type(&StringContext::Concatenation),
+            OptimalStringType::OwnedString
+        );
+    }
+
+    #[test]
+    fn test_string_context_display() {
+        assert_eq!(
+            format!("{}", StringContext::Literal("hello".to_string())),
+            "\"hello\""
+        );
+        assert_eq!(
+            format!("{}", StringContext::Parameter("s".to_string())),
+            "s"
+        );
+        assert_eq!(format!("{}", StringContext::Return), "<return>");
+        assert_eq!(format!("{}", StringContext::Concatenation), "<concat>");
+    }
+
+    #[test]
+    fn test_generate_static_str() {
+        let s = generate_static_str(&StringContext::Literal("hello".to_string()));
+        assert_eq!(s, "\"hello\"");
+
+        let s = generate_static_str(&StringContext::Parameter("s".to_string()));
+        assert_eq!(s, "s.to_string()");
+    }
+
+    #[test]
+    fn test_generate_borrowed_str() {
+        let s = generate_borrowed_str(&StringContext::Parameter("s".to_string()));
+        assert_eq!(s, "s");
+
+        let s = generate_borrowed_str(&StringContext::Literal("test".to_string()));
+        assert_eq!(s, "\"test\"");
+
+        let s = generate_borrowed_str(&StringContext::Return);
+        assert_eq!(s, "<return>.as_str()");
+    }
+
+    #[test]
+    fn test_generate_owned_string() {
+        let s = generate_owned_string(&StringContext::Literal("hello".to_string()));
+        assert_eq!(s, "\"hello\".to_string()");
+
+        let s = generate_owned_string(&StringContext::Parameter("s".to_string()));
+        assert_eq!(s, "s.to_string()");
+
+        let s = generate_owned_string(&StringContext::Return);
+        assert_eq!(s, "String::new()");
+
+        let s = generate_owned_string(&StringContext::Concatenation);
+        assert_eq!(s, "String::new()");
+    }
+
+    #[test]
+    fn test_generate_cow_str() {
+        let s = generate_cow_str(&StringContext::Literal("hello".to_string()));
+        assert_eq!(s, "Cow::Borrowed(\"hello\")");
+
+        let s = generate_cow_str(&StringContext::Parameter("s".to_string()));
+        assert_eq!(s, "Cow::Borrowed(s)");
+
+        let s = generate_cow_str(&StringContext::Return);
+        assert_eq!(s, "Cow::Owned(String::new())");
+
+        let s = generate_cow_str(&StringContext::Concatenation);
+        assert_eq!(s, "Cow::Owned(String::new())");
+    }
+
+    #[test]
+    fn test_escape_string_special_chars() {
+        assert_eq!(escape_string("hello\"world"), "hello\\\"world");
+        assert_eq!(escape_string("hello\\world"), "hello\\\\world");
+        assert_eq!(escape_string("hello\nworld"), "hello\\nworld");
+        assert_eq!(escape_string("hello\rworld"), "hello\\rworld");
+        assert_eq!(escape_string("hello\tworld"), "hello\\tworld");
+        assert_eq!(escape_string("normal"), "normal");
+    }
+
+    #[test]
+    fn test_return_none_handled() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::Return(None)],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+        // Should not panic
+    }
+
+    #[test]
+    fn test_mark_as_owned_var() {
+        let mut optimizer = StringOptimizer::new();
+        optimizer.immutable_params.insert("s".to_string());
+
+        optimizer.mark_as_owned(&HirExpr::Var("s".to_string()));
+
+        assert!(!optimizer.immutable_params.contains("s"));
+    }
+
+    #[test]
+    fn test_mark_as_owned_other() {
+        let mut optimizer = StringOptimizer::new();
+
+        // Should not panic on non-string/non-var expressions
+        optimizer.mark_as_owned(&HirExpr::Literal(Literal::Int(42)));
+    }
+
+    #[test]
+    fn test_analyze_assign_non_symbol_target() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Index {
+                    base: Box::new(HirExpr::Var("arr".to_string())),
+                    index: Box::new(HirExpr::Literal(Literal::Int(0))),
+                },
+                value: HirExpr::Literal(Literal::String("value".to_string())),
+                type_annotation: None,
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+        // Should not panic
+    }
+
+    #[test]
+    fn test_call_with_no_args() {
+        let mut optimizer = StringOptimizer::new();
+
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "push_str".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        optimizer.analyze_function(&func);
+        // Should not panic when args is empty
+    }
+
+    #[test]
+    fn test_mixed_usage_literal() {
+        let mut optimizer = StringOptimizer::new();
+        optimizer.mixed_usage_strings.insert("mixed".to_string());
+
+        let context = StringContext::Literal("mixed".to_string());
+        assert_eq!(
+            optimizer.get_optimal_type(&context),
+            OptimalStringType::CowStr
+        );
+    }
+
+    #[test]
+    fn test_parameter_mixed_usage() {
+        let mut optimizer = StringOptimizer::new();
+        optimizer.mixed_usage_strings.insert("param".to_string());
+
+        let context = StringContext::Parameter("param".to_string());
+        assert_eq!(
+            optimizer.get_optimal_type(&context),
+            OptimalStringType::CowStr
+        );
     }
 }

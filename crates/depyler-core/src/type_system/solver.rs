@@ -269,4 +269,244 @@ mod tests {
         let solution = solver.solve().expect("Should solve");
         assert!(solution.is_consistent());
     }
+
+    #[test]
+    fn test_default_solver() {
+        let solver = WorklistSolver::default();
+        assert_eq!(solver.iterations, 0);
+    }
+
+    #[test]
+    fn test_equality_right_unification_var() {
+        let mut solver = WorklistSolver::new();
+
+        // Int == x (var on right)
+        solver.add_constraint(TypeConstraint::eq(
+            Type::Int,
+            Type::UnificationVar(5),
+            "Assignment from right",
+        ));
+
+        let solution = solver.solve().expect("Should solve");
+        assert_eq!(solution.get(5), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_equality_var_already_assigned_consistent() {
+        let mut solver = WorklistSolver::new();
+
+        // x == Int, then x == Int again
+        solver.add_constraint(TypeConstraint::eq(
+            Type::UnificationVar(0),
+            Type::Int,
+            "First assignment",
+        ));
+        solver.add_constraint(TypeConstraint::eq(
+            Type::UnificationVar(0),
+            Type::Int,
+            "Same assignment",
+        ));
+
+        let solution = solver.solve().expect("Should solve");
+        assert_eq!(solution.get(0), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_equality_var_conflict() {
+        let mut solver = WorklistSolver::new();
+
+        // x == Int, then x == String
+        solver.add_constraint(TypeConstraint::eq(
+            Type::UnificationVar(0),
+            Type::Int,
+            "First assignment",
+        ));
+        solver.add_constraint(TypeConstraint::eq(
+            Type::UnificationVar(0),
+            Type::String,
+            "Conflicting assignment",
+        ));
+
+        let result = solver.solve();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_equality_concrete_match() {
+        let mut solver = WorklistSolver::new();
+
+        // Int == Int
+        solver.add_constraint(TypeConstraint::eq(Type::Int, Type::Int, "Same type"));
+
+        let solution = solver.solve().expect("Should solve");
+        assert!(solution.is_consistent());
+    }
+
+    #[test]
+    fn test_equality_concrete_mismatch() {
+        let mut solver = WorklistSolver::new();
+
+        // Int == String
+        solver.add_constraint(TypeConstraint::eq(Type::Int, Type::String, "Mismatch"));
+
+        let result = solver.solve();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_subtype_unification_var_left() {
+        let mut solver = WorklistSolver::new();
+
+        // x <: Int (assigns Int as upper bound)
+        solver.add_constraint(TypeConstraint::subtype(
+            Type::UnificationVar(0),
+            Type::Int,
+            "Upper bound",
+        ));
+
+        let solution = solver.solve().expect("Should solve");
+        assert_eq!(solution.get(0), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_subtype_unification_var_right() {
+        let mut solver = WorklistSolver::new();
+
+        // Int <: x (assigns Int as lower bound)
+        solver.add_constraint(TypeConstraint::subtype(
+            Type::Int,
+            Type::UnificationVar(0),
+            "Lower bound",
+        ));
+
+        let solution = solver.solve().expect("Should solve");
+        assert_eq!(solution.get(0), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_subtype_var_left_existing_consistent() {
+        let mut solver = WorklistSolver::new();
+
+        // x == Int, then x <: Float (Int <: Float is ok)
+        solver.add_constraint(TypeConstraint::eq(
+            Type::UnificationVar(0),
+            Type::Int,
+            "Assign",
+        ));
+        solver.add_constraint(TypeConstraint::subtype(
+            Type::UnificationVar(0),
+            Type::Float,
+            "Check bound",
+        ));
+
+        let solution = solver.solve().expect("Should solve");
+        assert_eq!(solution.get(0), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_subtype_var_left_existing_inconsistent() {
+        let mut solver = WorklistSolver::new();
+
+        // x == Float, then x <: Int (Float <: Int is NOT ok)
+        solver.add_constraint(TypeConstraint::eq(
+            Type::UnificationVar(0),
+            Type::Float,
+            "Assign",
+        ));
+        solver.add_constraint(TypeConstraint::subtype(
+            Type::UnificationVar(0),
+            Type::Int,
+            "Check bound",
+        ));
+
+        let result = solver.solve();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_subtype_var_right_existing_consistent() {
+        let mut solver = WorklistSolver::new();
+
+        // x == Float, then Int <: x (Int <: Float is ok)
+        solver.add_constraint(TypeConstraint::eq(
+            Type::UnificationVar(0),
+            Type::Float,
+            "Assign",
+        ));
+        solver.add_constraint(TypeConstraint::subtype(
+            Type::Int,
+            Type::UnificationVar(0),
+            "Check bound",
+        ));
+
+        let solution = solver.solve().expect("Should solve");
+        assert_eq!(solution.get(0), Some(&Type::Float));
+    }
+
+    #[test]
+    fn test_subtype_var_right_existing_inconsistent() {
+        let mut solver = WorklistSolver::new();
+
+        // x == Int, then Float <: x (Float <: Int is NOT ok)
+        solver.add_constraint(TypeConstraint::eq(
+            Type::UnificationVar(0),
+            Type::Int,
+            "Assign",
+        ));
+        solver.add_constraint(TypeConstraint::subtype(
+            Type::Float,
+            Type::UnificationVar(0),
+            "Check bound",
+        ));
+
+        let result = solver.solve();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_supertype_constraint() {
+        let mut solver = WorklistSolver::new();
+
+        // Float :> Int means Int <: Float
+        solver.add_constraint(TypeConstraint::supertype(
+            Type::Float,
+            Type::Int,
+            "Supertype check",
+        ));
+
+        let solution = solver.solve().expect("Should solve");
+        assert!(solution.is_consistent());
+    }
+
+    #[test]
+    fn test_other_constraint_ignored() {
+        let mut solver = WorklistSolver::new();
+
+        // Callable constraint is ignored by solver (handled elsewhere)
+        solver.add_constraint(TypeConstraint {
+            lhs: Type::Int,
+            rhs: Type::Int,
+            kind: ConstraintKind::Callable,
+            reason: "Ignored".to_string(),
+        });
+
+        let solution = solver.solve().expect("Should solve");
+        assert!(solution.is_consistent());
+    }
+
+    #[test]
+    fn test_solution_get_missing() {
+        let solution = Solution {
+            assignments: HashMap::new(),
+            consistent: true,
+        };
+        assert!(solution.get(999).is_none());
+    }
+
+    #[test]
+    fn test_empty_constraints() {
+        let mut solver = WorklistSolver::new();
+        let solution = solver.solve().expect("Should solve empty constraints");
+        assert!(solution.is_consistent());
+    }
 }
