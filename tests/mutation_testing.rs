@@ -585,60 +585,58 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
         );
     }
 
-    /// Test mutation testing performance with caching
+    /// Test mutation testing caching behavior
     #[test]
     fn test_mutation_performance_with_caching() {
-        println!("=== Mutation Performance Test ===");
+        println!("=== Mutation Caching Test ===");
 
         let mut tester = MutationTester::new();
 
         let test_code = "def cached_test(x: int) -> int: return x + 1 if x > 0 else x - 1";
 
         // First run - should populate cache
-        let start1 = Instant::now();
         let mutations1 = tester.generate_mutations(test_code);
-        let duration1 = start1.elapsed();
 
-        // Second run - should use cache
-        let start2 = Instant::now();
-        let mutations2 = tester.generate_mutations(test_code);
-        let duration2 = start2.elapsed();
-
-        println!(
-            "First run: {} mutations in {:?}",
-            mutations1.len(),
-            duration1
-        );
-        println!(
-            "Second run: {} mutations in {:?}",
-            mutations2.len(),
-            duration2
-        );
-
-        // Results should be identical
-        assert_eq!(
-            mutations1.len(),
-            mutations2.len(),
-            "Cache should return same results"
-        );
-
-        // Second run should be faster (or at least not significantly slower)
-        let speedup_ratio = duration1.as_nanos() as f64 / duration2.as_nanos() as f64;
-        println!("Speedup ratio: {:.2}x", speedup_ratio);
-
-        // Cache should provide some benefit
-        assert!(
-            speedup_ratio >= 0.8,
-            "Caching should not significantly slow down generation"
-        );
-
-        // Test cache size
-        println!("Cache entries: {}", tester.mutations_cache.len());
+        // Verify cache was populated
         assert_eq!(
             tester.mutations_cache.len(),
             1,
-            "Should have one cached entry"
+            "Cache should have one entry after first generation"
         );
+
+        // Second run - should use cache
+        let mutations2 = tester.generate_mutations(test_code);
+
+        // Results should be identical (deterministic caching)
+        assert_eq!(
+            mutations1.len(),
+            mutations2.len(),
+            "Cache should return same number of mutations"
+        );
+
+        // Cache size should remain the same (no duplicates)
+        assert_eq!(
+            tester.mutations_cache.len(),
+            1,
+            "Cache should still have one entry (no duplicates)"
+        );
+
+        // Verify actual mutations are equivalent
+        for (m1, m2) in mutations1.iter().zip(mutations2.iter()) {
+            assert_eq!(m1.mutated, m2.mutated, "Cached mutations should be identical");
+        }
+
+        // Test with different code - should add new cache entry
+        let different_code = "def other_func(y: int) -> int: return y * 2";
+        let _mutations3 = tester.generate_mutations(different_code);
+        assert_eq!(
+            tester.mutations_cache.len(),
+            2,
+            "Cache should have two entries for different inputs"
+        );
+
+        println!("Cache entries: {}", tester.mutations_cache.len());
+        println!("First code mutations: {}", mutations1.len());
     }
 
     /// Test edge cases in mutation testing

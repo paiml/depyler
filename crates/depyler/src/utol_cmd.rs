@@ -276,4 +276,70 @@ mod tests {
         let config = build_config(None, 0.80, 50, 5, "json").unwrap();
         assert!(matches!(config.display.mode, DisplayMode::Json));
     }
+
+    #[test]
+    fn test_build_config_silent_mode() {
+        let config = build_config(None, 0.80, 50, 5, "silent").unwrap();
+        assert!(matches!(config.display.mode, DisplayMode::Silent));
+    }
+
+    #[test]
+    fn test_build_config_unknown_mode_defaults_rich() {
+        let config = build_config(None, 0.80, 50, 5, "unknown").unwrap();
+        assert!(matches!(config.display.mode, DisplayMode::Rich));
+    }
+
+    #[test]
+    fn test_build_config_with_corpus() {
+        let corpus = Some(PathBuf::from("/tmp/test"));
+        let config = build_config(corpus.clone(), 0.80, 50, 5, "rich").unwrap();
+        assert_eq!(config.corpus.path, PathBuf::from("/tmp/test"));
+    }
+
+    #[test]
+    fn test_build_config_case_insensitive() {
+        let config = build_config(None, 0.80, 50, 5, "RICH").unwrap();
+        assert!(matches!(config.display.mode, DisplayMode::Rich));
+        let config = build_config(None, 0.80, 50, 5, "Minimal").unwrap();
+        assert!(matches!(config.display.mode, DisplayMode::Minimal));
+    }
+
+    fn make_test_result(converged: bool, rate: f64, iterations: usize, duration: f64) -> UtolResult {
+        UtolResult {
+            converged,
+            compile_rate: rate,
+            iterations,
+            duration_secs: duration,
+            model_version: "test".to_string(),
+            category_rates: std::collections::HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn test_print_final_summary_json_mode() {
+        let result = make_test_result(true, 0.95, 10, 30.0);
+        let config = build_config(None, 0.80, 50, 5, "json").unwrap();
+        print_final_summary(&result, &config);
+    }
+
+    #[test]
+    fn test_print_final_summary_silent_mode() {
+        let result = make_test_result(false, 0.5, 50, 100.0);
+        let config = build_config(None, 0.80, 50, 5, "silent").unwrap();
+        print_final_summary(&result, &config);
+    }
+
+    #[test]
+    fn test_print_final_summary_rich_converged() {
+        let result = make_test_result(true, 0.95, 10, 30.0);
+        let config = build_config(None, 0.80, 50, 5, "rich").unwrap();
+        print_final_summary(&result, &config);
+    }
+
+    #[test]
+    fn test_print_final_summary_rich_not_converged() {
+        let result = make_test_result(false, 0.5, 50, 100.0);
+        let config = build_config(None, 0.80, 50, 5, "rich").unwrap();
+        print_final_summary(&result, &config);
+    }
 }

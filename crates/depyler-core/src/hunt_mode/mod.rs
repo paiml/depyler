@@ -28,6 +28,7 @@ pub mod repair;
 pub mod verifier;
 pub mod hansei;
 pub mod five_whys;
+pub mod hunt_shim;
 
 // Re-exports for convenience
 pub use kaizen::KaizenMetrics;
@@ -206,10 +207,77 @@ mod tests {
     }
 
     #[test]
+    fn test_hunt_config_custom() {
+        let config = HuntConfig {
+            max_cycles: 50,
+            quality_threshold: 0.90,
+            target_rate: 0.95,
+            plateau_threshold: 10,
+            enable_five_whys: false,
+            lessons_database: PathBuf::from("/custom/path"),
+        };
+        assert_eq!(config.max_cycles, 50);
+        assert!((config.quality_threshold - 0.90).abs() < f64::EPSILON);
+        assert!((config.target_rate - 0.95).abs() < f64::EPSILON);
+        assert_eq!(config.plateau_threshold, 10);
+        assert!(!config.enable_five_whys);
+        assert_eq!(config.lessons_database.to_str(), Some("/custom/path"));
+    }
+
+    #[test]
+    fn test_hunt_config_clone() {
+        let config = HuntConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.max_cycles, config.max_cycles);
+        assert!((cloned.quality_threshold - config.quality_threshold).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_hunt_config_debug() {
+        let config = HuntConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("HuntConfig"));
+        assert!(debug_str.contains("max_cycles"));
+        assert!(debug_str.contains("quality_threshold"));
+    }
+
+    #[test]
     fn test_hunt_engine_creation() {
         let config = HuntConfig::default();
         let engine = HuntEngine::new(config);
         assert_eq!(engine.metrics().compilation_rate, 0.0);
         assert_eq!(engine.metrics().cumulative_fixes, 0);
+    }
+
+    #[test]
+    fn test_hunt_engine_andon_status() {
+        let config = HuntConfig::default();
+        let engine = HuntEngine::new(config);
+        let status = engine.andon_status();
+        // Just verify we can call the method and get a status
+        // (the actual status value depends on initial state)
+        format!("{:?}", status); // Ensure Debug works
+    }
+
+    #[test]
+    fn test_hunt_engine_export_lessons_empty() {
+        let config = HuntConfig::default();
+        let engine = HuntEngine::new(config);
+        let lessons = engine.export_lessons();
+        assert!(lessons.is_empty());
+    }
+
+    #[test]
+    fn test_hunt_engine_with_custom_config() {
+        let config = HuntConfig {
+            max_cycles: 10,
+            quality_threshold: 0.99,
+            target_rate: 0.5,
+            plateau_threshold: 2,
+            enable_five_whys: false,
+            lessons_database: PathBuf::from("test.db"),
+        };
+        let engine = HuntEngine::new(config);
+        assert_eq!(engine.metrics().compilation_rate, 0.0);
     }
 }

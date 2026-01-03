@@ -71,9 +71,8 @@ features = ["macros"]
 optional = true
 
 # Generative repair via MCTS/GAN (DEPYLER-ENTRENAR-001)
-# Uses local path for development; switch to version for release
 [dependencies.entrenar]
-path = "/home/noah/src/entrenar"
+version = "0.3.0"
 optional = true
 default-features = false
 

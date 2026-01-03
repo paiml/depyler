@@ -628,60 +628,590 @@ impl Default for ConstGenericInferencer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{BinOp, FunctionProperties, HirExpr, HirFunction, HirParam, HirStmt};
+    use crate::hir::{BinOp, FunctionProperties, HirExpr, HirFunction, HirModule, HirParam, HirStmt, UnaryOp, HirComprehension};
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
+
+    // ========== Constructor Tests ==========
+
+    #[test]
+    fn test_new() {
+        let inferencer = ConstGenericInferencer::new();
+        assert!(inferencer.const_values.is_empty());
+        assert!(inferencer.const_params.is_empty());
+    }
+
+    #[test]
+    fn test_default() {
+        let inferencer = ConstGenericInferencer::default();
+        assert!(inferencer.const_values.is_empty());
+        assert!(inferencer.const_params.is_empty());
+    }
+
+    // ========== Fixed Size Pattern Detection ==========
 
     #[test]
     fn test_detect_fixed_size_list() {
         let inferencer = ConstGenericInferencer::new();
-
-        // Test [1, 2, 3] pattern
         let expr = HirExpr::List(vec![
             HirExpr::Literal(Literal::Int(1)),
             HirExpr::Literal(Literal::Int(2)),
             HirExpr::Literal(Literal::Int(3)),
         ]);
-
         assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(3));
+    }
+
+    #[test]
+    fn test_detect_empty_list() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::List(vec![]);
+        assert_eq!(inferencer.detect_fixed_size_pattern(&expr), None);
     }
 
     #[test]
     fn test_detect_multiply_pattern() {
         let inferencer = ConstGenericInferencer::new();
-
-        // Test [0] * 5 pattern
         let expr = HirExpr::Binary {
             op: BinOp::Mul,
             left: Box::new(HirExpr::List(vec![HirExpr::Literal(Literal::Int(0))])),
             right: Box::new(HirExpr::Literal(Literal::Int(5))),
         };
-
         assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(5));
+    }
+
+    #[test]
+    fn test_detect_multiply_pattern_reverse() {
+        let inferencer = ConstGenericInferencer::new();
+        // 5 * [0] instead of [0] * 5
+        let expr = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::Literal(Literal::Int(5))),
+            right: Box::new(HirExpr::List(vec![HirExpr::Literal(Literal::Int(0))])),
+        };
+        assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(5));
+    }
+
+    #[test]
+    fn test_detect_multiply_invalid() {
+        let inferencer = ConstGenericInferencer::new();
+        // [0, 1] * 5 - more than one element, not a repeat pattern
+        let expr = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::List(vec![
+                HirExpr::Literal(Literal::Int(0)),
+                HirExpr::Literal(Literal::Int(1)),
+            ])),
+            right: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        assert_eq!(inferencer.detect_fixed_size_pattern(&expr), None);
+    }
+
+    #[test]
+    fn test_detect_multiply_zero_size() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::List(vec![HirExpr::Literal(Literal::Int(0))])),
+            right: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert_eq!(inferencer.detect_fixed_size_pattern(&expr), None);
     }
 
     #[test]
     fn test_detect_zeros_call() {
         let inferencer = ConstGenericInferencer::new();
-
-        // Test zeros(10) pattern
         let expr = HirExpr::Call {
             func: "zeros".to_string(),
             args: vec![HirExpr::Literal(Literal::Int(10))],
             kwargs: vec![],
         };
-
         assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(10));
     }
 
+    #[test]
+    fn test_detect_ones_call() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Call {
+            func: "ones".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(8))],
+            kwargs: vec![],
+        };
+        assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(8));
+    }
+
+    #[test]
+    fn test_detect_full_call() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Call {
+            func: "full".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(15))],
+            kwargs: vec![],
+        };
+        assert_eq!(inferencer.detect_fixed_size_pattern(&expr), Some(15));
+    }
+
+    #[test]
+    fn test_detect_array_call_too_large() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Call {
+            func: "zeros".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1000))],
+            kwargs: vec![],
+        };
+        assert_eq!(inferencer.detect_fixed_size_pattern(&expr), None);
+    }
+
+    #[test]
+    fn test_detect_unknown_func_call() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Call {
+            func: "unknown_func".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(10))],
+            kwargs: vec![],
+        };
+        assert_eq!(inferencer.detect_fixed_size_pattern(&expr), None);
+    }
+
+    #[test]
+    fn test_detect_non_matching_pattern() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Var("x".to_string());
+        assert_eq!(inferencer.detect_fixed_size_pattern(&expr), None);
+    }
+
+    // ========== Len Equality Detection ==========
+
+    #[test]
+    fn test_len_equality_detection() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Binary {
+            op: BinOp::Eq,
+            left: Box::new(HirExpr::Call {
+                func: "len".to_string(),
+                args: vec![HirExpr::Var("arr".to_string())],
+                kwargs: vec![],
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), Some(5));
+    }
+
+    #[test]
+    fn test_len_equality_detection_reverse() {
+        let inferencer = ConstGenericInferencer::new();
+        // 5 == len(arr) instead of len(arr) == 5
+        let expr = HirExpr::Binary {
+            op: BinOp::Eq,
+            left: Box::new(HirExpr::Literal(Literal::Int(5))),
+            right: Box::new(HirExpr::Call {
+                func: "len".to_string(),
+                args: vec![HirExpr::Var("arr".to_string())],
+                kwargs: vec![],
+            }),
+        };
+        assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), Some(5));
+    }
+
+    #[test]
+    fn test_len_equality_wrong_param() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Binary {
+            op: BinOp::Eq,
+            left: Box::new(HirExpr::Call {
+                func: "len".to_string(),
+                args: vec![HirExpr::Var("other".to_string())],
+                kwargs: vec![],
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), None);
+    }
+
+    // ========== Index Access Detection ==========
+
+    #[test]
+    fn test_index_access_detection() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(4))),
+        };
+        assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), Some(5));
+    }
+
+    #[test]
+    fn test_index_access_negative() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(-1))),
+        };
+        assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), None);
+    }
+
+    #[test]
+    fn test_index_access_wrong_param() {
+        let inferencer = ConstGenericInferencer::new();
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("other".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(4))),
+        };
+        assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), None);
+    }
+
+    // ========== Module/Function Analysis ==========
+
+    #[test]
+    fn test_analyze_empty_module() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut module = HirModule {
+            functions: vec![],
+            classes: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            constants: vec![],
+        };
+        assert!(inferencer.analyze_module(&mut module).is_ok());
+    }
+
+    #[test]
+    fn test_analyze_simple_function() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut function = HirFunction {
+            name: "test_fn".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![HirStmt::Return(None)],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(inferencer.analyze_function(&mut function).is_ok());
+    }
+
+    #[test]
+    fn test_analyze_function_with_list_assign() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut function = HirFunction {
+            name: "test_fn".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::List(vec![
+                    HirExpr::Literal(Literal::Int(1)),
+                    HirExpr::Literal(Literal::Int(2)),
+                ]),
+                type_annotation: None,
+            }],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(inferencer.analyze_function(&mut function).is_ok());
+        assert!(inferencer.const_values.contains_key("x"));
+        assert_eq!(inferencer.const_values["x"], 2);
+    }
+
+    // ========== Statement Scanning ==========
+
+    #[test]
+    fn test_scan_if_statement() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]),
+                type_annotation: None,
+            }],
+            else_body: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::List(vec![
+                    HirExpr::Literal(Literal::Int(1)),
+                    HirExpr::Literal(Literal::Int(2)),
+                ]),
+                type_annotation: None,
+            }]),
+        };
+        assert!(inferencer.scan_statement_for_consts(&stmt).is_ok());
+        assert!(inferencer.const_values.contains_key("x"));
+        assert!(inferencer.const_values.contains_key("y"));
+    }
+
+    #[test]
+    fn test_scan_while_statement() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let stmt = HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]),
+                type_annotation: None,
+            }],
+        };
+        assert!(inferencer.scan_statement_for_consts(&stmt).is_ok());
+        assert!(inferencer.const_values.contains_key("x"));
+    }
+
+    #[test]
+    fn test_scan_for_statement() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]),
+                type_annotation: None,
+            }],
+        };
+        assert!(inferencer.scan_statement_for_consts(&stmt).is_ok());
+        assert!(inferencer.const_values.contains_key("x"));
+    }
+
+    #[test]
+    fn test_scan_return_statement() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))));
+        assert!(inferencer.scan_statement_for_consts(&stmt).is_ok());
+    }
+
+    // ========== Statement Transformation ==========
+
+    #[test]
+    fn test_transform_assign_statement() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]),
+            type_annotation: None,
+        };
+        assert!(inferencer.transform_statement(&mut stmt).is_ok());
+    }
+
+    #[test]
+    fn test_transform_return_statement() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))));
+        assert!(inferencer.transform_statement(&mut stmt).is_ok());
+    }
+
+    #[test]
+    fn test_transform_if_statement() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
+        };
+        assert!(inferencer.transform_statement(&mut stmt).is_ok());
+    }
+
+    #[test]
+    fn test_transform_while_statement() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut stmt = HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Return(None)],
+        };
+        assert!(inferencer.transform_statement(&mut stmt).is_ok());
+    }
+
+    #[test]
+    fn test_transform_for_statement() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Return(None)],
+        };
+        assert!(inferencer.transform_statement(&mut stmt).is_ok());
+    }
+
+    // ========== Expression Transformation ==========
+
+    #[test]
+    fn test_transform_list_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_binary_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_unary_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_call_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_method_call_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("lst".to_string())),
+            method: "append".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_index_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_slice_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::Slice {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            start: Some(Box::new(HirExpr::Literal(Literal::Int(0)))),
+            stop: Some(Box::new(HirExpr::Literal(Literal::Int(5)))),
+            step: None,
+        };
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_dict_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]);
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_tuple_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("a".to_string())),
+        ]);
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_borrow_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::Borrow {
+            expr: Box::new(HirExpr::Var("x".to_string())),
+            mutable: false,
+        };
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    #[test]
+    fn test_transform_list_comp_expr() {
+        let mut inferencer = ConstGenericInferencer::new();
+        let mut expr = HirExpr::ListComp {
+            element: Box::new(HirExpr::Var("x".to_string())),
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(HirExpr::Var("items".to_string())),
+                conditions: vec![],
+            }],
+        };
+        assert!(inferencer.transform_expression(&mut expr).is_ok());
+    }
+
+    // ========== API Tests ==========
+
+    #[test]
+    fn test_get_const_params() {
+        let inferencer = ConstGenericInferencer::new();
+        let params = inferencer.get_const_params();
+        assert!(params.is_empty());
+    }
+
+    #[test]
+    fn test_should_convert_to_array() {
+        let inferencer = ConstGenericInferencer::new();
+        let list_type = Type::List(Box::new(Type::Int));
+        assert!(inferencer.should_convert_to_array(&list_type).is_none());
+    }
+
+    // ========== Const Usage in Statements ==========
+
+    #[test]
+    fn test_find_const_usage_in_assign_stmt() {
+        let inferencer = ConstGenericInferencer::new();
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Binary {
+                op: BinOp::Eq,
+                left: Box::new(HirExpr::Call {
+                    func: "len".to_string(),
+                    args: vec![HirExpr::Var("arr".to_string())],
+                    kwargs: vec![],
+                }),
+                right: Box::new(HirExpr::Literal(Literal::Int(10))),
+            },
+            type_annotation: None,
+        };
+        assert_eq!(inferencer.find_const_usage_in_stmt("arr", &stmt), Some(10));
+    }
+
+    #[test]
+    fn test_find_const_usage_in_if_stmt() {
+        let inferencer = ConstGenericInferencer::new();
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Index {
+                    base: Box::new(HirExpr::Var("arr".to_string())),
+                    index: Box::new(HirExpr::Literal(Literal::Int(9))),
+                },
+                type_annotation: None,
+            }],
+            else_body: None,
+        };
+        assert_eq!(inferencer.find_const_usage_in_stmt("arr", &stmt), Some(10));
+    }
+
     // NOTE: Const generic array inference incomplete - requires full implementation (tracked in DEPYLER-0424)
-    // This test was written ahead of implementation (aspirational test)
-    // Tracked in roadmap: Complete const generic inference feature
     #[test]
     #[ignore = "Incomplete feature: Const generic array inference not yet implemented"]
     fn test_function_analysis() {
         let mut inferencer = ConstGenericInferencer::new();
-
         let mut function = HirFunction {
             name: "process_array".to_string(),
             params: smallvec![HirParam::new(
@@ -707,39 +1237,6 @@ mod tests {
         };
 
         inferencer.analyze_function(&mut function).unwrap();
-
-        // Should detect size 3 for the return type
         assert!(matches!(function.ret_type, Type::Array { .. }));
-    }
-
-    #[test]
-    fn test_len_equality_detection() {
-        let inferencer = ConstGenericInferencer::new();
-
-        // Test len(arr) == 5
-        let expr = HirExpr::Binary {
-            op: BinOp::Eq,
-            left: Box::new(HirExpr::Call {
-                func: "len".to_string(),
-                args: vec![HirExpr::Var("arr".to_string())],
-                kwargs: vec![],
-            }),
-            right: Box::new(HirExpr::Literal(Literal::Int(5))),
-        };
-
-        assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), Some(5));
-    }
-
-    #[test]
-    fn test_index_access_detection() {
-        let inferencer = ConstGenericInferencer::new();
-
-        // Test arr[4] (implies size >= 5)
-        let expr = HirExpr::Index {
-            base: Box::new(HirExpr::Var("arr".to_string())),
-            index: Box::new(HirExpr::Literal(Literal::Int(4))),
-        };
-
-        assert_eq!(inferencer.find_const_usage_in_expr("arr", &expr), Some(5));
     }
 }

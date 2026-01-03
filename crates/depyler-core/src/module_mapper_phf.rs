@@ -306,6 +306,62 @@ pub fn supported_modules() -> impl Iterator<Item = &'static str> {
 // ============================================================================
 
 #[cfg(test)]
+mod fallback_tests {
+    use super::*;
+
+    // Tests for non-PHF fallback mode (always present)
+    #[cfg(not(feature = "phf-lookup"))]
+    #[test]
+    fn test_fallback_get_module_mapping() {
+        assert!(get_module_mapping("json").is_none());
+        assert!(get_module_mapping("os").is_none());
+    }
+
+    #[cfg(not(feature = "phf-lookup"))]
+    #[test]
+    fn test_fallback_get_item_mapping() {
+        assert!(get_item_mapping("json", "loads").is_none());
+        assert!(get_item_mapping("math", "sqrt").is_none());
+    }
+
+    #[cfg(not(feature = "phf-lookup"))]
+    #[test]
+    fn test_fallback_is_module_supported() {
+        assert!(!is_module_supported("json"));
+        assert!(!is_module_supported("os"));
+    }
+
+    #[cfg(not(feature = "phf-lookup"))]
+    #[test]
+    fn test_fallback_supported_modules() {
+        assert_eq!(supported_modules().count(), 0);
+    }
+
+    // Test StaticModuleMapping and StaticItemMapping structs
+    #[test]
+    fn test_static_module_mapping_struct() {
+        let mapping = StaticModuleMapping {
+            rust_path: "serde_json",
+            is_external: true,
+            version: Some("1.0"),
+        };
+        assert_eq!(mapping.rust_path, "serde_json");
+        assert!(mapping.is_external);
+        assert_eq!(mapping.version, Some("1.0"));
+    }
+
+    #[test]
+    fn test_static_item_mapping_struct() {
+        let mapping = StaticItemMapping {
+            python_name: "loads",
+            rust_name: "from_str",
+        };
+        assert_eq!(mapping.python_name, "loads");
+        assert_eq!(mapping.rust_name, "from_str");
+    }
+}
+
+#[cfg(test)]
 #[cfg(feature = "phf-lookup")]
 mod tests {
     use super::*;
