@@ -1373,4 +1373,233 @@ mod tests {
         assert!((stats.error_rate() - 0.25).abs() < 0.001);
         assert!((stats.accuracy() - 0.75).abs() < 0.001);
     }
+
+    // ============================================================
+    // Additional Coverage Tests
+    // ============================================================
+
+    #[test]
+    fn test_oracle_config_default() {
+        let config = OracleConfig::default();
+        assert_eq!(config.n_estimators, 100);
+        assert_eq!(config.max_depth, 10);
+        assert_eq!(config.random_state, Some(42));
+    }
+
+    #[test]
+    fn test_oracle_config_custom() {
+        let config = OracleConfig {
+            n_estimators: 50,
+            max_depth: 5,
+            random_state: Some(123),
+        };
+        assert_eq!(config.n_estimators, 50);
+        assert_eq!(config.max_depth, 5);
+        assert_eq!(config.random_state, Some(123));
+    }
+
+    #[test]
+    fn test_oracle_with_config() {
+        let config = OracleConfig {
+            n_estimators: 20,
+            max_depth: 3,
+            random_state: None,
+        };
+        let oracle = Oracle::with_config(config);
+        assert_eq!(oracle.categories.len(), 7);
+    }
+
+    #[test]
+    fn test_oracle_error_display() {
+        let model_err = OracleError::Model("test error".to_string());
+        assert!(model_err.to_string().contains("Model error"));
+
+        let feature_err = OracleError::Feature("feature error".to_string());
+        assert!(feature_err.to_string().contains("Feature extraction error"));
+
+        let class_err = OracleError::Classification("class error".to_string());
+        assert!(class_err.to_string().contains("Classification error"));
+
+        let io_err = OracleError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "not found"));
+        assert!(io_err.to_string().contains("IO error"));
+    }
+
+    #[test]
+    fn test_classification_result_creation() {
+        let result = ClassificationResult {
+            category: ErrorCategory::TypeMismatch,
+            confidence: 0.95,
+            suggested_fix: Some("Use .into()".to_string()),
+            related_patterns: vec!["pattern1".to_string(), "pattern2".to_string()],
+        };
+        assert_eq!(result.category, ErrorCategory::TypeMismatch);
+        assert_eq!(result.confidence, 0.95);
+        assert!(result.suggested_fix.is_some());
+        assert_eq!(result.related_patterns.len(), 2);
+    }
+
+    #[test]
+    fn test_classification_result_clone() {
+        let result = ClassificationResult {
+            category: ErrorCategory::BorrowChecker,
+            confidence: 0.80,
+            suggested_fix: None,
+            related_patterns: vec![],
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.category, result.category);
+        assert_eq!(cloned.confidence, result.confidence);
+    }
+
+    #[test]
+    fn test_observe_result_eq() {
+        assert_eq!(ObserveResult::Stable, ObserveResult::Stable);
+        assert_eq!(ObserveResult::Warning, ObserveResult::Warning);
+        assert_eq!(ObserveResult::DriftDetected, ObserveResult::DriftDetected);
+        assert_ne!(ObserveResult::Stable, ObserveResult::Warning);
+    }
+
+    #[test]
+    fn test_retrain_config_default() {
+        let config = RetrainConfig::default();
+        assert_eq!(config.min_samples, 50);
+        assert_eq!(config.max_consecutive_errors, 10);
+        assert!((config.warning_threshold - 0.2).abs() < 0.001);
+        assert!((config.drift_threshold - 0.3).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_retrain_config_custom() {
+        let config = RetrainConfig {
+            min_samples: 100,
+            max_consecutive_errors: 5,
+            warning_threshold: 0.15,
+            drift_threshold: 0.25,
+        };
+        assert_eq!(config.min_samples, 100);
+        assert_eq!(config.max_consecutive_errors, 5);
+    }
+
+    #[test]
+    fn test_create_accuracy_bar() {
+        // Test 100% accuracy
+        let bar = create_accuracy_bar(1.0);
+        assert_eq!(bar, "[██████████]");
+
+        // Test 50% accuracy
+        let bar = create_accuracy_bar(0.5);
+        assert_eq!(bar, "[█████░░░░░]");
+
+        // Test 0% accuracy
+        let bar = create_accuracy_bar(0.0);
+        assert_eq!(bar, "[░░░░░░░░░░]");
+
+        // Test 85% accuracy
+        let bar = create_accuracy_bar(0.85);
+        assert!(bar.contains("█"));
+    }
+
+    #[test]
+    fn test_print_drift_status_does_not_panic() {
+        // Get stats from an actual ADWIN detector
+        let mut oracle = Oracle::new();
+        for _ in 0..10 {
+            oracle.observe_prediction(false);
+        }
+        let stats = oracle.drift_stats();
+        // Should not panic
+        print_drift_status(&stats, &DriftStatus::Stable);
+        print_drift_status(&stats, &DriftStatus::Warning);
+        print_drift_status(&stats, &DriftStatus::Drift);
+    }
+
+    #[test]
+    fn test_print_retrain_status_does_not_panic() {
+        let stats = RetrainStats {
+            predictions_observed: 100,
+            correct_predictions: 80,
+            errors: 20,
+            consecutive_errors: 2,
+            drift_status: DriftStatus::Stable,
+            drift_count: 0,
+        };
+        // Should not panic
+        print_retrain_status(&stats);
+    }
+
+    #[test]
+    fn test_print_lineage_history_does_not_panic() {
+        let lineage = OracleLineage::new();
+        // Should not panic with empty lineage
+        print_lineage_history(&lineage);
+
+        // Should not panic with populated lineage
+        let mut lineage = OracleLineage::new();
+        lineage.record_training("sha123".to_string(), "hash456".to_string(), 1000, 0.9);
+        print_lineage_history(&lineage);
+    }
+
+    #[test]
+    fn test_print_oracle_status_does_not_panic() {
+        let oracle = Oracle::new();
+        let trigger = RetrainTrigger::with_oracle(oracle);
+        let lineage = OracleLineage::new();
+        // Should not panic
+        print_oracle_status(&trigger, &lineage);
+    }
+
+    #[test]
+    fn test_retrain_trigger_oracle_access() {
+        let oracle = Oracle::new();
+        let mut trigger = RetrainTrigger::with_oracle(oracle);
+
+        // Test oracle() accessor
+        assert_eq!(trigger.oracle().categories.len(), 7);
+
+        // Test oracle_mut() accessor
+        let oracle_mut = trigger.oracle_mut();
+        assert_eq!(oracle_mut.categories.len(), 7);
+    }
+
+    #[test]
+    fn test_retrain_trigger_drift_stats() {
+        let oracle = Oracle::new();
+        let trigger = RetrainTrigger::with_oracle(oracle);
+        let stats = trigger.drift_stats();
+        assert_eq!(stats.n_samples, 0);
+    }
+
+    #[test]
+    fn test_retrain_trigger_needs_retraining() {
+        let oracle = Oracle::new();
+        let trigger = RetrainTrigger::with_oracle(oracle);
+        // Fresh trigger should not need retraining
+        assert!(!trigger.needs_retraining());
+    }
+
+    #[test]
+    fn test_oracle_default() {
+        let oracle = Oracle::default();
+        assert_eq!(oracle.categories.len(), 7);
+    }
+
+    #[test]
+    fn test_retrain_stats_default() {
+        let stats = RetrainStats::default();
+        assert_eq!(stats.predictions_observed, 0);
+        assert_eq!(stats.correct_predictions, 0);
+        assert_eq!(stats.errors, 0);
+        assert_eq!(stats.consecutive_errors, 0);
+        assert_eq!(stats.drift_count, 0);
+        assert!(matches!(stats.drift_status, DriftStatus::Stable));
+    }
+
+    #[test]
+    fn test_oracle_set_adwin_delta() {
+        let mut oracle = Oracle::new();
+        // Should not panic
+        oracle.set_adwin_delta(0.001);
+        oracle.set_adwin_delta(0.01);
+        oracle.set_adwin_delta(0.1);
+    }
 }

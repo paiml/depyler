@@ -9,10 +9,19 @@ retries = 0
 [profile.fast]
 # Fast profile for development iteration - optimized for speed
 # Target: < 5 minutes for quick feedback during development
-# Excludes SLOW tests, benchmark tests, integration benchmarks, and integration tests that spawn rustc
+# Excludes SLOW tests, benchmark tests, integration tests that spawn rustc
 # Note: Property test case reduction handled by Makefile via env vars
-default-filter = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(property_test_benchmarks) and not test(integration_benchmarks) and not test(~test_gh158) and not test(~test_citl) and not test(~cache_warmer) and not test(~hunt_mode)"
+# Note: property_tests and integration_tests binaries cause double-spawn with cargo-llvm-cov
+default-filter = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(property_test_benchmarks) and not test(integration_benchmarks) and not test(~test_gh158) and not test(~test_citl) and not test(~cache_warmer) and not test(~hunt_mode) and not package(~property_tests) and not package(~integration_tests)"
 slow-timeout = { period = "30s", grace-period = "5s" }
+retries = 0
+test-threads = "num-cpus"
+
+[profile.coverage]
+# Coverage profile - includes hunt_mode and cache_warmer tests for full coverage
+# Excludes slow/benchmark tests
+default-filter = "not test(#[ignore]) and not test(~SLOW) and not test(~benchmark) and not test(property_test_benchmarks) and not test(integration_benchmarks) and not test(~test_gh158) and not test(~test_citl)"
+slow-timeout = { period = "60s", grace-period = "10s" }
 retries = 0
 test-threads = "num-cpus"
 

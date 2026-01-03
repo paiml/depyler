@@ -582,4 +582,289 @@ mod tests {
         // For now, verify the analyzer initializes correctly
         assert!(analyzer.is_lifetime_safe());
     }
+
+    #[test]
+    fn test_lifetime_analyzer_new() {
+        let analyzer = LifetimeAnalyzer::new();
+        assert!(analyzer.get_violations().is_empty());
+        assert!(analyzer.is_lifetime_safe());
+    }
+
+    #[test]
+    fn test_violation_kind_equality() {
+        assert_eq!(ViolationKind::UseAfterMove, ViolationKind::UseAfterMove);
+        assert_ne!(ViolationKind::UseAfterMove, ViolationKind::DanglingReference);
+        assert_eq!(ViolationKind::ConflictingBorrows, ViolationKind::ConflictingBorrows);
+    }
+
+    #[test]
+    fn test_borrow_kind_equality() {
+        assert_eq!(BorrowKind::Shared, BorrowKind::Shared);
+        assert_eq!(BorrowKind::Mutable, BorrowKind::Mutable);
+        assert_ne!(BorrowKind::Shared, BorrowKind::Mutable);
+    }
+
+    #[test]
+    fn test_lifetime_equality() {
+        let l1 = Lifetime {
+            name: "'a".to_string(),
+            scope_depth: 1,
+        };
+        let l2 = Lifetime {
+            name: "'a".to_string(),
+            scope_depth: 1,
+        };
+        let l3 = Lifetime {
+            name: "'b".to_string(),
+            scope_depth: 1,
+        };
+        assert_eq!(l1, l2);
+        assert_ne!(l1, l3);
+    }
+
+    #[test]
+    fn test_lifetime_violation_fields() {
+        let violation = LifetimeViolation {
+            kind: ViolationKind::UseAfterMove,
+            variable: "x".to_string(),
+            location: "line 10".to_string(),
+            suggestion: "use clone".to_string(),
+        };
+        assert_eq!(violation.kind, ViolationKind::UseAfterMove);
+        assert_eq!(violation.variable, "x");
+        assert_eq!(violation.location, "line 10");
+        assert_eq!(violation.suggestion, "use clone");
+    }
+
+    #[test]
+    fn test_analyze_simple_function() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "simple".to_string(),
+            params: vec![].into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_function_with_param() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "with_param".to_string(),
+            params: vec![HirParam::new("x".to_string(), Type::Int)].into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_if_statement() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "test_if".to_string(),
+            params: vec![HirParam::new("x".to_string(), Type::Bool)].into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::If {
+                condition: HirExpr::Var("x".to_string()),
+                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_while_loop() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "test_while".to_string(),
+            params: vec![HirParam::new("x".to_string(), Type::Bool)].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::While {
+                condition: HirExpr::Var("x".to_string()),
+                body: vec![],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        // Check that it doesn't crash
+        let _ = violations;
+    }
+
+    #[test]
+    fn test_analyze_for_loop_tuple_target() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "test_for_tuple".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Tuple(vec![Type::Int, Type::Int]))),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::For {
+                target: AssignTarget::Tuple(vec![
+                    AssignTarget::Symbol("a".to_string()),
+                    AssignTarget::Symbol("b".to_string()),
+                ]),
+                iter: HirExpr::Var("items".to_string()),
+                body: vec![],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        // Should handle tuple targets
+        let _ = violations;
+    }
+
+    #[test]
+    fn test_analyze_binary_expr() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "test_binary".to_string(),
+            params: vec![
+                HirParam::new("a".to_string(), Type::Int),
+                HirParam::new("b".to_string(), Type::Int),
+            ]
+            .into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_index_expr() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "test_index".to_string(),
+            params: vec![HirParam::new(
+                "arr".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Index {
+                base: Box::new(HirExpr::Var("arr".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::Int(0))),
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        let _ = violations;
+    }
+
+    #[test]
+    fn test_analyze_method_call() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "test_method".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("items".to_string())),
+                method: "len".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        let _ = violations;
+    }
+
+    #[test]
+    fn test_analyze_mutating_method() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "test_mutating".to_string(),
+            params: vec![HirParam::new(
+                "items".to_string(),
+                Type::List(Box::new(Type::Int)),
+            )]
+            .into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("items".to_string())),
+                method: "push".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(1))],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        let _ = violations;
+    }
+
+    #[test]
+    fn test_analyze_attribute_access() {
+        let mut analyzer = LifetimeAnalyzer::new();
+        let func = HirFunction {
+            name: "test_attr".to_string(),
+            params: vec![HirParam::new("obj".to_string(), Type::Unknown)].into(),
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Return(Some(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("obj".to_string())),
+                attr: "field".to_string(),
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let violations = analyzer.analyze_function(&func);
+        let _ = violations;
+    }
+
+    #[test]
+    fn test_is_mutating_method() {
+        let analyzer = LifetimeAnalyzer::new();
+        assert!(analyzer.is_mutating_method("push"));
+        assert!(analyzer.is_mutating_method("pop"));
+        assert!(analyzer.is_mutating_method("insert"));
+        assert!(analyzer.is_mutating_method("remove"));
+        assert!(analyzer.is_mutating_method("clear"));
+        assert!(analyzer.is_mutating_method("append"));
+        assert!(analyzer.is_mutating_method("extend"));
+        assert!(analyzer.is_mutating_method("drain"));
+        assert!(analyzer.is_mutating_method("retain"));
+        assert!(!analyzer.is_mutating_method("get"));
+        assert!(!analyzer.is_mutating_method("len"));
+    }
 }

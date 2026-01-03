@@ -1114,4 +1114,762 @@ mod tests {
         };
         assert_eq!(formatter.format(&try_expr), "result?");
     }
+
+    #[test]
+    fn test_format_method_call() {
+        let formatter = RuchyFormatter::new();
+
+        let method_call = RuchyExpr::MethodCall {
+            receiver: Box::new(RuchyExpr::Identifier("vec".to_string())),
+            method: "push".to_string(),
+            args: vec![RuchyExpr::Literal(Literal::Integer(42))],
+        };
+        assert_eq!(formatter.format(&method_call), "vec.push(42)");
+    }
+
+    #[test]
+    fn test_format_for_loop() {
+        let formatter = RuchyFormatter::new();
+
+        let for_expr = RuchyExpr::For {
+            var: "i".to_string(),
+            iter: Box::new(RuchyExpr::Identifier("items".to_string())),
+            body: Box::new(RuchyExpr::Block(vec![])),
+        };
+        let formatted = formatter.format(&for_expr);
+        assert!(formatted.contains("for i in items"));
+    }
+
+    #[test]
+    fn test_format_while_loop() {
+        let formatter = RuchyFormatter::new();
+
+        let while_expr = RuchyExpr::While {
+            condition: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            body: Box::new(RuchyExpr::Block(vec![])),
+        };
+        let formatted = formatter.format(&while_expr);
+        assert!(formatted.contains("while true"));
+    }
+
+    #[test]
+    fn test_format_let_binding() {
+        let formatter = RuchyFormatter::new();
+
+        let let_expr = RuchyExpr::Let {
+            name: "x".to_string(),
+            value: Box::new(RuchyExpr::Literal(Literal::Integer(42))),
+            body: Box::new(RuchyExpr::Identifier("x".to_string())),
+            is_mutable: false,
+        };
+        let formatted = formatter.format(&let_expr);
+        assert!(formatted.contains("let x = 42"));
+    }
+
+    #[test]
+    fn test_format_let_mut_binding() {
+        let formatter = RuchyFormatter::new();
+
+        let let_expr = RuchyExpr::Let {
+            name: "y".to_string(),
+            value: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+            body: Box::new(RuchyExpr::Identifier("y".to_string())),
+            is_mutable: true,
+        };
+        let formatted = formatter.format(&let_expr);
+        assert!(formatted.contains("let mut y = 10"));
+    }
+
+    #[test]
+    fn test_format_match_expression() {
+        use crate::ast::{MatchArm, Pattern};
+
+        let formatter = RuchyFormatter::new();
+
+        let match_expr = RuchyExpr::Match {
+            expr: Box::new(RuchyExpr::Identifier("x".to_string())),
+            arms: vec![
+                MatchArm {
+                    pattern: Pattern::Literal(Literal::Integer(1)),
+                    guard: None,
+                    body: Box::new(RuchyExpr::Literal(Literal::String("one".to_string()))),
+                },
+                MatchArm {
+                    pattern: Pattern::Wildcard,
+                    guard: None,
+                    body: Box::new(RuchyExpr::Literal(Literal::String("other".to_string()))),
+                },
+            ],
+        };
+        let formatted = formatter.format(&match_expr);
+        assert!(formatted.contains("match x"));
+        assert!(formatted.contains("1 =>"));
+        assert!(formatted.contains("_ =>"));
+    }
+
+    #[test]
+    fn test_format_match_with_guard() {
+        use crate::ast::{MatchArm, Pattern};
+
+        let formatter = RuchyFormatter::new();
+
+        let match_expr = RuchyExpr::Match {
+            expr: Box::new(RuchyExpr::Identifier("n".to_string())),
+            arms: vec![MatchArm {
+                pattern: Pattern::Identifier("x".to_string()),
+                guard: Some(Box::new(RuchyExpr::Binary {
+                    left: Box::new(RuchyExpr::Identifier("x".to_string())),
+                    op: BinaryOp::Greater,
+                    right: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
+                })),
+                body: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            }],
+        };
+        let formatted = formatter.format(&match_expr);
+        assert!(formatted.contains("if x > 0"));
+    }
+
+    #[test]
+    fn test_format_pattern_tuple() {
+        use crate::ast::{MatchArm, Pattern};
+
+        let formatter = RuchyFormatter::new();
+
+        let match_expr = RuchyExpr::Match {
+            expr: Box::new(RuchyExpr::Identifier("pair".to_string())),
+            arms: vec![MatchArm {
+                pattern: Pattern::Tuple(vec![
+                    Pattern::Identifier("a".to_string()),
+                    Pattern::Identifier("b".to_string()),
+                ]),
+                guard: None,
+                body: Box::new(RuchyExpr::Identifier("a".to_string())),
+            }],
+        };
+        let formatted = formatter.format(&match_expr);
+        assert!(formatted.contains("(a, b)"));
+    }
+
+    #[test]
+    fn test_format_pattern_struct() {
+        use crate::ast::{MatchArm, Pattern};
+
+        let formatter = RuchyFormatter::new();
+
+        let match_expr = RuchyExpr::Match {
+            expr: Box::new(RuchyExpr::Identifier("point".to_string())),
+            arms: vec![MatchArm {
+                pattern: Pattern::Struct {
+                    name: "Point".to_string(),
+                    fields: vec![("x".to_string(), Pattern::Identifier("px".to_string()))],
+                },
+                guard: None,
+                body: Box::new(RuchyExpr::Identifier("px".to_string())),
+            }],
+        };
+        let formatted = formatter.format(&match_expr);
+        assert!(formatted.contains("Point { x: px }"));
+    }
+
+    #[test]
+    fn test_format_pattern_list() {
+        use crate::ast::{MatchArm, Pattern};
+
+        let formatter = RuchyFormatter::new();
+
+        let match_expr = RuchyExpr::Match {
+            expr: Box::new(RuchyExpr::Identifier("list".to_string())),
+            arms: vec![MatchArm {
+                pattern: Pattern::List(vec![Pattern::Identifier("head".to_string())]),
+                guard: None,
+                body: Box::new(RuchyExpr::Identifier("head".to_string())),
+            }],
+        };
+        let formatted = formatter.format(&match_expr);
+        assert!(formatted.contains("[head]"));
+    }
+
+    #[test]
+    fn test_format_struct_definition() {
+        use crate::ast::StructField;
+
+        let formatter = RuchyFormatter::new();
+
+        let struct_expr = RuchyExpr::Struct {
+            name: "Point".to_string(),
+            fields: vec![
+                StructField { name: "x".to_string(), typ: RuchyType::I64, is_public: true },
+                StructField { name: "y".to_string(), typ: RuchyType::I64, is_public: false },
+            ],
+        };
+        let formatted = formatter.format(&struct_expr);
+        assert!(formatted.contains("struct Point"));
+        assert!(formatted.contains("pub x: i64"));
+        assert!(formatted.contains("y: i64"));
+    }
+
+    #[test]
+    fn test_format_struct_literal() {
+        let formatter = RuchyFormatter::new();
+
+        let struct_lit = RuchyExpr::StructLiteral {
+            name: "Point".to_string(),
+            fields: vec![
+                ("x".to_string(), RuchyExpr::Literal(Literal::Integer(10))),
+                ("y".to_string(), RuchyExpr::Literal(Literal::Integer(20))),
+            ],
+        };
+        let formatted = formatter.format(&struct_lit);
+        assert!(formatted.contains("Point {"));
+        assert!(formatted.contains("x: 10"));
+        assert!(formatted.contains("y: 20"));
+    }
+
+    #[test]
+    fn test_format_dataframe() {
+        use crate::ast::DataFrameColumn;
+
+        let formatter = RuchyFormatter::new();
+
+        let df_expr = RuchyExpr::DataFrame {
+            columns: vec![DataFrameColumn {
+                name: "values".to_string(),
+                values: vec![
+                    RuchyExpr::Literal(Literal::Integer(1)),
+                    RuchyExpr::Literal(Literal::Integer(2)),
+                ],
+            }],
+        };
+        let formatted = formatter.format(&df_expr);
+        assert!(formatted.contains("df!["));
+        assert!(formatted.contains("\"values\""));
+    }
+
+    #[test]
+    fn test_format_string_interpolation() {
+        let formatter = RuchyFormatter::new();
+
+        let interp_expr = RuchyExpr::StringInterpolation {
+            parts: vec![
+                StringPart::Text("Hello, ".to_string()),
+                StringPart::Expr(Box::new(RuchyExpr::Identifier("name".to_string()))),
+                StringPart::Text("!".to_string()),
+            ],
+        };
+        let formatted = formatter.format(&interp_expr);
+        assert!(formatted.contains("f\"Hello, {name}!\""));
+    }
+
+    #[test]
+    fn test_format_string_interpolation_escaping() {
+        let formatter = RuchyFormatter::new();
+
+        let interp_expr = RuchyExpr::StringInterpolation {
+            parts: vec![StringPart::Text("test {brace}".to_string())],
+        };
+        let formatted = formatter.format(&interp_expr);
+        assert!(formatted.contains("{{brace}}"));
+    }
+
+    #[test]
+    fn test_format_type_primitives() {
+        let formatter = RuchyFormatter::new();
+
+        // Test via function with return type
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::I8),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> i8"));
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::I16),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> i16"));
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::I32),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> i32"));
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::I128),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> i128"));
+    }
+
+    #[test]
+    fn test_format_type_unsigned() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::U8),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> u8"));
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::U16),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> u16"));
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::U64),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> u64"));
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::U128),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> u128"));
+    }
+
+    #[test]
+    fn test_format_type_size() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::ISize),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> isize"));
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::USize),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> usize"));
+    }
+
+    #[test]
+    fn test_format_type_float() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::F32),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> f32"));
+    }
+
+    #[test]
+    fn test_format_type_char() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Char),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> char"));
+    }
+
+    #[test]
+    fn test_format_type_vec() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Vec(Box::new(RuchyType::I64))),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> Vec<i64>"));
+    }
+
+    #[test]
+    fn test_format_type_array() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Array(Box::new(RuchyType::I64), 10)),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> [i64; 10]"));
+    }
+
+    #[test]
+    fn test_format_type_tuple() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Tuple(vec![RuchyType::I64, RuchyType::String])),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> (i64, String)"));
+    }
+
+    #[test]
+    fn test_format_type_option() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Option(Box::new(RuchyType::I64))),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> i64?"));
+    }
+
+    #[test]
+    fn test_format_type_result() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Result(
+                Box::new(RuchyType::I64),
+                Box::new(RuchyType::String),
+            )),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> Result<i64, String>"));
+    }
+
+    #[test]
+    fn test_format_type_function() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Function {
+                params: vec![RuchyType::I64],
+                returns: Box::new(RuchyType::Bool),
+            }),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> fun(i64) -> bool"));
+    }
+
+    #[test]
+    fn test_format_type_named() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Named("MyType".to_string())),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> MyType"));
+    }
+
+    #[test]
+    fn test_format_type_generic() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Generic("T".to_string())),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> T"));
+    }
+
+    #[test]
+    fn test_format_type_reference() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Reference {
+                typ: Box::new(RuchyType::I64),
+                is_mutable: false,
+            }),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> &i64"));
+    }
+
+    #[test]
+    fn test_format_type_mutable_reference() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Reference {
+                typ: Box::new(RuchyType::String),
+                is_mutable: true,
+            }),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> &mut String"));
+    }
+
+    #[test]
+    fn test_format_type_dynamic() {
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "test".to_string(),
+            params: vec![],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: Some(RuchyType::Dynamic),
+        };
+        assert!(formatter.format(&fn_expr).contains("-> dyn Any"));
+    }
+
+    #[test]
+    fn test_format_pipeline_all_stages() {
+        let formatter = RuchyFormatter::new();
+
+        let pipeline = RuchyExpr::Pipeline {
+            expr: Box::new(RuchyExpr::Identifier("items".to_string())),
+            stages: vec![
+                PipelineStage::Map(Box::new(RuchyExpr::Identifier("f".to_string()))),
+                PipelineStage::Filter(Box::new(RuchyExpr::Identifier("g".to_string()))),
+                PipelineStage::FlatMap(Box::new(RuchyExpr::Identifier("h".to_string()))),
+                PipelineStage::Reduce(Box::new(RuchyExpr::Identifier("r".to_string()))),
+                PipelineStage::Call("collect".to_string(), vec![]),
+            ],
+        };
+        let formatted = formatter.format(&pipeline);
+        assert!(formatted.contains("map(f)"));
+        assert!(formatted.contains("filter(g)"));
+        assert!(formatted.contains("flat_map(h)"));
+        assert!(formatted.contains("reduce(r)"));
+        assert!(formatted.contains("collect()"));
+    }
+
+    #[test]
+    fn test_format_bitwise_operators() {
+        let formatter = RuchyFormatter::new();
+
+        let bitand = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::BitwiseAnd,
+            right: Box::new(RuchyExpr::Identifier("b".to_string())),
+        };
+        assert_eq!(formatter.format(&bitand), "a & b");
+
+        let bitor = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::BitwiseOr,
+            right: Box::new(RuchyExpr::Identifier("b".to_string())),
+        };
+        assert_eq!(formatter.format(&bitor), "a | b");
+
+        let bitxor = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::BitwiseXor,
+            right: Box::new(RuchyExpr::Identifier("b".to_string())),
+        };
+        assert_eq!(formatter.format(&bitxor), "a ^ b");
+
+        let lshift = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::LeftShift,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+        };
+        assert_eq!(formatter.format(&lshift), "a << 2");
+
+        let rshift = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Identifier("a".to_string())),
+            op: BinaryOp::RightShift,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+        };
+        assert_eq!(formatter.format(&rshift), "a >> 2");
+    }
+
+    #[test]
+    fn test_format_power_operator() {
+        let formatter = RuchyFormatter::new();
+
+        let pow = RuchyExpr::Binary {
+            left: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+            op: BinaryOp::Power,
+            right: Box::new(RuchyExpr::Literal(Literal::Integer(8))),
+        };
+        assert_eq!(formatter.format(&pow), "2 ** 8");
+    }
+
+    #[test]
+    fn test_format_bitwise_not() {
+        let formatter = RuchyFormatter::new();
+
+        let bitnot = RuchyExpr::Unary {
+            op: UnaryOp::BitwiseNot,
+            operand: Box::new(RuchyExpr::Identifier("x".to_string())),
+        };
+        assert_eq!(formatter.format(&bitnot), "!x");
+    }
+
+    #[test]
+    fn test_format_function_with_params() {
+        use crate::ast::Param;
+
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "add".to_string(),
+            params: vec![
+                Param { name: "x".to_string(), typ: Some(RuchyType::I64), default: None },
+                Param { name: "y".to_string(), typ: Some(RuchyType::I64), default: None },
+            ],
+            body: Box::new(RuchyExpr::Binary {
+                left: Box::new(RuchyExpr::Identifier("x".to_string())),
+                op: BinaryOp::Add,
+                right: Box::new(RuchyExpr::Identifier("y".to_string())),
+            }),
+            is_async: false,
+            return_type: Some(RuchyType::I64),
+        };
+        let formatted = formatter.format(&fn_expr);
+        assert!(formatted.contains("fun add(x: i64, y: i64) -> i64"));
+    }
+
+    #[test]
+    fn test_format_function_with_default_param() {
+        use crate::ast::Param;
+
+        let formatter = RuchyFormatter::new();
+
+        let fn_expr = RuchyExpr::Function {
+            name: "greet".to_string(),
+            params: vec![Param {
+                name: "name".to_string(),
+                typ: Some(RuchyType::String),
+                default: Some(Box::new(RuchyExpr::Literal(Literal::String("World".to_string())))),
+            }],
+            body: Box::new(RuchyExpr::Block(vec![])),
+            is_async: false,
+            return_type: None,
+        };
+        let formatted = formatter.format(&fn_expr);
+        assert!(formatted.contains("name: String = \"World\""));
+    }
+
+    #[test]
+    fn test_format_lambda_with_block() {
+        use crate::ast::Param;
+
+        let formatter = RuchyFormatter::new();
+
+        let lambda = RuchyExpr::Lambda {
+            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
+            body: Box::new(RuchyExpr::Block(vec![RuchyExpr::Identifier("x".to_string())])),
+        };
+        let formatted = formatter.format(&lambda);
+        assert!(formatted.contains("|x|"));
+        assert!(formatted.contains("{"));
+    }
+
+    #[test]
+    fn test_format_continue_with_label() {
+        let formatter = RuchyFormatter::new();
+
+        let cont = RuchyExpr::Continue { label: Some("loop1".to_string()) };
+        assert_eq!(formatter.format(&cont), "continue 'loop1");
+    }
+
+    #[test]
+    fn test_format_if_else_if() {
+        let formatter = RuchyFormatter::new();
+
+        let if_else_if = RuchyExpr::If {
+            condition: Box::new(RuchyExpr::Literal(Literal::Bool(true))),
+            then_branch: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
+            else_branch: Some(Box::new(RuchyExpr::If {
+                condition: Box::new(RuchyExpr::Literal(Literal::Bool(false))),
+                then_branch: Box::new(RuchyExpr::Literal(Literal::Integer(2))),
+                else_branch: None,
+            })),
+        };
+        let formatted = formatter.format(&if_else_if);
+        assert!(formatted.contains("if true"));
+        assert!(formatted.contains("else if false"));
+    }
+
+    #[test]
+    fn test_formatter_with_config() {
+        let mut config = crate::RuchyConfig::default();
+        config.indent_width = 2;
+        config.max_line_length = 80;
+        let formatter = RuchyFormatter::with_config(&config);
+        assert_eq!(formatter.indent_width, 2);
+        assert_eq!(formatter.max_line_length, 80);
+    }
+
+    #[test]
+    fn test_format_empty_struct() {
+        let formatter = RuchyFormatter::new();
+
+        let empty_struct = RuchyExpr::Struct {
+            name: "Empty".to_string(),
+            fields: vec![],
+        };
+        let formatted = formatter.format(&empty_struct);
+        assert_eq!(formatted, "struct Empty {}");
+    }
+
+    #[test]
+    fn test_format_empty_dataframe() {
+        let formatter = RuchyFormatter::new();
+
+        let empty_df = RuchyExpr::DataFrame { columns: vec![] };
+        let formatted = formatter.format(&empty_df);
+        assert_eq!(formatted, "df![]");
+    }
 }

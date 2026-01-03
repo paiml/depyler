@@ -459,7 +459,7 @@ fn could_be_null(expr: &HirExpr) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use depyler_core::hir::{BinOp, HirExpr, Literal};
+    use depyler_core::hir::{BinOp, HirExpr, Literal, UnaryOp};
     use smallvec::smallvec;
 
     #[test]
@@ -532,5 +532,434 @@ mod tests {
 
         let result = analyzer.analyze_function(&func);
         assert!(matches!(result.status, PropertyStatus::Proven));
+    }
+
+    #[test]
+    fn test_analyzer_default() {
+        let analyzer = MemorySafetyAnalyzer::default();
+        assert!(analyzer.moved_values.is_empty());
+        assert!(analyzer.lifetimes.is_empty());
+        assert!(analyzer.borrows.is_empty());
+        assert_eq!(analyzer.scope_depth, 0);
+    }
+
+    #[test]
+    fn test_analyzer_new() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        assert!(analyzer.moved_values.is_empty());
+    }
+
+    #[test]
+    fn test_check_var_move_not_moved() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let violation = analyzer.check_var_move("x", "test");
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_check_binary_moves() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let left = HirExpr::Literal(Literal::Int(1));
+        let right = HirExpr::Literal(Literal::Int(2));
+        let violation = analyzer.check_binary_moves(&left, &right, "test");
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_check_call_moves() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let args = vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ];
+        let violation = analyzer.check_call_moves(&args, "test");
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_check_index_moves() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let base = HirExpr::Var("arr".to_string());
+        let index = HirExpr::Literal(Literal::Int(0));
+        let violation = analyzer.check_index_moves(&base, &index, "test");
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_analyze_if() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+
+        let condition = HirExpr::Literal(Literal::Bool(true));
+        let then_body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))];
+        let else_body = Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]);
+
+        let violation = analyzer.analyze_if(&condition, &then_body, &else_body, &annotations);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_analyze_while() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+
+        let condition = HirExpr::Literal(Literal::Bool(true));
+        let body = vec![];
+
+        let violation = analyzer.analyze_while(&condition, &body, &annotations);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_analyze_for() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+
+        let target = AssignTarget::Symbol("i".to_string());
+        let iter = HirExpr::List(vec![]);
+        let body = vec![];
+
+        let violation = analyzer.analyze_for(&target, &iter, &body, &annotations);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_analyze_for_tuple_target() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+
+        let target = AssignTarget::Tuple(vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ]);
+        let iter = HirExpr::List(vec![]);
+        let body = vec![];
+
+        let violation = analyzer.analyze_for(&target, &iter, &body, &annotations);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_handle_expr_moves_list() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+
+        let expr = HirExpr::List(vec![
+            HirExpr::Var("x".to_string()),
+            HirExpr::Var("y".to_string()),
+        ]);
+
+        analyzer.handle_expr_moves(&expr, &annotations);
+        // Variables should be tracked
+        assert!(analyzer.moved_values.contains("x"));
+        assert!(analyzer.moved_values.contains("y"));
+    }
+
+    #[test]
+    fn test_handle_expr_moves_tuple() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+
+        let expr = HirExpr::Tuple(vec![HirExpr::Var("a".to_string())]);
+
+        analyzer.handle_expr_moves(&expr, &annotations);
+        assert!(analyzer.moved_values.contains("a"));
+    }
+
+    #[test]
+    fn test_handle_expr_moves_attribute() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations::default();
+
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+
+        analyzer.handle_expr_moves(&expr, &annotations);
+        assert!(analyzer.moved_values.contains("obj"));
+    }
+
+    #[test]
+    fn test_handle_expr_moves_borrowed() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+        let annotations = TranspilationAnnotations {
+            ownership_model: depyler_annotations::OwnershipModel::Borrowed,
+            ..Default::default()
+        };
+
+        let expr = HirExpr::Var("x".to_string());
+
+        analyzer.handle_expr_moves(&expr, &annotations);
+        // Should NOT be moved when borrowed
+        assert!(!analyzer.moved_values.contains("x"));
+    }
+
+    #[test]
+    fn test_register_variable_removes_moved() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+
+        analyzer.moved_values.insert("x".to_string());
+        assert!(analyzer.moved_values.contains("x"));
+
+        analyzer.register_variable("x", &Type::Int, true);
+        assert!(!analyzer.moved_values.contains("x"));
+    }
+
+    #[test]
+    fn test_check_null_safety_empty() {
+        let func = HirFunction {
+            name: "empty".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let violations = check_null_safety(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_check_null_safety_with_return() {
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let violations = check_null_safety(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_check_expr_null_safety_non_null() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+
+        let violation = check_expr_null_safety(&expr);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_check_stmt_null_safety_assign() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        };
+
+        let violation = check_stmt_null_safety(&stmt);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_check_stmt_null_safety_expr() {
+        let stmt = HirStmt::Expr(HirExpr::Literal(Literal::Int(42)));
+
+        let violation = check_stmt_null_safety(&stmt);
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_could_be_null() {
+        assert!(could_be_null(&HirExpr::Literal(Literal::None)));
+        assert!(!could_be_null(&HirExpr::Literal(Literal::Int(42))));
+        assert!(!could_be_null(&HirExpr::Var("x".to_string())));
+    }
+
+    #[test]
+    fn test_violations_to_test_cases() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let violations = vec![
+            MemorySafetyViolation::UseAfterMove {
+                variable: "x".to_string(),
+                location: "test".to_string(),
+            },
+            MemorySafetyViolation::NullPointerDereference {
+                location: "line 10".to_string(),
+            },
+        ];
+
+        let test_cases = analyzer.violations_to_test_cases(&violations);
+        assert_eq!(test_cases.len(), 2);
+        assert!(test_cases[0].error.is_some());
+        assert!(test_cases[1].error.is_some());
+    }
+
+    #[test]
+    fn test_memory_safety_violation_debug() {
+        let violation = MemorySafetyViolation::UseAfterMove {
+            variable: "x".to_string(),
+            location: "test".to_string(),
+        };
+        let debug_str = format!("{:?}", violation);
+        assert!(debug_str.contains("UseAfterMove"));
+        assert!(debug_str.contains("x"));
+    }
+
+    #[test]
+    fn test_all_violation_types() {
+        let violations = vec![
+            MemorySafetyViolation::UseAfterMove {
+                variable: "x".to_string(),
+                location: "test".to_string(),
+            },
+            MemorySafetyViolation::DoubleBorrow {
+                variable: "y".to_string(),
+                location: "test".to_string(),
+            },
+            MemorySafetyViolation::MutableAliasingViolation {
+                variable: "z".to_string(),
+                location: "test".to_string(),
+            },
+            MemorySafetyViolation::LifetimeViolation {
+                variable: "a".to_string(),
+                location: "test".to_string(),
+            },
+            MemorySafetyViolation::NullPointerDereference {
+                location: "test".to_string(),
+            },
+            MemorySafetyViolation::BufferOverflow {
+                location: "test".to_string(),
+            },
+            MemorySafetyViolation::DataRace {
+                variable: "b".to_string(),
+                location: "test".to_string(),
+            },
+        ];
+
+        for violation in violations {
+            let debug_str = format!("{:?}", violation);
+            assert!(!debug_str.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_analyze_function_with_thread_safety() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+
+        let func = HirFunction {
+            name: "thread_safe".to_string(),
+            params: smallvec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: Default::default(),
+            annotations: TranspilationAnnotations {
+                thread_safety: depyler_annotations::ThreadSafety::Required,
+                ..Default::default()
+            },
+            docstring: None,
+        };
+
+        let result = analyzer.analyze_function(&func);
+        // Should complete without panic
+        let _ = result;
+    }
+
+    #[test]
+    fn test_check_expr_moves_unary() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Literal(Literal::Bool(true))),
+        };
+        let violation = analyzer.check_expr_moves(&expr, "test");
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_check_expr_moves_call() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("hello".to_string()))],
+            kwargs: vec![],
+        };
+        let violation = analyzer.check_expr_moves(&expr, "test");
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_check_expr_moves_attribute() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        let violation = analyzer.check_expr_moves(&expr, "test");
+        assert!(violation.is_none());
+    }
+
+    #[test]
+    fn test_cleanup_scope() {
+        let mut analyzer = MemorySafetyAnalyzer::new();
+
+        // Register a variable at depth 1
+        analyzer.scope_depth = 1;
+        analyzer.register_variable("x", &Type::Int, false);
+
+        // Now cleanup scope at depth 0
+        analyzer.scope_depth = 0;
+        analyzer.cleanup_scope();
+
+        // Variable should be removed
+        assert!(!analyzer.lifetimes.contains_key("x"));
+    }
+
+    #[test]
+    fn test_infer_type() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let ty = analyzer.infer_type(&expr);
+        assert!(matches!(ty, Type::Unknown));
+    }
+
+    #[test]
+    fn test_is_copy_type() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        // Current implementation returns false
+        assert!(!analyzer.is_copy_type("x"));
+    }
+
+    #[test]
+    fn test_is_unsafe_index() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let base = HirExpr::Var("arr".to_string());
+        let index = HirExpr::Literal(Literal::Int(0));
+        // Current implementation returns false
+        assert!(!analyzer.is_unsafe_index(&base, &index));
+    }
+
+    #[test]
+    fn test_check_data_races_empty() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        let func = HirFunction {
+            name: "empty".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: Default::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let violations = analyzer.check_data_races(&func);
+        assert!(violations.is_empty());
+    }
+
+    #[test]
+    fn test_is_shared_mutable() {
+        let analyzer = MemorySafetyAnalyzer::new();
+        // Current implementation returns false
+        assert!(!analyzer.is_shared_mutable("x"));
     }
 }
