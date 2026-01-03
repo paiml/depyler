@@ -5142,3 +5142,835 @@ impl RustCodeGen for HirFunction {
         Ok(func_tokens)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::{BinOp, HirExpr, HirStmt, Literal, UnaryOp, Type, AssignTarget, HirFunction, FunctionProperties, ExceptHandler};
+    use depyler_annotations::TranspilationAnnotations;
+    use smallvec::smallvec;
+
+    // ==========================================================================
+    // Tests for is_rust_keyword
+    // ==========================================================================
+
+    #[test]
+    fn test_is_rust_keyword_basic_keywords() {
+        assert!(is_rust_keyword("fn"));
+        assert!(is_rust_keyword("let"));
+        assert!(is_rust_keyword("mut"));
+        assert!(is_rust_keyword("if"));
+        assert!(is_rust_keyword("else"));
+        assert!(is_rust_keyword("match"));
+        assert!(is_rust_keyword("loop"));
+        assert!(is_rust_keyword("while"));
+        assert!(is_rust_keyword("for"));
+        assert!(is_rust_keyword("return"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_type_keywords() {
+        assert!(is_rust_keyword("struct"));
+        assert!(is_rust_keyword("enum"));
+        assert!(is_rust_keyword("trait"));
+        assert!(is_rust_keyword("impl"));
+        assert!(is_rust_keyword("type"));
+        assert!(is_rust_keyword("Self"));
+        assert!(is_rust_keyword("self"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_async_await() {
+        assert!(is_rust_keyword("async"));
+        assert!(is_rust_keyword("await"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_reserved_for_future() {
+        assert!(is_rust_keyword("abstract"));
+        assert!(is_rust_keyword("become"));
+        assert!(is_rust_keyword("box"));
+        assert!(is_rust_keyword("do"));
+        assert!(is_rust_keyword("final"));
+        assert!(is_rust_keyword("macro"));
+        assert!(is_rust_keyword("override"));
+        assert!(is_rust_keyword("priv"));
+        assert!(is_rust_keyword("typeof"));
+        assert!(is_rust_keyword("unsized"));
+        assert!(is_rust_keyword("virtual"));
+        assert!(is_rust_keyword("yield"));
+        assert!(is_rust_keyword("try"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_not_keywords() {
+        assert!(!is_rust_keyword("foo"));
+        assert!(!is_rust_keyword("bar"));
+        assert!(!is_rust_keyword("my_func"));
+        assert!(!is_rust_keyword("String"));
+        assert!(!is_rust_keyword("Vec"));
+        assert!(!is_rust_keyword("Option"));
+        assert!(!is_rust_keyword("Result"));
+    }
+
+    // ==========================================================================
+    // Tests for stmt_always_returns
+    // ==========================================================================
+
+    #[test]
+    fn test_stmt_always_returns_return_stmt() {
+        let stmt = HirStmt::Return(None);
+        assert!(stmt_always_returns(&stmt));
+
+        let stmt_with_value = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))));
+        assert!(stmt_always_returns(&stmt_with_value));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_raise_stmt() {
+        let stmt = HirStmt::Raise {
+            exception: Some(HirExpr::Call {
+                func: "ValueError".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            cause: None,
+        };
+        assert!(stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_expression_does_not() {
+        let stmt = HirStmt::Expr(HirExpr::Literal(Literal::Int(42)));
+        assert!(!stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_assignment_does_not() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        };
+        assert!(!stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_try_with_all_branches_returning() {
+        // try:
+        //     return 1
+        // except:
+        //     return 2
+        let stmt = HirStmt::Try {
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            handlers: vec![ExceptHandler {
+                exception_type: None,
+                name: None,
+                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))],
+            }],
+            orelse: None,
+            finalbody: None,
+        };
+        assert!(stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_try_without_handler_returning() {
+        // try:
+        //     return 1
+        // except:
+        //     pass  <-- doesn't return
+        let stmt = HirStmt::Try {
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            handlers: vec![ExceptHandler {
+                exception_type: None,
+                name: None,
+                body: vec![HirStmt::Pass],
+            }],
+            orelse: None,
+            finalbody: None,
+        };
+        assert!(!stmt_always_returns(&stmt));
+    }
+
+    // ==========================================================================
+    // Tests for classify_string_method
+    // ==========================================================================
+
+    #[test]
+    fn test_classify_string_method_owned_methods() {
+        assert_eq!(classify_string_method("upper"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("lower"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("strip"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("lstrip"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("rstrip"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("replace"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("format"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("title"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("capitalize"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("swapcase"), StringMethodReturnType::Owned);
+    }
+
+    #[test]
+    fn test_classify_string_method_borrowed_methods() {
+        assert_eq!(classify_string_method("startswith"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("endswith"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isalpha"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isdigit"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isalnum"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isspace"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("islower"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("isupper"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("find"), StringMethodReturnType::Borrowed);
+        assert_eq!(classify_string_method("count"), StringMethodReturnType::Borrowed);
+    }
+
+    #[test]
+    fn test_classify_string_method_unknown_defaults_to_owned() {
+        assert_eq!(classify_string_method("custom_method"), StringMethodReturnType::Owned);
+        assert_eq!(classify_string_method("my_transform"), StringMethodReturnType::Owned);
+    }
+
+    // ==========================================================================
+    // Tests for contains_owned_string_method
+    // ==========================================================================
+
+    #[test]
+    fn test_contains_owned_string_method_upper() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("s".to_string())),
+            method: "upper".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(contains_owned_string_method(&expr));
+    }
+
+    #[test]
+    fn test_contains_owned_string_method_startswith() {
+        // startswith returns bool, so borrowed
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("s".to_string())),
+            method: "startswith".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("prefix".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(!contains_owned_string_method(&expr));
+    }
+
+    #[test]
+    fn test_contains_owned_string_method_string_literal() {
+        // String literals get .to_string() and are owned
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        assert!(contains_owned_string_method(&expr));
+    }
+
+    #[test]
+    fn test_contains_owned_string_method_fstring() {
+        // F-strings generate format!() which returns owned
+        let expr = HirExpr::FString {
+            parts: vec![crate::hir::FStringPart::Literal("hello ".to_string())],
+        };
+        assert!(contains_owned_string_method(&expr));
+    }
+
+    #[test]
+    fn test_contains_owned_string_method_int_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!contains_owned_string_method(&expr));
+    }
+
+    #[test]
+    fn test_contains_owned_string_method_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!contains_owned_string_method(&expr));
+    }
+
+    #[test]
+    fn test_contains_owned_string_method_in_binary() {
+        // Binary with owned method on one side
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("s".to_string())),
+                method: "strip".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Var("other".to_string())),
+        };
+        assert!(contains_owned_string_method(&expr));
+    }
+
+    // ==========================================================================
+    // Tests for contains_string_concatenation
+    // ==========================================================================
+
+    #[test]
+    fn test_contains_string_concatenation_add() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("a".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Var("b".to_string())),
+        };
+        assert!(contains_string_concatenation(&expr));
+    }
+
+    #[test]
+    fn test_contains_string_concatenation_fstring() {
+        let expr = HirExpr::FString {
+            parts: vec![crate::hir::FStringPart::Literal("hello".to_string())],
+        };
+        assert!(contains_string_concatenation(&expr));
+    }
+
+    #[test]
+    fn test_contains_string_concatenation_sub_does_not() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("a".to_string())),
+            op: BinOp::Sub,
+            right: Box::new(HirExpr::Var("b".to_string())),
+        };
+        assert!(!contains_string_concatenation(&expr));
+    }
+
+    #[test]
+    fn test_contains_string_concatenation_var_does_not() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!contains_string_concatenation(&expr));
+    }
+
+    // ==========================================================================
+    // Tests for is_negative_int_expr
+    // ==========================================================================
+
+    #[test]
+    fn test_is_negative_int_expr_negative_literal() {
+        let expr = HirExpr::Literal(Literal::Int(-42));
+        assert!(is_negative_int_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_negative_int_expr_positive_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!is_negative_int_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_negative_int_expr_zero() {
+        let expr = HirExpr::Literal(Literal::Int(0));
+        assert!(!is_negative_int_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_negative_int_expr_unary_neg_positive() {
+        // -(1) should be negative
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(is_negative_int_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_negative_int_expr_unary_not() {
+        // !(x) is not a negative int
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(!is_negative_int_expr(&expr));
+    }
+
+    // ==========================================================================
+    // Tests for literal_to_type
+    // ==========================================================================
+
+    #[test]
+    fn test_literal_to_type_int() {
+        assert_eq!(literal_to_type(&Literal::Int(42)), Type::Int);
+        assert_eq!(literal_to_type(&Literal::Int(-1)), Type::Int);
+        assert_eq!(literal_to_type(&Literal::Int(0)), Type::Int);
+    }
+
+    #[test]
+    fn test_literal_to_type_float() {
+        assert_eq!(literal_to_type(&Literal::Float(3.14)), Type::Float);
+        assert_eq!(literal_to_type(&Literal::Float(-1.0)), Type::Float);
+    }
+
+    #[test]
+    fn test_literal_to_type_string() {
+        assert_eq!(literal_to_type(&Literal::String("hello".to_string())), Type::String);
+        assert_eq!(literal_to_type(&Literal::String("".to_string())), Type::String);
+    }
+
+    #[test]
+    fn test_literal_to_type_bool() {
+        assert_eq!(literal_to_type(&Literal::Bool(true)), Type::Bool);
+        assert_eq!(literal_to_type(&Literal::Bool(false)), Type::Bool);
+    }
+
+    #[test]
+    fn test_literal_to_type_none() {
+        assert_eq!(literal_to_type(&Literal::None), Type::None);
+    }
+
+    #[test]
+    fn test_literal_to_type_bytes() {
+        assert_eq!(literal_to_type(&Literal::Bytes(vec![1, 2, 3])), Type::Unknown);
+    }
+
+    // ==========================================================================
+    // Tests for extract_args_field_accesses
+    // ==========================================================================
+
+    #[test]
+    fn test_extract_args_field_accesses_simple() {
+        // args.name access
+        let body = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "name".to_string(),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert_eq!(fields, vec!["name".to_string()]);
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_multiple() {
+        let body = vec![
+            HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "name".to_string(),
+            }),
+            HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "verbose".to_string(),
+            }),
+        ];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"name".to_string()));
+        assert!(fields.contains(&"verbose".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_no_args() {
+        let body = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("other".to_string())),
+            attr: "name".to_string(),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_empty_body() {
+        let body: Vec<HirStmt> = vec![];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_if() {
+        // if args.verbose: ...
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "verbose".to_string(),
+            },
+            then_body: vec![],
+            else_body: None,
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert_eq!(fields, vec!["verbose".to_string()]);
+    }
+
+    // ==========================================================================
+    // Tests for return_type_expects_float
+    // ==========================================================================
+
+    #[test]
+    fn test_return_type_expects_float_float() {
+        assert!(return_type_expects_float(&Type::Float));
+    }
+
+    #[test]
+    fn test_return_type_expects_float_int() {
+        assert!(!return_type_expects_float(&Type::Int));
+    }
+
+    #[test]
+    fn test_return_type_expects_float_optional_float() {
+        let ty = Type::Optional(Box::new(Type::Float));
+        assert!(return_type_expects_float(&ty));
+    }
+
+    #[test]
+    fn test_return_type_expects_float_list_of_float() {
+        let ty = Type::List(Box::new(Type::Float));
+        assert!(return_type_expects_float(&ty));
+    }
+
+    #[test]
+    fn test_return_type_expects_float_tuple_with_float() {
+        let ty = Type::Tuple(vec![Type::Int, Type::Float]);
+        assert!(return_type_expects_float(&ty));
+    }
+
+    #[test]
+    fn test_return_type_expects_float_tuple_without_float() {
+        let ty = Type::Tuple(vec![Type::Int, Type::String]);
+        assert!(!return_type_expects_float(&ty));
+    }
+
+    // ==========================================================================
+    // Tests for rewrite_adt_child_type
+    // ==========================================================================
+
+    #[test]
+    fn test_rewrite_adt_child_type_simple() {
+        use std::collections::HashMap;
+        let mut child_to_parent = HashMap::new();
+        child_to_parent.insert("ListIter".to_string(), "Iter".to_string());
+
+        let ty = Type::Custom("ListIter".to_string());
+        let result = rewrite_adt_child_type(&ty, &child_to_parent);
+        assert_eq!(result, Type::Custom("Iter".to_string()));
+    }
+
+    #[test]
+    fn test_rewrite_adt_child_type_with_generic() {
+        use std::collections::HashMap;
+        let mut child_to_parent = HashMap::new();
+        child_to_parent.insert("ListIter".to_string(), "Iter".to_string());
+
+        let ty = Type::Custom("ListIter[T]".to_string());
+        let result = rewrite_adt_child_type(&ty, &child_to_parent);
+        assert_eq!(result, Type::Custom("Iter[T]".to_string()));
+    }
+
+    #[test]
+    fn test_rewrite_adt_child_type_no_match() {
+        use std::collections::HashMap;
+        let child_to_parent: HashMap<String, String> = HashMap::new();
+
+        let ty = Type::Custom("SomeType".to_string());
+        let result = rewrite_adt_child_type(&ty, &child_to_parent);
+        assert_eq!(result, Type::Custom("SomeType".to_string()));
+    }
+
+    #[test]
+    fn test_rewrite_adt_child_type_primitive() {
+        use std::collections::HashMap;
+        let mut child_to_parent = HashMap::new();
+        child_to_parent.insert("ListIter".to_string(), "Iter".to_string());
+
+        // Primitives should remain unchanged
+        let ty = Type::Int;
+        let result = rewrite_adt_child_type(&ty, &child_to_parent);
+        assert_eq!(result, Type::Int);
+    }
+
+    // ==========================================================================
+    // Tests for function_returns_owned_string
+    // ==========================================================================
+
+    #[test]
+    fn test_function_returns_owned_string_with_upper() {
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("s".to_string())),
+                method: "upper".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }))],
+            docstring: None,
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+        };
+        assert!(function_returns_owned_string(&func));
+    }
+
+    #[test]
+    fn test_function_returns_owned_string_simple_return() {
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("s".to_string())))],
+            docstring: None,
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+        };
+        // Simple var return is NOT owned string method
+        assert!(!function_returns_owned_string(&func));
+    }
+
+    #[test]
+    fn test_function_returns_owned_string_in_if() {
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::String,
+            body: vec![HirStmt::If {
+                condition: HirExpr::Var("cond".to_string()),
+                then_body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
+                    object: Box::new(HirExpr::Var("s".to_string())),
+                    method: "strip".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                }))],
+                else_body: None,
+            }],
+            docstring: None,
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+        };
+        assert!(function_returns_owned_string(&func));
+    }
+
+    // ==========================================================================
+    // Tests for function_returns_string_concatenation
+    // ==========================================================================
+
+    #[test]
+    fn test_function_returns_string_concatenation_add() {
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                left: Box::new(HirExpr::Var("a".to_string())),
+                op: BinOp::Add,
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            docstring: None,
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+        };
+        assert!(function_returns_string_concatenation(&func));
+    }
+
+    #[test]
+    fn test_function_returns_string_concatenation_no_return() {
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![HirStmt::Expr(HirExpr::Binary {
+                left: Box::new(HirExpr::Var("a".to_string())),
+                op: BinOp::Add,
+                right: Box::new(HirExpr::Var("b".to_string())),
+            })],
+            docstring: None,
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+        };
+        // Expression statement, not return
+        assert!(!function_returns_string_concatenation(&func));
+    }
+
+    // ==========================================================================
+    // Tests for collect_nested_function_names
+    // ==========================================================================
+
+    #[test]
+    fn test_collect_nested_function_names_basic() {
+        let stmts = vec![HirStmt::FunctionDef {
+            name: "inner".to_string(),
+            params: Box::new(smallvec![]),
+            ret_type: Type::None,
+            body: vec![],
+            docstring: None,
+        }];
+        let mut names = Vec::new();
+        collect_nested_function_names(&stmts, &mut names);
+        assert_eq!(names, vec!["inner".to_string()]);
+    }
+
+    #[test]
+    fn test_collect_nested_function_names_multiple() {
+        let stmts = vec![
+            HirStmt::FunctionDef {
+                name: "first".to_string(),
+                params: Box::new(smallvec![]),
+                ret_type: Type::None,
+                body: vec![],
+                docstring: None,
+            },
+            HirStmt::FunctionDef {
+                name: "second".to_string(),
+                params: Box::new(smallvec![]),
+                ret_type: Type::None,
+                body: vec![],
+                docstring: None,
+            },
+        ];
+        let mut names = Vec::new();
+        collect_nested_function_names(&stmts, &mut names);
+        assert_eq!(names.len(), 2);
+        assert!(names.contains(&"first".to_string()));
+        assert!(names.contains(&"second".to_string()));
+    }
+
+    #[test]
+    fn test_collect_nested_function_names_empty() {
+        let stmts: Vec<HirStmt> = vec![];
+        let mut names = Vec::new();
+        collect_nested_function_names(&stmts, &mut names);
+        assert!(names.is_empty());
+    }
+
+    #[test]
+    fn test_collect_nested_function_names_in_if() {
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::FunctionDef {
+                name: "in_if".to_string(),
+                params: Box::new(smallvec![]),
+                ret_type: Type::None,
+                body: vec![],
+                docstring: None,
+            }],
+            else_body: None,
+        }];
+        let mut names = Vec::new();
+        collect_nested_function_names(&stmts, &mut names);
+        assert_eq!(names, vec!["in_if".to_string()]);
+    }
+
+    // ==========================================================================
+    // Tests for collect_if_escaping_variables
+    // ==========================================================================
+
+    #[test]
+    fn test_collect_if_escaping_variables_basic() {
+        // if cond:
+        //     x = 1
+        // else:
+        //     x = 2
+        // print(x)  # x escapes the if because it's used after
+        let stmts = vec![
+            HirStmt::If {
+                condition: HirExpr::Var("cond".to_string()),
+                then_body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: HirExpr::Literal(Literal::Int(1)),
+                    type_annotation: None,
+                }],
+                else_body: Some(vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: HirExpr::Literal(Literal::Int(2)),
+                    type_annotation: None,
+                }]),
+            },
+            // Statement using x after the if
+            HirStmt::Expr(HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![HirExpr::Var("x".to_string())],
+                kwargs: vec![],
+            }),
+        ];
+        let escaping = collect_if_escaping_variables(&stmts);
+        assert!(escaping.contains("x"));
+    }
+
+    #[test]
+    fn test_collect_if_escaping_variables_empty() {
+        let stmts: Vec<HirStmt> = vec![];
+        let escaping = collect_if_escaping_variables(&stmts);
+        assert!(escaping.is_empty());
+    }
+
+    // ==========================================================================
+    // Tests for extract_toplevel_assigned_symbols
+    // ==========================================================================
+
+    #[test]
+    fn test_extract_toplevel_assigned_symbols_simple() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        }];
+        let assigned = extract_toplevel_assigned_symbols(&stmts);
+        assert!(assigned.contains("x"));
+    }
+
+    #[test]
+    fn test_extract_toplevel_assigned_symbols_multiple() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::Literal(Literal::Int(2)),
+                type_annotation: None,
+            },
+        ];
+        let assigned = extract_toplevel_assigned_symbols(&stmts);
+        assert!(assigned.contains("x"));
+        assert!(assigned.contains("y"));
+    }
+
+    #[test]
+    fn test_extract_toplevel_assigned_symbols_empty() {
+        let stmts: Vec<HirStmt> = vec![];
+        let assigned = extract_toplevel_assigned_symbols(&stmts);
+        assert!(assigned.is_empty());
+    }
+
+    // ==========================================================================
+    // Tests for collect_all_assigned_variables
+    // ==========================================================================
+
+    #[test]
+    fn test_collect_all_assigned_variables_basic() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        }];
+        let assigned = collect_all_assigned_variables(&stmts);
+        assert!(assigned.contains("x"));
+    }
+
+    #[test]
+    fn test_collect_all_assigned_variables_in_nested() {
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("inner".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            }],
+            else_body: None,
+        }];
+        let assigned = collect_all_assigned_variables(&stmts);
+        assert!(assigned.contains("inner"));
+    }
+
+    #[test]
+    fn test_collect_all_assigned_variables_tuple() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("a".to_string()),
+                AssignTarget::Symbol("b".to_string()),
+            ]),
+            value: HirExpr::Tuple(vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::Int(2)),
+            ]),
+            type_annotation: None,
+        }];
+        let assigned = collect_all_assigned_variables(&stmts);
+        assert!(assigned.contains("a"));
+        assert!(assigned.contains("b"));
+    }
+}

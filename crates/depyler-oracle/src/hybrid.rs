@@ -279,119 +279,12 @@ impl HybridTranspiler {
         }
     }
 
-    /// Try local fine-tuned model via llama.cpp
-    #[cfg(feature = "local-llm")]
-    fn try_local_model(&self, python_code: &str) -> Result<TranspileResult, TranspileError> {
-        use llama_cpp_2::context::params::LlamaContextParams;
-        use llama_cpp_2::llama_backend::LlamaBackend;
-        use llama_cpp_2::llama_batch::LlamaBatch;
-        use llama_cpp_2::model::params::LlamaModelParams;
-        use llama_cpp_2::model::{AddBos, LlamaModel, Special};
-        use llama_cpp_2::token::data_array::LlamaTokenDataArray;
-
-        let model_path = self
-            .config
-            .local_model_path
-            .as_ref()
-            .ok_or(TranspileError::ModelNotLoaded)?;
-
-        if !std::path::Path::new(model_path).exists() {
-            return Err(TranspileError::ModelNotLoaded);
-        }
-
-        // Initialize backend
-        let backend = LlamaBackend::init()
-            .map_err(|e| TranspileError::ModelFailed(format!("Backend init failed: {}", e)))?;
-
-        // Load model
-        let model_params = LlamaModelParams::default();
-        let model = LlamaModel::load_from_file(&backend, model_path, &model_params)
-            .map_err(|e| TranspileError::ModelFailed(format!("Model load failed: {}", e)))?;
-
-        // Create context
-        let ctx_params = LlamaContextParams::default().with_n_ctx(std::num::NonZeroU32::new(2048));
-        let mut ctx = model
-            .new_context(&backend, ctx_params)
-            .map_err(|e| TranspileError::ModelFailed(format!("Context creation failed: {}", e)))?;
-
-        // Create prompt
-        let prompt = format!(
-            "<|im_start|>user\nConvert this Python code to idiomatic Rust. Only output Rust code:\n```python\n{}\n```<|im_end|>\n<|im_start|>assistant\n```rust\n",
-            python_code
-        );
-
-        // Tokenize
-        let tokens = model
-            .str_to_token(&prompt, AddBos::Always)
-            .map_err(|e| TranspileError::ModelFailed(format!("Tokenization failed: {}", e)))?;
-
-        // Create batch and decode
-        let mut batch = LlamaBatch::new(2048, 1);
-        for (i, token) in tokens.iter().enumerate() {
-            batch
-                .add(*token, i as i32, &[0], i == tokens.len() - 1)
-                .map_err(|e| TranspileError::ModelFailed(format!("Batch add failed: {}", e)))?;
-        }
-
-        ctx.decode(&mut batch)
-            .map_err(|e| TranspileError::ModelFailed(format!("Decode failed: {}", e)))?;
-
-        // Generate tokens
-        let mut output_tokens = Vec::new();
-        let max_tokens = 1024;
-
-        for _ in 0..max_tokens {
-            let candidates = ctx.candidates();
-            let mut candidates_data = LlamaTokenDataArray::from_iter(candidates, false);
-
-            // Sample greedy
-            let token = candidates_data.sample_token_greedy();
-
-            // Check for EOS
-            if token == model.token_eos() {
-                break;
-            }
-
-            output_tokens.push(token);
-
-            // Prepare next batch
-            batch.clear();
-            batch
-                .add(
-                    token,
-                    tokens.len() as i32 + output_tokens.len() as i32 - 1,
-                    &[0],
-                    true,
-                )
-                .map_err(|e| TranspileError::ModelFailed(format!("Batch add failed: {}", e)))?;
-
-            ctx.decode(&mut batch)
-                .map_err(|e| TranspileError::ModelFailed(format!("Decode failed: {}", e)))?;
-        }
-
-        // Detokenize
-        let rust_code: String = output_tokens
-            .iter()
-            .filter_map(|t| model.token_to_str(*t, Special::Plaintext).ok())
-            .collect();
-
-        // Clean up code blocks
-        let rust_code = rust_code.trim().trim_end_matches("```").trim().to_string();
-
-        Ok(TranspileResult {
-            rust_code,
-            strategy: Strategy::LocalModel,
-            confidence: 0.85,
-            latency_ms: 0,
-            warnings: vec!["Generated via local model - review before use".to_string()],
-        })
-    }
-
-    /// Try local fine-tuned model (stub when feature disabled)
-    #[cfg(not(feature = "local-llm"))]
+    /// Try local model via aprender (placeholder for future implementation)
     fn try_local_model(&self, _python_code: &str) -> Result<TranspileResult, TranspileError> {
+        // TODO: Implement local model inference using aprender
+        // For now, we rely on AST transpilation and API fallback
         Err(TranspileError::ModelFailed(
-            "Local LLM support not compiled. Enable 'local-llm' feature.".to_string(),
+            "Local model inference not yet implemented".to_string(),
         ))
     }
 

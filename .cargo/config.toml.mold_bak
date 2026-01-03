@@ -1,0 +1,54 @@
+# Cargo configuration for Depyler (bashrs-style quality tooling)
+# Spec: docs/specifications/bashrs-style-quality.md
+
+[target.x86_64-unknown-linux-gnu]
+linker = "clang"
+rustflags = ["-C", "link-arg=-fuse-ld=mold"]
+
+[target.'cfg(all())']
+rustflags = [
+    # PHASE 1: Safety lints (WARN - promote to DENY after cleanup)
+    "-W", "clippy::unwrap_used",
+    "-W", "clippy::expect_used",
+    "-W", "clippy::panic",
+    "-W", "clippy::indexing_slicing",
+
+    # PHASE 2: Development hygiene
+    "-W", "clippy::todo",
+    "-W", "clippy::unimplemented",
+    "-W", "clippy::dbg_macro",
+
+    # PHASE 3: Quality lints
+    "-W", "clippy::cargo",
+]
+
+[build]
+# Centralize build artifacts to prevent nested target directories
+target-dir = "target"
+
+[env]
+CARGO_TERM_COLOR = { value = "always", force = true }
+
+# Cargo aliases for common tasks
+[alias]
+# Strict clippy (CI mode)
+xclippy = "clippy --all-targets --all-features -- -D warnings"
+xtest = "test --all-features"
+xbuild = "build --all-features"
+xcheck = "check --all-features"
+
+# Two-phase coverage workflow (production pattern)
+cov = "llvm-cov --no-report nextest"
+cov-test = "llvm-cov --no-report test --workspace --all-features"
+cov-report = "llvm-cov report --html --open"
+cov-lcov = "llvm-cov report --lcov --output-path lcov.info"
+cov-summary = "llvm-cov report --summary-only"
+cov-clean = "llvm-cov clean --workspace"
+
+# Combined workflow (for quick local dev)
+cov-all = "llvm-cov nextest --all-features --html --open"
+
+# Quality shortcuts
+q = "clippy --all-targets --all-features -- -D warnings"
+qf = "fmt --all -- --check"
+qt = "test --workspace --all-features"

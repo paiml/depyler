@@ -448,10 +448,18 @@ impl BatchCompiler {
         // Regression tests will fail if you add -D warnings.
         // See test_no_d_warnings_flag_in_source and
         // test_regression_warnings_must_not_cause_failure.
+        //
+        // CRITICAL: Set target-dir explicitly to avoid inheriting CARGO_TARGET_DIR
+        // from parent environment (e.g., during coverage runs where it points to
+        // /mnt/ramdisk which may not be writable).
+        let target_dir = project_dir.join("target");
         let output = Command::new("cargo")
             .arg("build")
             .arg("--message-format=short")
+            .arg("--target-dir")
+            .arg(&target_dir)
             .current_dir(project_dir)
+            .env_remove("CARGO_TARGET_DIR") // Ensure we don't inherit parent's target dir
             .output()
             .map_err(|e| {
                 vec![CompilationError {

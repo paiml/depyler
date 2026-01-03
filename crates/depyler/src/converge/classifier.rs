@@ -289,4 +289,217 @@ mod tests {
         // Just verify it creates without panic
         assert!(classifier.query_loop.is_some());
     }
+
+    #[test]
+    fn test_classify_e0425_undefined_variable() {
+        let classifier = ErrorClassifier::new();
+        let error = CompilationError {
+            code: "E0425".to_string(),
+            message: "cannot find value `x` in this scope".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 5,
+            column: 1,
+        };
+        let classification = classifier.classify_fallback(&error);
+        assert_eq!(classification.category, ErrorCategory::TranspilerGap);
+        assert_eq!(classification.subcategory, "undefined_variable");
+    }
+
+    #[test]
+    fn test_classify_e0433_missing_import() {
+        let classifier = ErrorClassifier::new();
+        let error = CompilationError {
+            code: "E0433".to_string(),
+            message: "failed to resolve: use of undeclared crate or module".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 1,
+            column: 5,
+        };
+        let classification = classifier.classify_fallback(&error);
+        assert_eq!(classification.category, ErrorCategory::TranspilerGap);
+        assert_eq!(classification.subcategory, "missing_import");
+    }
+
+    #[test]
+    fn test_classify_e0432_unresolved_import() {
+        let classifier = ErrorClassifier::new();
+        let error = CompilationError {
+            code: "E0432".to_string(),
+            message: "unresolved import `foo`".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 2,
+            column: 5,
+        };
+        let classification = classifier.classify_fallback(&error);
+        assert_eq!(classification.category, ErrorCategory::TranspilerGap);
+        assert_eq!(classification.subcategory, "unresolved_import");
+    }
+
+    #[test]
+    fn test_classify_e0382_borrow_checker() {
+        let classifier = ErrorClassifier::new();
+        let error = CompilationError {
+            code: "E0382".to_string(),
+            message: "borrow of moved value".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 10,
+            column: 5,
+        };
+        let classification = classifier.classify_fallback(&error);
+        assert_eq!(classification.category, ErrorCategory::TranspilerGap);
+        assert_eq!(classification.subcategory, "borrow_checker");
+    }
+
+    #[test]
+    fn test_classify_e0502_borrow_checker() {
+        let classifier = ErrorClassifier::new();
+        let error = CompilationError {
+            code: "E0502".to_string(),
+            message: "cannot borrow as mutable".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 15,
+            column: 8,
+        };
+        let classification = classifier.classify_fallback(&error);
+        assert_eq!(classification.category, ErrorCategory::TranspilerGap);
+        assert_eq!(classification.subcategory, "borrow_checker");
+    }
+
+    #[test]
+    fn test_classify_e0507_borrow_checker() {
+        let classifier = ErrorClassifier::new();
+        let error = CompilationError {
+            code: "E0507".to_string(),
+            message: "cannot move out of borrowed content".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 20,
+            column: 10,
+        };
+        let classification = classifier.classify_fallback(&error);
+        assert_eq!(classification.category, ErrorCategory::TranspilerGap);
+        assert_eq!(classification.subcategory, "borrow_checker");
+    }
+
+    #[test]
+    fn test_classify_e0597_lifetime() {
+        let classifier = ErrorClassifier::new();
+        let error = CompilationError {
+            code: "E0597".to_string(),
+            message: "does not live long enough".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 25,
+            column: 12,
+        };
+        let classification = classifier.classify_fallback(&error);
+        assert_eq!(classification.category, ErrorCategory::TranspilerGap);
+        assert_eq!(classification.subcategory, "lifetime");
+    }
+
+    #[test]
+    fn test_classify_e0716_lifetime() {
+        let classifier = ErrorClassifier::new();
+        let error = CompilationError {
+            code: "E0716".to_string(),
+            message: "temporary value dropped while borrowed".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 30,
+            column: 5,
+        };
+        let classification = classifier.classify_fallback(&error);
+        assert_eq!(classification.category, ErrorCategory::TranspilerGap);
+        assert_eq!(classification.subcategory, "lifetime");
+    }
+
+    #[test]
+    fn test_classify_all_empty() {
+        let classifier = ErrorClassifier::new();
+        let results: Vec<CompilationResult> = vec![];
+        let classifications = classifier.classify_all(&results);
+        assert!(classifications.is_empty());
+    }
+
+    #[test]
+    fn test_classify_all_with_errors() {
+        let classifier = ErrorClassifier::new();
+        let results = vec![
+            CompilationResult {
+                source_file: PathBuf::from("a.py"),
+                success: false,
+                errors: vec![
+                    CompilationError {
+                        code: "E0599".to_string(),
+                        message: "no method".to_string(),
+                        file: PathBuf::from("a.rs"),
+                        line: 1,
+                        column: 1,
+                    }
+                ],
+                rust_file: None,
+            },
+            CompilationResult {
+                source_file: PathBuf::from("b.py"),
+                success: false,
+                errors: vec![
+                    CompilationError {
+                        code: "E0308".to_string(),
+                        message: "type mismatch".to_string(),
+                        file: PathBuf::from("b.rs"),
+                        line: 2,
+                        column: 2,
+                    },
+                    CompilationError {
+                        code: "E0277".to_string(),
+                        message: "trait bound".to_string(),
+                        file: PathBuf::from("b.rs"),
+                        line: 3,
+                        column: 3,
+                    }
+                ],
+                rust_file: None,
+            },
+        ];
+        let classifications = classifier.classify_all(&results);
+        assert_eq!(classifications.len(), 3);
+    }
+
+    #[test]
+    fn test_map_oracle_category_all_variants() {
+        assert_eq!(
+            map_oracle_category(OracleCategory::MissingImport),
+            (ErrorCategory::TranspilerGap, "missing_import".into())
+        );
+        assert_eq!(
+            map_oracle_category(OracleCategory::SyntaxError),
+            (ErrorCategory::TranspilerGap, "syntax".into())
+        );
+        assert_eq!(
+            map_oracle_category(OracleCategory::LifetimeError),
+            (ErrorCategory::TranspilerGap, "lifetime".into())
+        );
+        assert_eq!(
+            map_oracle_category(OracleCategory::TraitBound),
+            (ErrorCategory::TranspilerGap, "trait_bound".into())
+        );
+    }
+
+    #[test]
+    fn test_get_suggestions_invalid_code() {
+        let mut classifier = ErrorClassifier::new();
+        let error = CompilationError {
+            code: "INVALID".to_string(),
+            message: "test".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 1,
+            column: 1,
+        };
+        let suggestions = classifier.get_suggestions(&error);
+        assert!(suggestions.is_empty());
+    }
+
+    #[test]
+    fn test_classifier_stats() {
+        let classifier = ErrorClassifier::new();
+        let stats = classifier.stats();
+        assert!(stats.is_some());
+    }
 }

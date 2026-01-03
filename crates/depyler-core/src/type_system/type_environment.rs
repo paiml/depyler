@@ -200,10 +200,39 @@ mod tests {
     }
 
     #[test]
+    fn test_bind_var_increments_ids() {
+        let mut env = TypeEnvironment::new();
+        let id1 = env.bind_var("x", Type::Int);
+        let id2 = env.bind_var("y", Type::String);
+        let id3 = env.bind_var("z", Type::Float);
+        assert_eq!(id1, 0);
+        assert_eq!(id2, 1);
+        assert_eq!(id3, 2);
+    }
+
+    #[test]
     fn test_get_var_type_o1_lookup() {
         let mut env = TypeEnvironment::new();
         env.bind_var("x", Type::Int);
         assert_eq!(env.get_var_type("x"), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_get_var_type_missing() {
+        let env = TypeEnvironment::new();
+        assert_eq!(env.get_var_type("nonexistent"), None);
+    }
+
+    #[test]
+    fn test_get_type_by_id_missing() {
+        let env = TypeEnvironment::new();
+        assert_eq!(env.get_type_by_id(999), None);
+    }
+
+    #[test]
+    fn test_get_var_version_missing() {
+        let env = TypeEnvironment::new();
+        assert_eq!(env.get_var_version("nonexistent"), None);
     }
 
     #[test]
@@ -226,6 +255,22 @@ mod tests {
     }
 
     #[test]
+    fn test_ssa_multiple_type_changes() {
+        let mut env = TypeEnvironment::new();
+
+        let id0 = env.bind_var("x", Type::Int);
+        let id1 = env.bind_var("x", Type::String);
+        let id2 = env.bind_var("x", Type::Float);
+        let id3 = env.bind_var("x", Type::Bool);
+
+        assert_eq!(env.get_var_version("x"), Some(3));
+        assert_eq!(id0, 0);
+        assert_eq!(id1, 1);
+        assert_eq!(id2, 2);
+        assert_eq!(id3, 3);
+    }
+
+    #[test]
     fn test_same_type_reuses_binding() {
         let mut env = TypeEnvironment::new();
 
@@ -242,5 +287,154 @@ mod tests {
 
         let ty = env.synthesize_type(&expr).expect("Should infer type");
         assert_eq!(ty, Type::Int, "Int literal should infer to Int");
+    }
+
+    #[test]
+    fn test_synthesize_float_literal() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Literal(Literal::Float(3.14));
+
+        let ty = env.synthesize_type(&expr).expect("Should infer type");
+        assert_eq!(ty, Type::Float);
+    }
+
+    #[test]
+    fn test_synthesize_string_literal() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+
+        let ty = env.synthesize_type(&expr).expect("Should infer type");
+        assert_eq!(ty, Type::String);
+    }
+
+    #[test]
+    fn test_synthesize_bool_literal() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Literal(Literal::Bool(true));
+
+        let ty = env.synthesize_type(&expr).expect("Should infer type");
+        assert_eq!(ty, Type::Bool);
+    }
+
+    #[test]
+    fn test_synthesize_none_literal() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Literal(Literal::None);
+
+        let ty = env.synthesize_type(&expr).expect("Should infer type");
+        assert_eq!(ty, Type::Optional(Box::new(Type::Unknown)));
+    }
+
+    #[test]
+    fn test_synthesize_bytes_literal() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Literal(Literal::Bytes(vec![0x41, 0x42]));
+
+        let ty = env.synthesize_type(&expr).expect("Should infer type");
+        assert_eq!(ty, Type::String); // Bytes treated as String
+    }
+
+    #[test]
+    fn test_synthesize_var_defined() {
+        let mut env = TypeEnvironment::new();
+        env.bind_var("x", Type::Int);
+
+        let expr = HirExpr::Var("x".to_string());
+        let ty = env.synthesize_type(&expr).expect("Should infer type");
+        assert_eq!(ty, Type::Int);
+    }
+
+    #[test]
+    fn test_synthesize_var_undefined() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Var("undefined".to_string());
+
+        let result = env.synthesize_type(&expr);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Undefined variable"));
+    }
+
+    #[test]
+    fn test_synthesize_other_expr_returns_unknown() {
+        let mut env = TypeEnvironment::new();
+        // Use a complex expression that falls through to default
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: crate::hir::BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+
+        let ty = env.synthesize_type(&expr).expect("Should infer type");
+        assert_eq!(ty, Type::Unknown);
+    }
+
+    #[test]
+    fn test_check_type_success() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Literal(Literal::Int(42));
+
+        // Int should pass check against Int
+        let result = env.check_type(&expr, &Type::Int);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_type_subtype_success() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Literal(Literal::Int(42));
+
+        // Int <: Float (numeric tower)
+        let result = env.check_type(&expr, &Type::Float);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_type_failure() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+
+        // String is not a subtype of Int
+        let result = env.check_type(&expr, &Type::Int);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Type check failed"));
+    }
+
+    #[test]
+    fn test_check_type_undefined_var() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Var("undefined".to_string());
+
+        // Should fail on synthesize step
+        let result = env.check_type(&expr, &Type::Int);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let env = TypeEnvironment::default();
+        assert_eq!(env.get_var_type("x"), None);
+    }
+
+    #[test]
+    fn test_multiple_variables() {
+        let mut env = TypeEnvironment::new();
+
+        env.bind_var("x", Type::Int);
+        env.bind_var("y", Type::String);
+        env.bind_var("z", Type::Float);
+
+        assert_eq!(env.get_var_type("x"), Some(&Type::Int));
+        assert_eq!(env.get_var_type("y"), Some(&Type::String));
+        assert_eq!(env.get_var_type("z"), Some(&Type::Float));
+    }
+
+    #[test]
+    fn test_check_type_option_lifting() {
+        let mut env = TypeEnvironment::new();
+        let expr = HirExpr::Literal(Literal::Int(42));
+
+        // Int <: Optional<Int>
+        let result = env.check_type(&expr, &Type::Optional(Box::new(Type::Int)));
+        assert!(result.is_ok());
     }
 }
