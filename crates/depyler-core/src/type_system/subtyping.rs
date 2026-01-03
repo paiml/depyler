@@ -140,6 +140,18 @@ mod tests {
     }
 
     #[test]
+    fn test_reflexivity_string() {
+        let checker = SubtypeChecker::new();
+        assert!(checker.check_subtype(&Type::String, &Type::String).is_ok());
+    }
+
+    #[test]
+    fn test_reflexivity_bool() {
+        let checker = SubtypeChecker::new();
+        assert!(checker.check_subtype(&Type::Bool, &Type::Bool).is_ok());
+    }
+
+    #[test]
     fn test_numeric_tower() {
         let checker = SubtypeChecker::new();
         assert!(checker.check_subtype(&Type::Int, &Type::Float).is_ok());
@@ -156,5 +168,173 @@ mod tests {
         let checker = SubtypeChecker::new();
         let result = checker.check_subtype(&Type::Int, &Type::Optional(Box::new(Type::Int)));
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_option_covariance() {
+        let checker = SubtypeChecker::new();
+        // Option<Int> <: Option<Float> because Int <: Float
+        let result = checker.check_subtype(
+            &Type::Optional(Box::new(Type::Int)),
+            &Type::Optional(Box::new(Type::Float)),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_option_no_contravariance() {
+        let checker = SubtypeChecker::new();
+        // Option<Float> is NOT a subtype of Option<Int>
+        let result = checker.check_subtype(
+            &Type::Optional(Box::new(Type::Float)),
+            &Type::Optional(Box::new(Type::Int)),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_list_covariance() {
+        let checker = SubtypeChecker::new();
+        // List<Int> <: List<Float> because Int <: Float
+        let result = checker.check_subtype(
+            &Type::List(Box::new(Type::Int)),
+            &Type::List(Box::new(Type::Float)),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_list_no_contravariance() {
+        let checker = SubtypeChecker::new();
+        // List<Float> is NOT a subtype of List<Int>
+        let result = checker.check_subtype(
+            &Type::List(Box::new(Type::Float)),
+            &Type::List(Box::new(Type::Int)),
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_unification_var_deferred() {
+        let checker = SubtypeChecker::new();
+        // UnificationVar always succeeds (deferred to solver)
+        let result = checker.check_subtype(&Type::UnificationVar(42), &Type::Int);
+        assert!(result.is_ok());
+
+        let result = checker.check_subtype(&Type::Int, &Type::UnificationVar(99));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_unrelated_types() {
+        let checker = SubtypeChecker::new();
+        // String is not subtype of Int
+        assert!(checker.check_subtype(&Type::String, &Type::Int).is_err());
+        // Bool is not subtype of String
+        assert!(checker.check_subtype(&Type::Bool, &Type::String).is_err());
+    }
+
+    #[test]
+    fn test_cache_hit() {
+        let checker = SubtypeChecker::new();
+        // First call populates cache
+        assert!(checker.check_subtype(&Type::Int, &Type::Float).is_ok());
+        // Second call should hit cache
+        assert!(checker.check_subtype(&Type::Int, &Type::Float).is_ok());
+
+        // Test cache for failure case
+        assert!(checker.check_subtype(&Type::String, &Type::Int).is_err());
+        assert!(checker.check_subtype(&Type::String, &Type::Int).is_err());
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let checker = SubtypeChecker::default();
+        assert!(checker.check_subtype(&Type::Int, &Type::Int).is_ok());
+    }
+
+    #[test]
+    fn test_check_constraint_eq_success() {
+        let checker = SubtypeChecker::new();
+        let constraint = TypeConstraint {
+            lhs: Type::Int,
+            rhs: Type::Int,
+            kind: ConstraintKind::Eq,
+            reason: "test".to_string(),
+        };
+        assert!(checker.check_constraint(&constraint).is_ok());
+    }
+
+    #[test]
+    fn test_check_constraint_eq_failure() {
+        let checker = SubtypeChecker::new();
+        let constraint = TypeConstraint {
+            lhs: Type::Int,
+            rhs: Type::String,
+            kind: ConstraintKind::Eq,
+            reason: "test".to_string(),
+        };
+        assert!(checker.check_constraint(&constraint).is_err());
+    }
+
+    #[test]
+    fn test_check_constraint_subtype() {
+        let checker = SubtypeChecker::new();
+        let constraint = TypeConstraint {
+            lhs: Type::Int,
+            rhs: Type::Float,
+            kind: ConstraintKind::Subtype,
+            reason: "numeric coercion".to_string(),
+        };
+        assert!(checker.check_constraint(&constraint).is_ok());
+    }
+
+    #[test]
+    fn test_check_constraint_supertype() {
+        let checker = SubtypeChecker::new();
+        // Float :> Int means Int <: Float
+        let constraint = TypeConstraint {
+            lhs: Type::Float,
+            rhs: Type::Int,
+            kind: ConstraintKind::Supertype,
+            reason: "reverse numeric coercion".to_string(),
+        };
+        assert!(checker.check_constraint(&constraint).is_ok());
+    }
+
+    #[test]
+    fn test_check_constraint_unsupported_callable() {
+        let checker = SubtypeChecker::new();
+        let constraint = TypeConstraint {
+            lhs: Type::Int,
+            rhs: Type::Int,
+            kind: ConstraintKind::Callable,
+            reason: "test".to_string(),
+        };
+        assert!(checker.check_constraint(&constraint).is_err());
+    }
+
+    #[test]
+    fn test_check_constraint_unsupported_hasfield() {
+        let checker = SubtypeChecker::new();
+        let constraint = TypeConstraint {
+            lhs: Type::Int,
+            rhs: Type::Int,
+            kind: ConstraintKind::HasField("foo".to_string()),
+            reason: "test".to_string(),
+        };
+        assert!(checker.check_constraint(&constraint).is_err());
+    }
+
+    #[test]
+    fn test_check_constraint_unsupported_arithmetic() {
+        let checker = SubtypeChecker::new();
+        let constraint = TypeConstraint {
+            lhs: Type::Int,
+            rhs: Type::Int,
+            kind: ConstraintKind::Arithmetic,
+            reason: "test".to_string(),
+        };
+        assert!(checker.check_constraint(&constraint).is_err());
     }
 }

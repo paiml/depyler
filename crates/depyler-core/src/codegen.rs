@@ -520,17 +520,17 @@ fn handle_for_stmt(
             quote! { #ident }
         }
         AssignTarget::Tuple(targets) => {
-            // Extract symbols and declare them
-            let idents: Vec<_> = targets
+            // Extract symbols and declare them - handle nested tuples gracefully
+            let idents: Vec<syn::Ident> = targets
                 .iter()
                 .map(|t| match t {
                     AssignTarget::Symbol(s) => {
                         scope_tracker.declare_var(s);
-                        syn::Ident::new(s, proc_macro2::Span::call_site())
+                        Ok(syn::Ident::new(s, proc_macro2::Span::call_site()))
                     }
-                    _ => panic!("Nested tuple unpacking not supported in for loops"),
+                    _ => bail!("Nested tuple unpacking not supported in for loops"),
                 })
-                .collect();
+                .collect::<Result<Vec<_>>>()?;
             quote! { (#(#idents),*) }
         }
         _ => bail!("Unsupported for loop target type"),
@@ -1995,5 +1995,674 @@ mod tests {
 
         // y should no longer be visible
         assert!(!scope.is_declared("y"));
+    }
+
+    // DEPYLER-COV-001: Additional tests for coverage improvement
+
+    #[test]
+    fn test_while_stmt_generation() {
+        let while_stmt = HirStmt::While {
+            condition: HirExpr::Binary {
+                op: BinOp::Lt,
+                left: Box::new(HirExpr::Var("i".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(10))),
+            },
+            body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
+        };
+
+        let tokens = stmt_to_rust_tokens(&while_stmt).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("while"));
+    }
+
+    #[test]
+    fn test_for_stmt_generation() {
+        let for_stmt = HirStmt::For {
+            target: AssignTarget::Symbol("x".to_string()),
+            iter: HirExpr::List(vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::Int(2)),
+            ]),
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+        };
+
+        let tokens = stmt_to_rust_tokens(&for_stmt).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("for"));
+    }
+
+    #[test]
+    fn test_tuple_literal_generation() {
+        let tuple = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("hello".to_string())),
+        ]);
+
+        let tokens = expr_to_rust_tokens(&tuple).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("1i64"));
+        assert!(code.contains("hello"));
+    }
+
+    #[test]
+    fn test_lambda_generation() {
+        let lambda = HirExpr::Lambda {
+            params: vec!["x".to_string()],
+            body: Box::new(HirExpr::Binary {
+                op: BinOp::Mul,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(2))),
+            }),
+        };
+
+        let tokens = expr_to_rust_tokens(&lambda).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("|"));
+    }
+
+    #[test]
+    fn test_list_comp_generation() {
+        let list_comp = HirExpr::ListComp {
+            element: Box::new(HirExpr::Binary {
+                op: BinOp::Mul,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(2))),
+            }),
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(HirExpr::List(vec![
+                    HirExpr::Literal(Literal::Int(1)),
+                    HirExpr::Literal(Literal::Int(2)),
+                ])),
+                conditions: vec![],
+            }],
+        };
+
+        let tokens = expr_to_rust_tokens(&list_comp).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("iter") || code.contains("map") || code.contains("collect"));
+    }
+
+    #[test]
+    fn test_slice_generation() {
+        let slice = HirExpr::Slice {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            start: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
+            stop: Some(Box::new(HirExpr::Literal(Literal::Int(3)))),
+            step: None,
+        };
+
+        let tokens = expr_to_rust_tokens(&slice).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("arr") || code.contains("["));
+    }
+
+    #[test]
+    fn test_method_call_generation() {
+        let method_call = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("s".to_string())),
+            method: "upper".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+
+        let tokens = expr_to_rust_tokens(&method_call).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("upper") || code.contains("to_uppercase"));
+    }
+
+    #[test]
+    fn test_set_literal_generation() {
+        let set_lit = HirExpr::Set(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+
+        let tokens = expr_to_rust_tokens(&set_lit).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("HashSet") || code.contains("set") || code.contains("insert"));
+    }
+
+    #[test]
+    fn test_dict_literal_generation() {
+        let dict = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Literal(Literal::Int(42)),
+        )]);
+
+        let tokens = expr_to_rust_tokens(&dict).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("HashMap") || code.contains("insert") || code.contains("key"));
+    }
+
+    #[test]
+    fn test_borrow_expr_generation() {
+        let borrow = HirExpr::Borrow {
+            expr: Box::new(HirExpr::Var("x".to_string())),
+            mutable: true,
+        };
+
+        let tokens = expr_to_rust_tokens(&borrow).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("mut") || code.contains("&"));
+    }
+
+    #[test]
+    fn test_index_expr_generation() {
+        let index = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+
+        let tokens = expr_to_rust_tokens(&index).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("arr"));
+    }
+
+    #[test]
+    fn test_attribute_expr_generation() {
+        let attr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+
+        let tokens = expr_to_rust_tokens(&attr).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("obj") || code.contains("field"));
+    }
+
+    #[test]
+    fn test_if_expr_generation() {
+        let if_expr = HirExpr::IfExpr {
+            test: Box::new(HirExpr::Var("cond".to_string())),
+            body: Box::new(HirExpr::Literal(Literal::Int(1))),
+            orelse: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+
+        let tokens = expr_to_rust_tokens(&if_expr).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("if") || code.contains("else"));
+    }
+
+    #[test]
+    fn test_unary_op_not() {
+        let not_expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Var("x".to_string())),
+        };
+
+        let tokens = expr_to_rust_tokens(&not_expr).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("!") || code.contains("not"));
+    }
+
+    #[test]
+    fn test_unary_op_neg() {
+        let neg_expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+
+        let tokens = expr_to_rust_tokens(&neg_expr).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("-"));
+    }
+
+    #[test]
+    fn test_uses_hashmap_nested() {
+        // Dict in List
+        let nested = Type::List(Box::new(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int),
+        )));
+        assert!(uses_hashmap(&nested));
+
+        // Dict in Optional
+        let optional_dict = Type::Optional(Box::new(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int),
+        )));
+        assert!(uses_hashmap(&optional_dict));
+
+        // Dict in Tuple
+        let tuple_dict = Type::Tuple(vec![
+            Type::Int,
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+        ]);
+        assert!(uses_hashmap(&tuple_dict));
+
+        // Dict in Function type
+        let func_dict = Type::Function {
+            params: vec![Type::Dict(Box::new(Type::String), Box::new(Type::Int))],
+            ret: Box::new(Type::Int),
+        };
+        assert!(uses_hashmap(&func_dict));
+
+        // Function returning dict
+        let func_ret_dict = Type::Function {
+            params: vec![Type::Int],
+            ret: Box::new(Type::Dict(Box::new(Type::String), Box::new(Type::Int))),
+        };
+        assert!(uses_hashmap(&func_ret_dict));
+    }
+
+    #[test]
+    fn test_expr_uses_hashmap_in_call() {
+        let call = HirExpr::Call {
+            func: "test".to_string(),
+            args: vec![HirExpr::Dict(vec![])],
+            kwargs: vec![],
+        };
+        assert!(expr_uses_hashmap(&call));
+    }
+
+    #[test]
+    fn test_expr_uses_hashmap_in_binary() {
+        let binary = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Dict(vec![])),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(expr_uses_hashmap(&binary));
+    }
+
+    #[test]
+    fn test_expr_uses_hashmap_in_unary() {
+        let unary = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Dict(vec![])),
+        };
+        assert!(expr_uses_hashmap(&unary));
+    }
+
+    #[test]
+    fn test_expr_uses_hashmap_in_index() {
+        let index = HirExpr::Index {
+            base: Box::new(HirExpr::Dict(vec![])),
+            index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+        };
+        assert!(expr_uses_hashmap(&index));
+    }
+
+    #[test]
+    fn test_expr_uses_hashmap_in_list() {
+        let list = HirExpr::List(vec![HirExpr::Dict(vec![])]);
+        assert!(expr_uses_hashmap(&list));
+    }
+
+    #[test]
+    fn test_expr_uses_hashmap_in_tuple() {
+        let tuple = HirExpr::Tuple(vec![HirExpr::Dict(vec![])]);
+        assert!(expr_uses_hashmap(&tuple));
+    }
+
+    #[test]
+    fn test_stmt_uses_hashmap_in_return() {
+        let return_stmt = HirStmt::Return(Some(HirExpr::Dict(vec![])));
+        assert!(stmt_uses_hashmap(&return_stmt));
+    }
+
+    #[test]
+    fn test_stmt_uses_hashmap_in_if_condition() {
+        let if_stmt = HirStmt::If {
+            condition: HirExpr::Dict(vec![]),
+            then_body: vec![],
+            else_body: None,
+        };
+        assert!(stmt_uses_hashmap(&if_stmt));
+    }
+
+    #[test]
+    fn test_stmt_uses_hashmap_in_if_then() {
+        let if_stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Expr(HirExpr::Dict(vec![]))],
+            else_body: None,
+        };
+        assert!(stmt_uses_hashmap(&if_stmt));
+    }
+
+    #[test]
+    fn test_stmt_uses_hashmap_in_if_else() {
+        let if_stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![],
+            else_body: Some(vec![HirStmt::Expr(HirExpr::Dict(vec![]))]),
+        };
+        assert!(stmt_uses_hashmap(&if_stmt));
+    }
+
+    #[test]
+    fn test_stmt_uses_hashmap_in_while() {
+        let while_stmt = HirStmt::While {
+            condition: HirExpr::Dict(vec![]),
+            body: vec![],
+        };
+        assert!(stmt_uses_hashmap(&while_stmt));
+
+        let while_body = HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Expr(HirExpr::Dict(vec![]))],
+        };
+        assert!(stmt_uses_hashmap(&while_body));
+    }
+
+    #[test]
+    fn test_stmt_uses_hashmap_in_for() {
+        let for_iter = HirStmt::For {
+            target: AssignTarget::Symbol("x".to_string()),
+            iter: HirExpr::Dict(vec![]),
+            body: vec![],
+        };
+        assert!(stmt_uses_hashmap(&for_iter));
+
+        let for_body = HirStmt::For {
+            target: AssignTarget::Symbol("x".to_string()),
+            iter: HirExpr::List(vec![]),
+            body: vec![HirStmt::Expr(HirExpr::Dict(vec![]))],
+        };
+        assert!(stmt_uses_hashmap(&for_body));
+    }
+
+    #[test]
+    fn test_stmt_not_uses_hashmap() {
+        let pass = HirStmt::Pass;
+        assert!(!stmt_uses_hashmap(&pass));
+
+        let break_stmt = HirStmt::Break { label: None };
+        assert!(!stmt_uses_hashmap(&break_stmt));
+
+        let continue_stmt = HirStmt::Continue { label: None };
+        assert!(!stmt_uses_hashmap(&continue_stmt));
+
+        let return_none = HirStmt::Return(None);
+        assert!(!stmt_uses_hashmap(&return_none));
+    }
+
+    #[test]
+    fn test_is_len_call() {
+        let len_call = HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_len_call(&len_call));
+
+        // Not a len call
+        let other_call = HirExpr::Call {
+            func: "sum".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(!is_len_call(&other_call));
+
+        // Wrong number of args
+        let wrong_args = HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_len_call(&wrong_args));
+    }
+
+    #[test]
+    fn test_prettify_rust_code() {
+        let code = "fn test(){let x=1;x+2}".to_string();
+        let prettified = prettify_rust_code(code);
+        // Should add some whitespace
+        assert!(!prettified.is_empty());
+    }
+
+    #[test]
+    fn test_resolve_union_type_single() {
+        let types = vec![Type::Int];
+        let tokens = resolve_union_type(&types);
+        let code = tokens.to_string();
+        assert!(code.contains("i32") || code.contains("i64"));
+    }
+
+    #[test]
+    fn test_resolve_union_type_multiple() {
+        let types = vec![Type::Int, Type::String];
+        let tokens = resolve_union_type(&types);
+        let code = tokens.to_string();
+        // Should create an enum or some union representation
+        assert!(!code.is_empty());
+    }
+
+    #[test]
+    fn test_type_to_rust_type_set() {
+        let set_type = Type::Set(Box::new(Type::Int));
+        let tokens = type_to_rust_type(&set_type);
+        let code = tokens.to_string();
+        assert!(code.contains("HashSet"));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_none() {
+        let none_type = Type::None;
+        let tokens = type_to_rust_type(&none_type);
+        let code = tokens.to_string();
+        assert!(code.contains("()") || code.contains("None"));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_unknown() {
+        let unknown_type = Type::Unknown;
+        let tokens = type_to_rust_type(&unknown_type);
+        // Unknown type should produce some output
+        assert!(!tokens.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_break_continue_pass_stmts() {
+        let break_stmt = HirStmt::Break { label: None };
+        let break_tokens = stmt_to_rust_tokens(&break_stmt).unwrap();
+        assert!(break_tokens.to_string().contains("break"));
+
+        let continue_stmt = HirStmt::Continue { label: None };
+        let continue_tokens = stmt_to_rust_tokens(&continue_stmt).unwrap();
+        assert!(continue_tokens.to_string().contains("continue"));
+
+        let pass_stmt = HirStmt::Pass;
+        let pass_tokens = stmt_to_rust_tokens(&pass_stmt).unwrap();
+        // Pass becomes empty or {}
+        let _ = pass_tokens; // Just check it doesn't panic
+    }
+
+    #[test]
+    fn test_assign_with_binary_value() {
+        // Test assignment with a binary expression
+        let assign = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("y".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(1))),
+            },
+            type_annotation: None,
+        };
+
+        let tokens = stmt_to_rust_tokens(&assign).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("x") || code.contains("let"));
+    }
+
+    #[test]
+    fn test_modulo_operation() {
+        let mod_expr = HirExpr::Binary {
+            op: BinOp::Mod,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+
+        let tokens = expr_to_rust_tokens(&mod_expr).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("%"));
+    }
+
+    #[test]
+    fn test_power_operation() {
+        let pow_expr = HirExpr::Binary {
+            op: BinOp::Pow,
+            left: Box::new(HirExpr::Literal(Literal::Int(2))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+
+        let tokens = expr_to_rust_tokens(&pow_expr).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("pow") || code.contains("**"));
+    }
+
+    #[test]
+    fn test_logical_and_or() {
+        let and_expr = HirExpr::Binary {
+            op: BinOp::And,
+            left: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            right: Box::new(HirExpr::Literal(Literal::Bool(false))),
+        };
+
+        let tokens = expr_to_rust_tokens(&and_expr).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("&&") || code.contains("and"));
+
+        let or_expr = HirExpr::Binary {
+            op: BinOp::Or,
+            left: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            right: Box::new(HirExpr::Literal(Literal::Bool(false))),
+        };
+
+        let tokens = expr_to_rust_tokens(&or_expr).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("||") || code.contains("or"));
+    }
+
+    #[test]
+    fn test_comparison_operations() {
+        let ops = vec![
+            (BinOp::Gt, ">"),
+            (BinOp::GtEq, ">="),
+            (BinOp::LtEq, "<="),
+            (BinOp::NotEq, "!="),
+        ];
+
+        for (op, expected) in ops {
+            let tokens = binop_to_rust_tokens(&op);
+            assert_eq!(tokens.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn test_bitwise_operations() {
+        let ops = vec![
+            (BinOp::BitAnd, "&"),
+            (BinOp::BitOr, "|"),
+            (BinOp::BitXor, "^"),
+        ];
+
+        for (op, expected) in ops {
+            let tokens = binop_to_rust_tokens(&op);
+            assert_eq!(tokens.to_string(), expected);
+        }
+    }
+
+    #[test]
+    fn test_shift_operations() {
+        let left_shift = HirExpr::Binary {
+            op: BinOp::LShift,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+
+        let tokens = expr_to_rust_tokens(&left_shift).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("<<"));
+
+        let right_shift = HirExpr::Binary {
+            op: BinOp::RShift,
+            left: Box::new(HirExpr::Literal(Literal::Int(4))),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+
+        let tokens = expr_to_rust_tokens(&right_shift).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains(">>"));
+    }
+
+    #[test]
+    fn test_f_string_not_implemented() {
+        let fstring = HirExpr::FString {
+            parts: vec![
+                FStringPart::Literal("Hello, ".to_string()),
+                FStringPart::Expr(Box::new(HirExpr::Var("name".to_string()))),
+                FStringPart::Literal("!".to_string()),
+            ],
+        };
+
+        // FString is not yet implemented in codegen - test that it returns an error
+        let result = expr_to_rust_tokens(&fstring);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_literal_float() {
+        let float_lit = Literal::Float(3.14);
+        let tokens = literal_to_rust_tokens(&float_lit).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("3.14") || code.contains("f64"));
+    }
+
+    #[test]
+    fn test_literal_none() {
+        let none_lit = Literal::None;
+        let tokens = literal_to_rust_tokens(&none_lit).unwrap();
+        let code = tokens.to_string();
+        assert!(code.contains("None") || code.contains("()"));
+    }
+
+    #[test]
+    fn test_function_type() {
+        let func_type = Type::Function {
+            params: vec![Type::Int, Type::String],
+            ret: Box::new(Type::Bool),
+        };
+        let tokens = type_to_rust_type(&func_type);
+        let code = tokens.to_string();
+        assert!(code.contains("Fn") || code.contains("fn") || code.contains("impl"));
+    }
+
+    #[test]
+    fn test_custom_type() {
+        let custom = Type::Custom("MyClass".to_string());
+        let tokens = type_to_rust_type(&custom);
+        let code = tokens.to_string();
+        assert!(code.contains("MyClass"));
+    }
+
+    #[test]
+    fn test_type_var() {
+        let type_var = Type::TypeVar("T".to_string());
+        let tokens = type_to_rust_type(&type_var);
+        let code = tokens.to_string();
+        assert!(code.contains("T"));
+    }
+
+    #[test]
+    fn test_union_type() {
+        let union = Type::Union(vec![Type::Int, Type::String]);
+        let tokens = type_to_rust_type(&union);
+        // Union types should produce some output
+        assert!(!tokens.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_array_type() {
+        let array = Type::Array {
+            element_type: Box::new(Type::Int),
+            size: ConstGeneric::Literal(10),
+        };
+        let tokens = type_to_rust_type(&array);
+        let code = tokens.to_string();
+        assert!(code.contains("[") || code.contains("i32"));
     }
 }

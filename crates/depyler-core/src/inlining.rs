@@ -896,7 +896,9 @@ fn contains_loops_inner(body: &[HirStmt]) -> bool {
 fn expr_has_side_effects_inner(expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Call { func, args, .. } => call_has_side_effects(func, args),
-        HirExpr::MethodCall { method, .. } => method_has_side_effects(method),
+        HirExpr::MethodCall { object, method, .. } => {
+            method_has_side_effects(method) || expr_has_side_effects_inner(object)
+        }
         HirExpr::Binary { left, right, .. } => binary_has_side_effects(left, right),
         HirExpr::Unary { operand, .. } => expr_has_side_effects_inner(operand),
         HirExpr::List(items) | HirExpr::Tuple(items) => collection_has_side_effects(items),
@@ -912,7 +914,8 @@ fn call_has_side_effects(func: &str, args: &[HirExpr]) -> bool {
 
 fn method_has_side_effects(method: &str) -> bool {
     let mutating_methods = [
-        "append", "extend", "remove", "pop", "clear", "sort", "reverse",
+        "append", "extend", "remove", "pop", "clear", "sort", "reverse", "insert", "update",
+        "write",
     ];
     mutating_methods.contains(&method)
 }
@@ -1295,5 +1298,524 @@ mod tests {
         let analyzer = InliningAnalyzer::new(InliningConfig::default());
         let stmt = HirStmt::Continue { label: None };
         assert_eq!(analyzer.calculate_stmt_size(&stmt), 1);
+    }
+
+    // ============================================================================
+    // ADDITIONAL COVERAGE TESTS - Call extraction and analysis
+    // ============================================================================
+
+    #[test]
+    fn test_extract_calls_from_call_expr() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("foo"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_binary_expr() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Call {
+                func: "left_fn".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Call {
+                func: "right_fn".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+        };
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("left_fn"));
+        assert!(calls.contains("right_fn"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_unary_expr() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Neg,
+            operand: Box::new(HirExpr::Call {
+                func: "inner".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+        };
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("inner"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_list() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::List(vec![
+            HirExpr::Call {
+                func: "fn1".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            },
+            HirExpr::Call {
+                func: "fn2".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            },
+        ]);
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("fn1"));
+        assert!(calls.contains("fn2"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_tuple() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::Tuple(vec![HirExpr::Call {
+            func: "tuple_fn".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        }]);
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("tuple_fn"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_dict() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Call {
+                func: "key_fn".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            },
+            HirExpr::Call {
+                func: "val_fn".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            },
+        )]);
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("key_fn"));
+        assert!(calls.contains("val_fn"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_method_call() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Call {
+                func: "get_obj".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            method: "method".to_string(),
+            args: vec![HirExpr::Call {
+                func: "get_arg".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }],
+            kwargs: vec![],
+        };
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("get_obj"));
+        assert!(calls.contains("get_arg"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_lambda() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::Lambda {
+            params: vec!["x".to_string()],
+            body: Box::new(HirExpr::Call {
+                func: "lambda_call".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+        };
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("lambda_call"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_var() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::Var("x".to_string());
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.is_empty());
+    }
+
+    #[test]
+    fn test_extract_calls_from_literal() {
+        let mut calls = HashSet::new();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.is_empty());
+    }
+
+    #[test]
+    fn test_analyzer_extract_calls_from_function() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let func = HirFunction {
+            name: "caller".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![
+                HirStmt::Expr(HirExpr::Call {
+                    func: "callee1".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                }),
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: HirExpr::Call {
+                        func: "callee2".to_string(),
+                        args: vec![],
+                        kwargs: vec![],
+                    },
+                    type_annotation: None,
+                },
+                HirStmt::Return(Some(HirExpr::Call {
+                    func: "callee3".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                })),
+            ],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let calls = analyzer.extract_calls_from_function(&func);
+        assert!(calls.contains("callee1"));
+        assert!(calls.contains("callee2"));
+        assert!(calls.contains("callee3"));
+    }
+
+    #[test]
+    fn test_analyzer_extract_calls_from_if() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let func = HirFunction {
+            name: "if_caller".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::If {
+                condition: HirExpr::Call {
+                    func: "cond_fn".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                },
+                then_body: vec![HirStmt::Expr(HirExpr::Call {
+                    func: "then_fn".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                })],
+                else_body: Some(vec![HirStmt::Expr(HirExpr::Call {
+                    func: "else_fn".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                })]),
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let calls = analyzer.extract_calls_from_function(&func);
+        assert!(calls.contains("cond_fn"));
+        assert!(calls.contains("then_fn"));
+        assert!(calls.contains("else_fn"));
+    }
+
+    #[test]
+    fn test_analyzer_extract_calls_from_while() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let func = HirFunction {
+            name: "while_caller".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::While {
+                condition: HirExpr::Call {
+                    func: "while_cond".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                },
+                body: vec![HirStmt::Expr(HirExpr::Call {
+                    func: "while_body".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                })],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let calls = analyzer.extract_calls_from_function(&func);
+        assert!(calls.contains("while_cond"));
+        assert!(calls.contains("while_body"));
+    }
+
+    #[test]
+    fn test_analyzer_extract_calls_from_for() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let func = HirFunction {
+            name: "for_caller".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Call {
+                    func: "for_iter".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                },
+                body: vec![HirStmt::Expr(HirExpr::Call {
+                    func: "for_body".to_string(),
+                    args: vec![],
+                    kwargs: vec![],
+                })],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let calls = analyzer.extract_calls_from_function(&func);
+        assert!(calls.contains("for_iter"));
+        assert!(calls.contains("for_body"));
+    }
+
+    #[test]
+    fn test_function_metrics_default() {
+        let metrics = FunctionMetrics {
+            size: 10,
+            _param_count: 2,
+            _return_count: 1,
+            has_loops: false,
+            has_side_effects: false,
+            is_trivial: true,
+            call_count: 3,
+            cost: 1.5,
+        };
+        assert_eq!(metrics.size, 10);
+        assert!(!metrics.has_loops);
+        assert!(!metrics.has_side_effects);
+        assert!(metrics.is_trivial);
+        assert_eq!(metrics.call_count, 3);
+    }
+
+    #[test]
+    fn test_expr_size_call() {
+        let expr = HirExpr::Call {
+            func: "fn".to_string(),
+            args: vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::Int(2)),
+            ],
+            kwargs: vec![],
+        };
+        let size = calculate_expr_size_inner(&expr);
+        assert_eq!(size, 3); // 1 for call + 1 for each arg (2 args)
+    }
+
+    #[test]
+    fn test_expr_size_method_call() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        let size = calculate_expr_size_inner(&expr);
+        assert_eq!(size, 1); // MethodCall falls into catchall case
+    }
+
+    #[test]
+    fn test_expr_size_dict() {
+        let expr = HirExpr::Dict(vec![
+            (
+                HirExpr::Literal(Literal::String("a".to_string())),
+                HirExpr::Literal(Literal::Int(1)),
+            ),
+            (
+                HirExpr::Literal(Literal::String("b".to_string())),
+                HirExpr::Literal(Literal::Int(2)),
+            ),
+        ]);
+        let size = calculate_expr_size_inner(&expr);
+        assert!(size >= 5); // 2 pairs * 2 elements + 1 base
+    }
+
+    #[test]
+    fn test_expr_size_lambda() {
+        let expr = HirExpr::Lambda {
+            params: vec!["x".to_string()],
+            body: Box::new(HirExpr::Binary {
+                left: Box::new(HirExpr::Var("x".to_string())),
+                op: BinOp::Add,
+                right: Box::new(HirExpr::Literal(Literal::Int(1))),
+            }),
+        };
+        let size = calculate_expr_size_inner(&expr);
+        assert_eq!(size, 1); // Lambda falls into catchall case
+    }
+
+    #[test]
+    fn test_expr_size_unary() {
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        let size = calculate_expr_size_inner(&expr);
+        assert_eq!(size, 2); // unary + operand
+    }
+
+    #[test]
+    fn test_contains_loops_with_nested_while() {
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::While {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                body: vec![],
+            }],
+            else_body: None,
+        }];
+        assert!(contains_loops_inner(&body));
+    }
+
+    #[test]
+    fn test_contains_loops_with_nested_for() {
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Var("items".to_string()),
+                body: vec![],
+            }],
+            else_body: None,
+        }];
+        assert!(contains_loops_inner(&body));
+    }
+
+    #[test]
+    fn test_side_effect_write() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("file".to_string())),
+            method: "write".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("data".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_extend() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "extend".to_string(),
+            args: vec![HirExpr::List(vec![])],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_insert() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "insert".to_string(),
+            args: vec![
+                HirExpr::Literal(Literal::Int(0)),
+                HirExpr::Literal(Literal::Int(42)),
+            ],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_pop() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "pop".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_remove() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "remove".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_clear() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "clear".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_update() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "update".to_string(),
+            args: vec![HirExpr::Dict(vec![])],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_pure_method_call() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "copy".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_in_args() {
+        let expr = HirExpr::Call {
+            func: "pure_fn".to_string(),
+            args: vec![HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_in_method_object() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("list".to_string())),
+                method: "append".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(1))],
+                kwargs: vec![],
+            }),
+            method: "copy".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
     }
 }

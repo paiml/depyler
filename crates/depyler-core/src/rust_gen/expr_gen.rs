@@ -9147,8 +9147,87 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // Cartesian product of iterables
+            "product" => {
+                if arg_exprs.len() < 2 {
+                    bail!("itertools.product() requires at least 2 arguments");
+                }
+                self.ctx.needs_itertools = true;
+                let first = &arg_exprs[0];
+                let second = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        use itertools::Itertools;
+                        #first.into_iter().cartesian_product(#second.into_iter()).collect::<Vec<_>>()
+                    }
+                }
+            }
+
+            // Permutations of iterable
+            "permutations" => {
+                if arg_exprs.is_empty() {
+                    bail!("itertools.permutations() requires at least 1 argument");
+                }
+                self.ctx.needs_itertools = true;
+                let iterable = &arg_exprs[0];
+
+                if arg_exprs.len() >= 2 {
+                    let r = &arg_exprs[1];
+                    parse_quote! {
+                        {
+                            use itertools::Itertools;
+                            #iterable.into_iter().permutations(#r as usize).collect::<Vec<_>>()
+                        }
+                    }
+                } else {
+                    parse_quote! {
+                        {
+                            use itertools::Itertools;
+                            let items: Vec<_> = #iterable.into_iter().collect();
+                            let n = items.len();
+                            items.into_iter().permutations(n).collect::<Vec<_>>()
+                        }
+                    }
+                }
+            }
+
+            // Combinations of iterable
+            "combinations" => {
+                if arg_exprs.len() < 2 {
+                    bail!("itertools.combinations() requires at least 2 arguments (iterable, r)");
+                }
+                self.ctx.needs_itertools = true;
+                let iterable = &arg_exprs[0];
+                let r = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        use itertools::Itertools;
+                        #iterable.into_iter().combinations(#r as usize).collect::<Vec<_>>()
+                    }
+                }
+            }
+
+            // Zip longest - zip with fill value for shorter iterables
+            "zip_longest" => {
+                if arg_exprs.len() < 2 {
+                    bail!("itertools.zip_longest() requires at least 2 arguments");
+                }
+                self.ctx.needs_itertools = true;
+                let first = &arg_exprs[0];
+                let second = &arg_exprs[1];
+
+                parse_quote! {
+                    {
+                        use itertools::Itertools;
+                        #first.into_iter().zip_longest(#second.into_iter()).collect::<Vec<_>>()
+                    }
+                }
+            }
+
             _ => {
-                bail!("itertools.{} not implemented yet (available: count, cycle, repeat, chain, islice, takewhile, dropwhile, accumulate, compress, groupby)", method);
+                bail!("itertools.{} not implemented yet (available: count, cycle, repeat, chain, islice, takewhile, dropwhile, accumulate, compress, groupby, product, permutations, combinations, zip_longest)", method);
             }
         };
 
@@ -19325,5 +19404,876 @@ fn literal_to_rust_expr(
             // it should become Rust's None, not ()
             parse_quote! { None }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::{BinOp, HirExpr, Literal, UnaryOp};
+    use quote::ToTokens;
+    use std::collections::HashSet;
+
+    // ============ is_rust_keyword tests ============
+
+    #[test]
+    fn test_is_rust_keyword_basic() {
+        assert!(ExpressionConverter::is_rust_keyword("fn"));
+        assert!(ExpressionConverter::is_rust_keyword("let"));
+        assert!(ExpressionConverter::is_rust_keyword("if"));
+        assert!(ExpressionConverter::is_rust_keyword("else"));
+        assert!(ExpressionConverter::is_rust_keyword("for"));
+        assert!(ExpressionConverter::is_rust_keyword("while"));
+        assert!(ExpressionConverter::is_rust_keyword("loop"));
+        assert!(ExpressionConverter::is_rust_keyword("match"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_types() {
+        assert!(ExpressionConverter::is_rust_keyword("struct"));
+        assert!(ExpressionConverter::is_rust_keyword("enum"));
+        assert!(ExpressionConverter::is_rust_keyword("trait"));
+        assert!(ExpressionConverter::is_rust_keyword("impl"));
+        assert!(ExpressionConverter::is_rust_keyword("type"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_modifiers() {
+        assert!(ExpressionConverter::is_rust_keyword("pub"));
+        assert!(ExpressionConverter::is_rust_keyword("mut"));
+        assert!(ExpressionConverter::is_rust_keyword("const"));
+        assert!(ExpressionConverter::is_rust_keyword("static"));
+        assert!(ExpressionConverter::is_rust_keyword("ref"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_async() {
+        assert!(ExpressionConverter::is_rust_keyword("async"));
+        assert!(ExpressionConverter::is_rust_keyword("await"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_reserved() {
+        assert!(ExpressionConverter::is_rust_keyword("abstract"));
+        assert!(ExpressionConverter::is_rust_keyword("become"));
+        assert!(ExpressionConverter::is_rust_keyword("box"));
+        assert!(ExpressionConverter::is_rust_keyword("do"));
+        assert!(ExpressionConverter::is_rust_keyword("final"));
+        assert!(ExpressionConverter::is_rust_keyword("macro"));
+        assert!(ExpressionConverter::is_rust_keyword("override"));
+        assert!(ExpressionConverter::is_rust_keyword("priv"));
+        assert!(ExpressionConverter::is_rust_keyword("try"));
+        assert!(ExpressionConverter::is_rust_keyword("typeof"));
+        assert!(ExpressionConverter::is_rust_keyword("virtual"));
+        assert!(ExpressionConverter::is_rust_keyword("yield"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_false() {
+        assert!(!ExpressionConverter::is_rust_keyword("foo"));
+        assert!(!ExpressionConverter::is_rust_keyword("bar"));
+        assert!(!ExpressionConverter::is_rust_keyword("my_var"));
+        assert!(!ExpressionConverter::is_rust_keyword("count"));
+        assert!(!ExpressionConverter::is_rust_keyword("result"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_special() {
+        assert!(ExpressionConverter::is_rust_keyword("self"));
+        assert!(ExpressionConverter::is_rust_keyword("Self"));
+        assert!(ExpressionConverter::is_rust_keyword("super"));
+        assert!(ExpressionConverter::is_rust_keyword("crate"));
+    }
+
+    // ============ is_non_raw_keyword tests ============
+
+    #[test]
+    fn test_is_non_raw_keyword_true() {
+        assert!(ExpressionConverter::is_non_raw_keyword("self"));
+        assert!(ExpressionConverter::is_non_raw_keyword("Self"));
+        assert!(ExpressionConverter::is_non_raw_keyword("super"));
+        assert!(ExpressionConverter::is_non_raw_keyword("crate"));
+    }
+
+    #[test]
+    fn test_is_non_raw_keyword_false() {
+        assert!(!ExpressionConverter::is_non_raw_keyword("fn"));
+        assert!(!ExpressionConverter::is_non_raw_keyword("let"));
+        assert!(!ExpressionConverter::is_non_raw_keyword("type"));
+        assert!(!ExpressionConverter::is_non_raw_keyword("foo"));
+    }
+
+    // ============ looks_like_option_expr tests ============
+
+    #[test]
+    fn test_looks_like_option_expr_ok_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("result".to_string())),
+            method: "ok".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(ExpressionConverter::looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_get_one_arg() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(ExpressionConverter::looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_get_with_default() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "get".to_string(),
+            args: vec![
+                HirExpr::Literal(Literal::String("key".to_string())),
+                HirExpr::Literal(Literal::Int(0)),
+            ],
+            kwargs: vec![],
+        };
+        assert!(!ExpressionConverter::looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_other_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "append".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        assert!(!ExpressionConverter::looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_chained_ok() {
+        let inner = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Call {
+                func: "env_var".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            method: "ok".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(ExpressionConverter::looks_like_option_expr(&inner));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_not_method() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!ExpressionConverter::looks_like_option_expr(&expr));
+    }
+
+    // ============ collect_walrus_vars_from_conditions tests ============
+
+    #[test]
+    fn test_collect_walrus_vars_empty() {
+        let conditions: Vec<HirExpr> = vec![];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn test_collect_walrus_vars_named_expr() {
+        let conditions = vec![HirExpr::NamedExpr {
+            target: "x".to_string(),
+            value: Box::new(HirExpr::Literal(Literal::Int(5))),
+        }];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.contains("x"));
+        assert_eq!(vars.len(), 1);
+    }
+
+    #[test]
+    fn test_collect_walrus_vars_nested() {
+        let conditions = vec![HirExpr::Binary {
+            op: BinOp::And,
+            left: Box::new(HirExpr::NamedExpr {
+                target: "a".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Int(1))),
+            }),
+            right: Box::new(HirExpr::NamedExpr {
+                target: "b".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Int(2))),
+            }),
+        }];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.contains("a"));
+        assert!(vars.contains("b"));
+        assert_eq!(vars.len(), 2);
+    }
+
+    #[test]
+    fn test_collect_walrus_vars_in_call() {
+        let conditions = vec![HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![HirExpr::NamedExpr {
+                target: "result".to_string(),
+                value: Box::new(HirExpr::Var("x".to_string())),
+            }],
+            kwargs: vec![],
+        }];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.contains("result"));
+    }
+
+    #[test]
+    fn test_collect_walrus_vars_in_unary() {
+        let conditions = vec![HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::NamedExpr {
+                target: "flag".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            }),
+        }];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.contains("flag"));
+    }
+
+    #[test]
+    fn test_collect_walrus_vars_in_if_expr() {
+        let conditions = vec![HirExpr::IfExpr {
+            test: Box::new(HirExpr::NamedExpr {
+                target: "cond".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            }),
+            body: Box::new(HirExpr::Literal(Literal::Int(1))),
+            orelse: Box::new(HirExpr::Literal(Literal::Int(0))),
+        }];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.contains("cond"));
+    }
+
+    #[test]
+    fn test_collect_walrus_vars_in_tuple() {
+        let conditions = vec![HirExpr::Tuple(vec![
+            HirExpr::NamedExpr {
+                target: "x".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Int(1))),
+            },
+            HirExpr::NamedExpr {
+                target: "y".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Int(2))),
+            },
+        ])];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.contains("x"));
+        assert!(vars.contains("y"));
+    }
+
+    // ============ expr_uses_any_var tests ============
+
+    #[test]
+    fn test_expr_uses_any_var_simple() {
+        let mut vars = HashSet::new();
+        vars.insert("x".to_string());
+
+        let expr = HirExpr::Var("x".to_string());
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+
+        let expr2 = HirExpr::Var("y".to_string());
+        assert!(!ExpressionConverter::expr_uses_any_var(&expr2, &vars));
+    }
+
+    #[test]
+    fn test_expr_uses_any_var_binary() {
+        let mut vars = HashSet::new();
+        vars.insert("x".to_string());
+
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+
+        let expr2 = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Var("x".to_string())),
+        };
+        assert!(ExpressionConverter::expr_uses_any_var(&expr2, &vars));
+    }
+
+    #[test]
+    fn test_expr_uses_any_var_call() {
+        let mut vars = HashSet::new();
+        vars.insert("arg".to_string());
+
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![HirExpr::Var("arg".to_string())],
+            kwargs: vec![],
+        };
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+    }
+
+    #[test]
+    fn test_expr_uses_any_var_index() {
+        let mut vars = HashSet::new();
+        vars.insert("idx".to_string());
+
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Var("idx".to_string())),
+        };
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+    }
+
+    #[test]
+    fn test_expr_uses_any_var_attribute() {
+        let mut vars = HashSet::new();
+        vars.insert("obj".to_string());
+
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+    }
+
+    #[test]
+    fn test_expr_uses_any_var_list() {
+        let mut vars = HashSet::new();
+        vars.insert("item".to_string());
+
+        let expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Var("item".to_string()),
+        ]);
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+    }
+
+    // ============ get_python_op_precedence tests ============
+
+    #[test]
+    fn test_get_python_op_precedence_pow() {
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Pow), 14);
+    }
+
+    #[test]
+    fn test_get_python_op_precedence_mul() {
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Mul), 13);
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Div), 13);
+        assert_eq!(
+            ExpressionConverter::get_python_op_precedence(BinOp::FloorDiv),
+            13
+        );
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Mod), 13);
+    }
+
+    #[test]
+    fn test_get_python_op_precedence_add() {
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Add), 12);
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Sub), 12);
+    }
+
+    #[test]
+    fn test_get_python_op_precedence_shift() {
+        assert_eq!(
+            ExpressionConverter::get_python_op_precedence(BinOp::LShift),
+            11
+        );
+        assert_eq!(
+            ExpressionConverter::get_python_op_precedence(BinOp::RShift),
+            11
+        );
+    }
+
+    #[test]
+    fn test_get_python_op_precedence_bitwise() {
+        assert_eq!(
+            ExpressionConverter::get_python_op_precedence(BinOp::BitAnd),
+            10
+        );
+        assert_eq!(
+            ExpressionConverter::get_python_op_precedence(BinOp::BitXor),
+            9
+        );
+        assert_eq!(
+            ExpressionConverter::get_python_op_precedence(BinOp::BitOr),
+            8
+        );
+    }
+
+    #[test]
+    fn test_get_python_op_precedence_comparison() {
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Lt), 7);
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Gt), 7);
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::LtEq), 7);
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::GtEq), 7);
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Eq), 7);
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::NotEq), 7);
+    }
+
+    #[test]
+    fn test_get_python_op_precedence_logical() {
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::And), 6);
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::Or), 5);
+    }
+
+    // ============ looks_like_option_expr additional tests ============
+
+    #[test]
+    fn test_looks_like_option_expr_nested_get() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("data".to_string())),
+                method: "get".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("key1".to_string()))],
+                kwargs: vec![],
+            }),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key2".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(ExpressionConverter::looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_deeply_nested() {
+        let inner = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("x".to_string())),
+            method: "ok".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        let outer = HirExpr::MethodCall {
+            object: Box::new(inner),
+            method: "map".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        // .map() on an Option returns Option, but we check inner
+        assert!(ExpressionConverter::looks_like_option_expr(&outer));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!ExpressionConverter::looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(!ExpressionConverter::looks_like_option_expr(&expr));
+    }
+
+    // ============ More walrus operator tests ============
+
+    #[test]
+    fn test_collect_walrus_vars_multiple_conditions() {
+        let conditions = vec![
+            HirExpr::NamedExpr {
+                target: "a".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Int(1))),
+            },
+            HirExpr::NamedExpr {
+                target: "b".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Int(2))),
+            },
+            HirExpr::Var("c".to_string()),
+        ];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert_eq!(vars.len(), 2);
+        assert!(vars.contains("a"));
+        assert!(vars.contains("b"));
+    }
+
+    #[test]
+    fn test_expr_uses_any_var_nested_index() {
+        let mut vars = HashSet::new();
+        vars.insert("i".to_string());
+
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Index {
+                base: Box::new(HirExpr::Var("matrix".to_string())),
+                index: Box::new(HirExpr::Var("i".to_string())),
+            }),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+    }
+
+    #[test]
+    fn test_expr_uses_any_var_unary() {
+        let mut vars = HashSet::new();
+        vars.insert("flag".to_string());
+
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Var("flag".to_string())),
+        };
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+    }
+
+    // ============ More is_rust_keyword edge cases ============
+
+    #[test]
+    fn test_is_rust_keyword_case_sensitivity() {
+        assert!(ExpressionConverter::is_rust_keyword("fn"));
+        assert!(!ExpressionConverter::is_rust_keyword("FN"));
+        assert!(!ExpressionConverter::is_rust_keyword("Fn"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_similar_names() {
+        // These are NOT keywords
+        assert!(!ExpressionConverter::is_rust_keyword("function"));
+        assert!(!ExpressionConverter::is_rust_keyword("match_"));
+        assert!(!ExpressionConverter::is_rust_keyword("_if"));
+        assert!(!ExpressionConverter::is_rust_keyword("for2"));
+    }
+
+    // ============ BinOp containment tests ============
+
+    #[test]
+    fn test_get_python_op_precedence_in_notin() {
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::In), 7);
+        assert_eq!(ExpressionConverter::get_python_op_precedence(BinOp::NotIn), 7);
+    }
+
+    // ============ get_rust_op_precedence tests ============
+
+    #[test]
+    fn test_get_rust_op_precedence_mul() {
+        let op: syn::BinOp = syn::parse_quote!(*);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 13);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_div() {
+        let op: syn::BinOp = syn::parse_quote!(/);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 13);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_add() {
+        let op: syn::BinOp = syn::parse_quote!(+);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 12);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_sub() {
+        let op: syn::BinOp = syn::parse_quote!(-);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 12);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_shl() {
+        let op: syn::BinOp = syn::parse_quote!(<<);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 11);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_shr() {
+        let op: syn::BinOp = syn::parse_quote!(>>);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 11);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_bitand() {
+        let op: syn::BinOp = syn::parse_quote!(&);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 10);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_bitxor() {
+        let op: syn::BinOp = syn::parse_quote!(^);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 9);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_bitor() {
+        let op: syn::BinOp = syn::parse_quote!(|);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 8);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_lt() {
+        let op: syn::BinOp = syn::parse_quote!(<);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 7);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_le() {
+        let op: syn::BinOp = syn::parse_quote!(<=);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 7);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_gt() {
+        let op: syn::BinOp = syn::parse_quote!(>);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 7);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_ge() {
+        let op: syn::BinOp = syn::parse_quote!(>=);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 7);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_eq() {
+        let op: syn::BinOp = syn::parse_quote!(==);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 7);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_ne() {
+        let op: syn::BinOp = syn::parse_quote!(!=);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 7);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_and() {
+        let op: syn::BinOp = syn::parse_quote!(&&);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 6);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_or() {
+        let op: syn::BinOp = syn::parse_quote!(||);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 5);
+    }
+
+    #[test]
+    fn test_get_rust_op_precedence_rem() {
+        let op: syn::BinOp = syn::parse_quote!(%);
+        assert_eq!(ExpressionConverter::get_rust_op_precedence(&op), 13);
+    }
+
+    // ============ borrow_if_needed tests ============
+
+    #[test]
+    fn test_borrow_if_needed_path() {
+        let expr: syn::Expr = syn::parse_quote!(x);
+        let result = ExpressionConverter::borrow_if_needed(&expr);
+        assert_eq!(result.to_token_stream().to_string(), "& x");
+    }
+
+    #[test]
+    fn test_borrow_if_needed_already_reference() {
+        let expr: syn::Expr = syn::parse_quote!(&x);
+        let result = ExpressionConverter::borrow_if_needed(&expr);
+        assert_eq!(result.to_token_stream().to_string(), "& x");
+    }
+
+    #[test]
+    fn test_borrow_if_needed_literal() {
+        let expr: syn::Expr = syn::parse_quote!("hello");
+        let result = ExpressionConverter::borrow_if_needed(&expr);
+        assert_eq!(result.to_token_stream().to_string(), "\"hello\"");
+    }
+
+    #[test]
+    fn test_borrow_if_needed_method_call() {
+        let expr: syn::Expr = syn::parse_quote!(s.as_str());
+        let result = ExpressionConverter::borrow_if_needed(&expr);
+        // Method calls producing str are not borrowed
+        assert_eq!(result.to_token_stream().to_string(), "s . as_str ()");
+    }
+
+    // ============ wrap_in_parens tests ============
+    // Note: wrap_in_parens uses braces { } not parens ( ) per DEPYLER-0707
+
+    #[test]
+    fn test_wrap_in_parens_simple() {
+        let expr: syn::Expr = syn::parse_quote!(x);
+        let result = ExpressionConverter::wrap_in_parens(expr);
+        assert_eq!(result.to_token_stream().to_string(), "{ x }");
+    }
+
+    #[test]
+    fn test_wrap_in_parens_binary() {
+        let expr: syn::Expr = syn::parse_quote!(a + b);
+        let result = ExpressionConverter::wrap_in_parens(expr);
+        assert_eq!(result.to_token_stream().to_string(), "{ a + b }");
+    }
+
+    #[test]
+    fn test_wrap_in_parens_call() {
+        let expr: syn::Expr = syn::parse_quote!(foo(1, 2));
+        let result = ExpressionConverter::wrap_in_parens(expr);
+        assert_eq!(result.to_token_stream().to_string(), "{ foo (1 , 2) }");
+    }
+
+    // ============ parenthesize_if_lower_precedence tests ============
+
+    #[test]
+    fn test_parenthesize_lower_precedence() {
+        // (a + b) * c - the add has lower precedence than mul
+        let expr: syn::Expr = syn::parse_quote!(a + b);
+        let result = ExpressionConverter::parenthesize_if_lower_precedence(expr, BinOp::Mul);
+        assert_eq!(result.to_token_stream().to_string(), "(a + b)");
+    }
+
+    #[test]
+    fn test_parenthesize_same_precedence() {
+        // a * b in context of division - same precedence, no parens
+        let expr: syn::Expr = syn::parse_quote!(a * b);
+        let result = ExpressionConverter::parenthesize_if_lower_precedence(expr, BinOp::Div);
+        // Same precedence doesn't add parens
+        assert_eq!(result.to_token_stream().to_string(), "a * b");
+    }
+
+    #[test]
+    fn test_parenthesize_higher_precedence() {
+        // a * b in context of addition - higher precedence, no parens
+        let expr: syn::Expr = syn::parse_quote!(a * b);
+        let result = ExpressionConverter::parenthesize_if_lower_precedence(expr, BinOp::Add);
+        assert_eq!(result.to_token_stream().to_string(), "a * b");
+    }
+
+    #[test]
+    fn test_parenthesize_non_binary() {
+        // Non-binary expressions pass through unchanged
+        let expr: syn::Expr = syn::parse_quote!(foo());
+        let result = ExpressionConverter::parenthesize_if_lower_precedence(expr, BinOp::Mul);
+        assert_eq!(result.to_token_stream().to_string(), "foo ()");
+    }
+
+    // ============ Additional edge case tests ============
+
+    #[test]
+    fn test_expr_uses_any_var_empty_set() {
+        let vars = HashSet::new();
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!ExpressionConverter::expr_uses_any_var(&expr, &vars));
+    }
+
+    #[test]
+    fn test_expr_uses_any_var_method_call() {
+        let mut vars = HashSet::new();
+        vars.insert("obj".to_string());
+
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+    }
+
+    #[test]
+    fn test_expr_uses_any_var_kwargs() {
+        let mut vars = HashSet::new();
+        vars.insert("value".to_string());
+
+        let expr = HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![],
+            kwargs: vec![("key".to_string(), HirExpr::Var("value".to_string()))],
+        };
+        assert!(ExpressionConverter::expr_uses_any_var(&expr, &vars));
+    }
+
+    #[test]
+    fn test_collect_walrus_vars_in_list() {
+        let conditions = vec![HirExpr::List(vec![HirExpr::NamedExpr {
+            target: "item".to_string(),
+            value: Box::new(HirExpr::Literal(Literal::Int(1))),
+        }])];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.contains("item"));
+    }
+
+    #[test]
+    fn test_collect_walrus_vars_in_set() {
+        let conditions = vec![HirExpr::Set(vec![HirExpr::NamedExpr {
+            target: "elem".to_string(),
+            value: Box::new(HirExpr::Literal(Literal::Int(1))),
+        }])];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.contains("elem"));
+    }
+
+    #[test]
+    fn test_collect_walrus_vars_in_method_kwargs() {
+        let conditions = vec![HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![],
+            kwargs: vec![("key".to_string(), HirExpr::NamedExpr {
+                target: "kwarg_var".to_string(),
+                value: Box::new(HirExpr::Literal(Literal::Int(1))),
+            })],
+        }];
+        let vars = ExpressionConverter::collect_walrus_vars_from_conditions(&conditions);
+        assert!(vars.contains("kwarg_var"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_move() {
+        assert!(ExpressionConverter::is_rust_keyword("move"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_return() {
+        assert!(ExpressionConverter::is_rust_keyword("return"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_break_continue() {
+        assert!(ExpressionConverter::is_rust_keyword("break"));
+        assert!(ExpressionConverter::is_rust_keyword("continue"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_use_mod() {
+        assert!(ExpressionConverter::is_rust_keyword("use"));
+        assert!(ExpressionConverter::is_rust_keyword("mod"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_extern() {
+        assert!(ExpressionConverter::is_rust_keyword("extern"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_true_false() {
+        assert!(ExpressionConverter::is_rust_keyword("true"));
+        assert!(ExpressionConverter::is_rust_keyword("false"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_dyn_unsafe() {
+        assert!(ExpressionConverter::is_rust_keyword("dyn"));
+        assert!(ExpressionConverter::is_rust_keyword("unsafe"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_where() {
+        assert!(ExpressionConverter::is_rust_keyword("where"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_in() {
+        assert!(ExpressionConverter::is_rust_keyword("in"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_as() {
+        assert!(ExpressionConverter::is_rust_keyword("as"));
+    }
+
+    #[test]
+    fn test_is_rust_keyword_unsized() {
+        assert!(ExpressionConverter::is_rust_keyword("unsized"));
     }
 }
