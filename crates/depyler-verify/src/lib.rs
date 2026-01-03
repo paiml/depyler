@@ -1,7 +1,9 @@
 pub mod contract_verification;
 pub mod contracts;
 pub mod lifetime_analysis;
+pub mod lifetime_shim;
 pub mod memory_safety;
+pub mod memory_shim;
 pub mod properties;
 pub mod quickcheck;
 
