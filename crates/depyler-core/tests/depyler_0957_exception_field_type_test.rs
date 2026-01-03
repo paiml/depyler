@@ -33,6 +33,15 @@ def test():
             python_source,
         ])
         .current_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/..")
+        // Clear LLVM coverage env to prevent interference under cargo-llvm-cov
+        .env_remove("CARGO_LLVM_COV")
+        .env_remove("CARGO_LLVM_COV_SHOW_ENV")
+        .env_remove("CARGO_LLVM_COV_TARGET_DIR")
+        .env_remove("LLVM_PROFILE_FILE")
+        .env_remove("RUSTFLAGS")
+        .env_remove("CARGO_INCREMENTAL")
+        .env_remove("CARGO_BUILD_JOBS")
+        .env_remove("CARGO_TARGET_DIR")
         .output()
         .expect("Failed to run depyler");
 
@@ -84,6 +93,15 @@ class ValidationError(Exception):
             python_source,
         ])
         .current_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/..")
+        // Clear LLVM coverage env to prevent interference under cargo-llvm-cov
+        .env_remove("CARGO_LLVM_COV")
+        .env_remove("CARGO_LLVM_COV_SHOW_ENV")
+        .env_remove("CARGO_LLVM_COV_TARGET_DIR")
+        .env_remove("LLVM_PROFILE_FILE")
+        .env_remove("RUSTFLAGS")
+        .env_remove("CARGO_INCREMENTAL")
+        .env_remove("CARGO_BUILD_JOBS")
+        .env_remove("CARGO_TARGET_DIR")
         .output()
         .expect("Failed to run depyler");
 
@@ -121,6 +139,15 @@ class APIError(Exception):
             python_source,
         ])
         .current_dir(env!("CARGO_MANIFEST_DIR").to_string() + "/..")
+        // Clear LLVM coverage env to prevent interference under cargo-llvm-cov
+        .env_remove("CARGO_LLVM_COV")
+        .env_remove("CARGO_LLVM_COV_SHOW_ENV")
+        .env_remove("CARGO_LLVM_COV_TARGET_DIR")
+        .env_remove("LLVM_PROFILE_FILE")
+        .env_remove("RUSTFLAGS")
+        .env_remove("CARGO_INCREMENTAL")
+        .env_remove("CARGO_BUILD_JOBS")
+        .env_remove("CARGO_TARGET_DIR")
         .output()
         .expect("Failed to run depyler");
 
