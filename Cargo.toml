@@ -58,12 +58,12 @@ serde_json = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
-# Python parsing
-rustpython-parser = "0.4"
-rustpython-ast = "0.4"
+# Python parsing (use num-bigint instead of malachite-bigint for lighter builds)
+rustpython-parser = { version = "0.4", default-features = false, features = ["location", "num-bigint"] }
+rustpython-ast = { version = "0.4", default-features = false, features = ["location", "num-bigint"] }
 
-# Code generation
-syn = { version = "2.0", features = ["full", "extra-traits", "visit-mut"] }
+# Code generation (extra-traits not needed - saves compile time)
+syn = { version = "2.0", features = ["full", "visit-mut"] }
 quote = "1.0"
 proc-macro2 = "1.0"
 indexmap = "2.0"
@@ -141,3 +141,7 @@ opt-level = "z"
 
 [profile.dev-fast.package."*"]
 opt-level = 1
+
+# Use local patched versions to eliminate duplicate deps
+[patch.crates-io]
+entrenar = { path = "../entrenar" }
