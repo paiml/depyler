@@ -284,6 +284,441 @@ mod tests {
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
+    // === YieldPoint tests ===
+
+    #[test]
+    fn test_yield_point_new() {
+        let yp = YieldPoint {
+            state_id: 5,
+            yield_expr: HirExpr::Literal(Literal::Int(42)),
+            live_vars: vec!["x".to_string(), "y".to_string()],
+            depth: 2,
+        };
+        assert_eq!(yp.state_id, 5);
+        assert_eq!(yp.live_vars.len(), 2);
+        assert_eq!(yp.depth, 2);
+    }
+
+    #[test]
+    fn test_yield_point_clone() {
+        let yp = YieldPoint {
+            state_id: 1,
+            yield_expr: HirExpr::Var("x".to_string()),
+            live_vars: vec!["x".to_string()],
+            depth: 0,
+        };
+        let cloned = yp.clone();
+        assert_eq!(cloned.state_id, yp.state_id);
+        assert_eq!(cloned.depth, yp.depth);
+    }
+
+    #[test]
+    fn test_yield_point_eq() {
+        let yp1 = YieldPoint {
+            state_id: 1,
+            yield_expr: HirExpr::Literal(Literal::Int(1)),
+            live_vars: vec![],
+            depth: 0,
+        };
+        let yp2 = YieldPoint {
+            state_id: 1,
+            yield_expr: HirExpr::Literal(Literal::Int(1)),
+            live_vars: vec![],
+            depth: 0,
+        };
+        assert_eq!(yp1, yp2);
+    }
+
+    #[test]
+    fn test_yield_point_debug() {
+        let yp = YieldPoint {
+            state_id: 3,
+            yield_expr: HirExpr::Literal(Literal::Int(99)),
+            live_vars: vec!["z".to_string()],
+            depth: 1,
+        };
+        let debug = format!("{:?}", yp);
+        assert!(debug.contains("state_id"));
+        assert!(debug.contains("3"));
+    }
+
+    // === YieldAnalysis tests ===
+
+    #[test]
+    fn test_yield_analysis_new() {
+        let analysis = YieldAnalysis::new();
+        assert!(analysis.yield_points.is_empty());
+        assert!(analysis.state_variables.is_empty());
+        assert!(analysis.resume_points.is_empty());
+    }
+
+    #[test]
+    fn test_yield_analysis_default() {
+        let analysis = YieldAnalysis::default();
+        assert!(analysis.yield_points.is_empty());
+    }
+
+    #[test]
+    fn test_yield_analysis_has_yields_empty() {
+        let analysis = YieldAnalysis::new();
+        assert!(!analysis.has_yields());
+    }
+
+    #[test]
+    fn test_yield_analysis_has_yields_true() {
+        let mut analysis = YieldAnalysis::new();
+        analysis.yield_points.push(YieldPoint {
+            state_id: 1,
+            yield_expr: HirExpr::Literal(Literal::Int(1)),
+            live_vars: vec![],
+            depth: 0,
+        });
+        assert!(analysis.has_yields());
+    }
+
+    #[test]
+    fn test_yield_analysis_num_states_empty() {
+        let analysis = YieldAnalysis::new();
+        assert_eq!(analysis.num_states(), 1); // Just state 0
+    }
+
+    #[test]
+    fn test_yield_analysis_num_states_with_yields() {
+        let mut analysis = YieldAnalysis::new();
+        for i in 1..=5 {
+            analysis.yield_points.push(YieldPoint {
+                state_id: i,
+                yield_expr: HirExpr::Literal(Literal::Int(i as i64)),
+                live_vars: vec![],
+                depth: 0,
+            });
+        }
+        assert_eq!(analysis.num_states(), 6); // State 0 + 5 yields
+    }
+
+    #[test]
+    fn test_yield_analysis_clone() {
+        let mut analysis = YieldAnalysis::new();
+        analysis.yield_points.push(YieldPoint {
+            state_id: 1,
+            yield_expr: HirExpr::Literal(Literal::Int(1)),
+            live_vars: vec!["a".to_string()],
+            depth: 0,
+        });
+        analysis.state_variables.push("x".to_string());
+        analysis.resume_points.insert(1, 2);
+
+        let cloned = analysis.clone();
+        assert_eq!(cloned.yield_points.len(), 1);
+        assert_eq!(cloned.state_variables.len(), 1);
+        assert_eq!(cloned.resume_points.len(), 1);
+    }
+
+    // === analyze function tests ===
+
+    #[test]
+    fn test_analyze_empty_function() {
+        let func = HirFunction {
+            name: "empty".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert!(!analysis.has_yields());
+        assert_eq!(analysis.num_states(), 1);
+    }
+
+    #[test]
+    fn test_analyze_non_generator_function() {
+        let func = HirFunction {
+            name: "regular".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![
+                HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42)))),
+            ],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert!(!analysis.has_yields());
+    }
+
+    #[test]
+    fn test_analyze_yield_in_if_then() {
+        let func = HirFunction {
+            name: "if_yield".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::If {
+                condition: HirExpr::Var("cond".to_string()),
+                then_body: vec![HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
+                })],
+                else_body: None,
+            }],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert_eq!(analysis.yield_points.len(), 1);
+    }
+
+    #[test]
+    fn test_analyze_yield_in_if_else() {
+        let func = HirFunction {
+            name: "if_else_yield".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::If {
+                condition: HirExpr::Var("cond".to_string()),
+                then_body: vec![HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
+                })],
+                else_body: Some(vec![HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Literal(Literal::Int(2)))),
+                })]),
+            }],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert_eq!(analysis.yield_points.len(), 2);
+    }
+
+    #[test]
+    fn test_analyze_yield_in_for_loop() {
+        let func = HirFunction {
+            name: "for_yield".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Var("range".to_string()),
+                body: vec![HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Var("i".to_string()))),
+                })],
+            }],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert_eq!(analysis.yield_points.len(), 1);
+        assert_eq!(analysis.yield_points[0].depth, 1); // Inside loop = depth 1
+    }
+
+    #[test]
+    fn test_analyze_yield_in_nested_loops() {
+        let func = HirFunction {
+            name: "nested_yield".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::While {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                body: vec![HirStmt::For {
+                    target: AssignTarget::Symbol("i".to_string()),
+                    iter: HirExpr::Var("items".to_string()),
+                    body: vec![HirStmt::Expr(HirExpr::Yield {
+                        value: Some(Box::new(HirExpr::Var("i".to_string()))),
+                    })],
+                }],
+            }],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert_eq!(analysis.yield_points.len(), 1);
+        assert_eq!(analysis.yield_points[0].depth, 2); // Nested = depth 2
+    }
+
+    #[test]
+    fn test_analyze_yield_in_try_body() {
+        let func = HirFunction {
+            name: "try_yield".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Try {
+                body: vec![HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
+                })],
+                handlers: vec![],
+                orelse: None,
+                finalbody: None,
+            }],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert_eq!(analysis.yield_points.len(), 1);
+    }
+
+    #[test]
+    fn test_analyze_yield_in_except_handler() {
+        let func = HirFunction {
+            name: "except_yield".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Try {
+                body: vec![],
+                handlers: vec![ExceptHandler {
+                    exception_type: Some("Exception".to_string()),
+                    name: Some("e".to_string()),
+                    body: vec![HirStmt::Expr(HirExpr::Yield {
+                        value: Some(Box::new(HirExpr::Literal(Literal::Int(99)))),
+                    })],
+                }],
+                orelse: None,
+                finalbody: None,
+            }],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert_eq!(analysis.yield_points.len(), 1);
+    }
+
+    #[test]
+    fn test_analyze_yield_in_finally() {
+        let func = HirFunction {
+            name: "finally_yield".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Try {
+                body: vec![],
+                handlers: vec![],
+                orelse: None,
+                finalbody: Some(vec![HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Literal(Literal::Int(0)))),
+                })]),
+            }],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert_eq!(analysis.yield_points.len(), 1);
+    }
+
+    #[test]
+    fn test_analyze_yield_in_with() {
+        let func = HirFunction {
+            name: "with_yield".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![HirStmt::With {
+                context: HirExpr::Var("ctx".to_string()),
+                target: Some("f".to_string()),
+                body: vec![HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Var("f".to_string()))),
+                })],
+                is_async: false,
+            }],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert_eq!(analysis.yield_points.len(), 1);
+    }
+
+    #[test]
+    fn test_resume_points_tracking() {
+        let func = HirFunction {
+            name: "resume".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![
+                HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
+                }),
+                HirStmt::Expr(HirExpr::Yield {
+                    value: Some(Box::new(HirExpr::Literal(Literal::Int(2)))),
+                }),
+            ],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        assert_eq!(analysis.resume_points.len(), 2);
+        // Resume after first yield (index 0) should be statement index 1
+        assert_eq!(analysis.resume_points.get(&1), Some(&1));
+        // Resume after second yield (index 1) should be statement index 2
+        assert_eq!(analysis.resume_points.get(&2), Some(&2));
+    }
+
+    #[test]
+    fn test_yield_none_value() {
+        let func = HirFunction {
+            name: "yield_none".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![HirStmt::Expr(HirExpr::Yield { value: None })],
+            properties: FunctionProperties {
+                is_generator: true,
+                ..Default::default()
+            },
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let analysis = YieldAnalysis::analyze(&func);
+        // yield without value is not extracted (returns None from extract_yield_expr)
+        // because extract_yield_expr returns value.as_ref().map(...)
+        assert_eq!(analysis.yield_points.len(), 0);
+    }
+
+    // === Original tests ===
+
     #[test]
     #[allow(non_snake_case)]
     fn test_depyler_0262_simple_yield_detection() {
