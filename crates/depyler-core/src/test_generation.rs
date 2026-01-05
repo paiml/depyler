@@ -684,3 +684,603 @@ enum TestProperty {
     #[allow(dead_code)]
     Monotonic,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::FunctionProperties;
+    use depyler_annotations::TranspilationAnnotations;
+    use smallvec::smallvec;
+
+    fn make_pure_properties() -> FunctionProperties {
+        let mut props = FunctionProperties::default();
+        props.is_pure = true;
+        props
+    }
+
+    fn make_impure_properties() -> FunctionProperties {
+        let mut props = FunctionProperties::default();
+        props.is_pure = false;
+        props
+    }
+
+    fn make_param(name: &str, ty: Type) -> crate::hir::HirParam {
+        crate::hir::HirParam::new(name.to_string(), ty)
+    }
+
+    // TestGenConfig tests
+    #[test]
+    fn test_testgen_config_default() {
+        let config = TestGenConfig::default();
+        assert!(config.generate_property_tests);
+        assert!(config.generate_example_tests);
+        assert_eq!(config.max_test_cases, 100);
+        assert!(config.enable_shrinking);
+    }
+
+    #[test]
+    fn test_testgen_config_custom() {
+        let config = TestGenConfig {
+            generate_property_tests: false,
+            generate_example_tests: true,
+            max_test_cases: 50,
+            enable_shrinking: false,
+        };
+        assert!(!config.generate_property_tests);
+        assert!(config.generate_example_tests);
+        assert_eq!(config.max_test_cases, 50);
+        assert!(!config.enable_shrinking);
+    }
+
+    #[test]
+    fn test_testgen_config_clone() {
+        let config = TestGenConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.max_test_cases, cloned.max_test_cases);
+    }
+
+    // TestGenerator tests
+    #[test]
+    fn test_test_generator_new() {
+        let config = TestGenConfig::default();
+        let _gen = TestGenerator::new(config);
+    }
+
+    #[test]
+    fn test_generate_test_items_for_impure_function() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "side_effect".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: make_impure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let result = gen.generate_test_items_for_function(&func).unwrap();
+        assert!(result.is_empty(), "Impure functions should not generate tests");
+    }
+
+    #[test]
+    fn test_generate_tests_module_empty() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let result = gen.generate_tests_module(&[]).unwrap();
+        assert!(result.is_none(), "Empty function list should return None");
+    }
+
+    #[test]
+    fn test_generate_tests_module_impure_only() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "impure".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: make_impure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let result = gen.generate_tests_module(&[func]).unwrap();
+        assert!(result.is_none(), "Only impure functions should return None");
+    }
+
+    // is_identity_function tests
+    #[test]
+    fn test_is_identity_function_true() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "identity".to_string(),
+            params: smallvec![make_param("x", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.is_identity_function(&func));
+    }
+
+    #[test]
+    fn test_is_identity_function_false_different_return() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "not_identity".to_string(),
+            params: smallvec![make_param("x", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("y".to_string())))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_identity_function(&func));
+    }
+
+    #[test]
+    fn test_is_identity_function_false_multiple_params() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "two_params".to_string(),
+            params: smallvec![make_param("x", Type::Int), make_param("y", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_identity_function(&func));
+    }
+
+    #[test]
+    fn test_is_identity_function_false_multiple_stmts() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "multiple_stmts".to_string(),
+            params: smallvec![make_param("x", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![
+                HirStmt::Expr(HirExpr::Var("x".to_string())),
+                HirStmt::Return(Some(HirExpr::Var("x".to_string()))),
+            ],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_identity_function(&func));
+    }
+
+    // is_commutative tests
+    #[test]
+    fn test_is_commutative_add() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "add".to_string(),
+            params: smallvec![make_param("a", Type::Int), make_param("b", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.is_commutative(&func));
+    }
+
+    #[test]
+    fn test_is_commutative_mul() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "mul".to_string(),
+            params: smallvec![make_param("a", Type::Int), make_param("b", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Mul,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.is_commutative(&func));
+    }
+
+    #[test]
+    fn test_is_commutative_sub_false() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "sub".to_string(),
+            params: smallvec![make_param("a", Type::Int), make_param("b", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Sub,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_commutative(&func));
+    }
+
+    #[test]
+    fn test_is_commutative_string_concat_false() {
+        // DEPYLER-0286: String concatenation is NOT commutative
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "concat".to_string(),
+            params: smallvec![make_param("a", Type::String), make_param("b", Type::String)],
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_commutative(&func));
+    }
+
+    #[test]
+    fn test_is_commutative_single_param_false() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "single".to_string(),
+            params: smallvec![make_param("a", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("a".to_string())))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_commutative(&func));
+    }
+
+    // is_simple_param_reference tests
+    #[test]
+    fn test_is_simple_param_reference_true() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let expr = HirExpr::Var("x".to_string());
+        assert!(gen.is_simple_param_reference(&expr, "x"));
+    }
+
+    #[test]
+    fn test_is_simple_param_reference_false_different_name() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!gen.is_simple_param_reference(&expr, "y"));
+    }
+
+    #[test]
+    fn test_is_simple_param_reference_false_not_var() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let expr = HirExpr::Literal(crate::hir::Literal::Int(1));
+        assert!(!gen.is_simple_param_reference(&expr, "x"));
+    }
+
+    // is_associative tests
+    #[test]
+    fn test_is_associative_always_false() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "add".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_associative(&func));
+    }
+
+    // returns_non_negative tests
+    #[test]
+    fn test_returns_non_negative_abs() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "my_abs".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.returns_non_negative(&func));
+    }
+
+    #[test]
+    fn test_returns_non_negative_magnitude() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "magnitude".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.returns_non_negative(&func));
+    }
+
+    #[test]
+    fn test_returns_non_negative_false() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "subtract".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.returns_non_negative(&func));
+    }
+
+    // preserves_length tests
+    #[test]
+    fn test_preserves_length_sort() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "my_sort".to_string(),
+            params: smallvec![make_param("arr", Type::List(Box::new(Type::Int)))],
+            ret_type: Type::List(Box::new(Type::Int)),
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.preserves_length(&func));
+    }
+
+    #[test]
+    fn test_preserves_length_map() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "double_map".to_string(),
+            params: smallvec![make_param("arr", Type::List(Box::new(Type::Int)))],
+            ret_type: Type::List(Box::new(Type::Int)),
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.preserves_length(&func));
+    }
+
+    #[test]
+    fn test_preserves_length_false_no_list() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "my_sort".to_string(),
+            params: smallvec![make_param("x", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.preserves_length(&func));
+    }
+
+    // is_idempotent tests
+    #[test]
+    fn test_is_idempotent_normalize() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "normalize_path".to_string(),
+            params: smallvec![],
+            ret_type: Type::String,
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.is_idempotent(&func));
+    }
+
+    #[test]
+    fn test_is_idempotent_clean() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "clean_text".to_string(),
+            params: smallvec![],
+            ret_type: Type::String,
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.is_idempotent(&func));
+    }
+
+    #[test]
+    fn test_is_idempotent_false() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "increment".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_idempotent(&func));
+    }
+
+    // is_sorting_function tests
+    #[test]
+    fn test_is_sorting_function_true() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "bubble_sort".to_string(),
+            params: smallvec![make_param("arr", Type::List(Box::new(Type::Int)))],
+            ret_type: Type::List(Box::new(Type::Int)),
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(gen.is_sorting_function(&func));
+    }
+
+    #[test]
+    fn test_is_sorting_function_no_params_false() {
+        // DEPYLER-0189: Sorting function must have at least one param
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "get_sorted".to_string(),
+            params: smallvec![],
+            ret_type: Type::List(Box::new(Type::Int)),
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_sorting_function(&func));
+    }
+
+    #[test]
+    fn test_is_sorting_function_no_sort_in_name() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "order_items".to_string(),
+            params: smallvec![make_param("arr", Type::List(Box::new(Type::Int)))],
+            ret_type: Type::List(Box::new(Type::Int)),
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        assert!(!gen.is_sorting_function(&func));
+    }
+
+    // type_to_quickcheck_type tests
+    #[test]
+    fn test_type_to_quickcheck_type_int() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let result = gen.type_to_quickcheck_type(&Type::Int);
+        assert_eq!(result.to_string(), "i32");
+    }
+
+    #[test]
+    fn test_type_to_quickcheck_type_float() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let result = gen.type_to_quickcheck_type(&Type::Float);
+        assert_eq!(result.to_string(), "f64");
+    }
+
+    #[test]
+    fn test_type_to_quickcheck_type_string() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let result = gen.type_to_quickcheck_type(&Type::String);
+        assert_eq!(result.to_string(), "String");
+    }
+
+    #[test]
+    fn test_type_to_quickcheck_type_bool() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let result = gen.type_to_quickcheck_type(&Type::Bool);
+        assert_eq!(result.to_string(), "bool");
+    }
+
+    #[test]
+    fn test_type_to_quickcheck_type_list() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let result = gen.type_to_quickcheck_type(&Type::List(Box::new(Type::Int)));
+        assert_eq!(result.to_string(), "Vec < i32 >");
+    }
+
+    #[test]
+    fn test_type_to_quickcheck_type_unsupported() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let result = gen.type_to_quickcheck_type(&Type::None);
+        assert_eq!(result.to_string(), "()");
+    }
+
+    // analyze_function_properties tests
+    #[test]
+    fn test_analyze_function_properties_identity() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "identity".to_string(),
+            params: smallvec![make_param("x", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let props = gen.analyze_function_properties(&func);
+        assert!(props.contains(&TestProperty::Identity));
+    }
+
+    #[test]
+    fn test_analyze_function_properties_commutative() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "add".to_string(),
+            params: smallvec![make_param("a", Type::Int), make_param("b", Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let props = gen.analyze_function_properties(&func);
+        assert!(props.contains(&TestProperty::Commutative));
+    }
+
+    #[test]
+    fn test_analyze_function_properties_sorting() {
+        let gen = TestGenerator::new(TestGenConfig::default());
+        let func = HirFunction {
+            name: "my_sort".to_string(),
+            params: smallvec![make_param("arr", Type::List(Box::new(Type::Int)))],
+            ret_type: Type::List(Box::new(Type::Int)),
+            body: vec![],
+            properties: make_pure_properties(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let props = gen.analyze_function_properties(&func);
+        assert!(props.contains(&TestProperty::Sorted));
+        assert!(props.contains(&TestProperty::SameElements));
+        assert!(props.contains(&TestProperty::LengthPreserving));
+    }
+
+    // TestProperty tests
+    #[test]
+    fn test_property_eq() {
+        assert_eq!(TestProperty::Identity, TestProperty::Identity);
+        assert_ne!(TestProperty::Identity, TestProperty::Commutative);
+    }
+
+    #[test]
+    fn test_property_clone() {
+        let prop = TestProperty::NonNegative;
+        let cloned = prop.clone();
+        assert_eq!(prop, cloned);
+    }
+
+    #[test]
+    fn test_property_debug() {
+        let prop = TestProperty::Idempotent;
+        let debug_str = format!("{:?}", prop);
+        assert_eq!(debug_str, "Idempotent");
+    }
+}
