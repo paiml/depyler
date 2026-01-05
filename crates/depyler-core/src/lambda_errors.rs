@@ -736,6 +736,773 @@ impl fmt::Display for PythonErrorPattern {
 mod tests {
     use super::*;
 
+    // === PythonErrorPattern tests ===
+
+    #[test]
+    fn test_python_error_pattern_fields() {
+        let pattern = PythonErrorPattern {
+            error_type: "ValueError".to_string(),
+            message_pattern: Some("invalid input".to_string()),
+            context: Some(ErrorContext::Handler),
+        };
+        assert_eq!(pattern.error_type, "ValueError");
+        assert_eq!(pattern.message_pattern, Some("invalid input".to_string()));
+        assert_eq!(pattern.context, Some(ErrorContext::Handler));
+    }
+
+    #[test]
+    fn test_python_error_pattern_clone() {
+        let pattern = PythonErrorPattern {
+            error_type: "KeyError".to_string(),
+            message_pattern: None,
+            context: None,
+        };
+        let cloned = pattern.clone();
+        assert_eq!(cloned.error_type, "KeyError");
+    }
+
+    #[test]
+    fn test_python_error_pattern_debug() {
+        let pattern = PythonErrorPattern {
+            error_type: "TypeError".to_string(),
+            message_pattern: None,
+            context: None,
+        };
+        let debug = format!("{:?}", pattern);
+        assert!(debug.contains("PythonErrorPattern"));
+        assert!(debug.contains("TypeError"));
+    }
+
+    #[test]
+    fn test_python_error_pattern_eq() {
+        let p1 = PythonErrorPattern {
+            error_type: "KeyError".to_string(),
+            message_pattern: None,
+            context: Some(ErrorContext::Handler),
+        };
+        let p2 = PythonErrorPattern {
+            error_type: "KeyError".to_string(),
+            message_pattern: None,
+            context: Some(ErrorContext::Handler),
+        };
+        assert_eq!(p1, p2);
+    }
+
+    #[test]
+    fn test_python_error_pattern_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        let p1 = PythonErrorPattern {
+            error_type: "ValueError".to_string(),
+            message_pattern: None,
+            context: None,
+        };
+        set.insert(p1.clone());
+        assert!(set.contains(&p1));
+    }
+
+    #[test]
+    fn test_python_error_pattern_display() {
+        let pattern = PythonErrorPattern {
+            error_type: "KeyError".to_string(),
+            message_pattern: Some("missing key".to_string()),
+            context: Some(ErrorContext::EventProcessing),
+        };
+        let display = format!("{}", pattern);
+        assert!(display.contains("KeyError"));
+        assert!(display.contains("missing key"));
+        assert!(display.contains("EventProcessing"));
+    }
+
+    #[test]
+    fn test_python_error_pattern_display_no_optionals() {
+        let pattern = PythonErrorPattern {
+            error_type: "RuntimeError".to_string(),
+            message_pattern: None,
+            context: None,
+        };
+        let display = format!("{}", pattern);
+        assert_eq!(display, "RuntimeError");
+    }
+
+    // === LambdaErrorMapping tests ===
+
+    #[test]
+    fn test_lambda_error_mapping_fields() {
+        let mapping = LambdaErrorMapping {
+            rust_error_type: "LambdaError::Handler".to_string(),
+            status_code: Some(400),
+            error_message_template: "Error: {message}".to_string(),
+            include_stack_trace: true,
+            retry_strategy: RetryStrategy::None,
+        };
+        assert_eq!(mapping.rust_error_type, "LambdaError::Handler");
+        assert_eq!(mapping.status_code, Some(400));
+        assert!(mapping.include_stack_trace);
+    }
+
+    #[test]
+    fn test_lambda_error_mapping_clone() {
+        let mapping = LambdaErrorMapping {
+            rust_error_type: "LambdaError::Timeout".to_string(),
+            status_code: Some(504),
+            error_message_template: "Timeout".to_string(),
+            include_stack_trace: false,
+            retry_strategy: RetryStrategy::Immediate,
+        };
+        let cloned = mapping.clone();
+        assert_eq!(cloned.status_code, Some(504));
+    }
+
+    #[test]
+    fn test_lambda_error_mapping_debug() {
+        let mapping = LambdaErrorMapping {
+            rust_error_type: "LambdaError::Runtime".to_string(),
+            status_code: None,
+            error_message_template: "Runtime error".to_string(),
+            include_stack_trace: false,
+            retry_strategy: RetryStrategy::ExponentialBackoff,
+        };
+        let debug = format!("{:?}", mapping);
+        assert!(debug.contains("LambdaErrorMapping"));
+    }
+
+    // === ErrorContext tests ===
+
+    #[test]
+    fn test_error_context_variants() {
+        assert_eq!(ErrorContext::Handler, ErrorContext::Handler);
+        assert_eq!(ErrorContext::Serialization, ErrorContext::Serialization);
+        assert_eq!(ErrorContext::EventProcessing, ErrorContext::EventProcessing);
+        assert_eq!(
+            ErrorContext::ResponseGeneration,
+            ErrorContext::ResponseGeneration
+        );
+        assert_eq!(ErrorContext::Initialization, ErrorContext::Initialization);
+    }
+
+    #[test]
+    fn test_error_context_clone() {
+        let ctx = ErrorContext::Handler;
+        let cloned = ctx.clone();
+        assert_eq!(cloned, ErrorContext::Handler);
+    }
+
+    #[test]
+    fn test_error_context_debug() {
+        let ctx = ErrorContext::Serialization;
+        let debug = format!("{:?}", ctx);
+        assert!(debug.contains("Serialization"));
+    }
+
+    #[test]
+    fn test_error_context_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(ErrorContext::Handler);
+        set.insert(ErrorContext::Serialization);
+        assert_eq!(set.len(), 2);
+        assert!(set.contains(&ErrorContext::Handler));
+    }
+
+    #[test]
+    fn test_error_context_ne() {
+        assert_ne!(ErrorContext::Handler, ErrorContext::Serialization);
+    }
+
+    // === ErrorHandlingStrategy tests ===
+
+    #[test]
+    fn test_error_handling_strategy_variants() {
+        let strategies = vec![
+            ErrorHandlingStrategy::Panic,
+            ErrorHandlingStrategy::ReturnError,
+            ErrorHandlingStrategy::LogAndContinue,
+            ErrorHandlingStrategy::CustomHandler("custom".to_string()),
+        ];
+        assert_eq!(strategies.len(), 4);
+    }
+
+    #[test]
+    fn test_error_handling_strategy_default() {
+        let default = ErrorHandlingStrategy::default();
+        assert_eq!(default, ErrorHandlingStrategy::ReturnError);
+    }
+
+    #[test]
+    fn test_error_handling_strategy_clone() {
+        let strategy = ErrorHandlingStrategy::Panic;
+        let cloned = strategy.clone();
+        assert_eq!(cloned, ErrorHandlingStrategy::Panic);
+    }
+
+    #[test]
+    fn test_error_handling_strategy_debug() {
+        let strategy = ErrorHandlingStrategy::LogAndContinue;
+        let debug = format!("{:?}", strategy);
+        assert!(debug.contains("LogAndContinue"));
+    }
+
+    #[test]
+    fn test_error_handling_strategy_eq() {
+        assert_eq!(ErrorHandlingStrategy::Panic, ErrorHandlingStrategy::Panic);
+        assert_ne!(
+            ErrorHandlingStrategy::Panic,
+            ErrorHandlingStrategy::ReturnError
+        );
+    }
+
+    #[test]
+    fn test_error_handling_strategy_custom_handler() {
+        let custom = ErrorHandlingStrategy::CustomHandler("my_handler()".to_string());
+        if let ErrorHandlingStrategy::CustomHandler(code) = custom {
+            assert_eq!(code, "my_handler()");
+        } else {
+            panic!("Expected CustomHandler");
+        }
+    }
+
+    // === RetryStrategy tests ===
+
+    #[test]
+    fn test_retry_strategy_variants() {
+        let strategies = vec![
+            RetryStrategy::None,
+            RetryStrategy::Immediate,
+            RetryStrategy::ExponentialBackoff,
+            RetryStrategy::Custom("custom".to_string()),
+        ];
+        assert_eq!(strategies.len(), 4);
+    }
+
+    #[test]
+    fn test_retry_strategy_clone() {
+        let strategy = RetryStrategy::ExponentialBackoff;
+        let cloned = strategy.clone();
+        assert_eq!(cloned, RetryStrategy::ExponentialBackoff);
+    }
+
+    #[test]
+    fn test_retry_strategy_debug() {
+        let strategy = RetryStrategy::Immediate;
+        let debug = format!("{:?}", strategy);
+        assert!(debug.contains("Immediate"));
+    }
+
+    #[test]
+    fn test_retry_strategy_eq() {
+        assert_eq!(RetryStrategy::None, RetryStrategy::None);
+        assert_ne!(RetryStrategy::None, RetryStrategy::Immediate);
+    }
+
+    #[test]
+    fn test_retry_strategy_custom() {
+        let custom = RetryStrategy::Custom("retry_with_jitter".to_string());
+        if let RetryStrategy::Custom(code) = custom {
+            assert_eq!(code, "retry_with_jitter");
+        } else {
+            panic!("Expected Custom");
+        }
+    }
+
+    // === LambdaError tests ===
+
+    #[test]
+    fn test_lambda_error_serialization() {
+        let err = LambdaError::Serialization {
+            message: "JSON parse failed".to_string(),
+            cause: None,
+        };
+        assert_eq!(err.status_code(), 500);
+        assert!(!err.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_handler() {
+        let err = LambdaError::Handler {
+            message: "Handler failed".to_string(),
+            context: Some("validation".to_string()),
+        };
+        assert_eq!(err.status_code(), 400);
+        assert!(!err.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_runtime() {
+        let err = LambdaError::Runtime("runtime crashed".to_string());
+        assert_eq!(err.status_code(), 500);
+        assert!(!err.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_http() {
+        let err = LambdaError::Http {
+            status: 404,
+            message: "Not found".to_string(),
+        };
+        assert_eq!(err.status_code(), 404);
+        assert!(!err.should_retry());
+
+        let err_500 = LambdaError::Http {
+            status: 503,
+            message: "Service unavailable".to_string(),
+        };
+        assert!(err_500.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_invalid_event() {
+        let err = LambdaError::InvalidEvent {
+            message: "Invalid format".to_string(),
+            event_type: Some("S3Event".to_string()),
+        };
+        assert_eq!(err.status_code(), 400);
+        assert!(!err.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_authentication() {
+        let err = LambdaError::Authentication {
+            message: "Invalid token".to_string(),
+        };
+        assert_eq!(err.status_code(), 401);
+        assert!(!err.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_authorization() {
+        let err = LambdaError::Authorization {
+            message: "Access denied".to_string(),
+        };
+        assert_eq!(err.status_code(), 403);
+        assert!(!err.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_resource_limit() {
+        let err = LambdaError::ResourceLimit {
+            resource: "memory".to_string(),
+            limit: "128MB".to_string(),
+        };
+        assert_eq!(err.status_code(), 500);
+        assert!(!err.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_configuration() {
+        let err = LambdaError::Configuration {
+            message: "Missing env var".to_string(),
+        };
+        assert_eq!(err.status_code(), 500);
+        assert!(!err.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_external_service() {
+        let err = LambdaError::ExternalService {
+            service: "DynamoDB".to_string(),
+            message: "Throttled".to_string(),
+        };
+        assert_eq!(err.status_code(), 502);
+        assert!(err.should_retry());
+    }
+
+    #[test]
+    fn test_lambda_error_display_serialization() {
+        let err = LambdaError::Serialization {
+            message: "parse error".to_string(),
+            cause: None,
+        };
+        let display = err.to_string();
+        assert!(display.contains("Serialization failed"));
+        assert!(display.contains("parse error"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_handler() {
+        let err = LambdaError::Handler {
+            message: "invalid input".to_string(),
+            context: None,
+        };
+        let display = err.to_string();
+        assert!(display.contains("Handler error"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_runtime() {
+        let err = LambdaError::Runtime("panic occurred".to_string());
+        let display = err.to_string();
+        assert!(display.contains("Runtime error"));
+        assert!(display.contains("panic occurred"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_http() {
+        let err = LambdaError::Http {
+            status: 500,
+            message: "Internal error".to_string(),
+        };
+        let display = err.to_string();
+        assert!(display.contains("HTTP error"));
+        assert!(display.contains("500"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_missing_parameter() {
+        let err = LambdaError::MissingParameter {
+            parameter: "user_id".to_string(),
+        };
+        let display = err.to_string();
+        assert!(display.contains("Missing parameter"));
+        assert!(display.contains("user_id"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_invalid_event() {
+        let err = LambdaError::InvalidEvent {
+            message: "bad format".to_string(),
+            event_type: Some("SQS".to_string()),
+        };
+        let display = err.to_string();
+        assert!(display.contains("Invalid event format"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_authentication() {
+        let err = LambdaError::Authentication {
+            message: "expired token".to_string(),
+        };
+        let display = err.to_string();
+        assert!(display.contains("Authentication failed"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_authorization() {
+        let err = LambdaError::Authorization {
+            message: "insufficient permissions".to_string(),
+        };
+        let display = err.to_string();
+        assert!(display.contains("Authorization failed"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_timeout() {
+        let err = LambdaError::Timeout {
+            operation: "db_query".to_string(),
+            duration_ms: 30000,
+        };
+        let display = err.to_string();
+        assert!(display.contains("Timeout"));
+        assert!(display.contains("db_query"));
+        assert!(display.contains("30000"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_resource_limit() {
+        let err = LambdaError::ResourceLimit {
+            resource: "CPU".to_string(),
+            limit: "100%".to_string(),
+        };
+        let display = err.to_string();
+        assert!(display.contains("Resource limit exceeded"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_configuration() {
+        let err = LambdaError::Configuration {
+            message: "invalid config".to_string(),
+        };
+        let display = err.to_string();
+        assert!(display.contains("Configuration error"));
+    }
+
+    #[test]
+    fn test_lambda_error_display_external_service() {
+        let err = LambdaError::ExternalService {
+            service: "S3".to_string(),
+            message: "bucket not found".to_string(),
+        };
+        let display = err.to_string();
+        assert!(display.contains("External service error"));
+        assert!(display.contains("S3"));
+    }
+
+    // === ErrorConversionCode tests ===
+
+    #[test]
+    fn test_error_conversion_code_fields() {
+        let code = ErrorConversionCode {
+            conversion_functions: "fn convert()".to_string(),
+            error_enum: "enum Error {}".to_string(),
+            helper_traits: "trait Helper {}".to_string(),
+        };
+        assert!(code.conversion_functions.contains("convert"));
+        assert!(code.error_enum.contains("enum"));
+        assert!(code.helper_traits.contains("trait"));
+    }
+
+    #[test]
+    fn test_error_conversion_code_clone() {
+        let code = ErrorConversionCode {
+            conversion_functions: "fn a()".to_string(),
+            error_enum: "enum E {}".to_string(),
+            helper_traits: "trait T {}".to_string(),
+        };
+        let cloned = code.clone();
+        assert_eq!(cloned.conversion_functions, "fn a()");
+    }
+
+    #[test]
+    fn test_error_conversion_code_debug() {
+        let code = ErrorConversionCode {
+            conversion_functions: "code".to_string(),
+            error_enum: "enum".to_string(),
+            helper_traits: "trait".to_string(),
+        };
+        let debug = format!("{:?}", code);
+        assert!(debug.contains("ErrorConversionCode"));
+    }
+
+    // === LambdaErrorHandler tests ===
+
+    #[test]
+    fn test_lambda_error_handler_new() {
+        let handler = LambdaErrorHandler::new();
+        // Should have default error mappings
+        let pattern = PythonErrorPattern {
+            error_type: "KeyError".to_string(),
+            message_pattern: None,
+            context: Some(ErrorContext::EventProcessing),
+        };
+        assert!(handler.get_error_mapping(&pattern).is_some());
+    }
+
+    #[test]
+    fn test_lambda_error_handler_default() {
+        let handler = LambdaErrorHandler::default();
+        let code = handler.generate_error_handling_code().unwrap();
+        assert!(!code.error_enum.is_empty());
+    }
+
+    #[test]
+    fn test_lambda_error_handler_clone() {
+        let handler = LambdaErrorHandler::new();
+        let cloned = handler.clone();
+        let code = cloned.generate_error_handling_code().unwrap();
+        assert!(code.error_enum.contains("LambdaError"));
+    }
+
+    #[test]
+    fn test_lambda_error_handler_debug() {
+        let handler = LambdaErrorHandler::new();
+        let debug = format!("{:?}", handler);
+        assert!(debug.contains("LambdaErrorHandler"));
+    }
+
+    #[test]
+    fn test_lambda_error_handler_with_strategy() {
+        let handler = LambdaErrorHandler::new().with_strategy(ErrorHandlingStrategy::Panic);
+        let wrapper = handler.generate_handler_wrapper("test");
+        assert!(wrapper.contains("panicking"));
+    }
+
+    #[test]
+    fn test_lambda_error_handler_get_mapping_not_found() {
+        let handler = LambdaErrorHandler::new();
+        let pattern = PythonErrorPattern {
+            error_type: "UnknownError".to_string(),
+            message_pattern: None,
+            context: None,
+        };
+        assert!(handler.get_error_mapping(&pattern).is_none());
+    }
+
+    #[test]
+    fn test_lambda_error_handler_default_mappings() {
+        let handler = LambdaErrorHandler::new();
+
+        // Test ValueError mapping
+        let value_error = PythonErrorPattern {
+            error_type: "ValueError".to_string(),
+            message_pattern: None,
+            context: Some(ErrorContext::Handler),
+        };
+        let mapping = handler.get_error_mapping(&value_error).unwrap();
+        assert_eq!(mapping.status_code, Some(400));
+
+        // Test TypeError mapping
+        let type_error = PythonErrorPattern {
+            error_type: "TypeError".to_string(),
+            message_pattern: None,
+            context: Some(ErrorContext::Serialization),
+        };
+        let mapping = handler.get_error_mapping(&type_error).unwrap();
+        assert_eq!(mapping.status_code, Some(500));
+    }
+
+    #[test]
+    fn test_lambda_error_handler_json_decode_error_mapping() {
+        let handler = LambdaErrorHandler::new();
+        let pattern = PythonErrorPattern {
+            error_type: "json.JSONDecodeError".to_string(),
+            message_pattern: None,
+            context: Some(ErrorContext::Serialization),
+        };
+        let mapping = handler.get_error_mapping(&pattern).unwrap();
+        assert_eq!(mapping.status_code, Some(400));
+    }
+
+    #[test]
+    fn test_lambda_error_handler_http_error_mapping() {
+        let handler = LambdaErrorHandler::new();
+        let pattern = PythonErrorPattern {
+            error_type: "requests.HTTPError".to_string(),
+            message_pattern: None,
+            context: Some(ErrorContext::Handler),
+        };
+        let mapping = handler.get_error_mapping(&pattern).unwrap();
+        assert_eq!(mapping.retry_strategy, RetryStrategy::ExponentialBackoff);
+    }
+
+    #[test]
+    fn test_lambda_error_handler_timeout_error_mapping() {
+        let handler = LambdaErrorHandler::new();
+        let pattern = PythonErrorPattern {
+            error_type: "TimeoutError".to_string(),
+            message_pattern: None,
+            context: Some(ErrorContext::Handler),
+        };
+        let mapping = handler.get_error_mapping(&pattern).unwrap();
+        assert_eq!(mapping.retry_strategy, RetryStrategy::Immediate);
+    }
+
+    // === Handler wrapper generation tests ===
+
+    #[test]
+    fn test_handler_wrapper_return_error() {
+        let handler = LambdaErrorHandler::new().with_strategy(ErrorHandlingStrategy::ReturnError);
+        let wrapper = handler.generate_handler_wrapper("my_func");
+        assert!(wrapper.contains("my_func_with_error_handling"));
+        assert!(wrapper.contains("Err(err.into())"));
+    }
+
+    #[test]
+    fn test_handler_wrapper_log_and_continue() {
+        let handler =
+            LambdaErrorHandler::new().with_strategy(ErrorHandlingStrategy::LogAndContinue);
+        let wrapper = handler.generate_handler_wrapper("my_func");
+        assert!(wrapper.contains("log and continue"));
+        assert!(wrapper.contains("error_logged"));
+    }
+
+    #[test]
+    fn test_handler_wrapper_panic() {
+        let handler = LambdaErrorHandler::new().with_strategy(ErrorHandlingStrategy::Panic);
+        let wrapper = handler.generate_handler_wrapper("my_func");
+        assert!(wrapper.contains("panic!"));
+    }
+
+    #[test]
+    fn test_handler_wrapper_custom() {
+        let custom_code = "log_error(&err); return Err(err)".to_string();
+        let handler = LambdaErrorHandler::new()
+            .with_strategy(ErrorHandlingStrategy::CustomHandler(custom_code.clone()));
+        let wrapper = handler.generate_handler_wrapper("my_func");
+        assert!(wrapper.contains(&custom_code));
+    }
+
+    // === Code generation tests ===
+
+    #[test]
+    fn test_generate_error_enum_content() {
+        let handler = LambdaErrorHandler::new();
+        let code = handler.generate_error_handling_code().unwrap();
+
+        // Check all error variants are present
+        assert!(code.error_enum.contains("Serialization"));
+        assert!(code.error_enum.contains("Handler"));
+        assert!(code.error_enum.contains("Runtime"));
+        assert!(code.error_enum.contains("Http"));
+        assert!(code.error_enum.contains("MissingParameter"));
+        assert!(code.error_enum.contains("InvalidEvent"));
+        assert!(code.error_enum.contains("Authentication"));
+        assert!(code.error_enum.contains("Authorization"));
+        assert!(code.error_enum.contains("Timeout"));
+        assert!(code.error_enum.contains("ResourceLimit"));
+        assert!(code.error_enum.contains("Configuration"));
+        assert!(code.error_enum.contains("ExternalService"));
+    }
+
+    #[test]
+    fn test_generate_conversion_functions_content() {
+        let handler = LambdaErrorHandler::new();
+        let code = handler.generate_error_handling_code().unwrap();
+
+        // Check From implementations
+        assert!(code.conversion_functions.contains("From<serde_json::Error>"));
+        assert!(code.conversion_functions.contains("From<&str>"));
+        assert!(code.conversion_functions.contains("KeyError"));
+        assert!(code.conversion_functions.contains("ValueError"));
+        assert!(code.conversion_functions.contains("TypeError"));
+        assert!(code.conversion_functions.contains("TimeoutError"));
+    }
+
+    #[test]
+    fn test_generate_conversion_functions_api_gateway() {
+        let handler = LambdaErrorHandler::new();
+        let code = handler.generate_error_handling_code().unwrap();
+
+        // Check API Gateway conversions
+        assert!(code
+            .conversion_functions
+            .contains("ApiGatewayProxyResponse"));
+        assert!(code
+            .conversion_functions
+            .contains("ApiGatewayV2httpResponse"));
+    }
+
+    #[test]
+    fn test_generate_helper_traits_content() {
+        let handler = LambdaErrorHandler::new();
+        let code = handler.generate_error_handling_code().unwrap();
+
+        // Check helper traits
+        assert!(code.helper_traits.contains("LambdaErrorExt"));
+        assert!(code.helper_traits.contains("with_context"));
+        assert!(code.helper_traits.contains("with_parameter"));
+        assert!(code.helper_traits.contains("with_status"));
+        assert!(code.helper_traits.contains("LambdaResult"));
+    }
+
+    #[test]
+    fn test_generate_helper_traits_macros() {
+        let handler = LambdaErrorHandler::new();
+        let code = handler.generate_error_handling_code().unwrap();
+
+        // Check macros
+        assert!(code.helper_traits.contains("macro_rules! lambda_error"));
+        assert!(code.helper_traits.contains("macro_rules! require_param"));
+    }
+
+    #[test]
+    fn test_generate_retry_logic_content() {
+        let handler = LambdaErrorHandler::new();
+        let retry = handler.generate_retry_logic();
+
+        // Check retry config
+        assert!(retry.contains("RetryConfig"));
+        assert!(retry.contains("max_attempts"));
+        assert!(retry.contains("base_delay_ms"));
+        assert!(retry.contains("max_delay_ms"));
+        assert!(retry.contains("backoff_multiplier"));
+
+        // Check retry function
+        assert!(retry.contains("retry_with_backoff"));
+        assert!(retry.contains("tokio::time::sleep"));
+    }
+
+    // === Original tests ===
+
     #[test]
     fn test_error_enum_generation() {
         let handler = LambdaErrorHandler::new();
