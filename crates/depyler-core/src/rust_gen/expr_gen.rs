@@ -13,7 +13,9 @@ use crate::rust_gen::collection_constructors; // DEPYLER-REFACTOR-001: Extracted
 use crate::rust_gen::expr_analysis; // DEPYLER-COVERAGE-95: Use extracted helpers
 use crate::rust_gen::numpy_gen; // Phase 3: NumPy→Trueno codegen
 use crate::rust_gen::precedence; // DEPYLER-COVERAGE-95: Use extracted helpers
+use crate::rust_gen::stdlib_method_gen; // DEPYLER-COVERAGE-95: Extracted stdlib handlers
 use crate::rust_gen::walrus_helpers; // DEPYLER-COVERAGE-95: Use extracted helpers
+ // DEPYLER-COVERAGE-95: Type checking helpers
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::keywords; // DEPYLER-COVERAGE-95: Use centralized keywords module
 use crate::rust_gen::return_type_expects_float;
@@ -2814,38 +2816,40 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "bytearray" if !is_user_class => self.convert_bytearray_builtin(&all_hir_args, &arg_exprs),
             // DEPYLER-0937: tuple() builtin - convert iterable to collected tuple-like Vec
             "tuple" if !is_user_class => self.convert_tuple_builtin(&all_hir_args, &arg_exprs),
-            // DEPYLER-STDLIB-BUILTINS: Additional builtin functions
-            "all" => self.convert_all_builtin(&arg_exprs),
-            "any" => self.convert_any_builtin(&arg_exprs),
-            "divmod" => self.convert_divmod_builtin(&arg_exprs),
-            "enumerate" => self.convert_enumerate_builtin(&arg_exprs),
-            "zip" => self.convert_zip_builtin(&arg_exprs),
-            "reversed" => self.convert_reversed_builtin(&arg_exprs),
-            "sorted" => self.convert_sorted_builtin(&arg_exprs),
+            // DEPYLER-STDLIB-BUILTINS: Pure builtin functions delegated to extracted module
+            // DEPYLER-COVERAGE-95: Extracted to stdlib_method_gen::builtin_functions for testability
+            "all" => stdlib_method_gen::builtin_functions::convert_all_builtin(&arg_exprs),
+            "any" => stdlib_method_gen::builtin_functions::convert_any_builtin(&arg_exprs),
+            "divmod" => stdlib_method_gen::builtin_functions::convert_divmod_builtin(&arg_exprs),
+            "enumerate" => stdlib_method_gen::builtin_functions::convert_enumerate_builtin(&arg_exprs),
+            "zip" => stdlib_method_gen::builtin_functions::convert_zip_builtin(&arg_exprs),
+            "reversed" => stdlib_method_gen::builtin_functions::convert_reversed_builtin(&arg_exprs),
+            "sorted" => stdlib_method_gen::builtin_functions::convert_sorted_builtin(&arg_exprs),
             "filter" => self.convert_filter_builtin(&all_hir_args, &arg_exprs),
-            "sum" => self.convert_sum_builtin(&arg_exprs),
+            "sum" => stdlib_method_gen::builtin_functions::convert_sum_builtin(&arg_exprs),
             // DEPYLER-STDLIB-BUILTINS: Final batch for 50% milestone
-            "round" => self.convert_round_builtin(&arg_exprs),
-            "abs" => self.convert_abs_builtin(&arg_exprs),
-            "min" => self.convert_min_builtin(&arg_exprs),
-            "max" => self.convert_max_builtin(&arg_exprs),
-            "pow" => self.convert_pow_builtin(&arg_exprs),
-            "hex" => self.convert_hex_builtin(&arg_exprs),
-            "bin" => self.convert_bin_builtin(&arg_exprs),
-            "oct" => self.convert_oct_builtin(&arg_exprs),
-            // DEPYLER-0579: format(value, spec) builtin
+            "round" => stdlib_method_gen::builtin_functions::convert_round_builtin(&arg_exprs),
+            "abs" => stdlib_method_gen::builtin_functions::convert_abs_builtin(&arg_exprs),
+            "min" => stdlib_method_gen::builtin_functions::convert_min_builtin(&arg_exprs),
+            "max" => stdlib_method_gen::builtin_functions::convert_max_builtin(&arg_exprs),
+            "pow" => stdlib_method_gen::builtin_functions::convert_pow_builtin(&arg_exprs),
+            "hex" => stdlib_method_gen::builtin_functions::convert_hex_builtin(&arg_exprs),
+            "bin" => stdlib_method_gen::builtin_functions::convert_bin_builtin(&arg_exprs),
+            "oct" => stdlib_method_gen::builtin_functions::convert_oct_builtin(&arg_exprs),
+            // DEPYLER-0579: format(value, spec) builtin - needs HIR for literal extraction
             "format" => self.convert_format_builtin(&arg_exprs, &all_hir_args),
-            "chr" => self.convert_chr_builtin(&arg_exprs),
+            "chr" => stdlib_method_gen::builtin_functions::convert_chr_builtin(&arg_exprs),
+            // ord() needs context for char_iter_vars check
             "ord" => self.convert_ord_builtin(&arg_exprs, &all_hir_args),
-            "hash" => self.convert_hash_builtin(&arg_exprs),
-            "repr" => self.convert_repr_builtin(&arg_exprs),
-            // DEPYLER-0387: File I/O builtin
+            "hash" => stdlib_method_gen::builtin_functions::convert_hash_builtin(&arg_exprs),
+            "repr" => stdlib_method_gen::builtin_functions::convert_repr_builtin(&arg_exprs),
+            // DEPYLER-0387: File I/O builtin - needs context for needs_io_* flags
             "open" => self.convert_open_builtin(&all_hir_args, &arg_exprs),
             // DEPYLER-STDLIB-50: next(), getattr(), iter(), type()
-            "next" => self.convert_next_builtin(&arg_exprs),
+            "next" => stdlib_method_gen::builtin_functions::convert_next_builtin(&arg_exprs),
             "getattr" => self.convert_getattr_builtin(&arg_exprs),
-            "iter" => self.convert_iter_builtin(&arg_exprs),
-            "type" => self.convert_type_builtin(&arg_exprs),
+            "iter" => stdlib_method_gen::builtin_functions::convert_iter_builtin(&arg_exprs),
+            "type" => stdlib_method_gen::builtin_functions::convert_type_builtin(&arg_exprs),
             // DEPYLER-0844: isinstance(x, T) → true (Rust's type system guarantees correctness)
             "isinstance" => Ok(parse_quote! { true }),
             _ => self.convert_generic_call(func, &all_hir_args, &all_args),
@@ -3308,103 +3312,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { #arg.into_iter().collect::<Vec<_>>() })
     }
 
-    // DEPYLER-STDLIB-BUILTINS: Additional builtin function converters
-
-    fn convert_all_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("all() requires exactly 1 argument");
-        }
-        let iterable = &args[0];
-        Ok(parse_quote! { #iterable.into_iter().all(|x| x) })
-    }
-
-    fn convert_any_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("any() requires exactly 1 argument");
-        }
-        let iterable = &args[0];
-        Ok(parse_quote! { #iterable.into_iter().any(|x| x) })
-    }
-
-    fn convert_divmod_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 2 {
-            bail!("divmod() requires exactly 2 arguments");
-        }
-        let a = &args[0];
-        let b = &args[1];
-        Ok(parse_quote! { (#a / #b, #a % #b) })
-    }
-
-    fn convert_enumerate_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.is_empty() || args.len() > 2 {
-            bail!("enumerate() requires 1 or 2 arguments");
-        }
-        let iterable = &args[0];
-        // DEPYLER-0519: Use .iter().cloned() instead of .into_iter()
-        // This preserves the original collection (important when returned after loop)
-        // Python: for i, x in enumerate(items): ... return items  # items still usable
-        // Rust with into_iter(): items consumed, can't return
-        // Rust with iter().cloned(): items preserved, can return
-        if args.len() == 2 {
-            let start = &args[1];
-            Ok(
-                parse_quote! { #iterable.iter().cloned().enumerate().map(|(i, x)| ((i + #start as usize) as i32, x)) },
-            )
-        } else {
-            Ok(parse_quote! { #iterable.iter().cloned().enumerate().map(|(i, x)| (i as i32, x)) })
-        }
-    }
-
-    fn convert_zip_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() < 2 {
-            bail!("zip() requires at least 2 arguments");
-        }
-        let first = &args[0];
-        let second = &args[1];
-        if args.len() == 2 {
-            Ok(parse_quote! { #first.into_iter().zip(#second.into_iter()) })
-        } else {
-            // For 3+ iterables, chain zip calls
-            let mut zip_expr: syn::Expr =
-                parse_quote! { #first.into_iter().zip(#second.into_iter()) };
-            for iter in &args[2..] {
-                zip_expr = parse_quote! { #zip_expr.zip(#iter.into_iter()) };
-            }
-            Ok(zip_expr)
-        }
-    }
-
-    fn convert_reversed_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("reversed() requires exactly 1 argument");
-        }
-        let iterable = &args[0];
-        // DEPYLER-0753: Use .iter().cloned() instead of .into_iter() to produce Vec<T> not Vec<&T>
-        // When iterable is &Vec<T>, .into_iter() yields &T references, causing type mismatch.
-        // .iter().cloned().rev() properly clones elements to produce owned iterator.
-        Ok(parse_quote! { #iterable.iter().cloned().rev() })
-    }
-
-    fn convert_sorted_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.is_empty() || args.len() > 2 {
-            bail!("sorted() requires 1 or 2 arguments");
-        }
-        let iterable = &args[0];
-        // Simplified: ignore key/reverse parameters for now
-        // DEPYLER-0733: Use .iter().cloned() instead of .into_iter() to produce Vec<T> not Vec<&T>
-        // When iterable is &Vec<T>, .into_iter() yields &T references, causing type mismatch.
-        // .iter().cloned() properly clones elements to produce owned Vec<T>.
-        // DEPYLER-0807: Use sort_by with partial_cmp to support floats (f64 doesn't implement Ord)
-        // partial_cmp works for all PartialOrd types including integers and floats.
-        // unwrap_or(Equal) treats NaN as equal, which is safe for typical sorting.
-        Ok(parse_quote! {
-            {
-                let mut sorted_vec = #iterable.iter().cloned().collect::<Vec<_>>();
-                sorted_vec.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-                sorted_vec
-            }
-        })
-    }
+    // DEPYLER-COVERAGE-95: all, any, divmod, enumerate, zip, reversed, sorted
+    // moved to stdlib_method_gen::builtin_functions module for testability
 
     fn convert_filter_builtin(
         &mut self,
@@ -3439,109 +3348,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_sum_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.is_empty() || args.len() > 2 {
-            bail!("sum() requires 1 or 2 arguments");
-        }
-        let iterable = &args[0];
-        if args.len() == 2 {
-            let start = &args[1];
-            Ok(parse_quote! { #iterable.into_iter().fold(#start, |acc, x| acc + x) })
-        } else {
-            Ok(parse_quote! { #iterable.into_iter().sum() })
-        }
-    }
-
-    // DEPYLER-STDLIB-BUILTINS: Final batch converters for 50% milestone
-
-    fn convert_round_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.is_empty() || args.len() > 2 {
-            bail!("round() requires 1 or 2 arguments");
-        }
-        let value = &args[0];
-        // Simplified: ignore ndigits parameter
-        Ok(parse_quote! { (#value as f64).round() as i32 })
-    }
-
-    fn convert_abs_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("abs() requires exactly 1 argument");
-        }
-        let value = &args[0];
-        Ok(parse_quote! { (#value).abs() })
-    }
-
-    fn convert_min_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.is_empty() {
-            bail!("min() requires at least 1 argument");
-        }
-        if args.len() == 1 {
-            // min(iterable)
-            let iterable = &args[0];
-            Ok(parse_quote! { #iterable.into_iter().min().unwrap() })
-        } else {
-            // min(a, b, c, ...)
-            let first = &args[0];
-            let mut min_expr = parse_quote! { #first };
-            for arg in &args[1..] {
-                min_expr = parse_quote! { #min_expr.min(#arg) };
-            }
-            Ok(min_expr)
-        }
-    }
-
-    fn convert_max_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.is_empty() {
-            bail!("max() requires at least 1 argument");
-        }
-        if args.len() == 1 {
-            // max(iterable)
-            let iterable = &args[0];
-            Ok(parse_quote! { #iterable.into_iter().max().unwrap() })
-        } else {
-            // max(a, b, c, ...)
-            let first = &args[0];
-            let mut max_expr = parse_quote! { #first };
-            for arg in &args[1..] {
-                max_expr = parse_quote! { #max_expr.max(#arg) };
-            }
-            Ok(max_expr)
-        }
-    }
-
-    fn convert_pow_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() < 2 || args.len() > 3 {
-            bail!("pow() requires 2 or 3 arguments");
-        }
-        let base = &args[0];
-        let exp = &args[1];
-        // Simplified: ignore modulo parameter
-        Ok(parse_quote! { (#base as f64).powf(#exp as f64) as i32 })
-    }
-
-    fn convert_hex_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("hex() requires exactly 1 argument");
-        }
-        let value = &args[0];
-        Ok(parse_quote! { format!("0x{:x}", #value) })
-    }
-
-    fn convert_bin_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("bin() requires exactly 1 argument");
-        }
-        let value = &args[0];
-        Ok(parse_quote! { format!("0b{:b}", #value) })
-    }
-
-    fn convert_oct_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("oct() requires exactly 1 argument");
-        }
-        let value = &args[0];
-        Ok(parse_quote! { format!("0o{:o}", #value) })
-    }
+    // DEPYLER-COVERAGE-95: sum, round, abs, min, max, pow, hex, bin, oct
+    // moved to stdlib_method_gen::builtin_functions module for testability
 
     /// DEPYLER-0579: Python format(value, spec) builtin
     /// format(num, "b") → binary string
@@ -3577,15 +3385,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_chr_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("chr() requires exactly 1 argument");
-        }
-        let code = &args[0];
-        Ok(parse_quote! {
-            char::from_u32(#code as u32).unwrap().to_string()
-        })
-    }
+    // DEPYLER-COVERAGE-95: chr moved to stdlib_method_gen::builtin_functions
 
     fn convert_ord_builtin(&self, args: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
         if args.len() != 1 {
@@ -3706,49 +3506,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    fn convert_hash_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("hash() requires exactly 1 argument");
-        }
-        let value = &args[0];
-        Ok(parse_quote! {
-            {
-                use std::collections::hash_map::DefaultHasher;
-                use std::hash::{Hash, Hasher};
-                let mut hasher = DefaultHasher::new();
-                #value.hash(&mut hasher);
-                hasher.finish() as i64
-            }
-        })
-    }
+    // DEPYLER-COVERAGE-95: hash, repr, next, iter, type
+    // moved to stdlib_method_gen::builtin_functions module for testability
 
-    fn convert_repr_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("repr() requires exactly 1 argument");
-        }
-        let value = &args[0];
-        Ok(parse_quote! { format!("{:?}", #value) })
-    }
-
-    // DEPYLER-STDLIB-50: next() - get next item from iterator
-    fn convert_next_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.is_empty() || args.len() > 2 {
-            bail!("next() requires 1 or 2 arguments (iterator, optional default)");
-        }
-        let iterator = &args[0];
-        if args.len() == 2 {
-            let default = &args[1];
-            Ok(parse_quote! {
-                #iterator.next().unwrap_or(#default)
-            })
-        } else {
-            Ok(parse_quote! {
-                #iterator.next().expect("StopIteration: iterator is empty")
-            })
-        }
-    }
-
-    // DEPYLER-STDLIB-50: getattr() - get attribute by name
+    // DEPYLER-STDLIB-50: getattr() - get attribute by name (needs context-specific error)
     fn convert_getattr_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.len() < 2 || args.len() > 3 {
             bail!("getattr() requires 2 or 3 arguments (object, name, optional default)");
@@ -3757,26 +3518,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Full getattr() requires runtime attribute lookup which isn't possible in Rust
         // For now, we'll bail as it needs special handling
         bail!("getattr() requires dynamic attribute access not fully supported yet")
-    }
-
-    // DEPYLER-STDLIB-50: iter() - create iterator
-    fn convert_iter_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("iter() requires exactly 1 argument");
-        }
-        let iterable = &args[0];
-        Ok(parse_quote! { #iterable.into_iter() })
-    }
-
-    // DEPYLER-STDLIB-50: type() - get type name
-    fn convert_type_builtin(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
-        if args.len() != 1 {
-            bail!("type() requires exactly 1 argument");
-        }
-        let value = &args[0];
-        // Return a string representation of the type name
-        // This is a simplified implementation - full Python type() is more complex
-        Ok(parse_quote! { std::any::type_name_of_val(&#value) })
     }
 
     // DEPYLER-REFACTOR-001: Helper functions moved to collection_constructors module:
@@ -4711,732 +4452,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// Try to convert json module method calls
-    /// DEPYLER-STDLIB-JSON: JSON serialization/deserialization support
-    #[inline]
-    fn try_convert_json_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+    // DEPYLER-COVERAGE-95: try_convert_json_method moved to stdlib_method_gen::json
 
-        // Mark that we need serde_json crate
-        self.ctx.needs_serde_json = true;
+    // DEPYLER-COVERAGE-95: try_convert_re_method moved to stdlib_method_gen::regex_mod
 
-        let result = match method {
-            // String serialization/deserialization
-            "dumps" => {
-                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
-                    bail!("json.dumps() requires 1 or 2 arguments");
-                }
-                let obj = &arg_exprs[0];
+    // DEPYLER-COVERAGE-95: try_convert_string_method moved to stdlib_method_gen::string
 
-                // DEPYLER-0377: Check if indent parameter is provided
-                // json.dumps(result, indent=2) has 2 arguments after HIR conversion
-                // (keyword args become positional args in HIR)
-                if arg_exprs.len() >= 2 {
-                    // json.dumps(obj, indent=n) → serde_json::to_string_pretty(&obj).unwrap()
-                    parse_quote! { serde_json::to_string_pretty(&#obj).unwrap() }
-                } else {
-                    // json.dumps(obj) → serde_json::to_string(&obj).unwrap()
-                    parse_quote! { serde_json::to_string(&#obj).unwrap() }
-                }
-            }
+    // DEPYLER-COVERAGE-95: try_convert_time_method moved to stdlib_method_gen::time
 
-            "loads" => {
-                if arg_exprs.len() != 1 {
-                    bail!("json.loads() requires exactly 1 argument");
-                }
-                let s = &arg_exprs[0];
-
-                // DEPYLER-0962: Check if return type is a Union of dict|list
-                // In this case, we need to convert the parsed Value to the union type
-                if let Some(union_name) = self.return_type_is_dict_list_union() {
-                    self.ctx.needs_hashmap = true;
-                    let union_ident: syn::Ident =
-                        syn::Ident::new(&union_name, proc_macro2::Span::call_site());
-                    // Parse as Value, then convert to union type using match
-                    parse_quote! {
-                        {
-                            let __json_val = serde_json::from_str::<serde_json::Value>(&#s).unwrap();
-                            match __json_val {
-                                serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect()),
-                                serde_json::Value::Array(arr) => #union_ident::List(arr),
-                                _ => panic!("json.loads expected dict or list"),
-                            }
-                        }
-                    }
-                } else if self.return_type_needs_json_dict() {
-                    // DEPYLER-0703: Check if return type is Dict[str, Any] → HashMap<String, Value>
-                    self.ctx.needs_hashmap = true;
-                    // json.loads(s) when returning Dict[str, Any]
-                    // → serde_json::from_str::<HashMap<String, Value>>(&s).unwrap()
-                    parse_quote! { serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#s).unwrap() }
-                } else {
-                    // json.loads(s) → serde_json::from_str::<Value>(&s).unwrap()
-                    // Returns serde_json::Value (dynamic JSON value)
-                    parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).unwrap() }
-                }
-            }
-
-            // File-based serialization/deserialization
-            "dump" => {
-                if arg_exprs.len() != 2 {
-                    bail!("json.dump() requires exactly 2 arguments (obj, file)");
-                }
-                let obj = &arg_exprs[0];
-                let file = &arg_exprs[1];
-                // json.dump(obj, file) → serde_json::to_writer(file, &obj).unwrap()
-                parse_quote! { serde_json::to_writer(#file, &#obj).unwrap() }
-            }
-
-            "load" => {
-                if arg_exprs.len() != 1 {
-                    bail!("json.load() requires exactly 1 argument (file)");
-                }
-                let file = &arg_exprs[0];
-
-                // DEPYLER-0962: Check if return type is a Union of dict|list
-                if let Some(union_name) = self.return_type_is_dict_list_union() {
-                    self.ctx.needs_hashmap = true;
-                    let union_ident: syn::Ident =
-                        syn::Ident::new(&union_name, proc_macro2::Span::call_site());
-                    parse_quote! {
-                        {
-                            let __json_val = serde_json::from_reader::<_, serde_json::Value>(#file).unwrap();
-                            match __json_val {
-                                serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect()),
-                                serde_json::Value::Array(arr) => #union_ident::List(arr),
-                                _ => panic!("json.load expected dict or list"),
-                            }
-                        }
-                    }
-                } else {
-                    // json.load(file) → serde_json::from_reader(file).unwrap()
-                    parse_quote! { serde_json::from_reader::<_, serde_json::Value>(#file).unwrap() }
-                }
-            }
-
-            _ => {
-                bail!("json.{} not implemented yet", method);
-            }
-        };
-
-        Ok(Some(result))
-    }
-
-    /// Try to convert re (regular expressions) module method calls
-    /// DEPYLER-STDLIB-RE: Comprehensive regex module support
-    ///
-    /// Maps Python re module functions to Rust regex crate:
-    /// - re.search() → Regex::new().find()
-    /// - re.match() → Regex::new().is_match() with ^ anchor
-    /// - re.findall() → Regex::new().find_iter()
-    /// - re.sub() → Regex::new().replace_all()
-    /// - re.split() → Regex::new().split()
-    /// - re.compile() → Regex::new()
-    /// - re.escape() → regex::escape()
-    ///
-    /// # Complexity
-    /// 10 (match with 10 branches)
-    #[inline]
-    fn try_convert_re_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        // Mark that we need regex crate
-        self.ctx.needs_regex = true;
-
-        // DEPYLER-0961: Helper to extract bare string literals for regex methods
-        // Regex::new() and find() expect &str, not String
-        // String literals should be passed directly without .to_string()
-        let extract_str_arg = |idx: usize| -> syn::Expr {
-            match args.get(idx) {
-                Some(HirExpr::Literal(Literal::String(s))) => {
-                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                    parse_quote! { #lit }
-                }
-                _ => arg_exprs.get(idx).cloned().unwrap_or_else(|| parse_quote! { "" }),
-            }
-        };
-
-        let result = match method {
-            // Pattern matching functions
-            "search" => {
-                if arg_exprs.len() < 2 {
-                    bail!("re.search() requires at least 2 arguments (pattern, string)");
-                }
-                // DEPYLER-0961: Extract bare string literals for &str compatibility
-                let pattern = extract_str_arg(0);
-                let text = extract_str_arg(1);
-
-                // Handle optional flags (simplified - just check for IGNORECASE)
-                if arg_exprs.len() >= 3 {
-                    // With flags: use RegexBuilder
-                    parse_quote! {
-                        regex::RegexBuilder::new(#pattern)
-                            .case_insensitive(true)
-                            .build()
-                            .unwrap()
-                            .find(#text)
-                    }
-                } else {
-                    // No flags: direct Regex::new()
-                    // re.search(pattern, text) → Regex::new(pattern).unwrap().find(text)
-                    parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) }
-                }
-            }
-
-            "match" => {
-                if arg_exprs.len() < 2 {
-                    bail!("re.match() requires at least 2 arguments (pattern, string)");
-                }
-                // DEPYLER-0961: Extract bare string literals for &str compatibility
-                let pattern = extract_str_arg(0);
-                let text = extract_str_arg(1);
-
-                // DEPYLER-0389: re.match() in Python only matches at the beginning
-                // Returns Option<Match> to support .group() calls
-                // NOTE: Add start-of-string constraint in future (check match.start() == 0 or prepend ^) (tracked in DEPYLER-0389)
-                // For now, using .find() like search() - compatible with Match object usage
-                parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) }
-            }
-
-            "findall" => {
-                if arg_exprs.len() < 2 {
-                    bail!("re.findall() requires at least 2 arguments (pattern, string)");
-                }
-                // DEPYLER-0961: Extract bare string literals for &str compatibility
-                let pattern = extract_str_arg(0);
-                let text = extract_str_arg(1);
-
-                // re.findall(pattern, text) → Regex::new(pattern).unwrap().find_iter(text).map(|m| m.as_str()).collect::<Vec<_>>()
-                parse_quote! {
-                    regex::Regex::new(#pattern)
-                        .unwrap()
-                        .find_iter(#text)
-                        .map(|m| m.as_str().to_string())
-                        .collect::<Vec<_>>()
-                }
-            }
-
-            "finditer" => {
-                if arg_exprs.len() < 2 {
-                    bail!("re.finditer() requires at least 2 arguments (pattern, string)");
-                }
-                // DEPYLER-0961: Extract bare string literals for &str compatibility
-                let pattern = extract_str_arg(0);
-                let text = extract_str_arg(1);
-
-                // re.finditer(pattern, text) → Regex::new(pattern).unwrap().find_iter(text)
-                parse_quote! {
-                    regex::Regex::new(#pattern)
-                        .unwrap()
-                        .find_iter(#text)
-                        .map(|m| m.as_str().to_string())
-                        .collect::<Vec<_>>()
-                }
-            }
-
-            // String substitution
-            "sub" => {
-                if arg_exprs.len() < 3 {
-                    bail!("re.sub() requires at least 3 arguments (pattern, repl, string)");
-                }
-                // DEPYLER-0961: Extract bare string literals for &str compatibility
-                let pattern = extract_str_arg(0);
-                let repl = extract_str_arg(1);
-                let text = extract_str_arg(2);
-
-                // re.sub(pattern, repl, text) → Regex::new(pattern).unwrap().replace_all(text, repl)
-                parse_quote! {
-                    regex::Regex::new(#pattern)
-                        .unwrap()
-                        .replace_all(#text, #repl)
-                        .to_string()
-                }
-            }
-
-            "subn" => {
-                if arg_exprs.len() < 3 {
-                    bail!("re.subn() requires at least 3 arguments (pattern, repl, string)");
-                }
-                // DEPYLER-0961: Extract bare string literals for &str compatibility
-                let pattern = extract_str_arg(0);
-                let repl = extract_str_arg(1);
-                let text = extract_str_arg(2);
-
-                // re.subn(pattern, repl, text) → returns (result, count)
-                parse_quote! {
-                    {
-                        let re = regex::Regex::new(#pattern).unwrap();
-                        let count = re.find_iter(#text).count();
-                        let result = re.replace_all(#text, #repl).to_string();
-                        (result, count)
-                    }
-                }
-            }
-
-            // Pattern compilation
-            "compile" => {
-                if arg_exprs.is_empty() {
-                    bail!("re.compile() requires at least 1 argument (pattern)");
-                }
-                let pattern = &arg_exprs[0];
-
-                // Check for flags
-                if arg_exprs.len() >= 2 {
-                    // With flags: use RegexBuilder
-                    // For now, simplified handling of common flags
-                    parse_quote! {
-                        regex::RegexBuilder::new(#pattern)
-                            .case_insensitive(true)
-                            .build()
-                            .unwrap()
-                    }
-                } else {
-                    // No flags: direct Regex::new()
-                    // re.compile(pattern) → Regex::new(pattern).unwrap()
-                    parse_quote! { regex::Regex::new(#pattern).unwrap() }
-                }
-            }
-
-            // String splitting
-            "split" => {
-                if arg_exprs.len() < 2 {
-                    bail!("re.split() requires at least 2 arguments (pattern, string)");
-                }
-                let pattern = &arg_exprs[0];
-                let text = &arg_exprs[1];
-
-                // Check for maxsplit argument
-                if arg_exprs.len() >= 3 {
-                    let maxsplit = &arg_exprs[2];
-                    // re.split(pattern, text, maxsplit) → Regex::new(pattern).unwrap().splitn(maxsplit + 1, text)
-                    parse_quote! {
-                        regex::Regex::new(#pattern)
-                            .unwrap()
-                            .splitn(#text, #maxsplit + 1)
-                            .map(|s| s.to_string())
-                            .collect::<Vec<_>>()
-                    }
-                } else {
-                    // re.split(pattern, text) → Regex::new(pattern).unwrap().split(text)
-                    parse_quote! {
-                        regex::Regex::new(#pattern)
-                            .unwrap()
-                            .split(#text)
-                            .map(|s| s.to_string())
-                            .collect::<Vec<_>>()
-                    }
-                }
-            }
-
-            // Escaping special characters
-            "escape" => {
-                if arg_exprs.len() != 1 {
-                    bail!("re.escape() requires exactly 1 argument");
-                }
-                let text = &arg_exprs[0];
-
-                // re.escape(text) → regex::escape(text)
-                parse_quote! { regex::escape(#text).to_string() }
-            }
-
-            _ => {
-                bail!("re.{} not implemented yet", method);
-            }
-        };
-
-        Ok(Some(result))
-    }
-
-    /// Try to convert string module method calls
-    /// DEPYLER-STDLIB-STRING: String module utilities
-    ///
-    /// Maps Python string module functions to Rust equivalents:
-    /// - string.capwords() → split/capitalize/join
-    /// - string.Template → String formatting
-    ///
-    /// # Complexity
-    /// 2 (match with 2 branches)
-    #[inline]
-    fn try_convert_string_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let result = match method {
-            // String utilities
-            "capwords" => {
-                if arg_exprs.is_empty() {
-                    bail!("string.capwords() requires at least 1 argument (text)");
-                }
-                let text = &arg_exprs[0];
-
-                // string.capwords(text) → text.split_whitespace().map(|w| {
-                //     let mut c = w.chars();
-                //     match c.next() {
-                //         None => String::new(),
-                //         Some(f) => f.to_uppercase().collect::<String>() + c.as_str()
-                //     }
-                // }).collect::<Vec<_>>().join(" ")
-                parse_quote! {
-                    #text.split_whitespace()
-                        .map(|w| {
-                            let mut chars = w.chars();
-                            match chars.next() {
-                                None => String::new(),
-                                Some(first) => {
-                                    let mut result = first.to_uppercase().collect::<String>();
-                                    result.push_str(&chars.as_str().to_lowercase());
-                                    result
-                                }
-                            }
-                        })
-                        .collect::<Vec<_>>()
-                        .join(" ")
-                }
-            }
-
-            _ => {
-                bail!("string.{} not implemented yet", method);
-            }
-        };
-
-        Ok(Some(result))
-    }
-
-    /// Try to convert time module method calls
-    /// DEPYLER-STDLIB-TIME: Time measurement and manipulation
-    ///
-    /// Maps Python time module functions to Rust equivalents:
-    /// - time.time() → SystemTime::now()
-    /// - time.sleep() → thread::sleep()
-    /// - time.monotonic() → Instant::now()
-    ///
-    /// # Complexity
-    /// 7 (match with 7+ branches)
-    #[inline]
-    fn try_convert_time_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let result = match method {
-            // Basic time measurement
-            "time" => {
-                // time.time() → SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs_f64()
-                parse_quote! {
-                    std::time::SystemTime::now()
-                        .duration_since(std::time::UNIX_EPOCH)
-                        .unwrap()
-                        .as_secs_f64()
-                }
-            }
-
-            "monotonic" | "perf_counter" => {
-                // time.monotonic() → Instant::now() (returns Instant, need elapsed)
-                // For now, simplified: just generate the call
-                // In real usage, user would call .elapsed() later
-                parse_quote! { std::time::Instant::now() }
-            }
-
-            "process_time" => {
-                // time.process_time() → CPU time (requires platform-specific code)
-                // Simplified: use Instant as approximation
-                parse_quote! { std::time::Instant::now() }
-            }
-
-            "thread_time" => {
-                // time.thread_time() → thread-specific time
-                // Simplified: use Instant
-                parse_quote! { std::time::Instant::now() }
-            }
-
-            // Sleep function
-            "sleep" => {
-                if arg_exprs.len() != 1 {
-                    bail!("time.sleep() requires exactly 1 argument (seconds)");
-                }
-                let seconds = &arg_exprs[0];
-
-                // time.sleep(seconds) → thread::sleep(Duration::from_secs_f64(seconds))
-                parse_quote! {
-                    std::thread::sleep(std::time::Duration::from_secs_f64(#seconds))
-                }
-            }
-
-            // Time formatting (requires chrono for full support)
-            "ctime" => {
-                self.ctx.needs_chrono = true;
-                if arg_exprs.len() != 1 {
-                    bail!("time.ctime() requires exactly 1 argument (timestamp)");
-                }
-                let timestamp = &arg_exprs[0];
-
-                // time.ctime(timestamp) → chrono formatting
-                // Simplified: convert timestamp to DateTime
-                parse_quote! {
-                    {
-                        let secs = #timestamp as i64;
-                        let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
-                        chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos)
-                            .unwrap()
-                            .to_string()
-                    }
-                }
-            }
-
-            "strftime" => {
-                self.ctx.needs_chrono = true;
-                if arg_exprs.len() < 2 {
-                    bail!("time.strftime() requires at least 2 arguments (format, time_tuple)");
-                }
-                // DEPYLER-0935: chrono's format() takes &str, not String
-                // Extract bare string literal for compatibility
-                let format = match args.first() {
-                    Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
-                    _ => arg_exprs[0].clone(),
-                };
-                let _time_tuple = &arg_exprs[1];
-
-                // time.strftime(format, time_tuple) → chrono formatting
-                // Simplified: assume current time for now
-                parse_quote! {
-                    chrono::Local::now().format(#format).to_string()
-                }
-            }
-
-            "strptime" => {
-                self.ctx.needs_chrono = true;
-                if arg_exprs.len() < 2 {
-                    bail!("time.strptime() requires at least 2 arguments (string, format)");
-                }
-                let time_str = &arg_exprs[0];
-                // DEPYLER-0935: chrono's parse_from_str() takes &str, not String
-                // Extract bare string literal for compatibility
-                let format = match args.get(1) {
-                    Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
-                    _ => arg_exprs[1].clone(),
-                };
-
-                // time.strptime(string, format) → chrono parsing
-                parse_quote! {
-                    chrono::NaiveDateTime::parse_from_str(#time_str, #format).unwrap()
-                }
-            }
-
-            // Time conversion
-            "gmtime" => {
-                self.ctx.needs_chrono = true;
-                let timestamp = if arg_exprs.is_empty() {
-                    parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() }
-                } else {
-                    arg_exprs[0].clone()
-                };
-
-                // time.gmtime(timestamp) → chrono UTC conversion
-                parse_quote! {
-                    {
-                        let secs = #timestamp as i64;
-                        let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
-                        chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos).unwrap()
-                    }
-                }
-            }
-
-            "localtime" => {
-                self.ctx.needs_chrono = true;
-                let timestamp = if arg_exprs.is_empty() {
-                    parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() }
-                } else {
-                    arg_exprs[0].clone()
-                };
-
-                // time.localtime(timestamp) → chrono Local conversion
-                parse_quote! {
-                    {
-                        let secs = #timestamp as i64;
-                        let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
-                        chrono::DateTime::<chrono::Local>::from_timestamp(secs, nanos).unwrap()
-                    }
-                }
-            }
-
-            "mktime" => {
-                self.ctx.needs_chrono = true;
-                if arg_exprs.len() != 1 {
-                    bail!("time.mktime() requires exactly 1 argument (time_tuple)");
-                }
-                let time_tuple = &arg_exprs[0];
-
-                // time.mktime(time_tuple) → timestamp conversion
-                // Simplified: assume time_tuple is a chrono DateTime
-                parse_quote! { #time_tuple.timestamp() as f64 }
-            }
-
-            "asctime" => {
-                self.ctx.needs_chrono = true;
-                if arg_exprs.len() != 1 {
-                    bail!("time.asctime() requires exactly 1 argument (time_tuple)");
-                }
-                let time_tuple = &arg_exprs[0];
-
-                // time.asctime(time_tuple) → ASCII time string
-                parse_quote! { #time_tuple.to_string() }
-            }
-
-            _ => {
-                bail!("time.{} not implemented yet", method);
-            }
-        };
-
-        Ok(Some(result))
-    }
-
-    /// Try to convert shutil module method calls
-    /// DEPYLER-STDLIB-SHUTIL: Shell utilities for file operations
-    ///
-    /// Maps Python shutil module to Rust std::fs:
-    /// - shutil.copy(src, dst) → std::fs::copy(src, dst)
-    /// - shutil.copy2(src, dst) → std::fs::copy(src, dst) (simplified)
-    /// - shutil.move(src, dst) → std::fs::rename(src, dst)
-    /// - shutil.rmtree(path) → std::fs::remove_dir_all(path)
-    /// - shutil.copytree(src, dst) → fs_extra::dir::copy (simplified)
-    ///
-    /// # Complexity: 4
-    #[inline]
-    fn try_convert_shutil_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let result = match method {
-            // shutil.copy(src, dst) → std::fs::copy(&src, &dst)
-            // Returns dst (the destination path)
-            "copy" | "copy2" => {
-                if arg_exprs.len() < 2 {
-                    bail!("shutil.{}() requires 2 arguments (src, dst)", method);
-                }
-                let src = &arg_exprs[0];
-                let dst = &arg_exprs[1];
-                // Returns the number of bytes copied as u64, but Python returns dst
-                // Use a block to match Python behavior
-                parse_quote! {
-                    {
-                        std::fs::copy(&#src, &#dst).unwrap();
-                        #dst.clone()
-                    }
-                }
-            }
-
-            // shutil.move(src, dst) → std::fs::rename(&src, &dst)
-            "move" | "r#move" => {
-                if arg_exprs.len() < 2 {
-                    bail!("shutil.move() requires 2 arguments (src, dst)");
-                }
-                let src = &arg_exprs[0];
-                let dst = &arg_exprs[1];
-                parse_quote! {
-                    {
-                        std::fs::rename(&#src, &#dst).unwrap();
-                        #dst.clone()
-                    }
-                }
-            }
-
-            // shutil.rmtree(path) → std::fs::remove_dir_all(&path)
-            "rmtree" => {
-                if arg_exprs.is_empty() {
-                    bail!("shutil.rmtree() requires 1 argument (path)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { std::fs::remove_dir_all(&#path).unwrap() }
-            }
-
-            // shutil.copytree(src, dst) → simplified recursive copy
-            "copytree" => {
-                if arg_exprs.len() < 2 {
-                    bail!("shutil.copytree() requires 2 arguments (src, dst)");
-                }
-                let src = &arg_exprs[0];
-                let dst = &arg_exprs[1];
-                // Simplified: use a function that recursively copies
-                parse_quote! {
-                    {
-                        fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> std::io::Result<()> {
-                            std::fs::create_dir_all(dst)?;
-                            for entry in std::fs::read_dir(src)? {
-                                let entry = entry?;
-                                let file_type = entry.file_type()?;
-                                if file_type.is_dir() {
-                                    copy_dir_all(&entry.path(), &dst.join(entry.file_name()))?;
-                                } else {
-                                    std::fs::copy(entry.path(), dst.join(entry.file_name()))?;
-                                }
-                            }
-                            Ok(())
-                        }
-                        copy_dir_all(std::path::Path::new(&#src), std::path::Path::new(&#dst)).unwrap();
-                        #dst.clone()
-                    }
-                }
-            }
-
-            // shutil.which(cmd) → std::process::Command to check if command exists
-            "which" => {
-                if arg_exprs.is_empty() {
-                    bail!("shutil.which() requires 1 argument (cmd)");
-                }
-                let cmd = &arg_exprs[0];
-                parse_quote! {
-                    std::process::Command::new("which")
-                        .arg(&#cmd)
-                        .output()
-                        .ok()
-                        .filter(|o| o.status.success())
-                        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-                }
-            }
-
-            _ => {
-                bail!("shutil.{} not implemented yet", method);
-            }
-        };
-
-        Ok(Some(result))
-    }
+    // DEPYLER-COVERAGE-95: try_convert_shutil_method moved to stdlib_method_gen::shutil
 
     /// Try to convert csv module method calls
     /// DEPYLER-STDLIB-CSV: CSV file reading and writing
@@ -5546,221 +4570,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
-    /// Try to convert os module method calls
-    /// DEPYLER-0380-BUG-2: os.getenv() with default values
-    ///
-    /// Maps Python os module to Rust std::env:
-    /// - os.getenv(key) → std::env::var(key)?
-    /// - os.getenv(key, default) → std::env::var(key).unwrap_or_else(|_| default.to_string())
-    ///
-    /// # Complexity
-    /// ≤10 (match with few branches)
-    #[inline]
-    fn try_convert_os_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let result = match method {
-            "getenv" => {
-                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
-                    bail!("os.getenv() requires 1 or 2 arguments");
-                }
-
-                if arg_exprs.len() == 1 {
-                    // os.getenv("KEY") → std::env::var("KEY")?
-                    let key = &arg_exprs[0];
-                    parse_quote! { std::env::var(#key)? }
-                } else {
-                    // os.getenv("KEY", "default") → std::env::var("KEY").unwrap_or_else(|_| "default".to_string())
-                    let key = &arg_exprs[0];
-                    let default = &arg_exprs[1];
-
-                    // DEPYLER-0380: Handle default value properly
-                    // Python's os.getenv() always returns str, so the default must be converted to String.
-                    // The unwrap_or_else closure must return String, so we always add .to_string()
-                    // to ensure the default value is owned.
-                    parse_quote! {
-                        std::env::var(#key).unwrap_or_else(|_| #default.to_string())
-                    }
-                }
-            }
-            // DEPYLER-0196: os.unlink(path) → std::fs::remove_file(path)?
-            // Python's os.unlink() removes a file
-            "unlink" | "remove" => {
-                if arg_exprs.len() != 1 {
-                    bail!("os.{}() requires exactly 1 argument", method);
-                }
-                let path = &arg_exprs[0];
-                // DEPYLER-0956: Use .unwrap() to not require Result return type
-                parse_quote! { std::fs::remove_file(#path).unwrap() }
-            }
-            // DEPYLER-0196: os.mkdir(path) → std::fs::create_dir(path).unwrap()
-            // DEPYLER-0956: Use .unwrap() to not require Result return type
-            "mkdir" => {
-                if arg_exprs.is_empty() {
-                    bail!("os.mkdir() requires at least 1 argument");
-                }
-                let path = &arg_exprs[0];
-                // Ignore mode argument (arg_exprs[1]) as Rust uses system defaults
-                parse_quote! { std::fs::create_dir(#path).unwrap() }
-            }
-            // DEPYLER-0196: os.makedirs(path) → std::fs::create_dir_all(path).unwrap()
-            // DEPYLER-0956: Use .unwrap() instead of ? to not require Result return type
-            // This matches Python's semantics where OSError is raised (panics in Rust)
-            "makedirs" => {
-                if arg_exprs.is_empty() {
-                    bail!("os.makedirs() requires at least 1 argument");
-                }
-                let path = &arg_exprs[0];
-                // Ignore mode and exist_ok arguments as create_dir_all handles both
-                parse_quote! { std::fs::create_dir_all(#path).unwrap() }
-            }
-            // DEPYLER-0196: os.rmdir(path) → std::fs::remove_dir(path).unwrap()
-            // DEPYLER-0956: Use .unwrap() to not require Result return type
-            "rmdir" => {
-                if arg_exprs.len() != 1 {
-                    bail!("os.rmdir() requires exactly 1 argument");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { std::fs::remove_dir(#path).unwrap() }
-            }
-            // DEPYLER-0196: os.rename(src, dst) → std::fs::rename(src, dst).unwrap()
-            // DEPYLER-0956: Use .unwrap() to not require Result return type
-            "rename" => {
-                if arg_exprs.len() != 2 {
-                    bail!("os.rename() requires exactly 2 arguments");
-                }
-                let src = &arg_exprs[0];
-                let dst = &arg_exprs[1];
-                parse_quote! { std::fs::rename(#src, #dst).unwrap() }
-            }
-            // DEPYLER-0196: os.getcwd() → std::env::current_dir()...
-            // DEPYLER-0689: Use .expect() when not in Result-returning context
-            "getcwd" => {
-                if !arg_exprs.is_empty() {
-                    bail!("os.getcwd() takes no arguments");
-                }
-                if self.ctx.current_function_can_fail {
-                    parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() }
-                } else {
-                    parse_quote! { std::env::current_dir().expect("Failed to get current directory").to_string_lossy().to_string() }
-                }
-            }
-            // DEPYLER-0196: os.chdir(path) → std::env::set_current_dir(path)...
-            // DEPYLER-0689: Use .expect() when not in Result-returning context
-            "chdir" => {
-                if arg_exprs.len() != 1 {
-                    bail!("os.chdir() requires exactly 1 argument");
-                }
-                let path = &arg_exprs[0];
-                if self.ctx.current_function_can_fail {
-                    parse_quote! { std::env::set_current_dir(#path)? }
-                } else {
-                    parse_quote! { std::env::set_current_dir(#path).expect("Failed to change directory") }
-                }
-            }
-            // DEPYLER-0196: os.listdir(path) → std::fs::read_dir(path)...
-            // DEPYLER-0689: Use .expect() when not in Result-returning context
-            "listdir" => {
-                if arg_exprs.is_empty() {
-                    // os.listdir() with no args uses current directory
-                    if self.ctx.current_function_can_fail {
-                        parse_quote! {
-                            std::fs::read_dir(".")?
-                                .filter_map(|e| e.ok())
-                                .map(|e| e.file_name().to_string_lossy().to_string())
-                                .collect::<Vec<_>>()
-                        }
-                    } else {
-                        parse_quote! {
-                            std::fs::read_dir(".").expect("Failed to read directory")
-                                .filter_map(|e| e.ok())
-                                .map(|e| e.file_name().to_string_lossy().to_string())
-                                .collect::<Vec<_>>()
-                        }
-                    }
-                } else {
-                    let path = &arg_exprs[0];
-                    if self.ctx.current_function_can_fail {
-                        parse_quote! {
-                            std::fs::read_dir(#path)?
-                                .filter_map(|e| e.ok())
-                                .map(|e| e.file_name().to_string_lossy().to_string())
-                                .collect::<Vec<_>>()
-                        }
-                    } else {
-                        parse_quote! {
-                            std::fs::read_dir(#path).expect("Failed to read directory")
-                                .filter_map(|e| e.ok())
-                                .map(|e| e.file_name().to_string_lossy().to_string())
-                                .collect::<Vec<_>>()
-                        }
-                    }
-                }
-            }
-            // DEPYLER-0200: os.walk(path) → walkdir::WalkDir::new(path)
-            // Returns iterator of (root, dirs, files) tuples like Python
-            "walk" => {
-                if arg_exprs.is_empty() {
-                    bail!("os.walk() requires at least 1 argument");
-                }
-                let path = &arg_exprs[0];
-                // Use walkdir crate - returns Vec<(String, Vec<String>, Vec<String>)>
-                parse_quote! {
-                    walkdir::WalkDir::new(#path)
-                        .into_iter()
-                        .filter_map(|e| e.ok())
-                        .filter(|e| e.file_type().is_dir())
-                        .map(|dir_entry| {
-                            let root = dir_entry.path().to_string_lossy().to_string();
-                            let mut dirs = vec![];
-                            let mut files = vec![];
-                            if let Ok(entries) = std::fs::read_dir(dir_entry.path()) {
-                                for entry in entries.filter_map(|e| e.ok()) {
-                                    let name = entry.file_name().to_string_lossy().to_string();
-                                    if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-                                        dirs.push(name);
-                                    } else {
-                                        files.push(name);
-                                    }
-                                }
-                            }
-                            (root, dirs, files)
-                        })
-                        .collect::<Vec<_>>()
-                }
-            }
-            // DEPYLER-0200: os.urandom(n) → rand crate for cryptographic random bytes
-            "urandom" => {
-                if arg_exprs.len() != 1 {
-                    bail!("os.urandom() requires exactly 1 argument");
-                }
-                let n = &arg_exprs[0];
-                // Use rand crate to generate random bytes
-                parse_quote! {
-                    {
-                        use rand::Rng;
-                        let mut rng = rand::thread_rng();
-                        let mut bytes = vec![0u8; #n as usize];
-                        rng.fill(&mut bytes[..]);
-                        bytes
-                    }
-                }
-            }
-            _ => {
-                return Ok(None);
-            }
-        };
-
-        Ok(Some(result))
-    }
+    // DEPYLER-COVERAGE-95: try_convert_os_method moved to stdlib_method_gen::os
 
     /// Try to convert os.environ method calls
     /// DEPYLER-0386: os.environ dictionary-like interface for environment variables
@@ -8678,444 +7488,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
-    /// Try to convert itertools module method calls
-    /// DEPYLER-STDLIB-ITERTOOLS: Iterator combinatorics and lazy evaluation
-    ///
-    /// Supports: count, cycle, repeat, chain, islice, takewhile
-    /// Maps to Rust's iterator adapters and std::iter methods
-    ///
-    /// # Complexity
-    /// Cyclomatic: 7 (match with 6 functions + default)
-    #[inline]
-    fn try_convert_itertools_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let result = match method {
-            // Infinite counter with optional step
-            "count" => {
-                let start = if !arg_exprs.is_empty() {
-                    &arg_exprs[0]
-                } else {
-                    &parse_quote!(0)
-                };
-                let step = if arg_exprs.len() >= 2 {
-                    &arg_exprs[1]
-                } else {
-                    &parse_quote!(1)
-                };
-
-                parse_quote! {
-                    {
-                        let start = #start;
-                        // DEPYLER-0812: Use i32 for step to support negative values
-                        let step: i32 = #step;
-                        std::iter::successors(Some(start), move |&n| Some(n + step))
-                    }
-                }
-            }
-
-            // Cycle through iterable infinitely
-            "cycle" => {
-                if arg_exprs.is_empty() {
-                    bail!("itertools.cycle() requires at least 1 argument");
-                }
-                let iterable = &arg_exprs[0];
-
-                parse_quote! {
-                    {
-                        let items = #iterable;
-                        items.into_iter().cycle()
-                    }
-                }
-            }
-
-            // Repeat value n times (or infinitely if no count)
-            "repeat" => {
-                if arg_exprs.is_empty() {
-                    bail!("itertools.repeat() requires at least 1 argument");
-                }
-                let value = &arg_exprs[0];
-
-                if arg_exprs.len() >= 2 {
-                    let times = &arg_exprs[1];
-                    parse_quote! {
-                        {
-                            let val = #value;
-                            let n = #times as usize;
-                            std::iter::repeat(val).take(n)
-                        }
-                    }
-                } else {
-                    parse_quote! {
-                        {
-                            let val = #value;
-                            std::iter::repeat(val)
-                        }
-                    }
-                }
-            }
-
-            // Chain multiple iterables together
-            "chain" => {
-                if arg_exprs.len() < 2 {
-                    bail!("itertools.chain() requires at least 2 arguments");
-                }
-
-                // Chain first two, then fold the rest
-                let first = &arg_exprs[0];
-                let second = &arg_exprs[1];
-
-                if arg_exprs.len() == 2 {
-                    parse_quote! {
-                        {
-                            let a = #first;
-                            let b = #second;
-                            a.into_iter().chain(b.into_iter())
-                        }
-                    }
-                } else {
-                    // For more than 2, we need to chain them all
-                    let mut chain_expr: syn::Expr = parse_quote! {
-                        #first.into_iter().chain(#second.into_iter())
-                    };
-
-                    for item in &arg_exprs[2..] {
-                        chain_expr = parse_quote! {
-                            #chain_expr.chain(#item.into_iter())
-                        };
-                    }
-
-                    chain_expr
-                }
-            }
-
-            // Slice iterator with start, stop, step
-            "islice" => {
-                if arg_exprs.len() < 2 {
-                    bail!("itertools.islice() requires at least 2 arguments");
-                }
-                let iterable = &arg_exprs[0];
-
-                if arg_exprs.len() == 2 {
-                    // islice(iterable, stop)
-                    let stop = &arg_exprs[1];
-                    parse_quote! {
-                        {
-                            let items = #iterable;
-                            let n = #stop as usize;
-                            items.into_iter().take(n)
-                        }
-                    }
-                } else {
-                    // islice(iterable, start, stop)
-                    let start = &arg_exprs[1];
-                    let stop = &arg_exprs[2];
-                    parse_quote! {
-                        {
-                            let items = #iterable;
-                            let start_idx = #start as usize;
-                            let stop_idx = #stop as usize;
-                            items.into_iter().skip(start_idx).take(stop_idx - start_idx)
-                        }
-                    }
-                }
-            }
-
-            // Take while predicate is true
-            "takewhile" => {
-                if arg_exprs.len() < 2 {
-                    bail!("itertools.takewhile() requires at least 2 arguments");
-                }
-                let predicate = &arg_exprs[0];
-                let iterable = &arg_exprs[1];
-
-                parse_quote! {
-                    {
-                        let pred = #predicate;
-                        let items = #iterable;
-                        items.into_iter().take_while(pred)
-                    }
-                }
-            }
-
-            // Drop while predicate is true
-            "dropwhile" => {
-                if arg_exprs.len() < 2 {
-                    bail!("itertools.dropwhile() requires at least 2 arguments");
-                }
-                let predicate = &arg_exprs[0];
-                let iterable = &arg_exprs[1];
-
-                parse_quote! {
-                    {
-                        let pred = #predicate;
-                        let items = #iterable;
-                        items.into_iter().skip_while(pred)
-                    }
-                }
-            }
-
-            // Accumulate (running sum/product)
-            "accumulate" => {
-                if arg_exprs.is_empty() {
-                    bail!("itertools.accumulate() requires at least 1 argument");
-                }
-                let iterable = &arg_exprs[0];
-
-                // accumulate with default + operation
-                parse_quote! {
-                    {
-                        let items = #iterable;
-                        let mut acc = None;
-                        items.into_iter().map(|x| {
-                            acc = Some(match acc {
-                                None => x,
-                                Some(a) => a + x,
-                            });
-                            acc.unwrap()
-                        }).collect::<Vec<_>>()
-                    }
-                }
-            }
-
-            // Compress - filter by selector booleans
-            "compress" => {
-                if arg_exprs.len() < 2 {
-                    bail!("itertools.compress() requires at least 2 arguments");
-                }
-                let data = &arg_exprs[0];
-                let selectors = &arg_exprs[1];
-
-                parse_quote! {
-                    {
-                        let items = #data;
-                        let sels = #selectors;
-                        items.into_iter()
-                            .zip(sels.into_iter())
-                            .filter_map(|(item, sel)| if sel { Some(item) } else { None })
-                            .collect::<Vec<_>>()
-                    }
-                }
-            }
-
-            // DEPYLER-0557: Group consecutive elements by key function
-            // Python: groupby(iterable, key) -> Rust: iterable.group_by(|x| key(x))
-            "groupby" => {
-                if arg_exprs.len() < 2 {
-                    bail!("itertools.groupby() requires at least 2 arguments (iterable, key)");
-                }
-                let iterable = &arg_exprs[0];
-                let key_func = &arg_exprs[1];
-
-                // Note: Rust's group_by requires Itertools trait in scope
-                self.ctx.needs_itertools = true;
-
-                parse_quote! {
-                    {
-                        use itertools::Itertools;
-                        #iterable.into_iter().group_by(#key_func)
-                    }
-                }
-            }
-
-            // Cartesian product of iterables
-            "product" => {
-                if arg_exprs.len() < 2 {
-                    bail!("itertools.product() requires at least 2 arguments");
-                }
-                self.ctx.needs_itertools = true;
-                let first = &arg_exprs[0];
-                let second = &arg_exprs[1];
-
-                parse_quote! {
-                    {
-                        use itertools::Itertools;
-                        #first.into_iter().cartesian_product(#second.into_iter()).collect::<Vec<_>>()
-                    }
-                }
-            }
-
-            // Permutations of iterable
-            "permutations" => {
-                if arg_exprs.is_empty() {
-                    bail!("itertools.permutations() requires at least 1 argument");
-                }
-                self.ctx.needs_itertools = true;
-                let iterable = &arg_exprs[0];
-
-                if arg_exprs.len() >= 2 {
-                    let r = &arg_exprs[1];
-                    parse_quote! {
-                        {
-                            use itertools::Itertools;
-                            #iterable.into_iter().permutations(#r as usize).collect::<Vec<_>>()
-                        }
-                    }
-                } else {
-                    parse_quote! {
-                        {
-                            use itertools::Itertools;
-                            let items: Vec<_> = #iterable.into_iter().collect();
-                            let n = items.len();
-                            items.into_iter().permutations(n).collect::<Vec<_>>()
-                        }
-                    }
-                }
-            }
-
-            // Combinations of iterable
-            "combinations" => {
-                if arg_exprs.len() < 2 {
-                    bail!("itertools.combinations() requires at least 2 arguments (iterable, r)");
-                }
-                self.ctx.needs_itertools = true;
-                let iterable = &arg_exprs[0];
-                let r = &arg_exprs[1];
-
-                parse_quote! {
-                    {
-                        use itertools::Itertools;
-                        #iterable.into_iter().combinations(#r as usize).collect::<Vec<_>>()
-                    }
-                }
-            }
-
-            // Zip longest - zip with fill value for shorter iterables
-            "zip_longest" => {
-                if arg_exprs.len() < 2 {
-                    bail!("itertools.zip_longest() requires at least 2 arguments");
-                }
-                self.ctx.needs_itertools = true;
-                let first = &arg_exprs[0];
-                let second = &arg_exprs[1];
-
-                parse_quote! {
-                    {
-                        use itertools::Itertools;
-                        #first.into_iter().zip_longest(#second.into_iter()).collect::<Vec<_>>()
-                    }
-                }
-            }
-
-            _ => {
-                bail!("itertools.{} not implemented yet (available: count, cycle, repeat, chain, islice, takewhile, dropwhile, accumulate, compress, groupby, product, permutations, combinations, zip_longest)", method);
-            }
-        };
-
-        Ok(Some(result))
-    }
-
-    /// Try to convert functools module method calls
-    /// DEPYLER-STDLIB-FUNCTOOLS: Higher-order functions
-    ///
-    /// Supports: reduce
-    /// Maps to Rust's Iterator::fold() method
-    ///
-    /// # Complexity
-    /// Cyclomatic: 2 (match with 1 function + default)
-    #[inline]
-    fn try_convert_functools_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let result = match method {
-            // Reduce/fold operation
-            "reduce" => {
-                if arg_exprs.len() < 2 {
-                    bail!("functools.reduce() requires at least 2 arguments");
-                }
-                let function = &arg_exprs[0];
-                let iterable = &arg_exprs[1];
-
-                if arg_exprs.len() >= 3 {
-                    // With initial value
-                    let initial = &arg_exprs[2];
-                    parse_quote! {
-                        {
-                            let func = #function;
-                            let items = #iterable;
-                            let init = #initial;
-                            items.into_iter().fold(init, func)
-                        }
-                    }
-                } else {
-                    // Without initial value - use first element
-                    parse_quote! {
-                        {
-                            let func = #function;
-                            let mut items = (#iterable).into_iter();
-                            let init = items.next().expect("reduce() of empty sequence with no initial value");
-                            items.fold(init, func)
-                        }
-                    }
-                }
-            }
-
-            _ => {
-                bail!(
-                    "functools.{} not implemented yet (available: reduce)",
-                    method
-                );
-            }
-        };
-
-        Ok(Some(result))
-    }
-
-    /// Try to convert warnings module method calls
-    /// DEPYLER-STDLIB-WARNINGS: Warning control
-    ///
-    /// Supports: warn
-    /// Maps to Rust's eprintln! macro for stderr output
-    ///
-    /// # Complexity
-    /// Cyclomatic: 2 (match with 1 function + default)
-    #[inline]
-    fn try_convert_warnings_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let result = match method {
-            "warn" => {
-                if arg_exprs.is_empty() {
-                    bail!("warnings.warn() requires at least 1 argument");
-                }
-                let message = &arg_exprs[0];
-
-                parse_quote! {
-                    eprintln!("Warning: {}", #message)
-                }
-            }
-
-            _ => {
-                bail!("warnings.{} not implemented yet (available: warn)", method);
-            }
-        };
-
-        Ok(Some(result))
-    }
+    // DEPYLER-COVERAGE-95: try_convert_itertools_method moved to stdlib_method_gen::itertools
+    // DEPYLER-COVERAGE-95: try_convert_functools_method moved to stdlib_method_gen::functools
+    // DEPYLER-COVERAGE-95: try_convert_warnings_method moved to stdlib_method_gen::warnings
 
     /// Try to convert sys module method calls
     /// DEPYLER-STDLIB-SYS: System-specific parameters and functions
@@ -9314,186 +7689,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
-    /// Try to convert pathlib module method calls
-    /// DEPYLER-STDLIB-PATHLIB: Comprehensive pathlib module support
-    #[inline]
-    fn try_convert_pathlib_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let result = match method {
-            // Path queries
-            "exists" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.exists() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { #path.exists() }
-            }
-
-            "is_file" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.is_file() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { #path.is_file() }
-            }
-
-            "is_dir" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.is_dir() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { #path.is_dir() }
-            }
-
-            "is_absolute" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.is_absolute() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { #path.is_absolute() }
-            }
-
-            // Path transformations
-            "absolute" | "resolve" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.{}() requires exactly 1 argument (self)", method);
-                }
-                let path = &arg_exprs[0];
-                // Both absolute() and resolve() → canonicalize()
-                parse_quote! { #path.canonicalize().unwrap() }
-            }
-
-            "with_name" => {
-                if arg_exprs.len() != 2 {
-                    bail!("Path.with_name() requires exactly 2 arguments (self, name)");
-                }
-                let path = &arg_exprs[0];
-                let name = &arg_exprs[1];
-                parse_quote! { #path.with_file_name(#name) }
-            }
-
-            "with_suffix" => {
-                if arg_exprs.len() != 2 {
-                    bail!("Path.with_suffix() requires exactly 2 arguments (self, suffix)");
-                }
-                let path = &arg_exprs[0];
-                let suffix = &arg_exprs[1];
-                parse_quote! { #path.with_extension(#suffix.trim_start_matches('.')) }
-            }
-
-            // Directory operations
-            "mkdir" => {
-                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
-                    bail!("Path.mkdir() requires 1-2 arguments");
-                }
-                let path = &arg_exprs[0];
-
-                // Check if parents=True was passed (simplified - assumes second arg is parents)
-                if arg_exprs.len() == 2 {
-                    // mkdir(parents=True) → create_dir_all
-                    parse_quote! { std::fs::create_dir_all(#path).unwrap() }
-                } else {
-                    // mkdir() → create_dir
-                    parse_quote! { std::fs::create_dir(#path).unwrap() }
-                }
-            }
-
-            "rmdir" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.rmdir() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { std::fs::remove_dir(#path).unwrap() }
-            }
-
-            "iterdir" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.iterdir() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! {
-                    std::fs::read_dir(#path)
-                        .unwrap()
-                        .map(|e| e.unwrap().path())
-                        .collect::<Vec<_>>()
-                }
-            }
-
-            // File operations
-            "read_text" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.read_text() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { std::fs::read_to_string(#path).unwrap() }
-            }
-
-            "read_bytes" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.read_bytes() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { std::fs::read(#path).unwrap() }
-            }
-
-            "write_text" => {
-                if arg_exprs.len() != 2 {
-                    bail!("Path.write_text() requires exactly 2 arguments (self, content)");
-                }
-                let path = &arg_exprs[0];
-                let content = &arg_exprs[1];
-                parse_quote! { std::fs::write(#path, #content).unwrap() }
-            }
-
-            "write_bytes" => {
-                if arg_exprs.len() != 2 {
-                    bail!("Path.write_bytes() requires exactly 2 arguments (self, content)");
-                }
-                let path = &arg_exprs[0];
-                let content = &arg_exprs[1];
-                parse_quote! { std::fs::write(#path, #content).unwrap() }
-            }
-
-            "unlink" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.unlink() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { std::fs::remove_file(#path).unwrap() }
-            }
-
-            "rename" => {
-                if arg_exprs.len() != 2 {
-                    bail!("Path.rename() requires exactly 2 arguments (self, target)");
-                }
-                let path = &arg_exprs[0];
-                let target = &arg_exprs[1];
-                parse_quote! { { std::fs::rename(&#path, #target).unwrap(); std::path::PathBuf::from(#target) } }
-            }
-
-            // Conversions
-            "as_posix" => {
-                if arg_exprs.len() != 1 {
-                    bail!("Path.as_posix() requires exactly 1 argument (self)");
-                }
-                let path = &arg_exprs[0];
-                parse_quote! { #path.to_str().unwrap().to_string() }
-            }
-
-            _ => return Ok(None), // Not a recognized pathlib method
-        };
-
-        Ok(Some(result))
-    }
+    // DEPYLER-COVERAGE-95: try_convert_pathlib_method moved to stdlib_method_gen::pathlib
 
     /// DEPYLER-0829: Convert pathlib methods on Path/PathBuf variable instances
     /// This handles cases like `p.write_text(content)` where p is a Path variable
@@ -10340,767 +8536,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(Some(result))
     }
 
-    /// Try to convert random module method calls
-    /// DEPYLER-STDLIB-RANDOM: Comprehensive random module support
-    #[inline]
-    fn try_convert_random_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
+    // DEPYLER-COVERAGE-95: try_convert_random_method moved to stdlib_method_gen::random
 
-        // Mark that we need rand crate
-        self.ctx.needs_rand = true;
-
-        let result = match method {
-            // Basic random generation
-            "random" => {
-                if !arg_exprs.is_empty() {
-                    bail!("random.random() takes no arguments");
-                }
-                // random.random() → rand::random::<f64>()
-                parse_quote! { rand::random::<f64>() }
-            }
-
-            // Integer range functions
-            // DEPYLER-0656: Add use rand::Rng for gen_range method
-            "randint" => {
-                if arg_exprs.len() != 2 {
-                    bail!("random.randint() requires exactly 2 arguments");
-                }
-                let a = &arg_exprs[0];
-                let b = &arg_exprs[1];
-                // random.randint(a, b) → rand::thread_rng().gen_range(a..=b)
-                // Python's randint is inclusive on both ends
-                parse_quote! {
-                    {
-                        use rand::Rng;
-                        rand::thread_rng().gen_range(#a..=#b)
-                    }
-                }
-            }
-
-            // DEPYLER-0656: Add use rand::Rng for gen_range method
-            "randrange" => {
-                // randrange can take 1, 2, or 3 arguments (like range)
-                if arg_exprs.is_empty() || arg_exprs.len() > 3 {
-                    bail!("random.randrange() requires 1-3 arguments");
-                }
-
-                if arg_exprs.len() == 1 {
-                    // randrange(stop) → gen_range(0..stop)
-                    let stop = &arg_exprs[0];
-                    parse_quote! {
-                        {
-                            use rand::Rng;
-                            rand::thread_rng().gen_range(0..#stop)
-                        }
-                    }
-                } else if arg_exprs.len() == 2 {
-                    // randrange(start, stop) → gen_range(start..stop)
-                    let start = &arg_exprs[0];
-                    let stop = &arg_exprs[1];
-                    parse_quote! {
-                        {
-                            use rand::Rng;
-                            rand::thread_rng().gen_range(#start..#stop)
-                        }
-                    }
-                } else {
-                    // randrange(start, stop, step) - complex, need to generate stepped range
-                    let start = &arg_exprs[0];
-                    let stop = &arg_exprs[1];
-                    let step = &arg_exprs[2];
-                    parse_quote! {
-                        {
-                            use rand::Rng;
-                            let start = #start;
-                            let stop = #stop;
-                            // DEPYLER-0812: Use i32 for step to support negative values
-                        let step: i32 = #step;
-                            let num_steps = ((stop - start) / step).max(0);
-                            let offset = rand::thread_rng().gen_range(0..num_steps);
-                            start + offset * step
-                        }
-                    }
-                }
-            }
-
-            // Float range function
-            // DEPYLER-0656: Add use rand::Rng for gen_range method
-            "uniform" => {
-                if arg_exprs.len() != 2 {
-                    bail!("random.uniform() requires exactly 2 arguments");
-                }
-                let a = &arg_exprs[0];
-                let b = &arg_exprs[1];
-                // random.uniform(a, b) → rand::thread_rng().gen_range(a..b)
-                parse_quote! {
-                    {
-                        use rand::Rng;
-                        rand::thread_rng().gen_range((#a as f64)..=(#b as f64))
-                    }
-                }
-            }
-
-            // Sequence functions
-            // DEPYLER-0656: Add use rand::seq::SliceRandom for choose/shuffle
-            "choice" => {
-                if arg_exprs.len() != 1 {
-                    bail!("random.choice() requires exactly 1 argument");
-                }
-                let seq = &arg_exprs[0];
-                // random.choice(seq) → *seq.choose(&mut rand::thread_rng()).unwrap()
-                parse_quote! {
-                    {
-                        use rand::seq::SliceRandom;
-                        *#seq.choose(&mut rand::thread_rng()).unwrap()
-                    }
-                }
-            }
-
-            "shuffle" => {
-                if arg_exprs.len() != 1 {
-                    bail!("random.shuffle() requires exactly 1 argument");
-                }
-                let seq = &arg_exprs[0];
-                // random.shuffle(seq) → seq.shuffle(&mut rand::thread_rng())
-                // Note: This mutates in place like Python
-                parse_quote! {
-                    {
-                        use rand::seq::SliceRandom;
-                        #seq.shuffle(&mut rand::thread_rng())
-                    }
-                }
-            }
-
-            // DEPYLER-0656: Add use rand::seq::SliceRandom for choose_multiple
-            "sample" => {
-                if arg_exprs.len() != 2 {
-                    bail!("random.sample() requires exactly 2 arguments");
-                }
-                let seq = &arg_exprs[0];
-                let k = &arg_exprs[1];
-                // random.sample(seq, k) → seq.choose_multiple(&mut rand::thread_rng(), k).cloned().collect()
-                parse_quote! {
-                    {
-                        use rand::seq::SliceRandom;
-                        #seq.choose_multiple(&mut rand::thread_rng(), #k as usize)
-                            .cloned()
-                            .collect::<Vec<_>>()
-                    }
-                }
-            }
-
-            "choices" => {
-                if arg_exprs.is_empty() {
-                    bail!("random.choices() requires at least 1 argument");
-                }
-                let seq = &arg_exprs[0];
-                let k = if arg_exprs.len() > 1 {
-                    &arg_exprs[1]
-                } else {
-                    // Default k=1 if not provided
-                    &parse_quote! { 1 }
-                };
-                // random.choices(seq, k=k) → (0..k).map(|_| seq.choose(&mut rng).cloned()).collect()
-                parse_quote! {
-                    {
-                        let mut rng = rand::thread_rng();
-                        (0..#k)
-                            .map(|_| #seq.choose(&mut rng).cloned().unwrap())
-                            .collect::<Vec<_>>()
-                    }
-                }
-            }
-
-            // Distribution functions
-            "gauss" | "normalvariate" => {
-                if arg_exprs.len() != 2 {
-                    bail!("random.{}() requires exactly 2 arguments", method);
-                }
-                // GH-207: Mark that we need rand_distr crate for Normal distribution
-                self.ctx.needs_rand_distr = true;
-                let mu = &arg_exprs[0];
-                let sigma = &arg_exprs[1];
-                // Use rand_distr::Normal
-                parse_quote! {
-                    {
-                        use rand::distributions::Distribution;
-                        let normal = rand_distr::Normal::new(#mu as f64, #sigma as f64).unwrap();
-                        normal.sample(&mut rand::thread_rng())
-                    }
-                }
-            }
-
-            "expovariate" => {
-                if arg_exprs.len() != 1 {
-                    bail!("random.expovariate() requires exactly 1 argument");
-                }
-                // GH-207: Mark that we need rand_distr crate for Exp distribution
-                self.ctx.needs_rand_distr = true;
-                let lambd = &arg_exprs[0];
-                // Use rand_distr::Exp
-                parse_quote! {
-                    {
-                        use rand::distributions::Distribution;
-                        let exp = rand_distr::Exp::new(#lambd as f64).unwrap();
-                        exp.sample(&mut rand::thread_rng())
-                    }
-                }
-            }
-
-            "betavariate" => {
-                if arg_exprs.len() != 2 {
-                    bail!("random.betavariate() requires exactly 2 arguments");
-                }
-                // GH-207: Mark that we need rand_distr crate for Beta distribution
-                self.ctx.needs_rand_distr = true;
-                let alpha = &arg_exprs[0];
-                let beta = &arg_exprs[1];
-                parse_quote! {
-                    {
-                        use rand::distributions::Distribution;
-                        let beta_dist = rand_distr::Beta::new(#alpha as f64, #beta as f64).unwrap();
-                        beta_dist.sample(&mut rand::thread_rng())
-                    }
-                }
-            }
-
-            "gammavariate" => {
-                if arg_exprs.len() != 2 {
-                    bail!("random.gammavariate() requires exactly 2 arguments");
-                }
-                // GH-207: Mark that we need rand_distr crate for Gamma distribution
-                self.ctx.needs_rand_distr = true;
-                let alpha = &arg_exprs[0];
-                let beta = &arg_exprs[1];
-                parse_quote! {
-                    {
-                        use rand::distributions::Distribution;
-                        let gamma = rand_distr::Gamma::new(#alpha as f64, #beta as f64).unwrap();
-                        gamma.sample(&mut rand::thread_rng())
-                    }
-                }
-            }
-
-            // Seed function
-            "seed" => {
-                if arg_exprs.len() > 1 {
-                    bail!("random.seed() requires 0 or 1 argument");
-                }
-                if arg_exprs.is_empty() {
-                    // seed() with no args - use system entropy
-                    parse_quote! { /* No-op: thread_rng is already seeded */ () }
-                } else {
-                    let seed_val = &arg_exprs[0];
-                    // Note: thread_rng() cannot be seeded. We'd need to use StdRng::seed_from_u64()
-                    // For now, we'll generate a comment
-                    parse_quote! {
-                        {
-                            // Note: Seeding not fully implemented - use StdRng instead of thread_rng
-                            let _seed = #seed_val;
-                            ()
-                        }
-                    }
-                }
-            }
-
-            // Get/Set state (complex, simplified implementation)
-            "getstate" => {
-                bail!("random.getstate() not supported - Rust RNG state management differs from Python");
-            }
-            "setstate" => {
-                bail!("random.setstate() not supported - Rust RNG state management differs from Python");
-            }
-
-            // DEPYLER-STDLIB-RANDOM: Triangular distribution
-            "triangular" => {
-                if arg_exprs.len() < 2 || arg_exprs.len() > 3 {
-                    bail!("random.triangular() requires 2 or 3 arguments");
-                }
-                // GH-207: Mark that we need rand_distr crate for Triangular distribution
-                self.ctx.needs_rand_distr = true;
-                let low = &arg_exprs[0];
-                let high = &arg_exprs[1];
-                let mode = if arg_exprs.len() == 3 {
-                    &arg_exprs[2]
-                } else {
-                    // Default mode is midpoint
-                    &parse_quote! { ((#low + #high) / 2.0) }
-                };
-
-                parse_quote! {
-                    {
-                        use rand::distributions::Distribution;
-                        let triangular = rand_distr::Triangular::new(
-                            #low as f64,
-                            #high as f64,
-                            #mode as f64
-                        ).unwrap();
-                        triangular.sample(&mut rand::thread_rng())
-                    }
-                }
-            }
-
-            // DEPYLER-STDLIB-RANDOM: randbytes() - generate random bytes
-            "randbytes" => {
-                if arg_exprs.len() != 1 {
-                    bail!("random.randbytes() requires exactly 1 argument");
-                }
-                let n = &arg_exprs[0];
-
-                parse_quote! {
-                    {
-                        use rand::Rng;
-                        let n = #n as usize;
-                        let mut rng = rand::thread_rng();
-                        (0..n).map(|_| rng.gen::<u8>()).collect::<Vec<u8>>()
-                    }
-                }
-            }
-
-            _ => {
-                bail!("random.{} not implemented yet", method);
-            }
-        };
-
-        Ok(Some(result))
-    }
-
-    /// Try to convert math module method calls
-    /// DEPYLER-STDLIB-MATH: Comprehensive math module support
-    #[inline]
-    fn try_convert_math_method(
-        &mut self,
-        method: &str,
-        args: &[HirExpr],
-    ) -> Result<Option<syn::Expr>> {
-        // Convert arguments first
-        let arg_exprs: Vec<syn::Expr> = args
-            .iter()
-            .map(|arg| arg.to_rust_expr(self.ctx))
-            .collect::<Result<Vec<_>>>()?;
-
-        let result = match method {
-            // Trigonometric functions - all take one f64 argument
-            "sin" | "cos" | "tan" | "asin" | "acos" | "atan" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.{}() requires exactly 1 argument", method);
-                }
-                let arg = &arg_exprs[0];
-                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-                parse_quote! { (#arg as f64).#method_ident() }
-            }
-
-            // atan2 takes two arguments
-            "atan2" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.atan2() requires exactly 2 arguments");
-                }
-                let y = &arg_exprs[0];
-                let x = &arg_exprs[1];
-                parse_quote! { (#y as f64).atan2(#x as f64) }
-            }
-
-            // Hyperbolic functions
-            "sinh" | "cosh" | "tanh" | "asinh" | "acosh" | "atanh" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.{}() requires exactly 1 argument", method);
-                }
-                let arg = &arg_exprs[0];
-                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-                parse_quote! { (#arg as f64).#method_ident() }
-            }
-
-            // Power and logarithmic functions
-            "sqrt" | "exp" | "ln" | "log2" | "log10" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.{}() requires exactly 1 argument", method);
-                }
-                let arg = &arg_exprs[0];
-                let method_name = if method == "ln" { "ln" } else { method };
-                let method_ident = syn::Ident::new(method_name, proc_macro2::Span::call_site());
-                parse_quote! { (#arg as f64).#method_ident() }
-            }
-
-            // log() can take 1 or 2 arguments (log(x) or log(x, base))
-            "log" => {
-                if arg_exprs.len() == 1 {
-                    let arg = &arg_exprs[0];
-                    // log(x) defaults to natural logarithm
-                    parse_quote! { (#arg as f64).ln() }
-                } else if arg_exprs.len() == 2 {
-                    let x = &arg_exprs[0];
-                    let base = &arg_exprs[1];
-                    // log(x, base) → x.log(base)
-                    parse_quote! { (#x as f64).log(#base as f64) }
-                } else {
-                    bail!("math.log() requires 1 or 2 arguments");
-                }
-            }
-
-            // pow() takes two arguments
-            "pow" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.pow() requires exactly 2 arguments");
-                }
-                let base = &arg_exprs[0];
-                let exp = &arg_exprs[1];
-                // Use powf for floating point exponents
-                parse_quote! { (#base as f64).powf(#exp as f64) }
-            }
-
-            // Rounding functions
-            "ceil" | "floor" | "trunc" | "round" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.{}() requires exactly 1 argument", method);
-                }
-                let arg = &arg_exprs[0];
-                let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-                // These return f64 in Rust, but Python's math.ceil/floor return int
-                // We'll cast to i32 for ceil and floor
-                if method == "ceil" || method == "floor" {
-                    parse_quote! { (#arg as f64).#method_ident() as i32 }
-                } else {
-                    parse_quote! { (#arg as f64).#method_ident() }
-                }
-            }
-
-            // Absolute value
-            "fabs" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.fabs() requires exactly 1 argument");
-                }
-                let arg = &arg_exprs[0];
-                parse_quote! { (#arg as f64).abs() }
-            }
-
-            // copysign
-            "copysign" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.copysign() requires exactly 2 arguments");
-                }
-                let x = &arg_exprs[0];
-                let y = &arg_exprs[1];
-                parse_quote! { (#x as f64).copysign(#y as f64) }
-            }
-
-            // Degree/Radian conversion
-            "degrees" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.degrees() requires exactly 1 argument");
-                }
-                let arg = &arg_exprs[0];
-                parse_quote! { (#arg as f64).to_degrees() }
-            }
-            "radians" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.radians() requires exactly 1 argument");
-                }
-                let arg = &arg_exprs[0];
-                parse_quote! { (#arg as f64).to_radians() }
-            }
-
-            // Special value checks
-            "isnan" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.isnan() requires exactly 1 argument");
-                }
-                let arg = &arg_exprs[0];
-                parse_quote! { (#arg as f64).is_nan() }
-            }
-            "isinf" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.isinf() requires exactly 1 argument");
-                }
-                let arg = &arg_exprs[0];
-                parse_quote! { (#arg as f64).is_infinite() }
-            }
-            "isfinite" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.isfinite() requires exactly 1 argument");
-                }
-                let arg = &arg_exprs[0];
-                parse_quote! { (#arg as f64).is_finite() }
-            }
-
-            // GCD - requires num crate for integers
-            "gcd" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.gcd() requires exactly 2 arguments");
-                }
-                let a = &arg_exprs[0];
-                let b = &arg_exprs[1];
-                // For now, implement simple Euclidean algorithm inline
-                // NOTE: Use num_integer::gcd crate for better performance (tracked in DEPYLER-0424)
-                parse_quote! {
-                    {
-                        let mut a = (#a as i64).abs();
-                        let mut b = (#b as i64).abs();
-                        while b != 0 {
-                            let temp = b;
-                            b = a % b;
-                            a = temp;
-                        }
-                        a as i32
-                    }
-                }
-            }
-
-            // DEPYLER-0771: Integer square root - math.isqrt(n) → floor(sqrt(n)) as integer
-            "isqrt" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.isqrt() requires exactly 1 argument");
-                }
-                let arg = &arg_exprs[0];
-                // Python's isqrt returns the floor of the square root as an integer
-                parse_quote! { ((#arg as f64).sqrt().floor() as i32) }
-            }
-
-            // Factorial - compute inline for now
-            "factorial" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.factorial() requires exactly 1 argument");
-                }
-                let n = &arg_exprs[0];
-                parse_quote! {
-                    {
-                        let n = #n as i32;
-                        let mut result = 1i64;
-                        for i in 1..=n {
-                            result *= i as i64;
-                        }
-                        result as i32
-                    }
-                }
-            }
-
-            // ldexp and frexp - less common, basic implementation
-            "ldexp" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.ldexp() requires exactly 2 arguments");
-                }
-                let x = &arg_exprs[0];
-                let i = &arg_exprs[1];
-                // ldexp(x, i) = x * 2^i
-                parse_quote! { (#x as f64) * 2.0f64.powi(#i as i32) }
-            }
-
-            "frexp" => {
-                // frexp returns (mantissa, exponent) where x = mantissa * 2^exponent
-                // Rust doesn't have this built-in, so we'll implement it
-                if arg_exprs.len() != 1 {
-                    bail!("math.frexp() requires exactly 1 argument");
-                }
-                let x = &arg_exprs[0];
-                parse_quote! {
-                    {
-                        let x = #x as f64;
-                        if x == 0.0 {
-                            (0.0, 0)
-                        } else {
-                            let exp = x.abs().log2().floor() as i32 + 1;
-                            let mantissa = x / 2.0f64.powi(exp);
-                            (mantissa, exp)
-                        }
-                    }
-                }
-            }
-
-            // LCM - least common multiple
-            "lcm" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.lcm() requires exactly 2 arguments");
-                }
-                let a = &arg_exprs[0];
-                let b = &arg_exprs[1];
-                // lcm(a, b) = abs(a * b) / gcd(a, b)
-                parse_quote! {
-                    {
-                        let a = (#a as i64).abs();
-                        let b = (#b as i64).abs();
-                        if a == 0 || b == 0 {
-                            0
-                        } else {
-                            // Compute GCD first
-                            let mut gcd_a = a;
-                            let mut gcd_b = b;
-                            while gcd_b != 0 {
-                                let temp = gcd_b;
-                                gcd_b = gcd_a % gcd_b;
-                                gcd_a = temp;
-                            }
-                            let gcd = gcd_a;
-                            ((a / gcd) * b) as i32
-                        }
-                    }
-                }
-            }
-
-            // isclose - floating point comparison with tolerance
-            "isclose" => {
-                if arg_exprs.len() < 2 {
-                    bail!("math.isclose() requires at least 2 arguments");
-                }
-                let a = &arg_exprs[0];
-                let b = &arg_exprs[1];
-                // Default rel_tol=1e-09, abs_tol=0.0
-                parse_quote! {
-                    {
-                        let a = #a as f64;
-                        let b = #b as f64;
-                        let rel_tol = 1e-9;
-                        let abs_tol = 0.0;
-                        let diff = (a - b).abs();
-                        diff <= abs_tol.max(rel_tol * a.abs().max(b.abs()))
-                    }
-                }
-            }
-
-            // modf - split into fractional and integer parts
-            "modf" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.modf() requires exactly 1 argument");
-                }
-                let x = &arg_exprs[0];
-                parse_quote! {
-                    {
-                        let x = #x as f64;
-                        let int_part = x.trunc();
-                        let frac_part = x - int_part;
-                        (frac_part, int_part)
-                    }
-                }
-            }
-
-            // fmod - floating point remainder
-            "fmod" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.fmod() requires exactly 2 arguments");
-                }
-                let x = &arg_exprs[0];
-                let y = &arg_exprs[1];
-                parse_quote! { (#x as f64) % (#y as f64) }
-            }
-
-            // hypot - Euclidean distance (hypotenuse)
-            "hypot" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.hypot() requires exactly 2 arguments");
-                }
-                let x = &arg_exprs[0];
-                let y = &arg_exprs[1];
-                parse_quote! { (#x as f64).hypot(#y as f64) }
-            }
-
-            // dist - distance between two points
-            "dist" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.dist() requires exactly 2 arguments (two points)");
-                }
-                let p = &arg_exprs[0];
-                let q = &arg_exprs[1];
-                // Simplified: assume 2D points
-                parse_quote! {
-                    {
-                        let p = #p;
-                        let q = #q;
-                        let dx = p[0] - q[0];
-                        let dy = p[1] - q[1];
-                        ((dx * dx + dy * dy) as f64).sqrt()
-                    }
-                }
-            }
-
-            // DEPYLER-STDLIB-MATH: remainder() - IEEE remainder (different from fmod)
-            "remainder" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.remainder() requires exactly 2 arguments");
-                }
-                let x = &arg_exprs[0];
-                let y = &arg_exprs[1];
-                // IEEE remainder: x - n*y where n is closest integer to x/y
-                parse_quote! {
-                    {
-                        let x = #x as f64;
-                        let y = #y as f64;
-                        let n = (x / y).round();
-                        x - n * y
-                    }
-                }
-            }
-
-            // DEPYLER-STDLIB-MATH: comb() - combinations (nCr)
-            "comb" => {
-                if arg_exprs.len() != 2 {
-                    bail!("math.comb() requires exactly 2 arguments");
-                }
-                let n = &arg_exprs[0];
-                let k = &arg_exprs[1];
-                parse_quote! {
-                    {
-                        let n = #n as i64;
-                        let k = #k as i64;
-                        if k > n || k < 0 { 0 } else {
-                            let k = if k > n - k { n - k } else { k };
-                            let mut result = 1i64;
-                            for i in 0..k {
-                                result = result * (n - i) / (i + 1);
-                            }
-                            result as i32
-                        }
-                    }
-                }
-            }
-
-            // DEPYLER-STDLIB-MATH: perm() - permutations (nPr)
-            "perm" => {
-                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
-                    bail!("math.perm() requires 1 or 2 arguments");
-                }
-                let n = &arg_exprs[0];
-                let k = if arg_exprs.len() == 2 {
-                    &arg_exprs[1]
-                } else {
-                    n
-                };
-                parse_quote! {
-                    {
-                        let n = #n as i64;
-                        let k = #k as i64;
-                        if k > n || k < 0 { 0 } else {
-                            let mut result = 1i64;
-                            for i in 0..k {
-                                result *= n - i;
-                            }
-                            result as i32
-                        }
-                    }
-                }
-            }
-
-            // DEPYLER-STDLIB-MATH: expm1() - exp(x) - 1 (accurate for small x)
-            "expm1" => {
-                if arg_exprs.len() != 1 {
-                    bail!("math.expm1() requires exactly 1 argument");
-                }
-                let x = &arg_exprs[0];
-                parse_quote! { (#x as f64).exp_m1() }
-            }
-
-            _ => {
-                bail!("math.{} not implemented yet", method);
-            }
-        };
-
-        Ok(Some(result))
-    }
+    // DEPYLER-COVERAGE-95: try_convert_math_method moved to stdlib_method_gen::math
 
     /// Try to convert module method call (e.g., os.getcwd())
     #[inline]
@@ -11231,14 +8669,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // math.sin(x) → x.sin()
             // math.pow(x, y) → x.powf(y)
             if module_name == "math" {
-                return self.try_convert_math_method(method, args);
+                return stdlib_method_gen::convert_math_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-RANDOM: Handle random module functions
             // random.random() → thread_rng().gen()
             // random.randint(a, b) → thread_rng().gen_range(a..=b)
             if module_name == "random" {
-                return self.try_convert_random_method(method, args);
+                return stdlib_method_gen::convert_random_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-STATISTICS: Handle statistics module functions
@@ -11259,7 +8697,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Path("/foo/bar").exists() → PathBuf::from("/foo/bar").exists()
             // Path("/foo").join("bar") → PathBuf::from("/foo").join("bar")
             if module_name == "pathlib" {
-                return self.try_convert_pathlib_method(method, args);
+                return stdlib_method_gen::convert_pathlib_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-DATETIME: Handle datetime module functions
@@ -11299,22 +8737,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // json.dumps(obj) → serde_json::to_string(&obj)
             // json.loads(s) → serde_json::from_str(&s)
             if module_name == "json" {
-                return self.try_convert_json_method(method, args);
+                return stdlib_method_gen::convert_json_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-RE: Regular expressions module
             if module_name == "re" {
-                return self.try_convert_re_method(method, args);
+                return stdlib_method_gen::convert_re_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-STRING: String module utilities
             if module_name == "string" {
-                return self.try_convert_string_method(method, args);
+                return stdlib_method_gen::convert_string_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-TIME: Time module
             if module_name == "time" {
-                return self.try_convert_time_method(method, args);
+                return stdlib_method_gen::convert_time_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-SHUTIL: Shell utilities for file operations
@@ -11322,7 +8760,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // shutil.copy2(src, dst) → std::fs::copy(src, dst)
             // shutil.move(src, dst) → std::fs::rename(src, dst)
             if module_name == "shutil" {
-                return self.try_convert_shutil_method(method, args);
+                return stdlib_method_gen::convert_shutil_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-CSV: CSV file operations
@@ -11334,7 +8772,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0380: os module operations (getenv, etc.)
             // Must be checked before os.path to handle non-path os functions
             if module_name == "os" {
-                if let Some(result) = self.try_convert_os_method(method, args)? {
+                if let Some(result) = stdlib_method_gen::convert_os_method(method, args, self.ctx)? {
                     return Ok(Some(result));
                 }
                 // Fall through to os.path handler if method not recognized
@@ -11419,17 +8857,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-STDLIB-ITERTOOLS: Iterator combinatorics and lazy evaluation
             if module_name == "itertools" {
-                return self.try_convert_itertools_method(method, args);
+                return stdlib_method_gen::convert_itertools_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-FUNCTOOLS: Higher-order functions
             if module_name == "functools" {
-                return self.try_convert_functools_method(method, args);
+                return stdlib_method_gen::convert_functools_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-WARNINGS: Warning control
             if module_name == "warnings" {
-                return self.try_convert_warnings_method(method, args);
+                return stdlib_method_gen::convert_warnings_method(method, args, self.ctx);
             }
 
             // DEPYLER-STDLIB-SYS: System-specific parameters and functions
@@ -16155,20 +13593,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    /// DEPYLER-0962: Check if return type is a Union of dict and list (e.g., dict | list)
-    /// Returns Some(union_enum_name) if it is, None otherwise
-    fn return_type_is_dict_list_union(&self) -> Option<String> {
-        if let Some(Type::Union(types)) = self.ctx.current_return_type.as_ref() {
-            // Check if union contains both Dict and List (in any order)
-            let has_dict = types.iter().any(|t| matches!(t, Type::Dict(_, _)));
-            let has_list = types.iter().any(|t| matches!(t, Type::List(_)));
-            if has_dict && has_list && types.len() == 2 {
-                // Generate the union enum name (e.g., DictOrListUnion)
-                return Some("DictOrListUnion".to_string());
-            }
-        }
-        None
-    }
+    // DEPYLER-COVERAGE-95: return_type_is_dict_list_union moved to stdlib_method_gen::json
 
     /// DEPYLER-0560: Check if function return type requires serde_json::Value for dicts
     /// DEPYLER-0727: Also check assignment target type for inline dict literals
@@ -20054,5 +17479,210 @@ mod tests {
     #[test]
     fn test_is_rust_keyword_unsized() {
         assert!(keywords::is_rust_keyword("unsized"));
+    }
+
+    // ============ literal_to_rust_expr tests ============
+
+    #[test]
+    fn test_literal_to_rust_expr_int() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Int(42), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("42"));
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_negative_int() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Int(-100), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("-100") || code.contains("- 100"));
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_float() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Float(3.14), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("3.14"));
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_float_zero() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        // Should have decimal point
+        assert!(code.contains("0.0") || code.contains("."));
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_bool_true() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Bool(true), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert_eq!(code, "true");
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_bool_false() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Bool(false), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert_eq!(code, "false");
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_none() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::None, &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert_eq!(code, "None");
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_bytes() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let bytes = vec![72, 101, 108, 108, 111]; // "Hello"
+        let result = literal_to_rust_expr(&Literal::Bytes(bytes), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("b\""));
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_string() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::String("hello".to_string()), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("hello"));
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_string_with_escape() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::String("hello\nworld".to_string()), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("hello") && code.contains("world"));
+    }
+
+    // ============ ExpressionConverter static method tests ============
+
+    #[test]
+    fn test_borrow_if_needed_path_expr() {
+        let path: syn::Expr = parse_quote! { my_var };
+        let result = ExpressionConverter::borrow_if_needed(&path);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("&"));
+        assert!(code.contains("my_var"));
+    }
+
+    #[test]
+    fn test_borrow_if_needed_reference_unchanged() {
+        let already_ref: syn::Expr = parse_quote! { &some_ref };
+        let result = ExpressionConverter::borrow_if_needed(&already_ref);
+        let code = result.to_token_stream().to_string();
+        // Should not double-borrow
+        assert!(!code.contains("& &"));
+    }
+
+    #[test]
+    fn test_borrow_if_needed_lit_str() {
+        let lit_str: syn::Expr = parse_quote! { "hello" };
+        let result = ExpressionConverter::borrow_if_needed(&lit_str);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("hello"));
+    }
+
+    #[test]
+    fn test_wrap_in_parens_simple_path() {
+        // wrap_in_parens creates a block { expr }, not parentheses (expr)
+        let path: syn::Expr = parse_quote! { x };
+        let result = ExpressionConverter::wrap_in_parens(path);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("{") && code.contains("}") && code.contains("x"));
+    }
+
+    #[test]
+    fn test_wrap_in_parens_binary_expr() {
+        // wrap_in_parens creates a block { expr }
+        let binary: syn::Expr = parse_quote! { a + b };
+        let result = ExpressionConverter::wrap_in_parens(binary);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("{") && code.contains("}"));
+        assert!(code.contains("a") && code.contains("b"));
+    }
+
+    #[test]
+    fn test_wrap_in_parens_call_expr() {
+        // wrap_in_parens creates a block { expr }
+        let call: syn::Expr = parse_quote! { foo(x, y) };
+        let result = ExpressionConverter::wrap_in_parens(call);
+        let code = result.to_token_stream().to_string();
+        // Block braces around the call
+        assert!(code.contains("{") && code.contains("}"));
+        assert!(code.contains("foo"));
+    }
+
+    // ============ Additional edge case tests ============
+
+    #[test]
+    fn test_literal_to_rust_expr_large_int() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Int(i64::MAX), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains(&i64::MAX.to_string()));
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_float_scientific() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Float(1.5e10), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        // Should handle scientific notation
+        assert!(code.contains("e") || code.contains("E") || code.contains("15000000000"));
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_empty_string() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::String("".to_string()), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("\"\""));
+    }
+
+    #[test]
+    fn test_literal_to_rust_expr_empty_bytes() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Bytes(vec![]), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        assert!(code.contains("b\"\""));
     }
 }

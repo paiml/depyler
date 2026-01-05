@@ -463,4 +463,435 @@ mod tests {
         };
         assert!(solver.unify(func1, func2).is_ok());
     }
+
+    // ============ TypeError Display tests ============
+
+    #[test]
+    fn test_type_error_display_infinite() {
+        let err = TypeError::InfiniteType(0, Type::List(Box::new(Type::Int)));
+        let msg = format!("{}", err);
+        assert!(msg.contains("Infinite type"));
+        assert!(msg.contains("variable 0"));
+    }
+
+    #[test]
+    fn test_type_error_display_mismatch() {
+        let err = TypeError::Mismatch(Type::Int, Type::String);
+        let msg = format!("{}", err);
+        assert!(msg.contains("Type mismatch"));
+        assert!(msg.contains("Int"));
+        assert!(msg.contains("String"));
+    }
+
+    #[test]
+    fn test_type_error_display_unification_failed() {
+        let err = TypeError::UnificationFailed("test error".to_string());
+        let msg = format!("{}", err);
+        assert!(msg.contains("Unification failed"));
+        assert!(msg.contains("test error"));
+    }
+
+    #[test]
+    fn test_type_error_is_error_trait() {
+        let err: &dyn std::error::Error = &TypeError::Mismatch(Type::Int, Type::String);
+        assert!(err.to_string().contains("Type mismatch"));
+    }
+
+    // ============ Occurs check edge cases ============
+
+    #[test]
+    fn test_occurs_check_dict() {
+        let solver = TypeConstraintSolver::new();
+        // var occurs in Dict<var, Int>
+        assert!(solver.occurs_check(0, &Type::Dict(
+            Box::new(Type::UnificationVar(0)),
+            Box::new(Type::Int)
+        )));
+        // var occurs in Dict<Int, var>
+        assert!(solver.occurs_check(0, &Type::Dict(
+            Box::new(Type::Int),
+            Box::new(Type::UnificationVar(0))
+        )));
+        // var does not occur
+        assert!(!solver.occurs_check(0, &Type::Dict(
+            Box::new(Type::Int),
+            Box::new(Type::String)
+        )));
+    }
+
+    #[test]
+    fn test_occurs_check_optional() {
+        let solver = TypeConstraintSolver::new();
+        assert!(solver.occurs_check(0, &Type::Optional(Box::new(Type::UnificationVar(0)))));
+        assert!(!solver.occurs_check(0, &Type::Optional(Box::new(Type::Int))));
+    }
+
+    #[test]
+    fn test_occurs_check_tuple() {
+        let solver = TypeConstraintSolver::new();
+        assert!(solver.occurs_check(0, &Type::Tuple(vec![
+            Type::Int,
+            Type::UnificationVar(0),
+            Type::String
+        ])));
+        assert!(!solver.occurs_check(0, &Type::Tuple(vec![
+            Type::Int,
+            Type::String
+        ])));
+    }
+
+    #[test]
+    fn test_occurs_check_set() {
+        let solver = TypeConstraintSolver::new();
+        assert!(solver.occurs_check(0, &Type::Set(Box::new(Type::UnificationVar(0)))));
+        assert!(!solver.occurs_check(0, &Type::Set(Box::new(Type::Int))));
+    }
+
+    #[test]
+    fn test_occurs_check_function() {
+        let solver = TypeConstraintSolver::new();
+        // var in params
+        assert!(solver.occurs_check(0, &Type::Function {
+            params: vec![Type::UnificationVar(0), Type::Int],
+            ret: Box::new(Type::Bool)
+        }));
+        // var in return type
+        assert!(solver.occurs_check(0, &Type::Function {
+            params: vec![Type::Int],
+            ret: Box::new(Type::UnificationVar(0))
+        }));
+        // var not present
+        assert!(!solver.occurs_check(0, &Type::Function {
+            params: vec![Type::Int],
+            ret: Box::new(Type::Bool)
+        }));
+    }
+
+    #[test]
+    fn test_occurs_check_generic() {
+        let solver = TypeConstraintSolver::new();
+        assert!(solver.occurs_check(0, &Type::Generic {
+            base: "Iterator".to_string(),
+            params: vec![Type::UnificationVar(0)]
+        }));
+        assert!(!solver.occurs_check(0, &Type::Generic {
+            base: "Iterator".to_string(),
+            params: vec![Type::Int]
+        }));
+    }
+
+    #[test]
+    fn test_occurs_check_union() {
+        let solver = TypeConstraintSolver::new();
+        assert!(solver.occurs_check(0, &Type::Union(vec![
+            Type::Int,
+            Type::UnificationVar(0)
+        ])));
+        assert!(!solver.occurs_check(0, &Type::Union(vec![
+            Type::Int,
+            Type::String
+        ])));
+    }
+
+    #[test]
+    fn test_occurs_check_array() {
+        use crate::hir::ConstGeneric;
+        let solver = TypeConstraintSolver::new();
+        assert!(solver.occurs_check(0, &Type::Array {
+            element_type: Box::new(Type::UnificationVar(0)),
+            size: ConstGeneric::Literal(10)
+        }));
+        assert!(!solver.occurs_check(0, &Type::Array {
+            element_type: Box::new(Type::Int),
+            size: ConstGeneric::Literal(10)
+        }));
+    }
+
+    #[test]
+    fn test_occurs_check_primitive() {
+        let solver = TypeConstraintSolver::new();
+        assert!(!solver.occurs_check(0, &Type::Int));
+        assert!(!solver.occurs_check(0, &Type::Float));
+        assert!(!solver.occurs_check(0, &Type::String));
+        assert!(!solver.occurs_check(0, &Type::Bool));
+        assert!(!solver.occurs_check(0, &Type::None));
+    }
+
+    // ============ Apply substitution tests ============
+
+    #[test]
+    fn test_apply_substitution_dict() {
+        let mut solver = TypeConstraintSolver::new();
+        solver.substitutions.insert(0, Type::String);
+        solver.substitutions.insert(1, Type::Int);
+
+        let ty = Type::Dict(
+            Box::new(Type::UnificationVar(0)),
+            Box::new(Type::UnificationVar(1))
+        );
+        let result = solver.apply_substitution(&ty);
+        assert_eq!(result, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
+    }
+
+    #[test]
+    fn test_apply_substitution_optional() {
+        let mut solver = TypeConstraintSolver::new();
+        solver.substitutions.insert(0, Type::Int);
+
+        let ty = Type::Optional(Box::new(Type::UnificationVar(0)));
+        let result = solver.apply_substitution(&ty);
+        assert_eq!(result, Type::Optional(Box::new(Type::Int)));
+    }
+
+    #[test]
+    fn test_apply_substitution_tuple() {
+        let mut solver = TypeConstraintSolver::new();
+        solver.substitutions.insert(0, Type::Int);
+        solver.substitutions.insert(1, Type::String);
+
+        let ty = Type::Tuple(vec![
+            Type::UnificationVar(0),
+            Type::Bool,
+            Type::UnificationVar(1)
+        ]);
+        let result = solver.apply_substitution(&ty);
+        assert_eq!(result, Type::Tuple(vec![Type::Int, Type::Bool, Type::String]));
+    }
+
+    #[test]
+    fn test_apply_substitution_set() {
+        let mut solver = TypeConstraintSolver::new();
+        solver.substitutions.insert(0, Type::String);
+
+        let ty = Type::Set(Box::new(Type::UnificationVar(0)));
+        let result = solver.apply_substitution(&ty);
+        assert_eq!(result, Type::Set(Box::new(Type::String)));
+    }
+
+    #[test]
+    fn test_apply_substitution_function() {
+        let mut solver = TypeConstraintSolver::new();
+        solver.substitutions.insert(0, Type::Int);
+        solver.substitutions.insert(1, Type::Bool);
+
+        let ty = Type::Function {
+            params: vec![Type::UnificationVar(0), Type::String],
+            ret: Box::new(Type::UnificationVar(1))
+        };
+        let result = solver.apply_substitution(&ty);
+        assert_eq!(result, Type::Function {
+            params: vec![Type::Int, Type::String],
+            ret: Box::new(Type::Bool)
+        });
+    }
+
+    #[test]
+    fn test_apply_substitution_generic() {
+        let mut solver = TypeConstraintSolver::new();
+        solver.substitutions.insert(0, Type::Int);
+
+        let ty = Type::Generic {
+            base: "Vec".to_string(),
+            params: vec![Type::UnificationVar(0)]
+        };
+        let result = solver.apply_substitution(&ty);
+        assert_eq!(result, Type::Generic {
+            base: "Vec".to_string(),
+            params: vec![Type::Int]
+        });
+    }
+
+    #[test]
+    fn test_apply_substitution_union() {
+        let mut solver = TypeConstraintSolver::new();
+        solver.substitutions.insert(0, Type::Int);
+
+        let ty = Type::Union(vec![Type::UnificationVar(0), Type::String]);
+        let result = solver.apply_substitution(&ty);
+        assert_eq!(result, Type::Union(vec![Type::Int, Type::String]));
+    }
+
+    #[test]
+    fn test_apply_substitution_array() {
+        use crate::hir::ConstGeneric;
+        let mut solver = TypeConstraintSolver::new();
+        solver.substitutions.insert(0, Type::Float);
+
+        let ty = Type::Array {
+            element_type: Box::new(Type::UnificationVar(0)),
+            size: ConstGeneric::Literal(5)
+        };
+        let result = solver.apply_substitution(&ty);
+        assert_eq!(result, Type::Array {
+            element_type: Box::new(Type::Float),
+            size: ConstGeneric::Literal(5)
+        });
+    }
+
+    #[test]
+    fn test_apply_substitution_nested() {
+        let mut solver = TypeConstraintSolver::new();
+        // Chain: var0 -> var1 -> Int
+        solver.substitutions.insert(0, Type::UnificationVar(1));
+        solver.substitutions.insert(1, Type::Int);
+
+        let ty = Type::UnificationVar(0);
+        let result = solver.apply_substitution(&ty);
+        assert_eq!(result, Type::Int);
+    }
+
+    #[test]
+    fn test_apply_substitution_no_change() {
+        let solver = TypeConstraintSolver::new();
+        assert_eq!(solver.apply_substitution(&Type::Int), Type::Int);
+        assert_eq!(solver.apply_substitution(&Type::Float), Type::Float);
+        assert_eq!(solver.apply_substitution(&Type::String), Type::String);
+        assert_eq!(solver.apply_substitution(&Type::Bool), Type::Bool);
+        assert_eq!(solver.apply_substitution(&Type::None), Type::None);
+    }
+
+    // ============ Unify edge cases ============
+
+    #[test]
+    fn test_unify_optional() {
+        let mut solver = TypeConstraintSolver::new();
+        let opt1 = Type::Optional(Box::new(Type::Int));
+        let opt2 = Type::Optional(Box::new(Type::Int));
+        assert!(solver.unify(opt1, opt2).is_ok());
+    }
+
+    #[test]
+    fn test_unify_optional_mismatch() {
+        let mut solver = TypeConstraintSolver::new();
+        let opt1 = Type::Optional(Box::new(Type::Int));
+        let opt2 = Type::Optional(Box::new(Type::String));
+        assert!(matches!(solver.unify(opt1, opt2), Err(TypeError::Mismatch(_, _))));
+    }
+
+    #[test]
+    fn test_unify_set() {
+        let mut solver = TypeConstraintSolver::new();
+        let set1 = Type::Set(Box::new(Type::Int));
+        let set2 = Type::Set(Box::new(Type::Int));
+        assert!(solver.unify(set1, set2).is_ok());
+    }
+
+    #[test]
+    fn test_unify_list_mismatch() {
+        let mut solver = TypeConstraintSolver::new();
+        let list1 = Type::List(Box::new(Type::Int));
+        let list2 = Type::List(Box::new(Type::String));
+        assert!(matches!(solver.unify(list1, list2), Err(TypeError::Mismatch(_, _))));
+    }
+
+    #[test]
+    fn test_unify_dict_mismatch() {
+        let mut solver = TypeConstraintSolver::new();
+        let dict1 = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
+        let dict2 = Type::Dict(Box::new(Type::Int), Box::new(Type::Int));
+        assert!(matches!(solver.unify(dict1, dict2), Err(TypeError::Mismatch(_, _))));
+    }
+
+    #[test]
+    fn test_unify_function_param_mismatch() {
+        let mut solver = TypeConstraintSolver::new();
+        let func1 = Type::Function {
+            params: vec![Type::Int],
+            ret: Box::new(Type::Bool)
+        };
+        let func2 = Type::Function {
+            params: vec![Type::Int, Type::String],
+            ret: Box::new(Type::Bool)
+        };
+        assert!(matches!(solver.unify(func1, func2), Err(TypeError::Mismatch(_, _))));
+    }
+
+    #[test]
+    fn test_unify_same_var() {
+        let mut solver = TypeConstraintSolver::new();
+        let var = Type::UnificationVar(0);
+        assert!(solver.unify(var.clone(), var).is_ok());
+    }
+
+    #[test]
+    fn test_unify_none() {
+        let mut solver = TypeConstraintSolver::new();
+        assert!(solver.unify(Type::None, Type::None).is_ok());
+    }
+
+    #[test]
+    fn test_unify_float() {
+        let mut solver = TypeConstraintSolver::new();
+        assert!(solver.unify(Type::Float, Type::Float).is_ok());
+    }
+
+    // ============ Default impl test ============
+
+    #[test]
+    fn test_default_impl() {
+        let solver = TypeConstraintSolver::default();
+        assert!(solver.constraints.is_empty());
+        assert!(solver.substitutions.is_empty());
+        assert_eq!(solver.next_type_var, 0);
+    }
+
+    // ============ Complex constraint solving ============
+
+    #[test]
+    fn test_solve_chain_substitution() {
+        let mut solver = TypeConstraintSolver::new();
+        let var1 = solver.fresh_var();
+        let var2 = solver.fresh_var();
+        let var3 = solver.fresh_var();
+
+        // var1 = var2, var2 = var3, var3 = Int
+        solver.add_constraint(Constraint::Equality(
+            Type::UnificationVar(var1),
+            Type::UnificationVar(var2)
+        ));
+        solver.add_constraint(Constraint::Equality(
+            Type::UnificationVar(var2),
+            Type::UnificationVar(var3)
+        ));
+        solver.add_constraint(Constraint::Instance(var3, Type::Int));
+
+        let solution = solver.solve().expect("Solving failed");
+        assert_eq!(solution.get(&var3), Some(&Type::Int));
+    }
+
+    #[test]
+    fn test_solve_empty_constraints() {
+        let mut solver = TypeConstraintSolver::new();
+        let solution = solver.solve().expect("Solving failed");
+        assert!(solution.is_empty());
+    }
+
+    #[test]
+    fn test_constraint_equality() {
+        let c1 = Constraint::Equality(Type::Int, Type::Int);
+        let c2 = Constraint::Equality(Type::Int, Type::Int);
+        assert_eq!(c1, c2);
+
+        let c3 = Constraint::Instance(0, Type::Int);
+        let c4 = Constraint::Instance(0, Type::Int);
+        assert_eq!(c3, c4);
+    }
+
+    #[test]
+    fn test_constraint_debug() {
+        let c = Constraint::Equality(Type::Int, Type::String);
+        let debug_str = format!("{:?}", c);
+        assert!(debug_str.contains("Equality"));
+    }
+
+    #[test]
+    fn test_type_error_equality() {
+        let e1 = TypeError::InfiniteType(0, Type::Int);
+        let e2 = TypeError::InfiniteType(0, Type::Int);
+        assert_eq!(e1, e2);
+
+        let e3 = TypeError::Mismatch(Type::Int, Type::String);
+        let e4 = TypeError::Mismatch(Type::Int, Type::String);
+        assert_eq!(e3, e4);
+    }
 }

@@ -569,4 +569,487 @@ def custom_func(x: int) -> int: ...
         // Unknown function should map to itself
         assert_eq!(mapping.item_map.get("custom_func"), Some(&"custom_func".to_string()));
     }
+
+    // ============================================================
+    // DEPYLER-COVERAGE-95: Additional comprehensive tests
+    // ============================================================
+
+    #[test]
+    fn test_type_mapping_config_default() {
+        let config = TypeMappingConfig::default();
+
+        // Primitive types
+        assert_eq!(config.type_map.get("str"), Some(&"String".to_string()));
+        assert_eq!(config.type_map.get("int"), Some(&"i64".to_string()));
+        assert_eq!(config.type_map.get("float"), Some(&"f64".to_string()));
+        assert_eq!(config.type_map.get("bool"), Some(&"bool".to_string()));
+        assert_eq!(config.type_map.get("None"), Some(&"()".to_string()));
+        assert_eq!(config.type_map.get("bytes"), Some(&"Vec<u8>".to_string()));
+    }
+
+    #[test]
+    fn test_type_mapping_config_generic_types() {
+        let config = TypeMappingConfig::default();
+
+        assert_eq!(config.type_map.get("Any"), Some(&"serde_json::Value".to_string()));
+        assert_eq!(config.type_map.get("object"), Some(&"serde_json::Value".to_string()));
+    }
+
+    #[test]
+    fn test_type_mapping_config_containers() {
+        let config = TypeMappingConfig::default();
+
+        assert_eq!(config.type_map.get("list"), Some(&"Vec".to_string()));
+        assert_eq!(config.type_map.get("dict"), Some(&"HashMap".to_string()));
+        assert_eq!(config.type_map.get("set"), Some(&"HashSet".to_string()));
+        assert_eq!(config.type_map.get("tuple"), Some(&"tuple".to_string()));
+        assert_eq!(config.type_map.get("Optional"), Some(&"Option".to_string()));
+    }
+
+    #[test]
+    fn test_type_mapping_config_capitalized_containers() {
+        let config = TypeMappingConfig::default();
+
+        assert_eq!(config.type_map.get("List"), Some(&"Vec".to_string()));
+        assert_eq!(config.type_map.get("Dict"), Some(&"HashMap".to_string()));
+        assert_eq!(config.type_map.get("Set"), Some(&"HashSet".to_string()));
+        assert_eq!(config.type_map.get("Tuple"), Some(&"tuple".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_default() {
+        let config = CrateMappingConfig::default();
+
+        // Check stdlib modules
+        let (path, is_ext, _) = config.crate_map.get("os").unwrap();
+        assert_eq!(path, "std");
+        assert!(!is_ext);
+    }
+
+    #[test]
+    fn test_crate_mapping_config_external_crates() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, version) = config.crate_map.get("json").unwrap();
+        assert_eq!(path, "serde_json");
+        assert!(is_ext);
+        assert_eq!(version, &Some("1.0".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_regex() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, version) = config.crate_map.get("re").unwrap();
+        assert_eq!(path, "regex");
+        assert!(is_ext);
+        assert_eq!(version, &Some("1.10".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_random() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, version) = config.crate_map.get("random").unwrap();
+        assert_eq!(path, "rand");
+        assert!(is_ext);
+        assert_eq!(version, &Some("0.8".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_datetime() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, version) = config.crate_map.get("datetime").unwrap();
+        assert_eq!(path, "chrono");
+        assert!(is_ext);
+        assert_eq!(version, &Some("0.4".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_itertools() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, version) = config.crate_map.get("itertools").unwrap();
+        assert_eq!(path, "itertools");
+        assert!(is_ext);
+        assert_eq!(version, &Some("0.12".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_hashlib() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, version) = config.crate_map.get("hashlib").unwrap();
+        assert_eq!(path, "sha2");
+        assert!(is_ext);
+        assert_eq!(version, &Some("0.10".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_base64() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, version) = config.crate_map.get("base64").unwrap();
+        assert_eq!(path, "base64");
+        assert!(is_ext);
+        assert_eq!(version, &Some("0.21".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_csv() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, version) = config.crate_map.get("csv").unwrap();
+        assert_eq!(path, "csv");
+        assert!(is_ext);
+        assert_eq!(version, &Some("1.3".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_pathlib() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, _) = config.crate_map.get("pathlib").unwrap();
+        assert_eq!(path, "std::path");
+        assert!(!is_ext);
+    }
+
+    #[test]
+    fn test_crate_mapping_config_tempfile() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, version) = config.crate_map.get("tempfile").unwrap();
+        assert_eq!(path, "tempfile");
+        assert!(is_ext);
+        assert_eq!(version, &Some("3.0".to_string()));
+    }
+
+    #[test]
+    fn test_crate_mapping_config_sys() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, _) = config.crate_map.get("sys").unwrap();
+        assert_eq!(path, "std");
+        assert!(!is_ext);
+    }
+
+    #[test]
+    fn test_crate_mapping_config_math() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, _) = config.crate_map.get("math").unwrap();
+        assert_eq!(path, "std::f64");
+        assert!(!is_ext);
+    }
+
+    #[test]
+    fn test_crate_mapping_config_collections() {
+        let config = CrateMappingConfig::default();
+
+        let (path, is_ext, _) = config.crate_map.get("collections").unwrap();
+        assert_eq!(path, "std::collections");
+        assert!(!is_ext);
+    }
+
+    #[test]
+    fn test_function_mapping_config_json() {
+        let config = FunctionMappingConfig::default();
+
+        assert_eq!(config.func_map.get(&("json".to_string(), "loads".to_string())), Some(&"from_str".to_string()));
+        assert_eq!(config.func_map.get(&("json".to_string(), "dumps".to_string())), Some(&"to_string".to_string()));
+        assert_eq!(config.func_map.get(&("json".to_string(), "load".to_string())), Some(&"from_reader".to_string()));
+        assert_eq!(config.func_map.get(&("json".to_string(), "dump".to_string())), Some(&"to_writer".to_string()));
+    }
+
+    #[test]
+    fn test_function_mapping_config_os() {
+        let config = FunctionMappingConfig::default();
+
+        assert_eq!(config.func_map.get(&("os".to_string(), "getcwd".to_string())), Some(&"env::current_dir".to_string()));
+        assert_eq!(config.func_map.get(&("os".to_string(), "getenv".to_string())), Some(&"env::var".to_string()));
+        assert_eq!(config.func_map.get(&("os".to_string(), "listdir".to_string())), Some(&"fs::read_dir".to_string()));
+    }
+
+    #[test]
+    fn test_function_mapping_config_math() {
+        let config = FunctionMappingConfig::default();
+
+        assert_eq!(config.func_map.get(&("math".to_string(), "sqrt".to_string())), Some(&"sqrt".to_string()));
+        assert_eq!(config.func_map.get(&("math".to_string(), "sin".to_string())), Some(&"sin".to_string()));
+        assert_eq!(config.func_map.get(&("math".to_string(), "cos".to_string())), Some(&"cos".to_string()));
+        assert_eq!(config.func_map.get(&("math".to_string(), "floor".to_string())), Some(&"floor".to_string()));
+        assert_eq!(config.func_map.get(&("math".to_string(), "ceil".to_string())), Some(&"ceil".to_string()));
+        assert_eq!(config.func_map.get(&("math".to_string(), "abs".to_string())), Some(&"abs".to_string()));
+        assert_eq!(config.func_map.get(&("math".to_string(), "pow".to_string())), Some(&"powf".to_string()));
+    }
+
+    #[test]
+    fn test_function_mapping_config_re() {
+        let config = FunctionMappingConfig::default();
+
+        assert_eq!(config.func_map.get(&("re".to_string(), "compile".to_string())), Some(&"Regex::new".to_string()));
+        assert_eq!(config.func_map.get(&("re".to_string(), "match".to_string())), Some(&"Regex::is_match".to_string()));
+        assert_eq!(config.func_map.get(&("re".to_string(), "search".to_string())), Some(&"Regex::find".to_string()));
+        assert_eq!(config.func_map.get(&("re".to_string(), "findall".to_string())), Some(&"Regex::find_iter".to_string()));
+        assert_eq!(config.func_map.get(&("re".to_string(), "sub".to_string())), Some(&"Regex::replace_all".to_string()));
+    }
+
+    #[test]
+    fn test_count_parens_balanced() {
+        assert_eq!(count_parens("()"), 0);
+        assert_eq!(count_parens("(())"), 0);
+        assert_eq!(count_parens("((()))"), 0);
+    }
+
+    #[test]
+    fn test_count_parens_unbalanced() {
+        assert_eq!(count_parens("("), 1);
+        assert_eq!(count_parens("(("), 2);
+        assert_eq!(count_parens(")"), -1);
+        assert_eq!(count_parens("))"), -2);
+    }
+
+    #[test]
+    fn test_count_parens_with_content() {
+        assert_eq!(count_parens("def foo(x: int,"), 1);
+        assert_eq!(count_parens("y: str) -> int:"), -1);
+    }
+
+    #[test]
+    fn test_parse_params_empty() {
+        let params = parse_params("");
+        assert!(params.is_empty());
+    }
+
+    #[test]
+    fn test_parse_params_single() {
+        let params = parse_params("x: int");
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0], ("x".to_string(), "int".to_string()));
+    }
+
+    #[test]
+    fn test_parse_params_multiple() {
+        let params = parse_params("x: int, y: str, z: float");
+        assert_eq!(params.len(), 3);
+        assert_eq!(params[0], ("x".to_string(), "int".to_string()));
+        assert_eq!(params[1], ("y".to_string(), "str".to_string()));
+        assert_eq!(params[2], ("z".to_string(), "float".to_string()));
+    }
+
+    #[test]
+    fn test_parse_params_with_defaults() {
+        let params = parse_params("x: int = 0, y: str = \"\"");
+        assert_eq!(params.len(), 2);
+        assert_eq!(params[0], ("x".to_string(), "int".to_string()));
+        assert_eq!(params[1], ("y".to_string(), "str".to_string()));
+    }
+
+    #[test]
+    fn test_parse_params_skip_self() {
+        let params = parse_params("self, x: int");
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0], ("x".to_string(), "int".to_string()));
+    }
+
+    #[test]
+    fn test_parse_params_skip_args_kwargs() {
+        let params = parse_params("x: int, *args, **kwargs");
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0], ("x".to_string(), "int".to_string()));
+    }
+
+    #[test]
+    fn test_parse_params_untyped() {
+        let params = parse_params("x");
+        assert_eq!(params.len(), 1);
+        assert_eq!(params[0], ("x".to_string(), "Any".to_string()));
+    }
+
+    #[test]
+    fn test_parse_params_generic() {
+        let params = parse_params("x: list[int], y: dict[str, int]");
+        assert_eq!(params.len(), 2);
+        assert_eq!(params[0], ("x".to_string(), "list[int]".to_string()));
+        assert_eq!(params[1], ("y".to_string(), "dict[str, int]".to_string()));
+    }
+
+    #[test]
+    fn test_parse_function_line_no_return_type() {
+        let func = parse_function_line("def foo(x: int):").unwrap();
+        assert_eq!(func.name, "foo");
+        assert_eq!(func.return_type, "None");
+    }
+
+    #[test]
+    fn test_parse_function_line_no_params() {
+        let func = parse_function_line("def foo() -> int: ...").unwrap();
+        assert_eq!(func.name, "foo");
+        assert!(func.params.is_empty());
+        assert_eq!(func.return_type, "int");
+    }
+
+    #[test]
+    fn test_parse_function_line_invalid() {
+        assert!(parse_function_line("not a function").is_none());
+        assert!(parse_function_line("class Foo:").is_none());
+    }
+
+    #[test]
+    fn test_normalize_multiline_single_line() {
+        let content = "def foo(x: int) -> int: ...";
+        let normalized = normalize_multiline_functions(content);
+        assert!(normalized.contains("def foo(x: int) -> int: ..."));
+    }
+
+    #[test]
+    fn test_normalize_multiline_actual_multiline() {
+        let content = r#"def foo(
+    x: int,
+    y: str
+) -> int: ..."#;
+        let normalized = normalize_multiline_functions(content);
+        assert!(normalized.contains("def foo("));
+        assert!(normalized.contains("x: int,"));
+        // Should be joined into a single logical line
+    }
+
+    #[test]
+    fn test_extract_function_signatures_empty() {
+        let content = "";
+        let funcs = extract_function_signatures(content);
+        assert!(funcs.is_empty());
+    }
+
+    #[test]
+    fn test_extract_function_signatures_skip_private() {
+        let content = r#"
+def public_func() -> None: ...
+def _private_func() -> None: ...
+def __dunder_func() -> None: ...
+"#;
+        let funcs = extract_function_signatures(content);
+        // Should only have public_func
+        assert_eq!(funcs.len(), 1);
+        assert_eq!(funcs[0].name, "public_func");
+    }
+
+    #[test]
+    fn test_extract_function_signatures_include_init() {
+        let content = r#"
+def __init__(self, x: int) -> None: ...
+"#;
+        let funcs = extract_function_signatures(content);
+        assert_eq!(funcs.len(), 1);
+        assert_eq!(funcs[0].name, "__init__");
+    }
+
+    #[test]
+    fn test_parsed_function_struct() {
+        let func = ParsedFunction {
+            name: "test".to_string(),
+            params: vec![("x".to_string(), "int".to_string())],
+            return_type: "str".to_string(),
+        };
+
+        assert_eq!(func.name, "test");
+        assert_eq!(func.params.len(), 1);
+        assert_eq!(func.return_type, "str");
+    }
+
+    #[test]
+    fn test_parsed_function_equality() {
+        let func1 = ParsedFunction {
+            name: "test".to_string(),
+            params: vec![],
+            return_type: "int".to_string(),
+        };
+        let func2 = ParsedFunction {
+            name: "test".to_string(),
+            params: vec![],
+            return_type: "int".to_string(),
+        };
+        assert_eq!(func1, func2);
+    }
+
+    #[test]
+    fn test_parse_pyi_with_config_custom_crate() {
+        let content = "def custom_fn() -> None: ...";
+        let type_config = TypeMappingConfig::default();
+        let mut crate_config = CrateMappingConfig::default();
+        crate_config.crate_map.insert(
+            "custom".to_string(),
+            ("my_crate".to_string(), true, Some("2.0".to_string()))
+        );
+        let func_config = FunctionMappingConfig::default();
+
+        let mapping = parse_pyi_with_config(content, "custom", &type_config, &crate_config, &func_config);
+
+        assert_eq!(mapping.rust_path, "my_crate");
+        assert!(mapping.is_external);
+        assert_eq!(mapping.version, Some("2.0".to_string()));
+    }
+
+    #[test]
+    fn test_ingest_re_stub() {
+        let re_pyi = r#"
+def compile(pattern: str) -> Pattern: ...
+def match(pattern: str, string: str) -> Match: ...
+def search(pattern: str, string: str) -> Match: ...
+def findall(pattern: str, string: str) -> list[str]: ...
+def sub(pattern: str, repl: str, string: str) -> str: ...
+"#;
+
+        let mapping = parse_pyi(re_pyi, "re");
+
+        assert_eq!(mapping.rust_path, "regex");
+        assert!(mapping.is_external);
+        assert_eq!(mapping.version, Some("1.10".to_string()));
+
+        assert_eq!(mapping.item_map.get("compile"), Some(&"Regex::new".to_string()));
+        assert_eq!(mapping.item_map.get("match"), Some(&"Regex::is_match".to_string()));
+        assert_eq!(mapping.item_map.get("search"), Some(&"Regex::find".to_string()));
+        assert_eq!(mapping.item_map.get("findall"), Some(&"Regex::find_iter".to_string()));
+        assert_eq!(mapping.item_map.get("sub"), Some(&"Regex::replace_all".to_string()));
+    }
+
+    #[test]
+    fn test_module_mapping_constructor_patterns() {
+        let mapping = parse_pyi("def foo() -> None: ...", "test");
+        // Constructor patterns should be empty by default
+        assert!(mapping.constructor_patterns.is_empty());
+    }
+
+    #[test]
+    fn test_type_mapping_config_clone() {
+        let config = TypeMappingConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.type_map.len(), cloned.type_map.len());
+    }
+
+    #[test]
+    fn test_crate_mapping_config_clone() {
+        let config = CrateMappingConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.crate_map.len(), cloned.crate_map.len());
+    }
+
+    #[test]
+    fn test_function_mapping_config_clone() {
+        let config = FunctionMappingConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.func_map.len(), cloned.func_map.len());
+    }
+
+    #[test]
+    fn test_parsed_function_clone() {
+        let func = ParsedFunction {
+            name: "test".to_string(),
+            params: vec![("x".to_string(), "int".to_string())],
+            return_type: "str".to_string(),
+        };
+        let cloned = func.clone();
+        assert_eq!(func, cloned);
+    }
 }

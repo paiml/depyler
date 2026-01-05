@@ -8815,4 +8815,690 @@ mod tests {
         let _result = should_param_be_self_type("value", &body, &fields);
         // Just verifying the function runs with fields
     }
+
+    // ========================================================
+    // DEPYLER-COVERAGE-95: Additional direct_rules tests
+    // ========================================================
+
+    // ============ is_stdlib_shadowing_name tests ============
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_primitive_types() {
+        // Rust primitive types should be detected
+        assert!(is_stdlib_shadowing_name("bool"));
+        assert!(is_stdlib_shadowing_name("char"));
+        assert!(is_stdlib_shadowing_name("str"));
+        assert!(is_stdlib_shadowing_name("i32"));
+        assert!(is_stdlib_shadowing_name("u64"));
+        assert!(is_stdlib_shadowing_name("f64"));
+        assert!(is_stdlib_shadowing_name("isize"));
+        assert!(is_stdlib_shadowing_name("usize"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_prelude_types() {
+        // Prelude types should be detected
+        assert!(is_stdlib_shadowing_name("Box"));
+        assert!(is_stdlib_shadowing_name("Vec"));
+        assert!(is_stdlib_shadowing_name("String"));
+        assert!(is_stdlib_shadowing_name("Option"));
+        assert!(is_stdlib_shadowing_name("Result"));
+        assert!(is_stdlib_shadowing_name("Some"));
+        assert!(is_stdlib_shadowing_name("None"));
+        assert!(is_stdlib_shadowing_name("Ok"));
+        assert!(is_stdlib_shadowing_name("Err"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_collections() {
+        // Collection types should be detected
+        assert!(is_stdlib_shadowing_name("HashMap"));
+        assert!(is_stdlib_shadowing_name("HashSet"));
+        assert!(is_stdlib_shadowing_name("BTreeMap"));
+        assert!(is_stdlib_shadowing_name("BTreeSet"));
+        assert!(is_stdlib_shadowing_name("VecDeque"));
+        assert!(is_stdlib_shadowing_name("LinkedList"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_smart_pointers() {
+        // Smart pointer types should be detected
+        assert!(is_stdlib_shadowing_name("Rc"));
+        assert!(is_stdlib_shadowing_name("Arc"));
+        assert!(is_stdlib_shadowing_name("RefCell"));
+        assert!(is_stdlib_shadowing_name("Cell"));
+        assert!(is_stdlib_shadowing_name("Mutex"));
+        assert!(is_stdlib_shadowing_name("RwLock"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_traits() {
+        // Common trait names should be detected
+        assert!(is_stdlib_shadowing_name("Clone"));
+        assert!(is_stdlib_shadowing_name("Copy"));
+        assert!(is_stdlib_shadowing_name("Debug"));
+        assert!(is_stdlib_shadowing_name("Default"));
+        assert!(is_stdlib_shadowing_name("Display"));
+        assert!(is_stdlib_shadowing_name("Drop"));
+        assert!(is_stdlib_shadowing_name("Eq"));
+        assert!(is_stdlib_shadowing_name("Iterator"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_io_types() {
+        // I/O types should be detected
+        assert!(is_stdlib_shadowing_name("Read"));
+        assert!(is_stdlib_shadowing_name("Write"));
+        assert!(is_stdlib_shadowing_name("Seek"));
+        assert!(is_stdlib_shadowing_name("BufRead"));
+        assert!(is_stdlib_shadowing_name("BufWriter"));
+        assert!(is_stdlib_shadowing_name("BufReader"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_path_types() {
+        // Path types should be detected
+        assert!(is_stdlib_shadowing_name("Path"));
+        assert!(is_stdlib_shadowing_name("PathBuf"));
+        assert!(is_stdlib_shadowing_name("OsStr"));
+        assert!(is_stdlib_shadowing_name("OsString"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_non_shadowing() {
+        // Custom names should NOT be detected as shadowing
+        assert!(!is_stdlib_shadowing_name("MyStruct"));
+        assert!(!is_stdlib_shadowing_name("Calculator"));
+        assert!(!is_stdlib_shadowing_name("UserData"));
+        assert!(!is_stdlib_shadowing_name("Point"));
+        assert!(!is_stdlib_shadowing_name("Rectangle"));
+        assert!(!is_stdlib_shadowing_name("custom_name"));
+    }
+
+    // ============ is_pure_expression_direct tests ============
+
+    #[test]
+    fn test_is_pure_expression_direct_literal() {
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Int(42))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::String("hello".to_string()))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Bool(true))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Float(3.14))));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_var() {
+        assert!(is_pure_expression_direct(&HirExpr::Var("x".to_string())));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_list_not_pure() {
+        // List construction is considered not pure in this implementation
+        let list = HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]);
+        assert!(!is_pure_expression_direct(&list));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_dict_not_pure() {
+        // Dict construction is considered not pure in this implementation
+        let dict = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]);
+        assert!(!is_pure_expression_direct(&dict));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_binary() {
+        let binary = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(is_pure_expression_direct(&binary));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_call_not_pure() {
+        // Function calls are not pure
+        let call = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression_direct(&call));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_method_call_not_pure() {
+        // Method calls are not pure
+        let method = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("x".to_string())),
+            method: "append".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression_direct(&method));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_tuple() {
+        let tuple = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        assert!(is_pure_expression_direct(&tuple));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_index() {
+        let index = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(is_pure_expression_direct(&index));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_attribute() {
+        let attr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        assert!(is_pure_expression_direct(&attr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_unary() {
+        let unary = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        assert!(is_pure_expression_direct(&unary));
+    }
+
+    #[test]
+    fn test_is_pure_expression_direct_none_literal() {
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::None)));
+    }
+
+    // ============ Additional time/duration type tests ============
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_time_types() {
+        assert!(is_stdlib_shadowing_name("Duration"));
+        assert!(is_stdlib_shadowing_name("Instant"));
+        assert!(is_stdlib_shadowing_name("SystemTime"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_range_types() {
+        assert!(is_stdlib_shadowing_name("Range"));
+        assert!(is_stdlib_shadowing_name("RangeInclusive"));
+        assert!(is_stdlib_shadowing_name("Bound"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_cow_types() {
+        assert!(is_stdlib_shadowing_name("Cow"));
+        assert!(is_stdlib_shadowing_name("Borrow"));
+        assert!(is_stdlib_shadowing_name("ToOwned"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_name_error_type() {
+        assert!(is_stdlib_shadowing_name("Error"));
+    }
+
+    // Tests for extract_nested_indices
+    #[test]
+    fn test_extract_nested_indices_single() {
+        let type_mapper = create_test_type_mapper();
+        let inner = HirExpr::Var("arr".to_string());
+        let expr = HirExpr::Index {
+            base: Box::new(inner),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        let (base, indices) = extract_nested_indices(&expr, &type_mapper).unwrap();
+        assert!(matches!(base, syn::Expr::Path(_)));
+        assert_eq!(indices.len(), 1);
+    }
+
+    #[test]
+    fn test_extract_nested_indices_nested() {
+        let type_mapper = create_test_type_mapper();
+        // matrix[0][1]
+        let inner1 = HirExpr::Index {
+            base: Box::new(HirExpr::Var("matrix".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        let expr = HirExpr::Index {
+            base: Box::new(inner1),
+            index: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        let (base, indices) = extract_nested_indices(&expr, &type_mapper).unwrap();
+        assert!(matches!(base, syn::Expr::Path(_)));
+        assert_eq!(indices.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_nested_indices_no_index() {
+        let type_mapper = create_test_type_mapper();
+        let expr = HirExpr::Var("x".to_string());
+        let (base, indices) = extract_nested_indices(&expr, &type_mapper).unwrap();
+        assert!(matches!(base, syn::Expr::Path(_)));
+        assert!(indices.is_empty());
+    }
+
+    // Tests for resolve_union_enum_to_syn
+    #[test]
+    fn test_resolve_union_enum_option_int() {
+        let variants = vec![
+            ("int".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::I64)),
+            ("None".to_string(), RustType::Unit),
+        ];
+        let result = resolve_union_enum_to_syn(&variants);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("Option"));
+        assert!(result_str.contains("i64"));
+    }
+
+    #[test]
+    fn test_resolve_union_enum_option_float() {
+        let variants = vec![
+            ("float".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::F64)),
+            ("None".to_string(), RustType::Unit),
+        ];
+        let result = resolve_union_enum_to_syn(&variants);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("Option"));
+        assert!(result_str.contains("f64"));
+    }
+
+    #[test]
+    fn test_resolve_union_enum_option_string() {
+        let variants = vec![
+            ("str".to_string(), RustType::String),
+            ("None".to_string(), RustType::Unit),
+        ];
+        let result = resolve_union_enum_to_syn(&variants);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("Option"));
+        assert!(result_str.contains("String"));
+    }
+
+    #[test]
+    fn test_resolve_union_enum_only_none() {
+        let variants = vec![("None".to_string(), RustType::Unit)];
+        let result = resolve_union_enum_to_syn(&variants);
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "()");
+    }
+
+    #[test]
+    fn test_resolve_union_enum_all_numeric() {
+        let variants = vec![
+            ("int".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::I64)),
+            ("float".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::F64)),
+        ];
+        let result = resolve_union_enum_to_syn(&variants);
+        let result_str = quote::quote!(#result).to_string();
+        // When int and float are both present, should resolve to f64
+        assert_eq!(result_str, "f64");
+    }
+
+    #[test]
+    fn test_resolve_union_enum_fallback() {
+        let variants = vec![
+            ("Foo".to_string(), RustType::Custom("Foo".to_string())),
+            ("Bar".to_string(), RustType::Custom("Bar".to_string())),
+        ];
+        let result = resolve_union_enum_to_syn(&variants);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("serde_json :: Value"));
+    }
+
+    // Tests for convert_simple_type
+    #[test]
+    fn test_convert_simple_type_unit() {
+        let result = convert_simple_type(&RustType::Unit).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "()");
+    }
+
+    #[test]
+    fn test_convert_simple_type_string() {
+        let result = convert_simple_type(&RustType::String).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "String");
+    }
+
+    #[test]
+    fn test_convert_simple_type_custom() {
+        let result = convert_simple_type(&RustType::Custom("MyType".to_string())).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "MyType");
+    }
+
+    #[test]
+    fn test_convert_simple_type_custom_shadowing() {
+        let result = convert_simple_type(&RustType::Custom("Vec".to_string())).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        // Should be renamed to avoid shadowing
+        assert_eq!(result_str, "PyVec");
+    }
+
+    #[test]
+    fn test_convert_simple_type_type_param() {
+        let result = convert_simple_type(&RustType::TypeParam("T".to_string())).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "T");
+    }
+
+    // Tests for convert_primitive_type
+    #[test]
+    fn test_convert_primitive_type_bool() {
+        use crate::type_mapper::PrimitiveType;
+        let result = convert_primitive_type(&PrimitiveType::Bool).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "bool");
+    }
+
+    #[test]
+    fn test_convert_primitive_type_i32() {
+        use crate::type_mapper::PrimitiveType;
+        let result = convert_primitive_type(&PrimitiveType::I32).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "i32");
+    }
+
+    #[test]
+    fn test_convert_primitive_type_i64() {
+        use crate::type_mapper::PrimitiveType;
+        let result = convert_primitive_type(&PrimitiveType::I64).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "i64");
+    }
+
+    #[test]
+    fn test_convert_primitive_type_f64() {
+        use crate::type_mapper::PrimitiveType;
+        let result = convert_primitive_type(&PrimitiveType::F64).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "f64");
+    }
+
+    #[test]
+    fn test_convert_primitive_type_usize() {
+        use crate::type_mapper::PrimitiveType;
+        let result = convert_primitive_type(&PrimitiveType::USize).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "usize");
+    }
+
+    // Tests for convert_lifetime_type
+    #[test]
+    fn test_convert_lifetime_type_str_no_lifetime() {
+        let result = convert_lifetime_type(&RustType::Str { lifetime: None }).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert_eq!(result_str, "& str");
+    }
+
+    #[test]
+    fn test_convert_lifetime_type_str_with_lifetime() {
+        let result = convert_lifetime_type(&RustType::Str {
+            lifetime: Some("a".to_string()),
+        })
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("'a"));
+        assert!(result_str.contains("str"));
+    }
+
+    #[test]
+    fn test_convert_lifetime_type_cow() {
+        let result = convert_lifetime_type(&RustType::Cow {
+            lifetime: "static".to_string(),
+        })
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("Cow"));
+        assert!(result_str.contains("'static"));
+    }
+
+    // Tests for convert_unsupported_type
+    #[test]
+    fn test_convert_unsupported_type() {
+        let result = convert_unsupported_type("complex").unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("UnsupportedType_complex"));
+    }
+
+    #[test]
+    fn test_convert_unsupported_type_with_space() {
+        let result = convert_unsupported_type("foo bar").unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("UnsupportedType_foo_bar"));
+    }
+
+    // Tests for convert_container_type
+    #[test]
+    fn test_convert_container_type_vec() {
+        let result =
+            convert_container_type(&RustType::Vec(Box::new(RustType::String))).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("Vec"));
+        assert!(result_str.contains("String"));
+    }
+
+    #[test]
+    fn test_convert_container_type_hashmap() {
+        let result = convert_container_type(&RustType::HashMap(
+            Box::new(RustType::String),
+            Box::new(RustType::Primitive(crate::type_mapper::PrimitiveType::I64)),
+        ))
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("HashMap"));
+        assert!(result_str.contains("String"));
+        assert!(result_str.contains("i64"));
+    }
+
+    #[test]
+    fn test_convert_container_type_option() {
+        let result =
+            convert_container_type(&RustType::Option(Box::new(RustType::String))).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("Option"));
+        assert!(result_str.contains("String"));
+    }
+
+    #[test]
+    fn test_convert_container_type_result() {
+        let result = convert_container_type(&RustType::Result(
+            Box::new(RustType::String),
+            Box::new(RustType::Custom("Error".to_string())),
+        ))
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("Result"));
+        assert!(result_str.contains("String"));
+    }
+
+    #[test]
+    fn test_convert_container_type_hashset() {
+        let result =
+            convert_container_type(&RustType::HashSet(Box::new(RustType::String))).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("HashSet"));
+        assert!(result_str.contains("String"));
+    }
+
+    // Tests for convert_complex_type
+    #[test]
+    fn test_convert_complex_type_tuple() {
+        let result = convert_complex_type(&RustType::Tuple(vec![
+            RustType::String,
+            RustType::Primitive(crate::type_mapper::PrimitiveType::I64),
+        ]))
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("String"));
+        assert!(result_str.contains("i64"));
+    }
+
+    #[test]
+    fn test_convert_complex_type_generic() {
+        let result = convert_complex_type(&RustType::Generic {
+            base: "Box".to_string(),
+            params: vec![RustType::String],
+        })
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("Box"));
+        assert!(result_str.contains("String"));
+    }
+
+    #[test]
+    fn test_convert_complex_type_reference_immut() {
+        let result = convert_complex_type(&RustType::Reference {
+            inner: Box::new(RustType::String),
+            mutable: false,
+            lifetime: None,
+        })
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("& String"));
+    }
+
+    #[test]
+    fn test_convert_complex_type_reference_mut() {
+        let result = convert_complex_type(&RustType::Reference {
+            inner: Box::new(RustType::String),
+            mutable: true,
+            lifetime: None,
+        })
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("& mut String"));
+    }
+
+    // Tests for convert_array_type
+    #[test]
+    fn test_convert_array_type_literal_size() {
+        use crate::type_mapper::RustConstGeneric;
+        let result = convert_array_type(&RustType::Array {
+            element_type: Box::new(RustType::Primitive(crate::type_mapper::PrimitiveType::I32)),
+            size: RustConstGeneric::Literal(10),
+        })
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("i32"));
+        assert!(result_str.contains("10"));
+    }
+
+    #[test]
+    fn test_convert_array_type_parameter_size() {
+        use crate::type_mapper::RustConstGeneric;
+        let result = convert_array_type(&RustType::Array {
+            element_type: Box::new(RustType::Primitive(crate::type_mapper::PrimitiveType::U8)),
+            size: RustConstGeneric::Parameter("N".to_string()),
+        })
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("u8"));
+        assert!(result_str.contains("N"));
+    }
+
+    #[test]
+    fn test_convert_array_type_expression_size() {
+        use crate::type_mapper::RustConstGeneric;
+        let result = convert_array_type(&RustType::Array {
+            element_type: Box::new(RustType::String),
+            size: RustConstGeneric::Expression("N * 2".to_string()),
+        })
+        .unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("String"));
+        assert!(result_str.contains("N") && result_str.contains("2"));
+    }
+
+    // Tests for find_mutable_vars_in_body
+    #[test]
+    fn test_find_mutable_vars_empty() {
+        let stmts: Vec<HirStmt> = vec![];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_find_mutable_vars_single_assign() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: Some(Type::Int),
+        }];
+        let result = find_mutable_vars_in_body(&stmts);
+        // First assignment - not mutable yet
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_find_mutable_vars_reassign() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: Some(Type::Int),
+            },
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(2)),
+                type_annotation: Some(Type::Int),
+            },
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("x"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_attr_assign() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("obj".to_string()),
+                value: HirExpr::Var("something".to_string()),
+                type_annotation: None,
+            },
+            HirStmt::Assign {
+                target: AssignTarget::Attribute {
+                    value: Box::new(HirExpr::Var("obj".to_string())),
+                    attr: "field".to_string(),
+                },
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: Some(Type::Int),
+            },
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("obj"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_index_assign() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("arr".to_string()),
+                value: HirExpr::List(vec![]),
+                type_annotation: Some(Type::List(Box::new(Type::Int))),
+            },
+            HirStmt::Assign {
+                target: AssignTarget::Index {
+                    base: Box::new(HirExpr::Var("arr".to_string())),
+                    index: Box::new(HirExpr::Literal(Literal::Int(0))),
+                },
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: Some(Type::Int),
+            },
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("arr"));
+    }
 }

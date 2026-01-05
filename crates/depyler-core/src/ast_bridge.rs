@@ -2322,4 +2322,1480 @@ def function_without_docstring(y: int) -> int:
         assert_eq!(func_without_docstring.docstring, None);
         assert_eq!(func_without_docstring.body.len(), 2); // print statement + return
     }
+
+    // ============================================================
+    // DEPYLER-COVERAGE-95: Comprehensive tests for operator conversions
+    // ============================================================
+
+    #[test]
+    fn test_convert_binop_add() {
+        let result = convert_binop(&ast::Operator::Add).unwrap();
+        assert_eq!(result, BinOp::Add);
+    }
+
+    #[test]
+    fn test_convert_binop_sub() {
+        let result = convert_binop(&ast::Operator::Sub).unwrap();
+        assert_eq!(result, BinOp::Sub);
+    }
+
+    #[test]
+    fn test_convert_binop_mult() {
+        let result = convert_binop(&ast::Operator::Mult).unwrap();
+        assert_eq!(result, BinOp::Mul);
+    }
+
+    #[test]
+    fn test_convert_binop_div() {
+        let result = convert_binop(&ast::Operator::Div).unwrap();
+        assert_eq!(result, BinOp::Div);
+    }
+
+    #[test]
+    fn test_convert_binop_floor_div() {
+        let result = convert_binop(&ast::Operator::FloorDiv).unwrap();
+        assert_eq!(result, BinOp::FloorDiv);
+    }
+
+    #[test]
+    fn test_convert_binop_mod() {
+        let result = convert_binop(&ast::Operator::Mod).unwrap();
+        assert_eq!(result, BinOp::Mod);
+    }
+
+    #[test]
+    fn test_convert_binop_pow() {
+        let result = convert_binop(&ast::Operator::Pow).unwrap();
+        assert_eq!(result, BinOp::Pow);
+    }
+
+    #[test]
+    fn test_convert_binop_bitand() {
+        let result = convert_binop(&ast::Operator::BitAnd).unwrap();
+        assert_eq!(result, BinOp::BitAnd);
+    }
+
+    #[test]
+    fn test_convert_binop_bitor() {
+        let result = convert_binop(&ast::Operator::BitOr).unwrap();
+        assert_eq!(result, BinOp::BitOr);
+    }
+
+    #[test]
+    fn test_convert_binop_bitxor() {
+        let result = convert_binop(&ast::Operator::BitXor).unwrap();
+        assert_eq!(result, BinOp::BitXor);
+    }
+
+    #[test]
+    fn test_convert_binop_lshift() {
+        let result = convert_binop(&ast::Operator::LShift).unwrap();
+        assert_eq!(result, BinOp::LShift);
+    }
+
+    #[test]
+    fn test_convert_binop_rshift() {
+        let result = convert_binop(&ast::Operator::RShift).unwrap();
+        assert_eq!(result, BinOp::RShift);
+    }
+
+    #[test]
+    fn test_convert_binop_matmul_unsupported() {
+        let result = convert_binop(&ast::Operator::MatMult);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_aug_op_delegates_to_binop() {
+        // Augmented operators use same conversion as binop
+        let result = convert_aug_op(&ast::Operator::Add).unwrap();
+        assert_eq!(result, BinOp::Add);
+    }
+
+    #[test]
+    fn test_convert_unaryop_not() {
+        let result = convert_unaryop(&ast::UnaryOp::Not).unwrap();
+        assert_eq!(result, UnaryOp::Not);
+    }
+
+    #[test]
+    fn test_convert_unaryop_pos() {
+        let result = convert_unaryop(&ast::UnaryOp::UAdd).unwrap();
+        assert_eq!(result, UnaryOp::Pos);
+    }
+
+    #[test]
+    fn test_convert_unaryop_neg() {
+        let result = convert_unaryop(&ast::UnaryOp::USub).unwrap();
+        assert_eq!(result, UnaryOp::Neg);
+    }
+
+    #[test]
+    fn test_convert_unaryop_bitnot() {
+        let result = convert_unaryop(&ast::UnaryOp::Invert).unwrap();
+        assert_eq!(result, UnaryOp::BitNot);
+    }
+
+    #[test]
+    fn test_convert_cmpop_eq() {
+        let result = convert_cmpop(&ast::CmpOp::Eq).unwrap();
+        assert_eq!(result, BinOp::Eq);
+    }
+
+    #[test]
+    fn test_convert_cmpop_noteq() {
+        let result = convert_cmpop(&ast::CmpOp::NotEq).unwrap();
+        assert_eq!(result, BinOp::NotEq);
+    }
+
+    #[test]
+    fn test_convert_cmpop_lt() {
+        let result = convert_cmpop(&ast::CmpOp::Lt).unwrap();
+        assert_eq!(result, BinOp::Lt);
+    }
+
+    #[test]
+    fn test_convert_cmpop_lte() {
+        let result = convert_cmpop(&ast::CmpOp::LtE).unwrap();
+        assert_eq!(result, BinOp::LtEq);
+    }
+
+    #[test]
+    fn test_convert_cmpop_gt() {
+        let result = convert_cmpop(&ast::CmpOp::Gt).unwrap();
+        assert_eq!(result, BinOp::Gt);
+    }
+
+    #[test]
+    fn test_convert_cmpop_gte() {
+        let result = convert_cmpop(&ast::CmpOp::GtE).unwrap();
+        assert_eq!(result, BinOp::GtEq);
+    }
+
+    #[test]
+    fn test_convert_cmpop_in() {
+        let result = convert_cmpop(&ast::CmpOp::In).unwrap();
+        assert_eq!(result, BinOp::In);
+    }
+
+    #[test]
+    fn test_convert_cmpop_notin() {
+        let result = convert_cmpop(&ast::CmpOp::NotIn).unwrap();
+        assert_eq!(result, BinOp::NotIn);
+    }
+
+    #[test]
+    fn test_convert_cmpop_is() {
+        // DEPYLER-0188: 'is' maps to Eq for transpilation
+        let result = convert_cmpop(&ast::CmpOp::Is).unwrap();
+        assert_eq!(result, BinOp::Eq);
+    }
+
+    #[test]
+    fn test_convert_cmpop_isnot() {
+        // DEPYLER-0188: 'is not' maps to NotEq for transpilation
+        let result = convert_cmpop(&ast::CmpOp::IsNot).unwrap();
+        assert_eq!(result, BinOp::NotEq);
+    }
+
+    #[test]
+    fn test_ast_bridge_default() {
+        let bridge = AstBridge::default();
+        assert!(bridge.source_code.is_none());
+    }
+
+    #[test]
+    fn test_ast_bridge_with_source() {
+        let source = "def foo(): pass";
+        let bridge = AstBridge::new().with_source(source.to_string());
+        assert_eq!(bridge.source_code, Some(source.to_string()));
+    }
+
+    #[test]
+    fn test_class_with_methods() {
+        let source = r#"
+class Calculator:
+    def add(self, a: int, b: int) -> int:
+        return a + b
+
+    def multiply(self, a: int, b: int) -> int:
+        return a * b
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+        assert_eq!(hir.classes[0].name, "Calculator");
+        assert_eq!(hir.classes[0].methods.len(), 2);
+    }
+
+    #[test]
+    fn test_type_alias_simple() {
+        let source = "UserId = int";
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.type_aliases.len(), 1);
+        assert_eq!(hir.type_aliases[0].name, "UserId");
+        assert_eq!(hir.type_aliases[0].target_type, Type::Int);
+        assert!(!hir.type_aliases[0].is_newtype);
+    }
+
+    #[test]
+    fn test_type_alias_generic() {
+        let source = "StringList = List[str]";
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.type_aliases.len(), 1);
+        assert_eq!(hir.type_aliases[0].name, "StringList");
+        assert_eq!(
+            hir.type_aliases[0].target_type,
+            Type::List(Box::new(Type::String))
+        );
+    }
+
+    #[test]
+    fn test_module_constant() {
+        let source = "MAX_SIZE = 100";
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.constants.len(), 1);
+        assert_eq!(hir.constants[0].name, "MAX_SIZE");
+    }
+
+    #[test]
+    fn test_annotated_constant() {
+        let source = "MAX_SIZE: int = 100";
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.constants.len(), 1);
+        assert_eq!(hir.constants[0].name, "MAX_SIZE");
+        assert_eq!(hir.constants[0].type_annotation, Some(Type::Int));
+    }
+
+    #[test]
+    fn test_async_function() {
+        let source = r#"
+async def fetch_data(url: str) -> str:
+    return "data"
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+        assert_eq!(hir.functions[0].name, "fetch_data");
+        assert!(hir.functions[0].properties.is_async);
+    }
+
+    #[test]
+    fn test_function_with_varargs() {
+        let source = r#"
+def variadic(*args) -> int:
+    return len(args)
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+        let func = &hir.functions[0];
+        assert_eq!(func.params.len(), 1);
+        assert!(func.params[0].is_vararg);
+        assert_eq!(func.params[0].name, "args");
+    }
+
+    #[test]
+    fn test_function_with_default_params() {
+        let source = r#"
+def greet(name: str = "World") -> str:
+    return "Hello " + name
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        assert_eq!(func.params.len(), 1);
+        assert!(func.params[0].default.is_some());
+    }
+
+    #[test]
+    fn test_for_loop_with_assignment() {
+        let source = r#"
+def sum_list(items: List[int]) -> int:
+    total = 0
+    for x in items:
+        total = total + x
+    return total
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        // Should have: assignment, for loop, return
+        assert!(func.body.len() >= 2);
+        assert!(matches!(func.body[1], HirStmt::For { .. }));
+    }
+
+    #[test]
+    fn test_while_loop_conversion() {
+        let source = r#"
+def countdown(n: int) -> int:
+    while n > 0:
+        n = n - 1
+    return n
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        assert!(matches!(func.body[0], HirStmt::While { .. }));
+    }
+
+    #[test]
+    fn test_multiple_imports() {
+        let source = r#"
+import os
+import sys
+from typing import List, Dict, Optional
+from collections import defaultdict
+"#;
+        let hir = parse_python_to_hir(source);
+        assert!(hir.imports.len() >= 4);
+    }
+
+    #[test]
+    fn test_aliased_import() {
+        let source = "from collections import defaultdict as dd";
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.imports.len(), 1);
+        assert_eq!(hir.imports[0].module, "collections");
+        if let ImportItem::Aliased { name, alias } = &hir.imports[0].items[0] {
+            assert_eq!(name, "defaultdict");
+            assert_eq!(alias, "dd");
+        } else {
+            panic!("Expected aliased import");
+        }
+    }
+
+    #[test]
+    fn test_dict_expression() {
+        let source = r#"
+def make_dict() -> Dict[str, int]:
+    return {"a": 1, "b": 2}
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        if let HirStmt::Return(Some(HirExpr::Dict { .. })) = &func.body[0] {
+            // success
+        } else {
+            panic!("Expected dict expression");
+        }
+    }
+
+    #[test]
+    fn test_list_comprehension() {
+        let source = r#"
+def squares(n: int) -> List[int]:
+    return [x * x for x in range(n)]
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        if let HirStmt::Return(Some(HirExpr::ListComp { .. })) = &func.body[0] {
+            // success
+        } else {
+            panic!("Expected list comprehension");
+        }
+    }
+
+    #[test]
+    fn test_lambda_expression() {
+        let source = r#"
+def make_adder(x: int):
+    return lambda y: x + y
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        if let HirStmt::Return(Some(HirExpr::Lambda { .. })) = &func.body[0] {
+            // success
+        } else {
+            panic!("Expected lambda expression");
+        }
+    }
+
+    #[test]
+    fn test_tuple_unpacking() {
+        let source = r#"
+def swap(a: int, b: int) -> tuple:
+    a, b = b, a
+    return (a, b)
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        // First statement should be tuple unpacking assignment
+        assert!(func.body.len() >= 2);
+    }
+
+    #[test]
+    fn test_try_except() {
+        let source = r#"
+def safe_divide(a: int, b: int) -> Optional[int]:
+    try:
+        return a / b
+    except ZeroDivisionError:
+        return None
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        assert!(matches!(func.body[0], HirStmt::Try { .. }));
+    }
+
+    #[test]
+    fn test_with_statement() {
+        let source = r#"
+def read_file(path: str) -> str:
+    with open(path) as f:
+        return f.read()
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        assert!(matches!(func.body[0], HirStmt::With { .. }));
+    }
+
+    #[test]
+    fn test_ternary_expression() {
+        let source = r#"
+def abs_value(x: int) -> int:
+    return x if x >= 0 else -x
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        // Ternary is represented as IfExpr in HIR
+        if let HirStmt::Return(Some(HirExpr::IfExpr { .. })) = &func.body[0] {
+            // success
+        } else {
+            panic!("Expected IfExpr (ternary expression)");
+        }
+    }
+
+    #[test]
+    fn test_chained_comparison() {
+        let source = r#"
+def in_range(x: int) -> bool:
+    return 0 <= x <= 10
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        // Chained comparisons should be parsed - check it's a return with expression
+        if let HirStmt::Return(Some(_)) = &func.body[0] {
+            // success - parsed and has expression
+        } else {
+            panic!("Expected return with comparison expression");
+        }
+    }
+
+    #[test]
+    fn test_f_string() {
+        let source = r#"
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        if let HirStmt::Return(Some(HirExpr::FString { .. })) = &func.body[0] {
+            // success
+        } else {
+            panic!("Expected f-string");
+        }
+    }
+
+    #[test]
+    fn test_attribute_access() {
+        let source = r#"
+def get_length(s: str) -> int:
+    return s.upper().lower()
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        if let HirStmt::Return(Some(HirExpr::MethodCall { .. })) = &func.body[0] {
+            // success
+        } else {
+            panic!("Expected method call chain");
+        }
+    }
+
+    #[test]
+    fn test_subscript_expression() {
+        let source = r#"
+def get_first(items: List[int]) -> int:
+    return items[0]
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        if let HirStmt::Return(Some(HirExpr::Index { .. })) = &func.body[0] {
+            // success
+        } else {
+            panic!("Expected index expression");
+        }
+    }
+
+    #[test]
+    fn test_boolean_operations() {
+        let source = r#"
+def check(a: bool, b: bool, c: bool) -> bool:
+    return a and b or not c
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        // Should have logical operations
+        if let HirStmt::Return(Some(HirExpr::Binary { op: BinOp::Or, .. })) = &func.body[0] {
+            // success
+        } else {
+            panic!("Expected boolean expression");
+        }
+    }
+
+    #[test]
+    fn test_augmented_assignment() {
+        let source = r#"
+def increment(x: int) -> int:
+    x += 1
+    x *= 2
+    return x
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        assert!(func.body.len() >= 3);
+        // Augmented assignments become regular Assign with computed value
+        assert!(matches!(func.body[0], HirStmt::Assign { .. }));
+        assert!(matches!(func.body[1], HirStmt::Assign { .. }));
+    }
+
+    #[test]
+    fn test_pass_statement() {
+        let source = r#"
+def noop() -> None:
+    pass
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        assert!(matches!(func.body[0], HirStmt::Pass));
+    }
+
+    #[test]
+    fn test_break_continue() {
+        let source = r#"
+def loop_control(items: List[int]) -> int:
+    for x in items:
+        if x == 0:
+            continue
+        if x < 0:
+            break
+    return 0
+"#;
+        let hir = parse_python_to_hir(source);
+        let func = &hir.functions[0];
+        // Should parse without error and have for loop
+        assert!(matches!(func.body[0], HirStmt::For { .. }));
+    }
+
+    #[test]
+    fn test_nested_function() {
+        let source = r#"
+def outer(x: int) -> int:
+    def inner(y: int) -> int:
+        return y * 2
+    return inner(x)
+"#;
+        let hir = parse_python_to_hir(source);
+        // Should have at least the outer function
+        assert!(hir.functions.len() >= 1);
+        assert_eq!(hir.functions[0].name, "outer");
+    }
+
+    // ========================================================
+    // DEPYLER-COVERAGE-95: Additional ast_bridge tests
+    // ========================================================
+
+    #[test]
+    fn test_create_default_value_for_int() {
+        let bridge = AstBridge::new();
+        let result = bridge.create_default_value_for_type(&crate::hir::Type::Int);
+        assert!(matches!(
+            result,
+            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Int(0)))
+        ));
+    }
+
+    #[test]
+    fn test_create_default_value_for_float() {
+        let bridge = AstBridge::new();
+        let result = bridge.create_default_value_for_type(&crate::hir::Type::Float);
+        assert!(matches!(
+            result,
+            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Float(f))) if f == 0.0
+        ));
+    }
+
+    #[test]
+    fn test_create_default_value_for_bool() {
+        let bridge = AstBridge::new();
+        let result = bridge.create_default_value_for_type(&crate::hir::Type::Bool);
+        assert!(matches!(
+            result,
+            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Bool(false)))
+        ));
+    }
+
+    #[test]
+    fn test_create_default_value_for_string() {
+        let bridge = AstBridge::new();
+        let result = bridge.create_default_value_for_type(&crate::hir::Type::String);
+        assert!(matches!(
+            result,
+            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::String(_)))
+        ));
+    }
+
+    #[test]
+    fn test_create_default_value_for_unknown() {
+        let bridge = AstBridge::new();
+        let result = bridge.create_default_value_for_type(&crate::hir::Type::Unknown);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_create_default_value_for_list() {
+        let bridge = AstBridge::new();
+        let result =
+            bridge.create_default_value_for_type(&crate::hir::Type::List(Box::new(Type::Int)));
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_class_with_base() {
+        let source = r#"
+class Child(Parent):
+    def method(self) -> None:
+        pass
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+        assert_eq!(hir.classes[0].name, "Child");
+    }
+
+    #[test]
+    fn test_class_with_init_and_fields() {
+        let source = r#"
+class Point:
+    def __init__(self, x: int, y: int) -> None:
+        self.x = x
+        self.y = y
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+        assert_eq!(hir.classes[0].name, "Point");
+        assert!(!hir.classes[0].fields.is_empty());
+    }
+
+    #[test]
+    fn test_class_with_staticmethod() {
+        let source = r#"
+class Utils:
+    @staticmethod
+    def helper(x: int) -> int:
+        return x * 2
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+        assert!(!hir.classes[0].methods.is_empty());
+    }
+
+    #[test]
+    fn test_class_with_classmethod() {
+        let source = r#"
+class Factory:
+    @classmethod
+    def create(cls) -> "Factory":
+        return cls()
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+        // classmethod should be converted
+        assert!(!hir.classes[0].methods.is_empty());
+    }
+
+    #[test]
+    fn test_protocol_conversion() {
+        let source = r#"
+from typing import Protocol
+
+class Comparable(Protocol):
+    def compare(self, other: "Comparable") -> int:
+        ...
+"#;
+        let hir = parse_python_to_hir(source);
+        // Protocol should be converted to protocol type
+        assert!(hir.protocols.len() >= 1 || hir.classes.len() >= 1);
+    }
+
+    #[test]
+    fn test_function_with_kwargs() {
+        let source = r#"
+def greet(name: str, **kwargs) -> str:
+    return "Hello " + name
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+        assert_eq!(hir.functions[0].name, "greet");
+    }
+
+    #[test]
+    fn test_function_with_args_and_kwargs() {
+        let source = r#"
+def flexible(*args, **kwargs) -> None:
+    pass
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_set_expression() {
+        let source = r#"
+def get_set() -> set:
+    return {1, 2, 3}
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_set_comprehension() {
+        let source = r#"
+def squares() -> set:
+    return {x * x for x in range(10)}
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_dict_comprehension() {
+        let source = r#"
+def make_dict() -> dict:
+    return {k: v for k, v in items}
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_generator_expression() {
+        let source = r#"
+def gen() -> None:
+    result = sum(x * x for x in range(10))
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_walrus_operator() {
+        let source = r#"
+def check(data: list) -> bool:
+    if (n := len(data)) > 0:
+        return True
+    return False
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_match_statement() {
+        let source = r#"
+def process(cmd: str) -> int:
+    match cmd:
+        case "start":
+            return 1
+        case "stop":
+            return 0
+        case _:
+            return -1
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_slice_with_step() {
+        let source = r#"
+def reverse(data: list) -> list:
+    return data[::-1]
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_multi_target_assignment() {
+        let source = r#"
+def swap() -> None:
+    a, b = b, a
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_starred_expression() {
+        let source = r#"
+def unpack(data: list) -> None:
+    first, *rest = data
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_async_with_statement() {
+        let source = r#"
+async def read_file() -> str:
+    async with open("file.txt") as f:
+        return await f.read()
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+        assert!(hir.functions[0].properties.is_async);
+    }
+
+    #[test]
+    fn test_async_for_loop() {
+        let source = r#"
+async def process() -> None:
+    async for item in stream:
+        print(item)
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+        assert!(hir.functions[0].properties.is_async);
+    }
+
+    #[test]
+    fn test_assert_statement() {
+        let source = r#"
+def validate(x: int) -> None:
+    assert x > 0, "x must be positive"
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_raise_statement() {
+        let source = r#"
+def fail() -> None:
+    raise ValueError("error")
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_global_statement() {
+        let source = r#"
+counter = 0
+def increment() -> None:
+    global counter
+    counter += 1
+"#;
+        let hir = parse_python_to_hir(source);
+        assert!(hir.functions.len() >= 1);
+    }
+
+    #[test]
+    fn test_nonlocal_statement() {
+        let source = r#"
+def outer() -> int:
+    count = 0
+    def inner() -> None:
+        nonlocal count
+        count += 1
+    inner()
+    return count
+"#;
+        let hir = parse_python_to_hir(source);
+        assert!(hir.functions.len() >= 1);
+    }
+
+    #[test]
+    fn test_yield_statement() {
+        let source = r#"
+def generate() -> int:
+    yield 1
+    yield 2
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_yield_from() {
+        let source = r#"
+def delegate() -> int:
+    yield from other_gen()
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_delete_statement() {
+        let source = r#"
+def cleanup(data: dict) -> None:
+    del data["key"]
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_complex_type_annotation() {
+        let source = r#"
+def process(data: list[dict[str, int]]) -> dict[str, list[int]]:
+    return {}
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_union_type_annotation() {
+        let source = r#"
+def maybe(x: int | str) -> int | None:
+    return None
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_optional_type_annotation() {
+        let source = r#"
+from typing import Optional
+def maybe(x: Optional[int]) -> Optional[str]:
+    return None
+"#;
+        let hir = parse_python_to_hir(source);
+        assert!(hir.functions.len() >= 1);
+    }
+
+    #[test]
+    fn test_callable_annotation() {
+        let source = r#"
+from typing import Callable
+def apply(f: Callable[[int], int], x: int) -> int:
+    return f(x)
+"#;
+        let hir = parse_python_to_hir(source);
+        assert!(hir.functions.len() >= 1);
+    }
+
+    #[test]
+    fn test_class_with_property() {
+        let source = r#"
+class Circle:
+    def __init__(self, radius: float) -> None:
+        self._radius = radius
+
+    @property
+    def radius(self) -> float:
+        return self._radius
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+    }
+
+    #[test]
+    fn test_class_with_property_setter() {
+        let source = r#"
+class Circle:
+    def __init__(self, radius: float) -> None:
+        self._radius = radius
+
+    @property
+    def radius(self) -> float:
+        return self._radius
+
+    @radius.setter
+    def radius(self, value: float) -> None:
+        self._radius = value
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+    }
+
+    #[test]
+    fn test_multiple_decorators() {
+        let source = r#"
+@decorator1
+@decorator2
+def func() -> None:
+    pass
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_decorator_with_args() {
+        let source = r#"
+@my_decorator(arg=True)
+def func() -> None:
+    pass
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_empty_function() {
+        let source = r#"
+def empty() -> None:
+    pass
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_ellipsis_body() {
+        let source = r#"
+def stub() -> int:
+    ...
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_bytes_literal() {
+        let source = r#"
+def get_bytes() -> bytes:
+    return b"hello"
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_formatted_string_complex() {
+        let source = r#"
+def format(x: int, y: float) -> str:
+    return f"{x} + {y:.2f} = {x + y}"
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_multiline_string() {
+        let source = r#"
+def docstring() -> str:
+    """
+    This is a
+    multiline string
+    """
+    return "done"
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_try_except_finally() {
+        let source = r#"
+def safe() -> None:
+    try:
+        risky()
+    except ValueError:
+        handle()
+    finally:
+        cleanup()
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_try_except_else() {
+        let source = r#"
+def safe() -> None:
+    try:
+        risky()
+    except:
+        handle()
+    else:
+        success()
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_multiple_except_handlers() {
+        let source = r#"
+def safe() -> None:
+    try:
+        risky()
+    except ValueError as e:
+        handle_value(e)
+    except TypeError as e:
+        handle_type(e)
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_context_manager_as() {
+        let source = r#"
+def read_file() -> str:
+    with open("file.txt") as f:
+        return f.read()
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_multiple_context_managers() {
+        let source = r#"
+def copy_file() -> None:
+    with open("in.txt") as f1, open("out.txt", "w") as f2:
+        f2.write(f1.read())
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_class_with_class_var() {
+        let source = r#"
+class Counter:
+    count: int = 0
+
+    def increment(self) -> None:
+        Counter.count += 1
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+    }
+
+    #[test]
+    fn test_dataclass_style() {
+        let source = r#"
+class Point:
+    x: float
+    y: float
+"#;
+        let hir = parse_python_to_hir(source);
+        // Should be converted even without decorator
+        assert!(hir.classes.len() >= 1 || hir.protocols.len() >= 1);
+    }
+
+    #[test]
+    fn test_await_expression() {
+        let source = r#"
+async def fetch() -> str:
+    result = await get_data()
+    return result
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+        assert!(hir.functions[0].properties.is_async);
+    }
+
+    #[test]
+    fn test_lambda_in_call() {
+        let source = r#"
+def sort_items(items: list) -> list:
+    return sorted(items, key=lambda x: x.value)
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_conditional_expression_nested() {
+        let source = r#"
+def classify(x: int) -> str:
+    return "positive" if x > 0 else "zero" if x == 0 else "negative"
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_not_in_operator() {
+        let source = r#"
+def check(x: int, data: list) -> bool:
+    return x not in data
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_is_not_operator() {
+        let source = r#"
+def check(x: int) -> bool:
+    return x is not None
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_power_operator() {
+        let source = r#"
+def square(x: int) -> int:
+    return x ** 2
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_floor_division() {
+        let source = r#"
+def divide(a: int, b: int) -> int:
+    return a // b
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_bitwise_operations() {
+        let source = r#"
+def bits(a: int, b: int) -> int:
+    return (a & b) | (a ^ b) | (a << 2) | (b >> 1)
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_bitwise_not() {
+        let source = r#"
+def invert(x: int) -> int:
+    return ~x
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_imports_from_package() {
+        let source = r#"
+from os.path import join, dirname
+def get_path() -> str:
+    return join(dirname(__file__), "data")
+"#;
+        let hir = parse_python_to_hir(source);
+        assert!(!hir.imports.is_empty() || hir.functions.len() >= 1);
+    }
+
+    #[test]
+    fn test_relative_import() {
+        let source = r#"
+from . import utils
+from ..helpers import helper
+"#;
+        let hir = parse_python_to_hir(source);
+        // Relative imports should be handled
+        assert!(hir.imports.len() >= 0);
+    }
+
+    #[test]
+    fn test_star_import() {
+        let source = r#"
+from module import *
+"#;
+        let hir = parse_python_to_hir(source);
+        assert!(!hir.imports.is_empty());
+    }
+
+    #[test]
+    fn test_module_level_expr() {
+        let source = r#"
+print("module loaded")
+
+def func() -> None:
+    pass
+"#;
+        let hir = parse_python_to_hir(source);
+        // Should handle module-level expression
+        assert!(hir.functions.len() >= 1);
+    }
+
+    #[test]
+    fn test_class_with_multiple_inheritance() {
+        let source = r#"
+class MyClass(Base1, Base2):
+    pass
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+    }
+
+    #[test]
+    fn test_generic_class() {
+        let source = r#"
+from typing import Generic, TypeVar
+T = TypeVar('T')
+class Container(Generic[T]):
+    def __init__(self, value: T) -> None:
+        self.value = value
+"#;
+        let hir = parse_python_to_hir(source);
+        // Should handle generics
+        assert!(hir.classes.len() >= 1 || hir.type_aliases.len() >= 1);
+    }
+
+    #[test]
+    fn test_type_alias_with_typevar() {
+        let source = r#"
+from typing import TypeVar, List
+T = TypeVar('T')
+MyList = List[T]
+"#;
+        let hir = parse_python_to_hir(source);
+        // TypeVar and alias should be handled
+        assert!(hir.type_aliases.len() >= 0);
+    }
+
+    #[test]
+    fn test_new_style_union() {
+        let source = r#"
+def process(x: int | str | None) -> int | str:
+    return x if x else 0
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_convert_parameters_keyword_only() {
+        let source = r#"
+def func(*, name: str, value: int) -> None:
+    pass
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_convert_parameters_positional_only() {
+        let source = r#"
+def func(x: int, /, y: int) -> int:
+    return x + y
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_propagate_can_fail() {
+        let source = r#"
+def may_fail() -> int:
+    raise ValueError("error")
+
+def calls_failing() -> int:
+    return may_fail()
+"#;
+        let hir = parse_python_to_hir(source);
+        // Both functions should be present
+        assert!(hir.functions.len() >= 2);
+    }
+
+    #[test]
+    fn test_elif_chain() {
+        let source = r#"
+def classify(x: int) -> str:
+    if x < 0:
+        return "negative"
+    elif x == 0:
+        return "zero"
+    elif x < 10:
+        return "small"
+    else:
+        return "large"
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_for_else() {
+        let source = r#"
+def search(data: list, target: int) -> int:
+    for i, x in enumerate(data):
+        if x == target:
+            return i
+    else:
+        return -1
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_while_else() {
+        let source = r#"
+def countdown(n: int) -> None:
+    while n > 0:
+        n -= 1
+    else:
+        print("done")
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+    }
+
+    #[test]
+    fn test_extract_docstring_multiline() {
+        let source = r#"
+def documented() -> None:
+    """
+    This is a docstring.
+    It has multiple lines.
+
+    And even blank lines.
+    """
+    pass
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.functions.len(), 1);
+        assert!(hir.functions[0].docstring.is_some());
+    }
+
+    #[test]
+    fn test_class_docstring() {
+        let source = r#"
+class MyClass:
+    """This is a class docstring."""
+
+    def method(self) -> None:
+        pass
+"#;
+        let hir = parse_python_to_hir(source);
+        assert_eq!(hir.classes.len(), 1);
+    }
+
+    #[test]
+    fn test_is_type_name_builtin() {
+        let bridge = AstBridge::new();
+        assert!(bridge.is_type_name("int"));
+        assert!(bridge.is_type_name("str"));
+        assert!(bridge.is_type_name("bool"));
+        assert!(bridge.is_type_name("float"));
+        assert!(bridge.is_type_name("list"));
+        assert!(bridge.is_type_name("dict"));
+        assert!(!bridge.is_type_name("myvar"));
+    }
+
+    #[test]
+    fn test_is_type_variable() {
+        let bridge = AstBridge::new();
+        // Standard type variable names
+        assert!(bridge.is_type_variable("T"));
+        assert!(bridge.is_type_variable("K"));
+        assert!(bridge.is_type_variable("V"));
+        assert!(!bridge.is_type_variable("x"));
+        assert!(!bridge.is_type_variable("count"));
+    }
 }

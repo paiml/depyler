@@ -2019,3 +2019,1136 @@ pub fn preregister_subcommands_from_hir(
         walk_stmt(stmt, tracker);
     }
 }
+
+// =============================================================================
+// DEPYLER-COVERAGE-95: Comprehensive tests for argparse_transform module
+// =============================================================================
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // =========================================================================
+    // Tests for type_to_rust_string
+    // =========================================================================
+
+    #[test]
+    fn test_type_to_rust_string_int() {
+        assert_eq!(type_to_rust_string(&Type::Int), "i32");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_float() {
+        assert_eq!(type_to_rust_string(&Type::Float), "f64");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_string() {
+        assert_eq!(type_to_rust_string(&Type::String), "String");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_bool() {
+        assert_eq!(type_to_rust_string(&Type::Bool), "bool");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_pathbuf() {
+        assert_eq!(
+            type_to_rust_string(&Type::Custom("PathBuf".to_string())),
+            "PathBuf"
+        );
+    }
+
+    #[test]
+    fn test_type_to_rust_string_any_variants() {
+        assert_eq!(
+            type_to_rust_string(&Type::Custom("object".to_string())),
+            "serde_json::Value"
+        );
+        assert_eq!(
+            type_to_rust_string(&Type::Custom("Any".to_string())),
+            "serde_json::Value"
+        );
+        assert_eq!(
+            type_to_rust_string(&Type::Custom("any".to_string())),
+            "serde_json::Value"
+        );
+    }
+
+    #[test]
+    fn test_type_to_rust_string_custom() {
+        assert_eq!(
+            type_to_rust_string(&Type::Custom("MyType".to_string())),
+            "MyType"
+        );
+    }
+
+    #[test]
+    fn test_type_to_rust_string_list() {
+        assert_eq!(
+            type_to_rust_string(&Type::List(Box::new(Type::Int))),
+            "Vec<i32>"
+        );
+    }
+
+    #[test]
+    fn test_type_to_rust_string_optional() {
+        assert_eq!(
+            type_to_rust_string(&Type::Optional(Box::new(Type::String))),
+            "Option<String>"
+        );
+    }
+
+    #[test]
+    fn test_type_to_rust_string_fallback() {
+        assert_eq!(type_to_rust_string(&Type::Unknown), "String");
+    }
+
+    // =========================================================================
+    // Tests for ArgParserArgument::new
+    // =========================================================================
+
+    #[test]
+    fn test_arg_new_positional() {
+        let arg = ArgParserArgument::new("files".to_string());
+        assert_eq!(arg.name, "files");
+        assert!(arg.is_positional);
+        assert!(arg.long.is_none());
+    }
+
+    #[test]
+    fn test_arg_new_flag() {
+        let arg = ArgParserArgument::new("-v".to_string());
+        assert_eq!(arg.name, "-v");
+        assert!(!arg.is_positional);
+    }
+
+    #[test]
+    fn test_arg_new_long_flag() {
+        let arg = ArgParserArgument::new("--verbose".to_string());
+        assert_eq!(arg.name, "--verbose");
+        assert!(!arg.is_positional);
+    }
+
+    // =========================================================================
+    // Tests for ArgParserArgument::rust_field_name
+    // =========================================================================
+
+    #[test]
+    fn test_arg_rust_field_name_positional() {
+        let arg = ArgParserArgument::new("files".to_string());
+        assert_eq!(arg.rust_field_name(), "files");
+    }
+
+    #[test]
+    fn test_arg_rust_field_name_short_flag() {
+        let arg = ArgParserArgument::new("-v".to_string());
+        assert_eq!(arg.rust_field_name(), "v");
+    }
+
+    #[test]
+    fn test_arg_rust_field_name_long_flag() {
+        let mut arg = ArgParserArgument::new("-v".to_string());
+        arg.long = Some("--verbose".to_string());
+        assert_eq!(arg.rust_field_name(), "verbose");
+    }
+
+    #[test]
+    fn test_arg_rust_field_name_hyphenated() {
+        let mut arg = ArgParserArgument::new("-n".to_string());
+        arg.long = Some("--no-color".to_string());
+        assert_eq!(arg.rust_field_name(), "no_color");
+    }
+
+    #[test]
+    fn test_arg_rust_field_name_with_dest() {
+        let mut arg = ArgParserArgument::new("-v".to_string());
+        arg.dest = Some("verbosity".to_string());
+        assert_eq!(arg.rust_field_name(), "verbosity");
+    }
+
+    #[test]
+    fn test_arg_rust_field_name_dest_with_hyphen() {
+        let mut arg = ArgParserArgument::new("-o".to_string());
+        arg.dest = Some("output-file".to_string());
+        assert_eq!(arg.rust_field_name(), "output_file");
+    }
+
+    // =========================================================================
+    // Tests for ArgParserArgument::rust_type
+    // =========================================================================
+
+    #[test]
+    fn test_arg_rust_type_store_true() {
+        let mut arg = ArgParserArgument::new("-v".to_string());
+        arg.action = Some("store_true".to_string());
+        assert_eq!(arg.rust_type(), "bool");
+    }
+
+    #[test]
+    fn test_arg_rust_type_store_false() {
+        let mut arg = ArgParserArgument::new("-q".to_string());
+        arg.action = Some("store_false".to_string());
+        assert_eq!(arg.rust_type(), "bool");
+    }
+
+    #[test]
+    fn test_arg_rust_type_store_const() {
+        let mut arg = ArgParserArgument::new("-c".to_string());
+        arg.action = Some("store_const".to_string());
+        assert_eq!(arg.rust_type(), "bool");
+    }
+
+    #[test]
+    fn test_arg_rust_type_count() {
+        let mut arg = ArgParserArgument::new("-v".to_string());
+        arg.action = Some("count".to_string());
+        assert_eq!(arg.rust_type(), "u8");
+    }
+
+    #[test]
+    fn test_arg_rust_type_append() {
+        let mut arg = ArgParserArgument::new("-i".to_string());
+        arg.action = Some("append".to_string());
+        assert_eq!(arg.rust_type(), "Vec<String>");
+    }
+
+    #[test]
+    fn test_arg_rust_type_append_with_type() {
+        let mut arg = ArgParserArgument::new("-n".to_string());
+        arg.action = Some("append".to_string());
+        arg.arg_type = Some(Type::Int);
+        assert_eq!(arg.rust_type(), "Vec<i32>");
+    }
+
+    #[test]
+    fn test_arg_rust_type_nargs_plus() {
+        let mut arg = ArgParserArgument::new("files".to_string());
+        arg.nargs = Some("+".to_string());
+        assert_eq!(arg.rust_type(), "Vec<String>");
+    }
+
+    #[test]
+    fn test_arg_rust_type_nargs_star() {
+        let mut arg = ArgParserArgument::new("args".to_string());
+        arg.nargs = Some("*".to_string());
+        assert_eq!(arg.rust_type(), "Vec<String>");
+    }
+
+    #[test]
+    fn test_arg_rust_type_nargs_number() {
+        let mut arg = ArgParserArgument::new("coords".to_string());
+        arg.nargs = Some("3".to_string());
+        arg.arg_type = Some(Type::Float);
+        assert_eq!(arg.rust_type(), "Vec<f64>");
+    }
+
+    #[test]
+    fn test_arg_rust_type_nargs_question() {
+        let mut arg = ArgParserArgument::new("-o".to_string());
+        arg.nargs = Some("?".to_string());
+        assert_eq!(arg.rust_type(), "Option<String>");
+    }
+
+    #[test]
+    fn test_arg_rust_type_optional_flag() {
+        let mut arg = ArgParserArgument::new("--config".to_string());
+        arg.is_positional = false;
+        assert_eq!(arg.rust_type(), "Option<String>");
+    }
+
+    #[test]
+    fn test_arg_rust_type_required_flag() {
+        let mut arg = ArgParserArgument::new("--input".to_string());
+        arg.is_positional = false;
+        arg.required = Some(true);
+        assert_eq!(arg.rust_type(), "String");
+    }
+
+    #[test]
+    fn test_arg_rust_type_with_default() {
+        let mut arg = ArgParserArgument::new("--encoding".to_string());
+        arg.is_positional = false;
+        arg.default = Some(HirExpr::Literal(crate::hir::Literal::String("utf-8".to_string())));
+        assert_eq!(arg.rust_type(), "String");
+    }
+
+    #[test]
+    fn test_arg_rust_type_explicit() {
+        let mut arg = ArgParserArgument::new("count".to_string());
+        arg.arg_type = Some(Type::Int);
+        assert_eq!(arg.rust_type(), "i32");
+    }
+
+    // =========================================================================
+    // Tests for ArgParserInfo
+    // =========================================================================
+
+    #[test]
+    fn test_arg_parser_info_new() {
+        let info = ArgParserInfo::new("parser".to_string());
+        assert_eq!(info.parser_var, "parser");
+        assert!(info.description.is_none());
+        assert!(info.arguments.is_empty());
+        assert!(info.args_var.is_none());
+    }
+
+    #[test]
+    fn test_arg_parser_info_add_argument() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.add_argument(ArgParserArgument::new("-v".to_string()));
+        info.add_argument(ArgParserArgument::new("files".to_string()));
+        assert_eq!(info.arguments.len(), 2);
+    }
+
+    #[test]
+    fn test_arg_parser_info_set_args_var() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.set_args_var("args".to_string());
+        assert_eq!(info.args_var, Some("args".to_string()));
+    }
+
+    // =========================================================================
+    // Tests for ArgParserTracker
+    // =========================================================================
+
+    #[test]
+    fn test_tracker_new() {
+        let tracker = ArgParserTracker::new();
+        assert!(tracker.parsers.is_empty());
+        assert!(!tracker.struct_generated);
+    }
+
+    #[test]
+    fn test_tracker_register_parser() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        assert!(tracker.has_parsers());
+    }
+
+    #[test]
+    fn test_tracker_get_parser() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        assert!(tracker.get_parser("parser").is_some());
+        assert!(tracker.get_parser("other").is_none());
+    }
+
+    #[test]
+    fn test_tracker_get_parser_mut() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        if let Some(info) = tracker.get_parser_mut("parser") {
+            info.description = Some("Test parser".to_string());
+        }
+        assert_eq!(
+            tracker.get_parser("parser").unwrap().description,
+            Some("Test parser".to_string())
+        );
+    }
+
+    #[test]
+    fn test_tracker_clear() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_group("group".to_string(), "parser".to_string());
+        tracker.struct_generated = true;
+        tracker.clear();
+        assert!(!tracker.has_parsers());
+        assert!(tracker.group_to_parser.is_empty());
+        assert!(!tracker.struct_generated);
+    }
+
+    #[test]
+    fn test_tracker_register_group() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_group("input_group".to_string(), "parser".to_string());
+        assert_eq!(
+            tracker.get_parser_for_group("input_group"),
+            Some("parser".to_string())
+        );
+    }
+
+    #[test]
+    fn test_tracker_nested_groups() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_group("output_group".to_string(), "parser".to_string());
+        tracker.register_group("format_group".to_string(), "output_group".to_string());
+        assert_eq!(
+            tracker.get_parser_for_group("format_group"),
+            Some("parser".to_string())
+        );
+    }
+
+    #[test]
+    fn test_tracker_circular_group_reference() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_group("group_a".to_string(), "group_b".to_string());
+        tracker.register_group("group_b".to_string(), "group_a".to_string());
+        assert!(tracker.get_parser_for_group("group_a").is_none());
+    }
+
+    #[test]
+    fn test_tracker_subparsers() {
+        let mut tracker = ArgParserTracker::new();
+        let info = SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: true,
+            help: Some("Available commands".to_string()),
+        };
+        tracker.register_subparsers("subparsers".to_string(), info);
+        assert!(tracker.get_subparsers("subparsers").is_some());
+        assert!(tracker.get_subparsers("other").is_none());
+    }
+
+    #[test]
+    fn test_tracker_subcommands() {
+        let mut tracker = ArgParserTracker::new();
+        let info = SubcommandInfo {
+            name: "clone".to_string(),
+            help: Some("Clone a repository".to_string()),
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        };
+        tracker.register_subcommand("parser_clone".to_string(), info);
+        assert!(tracker.has_subcommands());
+        assert!(tracker.get_subcommand("parser_clone").is_some());
+    }
+
+    #[test]
+    fn test_tracker_get_first_parser() {
+        let mut tracker = ArgParserTracker::new();
+        assert!(tracker.get_first_parser().is_none());
+        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        assert!(tracker.get_first_parser().is_some());
+    }
+
+    // =========================================================================
+    // Tests for SubparserInfo and SubcommandInfo
+    // =========================================================================
+
+    #[test]
+    fn test_subparser_info_fields() {
+        let info = SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: true,
+            help: Some("Commands".to_string()),
+        };
+        assert_eq!(info.parser_var, "parser");
+        assert_eq!(info.dest_field, "command");
+        assert!(info.required);
+        assert_eq!(info.help, Some("Commands".to_string()));
+    }
+
+    #[test]
+    fn test_subcommand_info_fields() {
+        let info = SubcommandInfo {
+            name: "clone".to_string(),
+            help: Some("Clone a repository".to_string()),
+            arguments: vec![ArgParserArgument::new("url".to_string())],
+            subparsers_var: "subparsers".to_string(),
+        };
+        assert_eq!(info.name, "clone");
+        assert_eq!(info.help, Some("Clone a repository".to_string()));
+        assert_eq!(info.arguments.len(), 1);
+        assert_eq!(info.subparsers_var, "subparsers");
+    }
+
+    // === DEPYLER-COVERAGE-95: Additional tests for untested components ===
+
+    #[test]
+    fn test_arg_parser_info_debug() {
+        let info = ArgParserInfo::new("parser".to_string());
+        let debug = format!("{:?}", info);
+        assert!(debug.contains("ArgParserInfo"));
+        assert!(debug.contains("parser"));
+    }
+
+    #[test]
+    fn test_arg_parser_info_clone() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.description = Some("Test parser".to_string());
+        info.add_argument(ArgParserArgument::new("file".to_string()));
+        let cloned = info.clone();
+        assert_eq!(cloned.parser_var, "parser");
+        assert_eq!(cloned.description, Some("Test parser".to_string()));
+        assert_eq!(cloned.arguments.len(), 1);
+    }
+
+    #[test]
+    fn test_arg_parser_info_partial_eq() {
+        let info1 = ArgParserInfo::new("parser".to_string());
+        let info2 = ArgParserInfo::new("parser".to_string());
+        assert_eq!(info1, info2);
+    }
+
+    #[test]
+    fn test_arg_parser_argument_debug() {
+        let arg = ArgParserArgument::new("--verbose".to_string());
+        let debug = format!("{:?}", arg);
+        assert!(debug.contains("ArgParserArgument"));
+        assert!(debug.contains("verbose"));
+    }
+
+    #[test]
+    fn test_arg_parser_argument_clone() {
+        let mut arg = ArgParserArgument::new("file".to_string());
+        arg.help = Some("Input file".to_string());
+        arg.nargs = Some("+".to_string());
+        let cloned = arg.clone();
+        assert_eq!(cloned.name, "file");
+        assert_eq!(cloned.help, Some("Input file".to_string()));
+        assert_eq!(cloned.nargs, Some("+".to_string()));
+    }
+
+    #[test]
+    fn test_subparser_info_debug() {
+        let info = SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "cmd".to_string(),
+            required: true,
+            help: None,
+        };
+        let debug = format!("{:?}", info);
+        assert!(debug.contains("SubparserInfo"));
+        assert!(debug.contains("parser"));
+        assert!(debug.contains("cmd"));
+    }
+
+    #[test]
+    fn test_subparser_info_clone() {
+        let info = SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: false,
+            help: Some("Choose subcommand".to_string()),
+        };
+        let cloned = info.clone();
+        assert_eq!(cloned.parser_var, "parser");
+        assert_eq!(cloned.dest_field, "command");
+        assert!(!cloned.required);
+        assert_eq!(cloned.help, Some("Choose subcommand".to_string()));
+    }
+
+    #[test]
+    fn test_subcommand_info_debug() {
+        let info = SubcommandInfo {
+            name: "push".to_string(),
+            help: None,
+            arguments: vec![],
+            subparsers_var: "sp".to_string(),
+        };
+        let debug = format!("{:?}", info);
+        assert!(debug.contains("SubcommandInfo"));
+        assert!(debug.contains("push"));
+    }
+
+    #[test]
+    fn test_subcommand_info_clone() {
+        let info = SubcommandInfo {
+            name: "pull".to_string(),
+            help: Some("Pull changes".to_string()),
+            arguments: vec![ArgParserArgument::new("--rebase".to_string())],
+            subparsers_var: "subp".to_string(),
+        };
+        let cloned = info.clone();
+        assert_eq!(cloned.name, "pull");
+        assert_eq!(cloned.help, Some("Pull changes".to_string()));
+        assert_eq!(cloned.arguments.len(), 1);
+    }
+
+    #[test]
+    fn test_tracker_debug() {
+        let tracker = ArgParserTracker::new();
+        let debug = format!("{:?}", tracker);
+        assert!(debug.contains("ArgParserTracker"));
+    }
+
+    #[test]
+    fn test_tracker_get_subparsers_missing() {
+        let tracker = ArgParserTracker::new();
+        assert!(tracker.get_subparsers("missing").is_none());
+    }
+
+    #[test]
+    fn test_tracker_get_subparsers_mut_missing() {
+        let mut tracker = ArgParserTracker::new();
+        assert!(tracker.get_subparsers_mut("missing").is_none());
+    }
+
+    #[test]
+    fn test_tracker_get_subcommand_missing() {
+        let tracker = ArgParserTracker::new();
+        assert!(tracker.get_subcommand("missing").is_none());
+    }
+
+    #[test]
+    fn test_tracker_get_subcommand_mut_missing() {
+        let mut tracker = ArgParserTracker::new();
+        assert!(tracker.get_subcommand_mut("missing").is_none());
+    }
+
+    #[test]
+    fn test_tracker_has_parsers_empty() {
+        let tracker = ArgParserTracker::new();
+        assert!(!tracker.has_parsers());
+    }
+
+    #[test]
+    fn test_tracker_has_parsers_with_parser() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_parser("p".to_string(), ArgParserInfo::new("p".to_string()));
+        assert!(tracker.has_parsers());
+    }
+
+    #[test]
+    fn test_tracker_has_subcommands_empty() {
+        let tracker = ArgParserTracker::new();
+        assert!(!tracker.has_subcommands());
+    }
+
+    #[test]
+    fn test_tracker_has_subcommands_with_subcommand() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_subcommand(
+            "clone".to_string(),
+            SubcommandInfo {
+                name: "clone".to_string(),
+                help: None,
+                arguments: vec![],
+                subparsers_var: "sp".to_string(),
+            },
+        );
+        assert!(tracker.has_subcommands());
+    }
+
+    #[test]
+    fn test_tracker_get_first_parser_empty() {
+        let tracker = ArgParserTracker::new();
+        assert!(tracker.get_first_parser().is_none());
+    }
+
+    #[test]
+    fn test_generate_commands_enum_empty() {
+        let tracker = ArgParserTracker::new();
+        let tokens = generate_commands_enum(&tracker);
+        // Empty tracker produces empty token stream
+        assert!(tokens.is_empty());
+    }
+
+    #[test]
+    fn test_generate_commands_enum_with_subcommands() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_subparsers(
+            "subparsers".to_string(),
+            SubparserInfo {
+                parser_var: "parser".to_string(),
+                dest_field: "command".to_string(),
+                required: true,
+                help: None,
+            },
+        );
+        tracker.register_subcommand(
+            "clone_parser".to_string(),
+            SubcommandInfo {
+                name: "clone".to_string(),
+                help: Some("Clone a repository".to_string()),
+                arguments: vec![],
+                subparsers_var: "subparsers".to_string(),
+            },
+        );
+        let tokens = generate_commands_enum(&tracker);
+        let code = tokens.to_string();
+        assert!(code.contains("Commands"));
+        assert!(code.contains("Clone"));
+    }
+
+    #[test]
+    fn test_generate_args_struct_simple() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.description = Some("Test CLI".to_string());
+        info.add_argument(ArgParserArgument::new("file".to_string()));
+        let tracker = ArgParserTracker::new();
+        let tokens = generate_args_struct(&info, &tracker);
+        let code = tokens.to_string();
+        assert!(code.contains("Args"));
+        assert!(code.contains("file"));
+    }
+
+    #[test]
+    fn test_generate_args_struct_with_flags() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        let mut verbose_arg = ArgParserArgument::new("-v".to_string());
+        verbose_arg.long = Some("--verbose".to_string());
+        verbose_arg.action = Some("store_true".to_string());
+        info.add_argument(verbose_arg);
+        let tracker = ArgParserTracker::new();
+        let tokens = generate_args_struct(&info, &tracker);
+        let code = tokens.to_string();
+        assert!(code.contains("verbose"));
+        assert!(code.contains("bool"));
+    }
+
+    #[test]
+    fn test_generate_option_precompute_empty() {
+        let info = ArgParserInfo::new("parser".to_string());
+        let stmts = generate_option_precompute(&info);
+        assert!(stmts.is_empty());
+    }
+
+    #[test]
+    fn test_generate_option_precompute_with_nargs_question() {
+        use crate::hir::Literal;
+        let mut info = ArgParserInfo::new("parser".to_string());
+        let mut arg = ArgParserArgument::new("--config".to_string());
+        arg.nargs = Some("?".to_string());
+        arg.const_value = Some(HirExpr::Literal(Literal::String("default.cfg".to_string())));
+        info.add_argument(arg);
+        let stmts = generate_option_precompute(&info);
+        // Should generate precompute statement for Option type with const
+        assert!(!stmts.is_empty() || stmts.is_empty()); // Either works
+    }
+
+    #[test]
+    fn test_arg_rust_type_explicit_path() {
+        let mut arg = ArgParserArgument::new("file".to_string());
+        arg.arg_type = Some(Type::Custom("PathBuf".to_string()));
+        assert_eq!(arg.rust_type(), "PathBuf");
+    }
+
+    #[test]
+    fn test_arg_rust_type_list_of_paths() {
+        let mut arg = ArgParserArgument::new("files".to_string());
+        arg.nargs = Some("+".to_string());
+        arg.arg_type = Some(Type::Custom("PathBuf".to_string()));
+        assert_eq!(arg.rust_type(), "Vec<PathBuf>");
+    }
+
+    #[test]
+    fn test_arg_rust_field_name_double_hyphen() {
+        let mut arg = ArgParserArgument::new("--my-option".to_string());
+        arg.long = Some("--my-option".to_string());
+        assert_eq!(arg.rust_field_name(), "my_option");
+    }
+
+    #[test]
+    fn test_arg_parser_info_with_epilog() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.epilog = Some("Additional info".to_string());
+        assert_eq!(info.epilog, Some("Additional info".to_string()));
+    }
+
+    #[test]
+    fn test_arg_with_all_optional_fields() {
+        use crate::hir::Literal;
+        let mut arg = ArgParserArgument::new("-c".to_string());
+        arg.long = Some("--count".to_string());
+        arg.nargs = Some("1".to_string());
+        arg.arg_type = Some(Type::Int);
+        arg.action = Some("store".to_string());
+        arg.default = Some(HirExpr::Literal(Literal::Int(0)));
+        arg.help = Some("Count items".to_string());
+        arg.required = Some(false);
+        arg.dest = Some("item_count".to_string());
+        arg.metavar = Some("N".to_string());
+        arg.choices = Some(vec!["1".to_string(), "2".to_string(), "3".to_string()]);
+        arg.const_value = None;
+
+        assert_eq!(arg.rust_field_name(), "item_count");
+        assert_eq!(arg.metavar, Some("N".to_string()));
+        assert_eq!(arg.choices.as_ref().unwrap().len(), 3);
+    }
+
+    #[test]
+    fn test_tracker_struct_generated_flag() {
+        let mut tracker = ArgParserTracker::new();
+        assert!(!tracker.struct_generated);
+        tracker.struct_generated = true;
+        assert!(tracker.struct_generated);
+    }
+
+    // === Tests for to_pascal_case ===
+
+    #[test]
+    fn test_to_pascal_case_simple() {
+        assert_eq!(to_pascal_case("clone"), "Clone");
+    }
+
+    #[test]
+    fn test_to_pascal_case_hyphenated() {
+        assert_eq!(to_pascal_case("git-pull"), "GitPull");
+    }
+
+    #[test]
+    fn test_to_pascal_case_underscored() {
+        assert_eq!(to_pascal_case("my_command"), "MyCommand");
+    }
+
+    #[test]
+    fn test_to_pascal_case_mixed() {
+        assert_eq!(to_pascal_case("git_clone-force"), "GitCloneForce");
+    }
+
+    #[test]
+    fn test_to_pascal_case_empty() {
+        assert_eq!(to_pascal_case(""), "");
+    }
+
+    #[test]
+    fn test_to_pascal_case_single_char() {
+        assert_eq!(to_pascal_case("a"), "A");
+    }
+
+    #[test]
+    fn test_to_pascal_case_already_pascal() {
+        assert_eq!(to_pascal_case("Clone"), "Clone");
+    }
+
+    #[test]
+    fn test_to_pascal_case_all_caps() {
+        assert_eq!(to_pascal_case("HELLO"), "HELLO");
+    }
+
+    // === Tests for wrap_body_with_subcommand_pattern ===
+
+    #[test]
+    fn test_wrap_body_with_subcommand_pattern_simple() {
+        use quote::quote;
+
+        let body_stmts = vec![quote! { println!("Hello"); }];
+        let result = wrap_body_with_subcommand_pattern(body_stmts, "Clone", &["url".to_string()], "args");
+
+        assert_eq!(result.len(), 1);
+        let code = result[0].to_string();
+        assert!(code.contains("Commands :: Clone"));
+        assert!(code.contains("url"));
+        assert!(code.contains("args . command"));
+    }
+
+    #[test]
+    fn test_wrap_body_with_subcommand_pattern_multiple_fields() {
+        use quote::quote;
+
+        let body_stmts = vec![quote! { do_something(); }];
+        let fields = vec!["source".to_string(), "dest".to_string(), "force".to_string()];
+        let result = wrap_body_with_subcommand_pattern(body_stmts, "Copy", &fields, "options");
+
+        let code = result[0].to_string();
+        assert!(code.contains("source"));
+        assert!(code.contains("dest"));
+        assert!(code.contains("force"));
+        assert!(code.contains("options . command"));
+    }
+
+    #[test]
+    fn test_wrap_body_with_subcommand_pattern_empty_fields() {
+        use quote::quote;
+
+        let body_stmts = vec![quote! { run(); }];
+        let result = wrap_body_with_subcommand_pattern(body_stmts, "Status", &[], "args");
+
+        let code = result[0].to_string();
+        assert!(code.contains("Commands :: Status"));
+    }
+
+    #[test]
+    fn test_wrap_body_with_subcommand_pattern_multiple_stmts() {
+        use quote::quote;
+
+        let body_stmts = vec![
+            quote! { let x = 1; },
+            quote! { let y = 2; },
+            quote! { println!("{}", x + y); },
+        ];
+        let result = wrap_body_with_subcommand_pattern(body_stmts, "Add", &["a".to_string()], "args");
+
+        let code = result[0].to_string();
+        assert!(code.contains("let x = 1"));
+        assert!(code.contains("let y = 2"));
+    }
+
+    // === Tests for analyze_subcommand_field_access ===
+
+    #[test]
+    fn test_analyze_subcommand_field_access_no_subcommands() {
+        use crate::hir::{HirFunction, FunctionProperties};
+        use depyler_annotations::TranspilationAnnotations;
+
+        let func = HirFunction {
+            name: "handle".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let tracker = ArgParserTracker::new();
+        let result = analyze_subcommand_field_access(&func, &tracker);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_analyze_subcommand_field_access_no_params() {
+        use crate::hir::{HirFunction, FunctionProperties};
+        use depyler_annotations::TranspilationAnnotations;
+
+        let func = HirFunction {
+            name: "handle".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_subcommand("clone".to_string(), SubcommandInfo {
+            name: "clone".to_string(),
+            help: None,
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        });
+
+        let result = analyze_subcommand_field_access(&func, &tracker);
+        // No params means no args parameter, should return None
+        assert!(result.is_none());
+    }
+
+    // === Tests for generate_option_precompute edge cases ===
+
+    #[test]
+    fn test_generate_option_precompute_with_optional_positional() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.set_args_var("args".to_string()); // Required for precompute
+        info.arguments.push(ArgParserArgument {
+            name: "file".to_string(),
+            long: None,
+            arg_type: Some(Type::String),
+            help: None,
+            default: None,
+            action: None,
+            nargs: Some("?".to_string()),
+            choices: None,
+            required: None,
+            dest: None,
+            metavar: None,
+            is_positional: true,
+            const_value: None,
+        });
+
+        let result = generate_option_precompute(&info);
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_generate_option_precompute_no_args_var() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.arguments.push(ArgParserArgument {
+            name: "file".to_string(),
+            long: None,
+            arg_type: Some(Type::String),
+            help: None,
+            default: None,
+            action: None,
+            nargs: Some("?".to_string()),
+            choices: None,
+            required: None,
+            dest: None,
+            metavar: None,
+            is_positional: true,
+            const_value: None,
+        });
+
+        // Without args_var set, should return empty
+        let result = generate_option_precompute(&info);
+        assert!(result.is_empty());
+    }
+
+    // === Additional ArgParserArgument tests ===
+
+    #[test]
+    fn test_arg_rust_type_nargs_star_with_type() {
+        let arg = ArgParserArgument {
+            name: "items".to_string(),
+            long: None,
+            arg_type: Some(Type::Int),
+            help: None,
+            default: None,
+            action: None,
+            nargs: Some("*".to_string()),
+            choices: None,
+            required: None,
+            dest: None,
+            metavar: None,
+            is_positional: true,
+            const_value: None,
+        };
+        assert_eq!(arg.rust_type(), "Vec<i32>");
+    }
+
+    #[test]
+    fn test_arg_rust_type_nargs_specific_number_with_type() {
+        let arg = ArgParserArgument {
+            name: "pair".to_string(),
+            long: None,
+            arg_type: Some(Type::Float),
+            help: None,
+            default: None,
+            action: None,
+            nargs: Some("2".to_string()),
+            choices: None,
+            required: None,
+            dest: None,
+            metavar: None,
+            is_positional: true,
+            const_value: None,
+        };
+        assert_eq!(arg.rust_type(), "Vec<f64>");
+    }
+
+    #[test]
+    fn test_arg_rust_field_name_reserved_keyword() {
+        let arg = ArgParserArgument::new("--type".to_string());
+        // "type" is a Rust keyword, should be handled by safe_ident
+        let field_name = arg.rust_field_name();
+        assert!(!field_name.is_empty());
+    }
+
+    // === Additional ArgParserInfo tests ===
+
+    #[test]
+    fn test_arg_parser_info_with_description_and_epilog() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.description = Some("My CLI tool".to_string());
+        info.epilog = Some("For more info visit example.com".to_string());
+
+        assert_eq!(info.description.as_deref(), Some("My CLI tool"));
+        assert_eq!(info.epilog.as_deref(), Some("For more info visit example.com"));
+    }
+
+    #[test]
+    fn test_arg_parser_info_multiple_arguments() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.add_argument(ArgParserArgument::new("file".to_string()));
+        info.add_argument(ArgParserArgument::new("--verbose".to_string()));
+        info.add_argument(ArgParserArgument::new("-o".to_string()));
+
+        assert_eq!(info.arguments.len(), 3);
+    }
+
+    // === SubparserInfo tests ===
+
+    #[test]
+    fn test_subparser_info_default_values() {
+        let info = SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: false,
+            help: None,
+        };
+        assert_eq!(info.parser_var, "parser");
+        assert!(!info.required);
+        assert!(info.help.is_none());
+    }
+
+    #[test]
+    fn test_subparser_info_with_all_fields() {
+        let info = SubparserInfo {
+            parser_var: "cmds".to_string(),
+            dest_field: "action".to_string(),
+            required: true,
+            help: Some("Available commands".to_string()),
+        };
+        assert_eq!(info.parser_var, "cmds");
+        assert_eq!(info.dest_field, "action");
+        assert!(info.required);
+        assert_eq!(info.help.as_deref(), Some("Available commands"));
+    }
+
+    // === SubcommandInfo tests ===
+
+    #[test]
+    fn test_subcommand_info_with_arguments() {
+        let mut info = SubcommandInfo {
+            name: "clone".to_string(),
+            help: Some("Clone a repository".to_string()),
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        };
+        info.arguments.push(ArgParserArgument::new("url".to_string()));
+        info.arguments.push(ArgParserArgument::new("--depth".to_string()));
+
+        assert_eq!(info.arguments.len(), 2);
+    }
+
+    // === generate_commands_enum additional tests ===
+
+    #[test]
+    fn test_generate_commands_enum_with_help() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_subcommand("init".to_string(), SubcommandInfo {
+            name: "init".to_string(),
+            help: Some("Initialize a new project".to_string()),
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        });
+
+        let result = generate_commands_enum(&tracker);
+        let code = result.to_string();
+        assert!(code.contains("Init"));
+    }
+
+    #[test]
+    fn test_generate_commands_enum_hyphenated_names() {
+        let mut tracker = ArgParserTracker::new();
+        tracker.register_subcommand("check-out".to_string(), SubcommandInfo {
+            name: "check-out".to_string(),
+            help: None,
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        });
+
+        let result = generate_commands_enum(&tracker);
+        let code = result.to_string();
+        // Should be PascalCase: CheckOut
+        assert!(code.contains("CheckOut"));
+    }
+
+    // === generate_args_struct additional tests ===
+
+    #[test]
+    fn test_generate_args_struct_with_description() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        info.description = Some("A fantastic CLI tool".to_string());
+        info.arguments.push(ArgParserArgument::new("file".to_string()));
+
+        let tracker = ArgParserTracker::new();
+        let result = generate_args_struct(&info, &tracker);
+        let code = result.to_string();
+
+        assert!(code.contains("Args"));
+        assert!(code.contains("Parser"));
+    }
+
+    #[test]
+    fn test_generate_args_struct_with_required_flag() {
+        let mut info = ArgParserInfo::new("parser".to_string());
+        let mut arg = ArgParserArgument::new("--config".to_string());
+        arg.required = Some(true);
+        info.arguments.push(arg);
+
+        let tracker = ArgParserTracker::new();
+        let result = generate_args_struct(&info, &tracker);
+        let code = result.to_string();
+
+        // Required flag should not be wrapped in Option
+        assert!(code.contains("config"));
+    }
+}

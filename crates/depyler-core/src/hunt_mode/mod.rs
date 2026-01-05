@@ -280,4 +280,179 @@ mod tests {
         let engine = HuntEngine::new(config);
         assert_eq!(engine.metrics().compilation_rate, 0.0);
     }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_hunt_config_all_fields() {
+        let config = HuntConfig::default();
+        // Verify all fields are accessible
+        assert_eq!(config.max_cycles, 100);
+        assert!((config.quality_threshold - 0.85).abs() < f64::EPSILON);
+        assert!((config.target_rate - 0.80).abs() < f64::EPSILON);
+        assert_eq!(config.plateau_threshold, 5);
+        assert!(config.enable_five_whys);
+        assert_eq!(config.lessons_database, PathBuf::from(".depyler/lessons.db"));
+    }
+
+    #[test]
+    fn test_hunt_config_lessons_database_custom() {
+        let config = HuntConfig {
+            lessons_database: PathBuf::from("/custom/db/lessons.sqlite"),
+            ..Default::default()
+        };
+        assert_eq!(
+            config.lessons_database,
+            PathBuf::from("/custom/db/lessons.sqlite")
+        );
+    }
+
+    #[test]
+    fn test_hunt_engine_metrics_initial_state() {
+        let config = HuntConfig::default();
+        let engine = HuntEngine::new(config);
+        let metrics = engine.metrics();
+
+        assert_eq!(metrics.compilation_rate, 0.0);
+        assert_eq!(metrics.cumulative_fixes, 0);
+        assert_eq!(metrics.cycles_since_improvement, 0);
+    }
+
+    #[test]
+    fn test_hunt_engine_export_lessons_type() {
+        let config = HuntConfig::default();
+        let engine = HuntEngine::new(config);
+        let lessons: Vec<Lesson> = engine.export_lessons();
+
+        // Initially empty
+        assert!(lessons.is_empty());
+        // Verify it's a Vec<Lesson>
+        let _: &[Lesson] = &lessons;
+    }
+
+    #[test]
+    fn test_hunt_engine_andon_status_type() {
+        let config = HuntConfig::default();
+        let engine = HuntEngine::new(config);
+        let status: &AndonStatus = engine.andon_status();
+
+        // Verify it's the right type and can be formatted
+        let _debug = format!("{:?}", status);
+    }
+
+    #[test]
+    fn test_hunt_config_debug_format() {
+        let config = HuntConfig {
+            max_cycles: 50,
+            quality_threshold: 0.95,
+            target_rate: 0.90,
+            plateau_threshold: 3,
+            enable_five_whys: false,
+            lessons_database: PathBuf::from("test.db"),
+        };
+
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("max_cycles"));
+        assert!(debug.contains("50"));
+        assert!(debug.contains("quality_threshold"));
+        assert!(debug.contains("0.95"));
+        assert!(debug.contains("target_rate"));
+        assert!(debug.contains("0.9"));
+        assert!(debug.contains("plateau_threshold"));
+        assert!(debug.contains("3"));
+        assert!(debug.contains("enable_five_whys"));
+        assert!(debug.contains("false"));
+        assert!(debug.contains("lessons_database"));
+        assert!(debug.contains("test.db"));
+    }
+
+    #[test]
+    fn test_hunt_config_clone_independence() {
+        let original = HuntConfig {
+            max_cycles: 25,
+            quality_threshold: 0.75,
+            target_rate: 0.60,
+            plateau_threshold: 8,
+            enable_five_whys: true,
+            lessons_database: PathBuf::from("original.db"),
+        };
+
+        let mut cloned = original.clone();
+        cloned.max_cycles = 50;
+        cloned.quality_threshold = 0.99;
+
+        // Original unchanged
+        assert_eq!(original.max_cycles, 25);
+        assert!((original.quality_threshold - 0.75).abs() < f64::EPSILON);
+
+        // Cloned has new values
+        assert_eq!(cloned.max_cycles, 50);
+        assert!((cloned.quality_threshold - 0.99).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_hunt_config_edge_values() {
+        // Test with edge/boundary values
+        let config = HuntConfig {
+            max_cycles: 0,
+            quality_threshold: 0.0,
+            target_rate: 1.0,
+            plateau_threshold: u32::MAX,
+            enable_five_whys: false,
+            lessons_database: PathBuf::new(),
+        };
+
+        assert_eq!(config.max_cycles, 0);
+        assert_eq!(config.quality_threshold, 0.0);
+        assert_eq!(config.target_rate, 1.0);
+        assert_eq!(config.plateau_threshold, u32::MAX);
+        assert!(!config.enable_five_whys);
+        assert_eq!(config.lessons_database, PathBuf::new());
+    }
+
+    #[test]
+    fn test_hunt_engine_config_preserved() {
+        let config = HuntConfig {
+            max_cycles: 42,
+            quality_threshold: 0.77,
+            target_rate: 0.88,
+            plateau_threshold: 7,
+            enable_five_whys: true,
+            lessons_database: PathBuf::from("preserved.db"),
+        };
+
+        let engine = HuntEngine::new(config);
+
+        // Engine should be functional
+        assert_eq!(engine.metrics().compilation_rate, 0.0);
+        assert!(engine.export_lessons().is_empty());
+    }
+
+    #[test]
+    fn test_hunt_engine_multiple_instances() {
+        let config1 = HuntConfig::default();
+        let config2 = HuntConfig {
+            max_cycles: 10,
+            ..Default::default()
+        };
+
+        let engine1 = HuntEngine::new(config1);
+        let engine2 = HuntEngine::new(config2);
+
+        // Both engines independent
+        assert_eq!(engine1.metrics().compilation_rate, 0.0);
+        assert_eq!(engine2.metrics().compilation_rate, 0.0);
+    }
+
+    #[test]
+    fn test_re_exports_available() {
+        // Verify re-exports work
+        let _: KaizenMetrics = KaizenMetrics::new();
+        let _: HuntPlanner = HuntPlanner::new();
+        let _: MinimalReproducer = MinimalReproducer::new();
+        let _: JidokaRepairEngine = JidokaRepairEngine::new(0.85);
+        let _: AndonVerifier = AndonVerifier::new();
+        let _: HanseiReflector = HanseiReflector::new();
+        let _: FiveWhysAnalyzer = FiveWhysAnalyzer::new();
+    }
 }

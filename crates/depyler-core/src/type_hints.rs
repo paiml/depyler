@@ -2712,4 +2712,229 @@ mod tests {
         let result = provider.format_target(&HintTarget::Variable("y".to_string()));
         assert_eq!(result, "variable 'y'");
     }
+
+    // === DEPYLER-COVERAGE-95: Additional tests for untested internal types ===
+
+    #[test]
+    fn test_type_constraint_compatible_debug() {
+        let constraint = TypeConstraint::Compatible {
+            var: "x".to_string(),
+            ty: Type::Int,
+        };
+        let debug = format!("{:?}", constraint);
+        assert!(debug.contains("Compatible"));
+        assert!(debug.contains("x"));
+    }
+
+    #[test]
+    fn test_type_constraint_compatible_clone() {
+        let constraint = TypeConstraint::Compatible {
+            var: "value".to_string(),
+            ty: Type::String,
+        };
+        let cloned = constraint.clone();
+        if let TypeConstraint::Compatible { var, ty } = cloned {
+            assert_eq!(var, "value");
+            assert_eq!(ty, Type::String);
+        } else {
+            panic!("Expected Compatible variant");
+        }
+    }
+
+    #[test]
+    fn test_type_constraint_argument_debug() {
+        let constraint = TypeConstraint::ArgumentConstraint {
+            var: "arg".to_string(),
+            func: "process".to_string(),
+            _param_idx: 0,
+            expected: Type::Float,
+        };
+        let debug = format!("{:?}", constraint);
+        assert!(debug.contains("ArgumentConstraint"));
+        assert!(debug.contains("arg"));
+        assert!(debug.contains("process"));
+    }
+
+    #[test]
+    fn test_type_constraint_argument_clone() {
+        let constraint = TypeConstraint::ArgumentConstraint {
+            var: "data".to_string(),
+            func: "len".to_string(),
+            _param_idx: 1,
+            expected: Type::List(Box::new(Type::Int)),
+        };
+        let cloned = constraint.clone();
+        if let TypeConstraint::ArgumentConstraint { var, func, _param_idx, expected } = cloned {
+            assert_eq!(var, "data");
+            assert_eq!(func, "len");
+            assert_eq!(_param_idx, 1);
+            assert!(matches!(expected, Type::List(_)));
+        } else {
+            panic!("Expected ArgumentConstraint variant");
+        }
+    }
+
+    #[test]
+    fn test_type_constraint_return_debug() {
+        let constraint = TypeConstraint::ReturnConstraint {
+            var: "result".to_string(),
+            ty: Type::Bool,
+        };
+        let debug = format!("{:?}", constraint);
+        assert!(debug.contains("ReturnConstraint"));
+        assert!(debug.contains("result"));
+    }
+
+    #[test]
+    fn test_type_constraint_return_clone() {
+        let constraint = TypeConstraint::ReturnConstraint {
+            var: "output".to_string(),
+            ty: Type::String,
+        };
+        let cloned = constraint.clone();
+        if let TypeConstraint::ReturnConstraint { var, ty } = cloned {
+            assert_eq!(var, "output");
+            assert_eq!(ty, Type::String);
+        } else {
+            panic!("Expected ReturnConstraint variant");
+        }
+    }
+
+    #[test]
+    fn test_usage_pattern_iterator_debug() {
+        let pattern = UsagePattern::Iterator;
+        let debug = format!("{:?}", pattern);
+        assert!(debug.contains("Iterator"));
+    }
+
+    #[test]
+    fn test_usage_pattern_numeric_clone() {
+        let pattern = UsagePattern::Numeric;
+        let cloned = pattern.clone();
+        assert!(matches!(cloned, UsagePattern::Numeric));
+    }
+
+    #[test]
+    fn test_usage_pattern_string_like() {
+        let pattern = UsagePattern::StringLike;
+        let debug = format!("{:?}", pattern);
+        assert!(debug.contains("StringLike"));
+    }
+
+    #[test]
+    fn test_usage_pattern_container() {
+        let pattern = UsagePattern::Container;
+        let cloned = pattern.clone();
+        assert!(matches!(cloned, UsagePattern::Container));
+    }
+
+    #[test]
+    fn test_usage_pattern_dict_access() {
+        let pattern = UsagePattern::DictAccess;
+        let debug = format!("{:?}", pattern);
+        assert!(debug.contains("DictAccess"));
+    }
+
+    #[test]
+    fn test_usage_pattern_all_variants() {
+        // Verify all variants can be created and debugged
+        let patterns = [
+            UsagePattern::Iterator,
+            UsagePattern::Numeric,
+            UsagePattern::StringLike,
+            UsagePattern::Container,
+            UsagePattern::DictAccess,
+            UsagePattern::Callable,
+        ];
+        for pattern in patterns {
+            let debug = format!("{:?}", pattern);
+            assert!(!debug.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_inference_context_default() {
+        let context: InferenceContext = Default::default();
+        assert!(context.current_function.is_none());
+        assert!(context.constraints.is_empty());
+        assert!(context.usage_patterns.is_empty());
+        assert!(context.loop_var_sources.is_empty());
+        assert!(context.non_list_variables.is_empty());
+    }
+
+    #[test]
+    fn test_inference_context_debug() {
+        let context = InferenceContext::default();
+        let debug = format!("{:?}", context);
+        assert!(debug.contains("InferenceContext"));
+    }
+
+    #[test]
+    fn test_hint_target_debug_all_variants() {
+        let targets = [
+            HintTarget::Parameter("arg".to_string()),
+            HintTarget::Return,
+            HintTarget::Variable("x".to_string()),
+        ];
+        for target in targets {
+            let debug = format!("{:?}", target);
+            assert!(!debug.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_confidence_copy() {
+        let c1 = Confidence::High;
+        let c2 = c1; // Copy trait
+        assert_eq!(c1, c2);
+        // Can still use c1 after copy
+        let _c3 = c1;
+    }
+
+    #[test]
+    fn test_confidence_ord_full() {
+        // Test full ordering chain
+        assert!(Confidence::Certain > Confidence::High);
+        assert!(Confidence::High > Confidence::Medium);
+        assert!(Confidence::Medium > Confidence::Low);
+        assert!(Confidence::Certain >= Confidence::Certain);
+        assert!(Confidence::Low <= Confidence::Medium);
+    }
+
+    #[test]
+    fn test_type_hint_debug() {
+        let hint = TypeHint {
+            suggested_type: Type::Int,
+            confidence: Confidence::High,
+            reason: "Used in arithmetic".to_string(),
+            source_location: Some((10, 5)),
+            target: HintTarget::Variable("x".to_string()),
+        };
+        let debug = format!("{:?}", hint);
+        assert!(debug.contains("TypeHint"));
+        assert!(debug.contains("Int"));
+        assert!(debug.contains("High"));
+    }
+
+    #[test]
+    fn test_type_hint_with_no_location() {
+        let hint = TypeHint {
+            suggested_type: Type::String,
+            confidence: Confidence::Medium,
+            reason: "Inferred from method".to_string(),
+            source_location: None,
+            target: HintTarget::Return,
+        };
+        assert!(hint.source_location.is_none());
+        assert_eq!(hint.confidence, Confidence::Medium);
+    }
+
+    #[test]
+    fn test_type_hint_provider_fields() {
+        let provider = TypeHintProvider::new();
+        // Verify initial state
+        assert!(provider.variable_types.is_empty());
+        assert!(provider.parameter_hints.is_empty());
+        assert!(provider.return_hints.is_empty());
+    }
 }

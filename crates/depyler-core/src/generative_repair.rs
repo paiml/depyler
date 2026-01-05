@@ -469,6 +469,253 @@ mod tests {
         assert_eq!(result.iterations, 100);
     }
 
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_code_state_initial() {
+        let state = CodeState::initial();
+        assert!(state.tokens().is_empty());
+        assert!(!state.is_complete);
+    }
+
+    #[test]
+    fn test_code_state_tokens_accessor() {
+        let state = CodeState::new(vec!["let".to_string(), "x".to_string(), "=".to_string()]);
+        let tokens = state.tokens();
+        assert_eq!(tokens.len(), 3);
+        assert_eq!(tokens[0], "let");
+        assert_eq!(tokens[1], "x");
+        assert_eq!(tokens[2], "=");
+    }
+
+    #[test]
+    fn test_code_state_partial_eq() {
+        let state1 = CodeState::new(vec!["fn".to_string(), "test".to_string()]);
+        let state2 = CodeState::new(vec!["fn".to_string(), "test".to_string()]);
+        let state3 = CodeState::new(vec!["fn".to_string(), "other".to_string()]);
+
+        assert_eq!(state1, state2);
+        assert_ne!(state1, state3);
+    }
+
+    #[test]
+    fn test_code_state_hash() {
+        use std::collections::HashSet;
+
+        let state1 = CodeState::new(vec!["fn".to_string()]);
+        let state2 = CodeState::new(vec!["fn".to_string()]);
+        let state3 = CodeState::new(vec!["let".to_string()]);
+
+        let mut set = HashSet::new();
+        set.insert(state1.tokens.clone());
+        set.insert(state2.tokens.clone());
+        set.insert(state3.tokens.clone());
+
+        // state1 and state2 should hash to same value
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn test_code_action_partial_eq() {
+        let action1 = CodeAction::new("add_fn", "fn");
+        let action2 = CodeAction::new("add_fn", "fn");
+        let action3 = CodeAction::new("add_let", "let");
+
+        assert_eq!(action1, action2);
+        assert_ne!(action1, action3);
+    }
+
+    #[test]
+    fn test_code_action_hash() {
+        use std::collections::HashSet;
+
+        let action1 = CodeAction::new("add_fn", "fn");
+        let action2 = CodeAction::new("add_fn", "fn");
+        let action3 = CodeAction::new("add_let", "let");
+
+        let mut set = HashSet::new();
+        set.insert(action1);
+        set.insert(action2);
+        set.insert(action3);
+
+        // action1 and action2 should be the same
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn test_code_action_debug() {
+        let action = CodeAction::new("add_struct", "struct");
+        let debug_str = format!("{:?}", action);
+        assert!(debug_str.contains("CodeAction"));
+        assert!(debug_str.contains("add_struct"));
+        assert!(debug_str.contains("struct"));
+    }
+
+    #[test]
+    fn test_code_action_clone() {
+        let action = CodeAction::new("add_impl", "impl");
+        let cloned = action.clone();
+        assert_eq!(action, cloned);
+        assert_eq!(cloned.name, "add_impl");
+        assert_eq!(cloned.token, "impl");
+    }
+
+    #[test]
+    fn test_generative_repair_default() {
+        let repair: GenerativeRepair = Default::default();
+        assert_eq!(repair.config().max_iterations, 100);
+        assert!(!repair.config().use_discriminator);
+    }
+
+    #[test]
+    fn test_generative_repair_config_debug() {
+        let config = GenerativeRepairConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("GenerativeRepairConfig"));
+        assert!(debug_str.contains("max_iterations"));
+        assert!(debug_str.contains("exploration_constant"));
+    }
+
+    #[test]
+    fn test_generative_repair_config_clone() {
+        let config = GenerativeRepairConfig {
+            max_iterations: 200,
+            exploration_constant: 1.5,
+            max_simulation_depth: 75,
+            use_discriminator: true,
+            seed: 123,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.max_iterations, 200);
+        assert_eq!(cloned.exploration_constant, 1.5);
+        assert_eq!(cloned.max_simulation_depth, 75);
+        assert!(cloned.use_discriminator);
+        assert_eq!(cloned.seed, 123);
+    }
+
+    #[test]
+    fn test_synthesis_result_debug() {
+        let result = SynthesisResult {
+            success: false,
+            code: None,
+            iterations: 50,
+            expected_reward: 0.25,
+        };
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("SynthesisResult"));
+        assert!(debug_str.contains("success"));
+        assert!(debug_str.contains("false"));
+    }
+
+    #[test]
+    fn test_synthesis_result_clone() {
+        let result = SynthesisResult {
+            success: true,
+            code: Some("pub fn foo() -> i32 { 42 }".to_string()),
+            iterations: 150,
+            expected_reward: 0.85,
+        };
+        let cloned = result.clone();
+        assert!(cloned.success);
+        assert_eq!(cloned.code, Some("pub fn foo() -> i32 { 42 }".to_string()));
+        assert_eq!(cloned.iterations, 150);
+        assert_eq!(cloned.expected_reward, 0.85);
+    }
+
+    #[test]
+    fn test_synthesis_result_no_code() {
+        let result = SynthesisResult {
+            success: false,
+            code: None,
+            iterations: 0,
+            expected_reward: 0.0,
+        };
+        assert!(!result.success);
+        assert!(result.code.is_none());
+        assert_eq!(result.iterations, 0);
+        assert_eq!(result.expected_reward, 0.0);
+    }
+
+    #[test]
+    fn test_code_state_complete_with_eof() {
+        let state = CodeState::new(vec![
+            "fn".to_string(),
+            "main".to_string(),
+            "(".to_string(),
+            ")".to_string(),
+            "{".to_string(),
+            "}".to_string(),
+            "EOF".to_string(),
+        ]);
+        assert!(state.is_complete);
+        assert_eq!(state.tokens().len(), 7);
+    }
+
+    #[test]
+    fn test_code_state_not_complete_without_eof() {
+        let state = CodeState::new(vec![
+            "fn".to_string(),
+            "main".to_string(),
+            "(".to_string(),
+            ")".to_string(),
+        ]);
+        assert!(!state.is_complete);
+    }
+
+    #[test]
+    fn test_code_action_with_special_characters() {
+        let action1 = CodeAction::new("add_arrow", "->");
+        assert_eq!(action1.token, "->");
+
+        let action2 = CodeAction::new("add_ref", "&");
+        assert_eq!(action2.token, "&");
+
+        let action3 = CodeAction::new("add_semicolon", ";");
+        assert_eq!(action3.token, ";");
+    }
+
+    #[test]
+    fn test_generative_repair_config_exploration_constant() {
+        let config = GenerativeRepairConfig::default();
+        // SQRT_2 ≈ 1.414...
+        assert!(config.exploration_constant > 1.4);
+        assert!(config.exploration_constant < 1.5);
+    }
+
+    #[test]
+    fn test_generative_repair_config_custom_seed() {
+        let config = GenerativeRepairConfig {
+            seed: 12345,
+            ..Default::default()
+        };
+        let repair = GenerativeRepair::with_config(config);
+        assert_eq!(repair.config().seed, 12345);
+    }
+
+    #[test]
+    fn test_generative_repair_config_method() {
+        let repair = GenerativeRepair::new();
+        let config = repair.config();
+        assert_eq!(config.max_iterations, 100);
+        assert_eq!(config.max_simulation_depth, 50);
+    }
+
+    #[test]
+    fn test_code_state_debug() {
+        let state = CodeState::new(vec!["let".to_string(), "mut".to_string()]);
+        let debug_str = format!("{:?}", state);
+        assert!(debug_str.contains("CodeState"));
+        assert!(debug_str.contains("tokens"));
+    }
+
+    #[test]
+    fn test_code_state_clone() {
+        let state = CodeState::new(vec!["struct".to_string(), "Point".to_string()]);
+        let cloned = state.clone();
+        assert_eq!(state, cloned);
+        assert_eq!(cloned.tokens().len(), 2);
+    }
+
     #[cfg(feature = "generative")]
     mod generative_tests {
         use super::*;

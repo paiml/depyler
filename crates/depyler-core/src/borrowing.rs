@@ -1095,4 +1095,440 @@ mod tests {
             "Union type should return 'Union'"
         );
     }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_borrowing_context_default() {
+        let ctx: BorrowingContext = Default::default();
+        assert!(ctx.mutated_params.is_empty());
+        assert!(ctx.escaping_params.is_empty());
+        assert!(ctx.read_only_params.is_empty());
+        assert!(ctx.loop_used_params.is_empty());
+    }
+
+    #[test]
+    fn test_borrowing_context_debug() {
+        let ctx = BorrowingContext::new();
+        let debug = format!("{:?}", ctx);
+        assert!(debug.contains("BorrowingContext"));
+        assert!(debug.contains("mutated_params"));
+        assert!(debug.contains("escaping_params"));
+    }
+
+    #[test]
+    fn test_borrowing_pattern_debug() {
+        assert!(format!("{:?}", BorrowingPattern::Owned).contains("Owned"));
+        assert!(format!("{:?}", BorrowingPattern::Borrowed).contains("Borrowed"));
+        assert!(format!("{:?}", BorrowingPattern::MutableBorrow).contains("MutableBorrow"));
+    }
+
+    #[test]
+    fn test_borrowing_pattern_clone() {
+        let owned = BorrowingPattern::Owned;
+        let cloned = owned.clone();
+        assert_eq!(cloned, BorrowingPattern::Owned);
+
+        let borrowed = BorrowingPattern::Borrowed;
+        let cloned2 = borrowed.clone();
+        assert_eq!(cloned2, BorrowingPattern::Borrowed);
+    }
+
+    #[test]
+    fn test_borrowing_pattern_partial_eq() {
+        assert_eq!(BorrowingPattern::Owned, BorrowingPattern::Owned);
+        assert_eq!(BorrowingPattern::Borrowed, BorrowingPattern::Borrowed);
+        assert_eq!(BorrowingPattern::MutableBorrow, BorrowingPattern::MutableBorrow);
+
+        assert_ne!(BorrowingPattern::Owned, BorrowingPattern::Borrowed);
+        assert_ne!(BorrowingPattern::Borrowed, BorrowingPattern::MutableBorrow);
+        assert_ne!(BorrowingPattern::MutableBorrow, BorrowingPattern::Owned);
+    }
+
+    #[test]
+    fn test_analyze_stmt_expression() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("x".to_string());
+
+        let stmt = HirStmt::Expr(HirExpr::Var("x".to_string()));
+        ctx.analyze_stmt(&stmt);
+
+        // x should remain read-only (just referenced)
+        assert!(ctx.read_only_params.contains("x"));
+    }
+
+    #[test]
+    fn test_analyze_stmt_return_none() {
+        let mut ctx = BorrowingContext::new();
+
+        let stmt = HirStmt::Return(None);
+        ctx.analyze_stmt(&stmt);
+
+        // No parameters should be affected
+        assert!(ctx.escaping_params.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_if_no_else() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("x".to_string());
+
+        let stmt = HirStmt::If {
+            condition: HirExpr::Var("x".to_string()),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: None,
+        };
+
+        ctx.analyze_stmt(&stmt);
+        assert!(ctx.read_only_params.contains("x"));
+    }
+
+    #[test]
+    fn test_find_params_in_expr_set() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("item".to_string());
+
+        let expr = HirExpr::Set(vec![HirExpr::Var("item".to_string())]);
+        ctx.find_params_in_expr(&expr);
+
+        assert!(ctx.loop_used_params.contains("item"));
+    }
+
+    #[test]
+    fn test_find_params_in_stmt_assign() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("value".to_string());
+
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Var("value".to_string()),
+            type_annotation: None,
+        };
+
+        ctx.find_params_in_stmt(&stmt);
+        assert!(ctx.loop_used_params.contains("value"));
+    }
+
+    #[test]
+    fn test_check_escaping_expr_list() {
+        let mut ctx = BorrowingContext::new();
+
+        let expr = HirExpr::List(vec![
+            HirExpr::Var("a".to_string()),
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Var("b".to_string()),
+        ]);
+
+        ctx.check_escaping_expr(&expr);
+
+        // Only Var elements should be marked as escaping
+        assert!(ctx.escaping_params.contains("a"));
+        assert!(ctx.escaping_params.contains("b"));
+    }
+
+    #[test]
+    fn test_check_escaping_expr_other() {
+        let mut ctx = BorrowingContext::new();
+
+        // Binary expression doesn't mark as escaping directly
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Var("y".to_string())),
+        };
+
+        ctx.check_escaping_expr(&expr);
+
+        // Binary expression doesn't trigger escaping
+        assert!(!ctx.escaping_params.contains("x"));
+        assert!(!ctx.escaping_params.contains("y"));
+    }
+
+    #[test]
+    fn test_generate_param_signature_mutable_borrow() {
+        let mut ctx = BorrowingContext::new();
+        ctx.mutated_params.insert("data".to_string());
+
+        let sig = ctx.generate_param_signature("data", &Type::List(Box::new(Type::Int)));
+        assert_eq!(sig, "data: &mut Vec<i32>");
+    }
+
+    #[test]
+    fn test_generate_param_signature_owned_escaping() {
+        let mut ctx = BorrowingContext::new();
+        ctx.escaping_params.insert("result".to_string());
+
+        let sig = ctx.generate_param_signature("result", &Type::String);
+        assert_eq!(sig, "result: String");
+    }
+
+    #[test]
+    fn test_nested_type_conversion() {
+        let ctx = BorrowingContext::new();
+
+        // Nested list: Vec<Vec<i32>>
+        let nested_list = Type::List(Box::new(Type::List(Box::new(Type::Int))));
+        assert_eq!(ctx.type_to_rust_string(&nested_list), "Vec<Vec<i32>>");
+
+        // Dict with list value: HashMap<String, Vec<i32>>
+        let dict_with_list = Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::List(Box::new(Type::Int))),
+        );
+        assert_eq!(
+            ctx.type_to_rust_string(&dict_with_list),
+            "HashMap<String, Vec<i32>>"
+        );
+    }
+
+    #[test]
+    fn test_optional_nested_type() {
+        let ctx = BorrowingContext::new();
+
+        // Option<Vec<String>>
+        let optional_list = Type::Optional(Box::new(Type::List(Box::new(Type::String))));
+        assert_eq!(
+            ctx.type_to_rust_string(&optional_list),
+            "Option<Vec<String>>"
+        );
+    }
+
+    #[test]
+    fn test_final_type_unwrapping() {
+        let ctx = BorrowingContext::new();
+
+        // Final[int] -> i32 (unwrap Final)
+        let final_int = Type::Final(Box::new(Type::Int));
+        assert_eq!(ctx.type_to_rust_string(&final_int), "i32");
+
+        // Nested Final[List[str]] -> Vec<String>
+        let final_list = Type::Final(Box::new(Type::List(Box::new(Type::String))));
+        assert_eq!(ctx.type_to_rust_string(&final_list), "Vec<String>");
+    }
+
+    #[test]
+    fn test_analyze_function_removes_read_only_for_mutated() {
+        let mut ctx = BorrowingContext::new();
+
+        let func = HirFunction {
+            name: "mutate".to_string(),
+            params: smallvec![HirParam::new("x".to_string(), Type::Int)],
+            ret_type: Type::None,
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            }],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        ctx.analyze_function(&func);
+
+        // x should be in mutated_params and NOT in read_only_params
+        assert!(ctx.mutated_params.contains("x"));
+        assert!(!ctx.read_only_params.contains("x"));
+    }
+
+    #[test]
+    fn test_analyze_function_removes_read_only_for_escaping() {
+        let mut ctx = BorrowingContext::new();
+
+        let func = HirFunction {
+            name: "return_param".to_string(),
+            params: smallvec![HirParam::new("data".to_string(), Type::String)],
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("data".to_string())))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        ctx.analyze_function(&func);
+
+        // data should be in escaping_params and NOT in read_only_params
+        assert!(ctx.escaping_params.contains("data"));
+        assert!(!ctx.read_only_params.contains("data"));
+    }
+
+    #[test]
+    fn test_tuple_expression_escaping() {
+        let mut ctx = BorrowingContext::new();
+
+        // Tuple containing parameters that escape
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Var("a".to_string()),
+            HirExpr::Var("b".to_string()),
+        ]);
+
+        ctx.check_escaping_expr(&expr);
+
+        assert!(ctx.escaping_params.contains("a"));
+        assert!(ctx.escaping_params.contains("b"));
+    }
+
+    #[test]
+    fn test_analyze_tuple_expression() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("x".to_string());
+        ctx.read_only_params.insert("y".to_string());
+
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Var("x".to_string()),
+            HirExpr::Var("y".to_string()),
+        ]);
+
+        ctx.analyze_expr(&expr);
+
+        // Parameters should remain read-only (tuple access is read)
+        assert!(ctx.read_only_params.contains("x"));
+        assert!(ctx.read_only_params.contains("y"));
+    }
+
+    #[test]
+    fn test_find_params_nested_binary() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("a".to_string());
+        ctx.read_only_params.insert("b".to_string());
+        ctx.read_only_params.insert("c".to_string());
+
+        // Nested: (a + b) * c
+        let expr = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }),
+            right: Box::new(HirExpr::Var("c".to_string())),
+        };
+
+        ctx.find_params_in_expr(&expr);
+
+        assert!(ctx.loop_used_params.contains("a"));
+        assert!(ctx.loop_used_params.contains("b"));
+        assert!(ctx.loop_used_params.contains("c"));
+    }
+
+    #[test]
+    fn test_find_params_call_args() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("arg1".to_string());
+        ctx.read_only_params.insert("arg2".to_string());
+
+        let expr = HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![
+                HirExpr::Var("arg1".to_string()),
+                HirExpr::Var("arg2".to_string()),
+            ],
+            kwargs: vec![],
+        };
+
+        ctx.find_params_in_expr(&expr);
+
+        assert!(ctx.loop_used_params.contains("arg1"));
+        assert!(ctx.loop_used_params.contains("arg2"));
+    }
+
+    #[test]
+    fn test_find_params_dict() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("key".to_string());
+        ctx.read_only_params.insert("val".to_string());
+
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Var("key".to_string()),
+            HirExpr::Var("val".to_string()),
+        )]);
+
+        ctx.find_params_in_expr(&expr);
+
+        assert!(ctx.loop_used_params.contains("key"));
+        assert!(ctx.loop_used_params.contains("val"));
+    }
+
+    #[test]
+    fn test_find_params_index() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("arr".to_string());
+        ctx.read_only_params.insert("idx".to_string());
+
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Var("idx".to_string())),
+        };
+
+        ctx.find_params_in_expr(&expr);
+
+        assert!(ctx.loop_used_params.contains("arr"));
+        assert!(ctx.loop_used_params.contains("idx"));
+    }
+
+    #[test]
+    fn test_find_params_unary() {
+        let mut ctx = BorrowingContext::new();
+        ctx.read_only_params.insert("x".to_string());
+
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Not,
+            operand: Box::new(HirExpr::Var("x".to_string())),
+        };
+
+        ctx.find_params_in_expr(&expr);
+
+        assert!(ctx.loop_used_params.contains("x"));
+    }
+
+    #[test]
+    fn test_empty_function_analysis() {
+        let mut ctx = BorrowingContext::new();
+
+        let func = HirFunction {
+            name: "empty".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        ctx.analyze_function(&func);
+
+        // No parameters, all sets should be empty
+        assert!(ctx.read_only_params.is_empty());
+        assert!(ctx.mutated_params.is_empty());
+        assert!(ctx.escaping_params.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_params_analysis() {
+        let mut ctx = BorrowingContext::new();
+
+        let func = HirFunction {
+            name: "multi".to_string(),
+            params: smallvec![
+                HirParam::new("a".to_string(), Type::Int),
+                HirParam::new("b".to_string(), Type::String),
+                HirParam::new("c".to_string(), Type::Bool),
+            ],
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("b".to_string())))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        ctx.analyze_function(&func);
+
+        // a and c should be read-only (not used in return)
+        assert!(ctx.read_only_params.contains("a"));
+        assert!(ctx.read_only_params.contains("c"));
+
+        // b escapes (returned)
+        assert!(ctx.escaping_params.contains("b"));
+        assert!(!ctx.read_only_params.contains("b"));
+    }
 }
