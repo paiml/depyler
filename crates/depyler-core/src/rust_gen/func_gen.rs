@@ -6,70 +6,18 @@
 use crate::hir::*;
 use crate::lifetime_analysis::LifetimeInference;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen};
+#[allow(unused_imports)] // DEPYLER-COVERAGE-95: Some imports only used in tests
+use crate::rust_gen::control_flow_analysis::{
+    collect_all_assigned_variables, collect_if_escaping_variables,
+    collect_loop_escaping_variables, collect_nested_function_names,
+    extract_toplevel_assigned_symbols, stmt_always_returns,
+};
 use crate::rust_gen::generator_gen::codegen_generator_function;
-use crate::rust_gen::keywords::safe_ident;
+use crate::rust_gen::keywords::{is_rust_keyword, safe_ident}; // DEPYLER-0023: Centralized
 use crate::rust_gen::type_gen::{rust_type_to_syn, update_import_needs};
 use anyhow::Result;
 use quote::quote;
 use syn::{self, parse_quote};
-
-/// Check if a name is a Rust keyword that requires raw identifier syntax
-/// DEPYLER-0306: Copied from expr_gen.rs to support method name keyword handling
-fn is_rust_keyword(name: &str) -> bool {
-    matches!(
-        name,
-        "as" | "break"
-            | "const"
-            | "continue"
-            | "crate"
-            | "else"
-            | "enum"
-            | "extern"
-            | "false"
-            | "fn"
-            | "for"
-            | "if"
-            | "impl"
-            | "in"
-            | "let"
-            | "loop"
-            | "match"
-            | "mod"
-            | "move"
-            | "mut"
-            | "pub"
-            | "ref"
-            | "return"
-            | "self"
-            | "Self"
-            | "static"
-            | "struct"
-            | "super"
-            | "trait"
-            | "true"
-            | "type"
-            | "unsafe"
-            | "use"
-            | "where"
-            | "while"
-            | "async"
-            | "await"
-            | "dyn"
-            | "abstract"
-            | "become"
-            | "box"
-            | "do"
-            | "final"
-            | "macro"
-            | "override"
-            | "priv"
-            | "typeof"
-            | "unsized"
-            | "virtual"
-            | "yield"
-            | "try"
-    )
-}
 
 /// DEPYLER-0608: Extract field names accessed via args.X pattern in a function body
 /// Used to generate individual parameters for cmd_* handler functions
@@ -262,63 +210,7 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
     result
 }
 
-/// Check if a statement always returns or raises (never falls through)
-/// Used to determine if Ok(()) needs to be appended to Result-returning functions
-///
-/// DEPYLER-0455 Bug 6: Fix unreachable Ok(()) in validator functions
-/// Validator functions with try-except that return in all branches were getting
-/// unreachable Ok(()) appended, causing type mismatch errors.
-/// Example: fn port_validator(value: &str) -> Result<i32, Box<dyn Error>>
-///          Both try body and except handler return, so Ok(()) is unreachable
-fn stmt_always_returns(stmt: &HirStmt) -> bool {
-    match stmt {
-        HirStmt::Return(_) => true,
-        HirStmt::Raise { .. } => true,
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody: _,
-        } => {
-            // Try always returns if:
-            // 1. Body always returns AND
-            // 2. All exception handlers always return AND
-            // 3. Orelse (if present) always returns
-            // Note: finalbody doesn't affect control flow (always executed)
-            let body_returns = body.iter().any(stmt_always_returns);
-            let handlers_return = !handlers.is_empty()
-                && handlers
-                    .iter()
-                    .all(|h| h.body.iter().any(stmt_always_returns));
-            let orelse_returns = orelse
-                .as_ref()
-                .map(|stmts| stmts.iter().any(stmt_always_returns))
-                .unwrap_or(true);
-
-            // All three conditions must be true
-            // If there are no handlers, the try doesn't guarantee a return
-            body_returns && handlers_return && orelse_returns
-        }
-        // DEPYLER-0622: With block always returns if its body always returns
-        // Example: `with open(f) as file: return file.read()` always returns
-        HirStmt::With { body, .. } => body.iter().any(stmt_always_returns),
-        // DEPYLER-0622: If statement always returns if both branches always return
-        HirStmt::If {
-            then_body,
-            else_body,
-            ..
-        } => {
-            let then_returns = then_body.iter().any(stmt_always_returns);
-            let else_returns = else_body
-                .as_ref()
-                .map(|stmts| stmts.iter().any(stmt_always_returns))
-                .unwrap_or(false); // No else = might fall through
-            then_returns && else_returns
-        }
-        // DEPYLER-0622: For/While loops don't guarantee return (loop might not execute)
-        _ => false,
-    }
-}
+// DEPYLER-COVERAGE-95: stmt_always_returns moved to control_flow_analysis module
 
 /// Generate combined generic parameters (<'a, 'b, T, U: Bound>)
 #[inline]
@@ -434,198 +326,14 @@ pub(crate) fn codegen_function_attrs(
 // ============================================================================
 // DEPYLER-0141 Phase 2: Medium Complexity Helpers
 // ============================================================================
-
-/// DEPYLER-0613: Recursively extract all FunctionDef statements from a block
-/// Returns the FunctionDef statements that should be hoisted to the top
-/// Note: Rust closures can't be forward-declared, so we must emit full definitions first
-/// Recursively collect all nested function names from a block of statements
-/// This is used to hoist function declarations to the top level
-fn collect_nested_function_names(stmts: &[HirStmt], names: &mut Vec<String>) {
-    for stmt in stmts {
-        match stmt {
-            HirStmt::FunctionDef { name, body, .. } => {
-                if !names.contains(name) {
-                    names.push(name.clone());
-                }
-                collect_nested_function_names(body, names);
-            }
-            HirStmt::If { then_body, else_body, .. } => {
-                collect_nested_function_names(then_body, names);
-                if let Some(else_stmts) = else_body {
-                    collect_nested_function_names(else_stmts, names);
-                }
-            }
-            HirStmt::While { body, .. } | HirStmt::For { body, .. } | HirStmt::With { body, .. } => {
-                collect_nested_function_names(body, names);
-            }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
-                collect_nested_function_names(body, names);
-                for handler in handlers {
-                    collect_nested_function_names(&handler.body, names);
-                }
-                if let Some(stmts) = orelse {
-                    collect_nested_function_names(stmts, names);
-                }
-                if let Some(stmts) = finalbody {
-                    collect_nested_function_names(stmts, names);
-                }
-            }
-            _ => {}
-        }
-    }
-}
+// DEPYLER-COVERAGE-95: collect_nested_function_names moved to control_flow_analysis module
 
 // ============================================================================
 // DEPYLER-0762, DEPYLER-0834: Block-Escaping Variable Hoisting
 // ============================================================================
-
-/// DEPYLER-0834: Collect variables assigned in if blocks that escape to outer scope.
-///
-/// In Python, variables assigned inside if/elif/else blocks are visible in the outer scope.
-/// In Rust, block scoping means these variables aren't accessible outside the if.
-///
-/// This function finds variables that are:
-/// - Assigned in ANY branch of an if statement (not just both branches)
-/// - Used in statements AFTER the if statement
-///
-/// These variables need to be hoisted to function scope.
-///
-/// Algorithm:
-/// 1. Scan statement list for if statements
-/// 2. For each if, collect variables assigned in ANY branch (union)
-/// 3. For statements AFTER the if, check if those variables are used
-/// 4. Return the set of variables that need hoisting
-fn collect_if_escaping_variables(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
-    use std::collections::HashSet;
-    let mut escaping_vars = HashSet::new();
-
-    for (i, stmt) in stmts.iter().enumerate() {
-        // Check if this is an if statement
-        let if_assigned_vars = match stmt {
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                // DEPYLER-0834: Collect from ANY branch (union), not both (intersection)
-                // Variables assigned in either then or else block escape to outer scope
-                let then_vars = extract_toplevel_assigned_symbols(then_body);
-                let else_vars = if let Some(else_stmts) = else_body {
-                    extract_toplevel_assigned_symbols(else_stmts)
-                } else {
-                    HashSet::new()
-                };
-                // Union of both branches
-                let mut all_vars = then_vars;
-                all_vars.extend(else_vars);
-
-                // Also recurse into nested blocks
-                let mut nested_escaping = collect_if_escaping_variables(then_body);
-                if let Some(else_stmts) = else_body {
-                    nested_escaping.extend(collect_if_escaping_variables(else_stmts));
-                }
-                escaping_vars.extend(nested_escaping);
-
-                all_vars
-            }
-            // Recurse into for/while loops to find nested ifs
-            HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
-                escaping_vars.extend(collect_if_escaping_variables(body));
-                continue;
-            }
-            // Recurse into try/except blocks
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
-                let mut vars = collect_if_escaping_variables(body);
-                for handler in handlers {
-                    vars.extend(collect_if_escaping_variables(&handler.body));
-                }
-                if let Some(finally) = finalbody {
-                    vars.extend(collect_if_escaping_variables(finally));
-                }
-                escaping_vars.extend(vars);
-                continue;
-            }
-            _ => continue,
-        };
-
-        // Check if any of these variables are used in statements AFTER this if
-        if !if_assigned_vars.is_empty() {
-            let remaining_stmts = &stmts[i + 1..];
-            for var in if_assigned_vars {
-                if is_var_used_in_remaining_stmts(&var, remaining_stmts) {
-                    escaping_vars.insert(var);
-                }
-            }
-        }
-    }
-
-    escaping_vars
-}
-
-/// Extract variables assigned at the TOP LEVEL of a block only (not in nested loops)
-/// DEPYLER-0476: Used for if-block variable hoisting to avoid hoisting loop variables twice
-fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
-    use std::collections::HashSet;
-    let mut vars = HashSet::new();
-
-    for stmt in stmts {
-        match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } => {
-                vars.insert(name.clone());
-            }
-            // DEPYLER-0939: Handle tuple unpacking assignments like `(success, error) = operation()`
-            HirStmt::Assign {
-                target: AssignTarget::Tuple(targets),
-                ..
-            } => {
-                for t in targets {
-                    if let AssignTarget::Symbol(name) = t {
-                        vars.insert(name.clone());
-                    }
-                }
-            }
-            // Recurse into if/else blocks (they're not loops, so include their vars)
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                vars.extend(extract_toplevel_assigned_symbols(then_body));
-                if let Some(else_stmts) = else_body {
-                    vars.extend(extract_toplevel_assigned_symbols(else_stmts));
-                }
-            }
-            // DO NOT recurse into for/while - those are handled by loop hoisting
-            HirStmt::For { .. } | HirStmt::While { .. } => {}
-            // Recurse into try/except blocks
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
-                vars.extend(extract_toplevel_assigned_symbols(body));
-                for handler in handlers {
-                    vars.extend(extract_toplevel_assigned_symbols(&handler.body));
-                }
-                if let Some(finally) = finalbody {
-                    vars.extend(extract_toplevel_assigned_symbols(finally));
-                }
-            }
-            _ => {}
-        }
-    }
-
-    vars
-}
+// DEPYLER-COVERAGE-95: collect_if_escaping_variables, collect_loop_escaping_variables,
+// collect_all_assigned_variables, extract_toplevel_assigned_symbols, is_var_used_in_remaining_stmts,
+// is_var_used_anywhere moved to control_flow_analysis module
 
 /// DEPYLER-0963: Find the type of a variable from its assignments in the function body.
 /// Searches for the first assignment to the variable and infers the type from the value.
@@ -781,146 +489,6 @@ fn find_var_type_in_body_with_params(
         }
     }
     None
-}
-
-/// DEPYLER-0762: Collect variables assigned inside for/while loops that are used after the loop.
-/// Python has function-level scoping, so variables assigned in loops are visible after the loop.
-/// Rust has block-level scoping, so we need to hoist these variable declarations.
-///
-/// Algorithm:
-/// 1. Scan statement list for loops (for/while)
-/// 2. For each loop, collect variables assigned inside (recursively)
-/// 3. For statements AFTER the loop, check if those variables are used
-/// 4. Return the set of variables that need hoisting
-fn collect_loop_escaping_variables(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
-    use std::collections::HashSet;
-    let mut escaping_vars = HashSet::new();
-
-    for (i, stmt) in stmts.iter().enumerate() {
-        // Check if this is a for or while loop
-        let loop_assigned_vars = match stmt {
-            HirStmt::For { body, .. } => collect_all_assigned_variables(body),
-            HirStmt::While { body, .. } => collect_all_assigned_variables(body),
-            // DEPYLER-0910: Recurse into if/else blocks to find nested loops
-            // Only hoist vars from nested loops if they're used AFTER the if statement
-            // (not just used within the if body - that's local to the branch)
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                let mut vars = collect_loop_escaping_variables(then_body);
-                if let Some(else_stmts) = else_body {
-                    vars.extend(collect_loop_escaping_variables(else_stmts));
-                }
-                // Check remaining statements AFTER this if statement
-                let remaining_stmts = &stmts[i + 1..];
-                for var in vars {
-                    if is_var_used_in_remaining_stmts(&var, remaining_stmts) {
-                        escaping_vars.insert(var);
-                    }
-                }
-                continue;
-            }
-            // DEPYLER-0910: Recurse into try/except blocks to find nested loops
-            // Only hoist vars from nested loops if they're used AFTER the try statement
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
-                let mut vars = collect_loop_escaping_variables(body);
-                for handler in handlers {
-                    vars.extend(collect_loop_escaping_variables(&handler.body));
-                }
-                if let Some(finally) = finalbody {
-                    vars.extend(collect_loop_escaping_variables(finally));
-                }
-                // Check remaining statements AFTER this try statement
-                let remaining_stmts = &stmts[i + 1..];
-                for var in vars {
-                    if is_var_used_in_remaining_stmts(&var, remaining_stmts) {
-                        escaping_vars.insert(var);
-                    }
-                }
-                continue;
-            }
-            _ => continue,
-        };
-
-        // Check if any of these variables are used in statements AFTER this loop
-        if !loop_assigned_vars.is_empty() {
-            let remaining_stmts = &stmts[i + 1..];
-            for var in loop_assigned_vars {
-                if is_var_used_in_remaining_stmts(&var, remaining_stmts) {
-                    escaping_vars.insert(var);
-                }
-            }
-        }
-    }
-
-    escaping_vars
-}
-
-/// Collect ALL variables assigned inside a statement list (recursively into all blocks)
-fn collect_all_assigned_variables(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
-    use std::collections::HashSet;
-    let mut vars = HashSet::new();
-
-    for stmt in stmts {
-        match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } => {
-                vars.insert(name.clone());
-            }
-            // DEPYLER-0938: Handle tuple unpacking assignments like `(success, error) = operation()`
-            // Python allows these variables to escape loop scope; Rust requires explicit hoisting
-            HirStmt::Assign {
-                target: AssignTarget::Tuple(targets),
-                ..
-            } => {
-                for t in targets {
-                    if let AssignTarget::Symbol(name) = t {
-                        vars.insert(name.clone());
-                    }
-                    // Note: Nested tuples could be handled recursively if needed
-                }
-            }
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                vars.extend(collect_all_assigned_variables(then_body));
-                if let Some(else_stmts) = else_body {
-                    vars.extend(collect_all_assigned_variables(else_stmts));
-                }
-            }
-            HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
-                vars.extend(collect_all_assigned_variables(body));
-            }
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
-                vars.extend(collect_all_assigned_variables(body));
-                for handler in handlers {
-                    vars.extend(collect_all_assigned_variables(&handler.body));
-                }
-                if let Some(finally) = finalbody {
-                    vars.extend(collect_all_assigned_variables(finally));
-                }
-            }
-            _ => {}
-        }
-    }
-
-    vars
 }
 
 /// Check if a variable is used in any of the remaining statements
@@ -4243,10 +3811,10 @@ pub(crate) fn codegen_return_type(
         // Build Box<dyn Fn(params) -> ret> type
         let param_types: Vec<proc_macro2::TokenStream> = params
             .iter()
-            .map(|p| crate::rust_gen::stmt_gen::hir_type_to_tokens(&p.ty, ctx))
+            .map(|p| crate::rust_gen::type_tokens::hir_type_to_tokens(&p.ty))
             .collect();
 
-        let ret_ty_tokens = crate::rust_gen::stmt_gen::hir_type_to_tokens(&nested_ret_type, ctx);
+        let ret_ty_tokens = crate::rust_gen::type_tokens::hir_type_to_tokens(&nested_ret_type);
 
         let fn_type = if params.is_empty() {
             quote! { -> Box<dyn Fn() -> #ret_ty_tokens> }
@@ -5972,5 +5540,2293 @@ mod tests {
         let assigned = collect_all_assigned_variables(&stmts);
         assert!(assigned.contains("a"));
         assert!(assigned.contains("b"));
+    }
+
+    // ==========================================================================
+    // Tests for is_var_used_in_expr_any
+    // ==========================================================================
+
+    #[test]
+    fn test_is_var_used_in_expr_any_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(is_var_used_in_expr_any("x", &expr));
+        assert!(!is_var_used_in_expr_any("y", &expr));
+    }
+
+    #[test]
+    fn test_is_var_used_in_expr_any_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(is_var_used_in_expr_any("x", &expr));
+    }
+
+    #[test]
+    fn test_is_var_used_in_expr_any_call() {
+        let expr = HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_var_used_in_expr_any("x", &expr));
+    }
+
+    #[test]
+    fn test_is_var_used_in_expr_any_list() {
+        let expr = HirExpr::List(vec![
+            HirExpr::Var("x".to_string()),
+            HirExpr::Literal(Literal::Int(1)),
+        ]);
+        assert!(is_var_used_in_expr_any("x", &expr));
+    }
+
+    // ==========================================================================
+    // Tests for is_var_used_in_target
+    // ==========================================================================
+
+    #[test]
+    fn test_is_var_used_in_target_symbol() {
+        let target = AssignTarget::Symbol("x".to_string());
+        assert!(!is_var_used_in_target("x", &target));
+    }
+
+    #[test]
+    fn test_is_var_used_in_target_index() {
+        let target = AssignTarget::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Var("i".to_string())),
+        };
+        assert!(is_var_used_in_target("arr", &target));
+        assert!(is_var_used_in_target("i", &target));
+    }
+
+    // ==========================================================================
+    // Tests for is_var_used_anywhere
+    // ==========================================================================
+
+    #[test]
+    fn test_is_var_used_anywhere_expr_stmt() {
+        let stmt = HirStmt::Expr(HirExpr::Var("x".to_string()));
+        assert!(is_var_used_anywhere("x", &stmt));
+    }
+
+    #[test]
+    fn test_is_var_used_anywhere_return() {
+        let stmt = HirStmt::Return(Some(HirExpr::Var("x".to_string())));
+        assert!(is_var_used_anywhere("x", &stmt));
+    }
+
+    // ==========================================================================
+    // Tests for is_negative_int_expr
+    // ==========================================================================
+
+    #[test]
+    fn test_is_negative_int_expr_positive_lit() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!is_negative_int_expr(&expr));
+    }
+
+    // ==========================================================================
+    // Tests for return_type_expects_float
+    // ==========================================================================
+
+    #[test]
+    fn test_return_type_expects_float_yes() {
+        assert!(return_type_expects_float(&Type::Float));
+    }
+
+    #[test]
+    fn test_return_type_expects_float_no() {
+        assert!(!return_type_expects_float(&Type::Int));
+    }
+
+    #[test]
+    fn test_return_type_expects_float_optional() {
+        let ty = Type::Optional(Box::new(Type::Float));
+        assert!(return_type_expects_float(&ty));
+    }
+
+    // ==========================================================================
+    // Tests for classify_string_method
+    // ==========================================================================
+
+    #[test]
+    fn test_classify_string_method_owned_upper() {
+        assert_eq!(classify_string_method("upper"), StringMethodReturnType::Owned);
+    }
+
+    #[test]
+    fn test_classify_string_method_owned_lower() {
+        assert_eq!(classify_string_method("lower"), StringMethodReturnType::Owned);
+    }
+
+    #[test]
+    fn test_classify_string_method_borrowed() {
+        assert_eq!(classify_string_method("find"), StringMethodReturnType::Borrowed);
+    }
+
+    // ==========================================================================
+    // Tests for contains_owned_string_method
+    // ==========================================================================
+
+    #[test]
+    fn test_contains_owned_string_method_yes() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("s".to_string())),
+            method: "upper".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(contains_owned_string_method(&expr));
+    }
+
+    #[test]
+    fn test_contains_owned_string_method_no() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("s".to_string())),
+            method: "find".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("x".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(!contains_owned_string_method(&expr));
+    }
+
+    // ==========================================================================
+    // Tests for contains_string_concatenation
+    // ==========================================================================
+
+    #[test]
+    fn test_contains_string_concatenation_yes() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::String("a".to_string()))),
+            right: Box::new(HirExpr::Literal(Literal::String("b".to_string()))),
+        };
+        assert!(contains_string_concatenation(&expr));
+    }
+
+    #[test]
+    fn test_contains_string_concatenation_int_add_treated_as_concat() {
+        // Note: The function conservatively treats ANY Add as potential string concat
+        // This is by design - numeric Add is handled differently in codegen
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        // Function returns true for ALL Add ops (conservative approach)
+        assert!(contains_string_concatenation(&expr));
+    }
+
+    // ==========================================================================
+    // Tests for find_var_type_in_body
+    // ==========================================================================
+
+    #[test]
+    fn test_find_var_type_found() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        assert_eq!(find_var_type_in_body("x", &stmts), Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_var_type_not_found() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("y".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        assert_eq!(find_var_type_in_body("x", &stmts), None);
+    }
+
+    // ==========================================================================
+    // Tests for collect_loop_escaping_variables
+    // ==========================================================================
+
+    #[test]
+    fn test_collect_loop_escaping_empty() {
+        let stmts: Vec<HirStmt> = vec![];
+        let escaping = collect_loop_escaping_variables(&stmts);
+        assert!(escaping.is_empty());
+    }
+
+    // ==========================================================================
+    // Tests for is_param_used_in_body
+    // ==========================================================================
+
+    #[test]
+    fn test_param_used_in_body_yes() {
+        let body = vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))];
+        assert!(is_param_used_in_body("x", &body));
+    }
+
+    #[test]
+    fn test_param_used_in_body_no() {
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))];
+        assert!(!is_param_used_in_body("x", &body));
+    }
+
+    // ==========================================================================
+    // Tests for is_param_used_in_expr
+    // ==========================================================================
+
+    #[test]
+    fn test_param_used_in_expr_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!is_param_used_in_expr("x", &expr));
+    }
+
+    // ==========================================================================
+    // Tests for infer_expr_type_simple
+    // ==========================================================================
+
+    #[test]
+    fn test_infer_simple_int() {
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Int(42))), Type::Int);
+    }
+
+    #[test]
+    fn test_infer_simple_float() {
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Float(3.14))), Type::Float);
+    }
+
+    #[test]
+    fn test_infer_simple_string() {
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::String("hi".to_string()))), Type::String);
+    }
+
+    #[test]
+    fn test_infer_simple_bool() {
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Bool(true))), Type::Bool);
+    }
+
+    #[test]
+    fn test_infer_simple_list() {
+        let expr = HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]);
+        assert!(matches!(infer_expr_type_simple(&expr), Type::List(_)));
+    }
+
+    #[test]
+    fn test_infer_simple_dict() {
+        let expr = HirExpr::Dict(vec![
+            (HirExpr::Literal(Literal::String("k".to_string())), HirExpr::Literal(Literal::Int(1)))
+        ]);
+        assert!(matches!(infer_expr_type_simple(&expr), Type::Dict(_, _)));
+    }
+
+    // ==========================================================================
+    // Tests for stmt_always_returns - additional edge cases
+    // ==========================================================================
+
+    #[test]
+    fn test_stmt_always_returns_if_both_branches_return() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
+        };
+        assert!(stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_if_no_else_branch() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: None,
+        };
+        // Without else, the if doesn't guarantee a return
+        assert!(!stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_if_else_doesnt_return() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: Some(vec![HirStmt::Pass]),
+        };
+        assert!(!stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_with_block_returns() {
+        let stmt = HirStmt::With {
+            context: HirExpr::Var("file".to_string()),
+            target: None,
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            is_async: false,
+        };
+        assert!(stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_with_block_no_return() {
+        let stmt = HirStmt::With {
+            context: HirExpr::Var("file".to_string()),
+            target: None,
+            body: vec![HirStmt::Pass],
+            is_async: false,
+        };
+        assert!(!stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_while_does_not() {
+        let stmt = HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+        };
+        // Loops don't guarantee return
+        assert!(!stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_for_does_not() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+        };
+        // Loops don't guarantee return
+        assert!(!stmt_always_returns(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_pass() {
+        assert!(!stmt_always_returns(&HirStmt::Pass));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_break() {
+        assert!(!stmt_always_returns(&HirStmt::Break { label: None }));
+    }
+
+    #[test]
+    fn test_stmt_always_returns_continue() {
+        assert!(!stmt_always_returns(&HirStmt::Continue { label: None }));
+    }
+
+    // ==========================================================================
+    // Tests for collect_loop_escaping_variables - additional cases
+    // ==========================================================================
+
+    #[test]
+    fn test_collect_loop_escaping_with_for_loop() {
+        // for i in range(10):
+        //     x = i
+        // print(x)  <-- x escapes loop
+        let stmts = vec![
+            HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Var("range".to_string()),
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: HirExpr::Var("i".to_string()),
+                    type_annotation: None,
+                }],
+            },
+            HirStmt::Expr(HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![HirExpr::Var("x".to_string())],
+                kwargs: vec![],
+            }),
+        ];
+        let escaping = collect_loop_escaping_variables(&stmts);
+        assert!(escaping.contains("x"));
+    }
+
+    #[test]
+    fn test_collect_loop_escaping_var_not_used_after() {
+        // for i in range(10):
+        //     x = i
+        // # x not used after
+        let stmts = vec![
+            HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Var("range".to_string()),
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: HirExpr::Var("i".to_string()),
+                    type_annotation: None,
+                }],
+            },
+        ];
+        let escaping = collect_loop_escaping_variables(&stmts);
+        // x is not used after the loop, so it doesn't escape
+        assert!(!escaping.contains("x"));
+    }
+
+    #[test]
+    fn test_collect_loop_escaping_in_while() {
+        // while cond:
+        //     result = compute()
+        // return result  <-- result escapes loop
+        let stmts = vec![
+            HirStmt::While {
+                condition: HirExpr::Var("cond".to_string()),
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("result".to_string()),
+                    value: HirExpr::Call {
+                        func: "compute".to_string(),
+                        args: vec![],
+                        kwargs: vec![],
+                    },
+                    type_annotation: None,
+                }],
+            },
+            HirStmt::Return(Some(HirExpr::Var("result".to_string()))),
+        ];
+        let escaping = collect_loop_escaping_variables(&stmts);
+        assert!(escaping.contains("result"));
+    }
+
+    #[test]
+    fn test_collect_loop_escaping_multiple_vars() {
+        // for i in range(10):
+        //     x = i
+        //     y = i * 2
+        // print(x, y)  <-- both x and y escape loop
+        let stmts = vec![
+            HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Var("range".to_string()),
+                body: vec![
+                    HirStmt::Assign {
+                        target: AssignTarget::Symbol("x".to_string()),
+                        value: HirExpr::Var("i".to_string()),
+                        type_annotation: None,
+                    },
+                    HirStmt::Assign {
+                        target: AssignTarget::Symbol("y".to_string()),
+                        value: HirExpr::Binary {
+                            left: Box::new(HirExpr::Var("i".to_string())),
+                            op: BinOp::Mul,
+                            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+                        },
+                        type_annotation: None,
+                    },
+                ],
+            },
+            HirStmt::Expr(HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())],
+                kwargs: vec![],
+            }),
+        ];
+        let escaping = collect_loop_escaping_variables(&stmts);
+        assert!(escaping.contains("x"));
+        assert!(escaping.contains("y"));
+    }
+
+    // ==========================================================================
+    // Tests for is_param_used_in_stmt - additional edge cases
+    // ==========================================================================
+
+    #[test]
+    fn test_param_used_in_stmt_if_condition() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Var("x".to_string()),
+            then_body: vec![],
+            else_body: None,
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_if_then_body() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            else_body: None,
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_if_else_body() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![],
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))]),
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_while_condition() {
+        let stmt = HirStmt::While {
+            condition: HirExpr::Var("x".to_string()),
+            body: vec![],
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_while_body() {
+        let stmt = HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_for_iter() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![],
+        };
+        assert!(is_param_used_in_stmt("items", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_for_body() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("other".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_return() {
+        let stmt = HirStmt::Return(Some(HirExpr::Var("x".to_string())));
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_return_none() {
+        let stmt = HirStmt::Return(None);
+        assert!(!is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_try_body() {
+        let stmt = HirStmt::Try {
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+            handlers: vec![],
+            orelse: None,
+            finalbody: None,
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_try_handler() {
+        let stmt = HirStmt::Try {
+            body: vec![],
+            handlers: vec![ExceptHandler {
+                exception_type: None,
+                name: None,
+                body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+            }],
+            orelse: None,
+            finalbody: None,
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_try_finally() {
+        let stmt = HirStmt::Try {
+            body: vec![],
+            handlers: vec![],
+            orelse: None,
+            finalbody: Some(vec![HirStmt::Expr(HirExpr::Var("x".to_string()))]),
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_with_context() {
+        let stmt = HirStmt::With {
+            context: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Var("path".to_string())],
+                kwargs: vec![],
+            },
+            target: None,
+            body: vec![],
+            is_async: false,
+        };
+        assert!(is_param_used_in_stmt("path", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_with_body() {
+        let stmt = HirStmt::With {
+            context: HirExpr::Var("ctx".to_string()),
+            target: None,
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+            is_async: false,
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_nested_function() {
+        let stmt = HirStmt::FunctionDef {
+            name: "inner".to_string(),
+            params: Box::new(smallvec![]),
+            body: vec![HirStmt::Return(Some(HirExpr::Var("captured".to_string())))],
+            ret_type: Type::Unknown,
+            docstring: None,
+        };
+        assert!(is_param_used_in_stmt("captured", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_assert() {
+        let stmt = HirStmt::Assert {
+            test: HirExpr::Var("x".to_string()),
+            msg: None,
+        };
+        assert!(is_param_used_in_stmt("x", &stmt));
+    }
+
+    #[test]
+    fn test_param_used_in_stmt_assert_msg() {
+        let stmt = HirStmt::Assert {
+            test: HirExpr::Literal(Literal::Bool(true)),
+            msg: Some(HirExpr::Var("msg".to_string())),
+        };
+        assert!(is_param_used_in_stmt("msg", &stmt));
+    }
+
+    // ==========================================================================
+    // Tests for is_param_used_in_expr - additional edge cases
+    // ==========================================================================
+
+    #[test]
+    fn test_param_used_in_expr_binary_left() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_binary_right() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Var("x".to_string())),
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_unary() {
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Var("x".to_string())),
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_call_func() {
+        // callback()
+        let expr = HirExpr::Call {
+            func: "callback".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_param_used_in_expr("callback", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_call_args() {
+        let expr = HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_call_kwargs() {
+        let expr = HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![],
+            kwargs: vec![("key".to_string(), HirExpr::Var("x".to_string()))],
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_method_call_object() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_param_used_in_expr("obj", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_method_call_args() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("other".to_string())),
+            method: "method".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_method_call_kwargs() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("other".to_string())),
+            method: "method".to_string(),
+            args: vec![],
+            kwargs: vec![("key".to_string(), HirExpr::Var("x".to_string()))],
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_attribute() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        assert!(is_param_used_in_expr("obj", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_index_base() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(is_param_used_in_expr("arr", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_index_index() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("other".to_string())),
+            index: Box::new(HirExpr::Var("idx".to_string())),
+        };
+        assert!(is_param_used_in_expr("idx", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_slice_base() {
+        let expr = HirExpr::Slice {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            start: None,
+            stop: None,
+            step: None,
+        };
+        assert!(is_param_used_in_expr("arr", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_slice_start() {
+        let expr = HirExpr::Slice {
+            base: Box::new(HirExpr::Var("other".to_string())),
+            start: Some(Box::new(HirExpr::Var("x".to_string()))),
+            stop: None,
+            step: None,
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_slice_stop() {
+        let expr = HirExpr::Slice {
+            base: Box::new(HirExpr::Var("other".to_string())),
+            start: None,
+            stop: Some(Box::new(HirExpr::Var("x".to_string()))),
+            step: None,
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_slice_step() {
+        let expr = HirExpr::Slice {
+            base: Box::new(HirExpr::Var("other".to_string())),
+            start: None,
+            stop: None,
+            step: Some(Box::new(HirExpr::Var("x".to_string()))),
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_borrow() {
+        let expr = HirExpr::Borrow {
+            expr: Box::new(HirExpr::Var("x".to_string())),
+            mutable: false,
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_fstring() {
+        let expr = HirExpr::FString {
+            parts: vec![crate::hir::FStringPart::Expr(Box::new(HirExpr::Var("x".to_string())))],
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    #[test]
+    fn test_param_used_in_expr_yield() {
+        let expr = HirExpr::Yield {
+            value: Some(Box::new(HirExpr::Var("x".to_string()))),
+        };
+        assert!(is_param_used_in_expr("x", &expr));
+    }
+
+    // ==========================================================================
+    // Tests for is_param_used_in_assign_target
+    // ==========================================================================
+
+    #[test]
+    fn test_param_used_in_assign_target_symbol_same() {
+        let target = AssignTarget::Symbol("x".to_string());
+        assert!(is_param_used_in_assign_target("x", &target));
+    }
+
+    #[test]
+    fn test_param_used_in_assign_target_symbol_different() {
+        let target = AssignTarget::Symbol("y".to_string());
+        assert!(!is_param_used_in_assign_target("x", &target));
+    }
+
+    #[test]
+    fn test_param_used_in_assign_target_index() {
+        let target = AssignTarget::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Var("idx".to_string())),
+        };
+        assert!(is_param_used_in_assign_target("idx", &target));
+    }
+
+    #[test]
+    fn test_param_used_in_assign_target_tuple() {
+        let target = AssignTarget::Tuple(vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("x".to_string()),
+        ]);
+        assert!(is_param_used_in_assign_target("x", &target));
+    }
+
+    // ==========================================================================
+    // Tests for stmt_returns_owned_string
+    // ==========================================================================
+
+    #[test]
+    fn test_stmt_returns_owned_string_return_upper() {
+        let stmt = HirStmt::Return(Some(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("s".to_string())),
+            method: "upper".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        }));
+        assert!(stmt_returns_owned_string(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_returns_owned_string_return_string_literal() {
+        let stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::String("hello".to_string()))));
+        assert!(stmt_returns_owned_string(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_returns_owned_string_return_int() {
+        let stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))));
+        assert!(!stmt_returns_owned_string(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_returns_owned_string_if_then_returns_owned() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String("hi".to_string()))))],
+            else_body: None,
+        };
+        assert!(stmt_returns_owned_string(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_returns_owned_string_expression_doesnt_return() {
+        let stmt = HirStmt::Expr(HirExpr::Literal(Literal::String("hi".to_string())));
+        assert!(!stmt_returns_owned_string(&stmt));
+    }
+
+    // ==========================================================================
+    // Tests for stmt_block_returns_owned_string
+    // ==========================================================================
+
+    #[test]
+    fn test_stmt_block_returns_owned_string_yes() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+            HirStmt::Return(Some(HirExpr::Literal(Literal::String("result".to_string())))),
+        ];
+        assert!(stmt_block_returns_owned_string(&stmts));
+    }
+
+    #[test]
+    fn test_stmt_block_returns_owned_string_no() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+            HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42)))),
+        ];
+        assert!(!stmt_block_returns_owned_string(&stmts));
+    }
+
+    #[test]
+    fn test_stmt_block_returns_owned_string_empty() {
+        let stmts: Vec<HirStmt> = vec![];
+        assert!(!stmt_block_returns_owned_string(&stmts));
+    }
+
+    // ==========================================================================
+    // Tests for infer_return_type_from_body
+    // ==========================================================================
+
+    #[test]
+    fn test_infer_return_type_int() {
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))];
+        assert_eq!(infer_return_type_from_body(&body), Some(Type::Int));
+    }
+
+    #[test]
+    fn test_infer_return_type_string() {
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String("hi".to_string()))))];
+        assert_eq!(infer_return_type_from_body(&body), Some(Type::String));
+    }
+
+    #[test]
+    fn test_infer_return_type_no_return() {
+        let body = vec![HirStmt::Pass];
+        assert_eq!(infer_return_type_from_body(&body), None);
+    }
+
+    #[test]
+    fn test_infer_return_type_return_none_value() {
+        let body = vec![HirStmt::Return(None)];
+        // Return None statement returns Some(Type::None)
+        assert_eq!(infer_return_type_from_body(&body), Some(Type::None));
+    }
+
+    #[test]
+    fn test_infer_return_type_in_if() {
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(3.14))))],
+            else_body: None,
+        }];
+        assert_eq!(infer_return_type_from_body(&body), Some(Type::Float));
+    }
+
+    // ==========================================================================
+    // Tests for is_field_used_as_bool_condition
+    // ==========================================================================
+
+    #[test]
+    fn test_field_used_as_bool_condition_if() {
+        // if args.verbose:
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "verbose".to_string(),
+            },
+            then_body: vec![],
+            else_body: None,
+        }];
+        assert!(is_field_used_as_bool_condition("verbose", &body));
+    }
+
+    #[test]
+    fn test_field_used_as_bool_condition_while() {
+        // while args.running:
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "running".to_string(),
+            },
+            body: vec![],
+        }];
+        assert!(is_field_used_as_bool_condition("running", &body));
+    }
+
+    #[test]
+    fn test_field_used_as_bool_condition_not_used() {
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![],
+            else_body: None,
+        }];
+        assert!(!is_field_used_as_bool_condition("verbose", &body));
+    }
+
+    #[test]
+    fn test_field_used_as_bool_condition_nested() {
+        // if cond:
+        //     if args.debug:
+        //         pass
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::If {
+                condition: HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "debug".to_string(),
+                },
+                then_body: vec![],
+                else_body: None,
+            }],
+            else_body: None,
+        }];
+        assert!(is_field_used_as_bool_condition("debug", &body));
+    }
+
+    // ==========================================================================
+    // Tests for infer_expr_type_simple - additional edge cases
+    // ==========================================================================
+
+    #[test]
+    fn test_infer_simple_none() {
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::None)), Type::None);
+    }
+
+    #[test]
+    fn test_infer_simple_tuple() {
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("a".to_string())),
+        ]);
+        assert!(matches!(infer_expr_type_simple(&expr), Type::Tuple(_)));
+    }
+
+    #[test]
+    fn test_infer_simple_set() {
+        let expr = HirExpr::Set(vec![HirExpr::Literal(Literal::Int(1))]);
+        assert!(matches!(infer_expr_type_simple(&expr), Type::Set(_)));
+    }
+
+    #[test]
+    fn test_infer_simple_empty_list() {
+        let expr = HirExpr::List(vec![]);
+        assert!(matches!(infer_expr_type_simple(&expr), Type::List(_)));
+    }
+
+    #[test]
+    fn test_infer_simple_empty_dict() {
+        let expr = HirExpr::Dict(vec![]);
+        assert!(matches!(infer_expr_type_simple(&expr), Type::Dict(_, _)));
+    }
+
+    #[test]
+    fn test_infer_simple_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(matches!(infer_expr_type_simple(&expr), Type::Unknown));
+    }
+
+    #[test]
+    fn test_infer_simple_binary_add() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(matches!(infer_expr_type_simple(&expr), Type::Int));
+    }
+
+    #[test]
+    fn test_infer_simple_binary_comparison() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Eq,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(matches!(infer_expr_type_simple(&expr), Type::Bool));
+    }
+
+    #[test]
+    fn test_infer_simple_unary_not() {
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Literal(Literal::Bool(true))),
+        };
+        assert!(matches!(infer_expr_type_simple(&expr), Type::Bool));
+    }
+
+    // ==========================================================================
+    // Tests for codegen_generic_params
+    // ==========================================================================
+
+    #[test]
+    fn test_codegen_generic_params_empty() {
+        let result = codegen_generic_params(&[], &[]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_codegen_generic_params_lifetime_only() {
+        let result = codegen_generic_params(&[], &["'a".to_string()]);
+        let result_str = result.to_string();
+        assert!(result_str.contains("'a"));
+    }
+
+    #[test]
+    fn test_codegen_generic_params_type_only() {
+        use crate::generic_inference::TypeParameter;
+        let params = vec![TypeParameter {
+            name: "T".to_string(),
+            bounds: vec![],
+            default: None,
+        }];
+        let result = codegen_generic_params(&params, &[]);
+        let result_str = result.to_string();
+        assert!(result_str.contains("T"));
+    }
+
+    #[test]
+    fn test_codegen_generic_params_type_with_bounds() {
+        use crate::generic_inference::TypeParameter;
+        let params = vec![TypeParameter {
+            name: "T".to_string(),
+            bounds: vec!["Clone".to_string()],
+            default: None,
+        }];
+        let result = codegen_generic_params(&params, &[]);
+        let result_str = result.to_string();
+        assert!(result_str.contains("T"));
+        assert!(result_str.contains("Clone"));
+    }
+
+    #[test]
+    fn test_codegen_generic_params_lifetime_and_type() {
+        use crate::generic_inference::TypeParameter;
+        let params = vec![TypeParameter {
+            name: "T".to_string(),
+            bounds: vec![],
+            default: None,
+        }];
+        let result = codegen_generic_params(&params, &["'a".to_string()]);
+        let result_str = result.to_string();
+        assert!(result_str.contains("'a"));
+        assert!(result_str.contains("T"));
+    }
+
+    #[test]
+    fn test_codegen_generic_params_with_static_filtered() {
+        let result = codegen_generic_params(&[], &["'static".to_string()]);
+        // 'static is filtered out per line 280: if lt != "'static"
+        // Result will be empty angle brackets "<>"
+        let result_str = result.to_string();
+        // The result is "<>" which is still non-empty tokenstream
+        assert!(!result_str.contains("'static"));
+    }
+
+    // ==========================================================================
+    // Tests for codegen_where_clause
+    // ==========================================================================
+
+    #[test]
+    fn test_codegen_where_clause_empty() {
+        let result = codegen_where_clause(&[]);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_codegen_where_clause_single() {
+        // codegen_where_clause takes lifetime bounds as (from_lifetime, to_lifetime)
+        let result = codegen_where_clause(&[("'a".to_string(), "'b".to_string())]);
+        let result_str = result.to_string();
+        assert!(result_str.contains("where"));
+        assert!(result_str.contains("'a"));
+        assert!(result_str.contains("'b"));
+    }
+
+    #[test]
+    fn test_codegen_where_clause_multiple() {
+        let result = codegen_where_clause(&[
+            ("'a".to_string(), "'b".to_string()),
+            ("'c".to_string(), "'d".to_string()),
+        ]);
+        let result_str = result.to_string();
+        assert!(result_str.contains("where"));
+        assert!(result_str.contains("'a"));
+        assert!(result_str.contains("'b"));
+        assert!(result_str.contains("'c"));
+        assert!(result_str.contains("'d"));
+    }
+
+    // ==========================================================================
+    // Tests for collect_all_assigned_variables - additional
+    // ==========================================================================
+
+    #[test]
+    fn test_collect_all_assigned_variables_in_if() {
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            }],
+            else_body: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::Literal(Literal::Int(2)),
+                type_annotation: None,
+            }]),
+        }];
+        let vars = collect_all_assigned_variables(&stmts);
+        assert!(vars.contains("x"));
+        assert!(vars.contains("y"));
+    }
+
+    #[test]
+    fn test_collect_all_assigned_variables_in_for() {
+        let stmts = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Var("i".to_string()),
+                type_annotation: None,
+            }],
+        }];
+        let vars = collect_all_assigned_variables(&stmts);
+        assert!(vars.contains("x"));
+    }
+
+    #[test]
+    fn test_collect_all_assigned_variables_in_while() {
+        let stmts = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("count".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: None,
+            }],
+        }];
+        let vars = collect_all_assigned_variables(&stmts);
+        assert!(vars.contains("count"));
+    }
+
+    #[test]
+    fn test_collect_all_assigned_variables_in_try_finally() {
+        // With isn't handled by collect_all_assigned_variables, but finally is
+        let stmts = vec![HirStmt::Try {
+            body: vec![],
+            handlers: vec![],
+            orelse: None,
+            finalbody: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("data".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: None,
+            }]),
+        }];
+        let vars = collect_all_assigned_variables(&stmts);
+        assert!(vars.contains("data"));
+    }
+
+    #[test]
+    fn test_collect_all_assigned_variables_in_try() {
+        let stmts = vec![HirStmt::Try {
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("result".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: None,
+            }],
+            handlers: vec![ExceptHandler {
+                exception_type: None,
+                name: None,
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("error".to_string()),
+                    value: HirExpr::Literal(Literal::Int(1)),
+                    type_annotation: None,
+                }],
+            }],
+            orelse: None,
+            finalbody: None,
+        }];
+        let vars = collect_all_assigned_variables(&stmts);
+        assert!(vars.contains("result"));
+        assert!(vars.contains("error"));
+    }
+
+    // ==========================================================================
+    // EXTREME TDD: Tests for codegen_function_attrs
+    // Covers lines 336-374 of func_gen.rs
+    // ==========================================================================
+
+    fn make_default_props() -> FunctionProperties {
+        FunctionProperties {
+            is_pure: false,
+            max_stack_depth: None,
+            always_terminates: false,
+            panic_free: false,
+            can_fail: false,
+            error_types: vec![],
+            is_async: false,
+            is_generator: false,
+        }
+    }
+
+    #[test]
+    fn test_codegen_function_attrs_empty() {
+        let props = make_default_props();
+        let attrs = codegen_function_attrs(&None, &props, &[]);
+        assert!(attrs.is_empty());
+    }
+
+    #[test]
+    fn test_codegen_function_attrs_with_docstring() {
+        let props = make_default_props();
+        let attrs = codegen_function_attrs(&Some("Test function".to_string()), &props, &[]);
+        assert_eq!(attrs.len(), 1);
+        let attr_str = attrs[0].to_string();
+        assert!(attr_str.contains("doc"));
+        assert!(attr_str.contains("Test function"));
+    }
+
+    #[test]
+    fn test_codegen_function_attrs_panic_free() {
+        let mut props = make_default_props();
+        props.panic_free = true;
+        let attrs = codegen_function_attrs(&None, &props, &[]);
+        assert_eq!(attrs.len(), 1);
+        let attr_str = attrs[0].to_string();
+        assert!(attr_str.contains("panic-free"));
+    }
+
+    #[test]
+    fn test_codegen_function_attrs_always_terminates() {
+        let mut props = make_default_props();
+        props.always_terminates = true;
+        let attrs = codegen_function_attrs(&None, &props, &[]);
+        assert_eq!(attrs.len(), 1);
+        let attr_str = attrs[0].to_string();
+        assert!(attr_str.contains("terminate"));
+    }
+
+    #[test]
+    fn test_codegen_function_attrs_custom_attributes() {
+        let props = make_default_props();
+        let custom = vec!["inline".to_string()];
+        let attrs = codegen_function_attrs(&None, &props, &custom);
+        assert_eq!(attrs.len(), 1);
+        let attr_str = attrs[0].to_string();
+        assert!(attr_str.contains("inline"));
+    }
+
+    #[test]
+    fn test_codegen_function_attrs_all_flags() {
+        let mut props = make_default_props();
+        props.panic_free = true;
+        props.always_terminates = true;
+        let custom = vec!["inline(always)".to_string()];
+        let attrs = codegen_function_attrs(&Some("Test".to_string()), &props, &custom);
+        assert_eq!(attrs.len(), 4); // docstring + panic_free + always_terminates + inline
+    }
+
+    // ==========================================================================
+    // EXTREME TDD: Tests for find_var_type_in_body_with_params
+    // Covers lines 587-700+ of func_gen.rs
+    // ==========================================================================
+
+    #[test]
+    fn test_find_var_type_in_body_explicit_annotation() {
+        use std::collections::HashMap;
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        let params: HashMap<String, Type> = HashMap::new();
+        let result = find_var_type_in_body_with_params("x", &stmts, &params);
+        assert_eq!(result, Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_var_type_in_body_from_param() {
+        use std::collections::HashMap;
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("result".to_string()),
+            value: HirExpr::Var("n".to_string()),
+            type_annotation: None,
+        }];
+        let mut params: HashMap<String, Type> = HashMap::new();
+        params.insert("n".to_string(), Type::Int);
+        let result = find_var_type_in_body_with_params("result", &stmts, &params);
+        assert_eq!(result, Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_var_type_in_body_from_list_index() {
+        use std::collections::HashMap;
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("first".to_string()),
+            value: HirExpr::Index {
+                base: Box::new(HirExpr::Var("items".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::Int(0))),
+            },
+            type_annotation: None,
+        }];
+        let mut params: HashMap<String, Type> = HashMap::new();
+        params.insert("items".to_string(), Type::List(Box::new(Type::String)));
+        let result = find_var_type_in_body_with_params("first", &stmts, &params);
+        assert_eq!(result, Some(Type::String));
+    }
+
+    #[test]
+    fn test_find_var_type_in_body_not_found() {
+        use std::collections::HashMap;
+        let stmts = vec![HirStmt::Pass];
+        let params: HashMap<String, Type> = HashMap::new();
+        let result = find_var_type_in_body_with_params("nonexistent", &stmts, &params);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_find_var_type_in_body_wrapper() {
+        // Test the find_var_type_in_body wrapper function
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Float),
+        }];
+        let result = find_var_type_in_body("x", &stmts);
+        assert_eq!(result, Some(Type::Float));
+    }
+
+    #[test]
+    fn test_find_var_type_in_body_from_dict_index() {
+        use std::collections::HashMap;
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("value".to_string()),
+            value: HirExpr::Index {
+                base: Box::new(HirExpr::Var("data".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+            },
+            type_annotation: None,
+        }];
+        let mut params: HashMap<String, Type> = HashMap::new();
+        params.insert("data".to_string(), Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
+        let result = find_var_type_in_body_with_params("value", &stmts, &params);
+        assert_eq!(result, Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_var_type_in_body_from_string_index() {
+        use std::collections::HashMap;
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("char".to_string()),
+            value: HirExpr::Index {
+                base: Box::new(HirExpr::Var("text".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::Int(0))),
+            },
+            type_annotation: None,
+        }];
+        let mut params: HashMap<String, Type> = HashMap::new();
+        params.insert("text".to_string(), Type::String);
+        let result = find_var_type_in_body_with_params("char", &stmts, &params);
+        assert_eq!(result, Some(Type::String));
+    }
+
+    #[test]
+    fn test_find_var_type_in_body_from_tuple_index() {
+        use std::collections::HashMap;
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("first".to_string()),
+            value: HirExpr::Index {
+                base: Box::new(HirExpr::Var("pair".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::Int(0))),
+            },
+            type_annotation: None,
+        }];
+        let mut params: HashMap<String, Type> = HashMap::new();
+        params.insert("pair".to_string(), Type::Tuple(vec![Type::Int, Type::String]));
+        let result = find_var_type_in_body_with_params("first", &stmts, &params);
+        assert_eq!(result, Some(Type::Int));
+    }
+
+    // ==========================================================================
+    // EXTREME TDD: Tests for extract_args_field_accesses
+    // Covers lines 23-200 of func_gen.rs
+    // ==========================================================================
+
+    #[test]
+    fn test_extract_args_field_accesses_simple_attribute() {
+        // args.verbose -> ["verbose"]
+        let body = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "verbose".to_string(),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"verbose".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_multiple_fields() {
+        // args.input and args.output
+        let body = vec![
+            HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "input".to_string(),
+            }),
+            HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "output".to_string(),
+            }),
+        ];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"input".to_string()));
+        assert!(fields.contains(&"output".to_string()));
+        assert_eq!(fields.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_wrong_name() {
+        // other.verbose -> [] (not "args")
+        let body = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("other".to_string())),
+            attr: "verbose".to_string(),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_binary() {
+        // args.x + args.y
+        let body = vec![HirStmt::Expr(HirExpr::Binary {
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "x".to_string(),
+            }),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "y".to_string(),
+            }),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"x".to_string()));
+        assert!(fields.contains(&"y".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_unary() {
+        // -args.value
+        let body = vec![HirStmt::Expr(HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "value".to_string(),
+            }),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"value".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_call_args() {
+        // print(args.msg)
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "msg".to_string(),
+            }],
+            kwargs: vec![],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"msg".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_call_kwargs() {
+        // func(key=args.value)
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![],
+            kwargs: vec![("key".to_string(), HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "value".to_string(),
+            })],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"value".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_method_call_object() {
+        // args.data.process()
+        let body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "data".to_string(),
+            }),
+            method: "process".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"data".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_method_call_args() {
+        // obj.method(args.param)
+        let body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "param".to_string(),
+            }],
+            kwargs: vec![],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"param".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_method_call_kwargs() {
+        // obj.method(k=args.v)
+        let body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![],
+            kwargs: vec![("k".to_string(), HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "v".to_string(),
+            })],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"v".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_list() {
+        // [args.a, args.b]
+        let body = vec![HirStmt::Expr(HirExpr::List(vec![
+            HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "a".to_string(),
+            },
+            HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "b".to_string(),
+            },
+        ]))];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"a".to_string()));
+        assert!(fields.contains(&"b".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_tuple() {
+        // (args.x, args.y)
+        let body = vec![HirStmt::Expr(HirExpr::Tuple(vec![
+            HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "x".to_string(),
+            },
+            HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "y".to_string(),
+            },
+        ]))];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"x".to_string()));
+        assert!(fields.contains(&"y".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_set() {
+        // {args.item}
+        let body = vec![HirStmt::Expr(HirExpr::Set(vec![
+            HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "item".to_string(),
+            },
+        ]))];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"item".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_dict() {
+        // {args.key: args.val}
+        let body = vec![HirStmt::Expr(HirExpr::Dict(vec![
+            (
+                HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "key".to_string(),
+                },
+                HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "val".to_string(),
+                },
+            ),
+        ]))];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"key".to_string()));
+        assert!(fields.contains(&"val".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_index() {
+        // args.data[args.idx]
+        let body = vec![HirStmt::Expr(HirExpr::Index {
+            base: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "data".to_string(),
+            }),
+            index: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "idx".to_string(),
+            }),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"data".to_string()));
+        assert!(fields.contains(&"idx".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_if_expr() {
+        // args.a if args.cond else args.b
+        let body = vec![HirStmt::Expr(HirExpr::IfExpr {
+            test: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "cond".to_string(),
+            }),
+            body: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "a".to_string(),
+            }),
+            orelse: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "b".to_string(),
+            }),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"cond".to_string()));
+        assert!(fields.contains(&"a".to_string()));
+        assert!(fields.contains(&"b".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_fstring() {
+        use crate::hir::FStringPart;
+        // f"{args.name}"
+        let body = vec![HirStmt::Expr(HirExpr::FString {
+            parts: vec![FStringPart::Expr(Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "name".to_string(),
+            }))],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"name".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_fstring_literal() {
+        use crate::hir::FStringPart;
+        // f"literal text"
+        let body = vec![HirStmt::Expr(HirExpr::FString {
+            parts: vec![FStringPart::Literal("text".to_string())],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_slice() {
+        // args.data[args.start:args.stop:args.step]
+        let body = vec![HirStmt::Expr(HirExpr::Slice {
+            base: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "data".to_string(),
+            }),
+            start: Some(Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "start".to_string(),
+            })),
+            stop: Some(Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "stop".to_string(),
+            })),
+            step: Some(Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "step".to_string(),
+            })),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"data".to_string()));
+        assert!(fields.contains(&"start".to_string()));
+        assert!(fields.contains(&"stop".to_string()));
+        assert!(fields.contains(&"step".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_slice_partial() {
+        // data[:args.end]
+        let body = vec![HirStmt::Expr(HirExpr::Slice {
+            base: Box::new(HirExpr::Var("data".to_string())),
+            start: None,
+            stop: Some(Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "end".to_string(),
+            })),
+            step: None,
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"end".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_list_comp() {
+        use crate::hir::HirComprehension;
+        // [x for x in args.items if args.filter]
+        let body = vec![HirStmt::Expr(HirExpr::ListComp {
+            element: Box::new(HirExpr::Var("x".to_string())),
+            generators: vec![HirComprehension {
+                target: "x".to_string(),
+                iter: Box::new(HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "items".to_string(),
+                }),
+                conditions: vec![HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "filter".to_string(),
+                }],
+            }],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"items".to_string()));
+        assert!(fields.contains(&"filter".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_set_comp() {
+        use crate::hir::HirComprehension;
+        // {args.x for _ in items}
+        let body = vec![HirStmt::Expr(HirExpr::SetComp {
+            element: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "x".to_string(),
+            }),
+            generators: vec![HirComprehension {
+                target: "_".to_string(),
+                iter: Box::new(HirExpr::Var("items".to_string())),
+                conditions: vec![],
+            }],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"x".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_dict_comp() {
+        use crate::hir::HirComprehension;
+        // {args.k: args.v for _ in items if args.cond}
+        let body = vec![HirStmt::Expr(HirExpr::DictComp {
+            key: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "k".to_string(),
+            }),
+            value: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "v".to_string(),
+            }),
+            generators: vec![HirComprehension {
+                target: "_".to_string(),
+                iter: Box::new(HirExpr::Var("items".to_string())),
+                conditions: vec![HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "cond".to_string(),
+                }],
+            }],
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"k".to_string()));
+        assert!(fields.contains(&"v".to_string()));
+        assert!(fields.contains(&"cond".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_lambda() {
+        // lambda: args.value
+        let body = vec![HirStmt::Expr(HirExpr::Lambda {
+            params: vec![],
+            body: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "value".to_string(),
+            }),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"value".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_borrow() {
+        // &args.data
+        let body = vec![HirStmt::Expr(HirExpr::Borrow {
+            expr: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "data".to_string(),
+            }),
+            mutable: false,
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"data".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_yield() {
+        // yield args.item
+        let body = vec![HirStmt::Expr(HirExpr::Yield {
+            value: Some(Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "item".to_string(),
+            })),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"item".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_yield_none() {
+        // yield
+        let body = vec![HirStmt::Expr(HirExpr::Yield { value: None })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_await() {
+        // await args.future
+        let body = vec![HirStmt::Expr(HirExpr::Await {
+            value: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "future".to_string(),
+            }),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"future".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_assign() {
+        // x = args.value
+        let body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "value".to_string(),
+            },
+            type_annotation: None,
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"value".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_return() {
+        // return args.result
+        let body = vec![HirStmt::Return(Some(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "result".to_string(),
+        }))];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"result".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_if_stmt() {
+        // if args.cond: pass
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "cond".to_string(),
+            },
+            then_body: vec![HirStmt::Pass],
+            else_body: None,
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"cond".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_if_else_stmt() {
+        // if cond: x = args.a else: y = args.b
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "a".to_string(),
+                },
+                type_annotation: None,
+            }],
+            else_body: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "b".to_string(),
+                },
+                type_annotation: None,
+            }]),
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"a".to_string()));
+        assert!(fields.contains(&"b".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_while() {
+        // while args.running: pass
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "running".to_string(),
+            },
+            body: vec![HirStmt::Pass],
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"running".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_for() {
+        // for x in args.items: pass
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("x".to_string()),
+            iter: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "items".to_string(),
+            },
+            body: vec![HirStmt::Pass],
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"items".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_with() {
+        // with args.resource as r: pass
+        let body = vec![HirStmt::With {
+            context: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "resource".to_string(),
+            },
+            target: Some("r".to_string()),
+            body: vec![HirStmt::Pass],
+            is_async: false,
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"resource".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_try() {
+        // try: x = args.a except: y = args.b
+        let body = vec![HirStmt::Try {
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "a".to_string(),
+                },
+                type_annotation: None,
+            }],
+            handlers: vec![ExceptHandler {
+                exception_type: None,
+                name: None,
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("y".to_string()),
+                    value: HirExpr::Attribute {
+                        value: Box::new(HirExpr::Var("args".to_string())),
+                        attr: "b".to_string(),
+                    },
+                    type_annotation: None,
+                }],
+            }],
+            orelse: None,
+            finalbody: None,
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"a".to_string()));
+        assert!(fields.contains(&"b".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_try_orelse() {
+        // try: pass else: x = args.value
+        let body = vec![HirStmt::Try {
+            body: vec![HirStmt::Pass],
+            handlers: vec![],
+            orelse: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "value".to_string(),
+                },
+                type_annotation: None,
+            }]),
+            finalbody: None,
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"value".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_try_finally() {
+        // try: pass finally: x = args.cleanup
+        let body = vec![HirStmt::Try {
+            body: vec![HirStmt::Pass],
+            handlers: vec![],
+            orelse: None,
+            finalbody: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "cleanup".to_string(),
+                },
+                type_annotation: None,
+            }]),
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"cleanup".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_in_nested_function() {
+        // def inner(): return args.inner_val
+        let body = vec![HirStmt::FunctionDef {
+            name: "inner".to_string(),
+            params: Box::new(smallvec![]),
+            ret_type: Type::None,
+            body: vec![HirStmt::Return(Some(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "inner_val".to_string(),
+            }))],
+            docstring: None,
+        }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"inner_val".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_pass_stmt() {
+        let body = vec![HirStmt::Pass];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_break_stmt() {
+        let body = vec![HirStmt::Break { label: None }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_continue_stmt() {
+        let body = vec![HirStmt::Continue { label: None }];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_nested_attribute() {
+        // args.config.value - should find "config", nested walks find nothing extra
+        let body = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "config".to_string(),
+            }),
+            attr: "value".to_string(),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.contains(&"config".to_string()));
+        // "value" is NOT directly on args
+        assert!(!fields.contains(&"value".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_deduplicates() {
+        // args.x + args.x - should only have one "x"
+        let body = vec![HirStmt::Expr(HirExpr::Binary {
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "x".to_string(),
+            }),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "x".to_string(),
+            }),
+        })];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert_eq!(fields.len(), 1);
+        assert!(fields.contains(&"x".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_custom_args_name() {
+        // params.value (using "params" instead of "args")
+        let body = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("params".to_string())),
+            attr: "value".to_string(),
+        })];
+        let fields = extract_args_field_accesses(&body, "params");
+        assert!(fields.contains(&"value".to_string()));
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_other_expr_types() {
+        // Just a literal, no args access
+        let body = vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(42)))];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_args_field_accesses_var_not_attribute() {
+        // Just "args" variable, not args.X
+        let body = vec![HirStmt::Expr(HirExpr::Var("args".to_string()))];
+        let fields = extract_args_field_accesses(&body, "args");
+        assert!(fields.is_empty());
     }
 }

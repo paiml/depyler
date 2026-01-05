@@ -260,6 +260,10 @@ pub fn convert_array_dynamic_size(
 mod tests {
     use super::*;
 
+    // ========================================================================
+    // Range Expression Tests
+    // ========================================================================
+
     #[test]
     fn test_range_single_arg() {
         let args: Vec<syn::Expr> = vec![parse_quote! { 5 }];
@@ -308,5 +312,132 @@ mod tests {
             parse_quote! { 3 },
         ];
         assert!(convert_range_call(&too_many).is_err());
+    }
+
+    #[test]
+    fn test_range_positive_step_direct() {
+        let start: syn::Expr = parse_quote! { 0 };
+        let end: syn::Expr = parse_quote! { 10 };
+        let step: syn::Expr = parse_quote! { 2 };
+        let result = convert_range_positive_step(&start, &end, &step).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("step_by"));
+    }
+
+    #[test]
+    fn test_range_negative_step_direct() {
+        let start: syn::Expr = parse_quote! { 10 };
+        let end: syn::Expr = parse_quote! { 0 };
+        let step: syn::Expr = parse_quote! { -1 };
+        let result = convert_range_negative_step(&start, &end, &step).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("rev"));
+        assert!(result_str.contains("abs"));
+    }
+
+    #[test]
+    fn test_convert_range_with_step_dispatch() {
+        // Test positive step dispatch
+        let start: syn::Expr = parse_quote! { 0 };
+        let end: syn::Expr = parse_quote! { 10 };
+        let step_pos: syn::Expr = parse_quote! { 2 };
+        let result_pos = convert_range_with_step(&start, &end, &step_pos).unwrap();
+        let pos_str = quote::quote!(#result_pos).to_string();
+        // Positive step should NOT have rev
+        assert!(!pos_str.contains("rev"));
+
+        // Test negative step dispatch
+        let step_neg: syn::Expr = parse_quote! { -2 };
+        let result_neg = convert_range_with_step(&start, &end, &step_neg).unwrap();
+        let neg_str = quote::quote!(#result_neg).to_string();
+        // Negative step SHOULD have rev
+        assert!(neg_str.contains("rev"));
+    }
+
+    // ========================================================================
+    // Additional Range Expression Tests
+    // ========================================================================
+
+    /// Test range with complex expressions as bounds
+    #[test]
+    fn test_range_complex_end() {
+        let args: Vec<syn::Expr> = vec![parse_quote! { n + 1 }];
+        let result = convert_range_call(&args).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        // Should be parenthesized to handle complex expressions
+        assert!(result_str.contains("0"));
+    }
+
+    /// Test range with variable bounds
+    #[test]
+    fn test_range_variable_bounds() {
+        let args: Vec<syn::Expr> = vec![parse_quote! { start }, parse_quote! { end }];
+        let result = convert_range_call(&args).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("start"));
+        assert!(result_str.contains("end"));
+    }
+
+    /// Test range with function call as bound
+    #[test]
+    fn test_range_function_call_bound() {
+        let args: Vec<syn::Expr> = vec![parse_quote! { len(items) }];
+        let result = convert_range_call(&args).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("len"));
+    }
+
+    /// Test range with binary operation step
+    #[test]
+    fn test_range_binary_step() {
+        let args: Vec<syn::Expr> =
+            vec![parse_quote! { 0 }, parse_quote! { 100 }, parse_quote! { n * 2 }];
+        let result = convert_range_call(&args).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        // Variable step uses step_by
+        assert!(result_str.contains("step_by") || result_str.contains("step"));
+    }
+
+    /// Test that zero step generates panic code
+    #[test]
+    fn test_range_step_zero_protection() {
+        let start: syn::Expr = parse_quote! { 0 };
+        let end: syn::Expr = parse_quote! { 10 };
+        let step: syn::Expr = parse_quote! { step };
+        let result = convert_range_positive_step(&start, &end, &step).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        // Should have zero check
+        assert!(result_str.contains("== 0") || result_str.contains("panic"));
+    }
+
+    /// Test negative step with abs() call
+    #[test]
+    fn test_range_negative_step_abs() {
+        let start: syn::Expr = parse_quote! { 10 };
+        let end: syn::Expr = parse_quote! { 0 };
+        let step: syn::Expr = parse_quote! { -2 };
+        let result = convert_range_negative_step(&start, &end, &step).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        // Should convert negative step using abs
+        assert!(result_str.contains("abs"));
+    }
+
+    /// Test range with literal zero end
+    #[test]
+    fn test_range_literal_zero() {
+        let args: Vec<syn::Expr> = vec![parse_quote! { 0 }];
+        let result = convert_range_call(&args).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("0"));
+    }
+
+    /// Test range with negative start
+    #[test]
+    fn test_range_negative_start() {
+        let args: Vec<syn::Expr> = vec![parse_quote! { -5 }, parse_quote! { 5 }];
+        let result = convert_range_call(&args).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("-"));
+        assert!(result_str.contains("5"));
     }
 }

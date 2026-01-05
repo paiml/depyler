@@ -138,6 +138,20 @@ pub fn is_collection_generic_base(base: &str) -> bool {
     )
 }
 
+/// Collection attribute/field names used in classes and structs.
+/// These are typically Vec/HashMap/etc fields that need `.is_empty()` for truthiness.
+/// DEPYLER-COVERAGE-95: Extracted from stmt_gen::apply_negated_truthiness
+pub const COLLECTION_ATTR_NAMES: &[&str] = &[
+    "heap", "stack", "queue", "items", "elements", "data", "values", "list", "array", "nodes",
+    "children", "entries", "records",
+];
+
+/// Check if an attribute name suggests it's a collection field.
+#[inline]
+pub fn is_collection_attr_name(name: &str) -> bool {
+    COLLECTION_ATTR_NAMES.contains(&name)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,5 +240,28 @@ mod tests {
         assert!(is_collection_var_name("item_set"));
         assert!(is_string_var_name("cmd_output"));
         assert!(is_string_var_name("value_string"));
+    }
+
+    #[test]
+    fn test_collection_attr_names() {
+        // DEPYLER-COVERAGE-95: Test collection attribute names
+        assert!(is_collection_attr_name("heap"));
+        assert!(is_collection_attr_name("stack"));
+        assert!(is_collection_attr_name("queue"));
+        assert!(is_collection_attr_name("items"));
+        assert!(is_collection_attr_name("data"));
+        assert!(is_collection_attr_name("list"));
+        assert!(is_collection_attr_name("nodes"));
+        assert!(is_collection_attr_name("children"));
+        assert!(!is_collection_attr_name("name"));
+        assert!(!is_collection_attr_name("email"));
+        assert!(!is_collection_attr_name("x"));
+    }
+
+    #[test]
+    fn test_all_collection_attr_names_covered() {
+        for name in COLLECTION_ATTR_NAMES {
+            assert!(is_collection_attr_name(name), "Missing: {}", name);
+        }
     }
 }
