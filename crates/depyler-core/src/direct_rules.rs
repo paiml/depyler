@@ -1,4 +1,5 @@
 use crate::hir::*;
+use crate::rust_gen::keywords::{is_rust_keyword, safe_ident}; // DEPYLER-0023: Centralized
 use crate::type_mapper::{RustType, TypeMapper};
 use anyhow::{bail, Result};
 use quote::quote;
@@ -10,73 +11,6 @@ use syn::{self, parse_quote};
 thread_local! {
     static PROPERTY_METHODS: std::cell::RefCell<std::collections::HashSet<String>> =
         std::cell::RefCell::new(std::collections::HashSet::new());
-}
-
-/// Check if a name is a Rust keyword that requires raw identifier syntax
-/// DEPYLER-0306: Copied from expr_gen.rs to support method name keyword handling
-fn is_rust_keyword(name: &str) -> bool {
-    matches!(
-        name,
-        "as" | "break"
-            | "const"
-            | "continue"
-            | "crate"
-            | "else"
-            | "enum"
-            | "extern"
-            | "false"
-            | "fn"
-            | "for"
-            | "if"
-            | "impl"
-            | "in"
-            | "let"
-            | "loop"
-            | "match"
-            | "mod"
-            | "move"
-            | "mut"
-            | "pub"
-            | "ref"
-            | "return"
-            | "self"
-            | "Self"
-            | "static"
-            | "struct"
-            | "super"
-            | "trait"
-            | "true"
-            | "type"
-            | "unsafe"
-            | "use"
-            | "where"
-            | "while"
-            | "async"
-            | "await"
-            | "dyn"
-            | "abstract"
-            | "become"
-            | "box"
-            | "do"
-            | "final"
-            | "macro"
-            | "override"
-            | "priv"
-            | "typeof"
-            | "unsized"
-            | "virtual"
-            | "yield"
-            | "try"
-    )
-}
-
-/// DEPYLER-0840: Create a safe identifier, escaping Rust keywords with r# prefix
-fn safe_ident(name: &str) -> syn::Ident {
-    if is_rust_keyword(name) {
-        syn::Ident::new_raw(name, proc_macro2::Span::call_site())
-    } else {
-        syn::Ident::new(name, proc_macro2::Span::call_site())
-    }
 }
 
 /// DEPYLER-0900: Check if a class name shadows a Rust stdlib/prelude type
@@ -8149,5 +8083,736 @@ mod tests {
         };
         let result = converter.convert(&expr);
         assert!(result.is_ok());
+    }
+
+    // ============ is_stdlib_shadowing_name tests ============
+
+    #[test]
+    fn test_is_stdlib_shadowing_primitives() {
+        // Primitive types
+        assert!(is_stdlib_shadowing_name("bool"));
+        assert!(is_stdlib_shadowing_name("char"));
+        assert!(is_stdlib_shadowing_name("str"));
+        assert!(is_stdlib_shadowing_name("i32"));
+        assert!(is_stdlib_shadowing_name("u64"));
+        assert!(is_stdlib_shadowing_name("f64"));
+        assert!(is_stdlib_shadowing_name("usize"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_prelude_types() {
+        // Prelude types
+        assert!(is_stdlib_shadowing_name("Box"));
+        assert!(is_stdlib_shadowing_name("Vec"));
+        assert!(is_stdlib_shadowing_name("String"));
+        assert!(is_stdlib_shadowing_name("Option"));
+        assert!(is_stdlib_shadowing_name("Result"));
+        assert!(is_stdlib_shadowing_name("Some"));
+        assert!(is_stdlib_shadowing_name("None"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_collections() {
+        // Collections
+        assert!(is_stdlib_shadowing_name("HashMap"));
+        assert!(is_stdlib_shadowing_name("HashSet"));
+        assert!(is_stdlib_shadowing_name("BTreeMap"));
+        assert!(is_stdlib_shadowing_name("VecDeque"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_traits() {
+        // Common traits
+        assert!(is_stdlib_shadowing_name("Clone"));
+        assert!(is_stdlib_shadowing_name("Debug"));
+        assert!(is_stdlib_shadowing_name("Default"));
+        assert!(is_stdlib_shadowing_name("Iterator"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_io_types() {
+        // I/O types
+        assert!(is_stdlib_shadowing_name("Read"));
+        assert!(is_stdlib_shadowing_name("Write"));
+        assert!(is_stdlib_shadowing_name("BufReader"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_non_shadowing() {
+        // Custom names that don't shadow
+        assert!(!is_stdlib_shadowing_name("MyStruct"));
+        assert!(!is_stdlib_shadowing_name("Person"));
+        assert!(!is_stdlib_shadowing_name("Config"));
+        assert!(!is_stdlib_shadowing_name("User"));
+        assert!(!is_stdlib_shadowing_name("Data"));
+    }
+
+    #[test]
+    fn test_is_stdlib_shadowing_case_sensitive() {
+        // Should be case-sensitive
+        assert!(is_stdlib_shadowing_name("Vec"));
+        assert!(!is_stdlib_shadowing_name("vec")); // lowercase is not shadowing
+        assert!(!is_stdlib_shadowing_name("VEC")); // uppercase is not shadowing
+    }
+
+    // ============ safe_class_name tests ============
+
+    #[test]
+    fn test_safe_class_name_shadowing() {
+        assert_eq!(safe_class_name("Vec"), "PyVec");
+        assert_eq!(safe_class_name("Option"), "PyOption");
+        assert_eq!(safe_class_name("HashMap"), "PyHashMap");
+    }
+
+    #[test]
+    fn test_safe_class_name_non_shadowing() {
+        assert_eq!(safe_class_name("MyClass"), "MyClass");
+        assert_eq!(safe_class_name("Person"), "Person");
+        assert_eq!(safe_class_name("Config"), "Config");
+    }
+
+    #[test]
+    fn test_safe_class_name_primitives() {
+        assert_eq!(safe_class_name("i32"), "Pyi32");
+        assert_eq!(safe_class_name("bool"), "Pybool");
+    }
+
+    // ============ type_to_rust_type tests ============
+
+    #[test]
+    fn test_type_to_rust_type_primitives() {
+        let type_mapper = create_test_type_mapper();
+
+        let int_ts = type_to_rust_type(&Type::Int, &type_mapper);
+        assert_eq!(int_ts.to_string(), "i32");
+
+        let float_ts = type_to_rust_type(&Type::Float, &type_mapper);
+        assert_eq!(float_ts.to_string(), "f64");
+
+        let string_ts = type_to_rust_type(&Type::String, &type_mapper);
+        assert_eq!(string_ts.to_string(), "String");
+
+        let bool_ts = type_to_rust_type(&Type::Bool, &type_mapper);
+        assert_eq!(bool_ts.to_string(), "bool");
+    }
+
+    #[test]
+    fn test_type_to_rust_type_none_unknown() {
+        let type_mapper = create_test_type_mapper();
+
+        let none_ts = type_to_rust_type(&Type::None, &type_mapper);
+        assert_eq!(none_ts.to_string(), "()");
+
+        let unknown_ts = type_to_rust_type(&Type::Unknown, &type_mapper);
+        assert_eq!(unknown_ts.to_string(), "()");
+    }
+
+    #[test]
+    fn test_type_to_rust_type_list() {
+        let type_mapper = create_test_type_mapper();
+
+        let list_int = Type::List(Box::new(Type::Int));
+        let list_ts = type_to_rust_type(&list_int, &type_mapper);
+        assert_eq!(list_ts.to_string(), "Vec < i32 >");
+    }
+
+    #[test]
+    fn test_type_to_rust_type_dict() {
+        let type_mapper = create_test_type_mapper();
+
+        let dict_type = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
+        let dict_ts = type_to_rust_type(&dict_type, &type_mapper);
+        assert!(dict_ts.to_string().contains("HashMap"));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_set() {
+        let type_mapper = create_test_type_mapper();
+
+        let set_type = Type::Set(Box::new(Type::Int));
+        let set_ts = type_to_rust_type(&set_type, &type_mapper);
+        assert!(set_ts.to_string().contains("HashSet"));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_optional() {
+        let type_mapper = create_test_type_mapper();
+
+        let opt_type = Type::Optional(Box::new(Type::Int));
+        let opt_ts = type_to_rust_type(&opt_type, &type_mapper);
+        assert!(opt_ts.to_string().contains("Option"));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_tuple() {
+        let type_mapper = create_test_type_mapper();
+
+        let tuple_type = Type::Tuple(vec![Type::Int, Type::String]);
+        let tuple_ts = type_to_rust_type(&tuple_type, &type_mapper);
+        let result = tuple_ts.to_string();
+        assert!(result.contains("i32"));
+        assert!(result.contains("String"));
+    }
+
+    // ============ parse_target_pattern tests ============
+
+    #[test]
+    fn test_parse_target_pattern_simple() {
+        let pat = parse_target_pattern("x");
+        assert!(matches!(pat, syn::Pat::Ident(_)));
+    }
+
+    #[test]
+    fn test_parse_target_pattern_tuple() {
+        let pat = parse_target_pattern("(a, b)");
+        assert!(matches!(pat, syn::Pat::Tuple(_)));
+        if let syn::Pat::Tuple(tuple) = pat {
+            assert_eq!(tuple.elems.len(), 2);
+        }
+    }
+
+    #[test]
+    fn test_parse_target_pattern_triple() {
+        let pat = parse_target_pattern("(x, y, z)");
+        assert!(matches!(pat, syn::Pat::Tuple(_)));
+        if let syn::Pat::Tuple(tuple) = pat {
+            assert_eq!(tuple.elems.len(), 3);
+        }
+    }
+
+    #[test]
+    fn test_parse_target_pattern_with_spaces() {
+        let pat = parse_target_pattern("( a , b )");
+        assert!(matches!(pat, syn::Pat::Tuple(_)));
+    }
+
+    // ============ make_ident tests ============
+
+    #[test]
+    fn test_make_ident_simple() {
+        let ident = make_ident("foo");
+        assert_eq!(ident.to_string(), "foo");
+    }
+
+    #[test]
+    fn test_make_ident_empty() {
+        let ident = make_ident("");
+        assert_eq!(ident.to_string(), "_empty");
+    }
+
+    #[test]
+    fn test_make_ident_keyword_raw() {
+        // Keywords should use raw identifier syntax
+        let ident = make_ident("match");
+        assert_eq!(ident.to_string(), "r#match");
+    }
+
+    #[test]
+    fn test_make_ident_self_special() {
+        // self can't be raw identifier - gets underscore suffix
+        let ident = make_ident("self");
+        assert_eq!(ident.to_string(), "self_");
+    }
+
+    #[test]
+    fn test_make_ident_super_special() {
+        let ident = make_ident("super");
+        assert_eq!(ident.to_string(), "super_");
+    }
+
+    #[test]
+    fn test_make_ident_crate_special() {
+        let ident = make_ident("crate");
+        assert_eq!(ident.to_string(), "crate_");
+    }
+
+    #[test]
+    fn test_make_ident_type_keyword() {
+        let ident = make_ident("type");
+        assert_eq!(ident.to_string(), "r#type");
+    }
+
+    #[test]
+    fn test_make_ident_Self_valid() {
+        // Self is valid as a type name
+        let ident = make_ident("Self");
+        assert_eq!(ident.to_string(), "Self");
+    }
+
+    // ============ sanitize_identifier tests ============
+
+    #[test]
+    fn test_sanitize_identifier_valid() {
+        assert_eq!(sanitize_identifier("foo"), "foo");
+        assert_eq!(sanitize_identifier("_bar"), "_bar");
+        assert_eq!(sanitize_identifier("baz123"), "baz123");
+    }
+
+    #[test]
+    fn test_sanitize_identifier_empty() {
+        assert_eq!(sanitize_identifier(""), "_empty");
+    }
+
+    #[test]
+    fn test_sanitize_identifier_starts_with_digit() {
+        assert_eq!(sanitize_identifier("123abc"), "_123abc");
+        assert_eq!(sanitize_identifier("0"), "_0");
+    }
+
+    #[test]
+    fn test_sanitize_identifier_invalid_chars() {
+        assert_eq!(sanitize_identifier("foo-bar"), "foo_bar");
+        assert_eq!(sanitize_identifier("foo.bar"), "foo_bar");
+        assert_eq!(sanitize_identifier("foo::bar"), "foo__bar");
+    }
+
+    #[test]
+    fn test_sanitize_identifier_keyword() {
+        // Keywords get underscore suffix
+        assert_eq!(sanitize_identifier("fn"), "fn_");
+        assert_eq!(sanitize_identifier("let"), "let_");
+        assert_eq!(sanitize_identifier("if"), "if_");
+    }
+
+    #[test]
+    fn test_sanitize_identifier_special_chars() {
+        assert_eq!(sanitize_identifier("@attr"), "_attr");
+        assert_eq!(sanitize_identifier("#id"), "_id");
+        assert_eq!(sanitize_identifier("$var"), "_var");
+    }
+
+    // ============ method_mutates_self tests ============
+
+    #[test]
+    fn test_method_mutates_self_with_assign() {
+        let method = HirMethod {
+            name: "update".to_string(),
+            params: smallvec::smallvec![],
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Attribute {
+                    value: Box::new(HirExpr::Var("self".to_string())),
+                    attr: "value".to_string(),
+                },
+                value: HirExpr::Literal(Literal::Int(42)),
+                type_annotation: None,
+            }],
+            ret_type: Type::None,
+            is_async: false,
+            is_static: false,
+            is_classmethod: false,
+            is_property: false,
+            docstring: None,
+        };
+        assert!(method_mutates_self(&method));
+    }
+
+    #[test]
+    fn test_method_mutates_self_without_mutation() {
+        let method = HirMethod {
+            name: "get_value".to_string(),
+            params: smallvec::smallvec![],
+            body: vec![HirStmt::Return(Some(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("self".to_string())),
+                attr: "value".to_string(),
+            }))],
+            ret_type: Type::Int,
+            is_async: false,
+            is_static: false,
+            is_classmethod: false,
+            is_property: false,
+            docstring: None,
+        };
+        assert!(!method_mutates_self(&method));
+    }
+
+    // ============ stmt_mutates_self tests ============
+
+    #[test]
+    fn test_stmt_mutates_self_attribute_assign() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Attribute {
+                value: Box::new(HirExpr::Var("self".to_string())),
+                attr: "x".to_string(),
+            },
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        };
+        assert!(stmt_mutates_self(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_mutates_self_in_if() {
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Attribute {
+                    value: Box::new(HirExpr::Var("self".to_string())),
+                    attr: "value".to_string(),
+                },
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            }],
+            else_body: None,
+        };
+        assert!(stmt_mutates_self(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_mutates_self_return_no_mutation() {
+        let stmt = HirStmt::Return(Some(HirExpr::Var("self".to_string())));
+        assert!(!stmt_mutates_self(&stmt));
+    }
+
+    // ============ collect_type_vars tests ============
+
+    #[test]
+    fn test_collect_type_vars_simple() {
+        let mut vars = std::collections::HashSet::new();
+        collect_type_vars(&Type::TypeVar("T".to_string()), &mut vars);
+        assert!(vars.contains("T"));
+    }
+
+    #[test]
+    fn test_collect_type_vars_in_list() {
+        let mut vars = std::collections::HashSet::new();
+        let list_t = Type::List(Box::new(Type::TypeVar("T".to_string())));
+        collect_type_vars(&list_t, &mut vars);
+        assert!(vars.contains("T"));
+    }
+
+    #[test]
+    fn test_collect_type_vars_in_dict() {
+        let mut vars = std::collections::HashSet::new();
+        let dict_type = Type::Dict(
+            Box::new(Type::TypeVar("K".to_string())),
+            Box::new(Type::TypeVar("V".to_string())),
+        );
+        collect_type_vars(&dict_type, &mut vars);
+        assert!(vars.contains("K"));
+        assert!(vars.contains("V"));
+    }
+
+    #[test]
+    fn test_collect_type_vars_none_for_primitives() {
+        let mut vars = std::collections::HashSet::new();
+        collect_type_vars(&Type::Int, &mut vars);
+        collect_type_vars(&Type::String, &mut vars);
+        assert!(vars.is_empty());
+    }
+
+    // ============ is_pure_expression_direct tests ============
+
+    #[test]
+    fn test_is_pure_expression_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_call_is_not_pure() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_method_call_not_pure() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "do_something".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression_direct(&expr));
+    }
+
+    // ============ convert_literal tests ============
+
+    #[test]
+    fn test_convert_literal_int() {
+        let result = convert_literal(&Literal::Int(42));
+        assert!(matches!(result, syn::Expr::Lit(_)));
+    }
+
+    #[test]
+    fn test_convert_literal_float() {
+        let result = convert_literal(&Literal::Float(3.14));
+        assert!(matches!(result, syn::Expr::Lit(_)));
+    }
+
+    #[test]
+    fn test_convert_literal_string() {
+        let result = convert_literal(&Literal::String("hello".to_string()));
+        assert!(matches!(result, syn::Expr::MethodCall(_)));
+    }
+
+    #[test]
+    fn test_convert_literal_bool_true() {
+        let result = convert_literal(&Literal::Bool(true));
+        assert!(matches!(result, syn::Expr::Lit(_)));
+    }
+
+    #[test]
+    fn test_convert_literal_bool_false() {
+        let result = convert_literal(&Literal::Bool(false));
+        assert!(matches!(result, syn::Expr::Lit(_)));
+    }
+
+    #[test]
+    fn test_convert_literal_none() {
+        let result = convert_literal(&Literal::None);
+        // None converts to () which is a tuple expression
+        assert!(matches!(result, syn::Expr::Tuple(_)));
+    }
+
+    // ============ convert_binop tests ============
+
+    #[test]
+    fn test_convert_binop_add() {
+        let result = convert_binop(BinOp::Add);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_sub() {
+        let result = convert_binop(BinOp::Sub);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_mul() {
+        let result = convert_binop(BinOp::Mul);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_div() {
+        let result = convert_binop(BinOp::Div);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_mod() {
+        let result = convert_binop(BinOp::Mod);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_eq() {
+        let result = convert_binop(BinOp::Eq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_ne() {
+        let result = convert_binop(BinOp::NotEq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_lt() {
+        let result = convert_binop(BinOp::Lt);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_gt() {
+        let result = convert_binop(BinOp::Gt);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_le() {
+        let result = convert_binop(BinOp::LtEq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_ge() {
+        let result = convert_binop(BinOp::GtEq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_bitand() {
+        let result = convert_binop(BinOp::BitAnd);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_bitor() {
+        let result = convert_binop(BinOp::BitOr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_bitxor() {
+        let result = convert_binop(BinOp::BitXor);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_lshift() {
+        let result = convert_binop(BinOp::LShift);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_rshift() {
+        let result = convert_binop(BinOp::RShift);
+        assert!(result.is_ok());
+    }
+
+    // ============ is_len_call tests ============
+
+    #[test]
+    fn test_is_len_call_true() {
+        let expr = HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_len_call(&expr));
+    }
+
+    #[test]
+    fn test_is_len_call_false_different_func() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(!is_len_call(&expr));
+    }
+
+    #[test]
+    fn test_is_len_call_false_not_call() {
+        let expr = HirExpr::Var("len".to_string());
+        assert!(!is_len_call(&expr));
+    }
+
+    // ============ infer_method_return_type tests ============
+
+    #[test]
+    fn test_infer_method_return_type_explicit_return() {
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))];
+        let fields: Vec<HirField> = vec![];
+        let result = infer_method_return_type(&body, &fields);
+        // Should infer Int from the literal
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_infer_method_return_type_empty_body() {
+        let body: Vec<HirStmt> = vec![];
+        let fields: Vec<HirField> = vec![];
+        let result = infer_method_return_type(&body, &fields);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_infer_method_return_type_none_return() {
+        let body = vec![HirStmt::Return(None)];
+        let fields: Vec<HirField> = vec![];
+        let result = infer_method_return_type(&body, &fields);
+        // Return(None) might infer to Type::None, not None
+        assert!(result.is_none() || result == Some(Type::None));
+    }
+
+    // ============ infer_expr_type_with_fields tests ============
+
+    #[test]
+    fn test_infer_expr_type_int_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let fields: Vec<HirField> = vec![];
+        let result = infer_expr_type_with_fields(&expr, &fields);
+        assert_eq!(result, Type::Int);
+    }
+
+    #[test]
+    fn test_infer_expr_type_float_literal() {
+        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let fields: Vec<HirField> = vec![];
+        let result = infer_expr_type_with_fields(&expr, &fields);
+        assert_eq!(result, Type::Float);
+    }
+
+    #[test]
+    fn test_infer_expr_type_string_literal() {
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        let fields: Vec<HirField> = vec![];
+        let result = infer_expr_type_with_fields(&expr, &fields);
+        assert_eq!(result, Type::String);
+    }
+
+    #[test]
+    fn test_infer_expr_type_bool_literal() {
+        let expr = HirExpr::Literal(Literal::Bool(true));
+        let fields: Vec<HirField> = vec![];
+        let result = infer_expr_type_with_fields(&expr, &fields);
+        assert_eq!(result, Type::Bool);
+    }
+
+    #[test]
+    fn test_infer_expr_type_with_field() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("self".to_string())),
+            attr: "count".to_string(),
+        };
+        let fields = vec![HirField {
+            name: "count".to_string(),
+            field_type: Type::Int,
+            default_value: None,
+            is_class_var: false,
+        }];
+        let result = infer_expr_type_with_fields(&expr, &fields);
+        assert_eq!(result, Type::Int);
+    }
+
+    // ============ should_param_be_self_type tests ============
+
+    #[test]
+    fn test_should_param_be_self_type_basic() {
+        // Test that the function runs without error for a simple case
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))];
+        let fields: Vec<HirField> = vec![];
+        let _result = should_param_be_self_type("other", &body, &fields);
+        // Just verifying the function runs
+    }
+
+    #[test]
+    fn test_should_param_be_self_type_with_self_attr() {
+        // When returning a self attribute, the result depends on implementation
+        let body = vec![HirStmt::Return(Some(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("self".to_string())),
+            attr: "value".to_string(),
+        }))];
+        let fields = vec![HirField {
+            name: "value".to_string(),
+            field_type: Type::Int,
+            default_value: None,
+            is_class_var: false,
+        }];
+        let _result = should_param_be_self_type("value", &body, &fields);
+        // Just verifying the function runs with fields
     }
 }

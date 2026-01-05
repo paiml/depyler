@@ -98,8 +98,13 @@ impl<'a> CompilationVerifier<'a> {
     pub fn verify_with_rustc(&self, rs_file: &Path, python_file: &Path) -> Result<CompilationResult> {
         let start = Instant::now();
 
-        // Create a temp dir for output (rustc doesn't support -o /dev/null for libs)
-        let temp_dir = std::env::temp_dir().join(format!("depyler_verify_{}", std::process::id()));
+        // Create a unique temp dir for output (rustc doesn't support -o /dev/null for libs)
+        // Use thread ID for uniqueness to avoid races between parallel tests
+        let temp_dir = std::env::temp_dir().join(format!(
+            "depyler_verify_{}_{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
         let _ = std::fs::create_dir_all(&temp_dir);
 
         let output = Command::new("rustc")
@@ -110,6 +115,8 @@ impl<'a> CompilationVerifier<'a> {
             .arg(rs_file)
             .arg("--out-dir")
             .arg(&temp_dir)
+            // Clear MAKEFLAGS to avoid jobserver issues in tests
+            .env_remove("MAKEFLAGS")
             .output()
             .with_context(|| format!("Failed to run rustc on {}", rs_file.display()))?;
 
@@ -209,7 +216,12 @@ mod tests {
             .verify_with_rustc(&rs_file, &PathBuf::from("test.py"))
             .unwrap();
 
-        assert!(result.success);
+        // Debug output for flaky coverage builds
+        if !result.success {
+            eprintln!("rustc stderr: {:?}", result.stderr);
+            eprintln!("rustc exit code: {:?}", result.exit_code);
+        }
+        assert!(result.success, "rustc should compile valid code: {:?}", result.stderr);
         assert!(!result.cargo_first);
     }
 

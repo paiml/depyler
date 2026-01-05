@@ -315,10 +315,229 @@ pub fn generate_error_type_definitions(ctx: &CodeGenContext) -> Vec<proc_macro2:
     definitions
 }
 
-// Note: Unit tests for this module are covered by integration tests
-// that exercise the full transpilation pipeline. The function is simple
-// enough (complexity: 2) that dedicated unit tests add minimal value.
-// Full test coverage is provided by:
-// - integration_tests::test_division_by_zero
-// - integration_tests::test_index_error
-// - All tests that trigger error type generation
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::rust_gen::CodeGenContext;
+
+    fn context_with_flags(flags: &[&str]) -> CodeGenContext<'static> {
+        let mut ctx = CodeGenContext::default();
+        for flag in flags {
+            match *flag {
+                "zerodivisionerror" => ctx.needs_zerodivisionerror = true,
+                "indexerror" => ctx.needs_indexerror = true,
+                "valueerror" => ctx.needs_valueerror = true,
+                "argumenttypeerror" => ctx.needs_argumenttypeerror = true,
+                "runtimeerror" => ctx.needs_runtimeerror = true,
+                "filenotfounderror" => ctx.needs_filenotfounderror = true,
+                "syntaxerror" => ctx.needs_syntaxerror = true,
+                "typeerror" => ctx.needs_typeerror = true,
+                "keyerror" => ctx.needs_keyerror = true,
+                "ioerror" => ctx.needs_ioerror = true,
+                "attributeerror" => ctx.needs_attributeerror = true,
+                "stopiteration" => ctx.needs_stopiteration = true,
+                _ => {}
+            }
+        }
+        ctx
+    }
+
+    #[test]
+    fn test_empty_context_generates_nothing() {
+        let ctx = CodeGenContext::default();
+        let defs = generate_error_type_definitions(&ctx);
+        assert!(defs.is_empty());
+    }
+
+    #[test]
+    fn test_zerodivisionerror_generation() {
+        let ctx = context_with_flags(&["zerodivisionerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("ZeroDivisionError"));
+        assert!(code.contains("division by zero"));
+        assert!(code.contains("impl std :: fmt :: Display"));
+        assert!(code.contains("impl std :: error :: Error"));
+    }
+
+    #[test]
+    fn test_indexerror_generation() {
+        let ctx = context_with_flags(&["indexerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("IndexError"));
+        assert!(code.contains("index out of range"));
+    }
+
+    #[test]
+    fn test_valueerror_generation() {
+        let ctx = context_with_flags(&["valueerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("ValueError"));
+        assert!(code.contains("value error"));
+    }
+
+    #[test]
+    fn test_argumenttypeerror_generation() {
+        let ctx = context_with_flags(&["argumenttypeerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("ArgumentTypeError"));
+        assert!(code.contains("argument type error"));
+    }
+
+    #[test]
+    fn test_runtimeerror_generation() {
+        let ctx = context_with_flags(&["runtimeerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("RuntimeError"));
+        assert!(code.contains("runtime error"));
+    }
+
+    #[test]
+    fn test_filenotfounderror_generation() {
+        let ctx = context_with_flags(&["filenotfounderror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("FileNotFoundError"));
+        assert!(code.contains("file not found"));
+    }
+
+    #[test]
+    fn test_syntaxerror_generation() {
+        let ctx = context_with_flags(&["syntaxerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("SyntaxError"));
+        assert!(code.contains("syntax error"));
+    }
+
+    #[test]
+    fn test_typeerror_generation() {
+        let ctx = context_with_flags(&["typeerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("TypeError"));
+        assert!(code.contains("type error"));
+    }
+
+    #[test]
+    fn test_keyerror_generation() {
+        let ctx = context_with_flags(&["keyerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("KeyError"));
+        assert!(code.contains("key error"));
+    }
+
+    #[test]
+    fn test_ioerror_generation() {
+        let ctx = context_with_flags(&["ioerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("IOError"));
+        assert!(code.contains("io error"));
+    }
+
+    #[test]
+    fn test_attributeerror_generation() {
+        let ctx = context_with_flags(&["attributeerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("AttributeError"));
+        assert!(code.contains("attribute error"));
+    }
+
+    #[test]
+    fn test_stopiteration_generation() {
+        let ctx = context_with_flags(&["stopiteration"]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 1);
+        let code = defs[0].to_string();
+        assert!(code.contains("StopIteration"));
+        assert!(code.contains("stop iteration"));
+    }
+
+    #[test]
+    fn test_multiple_errors_generation() {
+        let ctx = context_with_flags(&[
+            "zerodivisionerror",
+            "indexerror",
+            "valueerror",
+            "keyerror",
+        ]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 4);
+    }
+
+    #[test]
+    fn test_all_errors_generation() {
+        let ctx = context_with_flags(&[
+            "zerodivisionerror",
+            "indexerror",
+            "valueerror",
+            "argumenttypeerror",
+            "runtimeerror",
+            "filenotfounderror",
+            "syntaxerror",
+            "typeerror",
+            "keyerror",
+            "ioerror",
+            "attributeerror",
+            "stopiteration",
+        ]);
+        let defs = generate_error_type_definitions(&ctx);
+        assert_eq!(defs.len(), 12);
+    }
+
+    #[test]
+    fn test_error_struct_has_new_method() {
+        let ctx = context_with_flags(&["valueerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        let code = defs[0].to_string();
+        assert!(code.contains("fn new"));
+        assert!(code.contains("impl Into < String >"));
+    }
+
+    #[test]
+    fn test_error_derives() {
+        let ctx = context_with_flags(&["keyerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        let code = defs[0].to_string();
+        assert!(code.contains("derive"));
+        assert!(code.contains("Debug"));
+        assert!(code.contains("Clone"));
+    }
+
+    #[test]
+    fn test_error_has_message_field() {
+        let ctx = context_with_flags(&["runtimeerror"]);
+        let defs = generate_error_type_definitions(&ctx);
+        let code = defs[0].to_string();
+        assert!(code.contains("message"));
+        assert!(code.contains("String"));
+    }
+
+    #[test]
+    fn test_order_independence() {
+        // Test that flags order doesn't affect which errors are generated
+        let ctx1 = context_with_flags(&["zerodivisionerror", "keyerror"]);
+        let ctx2 = context_with_flags(&["keyerror", "zerodivisionerror"]);
+        let defs1 = generate_error_type_definitions(&ctx1);
+        let defs2 = generate_error_type_definitions(&ctx2);
+        assert_eq!(defs1.len(), defs2.len());
+    }
+}

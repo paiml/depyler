@@ -142,6 +142,4 @@ opt-level = "z"
 [profile.dev-fast.package."*"]
 opt-level = 1
 
-# Use local patched versions to eliminate duplicate deps
-[patch.crates-io]
-entrenar = { path = "../entrenar" }
+# No patches - using crates.io versions for all dependencies

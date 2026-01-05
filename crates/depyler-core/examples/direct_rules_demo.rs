@@ -15,9 +15,10 @@ fn main() {
     // Apply direct rules to convert to Rust AST
     match apply_rules(&module, &type_mapper) {
         Ok(rust_file) => {
-            // Convert to string using prettyplease or similar
+            // Convert to string using quote
             println!("Generated Rust code:");
-            println!("{:#?}", rust_file);
+            let tokens = quote::quote!(#rust_file);
+            println!("{}", tokens);
         }
         Err(e) => {
             eprintln!("Error converting module: {}", e);

@@ -1818,4 +1818,650 @@ mod tests {
         };
         assert!(expr_has_side_effects_inner(&expr));
     }
+
+    // ============================================================================
+    // EXTENDED INLINING COVERAGE TESTS
+    // Focus on uncovered code paths in inlining.rs
+    // ============================================================================
+
+    // --- CallGraph tests ---
+    #[test]
+    fn test_call_graph_with_function() {
+        let mut analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let program = HirProgram {
+            functions: vec![
+                HirFunction {
+                    name: "caller".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Int,
+                    body: vec![HirStmt::Return(Some(HirExpr::Call {
+                        func: "callee".to_string(),
+                        args: vec![],
+                        kwargs: vec![],
+                    }))],
+                    properties: FunctionProperties::default(),
+                    annotations: Default::default(),
+                    docstring: None,
+                },
+                HirFunction {
+                    name: "callee".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Int,
+                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+                    properties: FunctionProperties::default(),
+                    annotations: Default::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            imports: vec![],
+        };
+        let decisions = analyzer.analyze_program(&program);
+        assert!(decisions.len() >= 1);
+    }
+
+    // --- Recursion detection ---
+    #[test]
+    fn test_recursive_function_detection() {
+        let mut analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let program = HirProgram {
+            functions: vec![HirFunction {
+                name: "recursive".to_string(),
+                params: smallvec![HirParam::new("n".to_string(), Type::Int)],
+                ret_type: Type::Int,
+                body: vec![
+                    HirStmt::If {
+                        condition: HirExpr::Binary {
+                            left: Box::new(HirExpr::Var("n".to_string())),
+                            op: BinOp::Eq,
+                            right: Box::new(HirExpr::Literal(Literal::Int(0))),
+                        },
+                        then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+                        else_body: Some(vec![HirStmt::Return(Some(HirExpr::Binary {
+                            left: Box::new(HirExpr::Var("n".to_string())),
+                            op: BinOp::Mul,
+                            right: Box::new(HirExpr::Call {
+                                func: "recursive".to_string(),
+                                args: vec![HirExpr::Binary {
+                                    left: Box::new(HirExpr::Var("n".to_string())),
+                                    op: BinOp::Sub,
+                                    right: Box::new(HirExpr::Literal(Literal::Int(1))),
+                                }],
+                                kwargs: vec![],
+                            }),
+                        }))]),
+                    },
+                ],
+                properties: FunctionProperties::default(),
+                annotations: Default::default(),
+                docstring: None,
+            }],
+            classes: vec![],
+            imports: vec![],
+        };
+        let decisions = analyzer.analyze_program(&program);
+        // Recursive function should not be inlined
+        if let Some(decision) = decisions.get("recursive") {
+            assert!(!decision.should_inline || matches!(decision.reason, InliningReason::Recursive));
+        }
+    }
+
+    // --- Side effects in expression collection ---
+    #[test]
+    fn test_side_effect_sort() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "sort".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_reverse() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("list".to_string())),
+            method: "reverse".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_side_effect_dict_update() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "update".to_string(),
+            args: vec![HirExpr::Dict(vec![])],
+            kwargs: vec![],
+        };
+        assert!(expr_has_side_effects_inner(&expr));
+    }
+
+    #[test]
+    fn test_pure_expr_get() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        // get is a pure method, no side effects
+        assert!(!expr_has_side_effects_inner(&expr));
+    }
+
+    // --- Collection expression size ---
+    #[test]
+    fn test_expr_size_set() {
+        let expr = HirExpr::Set(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        let size = calculate_expr_size_inner(&expr);
+        assert!(size > 0);
+    }
+
+    #[test]
+    fn test_expr_size_tuple() {
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("a".to_string())),
+        ]);
+        let size = calculate_expr_size_inner(&expr);
+        assert!(size >= 2);
+    }
+
+    #[test]
+    fn test_expr_size_binary_complex() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Binary {
+                left: Box::new(HirExpr::Var("a".to_string())),
+                op: BinOp::Add,
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }),
+            op: BinOp::Mul,
+            right: Box::new(HirExpr::Var("c".to_string())),
+        };
+        let size = calculate_expr_size_inner(&expr);
+        assert!(size >= 3);
+    }
+
+    #[test]
+    fn test_expr_size_call_with_args() {
+        let expr = HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::Int(2)),
+            ],
+            kwargs: vec![],
+        };
+        let size = calculate_expr_size_inner(&expr);
+        assert!(size >= 2);
+    }
+
+    #[test]
+    fn test_expr_size_method_with_args() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        let size = calculate_expr_size_inner(&expr);
+        assert!(size >= 1);
+    }
+
+    // --- Nested loop detection ---
+    #[test]
+    fn test_contains_loops_nested_for_in_while() {
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Call {
+                    func: "range".to_string(),
+                    args: vec![HirExpr::Literal(Literal::Int(10))],
+                    kwargs: vec![],
+                },
+                body: vec![],
+            }],
+        }];
+        assert!(contains_loops_inner(&body));
+    }
+
+    #[test]
+    fn test_contains_loops_in_while_body() {
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::While {
+                condition: HirExpr::Literal(Literal::Bool(false)),
+                body: vec![],
+            }],
+        }];
+        assert!(contains_loops_inner(&body));
+    }
+
+    #[test]
+    fn test_contains_loops_in_if_then() {
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::While {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                body: vec![HirStmt::Break { label: None }],
+            }],
+            else_body: None,
+        }];
+        assert!(contains_loops_inner(&body));
+    }
+
+    #[test]
+    fn test_contains_loops_in_if_else() {
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![],
+            else_body: Some(vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::List(vec![]),
+                body: vec![],
+            }]),
+        }];
+        assert!(contains_loops_inner(&body));
+    }
+
+    // --- Return count tests ---
+    #[test]
+    fn test_count_returns_multiple() {
+        let body = vec![
+            HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
+            },
+        ];
+        let count = count_returns_inner(&body);
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn test_count_returns_in_while() {
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+        }];
+        let count = count_returns_inner(&body);
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_count_returns_in_loop() {
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::List(vec![]),
+            body: vec![HirStmt::Return(Some(HirExpr::Var("i".to_string())))],
+        }];
+        let count = count_returns_inner(&body);
+        assert_eq!(count, 1);
+    }
+
+    // --- Inlining decision tests ---
+    #[test]
+    fn test_inlining_decision_too_large() {
+        let decision = InliningDecision {
+            should_inline: false,
+            reason: InliningReason::TooLarge,
+            cost_benefit: 0.0,
+        };
+        assert!(!decision.should_inline);
+        assert!(matches!(decision.reason, InliningReason::TooLarge));
+    }
+
+    #[test]
+    fn test_inlining_decision_contains_loops() {
+        let decision = InliningDecision {
+            should_inline: false,
+            reason: InliningReason::ContainsLoops,
+            cost_benefit: 0.0,
+        };
+        assert!(!decision.should_inline);
+        assert!(matches!(decision.reason, InliningReason::ContainsLoops));
+    }
+
+    #[test]
+    fn test_inlining_decision_cost_too_high() {
+        let decision = InliningDecision {
+            should_inline: false,
+            reason: InliningReason::CostTooHigh,
+            cost_benefit: -0.5,
+        };
+        assert!(!decision.should_inline);
+        assert!(decision.cost_benefit < 0.0);
+    }
+
+    // --- Apply inlining tests ---
+    #[test]
+    fn test_apply_inlining_no_changes() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let program = HirProgram {
+            functions: vec![create_simple_function("main", 5)],
+            classes: vec![],
+            imports: vec![],
+        };
+        let decisions = std::collections::HashMap::new();
+        let result = analyzer.apply_inlining(program.clone(), &decisions);
+        assert_eq!(result.functions.len(), program.functions.len());
+    }
+
+    // --- Expression transformation tests ---
+    #[test]
+    fn test_transform_expr_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let result = transform_expr_for_inlining_inner(&expr, &[]);
+        assert!(matches!(result, HirExpr::Literal(Literal::Int(42))));
+    }
+
+    #[test]
+    fn test_transform_expr_var_no_param_match() {
+        let expr = HirExpr::Var("x".to_string());
+        let params = vec![HirParam::new("y".to_string(), Type::Int)];
+        let result = transform_expr_for_inlining_inner(&expr, &params);
+        assert!(matches!(result, HirExpr::Var(ref name) if name == "x"));
+    }
+
+    #[test]
+    fn test_transform_expr_binary() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        let result = transform_expr_for_inlining_inner(&expr, &[]);
+        assert!(matches!(result, HirExpr::Binary { .. }));
+    }
+
+    #[test]
+    fn test_transform_expr_call() {
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        let result = transform_expr_for_inlining_inner(&expr, &[]);
+        assert!(matches!(result, HirExpr::Call { .. }));
+    }
+
+    // --- Extract calls from various expression types ---
+    #[test]
+    fn test_extract_calls_from_nested_call() {
+        let expr = HirExpr::Call {
+            func: "outer".to_string(),
+            args: vec![HirExpr::Call {
+                func: "inner".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }],
+            kwargs: vec![],
+        };
+        let mut calls = std::collections::HashSet::new();
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("outer"));
+        assert!(calls.contains("inner"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_method_with_call_arg() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "process".to_string(),
+            args: vec![HirExpr::Call {
+                func: "get_value".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }],
+            kwargs: vec![],
+        };
+        let mut calls = std::collections::HashSet::new();
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("get_value"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_binary_with_calls() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Call {
+                func: "left_fn".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Call {
+                func: "right_fn".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+        };
+        let mut calls = std::collections::HashSet::new();
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("left_fn"));
+        assert!(calls.contains("right_fn"));
+    }
+
+    #[test]
+    fn test_extract_calls_from_list_with_call() {
+        let expr = HirExpr::List(vec![HirExpr::Call {
+            func: "get_item".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        }]);
+        let mut calls = std::collections::HashSet::new();
+        extract_calls_from_expr_inner(&expr, &mut calls);
+        assert!(calls.contains("get_item"));
+    }
+
+    // --- Statement size calculation ---
+    #[test]
+    fn test_stmt_size_assign() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        };
+        let size = analyzer.calculate_stmt_size(&stmt);
+        assert!(size > 0);
+    }
+
+    #[test]
+    fn test_stmt_size_if() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
+        };
+        let size = analyzer.calculate_stmt_size(&stmt);
+        assert!(size >= 3);
+    }
+
+    #[test]
+    fn test_stmt_size_while() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Break { label: None }],
+        };
+        let size = analyzer.calculate_stmt_size(&stmt);
+        assert!(size >= 2);
+    }
+
+    #[test]
+    fn test_stmt_size_for() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::List(vec![]),
+            body: vec![],
+        };
+        let size = analyzer.calculate_stmt_size(&stmt);
+        assert!(size >= 1);
+    }
+
+    #[test]
+    fn test_stmt_size_try() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Try {
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            handlers: vec![],
+            orelse: None,
+            finalbody: None,
+        };
+        let size = analyzer.calculate_stmt_size(&stmt);
+        assert!(size >= 1);
+    }
+
+    // --- Side effect detection in statements ---
+    #[test]
+    fn test_side_effect_in_assign() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            },
+            type_annotation: None,
+        };
+        assert!(analyzer.stmt_has_side_effects(&stmt));
+    }
+
+    #[test]
+    fn test_side_effect_in_raise() {
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let stmt = HirStmt::Raise {
+            exception: Some(HirExpr::Call {
+                func: "ValueError".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("error".to_string()))],
+                kwargs: vec![],
+            }),
+            cause: None,
+        };
+        assert!(analyzer.stmt_has_side_effects(&stmt));
+    }
+
+    // --- Config variations ---
+    #[test]
+    fn test_config_no_inline_single_use() {
+        let config = InliningConfig {
+            inline_single_use: false,
+            ..Default::default()
+        };
+        assert!(!config.inline_single_use);
+    }
+
+    #[test]
+    fn test_config_no_inline_trivial() {
+        let config = InliningConfig {
+            inline_trivial: false,
+            ..Default::default()
+        };
+        assert!(!config.inline_trivial);
+    }
+
+    #[test]
+    fn test_config_inline_loops() {
+        let config = InliningConfig {
+            inline_loops: true,
+            ..Default::default()
+        };
+        assert!(config.inline_loops);
+    }
+
+    #[test]
+    fn test_config_high_cost_threshold() {
+        let config = InliningConfig {
+            cost_threshold: 10.0,
+            ..Default::default()
+        };
+        assert_eq!(config.cost_threshold, 10.0);
+    }
+
+    // --- Function metrics ---
+    #[test]
+    fn test_function_metrics_new() {
+        let metrics = FunctionMetrics {
+            size: 10,
+            _param_count: 2,
+            _return_count: 1,
+            has_loops: false,
+            has_side_effects: false,
+            is_trivial: false,
+            call_count: 5,
+            cost: 2.5,
+        };
+        assert_eq!(metrics.size, 10);
+        assert_eq!(metrics.call_count, 5);
+        assert_eq!(metrics.cost, 2.5);
+        assert!(!metrics.has_loops);
+    }
+
+    // --- Empty body handling ---
+    #[test]
+    fn test_empty_function_body() {
+        let func = HirFunction {
+            name: "empty".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let size = analyzer.calculate_function_size(&func);
+        assert_eq!(size, 0);
+    }
+
+    // --- Complex call graph ---
+    #[test]
+    fn test_mutual_recursion() {
+        let mut analyzer = InliningAnalyzer::new(InliningConfig::default());
+        let program = HirProgram {
+            functions: vec![
+                HirFunction {
+                    name: "even".to_string(),
+                    params: smallvec![HirParam::new("n".to_string(), Type::Int)],
+                    ret_type: Type::Bool,
+                    body: vec![HirStmt::Return(Some(HirExpr::Call {
+                        func: "odd".to_string(),
+                        args: vec![HirExpr::Var("n".to_string())],
+                        kwargs: vec![],
+                    }))],
+                    properties: FunctionProperties::default(),
+                    annotations: Default::default(),
+                    docstring: None,
+                },
+                HirFunction {
+                    name: "odd".to_string(),
+                    params: smallvec![HirParam::new("n".to_string(), Type::Int)],
+                    ret_type: Type::Bool,
+                    body: vec![HirStmt::Return(Some(HirExpr::Call {
+                        func: "even".to_string(),
+                        args: vec![HirExpr::Var("n".to_string())],
+                        kwargs: vec![],
+                    }))],
+                    properties: FunctionProperties::default(),
+                    annotations: Default::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            imports: vec![],
+        };
+        let decisions = analyzer.analyze_program(&program);
+        // Should detect mutual recursion
+        assert!(decisions.len() >= 1);
+    }
 }

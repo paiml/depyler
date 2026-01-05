@@ -474,3 +474,153 @@ pub trait RustCodeGen {
 pub trait ToRustExpr {
     fn to_rust_expr(&self, ctx: &mut CodeGenContext) -> Result<syn::Expr>;
 }
+
+#[cfg(test)]
+pub mod test_helpers {
+    use super::*;
+    use once_cell::sync::Lazy;
+
+    /// Static TypeMapper for test contexts
+    static TEST_TYPE_MAPPER: Lazy<crate::type_mapper::TypeMapper> =
+        Lazy::new(crate::type_mapper::TypeMapper::new);
+
+    /// Create a test CodeGenContext with default values
+    ///
+    /// This is used by unit tests that need a CodeGenContext but don't
+    /// need custom type mapper configuration.
+    pub fn test_context() -> CodeGenContext<'static> {
+        CodeGenContext {
+            type_mapper: &*TEST_TYPE_MAPPER,
+            annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(
+                TEST_TYPE_MAPPER.clone(),
+            ),
+            string_optimizer: StringOptimizer::new(),
+            union_enum_generator: crate::union_enum_gen::UnionEnumGenerator::new(),
+            generated_enums: Vec::new(),
+            needs_hashmap: false,
+            needs_hashset: false,
+            needs_vecdeque: false,
+            needs_fnv_hashmap: false,
+            needs_ahash_hashmap: false,
+            needs_arc: false,
+            needs_rc: false,
+            needs_cow: false,
+            needs_rand: false,
+            needs_slice_random: false,
+            needs_rand_distr: false,
+            needs_serde_json: false,
+            needs_regex: false,
+            needs_chrono: false,
+            needs_tempfile: false,
+            needs_itertools: false,
+            needs_clap: false,
+            needs_csv: false,
+            needs_rust_decimal: false,
+            needs_num_rational: false,
+            needs_base64: false,
+            needs_md5: false,
+            needs_sha2: false,
+            needs_sha3: false,
+            needs_digest: false,
+            needs_blake2: false,
+            needs_hex: false,
+            needs_uuid: false,
+            needs_hmac: false,
+            needs_crc32: false,
+            needs_url_encoding: false,
+            needs_io_read: false,
+            needs_io_write: false,
+            needs_bufread: false,
+            needs_once_cell: false,
+            needs_trueno: false,
+            numpy_vars: HashSet::new(),
+            needs_tokio: false,
+            needs_glob: false,
+            declared_vars: vec![HashSet::new()],
+            current_function_can_fail: false,
+            current_return_type: None,
+            module_mapper: crate::module_mapper::ModuleMapper::new(),
+            imported_modules: HashMap::new(),
+            imported_items: HashMap::new(),
+            mutable_vars: HashSet::new(),
+            needs_zerodivisionerror: false,
+            needs_indexerror: false,
+            needs_valueerror: false,
+            needs_argumenttypeerror: false,
+            needs_runtimeerror: false,
+            needs_filenotfounderror: false,
+            needs_syntaxerror: false,
+            needs_typeerror: false,
+            needs_keyerror: false,
+            needs_ioerror: false,
+            needs_attributeerror: false,
+            needs_stopiteration: false,
+            is_classmethod: false,
+            in_generator: false,
+            generator_state_vars: HashSet::new(),
+            var_types: HashMap::new(),
+            class_names: HashSet::new(),
+            mutating_methods: HashMap::new(),
+            property_methods: HashSet::new(),
+            function_return_types: HashMap::new(),
+            function_param_borrows: HashMap::new(),
+            function_param_muts: HashMap::new(),
+            function_param_defaults: HashMap::new(),
+            class_field_defaults: HashMap::new(),
+            class_field_types: HashMap::new(),
+            tuple_iter_vars: HashSet::new(),
+            iterator_vars: HashSet::new(),
+            ref_params: HashSet::new(),
+            is_final_statement: false,
+            result_bool_functions: HashSet::new(),
+            result_returning_functions: HashSet::new(),
+            option_returning_functions: HashSet::new(),
+            current_error_type: None,
+            exception_scopes: Vec::new(),
+            argparser_tracker: crate::rust_gen::argparse_transform::ArgParserTracker::new(),
+            generated_args_struct: None,
+            generated_commands_enum: None,
+            current_subcommand_fields: None,
+            validator_functions: HashSet::new(),
+            in_json_context: false,
+            stdlib_mappings: crate::stdlib_mappings::StdlibMappings::new(),
+            hoisted_inference_vars: HashSet::new(),
+            none_placeholder_vars: HashSet::new(),
+            precomputed_option_fields: HashSet::new(),
+            cse_subcommand_temps: HashMap::new(),
+            nested_function_params: HashMap::new(),
+            fn_str_params: HashSet::new(),
+            in_cmd_handler: false,
+            cmd_handler_args_fields: Vec::new(),
+            in_subcommand_match_arm: false,
+            boxed_dyn_write_vars: HashSet::new(),
+            subcommand_match_fields: Vec::new(),
+            hoisted_function_names: Vec::new(),
+            is_main_function: false,
+            function_returns_boxed_write: false,
+            option_unwrap_map: HashMap::new(),
+            needs_completed_process: false,
+            vararg_functions: HashSet::new(),
+            type_substitutions: HashMap::new(),
+            current_assign_type: None,
+            force_dict_value_option_wrap: false,
+            function_param_optionals: HashMap::new(),
+            char_iter_vars: HashSet::new(),
+            char_counter_vars: HashSet::new(),
+            adt_child_to_parent: HashMap::new(),
+            function_param_types: HashMap::new(),
+            mut_option_dict_params: HashSet::new(),
+        }
+    }
+}
+
+/// Default implementation for CodeGenContext (test-only)
+///
+/// Uses a static TypeMapper to allow Default trait implementation.
+/// This is primarily useful for unit testing.
+#[cfg(test)]
+impl Default for CodeGenContext<'static> {
+    fn default() -> Self {
+        test_helpers::test_context()
+    }
+}
