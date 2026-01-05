@@ -830,6 +830,118 @@ mod tests {
         );
     }
 
+    // === generate_cargo_toml_lib tests (DEPYLER-0600) ===
+
+    #[test]
+    fn test_generate_cargo_toml_lib_empty_deps() {
+        let toml = generate_cargo_toml_lib("my_lib", "lib.rs", &[]);
+        assert!(toml.contains("[package]"));
+        assert!(toml.contains("name = \"my_lib\""));
+        assert!(toml.contains("[lib]"));
+        assert!(toml.contains("path = \"lib.rs\""));
+        // No [[bin]] section
+        assert!(!toml.contains("[[bin]]"));
+        // Has dev-dependencies for quickcheck
+        assert!(toml.contains("[dev-dependencies]"));
+        assert!(toml.contains("quickcheck = \"1\""));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_lib_with_deps() {
+        let deps = vec![Dependency::new("serde", "1.0")];
+        let toml = generate_cargo_toml_lib("test_lib", "src/lib.rs", &deps);
+        assert!(toml.contains("[dependencies]"));
+        assert!(toml.contains("serde = \"1.0\""));
+        assert!(toml.contains("[dev-dependencies]"));
+        assert!(toml.contains("quickcheck = \"1\""));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_lib_is_valid_toml() {
+        let deps = vec![
+            Dependency::new("serde", "1.0").with_features(vec!["derive".to_string()]),
+        ];
+        let toml_str = generate_cargo_toml_lib("valid_lib", "lib.rs", &deps);
+        let parsed: Result<toml::Value, _> = toml::from_str(&toml_str);
+        assert!(parsed.is_ok(), "Generated lib TOML must be valid");
+    }
+
+    // === generate_cargo_toml_auto tests (DEPYLER-0629) ===
+
+    #[test]
+    fn test_generate_cargo_toml_auto_test_file_uses_lib() {
+        let toml = generate_cargo_toml_auto("test_my_module", "test_my_module.rs", &[]);
+        // test_ prefix should use lib crate type
+        assert!(toml.contains("[lib]"));
+        assert!(!toml.contains("[[bin]]"));
+        assert!(toml.contains("[dev-dependencies]"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_auto_regular_file_uses_bin() {
+        let toml = generate_cargo_toml_auto("my_app", "my_app.rs", &[]);
+        // Non-test prefix should use bin crate type
+        assert!(toml.contains("[[bin]]"));
+        assert!(!toml.contains("[lib]"));
+        assert!(!toml.contains("[dev-dependencies]"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_auto_test_prefix_edge_cases() {
+        // Must start with "test_", not just contain it
+        let toml_starts_with = generate_cargo_toml_auto("test_foo", "test_foo.rs", &[]);
+        assert!(toml_starts_with.contains("[lib]"), "test_ prefix → lib");
+
+        let toml_contains = generate_cargo_toml_auto("my_test_helper", "my_test_helper.rs", &[]);
+        assert!(toml_contains.contains("[[bin]]"), "Contains test but no prefix → bin");
+    }
+
+    // === Dependency struct additional tests ===
+
+    #[test]
+    fn test_dependency_clone() {
+        let dep = Dependency::new("tokio", "1.0").with_features(vec!["full".to_string()]);
+        let cloned = dep.clone();
+        assert_eq!(cloned.crate_name, dep.crate_name);
+        assert_eq!(cloned.version, dep.version);
+        assert_eq!(cloned.features, dep.features);
+    }
+
+    #[test]
+    fn test_dependency_debug() {
+        let dep = Dependency::new("rand", "0.8");
+        let debug = format!("{:?}", dep);
+        assert!(debug.contains("rand"));
+        assert!(debug.contains("0.8"));
+    }
+
+    #[test]
+    fn test_dependency_multiple_features() {
+        let dep = Dependency::new("tokio", "1.0")
+            .with_features(vec!["full".to_string(), "rt-multi-thread".to_string(), "macros".to_string()]);
+        let line = dep.to_toml_line();
+        assert!(line.contains("\"full\""));
+        assert!(line.contains("\"rt-multi-thread\""));
+        assert!(line.contains("\"macros\""));
+    }
+
+    #[test]
+    fn test_dependency_empty_features_uses_simple_format() {
+        let dep = Dependency::new("regex", "1.0").with_features(vec![]);
+        assert_eq!(dep.to_toml_line(), "regex = \"1.0\"");
+    }
+
+    // === Individual needs_* flag tests ===
+
+    #[test]
+    fn test_extract_dependencies_empty_context() {
+        use crate::rust_gen::CodeGenContext;
+
+        let ctx = CodeGenContext::default();
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.is_empty(), "Default context should have no dependencies");
+    }
+
     /// Integration Test: Verify clap has derive feature
     #[test]
     fn test_integration_clap_has_derive_feature() {
