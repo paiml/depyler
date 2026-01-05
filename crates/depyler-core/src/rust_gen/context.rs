@@ -4,6 +4,10 @@
 //! state during Rust code generation, along with core traits used across
 //! the code generation pipeline.
 
+#[cfg(test)]
+#[path = "context_tests.rs"]
+mod tests;
+
 use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;
 use crate::hir::{ExceptionScope, Type};
 use crate::string_optimization::StringOptimizer;
