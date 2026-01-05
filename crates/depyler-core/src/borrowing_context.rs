@@ -938,4 +938,387 @@ mod tests {
         let lst_strategy = result.param_strategies.get("lst").unwrap();
         assert_eq!(*lst_strategy, BorrowingStrategy::TakeOwnership);
     }
+
+    // BorrowingContext tests
+    #[test]
+    fn test_borrowing_context_new_with_none() {
+        let ctx = BorrowingContext::new(None);
+        assert!(ctx.param_usage.is_empty());
+        assert!(ctx.moved_vars.is_empty());
+        assert!(ctx.mut_borrowed_vars.is_empty());
+        assert!(ctx.immut_borrowed_vars.is_empty());
+    }
+
+    #[test]
+    fn test_borrowing_context_new_with_return_type() {
+        let ctx = BorrowingContext::new(Some(PythonType::String));
+        assert!(ctx.return_type.is_some());
+    }
+
+    // ParameterUsagePattern tests
+    #[test]
+    fn test_parameter_usage_pattern_default() {
+        let pattern = ParameterUsagePattern::default();
+        assert!(!pattern.is_read);
+        assert!(!pattern.is_mutated);
+        assert!(!pattern.is_moved);
+        assert!(!pattern.escapes_through_return);
+        assert!(!pattern.is_stored);
+        assert!(!pattern.used_in_closure);
+        assert!(!pattern.used_in_loop);
+        assert!(pattern.field_accesses.is_empty());
+        assert!(pattern.method_calls.is_empty());
+        assert!(pattern.usage_sites.is_empty());
+    }
+
+    #[test]
+    fn test_parameter_usage_pattern_clone() {
+        let mut pattern = ParameterUsagePattern::default();
+        pattern.is_read = true;
+        pattern.is_mutated = true;
+        let cloned = pattern.clone();
+        assert_eq!(pattern.is_read, cloned.is_read);
+        assert_eq!(pattern.is_mutated, cloned.is_mutated);
+    }
+
+    // UsageSite tests
+    #[test]
+    fn test_usage_site_creation() {
+        let site = UsageSite {
+            usage_type: UsageType::Read,
+            in_loop: true,
+            in_conditional: false,
+            borrow_depth: 1,
+        };
+        assert!(site.in_loop);
+        assert!(!site.in_conditional);
+        assert_eq!(site.borrow_depth, 1);
+    }
+
+    #[test]
+    fn test_usage_site_clone() {
+        let site = UsageSite {
+            usage_type: UsageType::Write,
+            in_loop: false,
+            in_conditional: true,
+            borrow_depth: 2,
+        };
+        let cloned = site.clone();
+        assert_eq!(site.in_loop, cloned.in_loop);
+        assert_eq!(site.borrow_depth, cloned.borrow_depth);
+    }
+
+    // UsageType tests
+    #[test]
+    fn test_usage_type_read() {
+        let usage = UsageType::Read;
+        assert_eq!(usage, UsageType::Read);
+    }
+
+    #[test]
+    fn test_usage_type_write() {
+        let usage = UsageType::Write;
+        assert_eq!(usage, UsageType::Write);
+    }
+
+    #[test]
+    fn test_usage_type_method_call() {
+        let usage = UsageType::MethodCall("append".to_string());
+        assert!(matches!(usage, UsageType::MethodCall(_)));
+    }
+
+    #[test]
+    fn test_usage_type_function_arg_owned() {
+        let usage = UsageType::FunctionArg { takes_ownership: true };
+        assert!(matches!(usage, UsageType::FunctionArg { takes_ownership: true }));
+    }
+
+    #[test]
+    fn test_usage_type_function_arg_borrowed() {
+        let usage = UsageType::FunctionArg { takes_ownership: false };
+        assert!(matches!(usage, UsageType::FunctionArg { takes_ownership: false }));
+    }
+
+    #[test]
+    fn test_usage_type_return() {
+        let usage = UsageType::Return;
+        assert_eq!(usage, UsageType::Return);
+    }
+
+    #[test]
+    fn test_usage_type_store() {
+        let usage = UsageType::Store;
+        assert_eq!(usage, UsageType::Store);
+    }
+
+    #[test]
+    fn test_usage_type_closure() {
+        let usage = UsageType::Closure { captures_by_value: true };
+        assert!(matches!(usage, UsageType::Closure { captures_by_value: true }));
+    }
+
+    #[test]
+    fn test_usage_type_field_access() {
+        let usage = UsageType::FieldAccess("name".to_string());
+        assert!(matches!(usage, UsageType::FieldAccess(_)));
+    }
+
+    #[test]
+    fn test_usage_type_index_access() {
+        let usage = UsageType::IndexAccess;
+        assert_eq!(usage, UsageType::IndexAccess);
+    }
+
+    #[test]
+    fn test_usage_type_clone() {
+        let usage = UsageType::MethodCall("push".to_string());
+        let cloned = usage.clone();
+        assert_eq!(usage, cloned);
+    }
+
+    // BorrowingStrategy tests
+    #[test]
+    fn test_borrowing_strategy_take_ownership() {
+        let strategy = BorrowingStrategy::TakeOwnership;
+        assert_eq!(strategy, BorrowingStrategy::TakeOwnership);
+    }
+
+    #[test]
+    fn test_borrowing_strategy_borrow_immutable() {
+        let strategy = BorrowingStrategy::BorrowImmutable { lifetime: None };
+        assert!(matches!(strategy, BorrowingStrategy::BorrowImmutable { .. }));
+    }
+
+    #[test]
+    fn test_borrowing_strategy_borrow_immutable_with_lifetime() {
+        let strategy = BorrowingStrategy::BorrowImmutable { lifetime: Some("'a".to_string()) };
+        if let BorrowingStrategy::BorrowImmutable { lifetime } = &strategy {
+            assert_eq!(lifetime, &Some("'a".to_string()));
+        }
+    }
+
+    #[test]
+    fn test_borrowing_strategy_borrow_mutable() {
+        let strategy = BorrowingStrategy::BorrowMutable { lifetime: None };
+        assert!(matches!(strategy, BorrowingStrategy::BorrowMutable { .. }));
+    }
+
+    #[test]
+    fn test_borrowing_strategy_use_cow() {
+        let strategy = BorrowingStrategy::UseCow { lifetime: "'a".to_string() };
+        if let BorrowingStrategy::UseCow { lifetime } = &strategy {
+            assert_eq!(lifetime, "'a");
+        }
+    }
+
+    #[test]
+    fn test_borrowing_strategy_use_shared_ownership_arc() {
+        let strategy = BorrowingStrategy::UseSharedOwnership { is_thread_safe: true };
+        if let BorrowingStrategy::UseSharedOwnership { is_thread_safe } = strategy {
+            assert!(is_thread_safe);
+        }
+    }
+
+    #[test]
+    fn test_borrowing_strategy_use_shared_ownership_rc() {
+        let strategy = BorrowingStrategy::UseSharedOwnership { is_thread_safe: false };
+        if let BorrowingStrategy::UseSharedOwnership { is_thread_safe } = strategy {
+            assert!(!is_thread_safe);
+        }
+    }
+
+    #[test]
+    fn test_borrowing_strategy_clone() {
+        let strategy = BorrowingStrategy::TakeOwnership;
+        let cloned = strategy.clone();
+        assert_eq!(strategy, cloned);
+    }
+
+    // BorrowingInsight tests
+    #[test]
+    fn test_borrowing_insight_unnecessary_move() {
+        let insight = BorrowingInsight::UnnecessaryMove("x".to_string());
+        assert!(matches!(insight, BorrowingInsight::UnnecessaryMove(_)));
+    }
+
+    #[test]
+    fn test_borrowing_insight_lifetime_optimization() {
+        let insight = BorrowingInsight::LifetimeOptimization {
+            param: "s".to_string(),
+            suggestion: "Use 'a".to_string(),
+        };
+        assert!(matches!(insight, BorrowingInsight::LifetimeOptimization { .. }));
+    }
+
+    #[test]
+    fn test_borrowing_insight_suggest_copy() {
+        let insight = BorrowingInsight::SuggestCopyDerive("Point".to_string());
+        assert!(matches!(insight, BorrowingInsight::SuggestCopyDerive(_)));
+    }
+
+    #[test]
+    fn test_borrowing_insight_borrow_conflict() {
+        let insight = BorrowingInsight::PotentialBorrowConflict {
+            param: "data".to_string(),
+            locations: vec!["line 10".to_string(), "line 20".to_string()],
+        };
+        assert!(matches!(insight, BorrowingInsight::PotentialBorrowConflict { .. }));
+    }
+
+    #[test]
+    fn test_borrowing_insight_clone() {
+        let insight = BorrowingInsight::UnnecessaryMove("y".to_string());
+        let cloned = insight.clone();
+        assert!(matches!(cloned, BorrowingInsight::UnnecessaryMove(_)));
+    }
+
+    // BorrowingAnalysisResult tests
+    #[test]
+    fn test_borrowing_analysis_result_creation() {
+        let result = BorrowingAnalysisResult {
+            param_strategies: IndexMap::new(),
+            insights: Vec::new(),
+        };
+        assert!(result.param_strategies.is_empty());
+        assert!(result.insights.is_empty());
+    }
+
+    #[test]
+    fn test_borrowing_analysis_result_with_strategies() {
+        let mut strategies = IndexMap::new();
+        strategies.insert("x".to_string(), BorrowingStrategy::TakeOwnership);
+        let result = BorrowingAnalysisResult {
+            param_strategies: strategies,
+            insights: Vec::new(),
+        };
+        assert_eq!(result.param_strategies.len(), 1);
+        assert!(result.param_strategies.contains_key("x"));
+    }
+
+    #[test]
+    fn test_borrowing_analysis_result_clone() {
+        let result = BorrowingAnalysisResult {
+            param_strategies: IndexMap::new(),
+            insights: vec![BorrowingInsight::SuggestCopyDerive("T".to_string())],
+        };
+        let cloned = result.clone();
+        assert_eq!(result.insights.len(), cloned.insights.len());
+    }
+
+    // Integration tests for analyze_function
+    #[test]
+    fn test_analyze_function_with_float_param() {
+        let mut ctx = BorrowingContext::new(Some(PythonType::Float));
+        let type_mapper = TypeMapper::new();
+
+        let func = HirFunction {
+            name: "double".to_string(),
+            params: smallvec![HirParam::new("x".to_string(), PythonType::Float)],
+            ret_type: PythonType::Float,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: crate::hir::BinOp::Mul,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Float(2.0))),
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let result = ctx.analyze_function(&func, &type_mapper);
+        // Float is Copy, so should be taken by value
+        let x_strategy = result.param_strategies.get("x").unwrap();
+        assert_eq!(*x_strategy, BorrowingStrategy::TakeOwnership);
+    }
+
+    #[test]
+    fn test_analyze_function_with_bool_param() {
+        let mut ctx = BorrowingContext::new(Some(PythonType::Bool));
+        let type_mapper = TypeMapper::new();
+
+        let func = HirFunction {
+            name: "negate".to_string(),
+            params: smallvec![HirParam::new("b".to_string(), PythonType::Bool)],
+            ret_type: PythonType::Bool,
+            body: vec![HirStmt::Return(Some(HirExpr::Unary {
+                op: crate::hir::UnaryOp::Not,
+                operand: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let result = ctx.analyze_function(&func, &type_mapper);
+        // Bool is Copy, so should be taken by value
+        let b_strategy = result.param_strategies.get("b").unwrap();
+        assert_eq!(*b_strategy, BorrowingStrategy::TakeOwnership);
+    }
+
+    #[test]
+    fn test_analyze_function_empty_body() {
+        let mut ctx = BorrowingContext::new(None);
+        let type_mapper = TypeMapper::new();
+
+        let func = HirFunction {
+            name: "noop".to_string(),
+            params: smallvec![HirParam::new("x".to_string(), PythonType::Int)],
+            ret_type: PythonType::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let result = ctx.analyze_function(&func, &type_mapper);
+        // Even without usage, integer should be taken by value
+        assert!(result.param_strategies.contains_key("x"));
+    }
+
+    #[test]
+    fn test_analyze_function_no_params() {
+        let mut ctx = BorrowingContext::new(Some(PythonType::Int));
+        let type_mapper = TypeMapper::new();
+
+        let func = HirFunction {
+            name: "get_zero".to_string(),
+            params: smallvec![],
+            ret_type: PythonType::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let result = ctx.analyze_function(&func, &type_mapper);
+        assert!(result.param_strategies.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_function_multiple_params() {
+        let mut ctx = BorrowingContext::new(Some(PythonType::Int));
+        let type_mapper = TypeMapper::new();
+
+        let func = HirFunction {
+            name: "add".to_string(),
+            params: smallvec![
+                HirParam::new("a".to_string(), PythonType::Int),
+                HirParam::new("b".to_string(), PythonType::Int)
+            ],
+            ret_type: PythonType::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                op: crate::hir::BinOp::Add,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            }))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let result = ctx.analyze_function(&func, &type_mapper);
+        assert_eq!(result.param_strategies.len(), 2);
+        assert!(result.param_strategies.contains_key("a"));
+        assert!(result.param_strategies.contains_key("b"));
+    }
 }

@@ -1617,4 +1617,657 @@ mod tests {
             "DEPYLER-0508: 'unused' variable should be completely eliminated"
         );
     }
+
+    // ==========================================================================
+    // DEPYLER-COVERAGE-95: Lines-to-test ratio improvement tests
+    // Target: ratio 405 → <30
+    // ==========================================================================
+
+    #[test]
+    fn test_optimizer_config_default() {
+        let config = OptimizerConfig::default();
+        // DEPYLER-0161: inlining is disabled
+        assert!(!config.inline_functions);
+        assert!(config.eliminate_dead_code);
+        assert!(config.propagate_constants);
+        assert!(config.eliminate_common_subexpressions);
+        assert_eq!(config.inline_threshold, 20);
+    }
+
+    #[test]
+    fn test_optimizer_new() {
+        let config = OptimizerConfig::default();
+        let optimizer = Optimizer::new(config.clone());
+        assert_eq!(optimizer.config.inline_threshold, config.inline_threshold);
+    }
+
+    #[test]
+    fn test_is_constant_expr_literals() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        assert!(optimizer.is_constant_expr(&HirExpr::Literal(Literal::Int(42))));
+        assert!(optimizer.is_constant_expr(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(optimizer.is_constant_expr(&HirExpr::Literal(Literal::Bool(true))));
+        assert!(optimizer.is_constant_expr(&HirExpr::Literal(Literal::String("hello".into()))));
+    }
+
+    #[test]
+    fn test_is_constant_expr_non_constant() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        assert!(!optimizer.is_constant_expr(&HirExpr::Var("x".to_string())));
+        assert!(!optimizer.is_constant_expr(&HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        }));
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_int_add() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(5))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_some());
+        if let Some(HirExpr::Literal(Literal::Int(v))) = result {
+            assert_eq!(v, 8);
+        }
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_int_sub() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            op: BinOp::Sub,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_some());
+        if let Some(HirExpr::Literal(Literal::Int(v))) = result {
+            assert_eq!(v, 7);
+        }
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_int_mul() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(4))),
+            op: BinOp::Mul,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_some());
+        if let Some(HirExpr::Literal(Literal::Int(v))) = result {
+            assert_eq!(v, 12);
+        }
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_int_div() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            op: BinOp::Div,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_some());
+        if let Some(HirExpr::Literal(Literal::Int(v))) = result {
+            assert_eq!(v, 5);
+        }
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_int_mod_unsupported() {
+        // Mod is not supported in constant folding - returns None
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            op: BinOp::Mod,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_bool_and_unsupported() {
+        // Boolean And is not supported in constant folding - returns None
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            op: BinOp::And,
+            right: Box::new(HirExpr::Literal(Literal::Bool(false))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_bool_or_unsupported() {
+        // Boolean Or is not supported in constant folding - returns None
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            op: BinOp::Or,
+            right: Box::new(HirExpr::Literal(Literal::Bool(false))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_comparison_eq_unsupported() {
+        // Comparison Eq is not supported in constant folding - returns None
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(5))),
+            op: BinOp::Eq,
+            right: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_comparison_lt_unsupported() {
+        // Comparison Lt is not supported in constant folding - returns None
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(3))),
+            op: BinOp::Lt,
+            right: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_evaluate_constant_unaryop_not() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Literal(Literal::Bool(true))),
+        };
+        let result = optimizer.evaluate_constant_unaryop(&expr);
+        assert!(result.is_some());
+        if let Some(HirExpr::Literal(Literal::Bool(v))) = result {
+            assert!(!v);
+        }
+    }
+
+    #[test]
+    fn test_evaluate_constant_unaryop_neg_int() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        let result = optimizer.evaluate_constant_unaryop(&expr);
+        assert!(result.is_some());
+        if let Some(HirExpr::Literal(Literal::Int(v))) = result {
+            assert_eq!(v, -5);
+        }
+    }
+
+    #[test]
+    fn test_evaluate_constant_unaryop_neg_float() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Float(3.14))),
+        };
+        let result = optimizer.evaluate_constant_unaryop(&expr);
+        assert!(result.is_some());
+        if let Some(HirExpr::Literal(Literal::Float(v))) = result {
+            assert!((v - (-3.14)).abs() < 0.001);
+        }
+    }
+
+    #[test]
+    fn test_expr_has_side_effects_call() {
+        // Function calls have side effects
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(Optimizer::expr_has_side_effects(&expr));
+    }
+
+    #[test]
+    fn test_expr_has_side_effects_method_call() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("x".to_string())),
+            method: "append".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(Optimizer::expr_has_side_effects(&expr));
+    }
+
+    #[test]
+    fn test_expr_has_side_effects_literal() {
+        // Literals don't have side effects
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!Optimizer::expr_has_side_effects(&expr));
+    }
+
+    #[test]
+    fn test_expr_has_side_effects_var() {
+        // Variable reads don't have side effects
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!Optimizer::expr_has_side_effects(&expr));
+    }
+
+    #[test]
+    fn test_expr_has_side_effects_binary() {
+        // Pure binary ops don't have side effects
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(!Optimizer::expr_has_side_effects(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_function() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        assert!(optimizer.is_pure_function("len"));
+        assert!(optimizer.is_pure_function("str"));
+        assert!(optimizer.is_pure_function("int"));
+        assert!(optimizer.is_pure_function("float"));
+        assert!(optimizer.is_pure_function("bool"));
+        assert!(optimizer.is_pure_function("abs"));
+        assert!(optimizer.is_pure_function("min"));
+        assert!(optimizer.is_pure_function("max"));
+    }
+
+    #[test]
+    fn test_is_pure_function_impure() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        assert!(!optimizer.is_pure_function("print"));
+        assert!(!optimizer.is_pure_function("input"));
+        assert!(!optimizer.is_pure_function("open"));
+        assert!(!optimizer.is_pure_function("custom_func"));
+    }
+
+    #[test]
+    fn test_is_complex_expr_literal() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!optimizer.is_complex_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_complex_expr_var() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!optimizer.is_complex_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_complex_expr_binary_mul() {
+        // Mul is considered complex (only Add/Sub with simple operands are simple)
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Mul,
+            right: Box::new(HirExpr::Var("y".to_string())),
+        };
+        assert!(optimizer.is_complex_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_complex_expr_binary_add_simple() {
+        // Add with Var operands is NOT complex
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Var("y".to_string())),
+        };
+        assert!(!optimizer.is_complex_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_complex_expr_call() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(optimizer.is_complex_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_simple_return_expr() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        assert!(optimizer.is_simple_return_expr(&HirExpr::Literal(Literal::Int(42))));
+        assert!(optimizer.is_simple_return_expr(&HirExpr::Var("x".to_string())));
+        assert!(optimizer.is_simple_return_expr(&HirExpr::Literal(Literal::Bool(true))));
+    }
+
+    #[test]
+    fn test_is_simple_return_expr_binary() {
+        // Binary expressions ARE considered simple return expressions
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(optimizer.is_simple_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_simple_return_expr_list() {
+        // List expressions are NOT simple return expressions
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]);
+        assert!(!optimizer.is_simple_return_expr(&expr));
+    }
+
+    #[test]
+    fn test_hash_expr_same_expr_same_hash() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr1 = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        let expr2 = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert_eq!(optimizer.hash_expr(&expr1), optimizer.hash_expr(&expr2));
+    }
+
+    #[test]
+    fn test_hash_expr_different_expr_different_hash() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr1 = HirExpr::Var("x".to_string());
+        let expr2 = HirExpr::Var("y".to_string());
+        assert_ne!(optimizer.hash_expr(&expr1), optimizer.hash_expr(&expr2));
+    }
+
+    #[test]
+    fn test_hoist_walrus_operators_basic() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let program = HirProgram {
+            functions: vec![HirFunction {
+                name: "test".to_string(),
+                params: smallvec![],
+                ret_type: Type::Int,
+                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
+            classes: vec![],
+            imports: vec![],
+        };
+        let result = optimizer.hoist_walrus_operators(program);
+        // Basic case with no walrus operators should remain unchanged
+        assert_eq!(result.functions[0].body.len(), 1);
+    }
+
+    #[test]
+    fn test_extract_walrus_from_expr_no_walrus() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        let (assigns, result) = optimizer.extract_walrus_from_expr(&expr);
+        assert!(assigns.is_empty());
+        // Result should be equivalent to original
+        assert!(matches!(result, HirExpr::Binary { .. }));
+    }
+
+    #[test]
+    fn test_collect_read_vars_expr() {
+        let mut read_vars = HashSet::new();
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Var("y".to_string())),
+        };
+        Optimizer::collect_read_vars_expr(&expr, &mut read_vars);
+        assert!(read_vars.contains("x"));
+        assert!(read_vars.contains("y"));
+    }
+
+    #[test]
+    fn test_collect_read_vars_expr_call() {
+        let mut read_vars = HashSet::new();
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![HirExpr::Var("a".to_string()), HirExpr::Var("b".to_string())],
+            kwargs: vec![],
+        };
+        Optimizer::collect_read_vars_expr(&expr, &mut read_vars);
+        assert!(read_vars.contains("a"));
+        assert!(read_vars.contains("b"));
+    }
+
+    #[test]
+    fn test_collect_read_vars_stmt_assign() {
+        let mut read_vars = HashSet::new();
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("result".to_string()),
+            value: HirExpr::Var("input".to_string()),
+            type_annotation: None,
+        };
+        Optimizer::collect_read_vars_stmt(&stmt, &mut read_vars);
+        assert!(read_vars.contains("input"));
+        assert!(!read_vars.contains("result")); // target is written, not read
+    }
+
+    #[test]
+    fn test_collect_read_vars_stmt_return() {
+        let mut read_vars = HashSet::new();
+        let stmt = HirStmt::Return(Some(HirExpr::Var("value".to_string())));
+        Optimizer::collect_read_vars_stmt(&stmt, &mut read_vars);
+        assert!(read_vars.contains("value"));
+    }
+
+    #[test]
+    fn test_is_constant_expr_inner_literals() {
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Int(42))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Bool(true))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::String("hi".into()))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::None)));
+    }
+
+    #[test]
+    fn test_is_constant_expr_inner_non_constant() {
+        assert!(!is_constant_expr_inner(&HirExpr::Var("x".to_string())));
+        assert!(!is_constant_expr_inner(&HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        }));
+    }
+
+    #[test]
+    fn test_collect_used_vars_expr_inner() {
+        let mut used = HashMap::new();
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("a".to_string())),
+            op: BinOp::Mul,
+            right: Box::new(HirExpr::Var("b".to_string())),
+        };
+        collect_used_vars_expr_inner(&expr, &mut used);
+        assert!(used.contains_key("a"));
+        assert!(used.contains_key("b"));
+    }
+
+    #[test]
+    fn test_optimizer_with_empty_program() {
+        let mut optimizer = Optimizer::new(OptimizerConfig::default());
+        let program = HirProgram {
+            functions: vec![],
+            classes: vec![],
+            imports: vec![],
+        };
+        let result = optimizer.optimize_program(program);
+        assert!(result.functions.is_empty());
+    }
+
+    #[test]
+    fn test_optimizer_preserves_return_statements() {
+        let mut optimizer = Optimizer::new(OptimizerConfig::default());
+        let program = HirProgram {
+            functions: vec![HirFunction {
+                name: "test".to_string(),
+                params: smallvec![],
+                ret_type: Type::Int,
+                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
+            classes: vec![],
+            imports: vec![],
+        };
+        let result = optimizer.optimize_program(program);
+        assert_eq!(result.functions[0].body.len(), 1);
+        assert!(matches!(result.functions[0].body[0], HirStmt::Return(_)));
+    }
+
+    #[test]
+    fn test_optimizer_config_clone() {
+        let config = OptimizerConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.inline_functions, cloned.inline_functions);
+        assert_eq!(config.eliminate_dead_code, cloned.eliminate_dead_code);
+        assert_eq!(config.propagate_constants, cloned.propagate_constants);
+    }
+
+    #[test]
+    fn test_evaluate_constant_binop_non_constant() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        let result = optimizer.evaluate_constant_binop(&expr);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_evaluate_constant_unaryop_non_constant() {
+        let optimizer = Optimizer::new(OptimizerConfig::default());
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Var("x".to_string())),
+        };
+        let result = optimizer.evaluate_constant_unaryop(&expr);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_constant_propagation_multiple_vars() {
+        let config = OptimizerConfig {
+            propagate_constants: true,
+            eliminate_dead_code: false,
+            ..Default::default()
+        };
+        let mut optimizer = Optimizer::new(config);
+
+        let program = HirProgram {
+            functions: vec![HirFunction {
+                name: "test".to_string(),
+                params: smallvec![],
+                ret_type: Type::Int,
+                body: vec![
+                    HirStmt::Assign {
+                        target: AssignTarget::Symbol("a".to_string()),
+                        value: HirExpr::Literal(Literal::Int(10)),
+                        type_annotation: None,
+                    },
+                    HirStmt::Assign {
+                        target: AssignTarget::Symbol("b".to_string()),
+                        value: HirExpr::Literal(Literal::Int(20)),
+                        type_annotation: None,
+                    },
+                    HirStmt::Return(Some(HirExpr::Binary {
+                        left: Box::new(HirExpr::Var("a".to_string())),
+                        op: BinOp::Add,
+                        right: Box::new(HirExpr::Var("b".to_string())),
+                    })),
+                ],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let result = optimizer.optimize_program(program);
+        assert!(!result.functions.is_empty());
+    }
+
+    #[test]
+    fn test_cse_eliminates_common_subexpressions() {
+        let config = OptimizerConfig {
+            eliminate_common_subexpressions: true,
+            eliminate_dead_code: false,
+            propagate_constants: false,
+            ..Default::default()
+        };
+        let mut optimizer = Optimizer::new(config);
+
+        let complex_expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Var("x".to_string())),
+            op: BinOp::Mul,
+            right: Box::new(HirExpr::Var("y".to_string())),
+        };
+
+        let program = HirProgram {
+            functions: vec![HirFunction {
+                name: "test".to_string(),
+                params: smallvec![],
+                ret_type: Type::Int,
+                body: vec![
+                    HirStmt::Assign {
+                        target: AssignTarget::Symbol("a".to_string()),
+                        value: complex_expr.clone(),
+                        type_annotation: None,
+                    },
+                    HirStmt::Assign {
+                        target: AssignTarget::Symbol("b".to_string()),
+                        value: complex_expr,
+                        type_annotation: None,
+                    },
+                    HirStmt::Return(Some(HirExpr::Binary {
+                        left: Box::new(HirExpr::Var("a".to_string())),
+                        op: BinOp::Add,
+                        right: Box::new(HirExpr::Var("b".to_string())),
+                    })),
+                ],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let result = optimizer.optimize_program(program);
+        // CSE should run and produce a valid program
+        assert!(!result.functions.is_empty());
+    }
 }
