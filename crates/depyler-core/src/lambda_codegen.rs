@@ -632,6 +632,7 @@ export class {{function_name}}Lambda extends cdk.Construct {
 mod tests {
     use super::*;
     use depyler_annotations::LambdaAnnotations;
+    use std::collections::HashSet;
 
     fn create_test_context() -> LambdaGenerationContext {
         LambdaGenerationContext {
@@ -646,6 +647,183 @@ mod tests {
         }
     }
 
+    // === LambdaTemplate tests ===
+
+    #[test]
+    fn test_lambda_template_variants() {
+        let templates = vec![
+            LambdaTemplate::BasicHandler,
+            LambdaTemplate::StreamingHandler,
+            LambdaTemplate::BatchProcessor,
+            LambdaTemplate::EventBridgeHandler,
+            LambdaTemplate::CargoToml,
+            LambdaTemplate::BuildScript,
+            LambdaTemplate::SamTemplate,
+            LambdaTemplate::CdkConstruct,
+        ];
+        assert_eq!(templates.len(), 8);
+    }
+
+    #[test]
+    fn test_lambda_template_eq() {
+        assert_eq!(LambdaTemplate::BasicHandler, LambdaTemplate::BasicHandler);
+        assert_ne!(LambdaTemplate::BasicHandler, LambdaTemplate::CargoToml);
+    }
+
+    #[test]
+    fn test_lambda_template_hash() {
+        let mut set = HashSet::new();
+        set.insert(LambdaTemplate::BasicHandler);
+        set.insert(LambdaTemplate::CargoToml);
+        assert_eq!(set.len(), 2);
+        assert!(set.contains(&LambdaTemplate::BasicHandler));
+    }
+
+    #[test]
+    fn test_lambda_template_clone() {
+        let template = LambdaTemplate::BasicHandler;
+        let cloned = template.clone();
+        assert_eq!(cloned, template);
+    }
+
+    #[test]
+    fn test_lambda_template_debug() {
+        let debug = format!("{:?}", LambdaTemplate::BasicHandler);
+        assert!(debug.contains("BasicHandler"));
+    }
+
+    // === OptimizationProfile tests ===
+
+    #[test]
+    fn test_optimization_profile_default() {
+        let profile = OptimizationProfile::default();
+        assert!(profile.lto);
+        assert!(profile.panic_abort);
+        assert_eq!(profile.codegen_units, 1);
+        assert_eq!(profile.opt_level, "z");
+        assert!(profile.strip);
+        assert!(profile.mimalloc);
+    }
+
+    #[test]
+    fn test_optimization_profile_clone() {
+        let profile = OptimizationProfile::default();
+        let cloned = profile.clone();
+        assert_eq!(cloned.opt_level, profile.opt_level);
+        assert_eq!(cloned.lto, profile.lto);
+    }
+
+    #[test]
+    fn test_optimization_profile_debug() {
+        let profile = OptimizationProfile::default();
+        let debug = format!("{:?}", profile);
+        assert!(debug.contains("OptimizationProfile"));
+    }
+
+    #[test]
+    fn test_optimization_profile_custom() {
+        let profile = OptimizationProfile {
+            lto: false,
+            panic_abort: false,
+            codegen_units: 4,
+            opt_level: "3".to_string(),
+            strip: false,
+            mimalloc: false,
+        };
+        assert!(!profile.lto);
+        assert!(!profile.mimalloc);
+        assert_eq!(profile.opt_level, "3");
+    }
+
+    // === LambdaGenerationContext tests ===
+
+    #[test]
+    fn test_lambda_generation_context_fields() {
+        let context = create_test_context();
+        assert!(context.event_type.is_some());
+        assert_eq!(context.function_name, "handler");
+        assert_eq!(context.module_name, "my_lambda");
+    }
+
+    #[test]
+    fn test_lambda_generation_context_clone() {
+        let context = create_test_context();
+        let cloned = context.clone();
+        assert_eq!(cloned.function_name, context.function_name);
+    }
+
+    #[test]
+    fn test_lambda_generation_context_debug() {
+        let context = create_test_context();
+        let debug = format!("{:?}", context);
+        assert!(debug.contains("LambdaGenerationContext"));
+    }
+
+    #[test]
+    fn test_lambda_generation_context_serialize() {
+        let context = create_test_context();
+        let json = serde_json::to_string(&context).unwrap();
+        assert!(json.contains("handler"));
+        assert!(json.contains("my_lambda"));
+    }
+
+    #[test]
+    fn test_lambda_generation_context_deserialize() {
+        let json = r#"{
+            "event_type": null,
+            "response_type": "String",
+            "handler_body": "Ok(String::new())",
+            "imports": [],
+            "dependencies": [],
+            "annotations": {
+                "runtime": "ProvidedAl2",
+                "event_type": null,
+                "cold_start_optimize": true,
+                "memory_size": 128,
+                "architecture": "Arm64",
+                "pre_warm_paths": [],
+                "custom_serialization": false,
+                "batch_failure_reporting": false,
+                "timeout": null,
+                "tracing_enabled": false,
+                "environment_variables": []
+            },
+            "function_name": "test",
+            "module_name": "test_mod"
+        }"#;
+        let context: LambdaGenerationContext = serde_json::from_str(json).unwrap();
+        assert_eq!(context.function_name, "test");
+    }
+
+    // === LambdaCodeGenerator tests ===
+
+    #[test]
+    fn test_lambda_code_generator_new() {
+        let generator = LambdaCodeGenerator::new();
+        assert!(!generator.templates.is_empty());
+        assert_eq!(generator.templates.len(), 8);
+    }
+
+    #[test]
+    fn test_lambda_code_generator_default() {
+        let generator = LambdaCodeGenerator::default();
+        assert!(!generator.templates.is_empty());
+    }
+
+    #[test]
+    fn test_lambda_code_generator_clone() {
+        let generator = LambdaCodeGenerator::new();
+        let cloned = generator.clone();
+        assert_eq!(cloned.templates.len(), generator.templates.len());
+    }
+
+    #[test]
+    fn test_lambda_code_generator_debug() {
+        let generator = LambdaCodeGenerator::new();
+        let debug = format!("{:?}", generator);
+        assert!(debug.contains("LambdaCodeGenerator"));
+    }
+
     #[test]
     fn test_basic_handler_generation() {
         let generator = LambdaCodeGenerator::new();
@@ -658,6 +836,26 @@ mod tests {
     }
 
     #[test]
+    fn test_handler_without_event_type() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.event_type = None;
+
+        let handler = generator.generate_handler(&context).unwrap();
+        assert!(handler.contains("serde_json::Value"));
+    }
+
+    #[test]
+    fn test_handler_with_tracing() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.annotations.tracing_enabled = true;
+
+        let handler = generator.generate_handler(&context).unwrap();
+        assert!(handler.contains("true") || handler.contains("tracing"));
+    }
+
+    #[test]
     fn test_cargo_toml_generation() {
         let generator = LambdaCodeGenerator::new();
         let context = create_test_context();
@@ -666,6 +864,28 @@ mod tests {
         assert!(cargo_toml.contains("lambda_runtime"));
         assert!(cargo_toml.contains("aws-lambda-events"));
         assert!(cargo_toml.contains("[profile.lambda]"));
+    }
+
+    #[test]
+    fn test_cargo_toml_with_tracing() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.annotations.tracing_enabled = true;
+
+        let cargo_toml = generator.generate_cargo_toml(&context).unwrap();
+        assert!(cargo_toml.contains("tracing"));
+        assert!(cargo_toml.contains("tracing-subscriber"));
+    }
+
+    #[test]
+    fn test_cargo_toml_without_event_type() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.event_type = None;
+
+        let cargo_toml = generator.generate_cargo_toml(&context).unwrap();
+        // Should not include aws-lambda-events when no event type
+        assert!(!cargo_toml.contains("aws-lambda-events"));
     }
 
     #[test]
@@ -706,6 +926,17 @@ mod tests {
     }
 
     #[test]
+    fn test_project_with_pre_warm_paths() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.annotations.pre_warm_paths = vec!["/api".to_string()];
+
+        let project = generator.generate_lambda_project(&context).unwrap();
+        assert!(project.sam_template.is_some());
+        assert!(project.cdk_construct.is_some());
+    }
+
+    #[test]
     fn test_optimization_profile() {
         let profile = OptimizationProfile {
             opt_level: "s".to_string(),
@@ -719,5 +950,245 @@ mod tests {
         let cargo_toml = generator.generate_cargo_toml(&context).unwrap();
         assert!(cargo_toml.contains("opt-level = \"s\""));
         assert!(cargo_toml.contains("lto = false"));
+    }
+
+    // === Build script tests ===
+
+    #[test]
+    fn test_build_script_arm64() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.annotations.architecture = Architecture::Arm64;
+
+        let script = generator.generate_build_script(&context).unwrap();
+        assert!(script.contains("--arm64"));
+    }
+
+    #[test]
+    fn test_build_script_x86_64() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.annotations.architecture = Architecture::X86_64;
+
+        let script = generator.generate_build_script(&context).unwrap();
+        assert!(script.contains("--x86-64"));
+    }
+
+    // === SAM template tests ===
+
+    #[test]
+    fn test_sam_template_generation() {
+        let generator = LambdaCodeGenerator::new();
+        let context = create_test_context();
+
+        let sam = generator.generate_sam_template(&context).unwrap();
+        assert!(sam.contains("AWSTemplateFormatVersion"));
+        assert!(sam.contains("AWS::Serverless::Function"));
+        assert!(sam.contains("handler"));
+    }
+
+    #[test]
+    fn test_sam_template_memory_size() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.annotations.memory_size = 512;
+
+        let sam = generator.generate_sam_template(&context).unwrap();
+        assert!(sam.contains("512"));
+    }
+
+    #[test]
+    fn test_sam_template_timeout() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.annotations.timeout = Some(30);
+
+        let sam = generator.generate_sam_template(&context).unwrap();
+        assert!(sam.contains("30"));
+    }
+
+    // === CDK construct tests ===
+
+    #[test]
+    fn test_cdk_construct_generation() {
+        let generator = LambdaCodeGenerator::new();
+        let context = create_test_context();
+
+        let cdk = generator.generate_cdk_construct(&context).unwrap();
+        assert!(cdk.contains("aws-cdk-lib"));
+        assert!(cdk.contains("lambda.Function"));
+        assert!(cdk.contains("handler"));
+    }
+
+    #[test]
+    fn test_cdk_construct_memory_size() {
+        let generator = LambdaCodeGenerator::new();
+        let mut context = create_test_context();
+        context.annotations.memory_size = 256;
+
+        let cdk = generator.generate_cdk_construct(&context).unwrap();
+        assert!(cdk.contains("256"));
+    }
+
+    // === Event type mapping tests ===
+
+    #[test]
+    fn test_event_type_mapping_s3() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) = generator.get_event_type_mapping(&LambdaEventType::S3Event);
+        assert_eq!(module, "s3");
+        assert_eq!(rust_type, "S3Event");
+    }
+
+    #[test]
+    fn test_event_type_mapping_api_gateway() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) =
+            generator.get_event_type_mapping(&LambdaEventType::ApiGatewayProxyRequest);
+        assert_eq!(module, "apigw");
+        assert_eq!(rust_type, "ApiGatewayProxyRequest");
+    }
+
+    #[test]
+    fn test_event_type_mapping_api_gateway_v2() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) =
+            generator.get_event_type_mapping(&LambdaEventType::ApiGatewayV2HttpRequest);
+        assert_eq!(module, "apigw");
+        assert_eq!(rust_type, "ApiGatewayV2httpRequest");
+    }
+
+    #[test]
+    fn test_event_type_mapping_sqs() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) = generator.get_event_type_mapping(&LambdaEventType::SqsEvent);
+        assert_eq!(module, "sqs");
+        assert_eq!(rust_type, "SqsEvent");
+    }
+
+    #[test]
+    fn test_event_type_mapping_sns() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) = generator.get_event_type_mapping(&LambdaEventType::SnsEvent);
+        assert_eq!(module, "sns");
+        assert_eq!(rust_type, "SnsEvent");
+    }
+
+    #[test]
+    fn test_event_type_mapping_dynamodb() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) = generator.get_event_type_mapping(&LambdaEventType::DynamodbEvent);
+        assert_eq!(module, "dynamodb");
+        assert_eq!(rust_type, "DynamodbEvent");
+    }
+
+    #[test]
+    fn test_event_type_mapping_eventbridge_custom() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) =
+            generator.get_event_type_mapping(&LambdaEventType::EventBridgeEvent(Some("OrderEvent".to_string())));
+        assert_eq!(module, "eventbridge");
+        assert_eq!(rust_type, "EventBridgeEvent<OrderEvent>");
+    }
+
+    #[test]
+    fn test_event_type_mapping_eventbridge_default() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) =
+            generator.get_event_type_mapping(&LambdaEventType::EventBridgeEvent(None));
+        assert_eq!(module, "eventbridge");
+        assert_eq!(rust_type, "EventBridgeEvent<serde_json::Value>");
+    }
+
+    #[test]
+    fn test_event_type_mapping_cloudwatch() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) =
+            generator.get_event_type_mapping(&LambdaEventType::CloudwatchEvent);
+        assert_eq!(module, "cloudwatch_events");
+        assert_eq!(rust_type, "CloudWatchEvent");
+    }
+
+    #[test]
+    fn test_event_type_mapping_kinesis() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) = generator.get_event_type_mapping(&LambdaEventType::KinesisEvent);
+        assert_eq!(module, "kinesis");
+        assert_eq!(rust_type, "KinesisEvent");
+    }
+
+    #[test]
+    fn test_event_type_mapping_custom() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) =
+            generator.get_event_type_mapping(&LambdaEventType::Custom("MyEvent".to_string()));
+        assert_eq!(module, "");
+        assert_eq!(rust_type, "MyEvent");
+    }
+
+    #[test]
+    fn test_event_type_mapping_auto() {
+        let generator = LambdaCodeGenerator::new();
+        let (module, rust_type) = generator.get_event_type_mapping(&LambdaEventType::Auto);
+        assert_eq!(module, "");
+        assert_eq!(rust_type, "serde_json::Value");
+    }
+
+    // === LambdaProject tests ===
+
+    #[test]
+    fn test_lambda_project_fields() {
+        let project = LambdaProject {
+            handler_code: "code".to_string(),
+            cargo_toml: "toml".to_string(),
+            build_script: "script".to_string(),
+            sam_template: Some("sam".to_string()),
+            cdk_construct: Some("cdk".to_string()),
+            readme: "readme".to_string(),
+        };
+        assert_eq!(project.handler_code, "code");
+        assert!(project.sam_template.is_some());
+    }
+
+    #[test]
+    fn test_lambda_project_clone() {
+        let project = LambdaProject {
+            handler_code: "code".to_string(),
+            cargo_toml: "toml".to_string(),
+            build_script: "script".to_string(),
+            sam_template: None,
+            cdk_construct: None,
+            readme: "readme".to_string(),
+        };
+        let cloned = project.clone();
+        assert_eq!(cloned.handler_code, project.handler_code);
+    }
+
+    #[test]
+    fn test_lambda_project_debug() {
+        let project = LambdaProject {
+            handler_code: String::new(),
+            cargo_toml: String::new(),
+            build_script: String::new(),
+            sam_template: None,
+            cdk_construct: None,
+            readme: String::new(),
+        };
+        let debug = format!("{:?}", project);
+        assert!(debug.contains("LambdaProject"));
+    }
+
+    // === Readme generation test ===
+
+    #[test]
+    fn test_readme_generation() {
+        let generator = LambdaCodeGenerator::new();
+        let context = create_test_context();
+
+        let readme = generator.generate_readme(&context).unwrap();
+        assert!(readme.contains("# handler Lambda Function"));
+        assert!(readme.contains("cargo lambda build"));
+        assert!(readme.contains("Memory:"));
+        assert!(readme.contains("Timeout:"));
     }
 }
