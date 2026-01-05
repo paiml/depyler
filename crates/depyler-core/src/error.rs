@@ -181,6 +181,154 @@ macro_rules! transpile_bail {
 mod tests {
     use super::*;
 
+    // === SourceLocation tests ===
+
+    #[test]
+    fn test_source_location_new() {
+        let loc = SourceLocation {
+            file: "test.py".to_string(),
+            line: 10,
+            column: 5,
+        };
+        assert_eq!(loc.file, "test.py");
+        assert_eq!(loc.line, 10);
+        assert_eq!(loc.column, 5);
+    }
+
+    #[test]
+    fn test_source_location_display() {
+        let loc = SourceLocation {
+            file: "example.py".to_string(),
+            line: 42,
+            column: 8,
+        };
+        assert_eq!(format!("{}", loc), "example.py:42:8");
+    }
+
+    #[test]
+    fn test_source_location_display_edge_cases() {
+        let loc = SourceLocation {
+            file: "".to_string(),
+            line: 0,
+            column: 0,
+        };
+        assert_eq!(format!("{}", loc), ":0:0");
+    }
+
+    #[test]
+    fn test_source_location_clone() {
+        let loc = SourceLocation {
+            file: "test.py".to_string(),
+            line: 1,
+            column: 1,
+        };
+        let cloned = loc.clone();
+        assert_eq!(loc, cloned);
+    }
+
+    #[test]
+    fn test_source_location_partial_eq() {
+        let loc1 = SourceLocation {
+            file: "a.py".to_string(),
+            line: 1,
+            column: 1,
+        };
+        let loc2 = SourceLocation {
+            file: "a.py".to_string(),
+            line: 1,
+            column: 1,
+        };
+        let loc3 = SourceLocation {
+            file: "b.py".to_string(),
+            line: 1,
+            column: 1,
+        };
+        assert_eq!(loc1, loc2);
+        assert_ne!(loc1, loc3);
+    }
+
+    #[test]
+    fn test_source_location_debug() {
+        let loc = SourceLocation {
+            file: "test.py".to_string(),
+            line: 5,
+            column: 10,
+        };
+        let debug = format!("{:?}", loc);
+        assert!(debug.contains("SourceLocation"));
+        assert!(debug.contains("test.py"));
+    }
+
+    // === ErrorKind tests ===
+
+    #[test]
+    fn test_error_kind_parse_error() {
+        let err = ErrorKind::ParseError;
+        assert_eq!(format!("{}", err), "Python parse error");
+    }
+
+    #[test]
+    fn test_error_kind_unsupported_feature() {
+        let err = ErrorKind::UnsupportedFeature("async generators".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("Unsupported Python feature"));
+    }
+
+    #[test]
+    fn test_error_kind_type_inference_error() {
+        let err = ErrorKind::TypeInferenceError("cannot infer type".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("Type inference error"));
+    }
+
+    #[test]
+    fn test_error_kind_invalid_type_annotation() {
+        let err = ErrorKind::InvalidTypeAnnotation("List[Unknown]".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("Invalid type annotation"));
+    }
+
+    #[test]
+    fn test_error_kind_type_mismatch() {
+        let err = ErrorKind::TypeMismatch {
+            expected: "int".to_string(),
+            found: "str".to_string(),
+            context: "function return".to_string(),
+        };
+        let display = format!("{}", err);
+        assert!(display.contains("Type mismatch"));
+    }
+
+    #[test]
+    fn test_error_kind_code_generation_error() {
+        let err = ErrorKind::CodeGenerationError("failed to generate".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("Code generation error"));
+    }
+
+    #[test]
+    fn test_error_kind_verification_error() {
+        let err = ErrorKind::VerificationError("verification failed".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("Verification failed"));
+    }
+
+    #[test]
+    fn test_error_kind_internal_error() {
+        let err = ErrorKind::InternalError("unexpected state".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("Internal error"));
+    }
+
+    #[test]
+    fn test_error_kind_debug() {
+        let err = ErrorKind::ParseError;
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("ParseError"));
+    }
+
+    // === TranspileError tests ===
+
     #[test]
     fn test_error_creation() {
         let err = TranspileError::new(ErrorKind::UnsupportedFeature("async/await".to_string()));
@@ -214,6 +362,14 @@ mod tests {
     }
 
     #[test]
+    fn test_error_with_source() {
+        let source_err = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+        let err = TranspileError::new(ErrorKind::InternalError("io error".to_string()))
+            .with_source(source_err);
+        assert!(err.source.is_some());
+    }
+
+    #[test]
     fn test_error_display() {
         let loc = SourceLocation {
             file: "example.py".to_string(),
@@ -233,6 +389,92 @@ mod tests {
     }
 
     #[test]
+    fn test_error_display_no_location() {
+        let err = TranspileError::new(ErrorKind::ParseError);
+        let display = format!("{}", err);
+        assert!(display.contains("Python parse error"));
+        assert!(!display.contains("at "));
+    }
+
+    #[test]
+    fn test_error_display_no_context() {
+        let err = TranspileError::new(ErrorKind::ParseError);
+        let display = format!("{}", err);
+        assert!(!display.contains("Context:"));
+    }
+
+    #[test]
+    fn test_error_display_with_numbered_context() {
+        let err = TranspileError::new(ErrorKind::ParseError)
+            .with_context("first")
+            .with_context("second")
+            .with_context("third");
+        let display = format!("{}", err);
+        assert!(display.contains("1. first"));
+        assert!(display.contains("2. second"));
+        assert!(display.contains("3. third"));
+    }
+
+    #[test]
+    fn test_error_builder_chain() {
+        let loc = SourceLocation {
+            file: "chain.py".to_string(),
+            line: 1,
+            column: 1,
+        };
+        let source_err = std::io::Error::new(std::io::ErrorKind::Other, "test");
+
+        let err = TranspileError::new(ErrorKind::InternalError("test".to_string()))
+            .with_location(loc.clone())
+            .with_context("ctx1")
+            .with_source(source_err);
+
+        assert_eq!(err.location, Some(loc));
+        assert_eq!(err.context.len(), 1);
+        assert!(err.source.is_some());
+    }
+
+    #[test]
+    fn test_error_debug() {
+        let err = TranspileError::new(ErrorKind::ParseError);
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("TranspileError"));
+        assert!(debug.contains("ParseError"));
+    }
+
+    // === ResultExt tests ===
+
+    #[test]
+    fn test_result_ext_ok() {
+        let result: Result<i32, TranspileError> = Ok(42);
+        let with_ctx = result.with_context("extra context");
+        assert_eq!(with_ctx.unwrap(), 42);
+    }
+
+    #[test]
+    fn test_result_ext_err() {
+        let result: Result<i32, TranspileError> =
+            Err(TranspileError::new(ErrorKind::ParseError));
+        let with_ctx = result.with_context("added context");
+        let err = with_ctx.unwrap_err();
+        assert_eq!(err.context.len(), 1);
+        assert_eq!(err.context[0], "added context");
+    }
+
+    // === From<anyhow::Error> tests ===
+
+    #[test]
+    fn test_from_anyhow_error() {
+        let anyhow_err = anyhow::anyhow!("something went wrong");
+        let err: TranspileError = anyhow_err.into();
+        assert!(matches!(err.kind, ErrorKind::InternalError(_)));
+        let display = format!("{}", err);
+        assert!(display.contains("Internal error"));
+    }
+
+    // === Macro tests ===
+
+    #[test]
     fn test_transpile_error_macro() {
         let err1 = transpile_error!(ErrorKind::ParseError);
         assert!(matches!(err1.kind, ErrorKind::ParseError));
@@ -243,5 +485,99 @@ mod tests {
             "context 2"
         );
         assert_eq!(err2.context.len(), 2);
+    }
+
+    #[test]
+    fn test_transpile_error_macro_single_context() {
+        let err = transpile_error!(ErrorKind::ParseError, "single context");
+        assert_eq!(err.context.len(), 1);
+        assert_eq!(err.context[0], "single context");
+    }
+
+    #[test]
+    fn test_transpile_error_macro_many_contexts() {
+        let err = transpile_error!(
+            ErrorKind::InternalError("test".to_string()),
+            "ctx1",
+            "ctx2",
+            "ctx3",
+            "ctx4"
+        );
+        assert_eq!(err.context.len(), 4);
+    }
+
+    fn bail_test_helper() -> TranspileResult<()> {
+        transpile_bail!(ErrorKind::ParseError);
+    }
+
+    #[test]
+    fn test_transpile_bail_macro() {
+        let result = bail_test_helper();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(matches!(err.kind, ErrorKind::ParseError));
+    }
+
+    fn bail_test_with_context() -> TranspileResult<()> {
+        transpile_bail!(ErrorKind::ParseError, "context1", "context2");
+    }
+
+    #[test]
+    fn test_transpile_bail_macro_with_context() {
+        let result = bail_test_with_context();
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert_eq!(err.context.len(), 2);
+    }
+
+    // === Type alias tests ===
+
+    #[test]
+    fn test_transpile_result_ok() {
+        let result: TranspileResult<i32> = Ok(42);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_result_err() {
+        let result: TranspileResult<i32> = Err(TranspileError::new(ErrorKind::ParseError));
+        assert!(result.is_err());
+    }
+
+    // === Edge cases ===
+
+    #[test]
+    fn test_empty_strings_in_error_kind() {
+        let err = ErrorKind::UnsupportedFeature("".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("Unsupported Python feature"));
+    }
+
+    #[test]
+    fn test_type_mismatch_all_empty() {
+        let err = ErrorKind::TypeMismatch {
+            expected: "".to_string(),
+            found: "".to_string(),
+            context: "".to_string(),
+        };
+        let display = format!("{}", err);
+        assert!(display.contains("Type mismatch"));
+    }
+
+    #[test]
+    fn test_context_with_special_chars() {
+        let err = TranspileError::new(ErrorKind::ParseError)
+            .with_context("context with 'quotes' and \"double quotes\"")
+            .with_context("context\nwith\nnewlines");
+        assert_eq!(err.context.len(), 2);
+    }
+
+    #[test]
+    fn test_long_context_chain() {
+        let mut err = TranspileError::new(ErrorKind::ParseError);
+        for i in 0..100 {
+            err = err.with_context(format!("context {}", i));
+        }
+        assert_eq!(err.context.len(), 100);
     }
 }
