@@ -97,6 +97,7 @@ pub mod string_optimization;
 pub mod test_generation;
 pub mod type_hints;
 pub mod type_mapper;
+pub mod type_inference_telemetry;
 pub mod type_system;
 pub mod typeshed_ingest;
 pub mod union_enum_gen;
