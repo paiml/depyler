@@ -165,3 +165,447 @@ impl Default for FaultLocalizer {
         Self::new()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_location(line: u32) -> SourceLocation {
+        SourceLocation {
+            file: "test.py".to_string(),
+            line,
+            column: 0,
+        }
+    }
+
+    fn make_decision(id: u64, line: u32) -> TranspilerDecision {
+        TranspilerDecision {
+            id,
+            location: make_location(line),
+            decision_type: DecisionType::TypeInference {
+                inferred: "i32".to_string(),
+                constraints: vec![],
+            },
+            input_context: "x = 1".to_string(),
+            output_generated: "let x: i32 = 1;".to_string(),
+            confidence: 0.9,
+            timestamp_ns: 0,
+        }
+    }
+
+    // ========================================================================
+    // SourceLocation tests
+    // ========================================================================
+
+    #[test]
+    fn test_source_location_new() {
+        let loc = SourceLocation {
+            file: "main.py".to_string(),
+            line: 42,
+            column: 10,
+        };
+        assert_eq!(loc.file, "main.py");
+        assert_eq!(loc.line, 42);
+        assert_eq!(loc.column, 10);
+    }
+
+    #[test]
+    fn test_source_location_clone() {
+        let loc = make_location(100);
+        let cloned = loc.clone();
+        assert_eq!(loc, cloned);
+    }
+
+    #[test]
+    fn test_source_location_debug() {
+        let loc = make_location(50);
+        let debug_str = format!("{:?}", loc);
+        assert!(debug_str.contains("SourceLocation"));
+        assert!(debug_str.contains("50"));
+    }
+
+    #[test]
+    fn test_source_location_serialize() {
+        let loc = make_location(25);
+        let json = serde_json::to_string(&loc).unwrap();
+        assert!(json.contains("test.py"));
+        assert!(json.contains("25"));
+    }
+
+    // ========================================================================
+    // DecisionType tests
+    // ========================================================================
+
+    #[test]
+    fn test_decision_type_type_inference() {
+        let dt = DecisionType::TypeInference {
+            inferred: "String".to_string(),
+            constraints: vec!["FromStr".to_string()],
+        };
+        assert!(matches!(dt, DecisionType::TypeInference { .. }));
+    }
+
+    #[test]
+    fn test_decision_type_ownership_choice() {
+        let dt = DecisionType::OwnershipChoice {
+            strategy: "clone".to_string(),
+            reason: "used after move".to_string(),
+        };
+        assert!(matches!(dt, DecisionType::OwnershipChoice { .. }));
+    }
+
+    #[test]
+    fn test_decision_type_library_mapping() {
+        let dt = DecisionType::LibraryMapping {
+            python_api: "json.dumps".to_string(),
+            rust_api: "serde_json::to_string".to_string(),
+        };
+        assert!(matches!(dt, DecisionType::LibraryMapping { .. }));
+    }
+
+    #[test]
+    fn test_decision_type_lifetime_elision() {
+        let dt = DecisionType::LifetimeElision {
+            pattern: "input-output".to_string(),
+        };
+        assert!(matches!(dt, DecisionType::LifetimeElision { .. }));
+    }
+
+    #[test]
+    fn test_decision_type_trait_bound_selection() {
+        let dt = DecisionType::TraitBoundSelection {
+            trait_name: "Display".to_string(),
+            impl_strategy: "derive".to_string(),
+        };
+        assert!(matches!(dt, DecisionType::TraitBoundSelection { .. }));
+    }
+
+    #[test]
+    fn test_decision_type_clone() {
+        let dt = DecisionType::TypeInference {
+            inferred: "f64".to_string(),
+            constraints: vec![],
+        };
+        let cloned = dt.clone();
+        assert!(matches!(cloned, DecisionType::TypeInference { .. }));
+    }
+
+    // ========================================================================
+    // TranspilerDecision tests
+    // ========================================================================
+
+    #[test]
+    fn test_transpiler_decision_new() {
+        let decision = make_decision(1, 10);
+        assert_eq!(decision.id, 1);
+        assert_eq!(decision.location.line, 10);
+        assert_eq!(decision.confidence, 0.9);
+    }
+
+    #[test]
+    fn test_transpiler_decision_clone() {
+        let decision = make_decision(42, 100);
+        let cloned = decision.clone();
+        assert_eq!(decision.id, cloned.id);
+        assert_eq!(decision.location.line, cloned.location.line);
+    }
+
+    #[test]
+    fn test_transpiler_decision_debug() {
+        let decision = make_decision(99, 200);
+        let debug_str = format!("{:?}", decision);
+        assert!(debug_str.contains("TranspilerDecision"));
+        assert!(debug_str.contains("99"));
+    }
+
+    #[test]
+    fn test_transpiler_decision_serialize() {
+        let decision = make_decision(5, 50);
+        let json = serde_json::to_string(&decision).unwrap();
+        let deserialized: TranspilerDecision = serde_json::from_str(&json).unwrap();
+        assert_eq!(decision.id, deserialized.id);
+    }
+
+    // ========================================================================
+    // FaultLocalizer tests
+    // ========================================================================
+
+    #[test]
+    fn test_fault_localizer_new() {
+        let fl = FaultLocalizer::new();
+        assert_eq!(fl.decision_count(), 0);
+    }
+
+    #[test]
+    fn test_fault_localizer_default() {
+        let fl = FaultLocalizer::default();
+        assert_eq!(fl.decision_count(), 0);
+    }
+
+    #[test]
+    fn test_record_decision() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_decision(make_decision(1, 10));
+        fl.record_decision(make_decision(2, 20));
+        assert_eq!(fl.decision_count(), 2);
+    }
+
+    #[test]
+    fn test_get_decision() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_decision(make_decision(42, 100));
+
+        let decision = fl.get_decision(42);
+        assert!(decision.is_some());
+        assert_eq!(decision.unwrap().location.line, 100);
+
+        let missing = fl.get_decision(999);
+        assert!(missing.is_none());
+    }
+
+    #[test]
+    fn test_record_pass() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_pass(1);
+        fl.record_pass(1);
+        fl.record_pass(2);
+
+        // Can't directly access pass_count, but suspiciousness should reflect it
+        fl.set_totals(1, 3);
+        // Decision 1 has 2 passes, so lower suspiciousness
+        let susp = fl.suspiciousness(1);
+        assert!(susp < 0.5);
+    }
+
+    #[test]
+    fn test_record_fail() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_fail(1);
+        fl.record_fail(1);
+        fl.set_totals(2, 0);
+
+        let susp = fl.suspiciousness(1);
+        assert!(susp > 0.9); // High suspiciousness (all failures)
+    }
+
+    #[test]
+    fn test_set_totals() {
+        let mut fl = FaultLocalizer::new();
+        fl.set_totals(5, 10);
+
+        // With 0 recorded passes/fails for any decision, suspiciousness should be 0
+        let susp = fl.suspiciousness(999);
+        assert_eq!(susp, 0.0);
+    }
+
+    // ========================================================================
+    // Tarantula suspiciousness tests
+    // ========================================================================
+
+    #[test]
+    fn test_suspiciousness_no_failures() {
+        let fl = FaultLocalizer::new();
+        // total_failed = 0, should return 0
+        let susp = fl.suspiciousness(1);
+        assert_eq!(susp, 0.0);
+    }
+
+    #[test]
+    fn test_suspiciousness_only_failures() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_fail(1);
+        fl.record_fail(1);
+        fl.set_totals(2, 0);
+
+        let susp = fl.suspiciousness(1);
+        // fail_ratio = 2/2 = 1.0, pass_ratio = 0
+        // susp = 1.0 / (1.0 + 0 + epsilon) ≈ 1.0
+        assert!(susp > 0.99);
+    }
+
+    #[test]
+    fn test_suspiciousness_only_passes() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_pass(1);
+        fl.record_pass(1);
+        fl.set_totals(1, 2);
+
+        let susp = fl.suspiciousness(1);
+        // fail_ratio = 0/1 = 0, pass_ratio = 2/2 = 1.0
+        // susp = 0 / (0 + 1.0 + epsilon) ≈ 0
+        assert!(susp < 0.01);
+    }
+
+    #[test]
+    fn test_suspiciousness_mixed() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_fail(1);
+        fl.record_pass(1);
+        fl.set_totals(2, 2);
+
+        let susp = fl.suspiciousness(1);
+        // fail_ratio = 1/2 = 0.5, pass_ratio = 1/2 = 0.5
+        // susp = 0.5 / (0.5 + 0.5 + epsilon) ≈ 0.5
+        assert!(susp > 0.45 && susp < 0.55);
+    }
+
+    #[test]
+    fn test_suspiciousness_high_fail_ratio() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_fail(1);
+        fl.record_fail(1);
+        fl.record_pass(1);
+        fl.set_totals(2, 10);
+
+        let susp = fl.suspiciousness(1);
+        // fail_ratio = 2/2 = 1.0, pass_ratio = 1/10 = 0.1
+        // susp = 1.0 / (1.0 + 0.1) ≈ 0.909
+        assert!(susp > 0.9);
+    }
+
+    #[test]
+    fn test_suspiciousness_unknown_decision() {
+        let mut fl = FaultLocalizer::new();
+        fl.set_totals(5, 5);
+
+        // Decision 999 was never recorded
+        let susp = fl.suspiciousness(999);
+        assert_eq!(susp, 0.0);
+    }
+
+    // ========================================================================
+    // Rank decisions tests
+    // ========================================================================
+
+    #[test]
+    fn test_rank_decisions_empty() {
+        let fl = FaultLocalizer::new();
+        let ranked = fl.rank_decisions();
+        assert!(ranked.is_empty());
+    }
+
+    #[test]
+    fn test_rank_decisions_single() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_fail(1);
+        fl.set_totals(1, 0);
+
+        let ranked = fl.rank_decisions();
+        assert_eq!(ranked.len(), 1);
+        assert_eq!(ranked[0].0, 1);
+    }
+
+    #[test]
+    fn test_rank_decisions_ordered_by_suspiciousness() {
+        let mut fl = FaultLocalizer::new();
+
+        // Decision 1: all failures (highest suspiciousness)
+        fl.record_fail(1);
+        fl.record_fail(1);
+
+        // Decision 2: mixed (medium suspiciousness)
+        fl.record_fail(2);
+        fl.record_pass(2);
+
+        // Decision 3: all passes (lowest suspiciousness)
+        fl.record_pass(3);
+        fl.record_pass(3);
+
+        fl.set_totals(3, 3);
+
+        let ranked = fl.rank_decisions();
+        assert_eq!(ranked.len(), 3);
+
+        // Most suspicious first
+        assert_eq!(ranked[0].0, 1);
+        assert!(ranked[0].1 > ranked[1].1);
+        assert!(ranked[1].1 > ranked[2].1);
+    }
+
+    #[test]
+    fn test_rank_decisions_deduplicates() {
+        let mut fl = FaultLocalizer::new();
+        fl.record_fail(1);
+        fl.record_pass(1);
+        fl.set_totals(1, 1);
+
+        let ranked = fl.rank_decisions();
+        // Decision 1 appears in both pass and fail, but should only appear once
+        assert_eq!(ranked.len(), 1);
+    }
+
+    // ========================================================================
+    // Integration tests
+    // ========================================================================
+
+    #[test]
+    fn test_full_workflow() {
+        let mut fl = FaultLocalizer::new();
+
+        // Record some decisions
+        fl.record_decision(make_decision(1, 10));
+        fl.record_decision(make_decision(2, 20));
+        fl.record_decision(make_decision(3, 30));
+
+        // Simulate test runs
+        // Test 1 failed: involved decisions 1, 2
+        fl.record_fail(1);
+        fl.record_fail(2);
+
+        // Test 2 passed: involved decisions 2, 3
+        fl.record_pass(2);
+        fl.record_pass(3);
+
+        // Test 3 passed: involved decision 3
+        fl.record_pass(3);
+
+        fl.set_totals(1, 2);
+
+        // Decision 1 only appears in failures - most suspicious
+        // Decision 2 appears in both - medium
+        // Decision 3 only in passes - least suspicious
+        let ranked = fl.rank_decisions();
+
+        assert_eq!(ranked[0].0, 1); // Most suspicious
+        assert_eq!(ranked[2].0, 3); // Least suspicious
+    }
+
+    #[test]
+    fn test_complex_decision_types() {
+        let mut fl = FaultLocalizer::new();
+
+        // Test different decision types
+        let d1 = TranspilerDecision {
+            id: 1,
+            location: make_location(10),
+            decision_type: DecisionType::OwnershipChoice {
+                strategy: "move".to_string(),
+                reason: "transferred".to_string(),
+            },
+            input_context: "x".to_string(),
+            output_generated: "x".to_string(),
+            confidence: 0.8,
+            timestamp_ns: 100,
+        };
+
+        let d2 = TranspilerDecision {
+            id: 2,
+            location: make_location(20),
+            decision_type: DecisionType::LibraryMapping {
+                python_api: "os.path.join".to_string(),
+                rust_api: "Path::join".to_string(),
+            },
+            input_context: "os.path.join(a, b)".to_string(),
+            output_generated: "Path::new(a).join(b)".to_string(),
+            confidence: 0.95,
+            timestamp_ns: 200,
+        };
+
+        fl.record_decision(d1);
+        fl.record_decision(d2);
+
+        assert_eq!(fl.decision_count(), 2);
+        assert!(fl.get_decision(1).is_some());
+        assert!(fl.get_decision(2).is_some());
+    }
+}
