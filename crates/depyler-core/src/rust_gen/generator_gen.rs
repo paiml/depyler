@@ -711,47 +711,649 @@ pub fn codegen_generator_function(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::type_mapper::{PrimitiveType, RustType};
+
+    // ============================================================
+    // generate_state_struct_name tests
+    // ============================================================
 
     #[test]
     #[allow(non_snake_case)]
     fn test_depyler_0259_snake_case_to_pascal_case_naming() {
-        // BUG #2: generate_state_struct_name only capitalizes first character
-        // Input: "count_up" → Current: "Count_upState" (WRONG)
-        // Input: "count_up" → Expected: "CountUpState" (CORRECT)
-
         let input_name = syn::Ident::new("count_up", proc_macro2::Span::call_site());
         let result = generate_state_struct_name(&input_name);
-
-        // This WILL FAIL (RED phase) because current code produces "Count_upState"
-        assert_eq!(
-            result.to_string(),
-            "CountUpState",
-            "DEPYLER-0259: Should convert snake_case to PascalCase, not just capitalize first char"
-        );
+        assert_eq!(result.to_string(), "CountUpState");
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_depyler_0259_single_word_naming() {
-        // Edge case: single word (no underscores)
         let input_name = syn::Ident::new("counter", proc_macro2::Span::call_site());
         let result = generate_state_struct_name(&input_name);
-
-        // Should just capitalize and add "State"
         assert_eq!(result.to_string(), "CounterState");
     }
 
     #[test]
     #[allow(non_snake_case)]
     fn test_depyler_0259_multiple_words_naming() {
-        // Test with multiple underscores
         let input_name = syn::Ident::new(
             "fibonacci_generator_with_memo",
             proc_macro2::Span::call_site(),
         );
         let result = generate_state_struct_name(&input_name);
-
-        // Should capitalize each word
         assert_eq!(result.to_string(), "FibonacciGeneratorWithMemoState");
+    }
+
+    #[test]
+    fn test_generate_state_struct_name_empty_parts() {
+        // Test with double underscore (edge case)
+        let input_name = syn::Ident::new("a__b", proc_macro2::Span::call_site());
+        let result = generate_state_struct_name(&input_name);
+        // Empty parts become empty strings in PascalCase
+        assert_eq!(result.to_string(), "ABState");
+    }
+
+    #[test]
+    fn test_generate_state_struct_name_leading_underscore() {
+        let input_name = syn::Ident::new("_private_gen", proc_macro2::Span::call_site());
+        let result = generate_state_struct_name(&input_name);
+        assert_eq!(result.to_string(), "PrivateGenState");
+    }
+
+    #[test]
+    fn test_generate_state_struct_name_all_caps() {
+        let input_name = syn::Ident::new("HTTP_GEN", proc_macro2::Span::call_site());
+        let result = generate_state_struct_name(&input_name);
+        // DEPYLER capitalizes first letter, keeps rest
+        assert_eq!(result.to_string(), "HTTPGENState");
+    }
+
+    // ============================================================
+    // concretize_type_param_for_struct tests
+    // ============================================================
+
+    #[test]
+    fn test_concretize_type_param_converts_to_i32() {
+        let type_param = RustType::TypeParam("T".to_string());
+        let result = concretize_type_param_for_struct(&type_param);
+        assert!(matches!(result, RustType::Primitive(PrimitiveType::I32)));
+    }
+
+    #[test]
+    fn test_concretize_type_param_preserves_primitives() {
+        let int_type = RustType::Primitive(PrimitiveType::I64);
+        let result = concretize_type_param_for_struct(&int_type);
+        assert!(matches!(result, RustType::Primitive(PrimitiveType::I64)));
+    }
+
+    #[test]
+    fn test_concretize_type_param_preserves_string() {
+        let string_type = RustType::String;
+        let result = concretize_type_param_for_struct(&string_type);
+        assert!(matches!(result, RustType::String));
+    }
+
+    #[test]
+    fn test_concretize_type_param_preserves_vec() {
+        let vec_type = RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32)));
+        let result = concretize_type_param_for_struct(&vec_type);
+        assert!(matches!(result, RustType::Vec(_)));
+    }
+
+    #[test]
+    fn test_concretize_type_param_preserves_option() {
+        let opt_type = RustType::Option(Box::new(RustType::String));
+        let result = concretize_type_param_for_struct(&opt_type);
+        assert!(matches!(result, RustType::Option(_)));
+    }
+
+    #[test]
+    fn test_concretize_type_param_preserves_custom() {
+        let custom_type = RustType::Custom("MyType".to_string());
+        let result = concretize_type_param_for_struct(&custom_type);
+        assert!(matches!(result, RustType::Custom(s) if s == "MyType"));
+    }
+
+    // ============================================================
+    // box_impl_trait_for_field tests
+    // ============================================================
+
+    #[test]
+    fn test_box_impl_iterator_trait() {
+        let impl_iter = RustType::Custom("impl Iterator<Item=i32>".to_string());
+        let result = box_impl_trait_for_field(&impl_iter);
+        match result {
+            RustType::Custom(s) => assert_eq!(s, "Box<dyn Iterator<Item=i32>>"),
+            _ => panic!("Expected Custom type"),
+        }
+    }
+
+    #[test]
+    fn test_box_impl_into_iterator_trait() {
+        let impl_into_iter = RustType::Custom("impl IntoIterator<Item=String>".to_string());
+        let result = box_impl_trait_for_field(&impl_into_iter);
+        match result {
+            RustType::Custom(s) => assert_eq!(s, "Box<dyn IntoIterator<Item=String>>"),
+            _ => panic!("Expected Custom type"),
+        }
+    }
+
+    #[test]
+    fn test_box_impl_trait_preserves_non_impl() {
+        let regular_type = RustType::Custom("Vec<i32>".to_string());
+        let result = box_impl_trait_for_field(&regular_type);
+        match result {
+            RustType::Custom(s) => assert_eq!(s, "Vec<i32>"),
+            _ => panic!("Expected Custom type"),
+        }
+    }
+
+    #[test]
+    fn test_box_impl_trait_preserves_primitives() {
+        let int_type = RustType::Primitive(PrimitiveType::I32);
+        let result = box_impl_trait_for_field(&int_type);
+        assert!(matches!(result, RustType::Primitive(PrimitiveType::I32)));
+    }
+
+    #[test]
+    fn test_box_impl_trait_preserves_string() {
+        let string_type = RustType::String;
+        let result = box_impl_trait_for_field(&string_type);
+        assert!(matches!(result, RustType::String));
+    }
+
+    // ============================================================
+    // default value helper tests
+    // ============================================================
+
+    #[test]
+    fn test_default_int() {
+        let result = default_int();
+        assert_eq!(result.to_string(), "0");
+    }
+
+    #[test]
+    fn test_default_float() {
+        let result = default_float();
+        assert_eq!(result.to_string(), "0.0");
+    }
+
+    #[test]
+    fn test_default_bool() {
+        let result = default_bool();
+        assert_eq!(result.to_string(), "false");
+    }
+
+    #[test]
+    fn test_default_string() {
+        let result = default_string();
+        assert_eq!(result.to_string(), "String :: new ()");
+    }
+
+    #[test]
+    fn test_default_generic() {
+        let result = default_generic();
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    // ============================================================
+    // get_default_value_for_type tests
+    // ============================================================
+
+    #[test]
+    fn test_get_default_value_int() {
+        let result = get_default_value_for_type(&Type::Int);
+        assert_eq!(result.to_string(), "0");
+    }
+
+    #[test]
+    fn test_get_default_value_float() {
+        let result = get_default_value_for_type(&Type::Float);
+        assert_eq!(result.to_string(), "0.0");
+    }
+
+    #[test]
+    fn test_get_default_value_bool() {
+        let result = get_default_value_for_type(&Type::Bool);
+        assert_eq!(result.to_string(), "false");
+    }
+
+    #[test]
+    fn test_get_default_value_string() {
+        let result = get_default_value_for_type(&Type::String);
+        assert_eq!(result.to_string(), "String :: new ()");
+    }
+
+    #[test]
+    fn test_get_default_value_unknown() {
+        let result = get_default_value_for_type(&Type::Unknown);
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    #[test]
+    fn test_get_default_value_list() {
+        let result = get_default_value_for_type(&Type::List(Box::new(Type::Int)));
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    #[test]
+    fn test_get_default_value_optional() {
+        let result = get_default_value_for_type(&Type::Optional(Box::new(Type::Int)));
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    #[test]
+    fn test_get_default_value_tuple() {
+        let result = get_default_value_for_type(&Type::Tuple(vec![Type::Int, Type::Bool]));
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    #[test]
+    fn test_get_default_value_none() {
+        let result = get_default_value_for_type(&Type::None);
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    // ============================================================
+    // infer_yield_type tests
+    // ============================================================
+
+    #[test]
+    fn test_infer_yield_type_int_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let result = infer_yield_type(&expr);
+        assert!(matches!(result, Type::Int));
+    }
+
+    #[test]
+    fn test_infer_yield_type_float_literal() {
+        let expr = HirExpr::Literal(Literal::Float(3.14.into()));
+        let result = infer_yield_type(&expr);
+        assert!(matches!(result, Type::Float));
+    }
+
+    #[test]
+    fn test_infer_yield_type_string_literal() {
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        let result = infer_yield_type(&expr);
+        assert!(matches!(result, Type::String));
+    }
+
+    #[test]
+    fn test_infer_yield_type_bool_literal() {
+        let expr = HirExpr::Literal(Literal::Bool(true));
+        let result = infer_yield_type(&expr);
+        assert!(matches!(result, Type::Bool));
+    }
+
+    #[test]
+    fn test_infer_yield_type_none_literal() {
+        let expr = HirExpr::Literal(Literal::None);
+        let result = infer_yield_type(&expr);
+        assert!(matches!(result, Type::None));
+    }
+
+    #[test]
+    fn test_infer_yield_type_bytes_literal() {
+        let expr = HirExpr::Literal(Literal::Bytes(vec![0u8, 1, 2]));
+        let result = infer_yield_type(&expr);
+        assert!(matches!(result, Type::Custom(s) if s == "bytes"));
+    }
+
+    #[test]
+    fn test_infer_yield_type_tuple() {
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("hello".to_string())),
+        ]);
+        let result = infer_yield_type(&expr);
+        match result {
+            Type::Tuple(types) => {
+                assert_eq!(types.len(), 2);
+                assert!(matches!(types[0], Type::Int));
+                assert!(matches!(types[1], Type::String));
+            }
+            _ => panic!("Expected Tuple type"),
+        }
+    }
+
+    #[test]
+    fn test_infer_yield_type_var() {
+        let expr = HirExpr::Var("x".to_string());
+        let result = infer_yield_type(&expr);
+        // Variables default to String (safer than Unknown)
+        assert!(matches!(result, Type::String));
+    }
+
+    #[test]
+    fn test_infer_yield_type_binary_op() {
+        let expr = HirExpr::Binary {
+            op: crate::hir::BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        let result = infer_yield_type(&expr);
+        // Binary ops default to String (catch-all)
+        assert!(matches!(result, Type::String));
+    }
+
+    #[test]
+    fn test_infer_yield_type_call() {
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        let result = infer_yield_type(&expr);
+        // Calls default to String
+        assert!(matches!(result, Type::String));
+    }
+
+    #[test]
+    fn test_infer_yield_type_nested_tuple() {
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Tuple(vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::Int(2)),
+            ]),
+            HirExpr::Literal(Literal::Bool(true)),
+        ]);
+        let result = infer_yield_type(&expr);
+        match result {
+            Type::Tuple(types) => {
+                assert_eq!(types.len(), 2);
+                match &types[0] {
+                    Type::Tuple(inner) => {
+                        assert_eq!(inner.len(), 2);
+                        assert!(matches!(inner[0], Type::Int));
+                        assert!(matches!(inner[1], Type::Int));
+                    }
+                    _ => panic!("Expected nested Tuple"),
+                }
+                assert!(matches!(types[1], Type::Bool));
+            }
+            _ => panic!("Expected Tuple type"),
+        }
+    }
+
+    // ============================================================
+    // LoopInfo tests (via extract_loop_info)
+    // ============================================================
+
+    #[test]
+    fn test_loop_info_struct_fields() {
+        // LoopInfo struct has pre_loop_stmts, condition, body_stmts
+        let loop_info = LoopInfo {
+            pre_loop_stmts: vec![],
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body_stmts: vec![],
+        };
+        assert!(loop_info.pre_loop_stmts.is_empty());
+        assert!(loop_info.body_stmts.is_empty());
+    }
+
+    // ============================================================
+    // populate_generator_state_vars tests
+    // ============================================================
+
+    #[test]
+    fn test_populate_generator_state_vars_empty() {
+        let mut ctx = CodeGenContext::default();
+        let state_info = GeneratorStateInfo {
+            state_variables: vec![],
+            captured_params: vec![],
+            yield_count: 0,
+            has_loops: false,
+        };
+        populate_generator_state_vars(&mut ctx, &state_info);
+        assert!(ctx.generator_state_vars.is_empty());
+    }
+
+    #[test]
+    fn test_populate_generator_state_vars_with_state() {
+        use crate::generator_state::StateVariable;
+        let mut ctx = CodeGenContext::default();
+        let state_info = GeneratorStateInfo {
+            state_variables: vec![StateVariable {
+                name: "counter".to_string(),
+                ty: Type::Int,
+            }],
+            captured_params: vec![],
+            yield_count: 1,
+            has_loops: false,
+        };
+        populate_generator_state_vars(&mut ctx, &state_info);
+        assert!(ctx.generator_state_vars.contains("counter"));
+        assert_eq!(ctx.generator_state_vars.len(), 1);
+    }
+
+    #[test]
+    fn test_populate_generator_state_vars_with_params() {
+        let mut ctx = CodeGenContext::default();
+        let state_info = GeneratorStateInfo {
+            state_variables: vec![],
+            captured_params: vec!["n".to_string(), "limit".to_string()],
+            yield_count: 1,
+            has_loops: true,
+        };
+        populate_generator_state_vars(&mut ctx, &state_info);
+        assert!(ctx.generator_state_vars.contains("n"));
+        assert!(ctx.generator_state_vars.contains("limit"));
+        assert_eq!(ctx.generator_state_vars.len(), 2);
+    }
+
+    #[test]
+    fn test_populate_generator_state_vars_mixed() {
+        use crate::generator_state::StateVariable;
+        let mut ctx = CodeGenContext::default();
+        let state_info = GeneratorStateInfo {
+            state_variables: vec![
+                StateVariable {
+                    name: "i".to_string(),
+                    ty: Type::Int,
+                },
+                StateVariable {
+                    name: "acc".to_string(),
+                    ty: Type::Float,
+                },
+            ],
+            captured_params: vec!["start".to_string()],
+            yield_count: 2,
+            has_loops: true,
+        };
+        populate_generator_state_vars(&mut ctx, &state_info);
+        assert!(ctx.generator_state_vars.contains("i"));
+        assert!(ctx.generator_state_vars.contains("acc"));
+        assert!(ctx.generator_state_vars.contains("start"));
+        assert_eq!(ctx.generator_state_vars.len(), 3);
+    }
+
+    #[test]
+    fn test_populate_generator_state_vars_clears_previous() {
+        use crate::generator_state::StateVariable;
+        let mut ctx = CodeGenContext::default();
+        ctx.generator_state_vars.insert("old_var".to_string());
+
+        let state_info = GeneratorStateInfo {
+            state_variables: vec![StateVariable {
+                name: "new_var".to_string(),
+                ty: Type::Int,
+            }],
+            captured_params: vec![],
+            yield_count: 1,
+            has_loops: false,
+        };
+        populate_generator_state_vars(&mut ctx, &state_info);
+        assert!(!ctx.generator_state_vars.contains("old_var"));
+        assert!(ctx.generator_state_vars.contains("new_var"));
+        assert_eq!(ctx.generator_state_vars.len(), 1);
+    }
+
+    // ============================================================
+    // Edge case tests
+    // ============================================================
+
+    #[test]
+    fn test_box_impl_trait_iterator_without_item() {
+        let impl_iter = RustType::Custom("impl Iterator".to_string());
+        let result = box_impl_trait_for_field(&impl_iter);
+        match result {
+            RustType::Custom(s) => assert_eq!(s, "Box<dyn Iterator>"),
+            _ => panic!("Expected Custom type"),
+        }
+    }
+
+    #[test]
+    fn test_infer_yield_type_empty_tuple() {
+        let expr = HirExpr::Tuple(vec![]);
+        let result = infer_yield_type(&expr);
+        match result {
+            Type::Tuple(types) => assert!(types.is_empty()),
+            _ => panic!("Expected empty Tuple type"),
+        }
+    }
+
+    #[test]
+    fn test_infer_yield_type_attribute_access() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        let result = infer_yield_type(&expr);
+        // Attribute access defaults to String (catch-all)
+        assert!(matches!(result, Type::String));
+    }
+
+    #[test]
+    fn test_infer_yield_type_subscript() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        let result = infer_yield_type(&expr);
+        // Index access defaults to String (catch-all)
+        assert!(matches!(result, Type::String));
+    }
+
+    #[test]
+    fn test_generate_state_struct_name_trailing_underscore() {
+        let input_name = syn::Ident::new("gen_", proc_macro2::Span::call_site());
+        let result = generate_state_struct_name(&input_name);
+        assert_eq!(result.to_string(), "GenState");
+    }
+
+    #[test]
+    fn test_concretize_preserves_result() {
+        let result_type = RustType::Result(
+            Box::new(RustType::String),
+            Box::new(RustType::Custom("Error".to_string())),
+        );
+        let result = concretize_type_param_for_struct(&result_type);
+        assert!(matches!(result, RustType::Result(_, _)));
+    }
+
+    #[test]
+    fn test_concretize_preserves_hashmap() {
+        let map_type = RustType::HashMap(
+            Box::new(RustType::String),
+            Box::new(RustType::Primitive(PrimitiveType::I32)),
+        );
+        let result = concretize_type_param_for_struct(&map_type);
+        assert!(matches!(result, RustType::HashMap(_, _)));
+    }
+
+    #[test]
+    fn test_concretize_type_param_u() {
+        // TypeParam with different name
+        let type_param = RustType::TypeParam("U".to_string());
+        let result = concretize_type_param_for_struct(&type_param);
+        assert!(matches!(result, RustType::Primitive(PrimitiveType::I32)));
+    }
+
+    #[test]
+    fn test_get_default_value_dict() {
+        let result = get_default_value_for_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    #[test]
+    fn test_get_default_value_set() {
+        let result = get_default_value_for_type(&Type::Set(Box::new(Type::Int)));
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    #[test]
+    fn test_get_default_value_custom() {
+        let result = get_default_value_for_type(&Type::Custom("MyType".to_string()));
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    #[test]
+    fn test_get_default_value_generic() {
+        let result = get_default_value_for_type(&Type::Generic {
+            base: "Iterator".to_string(),
+            params: vec![Type::Int],
+        });
+        assert_eq!(result.to_string(), "Default :: default ()");
+    }
+
+    #[test]
+    fn test_infer_yield_type_unary_op() {
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        let result = infer_yield_type(&expr);
+        // UnaryOp defaults to String
+        assert!(matches!(result, Type::String));
+    }
+
+    #[test]
+    fn test_infer_yield_type_list() {
+        let expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        let result = infer_yield_type(&expr);
+        // List defaults to String (catch-all for complex expressions)
+        assert!(matches!(result, Type::String));
+    }
+
+    #[test]
+    fn test_infer_yield_type_dict() {
+        let expr = HirExpr::Dict(vec![
+            (
+                HirExpr::Literal(Literal::String("key".to_string())),
+                HirExpr::Literal(Literal::Int(1)),
+            ),
+        ]);
+        let result = infer_yield_type(&expr);
+        // Dict defaults to String
+        assert!(matches!(result, Type::String));
+    }
+
+    #[test]
+    fn test_box_impl_trait_impl_clone() {
+        // Other impl Trait types are not boxed
+        let impl_clone = RustType::Custom("impl Clone".to_string());
+        let result = box_impl_trait_for_field(&impl_clone);
+        match result {
+            RustType::Custom(s) => assert_eq!(s, "impl Clone"),
+            _ => panic!("Expected Custom type"),
+        }
+    }
+
+    #[test]
+    fn test_generate_state_struct_name_numeric_suffix() {
+        let input_name = syn::Ident::new("gen_v2", proc_macro2::Span::call_site());
+        let result = generate_state_struct_name(&input_name);
+        assert_eq!(result.to_string(), "GenV2State");
+    }
+
+    #[test]
+    fn test_generate_state_struct_name_single_char() {
+        let input_name = syn::Ident::new("g", proc_macro2::Span::call_site());
+        let result = generate_state_struct_name(&input_name);
+        assert_eq!(result.to_string(), "GState");
     }
 }
