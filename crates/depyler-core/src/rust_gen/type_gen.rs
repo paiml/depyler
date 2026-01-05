@@ -356,8 +356,73 @@ pub fn update_import_needs(ctx: &mut CodeGenContext, rust_type: &crate::type_map
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::type_mapper::{PrimitiveType, RustType};
+    use crate::type_mapper::{PrimitiveType, RustConstGeneric, RustType};
     use quote::ToTokens;
+
+    // ============ convert_logical_bitwise_binop tests ============
+
+    #[test]
+    fn test_logical_binop_and() {
+        let result = convert_logical_bitwise_binop(BinOp::And);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_ok());
+    }
+
+    #[test]
+    fn test_logical_binop_or() {
+        let result = convert_logical_bitwise_binop(BinOp::Or);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_ok());
+    }
+
+    #[test]
+    fn test_bitwise_binop_bitand() {
+        let result = convert_logical_bitwise_binop(BinOp::BitAnd);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_ok());
+    }
+
+    #[test]
+    fn test_bitwise_binop_bitor() {
+        let result = convert_logical_bitwise_binop(BinOp::BitOr);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_ok());
+    }
+
+    #[test]
+    fn test_bitwise_binop_bitxor() {
+        let result = convert_logical_bitwise_binop(BinOp::BitXor);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_ok());
+    }
+
+    #[test]
+    fn test_bitwise_binop_lshift() {
+        let result = convert_logical_bitwise_binop(BinOp::LShift);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_ok());
+    }
+
+    #[test]
+    fn test_bitwise_binop_rshift() {
+        let result = convert_logical_bitwise_binop(BinOp::RShift);
+        assert!(result.is_some());
+        assert!(result.unwrap().is_ok());
+    }
+
+    #[test]
+    fn test_logical_bitwise_returns_none_for_add() {
+        let result = convert_logical_bitwise_binop(BinOp::Add);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_logical_bitwise_returns_none_for_mul() {
+        let result = convert_logical_bitwise_binop(BinOp::Mul);
+        assert!(result.is_none());
+    }
+
+    // ============ convert_binop tests - arithmetic ============
 
     #[test]
     fn test_convert_binop_arithmetic() {
@@ -369,12 +434,367 @@ mod tests {
     }
 
     #[test]
+    fn test_convert_binop_add_token() {
+        let op = convert_binop(BinOp::Add).unwrap();
+        assert!(matches!(op, syn::BinOp::Add(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_sub_token() {
+        let op = convert_binop(BinOp::Sub).unwrap();
+        assert!(matches!(op, syn::BinOp::Sub(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_mul_token() {
+        let op = convert_binop(BinOp::Mul).unwrap();
+        assert!(matches!(op, syn::BinOp::Mul(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_div_token() {
+        let op = convert_binop(BinOp::Div).unwrap();
+        assert!(matches!(op, syn::BinOp::Div(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_mod_token() {
+        let op = convert_binop(BinOp::Mod).unwrap();
+        assert!(matches!(op, syn::BinOp::Rem(_)));
+    }
+
+    // ============ convert_binop tests - comparison ============
+
+    #[test]
+    fn test_convert_binop_eq() {
+        let op = convert_binop(BinOp::Eq).unwrap();
+        assert!(matches!(op, syn::BinOp::Eq(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_noteq() {
+        let op = convert_binop(BinOp::NotEq).unwrap();
+        assert!(matches!(op, syn::BinOp::Ne(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_lt() {
+        let op = convert_binop(BinOp::Lt).unwrap();
+        assert!(matches!(op, syn::BinOp::Lt(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_lteq() {
+        let op = convert_binop(BinOp::LtEq).unwrap();
+        assert!(matches!(op, syn::BinOp::Le(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_gt() {
+        let op = convert_binop(BinOp::Gt).unwrap();
+        assert!(matches!(op, syn::BinOp::Gt(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_gteq() {
+        let op = convert_binop(BinOp::GtEq).unwrap();
+        assert!(matches!(op, syn::BinOp::Ge(_)));
+    }
+
+    // ============ convert_binop tests - logical/bitwise ============
+
+    #[test]
+    fn test_convert_binop_and() {
+        let op = convert_binop(BinOp::And).unwrap();
+        assert!(matches!(op, syn::BinOp::And(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_or() {
+        let op = convert_binop(BinOp::Or).unwrap();
+        assert!(matches!(op, syn::BinOp::Or(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_bitand() {
+        let op = convert_binop(BinOp::BitAnd).unwrap();
+        assert!(matches!(op, syn::BinOp::BitAnd(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_bitor() {
+        let op = convert_binop(BinOp::BitOr).unwrap();
+        assert!(matches!(op, syn::BinOp::BitOr(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_bitxor() {
+        let op = convert_binop(BinOp::BitXor).unwrap();
+        assert!(matches!(op, syn::BinOp::BitXor(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_lshift() {
+        let op = convert_binop(BinOp::LShift).unwrap();
+        assert!(matches!(op, syn::BinOp::Shl(_)));
+    }
+
+    #[test]
+    fn test_convert_binop_rshift() {
+        let op = convert_binop(BinOp::RShift).unwrap();
+        assert!(matches!(op, syn::BinOp::Shr(_)));
+    }
+
+    // ============ convert_binop tests - special cases ============
+
+    #[test]
     fn test_convert_binop_special() {
-        // FloorDiv should bail
         assert!(convert_binop(BinOp::FloorDiv).is_err());
-        // Pow should bail
         assert!(convert_binop(BinOp::Pow).is_err());
     }
+
+    #[test]
+    fn test_convert_binop_floordiv_error_message() {
+        match convert_binop(BinOp::FloorDiv) {
+            Err(e) => assert!(e.to_string().contains("Floor division")),
+            Ok(_) => panic!("Expected error"),
+        }
+    }
+
+    #[test]
+    fn test_convert_binop_pow_error_message() {
+        match convert_binop(BinOp::Pow) {
+            Err(e) => assert!(e.to_string().contains("Power operator")),
+            Ok(_) => panic!("Expected error"),
+        }
+    }
+
+    #[test]
+    fn test_convert_binop_in_error() {
+        match convert_binop(BinOp::In) {
+            Err(e) => assert!(e.to_string().contains("in/not in")),
+            Ok(_) => panic!("Expected error"),
+        }
+    }
+
+    #[test]
+    fn test_convert_binop_notin_error() {
+        match convert_binop(BinOp::NotIn) {
+            Err(e) => assert!(e.to_string().contains("in/not in")),
+            Ok(_) => panic!("Expected error"),
+        }
+    }
+
+    // ============ str_type_to_syn tests ============
+
+    #[test]
+    fn test_str_type_no_lifetime() {
+        let ty = str_type_to_syn(&None);
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("str"));
+        assert!(!tokens.contains("'"));
+    }
+
+    #[test]
+    fn test_str_type_with_lifetime() {
+        let ty = str_type_to_syn(&Some("'a".to_string()));
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("str"));
+        assert!(tokens.contains("'a"));
+    }
+
+    #[test]
+    fn test_str_type_with_static_lifetime() {
+        let ty = str_type_to_syn(&Some("'static".to_string()));
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("'static"));
+    }
+
+    // ============ reference_type_to_syn tests ============
+
+    #[test]
+    fn test_reference_immut_no_lifetime() {
+        let inner = RustType::Primitive(PrimitiveType::I32);
+        let ty = reference_type_to_syn(&None, false, &inner).unwrap();
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("&"));
+        assert!(tokens.contains("i32"));
+        assert!(!tokens.contains("mut"));
+    }
+
+    #[test]
+    fn test_reference_mut_no_lifetime() {
+        let inner = RustType::Primitive(PrimitiveType::I32);
+        let ty = reference_type_to_syn(&None, true, &inner).unwrap();
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("& mut"));
+        assert!(tokens.contains("i32"));
+    }
+
+    #[test]
+    fn test_reference_immut_with_lifetime() {
+        let inner = RustType::Primitive(PrimitiveType::I32);
+        let ty = reference_type_to_syn(&Some("'a".to_string()), false, &inner).unwrap();
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("'a"));
+        assert!(tokens.contains("i32"));
+        assert!(!tokens.contains("mut"));
+    }
+
+    #[test]
+    fn test_reference_mut_with_lifetime() {
+        let inner = RustType::Primitive(PrimitiveType::I32);
+        let ty = reference_type_to_syn(&Some("'a".to_string()), true, &inner).unwrap();
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("'a"));
+        assert!(tokens.contains("mut"));
+        assert!(tokens.contains("i32"));
+    }
+
+    #[test]
+    fn test_reference_nested() {
+        let inner = RustType::Vec(Box::new(RustType::String));
+        let ty = reference_type_to_syn(&None, false, &inner).unwrap();
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("Vec"));
+        assert!(tokens.contains("String"));
+    }
+
+    // ============ array_type_to_syn tests ============
+
+    #[test]
+    fn test_array_literal_size() {
+        let element = RustType::Primitive(PrimitiveType::I32);
+        let size = RustConstGeneric::Literal(10);
+        let ty = array_type_to_syn(&element, &size).unwrap();
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("["));
+        assert!(tokens.contains("i32"));
+        assert!(tokens.contains("10"));
+    }
+
+    #[test]
+    fn test_array_parameter_size() {
+        let element = RustType::Primitive(PrimitiveType::U8);
+        let size = RustConstGeneric::Parameter("N".to_string());
+        let ty = array_type_to_syn(&element, &size).unwrap();
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("u8"));
+        assert!(tokens.contains("N"));
+    }
+
+    #[test]
+    fn test_array_expression_size() {
+        let element = RustType::Primitive(PrimitiveType::F64);
+        let size = RustConstGeneric::Expression("SIZE * 2".to_string());
+        let ty = array_type_to_syn(&element, &size).unwrap();
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("f64"));
+        assert!(tokens.contains("SIZE"));
+    }
+
+    #[test]
+    fn test_array_zero_size() {
+        let element = RustType::Primitive(PrimitiveType::I32);
+        let size = RustConstGeneric::Literal(0);
+        let ty = array_type_to_syn(&element, &size).unwrap();
+        let tokens = ty.to_token_stream().to_string();
+        assert!(tokens.contains("0"));
+    }
+
+    // ============ collection_type_to_syn tests ============
+
+    #[test]
+    fn test_collection_vec() {
+        let ty = RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::I32)));
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_some());
+        let tokens = result.unwrap().to_token_stream().to_string();
+        assert!(tokens.contains("Vec"));
+    }
+
+    #[test]
+    fn test_collection_hashmap() {
+        let ty = RustType::HashMap(
+            Box::new(RustType::String),
+            Box::new(RustType::Primitive(PrimitiveType::I32)),
+        );
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_some());
+        let tokens = result.unwrap().to_token_stream().to_string();
+        assert!(tokens.contains("HashMap"));
+    }
+
+    #[test]
+    fn test_collection_hashset() {
+        let ty = RustType::HashSet(Box::new(RustType::String));
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_some());
+        let tokens = result.unwrap().to_token_stream().to_string();
+        assert!(tokens.contains("HashSet"));
+    }
+
+    #[test]
+    fn test_collection_option() {
+        let ty = RustType::Option(Box::new(RustType::String));
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_some());
+        let tokens = result.unwrap().to_token_stream().to_string();
+        assert!(tokens.contains("Option"));
+    }
+
+    #[test]
+    fn test_collection_result() {
+        let ty = RustType::Result(
+            Box::new(RustType::String),
+            Box::new(RustType::Custom("Error".to_string())),
+        );
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_some());
+        let tokens = result.unwrap().to_token_stream().to_string();
+        assert!(tokens.contains("Result"));
+    }
+
+    #[test]
+    fn test_collection_tuple_empty() {
+        let ty = RustType::Tuple(vec![]);
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_collection_tuple_single() {
+        let ty = RustType::Tuple(vec![RustType::Primitive(PrimitiveType::I32)]);
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_collection_tuple_multiple() {
+        let ty = RustType::Tuple(vec![
+            RustType::String,
+            RustType::Primitive(PrimitiveType::I32),
+            RustType::Primitive(PrimitiveType::Bool),
+        ]);
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_collection_returns_none_for_primitive() {
+        let ty = RustType::Primitive(PrimitiveType::I32);
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_collection_returns_none_for_string() {
+        let ty = RustType::String;
+        let result = collection_type_to_syn(&ty).unwrap();
+        assert!(result.is_none());
+    }
+
+    // ============ rust_type_to_syn tests - primitives ============
 
     #[test]
     fn test_rust_type_to_syn_primitive() {
@@ -384,11 +804,260 @@ mod tests {
     }
 
     #[test]
+    fn test_rust_type_to_syn_i8() {
+        let ty = RustType::Primitive(PrimitiveType::I8);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "i8");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_i16() {
+        let ty = RustType::Primitive(PrimitiveType::I16);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "i16");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_i64() {
+        let ty = RustType::Primitive(PrimitiveType::I64);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "i64");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_i128() {
+        let ty = RustType::Primitive(PrimitiveType::I128);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "i128");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_isize() {
+        let ty = RustType::Primitive(PrimitiveType::ISize);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "isize");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_u8() {
+        let ty = RustType::Primitive(PrimitiveType::U8);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "u8");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_u16() {
+        let ty = RustType::Primitive(PrimitiveType::U16);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "u16");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_u32() {
+        let ty = RustType::Primitive(PrimitiveType::U32);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "u32");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_u64() {
+        let ty = RustType::Primitive(PrimitiveType::U64);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "u64");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_u128() {
+        let ty = RustType::Primitive(PrimitiveType::U128);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "u128");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_usize() {
+        let ty = RustType::Primitive(PrimitiveType::USize);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "usize");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_f32() {
+        let ty = RustType::Primitive(PrimitiveType::F32);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "f32");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_f64() {
+        let ty = RustType::Primitive(PrimitiveType::F64);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "f64");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_bool() {
+        let ty = RustType::Primitive(PrimitiveType::Bool);
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert_eq!(result.to_token_stream().to_string(), "bool");
+    }
+
+    // Note: Char is not a variant in PrimitiveType enum
+
+    // ============ rust_type_to_syn tests - string types ============
+
+    #[test]
     fn test_rust_type_to_syn_string() {
         let ty = RustType::String;
         let result = rust_type_to_syn(&ty).unwrap();
         assert_eq!(result.to_token_stream().to_string(), "String");
     }
+
+    #[test]
+    fn test_rust_type_to_syn_str_no_lifetime() {
+        let ty = RustType::Str { lifetime: None };
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("str"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_str_with_lifetime() {
+        let ty = RustType::Str {
+            lifetime: Some("'a".to_string()),
+        };
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("'a"));
+        assert!(tokens.contains("str"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_cow() {
+        let ty = RustType::Cow {
+            lifetime: "'a".to_string(),
+        };
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("Cow"));
+        assert!(tokens.contains("'a"));
+    }
+
+    // ============ rust_type_to_syn tests - references ============
+
+    #[test]
+    fn test_rust_type_to_syn_reference_immut() {
+        let ty = RustType::Reference {
+            lifetime: None,
+            mutable: false,
+            inner: Box::new(RustType::Primitive(PrimitiveType::I32)),
+        };
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("&"));
+        assert!(tokens.contains("i32"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_reference_mut() {
+        let ty = RustType::Reference {
+            lifetime: None,
+            mutable: true,
+            inner: Box::new(RustType::Primitive(PrimitiveType::I32)),
+        };
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("mut"));
+    }
+
+    // ============ rust_type_to_syn tests - special types ============
+
+    #[test]
+    fn test_rust_type_to_syn_unit() {
+        let ty = RustType::Unit;
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("("));
+        assert!(tokens.contains(")"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_custom() {
+        let ty = RustType::Custom("MyStruct".to_string());
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("MyStruct"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_custom_with_path() {
+        let ty = RustType::Custom("std::io::Error".to_string());
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("std"));
+        assert!(tokens.contains("io"));
+        assert!(tokens.contains("Error"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_unsupported() {
+        let ty = RustType::Unsupported("cannot convert".to_string());
+        let result = rust_type_to_syn(&ty);
+        assert!(result.is_err());
+        // Check error message by matching
+        match result {
+            Err(e) => assert!(e.to_string().contains("cannot convert")),
+            Ok(_) => panic!("Expected error"),
+        }
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_type_param() {
+        let ty = RustType::TypeParam("T".to_string());
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert_eq!(tokens, "T");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_generic() {
+        let ty = RustType::Generic {
+            base: "Container".to_string(),
+            params: vec![
+                RustType::Primitive(PrimitiveType::I32),
+                RustType::String,
+            ],
+        };
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("Container"));
+        assert!(tokens.contains("i32"));
+        assert!(tokens.contains("String"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_enum() {
+        let ty = RustType::Enum {
+            name: "Status".to_string(),
+            variants: vec![],
+        };
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert_eq!(tokens, "Status");
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_array() {
+        let ty = RustType::Array {
+            element_type: Box::new(RustType::Primitive(PrimitiveType::I32)),
+            size: RustConstGeneric::Literal(5),
+        };
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("i32"));
+        assert!(tokens.contains("5"));
+    }
+
+    // ============ rust_type_to_syn tests - collections ============
 
     #[test]
     fn test_rust_type_to_syn_vec() {
@@ -400,11 +1069,317 @@ mod tests {
     }
 
     #[test]
+    fn test_rust_type_to_syn_hashmap() {
+        let ty = RustType::HashMap(
+            Box::new(RustType::String),
+            Box::new(RustType::Primitive(PrimitiveType::I32)),
+        );
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("HashMap"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_hashset() {
+        let ty = RustType::HashSet(Box::new(RustType::String));
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("HashSet"));
+    }
+
+    #[test]
     fn test_rust_type_to_syn_option() {
         let ty = RustType::Option(Box::new(RustType::String));
         let result = rust_type_to_syn(&ty).unwrap();
         let tokens = result.to_token_stream().to_string();
         assert!(tokens.contains("Option"));
         assert!(tokens.contains("String"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_result() {
+        let ty = RustType::Result(
+            Box::new(RustType::String),
+            Box::new(RustType::Custom("MyError".to_string())),
+        );
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("Result"));
+    }
+
+    #[test]
+    fn test_rust_type_to_syn_tuple() {
+        let ty = RustType::Tuple(vec![
+            RustType::Primitive(PrimitiveType::I32),
+            RustType::String,
+        ]);
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("i32"));
+        assert!(tokens.contains("String"));
+    }
+
+    // ============ update_custom_type_imports tests ============
+
+    #[test]
+    fn test_update_imports_fnv_hashmap() {
+        let mut ctx = CodeGenContext::default();
+        update_custom_type_imports(&mut ctx, "FnvHashMap<String, i32>");
+        assert!(ctx.needs_fnv_hashmap);
+    }
+
+    #[test]
+    fn test_update_imports_ahash_hashmap() {
+        let mut ctx = CodeGenContext::default();
+        update_custom_type_imports(&mut ctx, "AHashMap<String, i32>");
+        assert!(ctx.needs_ahash_hashmap);
+    }
+
+    #[test]
+    fn test_update_imports_arc() {
+        let mut ctx = CodeGenContext::default();
+        update_custom_type_imports(&mut ctx, "Arc<Mutex<Data>>");
+        assert!(ctx.needs_arc);
+    }
+
+    #[test]
+    fn test_update_imports_rc() {
+        let mut ctx = CodeGenContext::default();
+        update_custom_type_imports(&mut ctx, "Rc<RefCell<Data>>");
+        assert!(ctx.needs_rc);
+    }
+
+    #[test]
+    fn test_update_imports_hashmap() {
+        let mut ctx = CodeGenContext::default();
+        update_custom_type_imports(&mut ctx, "HashMap<String, i32>");
+        assert!(ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_update_imports_hashmap_not_fnv() {
+        let mut ctx = CodeGenContext::default();
+        update_custom_type_imports(&mut ctx, "FnvHashMap<String, i32>");
+        // Should NOT set needs_hashmap since it's FnvHashMap
+        assert!(!ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_update_imports_hashmap_not_ahash() {
+        let mut ctx = CodeGenContext::default();
+        update_custom_type_imports(&mut ctx, "AHashMap<String, i32>");
+        // Should NOT set needs_hashmap since it's AHashMap
+        assert!(!ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_update_imports_unrecognized() {
+        let mut ctx = CodeGenContext::default();
+        update_custom_type_imports(&mut ctx, "MyCustomType");
+        // Nothing should be set
+        assert!(!ctx.needs_fnv_hashmap);
+        assert!(!ctx.needs_ahash_hashmap);
+        assert!(!ctx.needs_arc);
+        assert!(!ctx.needs_rc);
+        assert!(!ctx.needs_hashmap);
+    }
+
+    // ============ update_import_needs tests ============
+
+    #[test]
+    fn test_import_needs_hashmap() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::HashMap(
+            Box::new(RustType::String),
+            Box::new(RustType::Primitive(PrimitiveType::I32)),
+        );
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_import_needs_hashset() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::HashSet(Box::new(RustType::String));
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_hashset);
+    }
+
+    #[test]
+    fn test_import_needs_cow() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Cow {
+            lifetime: "'a".to_string(),
+        };
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_cow);
+    }
+
+    #[test]
+    fn test_import_needs_custom_arc() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Custom("Arc<T>".to_string());
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_arc);
+    }
+
+    #[test]
+    fn test_import_needs_custom_rc() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Custom("Rc<T>".to_string());
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_rc);
+    }
+
+    #[test]
+    fn test_import_needs_reference_recursive() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Reference {
+            lifetime: None,
+            mutable: false,
+            inner: Box::new(RustType::HashMap(
+                Box::new(RustType::String),
+                Box::new(RustType::Primitive(PrimitiveType::I32)),
+            )),
+        };
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_import_needs_vec_recursive() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Vec(Box::new(RustType::HashSet(Box::new(RustType::String))));
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_hashset);
+    }
+
+    #[test]
+    fn test_import_needs_option_recursive() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Option(Box::new(RustType::Cow {
+            lifetime: "'a".to_string(),
+        }));
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_cow);
+    }
+
+    #[test]
+    fn test_import_needs_result_recursive() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Result(
+            Box::new(RustType::HashMap(
+                Box::new(RustType::String),
+                Box::new(RustType::Primitive(PrimitiveType::I32)),
+            )),
+            Box::new(RustType::Custom("Arc<Error>".to_string())),
+        );
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_hashmap);
+        assert!(ctx.needs_arc);
+    }
+
+    #[test]
+    fn test_import_needs_tuple_recursive() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Tuple(vec![
+            RustType::HashSet(Box::new(RustType::String)),
+            RustType::Cow {
+                lifetime: "'a".to_string(),
+            },
+        ]);
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_hashset);
+        assert!(ctx.needs_cow);
+    }
+
+    #[test]
+    fn test_import_needs_hashset_inner_recursive() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::HashSet(Box::new(RustType::Cow {
+            lifetime: "'a".to_string(),
+        }));
+        update_import_needs(&mut ctx, &ty);
+        assert!(ctx.needs_hashset);
+        assert!(ctx.needs_cow);
+    }
+
+    #[test]
+    fn test_import_needs_primitive_noop() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Primitive(PrimitiveType::I32);
+        update_import_needs(&mut ctx, &ty);
+        // Nothing should be set
+        assert!(!ctx.needs_hashmap);
+        assert!(!ctx.needs_hashset);
+        assert!(!ctx.needs_cow);
+        assert!(!ctx.needs_arc);
+        assert!(!ctx.needs_rc);
+    }
+
+    #[test]
+    fn test_import_needs_string_noop() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::String;
+        update_import_needs(&mut ctx, &ty);
+        // Nothing should be set
+        assert!(!ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_import_needs_unit_noop() {
+        let mut ctx = CodeGenContext::default();
+        let ty = RustType::Unit;
+        update_import_needs(&mut ctx, &ty);
+        // Nothing should be set
+        assert!(!ctx.needs_hashmap);
+    }
+
+    // ============ Edge cases and integration tests ============
+
+    #[test]
+    fn test_nested_vec_of_options() {
+        let ty = RustType::Vec(Box::new(RustType::Option(Box::new(RustType::String))));
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("Vec"));
+        assert!(tokens.contains("Option"));
+        assert!(tokens.contains("String"));
+    }
+
+    #[test]
+    fn test_deeply_nested_type() {
+        let ty = RustType::HashMap(
+            Box::new(RustType::String),
+            Box::new(RustType::Vec(Box::new(RustType::Option(Box::new(
+                RustType::Tuple(vec![
+                    RustType::Primitive(PrimitiveType::I32),
+                    RustType::String,
+                ]),
+            ))))),
+        );
+        let result = rust_type_to_syn(&ty).unwrap();
+        assert!(result.to_token_stream().to_string().len() > 0);
+    }
+
+    #[test]
+    fn test_custom_generic_type() {
+        let ty = RustType::Custom("MyStruct<T, U>".to_string());
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("MyStruct"));
+    }
+
+    #[test]
+    fn test_array_with_nested_type() {
+        let ty = RustType::Array {
+            element_type: Box::new(RustType::Option(Box::new(RustType::String))),
+            size: RustConstGeneric::Literal(10),
+        };
+        let result = rust_type_to_syn(&ty).unwrap();
+        let tokens = result.to_token_stream().to_string();
+        assert!(tokens.contains("Option"));
+        assert!(tokens.contains("String"));
+        assert!(tokens.contains("10"));
     }
 }

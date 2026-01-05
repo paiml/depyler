@@ -244,6 +244,9 @@ impl ErrorTaxonomy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::compiler::CompilationResult;
+    use std::path::PathBuf;
+    use std::time::Duration;
 
     #[test]
     fn test_error_category_from_code() {
@@ -266,6 +269,88 @@ mod tests {
     }
 
     #[test]
+    fn test_error_category_from_code_all_variants() {
+        // TypeAnnotation
+        assert_eq!(
+            ErrorCategory::from_error_code("E0282"),
+            ErrorCategory::TypeAnnotation
+        );
+        // TraitBound
+        assert_eq!(
+            ErrorCategory::from_error_code("E0277"),
+            ErrorCategory::TraitBound
+        );
+        // BorrowCheck variants
+        assert_eq!(
+            ErrorCategory::from_error_code("E0502"),
+            ErrorCategory::BorrowCheck
+        );
+        assert_eq!(
+            ErrorCategory::from_error_code("E0503"),
+            ErrorCategory::BorrowCheck
+        );
+        assert_eq!(
+            ErrorCategory::from_error_code("E0505"),
+            ErrorCategory::BorrowCheck
+        );
+        // Lifetime variants
+        assert_eq!(
+            ErrorCategory::from_error_code("E0106"),
+            ErrorCategory::Lifetime
+        );
+        assert_eq!(
+            ErrorCategory::from_error_code("E0621"),
+            ErrorCategory::Lifetime
+        );
+        // Syntax variants
+        assert_eq!(
+            ErrorCategory::from_error_code("E0061"),
+            ErrorCategory::Syntax
+        );
+        assert_eq!(
+            ErrorCategory::from_error_code("E0433"),
+            ErrorCategory::Syntax
+        );
+    }
+
+    #[test]
+    fn test_error_category_description_all() {
+        assert_eq!(
+            ErrorCategory::TypeMismatch.description(),
+            "Type inference failure"
+        );
+        assert_eq!(
+            ErrorCategory::UndefinedType.description(),
+            "Generic parameter unresolved"
+        );
+        assert_eq!(
+            ErrorCategory::UndefinedValue.description(),
+            "Missing import/binding"
+        );
+        assert_eq!(
+            ErrorCategory::TypeAnnotation.description(),
+            "Insufficient type info"
+        );
+        assert_eq!(
+            ErrorCategory::TraitBound.description(),
+            "Missing trait implementation"
+        );
+        assert_eq!(
+            ErrorCategory::BorrowCheck.description(),
+            "Ownership violation"
+        );
+        assert_eq!(
+            ErrorCategory::Lifetime.description(),
+            "Missing lifetime annotation"
+        );
+        assert_eq!(
+            ErrorCategory::Syntax.description(),
+            "Malformed code generation"
+        );
+        assert_eq!(ErrorCategory::Other.description(), "Uncategorized error");
+    }
+
+    #[test]
     fn test_rust_error_parse() {
         let line = "error[E0308]: mismatched types";
         let error = RustError::parse(line).unwrap();
@@ -279,6 +364,14 @@ mod tests {
     fn test_rust_error_parse_invalid() {
         assert!(RustError::parse("warning: unused variable").is_none());
         assert!(RustError::parse("").is_none());
+    }
+
+    #[test]
+    fn test_rust_error_parse_malformed() {
+        // Missing closing bracket
+        assert!(RustError::parse("error[E0308 mismatched types").is_none());
+        // Missing colon
+        assert!(RustError::parse("error[E0308] mismatched types").is_none());
     }
 
     #[test]
@@ -326,8 +419,187 @@ warning: unused variable"#;
     }
 
     #[test]
+    fn test_blocker_priority_from_frequency_zero_total() {
+        // Edge case: total == 0 should return P3Low
+        assert_eq!(
+            BlockerPriority::from_frequency(10, 0),
+            BlockerPriority::P3Low
+        );
+    }
+
+    #[test]
+    fn test_blocker_priority_from_frequency_percentage_thresholds() {
+        // Test boundary cases for percentage-based thresholds
+        // P0: >20%
+        assert_eq!(
+            BlockerPriority::from_frequency(21, 100),
+            BlockerPriority::P0Critical
+        );
+        // P1: 10-20% (percentage > 10)
+        assert_eq!(
+            BlockerPriority::from_frequency(15, 100),
+            BlockerPriority::P1High
+        );
+        // P2: 5-10% (percentage > 5)
+        assert_eq!(
+            BlockerPriority::from_frequency(6, 100),
+            BlockerPriority::P2Medium
+        );
+    }
+
+    #[test]
     fn test_error_category_description() {
         assert!(!ErrorCategory::TypeMismatch.description().is_empty());
         assert!(!ErrorCategory::Other.description().is_empty());
+    }
+
+    fn make_result(stderr: Option<&str>) -> CompilationResult {
+        CompilationResult {
+            rust_file: PathBuf::from("test.rs"),
+            python_file: PathBuf::from("test.py"),
+            success: stderr.is_none(),
+            exit_code: if stderr.is_none() { Some(0) } else { Some(1) },
+            stderr: stderr.map(String::from),
+            stdout: None,
+            duration: Duration::from_millis(100),
+            cargo_first: false,
+        }
+    }
+
+    #[test]
+    fn test_error_taxonomy_classify_empty() {
+        let results: Vec<CompilationResult> = vec![];
+        let taxonomy = ErrorTaxonomy::classify(&results);
+        assert!(taxonomy.errors.is_empty());
+        assert!(taxonomy.by_category.is_empty());
+        assert!(taxonomy.by_code.is_empty());
+        assert!(taxonomy.blockers.is_empty());
+    }
+
+    #[test]
+    fn test_error_taxonomy_classify_with_errors() {
+        let results = vec![
+            make_result(Some("error[E0308]: mismatched types")),
+            make_result(Some("error[E0308]: mismatched types\nerror[E0412]: cannot find type")),
+            make_result(None), // Success case
+        ];
+
+        let taxonomy = ErrorTaxonomy::classify(&results);
+
+        assert_eq!(taxonomy.errors.len(), 3);
+        assert_eq!(
+            taxonomy.by_category.get(&ErrorCategory::TypeMismatch),
+            Some(&2)
+        );
+        assert_eq!(
+            taxonomy.by_category.get(&ErrorCategory::UndefinedType),
+            Some(&1)
+        );
+        assert_eq!(taxonomy.by_code.get("E0308"), Some(&2));
+        assert_eq!(taxonomy.by_code.get("E0412"), Some(&1));
+    }
+
+    #[test]
+    fn test_error_taxonomy_blockers_by_priority() {
+        let results = vec![
+            make_result(Some("error[E0308]: mismatched types")),
+            make_result(Some("error[E0308]: mismatched types")),
+        ];
+
+        let taxonomy = ErrorTaxonomy::classify(&results);
+
+        // With 2 errors out of 2 results, this is >20% so P0Critical
+        let critical = taxonomy.blockers_by_priority(BlockerPriority::P0Critical);
+        assert!(!critical.is_empty());
+
+        // P1, P2, P3 should be empty
+        let high = taxonomy.blockers_by_priority(BlockerPriority::P1High);
+        let medium = taxonomy.blockers_by_priority(BlockerPriority::P2Medium);
+        let low = taxonomy.blockers_by_priority(BlockerPriority::P3Low);
+        assert!(high.is_empty());
+        assert!(medium.is_empty());
+        assert!(low.is_empty());
+    }
+
+    #[test]
+    fn test_error_taxonomy_suggest_fix_all_codes() {
+        // Test that suggest_fix returns meaningful suggestions for known codes
+        assert!(ErrorTaxonomy::suggest_fix("E0308").contains("inference"));
+        assert!(ErrorTaxonomy::suggest_fix("E0412").contains("generic"));
+        assert!(ErrorTaxonomy::suggest_fix("E0425").contains("import"));
+        assert!(ErrorTaxonomy::suggest_fix("E0282").contains("annotation"));
+        assert!(ErrorTaxonomy::suggest_fix("E0277").contains("trait"));
+        // Unknown code
+        assert!(ErrorTaxonomy::suggest_fix("E9999").contains("Investigate"));
+    }
+
+    #[test]
+    fn test_blocker_info_fields() {
+        let results = vec![make_result(Some("error[E0308]: mismatched types"))];
+        let taxonomy = ErrorTaxonomy::classify(&results);
+
+        assert!(!taxonomy.blockers.is_empty());
+        let blocker = &taxonomy.blockers[0];
+        assert_eq!(blocker.error_code, "E0308");
+        assert_eq!(blocker.count, 1);
+        assert_eq!(blocker.category, ErrorCategory::TypeMismatch);
+        assert!(!blocker.root_cause.is_empty());
+        assert!(!blocker.recommended_fix.is_empty());
+    }
+
+    #[test]
+    fn test_blocker_priority_ordering() {
+        // Test that PartialOrd works correctly (P0 is first/lowest in enum order)
+        assert!(BlockerPriority::P0Critical < BlockerPriority::P1High);
+        assert!(BlockerPriority::P1High < BlockerPriority::P2Medium);
+        assert!(BlockerPriority::P2Medium < BlockerPriority::P3Low);
+    }
+
+    #[test]
+    fn test_rust_error_fields() {
+        let error = RustError {
+            code: "E0308".to_string(),
+            message: "mismatched types".to_string(),
+            file: "test.rs".to_string(),
+            line: Some(42),
+            category: ErrorCategory::TypeMismatch,
+        };
+
+        assert_eq!(error.code, "E0308");
+        assert_eq!(error.file, "test.rs");
+        assert_eq!(error.line, Some(42));
+    }
+
+    #[test]
+    fn test_error_category_serde() {
+        let cat = ErrorCategory::TypeMismatch;
+        let json = serde_json::to_string(&cat).unwrap();
+        assert!(json.contains("TYPE_MISMATCH"));
+        let deserialized: ErrorCategory = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, cat);
+    }
+
+    #[test]
+    fn test_blocker_priority_serde() {
+        let priority = BlockerPriority::P0Critical;
+        let json = serde_json::to_string(&priority).unwrap();
+        let deserialized: BlockerPriority = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, priority);
+    }
+
+    #[test]
+    fn test_blockers_sorted_by_count() {
+        let results = vec![
+            make_result(Some("error[E0308]: a\nerror[E0308]: b\nerror[E0308]: c")),
+            make_result(Some("error[E0412]: x")),
+        ];
+
+        let taxonomy = ErrorTaxonomy::classify(&results);
+
+        // Blockers should be sorted by count descending
+        assert_eq!(taxonomy.blockers[0].error_code, "E0308");
+        assert_eq!(taxonomy.blockers[0].count, 3);
+        assert_eq!(taxonomy.blockers[1].error_code, "E0412");
+        assert_eq!(taxonomy.blockers[1].count, 1);
     }
 }

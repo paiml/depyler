@@ -7,8 +7,32 @@
 use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen, ToRustExpr};
+use crate::rust_gen::exception_helpers::extract_exception_type;
+use crate::rust_gen::expr_analysis::{
+    contains_floor_div, expr_infers_float, extract_divisor_from_floor_div,
+    extract_kwarg_bool, extract_kwarg_string, extract_string_literal,
+    handler_contains_raise, handler_ends_with_exit, is_dict_augassign_pattern,
+    is_dict_index_access, is_dict_with_value_type, is_file_creating_expr,
+    is_iterator_producing_expr, is_nested_function_recursive, is_numpy_value_expr,
+    is_pure_expression, is_stdio_expr, looks_like_option_expr, needs_type_conversion,
+    to_pascal_case,
+};
 use crate::rust_gen::keywords::safe_ident; // DEPYLER-0023: Keyword escaping
 use crate::rust_gen::type_gen::rust_type_to_syn;
+use crate::rust_gen::type_tokens::hir_type_to_tokens; // DEPYLER-0759: Extracted for testability
+use crate::rust_gen::control_stmt_helpers::{
+    codegen_break_stmt, codegen_continue_stmt, codegen_pass_stmt,
+}; // DEPYLER-0140: Extracted for testability
+use crate::rust_gen::type_conversion_helpers::apply_type_conversion; // DEPYLER-0455: Extracted
+use crate::rust_gen::truthiness_helpers::{
+    is_collection_attr_name, is_collection_generic_base, is_collection_type_name,
+    is_collection_var_name, is_dict_var_name, is_string_var_name,
+}; // DEPYLER-COVERAGE-95: Use centralized truthiness helpers
+use crate::rust_gen::var_analysis::{
+    extract_toplevel_assigned_symbols, extract_walrus_from_condition, find_assigned_expr,
+    find_var_position_in_tuple, is_var_reassigned_in_stmt, is_var_used_as_dict_key_in_stmt,
+    is_var_used_in_stmt, needs_boxed_dyn_write,
+}; // DEPYLER-0023: Centralized var analysis
 use crate::trace_decision;
 use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
@@ -41,265 +65,18 @@ fn extract_nested_indices_tokens(
     }
 }
 
-/// Check if an HIR expression returns usize (needs cast to i32)
-///
-/// DEPYLER-0272: Only add casts for expressions that actually return usize.
-/// This prevents unnecessary casts like `(a: i32) as i32`.
-/// Complexity: 4 (recursive pattern matching)
-fn expr_returns_usize(expr: &HirExpr) -> bool {
-    match expr {
-        // Method calls that return usize
-        HirExpr::MethodCall { method, .. } => {
-            matches!(method.as_str(), "len" | "count" | "capacity")
-        }
-        // Builtin functions that return usize
-        HirExpr::Call { func, .. } => {
-            matches!(func.as_str(), "len" | "range")
-        }
-        // Binary operations might contain usize expressions
-        HirExpr::Binary { left, right, .. } => {
-            expr_returns_usize(left) || expr_returns_usize(right)
-        }
-        // All other expressions (Var, Literal, etc.) don't return usize in our HIR
-        _ => false,
-    }
-}
+// Note: expr_returns_usize, expr_infers_float, is_iterator_producing_expr,
+// is_numpy_value_expr, is_pure_expression, looks_like_option_expr, and needs_type_conversion
+// are imported from crate::rust_gen::expr_analysis for better testability
 
-/// DEPYLER-0785: Check if an HIR expression returns float type
-///
-/// Used to track CSE temp variable types for float coercion in comparisons.
-/// When CSE extracts `f(a) * f(b)` into `_cse_temp_0`, we need to track that
-/// the temp is float so `_cse_temp_0 > 0` coerces 0 to 0f64.
-fn expr_infers_float(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
-    match expr {
-        // Float literals are obviously float
-        HirExpr::Literal(Literal::Float(_)) => true,
-        // Variable with Float type in var_types
-        HirExpr::Var(name) => {
-            matches!(ctx.var_types.get(name), Some(Type::Float))
-        }
-        // Function calls - check function_return_types or Callable parameter types
-        HirExpr::Call { func, .. } => {
-            // Check module-level function return types first
-            if matches!(ctx.function_return_types.get(func), Some(Type::Float)) {
-                return true;
-            }
-            // DEPYLER-0800: Check if func is a Callable parameter with Float return type
-            // Example: f: Callable[[float], float] -> f(x) returns Float
-            if let Some(Type::Function { ret, .. }) = ctx.var_types.get(func) {
-                return matches!(ret.as_ref(), Type::Float);
-            }
-            // Callable is stored as Generic { base: "Callable", params: [param_types, return_type] }
-            if let Some(Type::Generic { base, params }) = ctx.var_types.get(func) {
-                if base == "Callable" && params.len() == 2 {
-                    return matches!(params[1], Type::Float);
-                }
-            }
-            false
-        }
-        // Binary operations: if either operand is float, result is float (for Mul, Div, Add, Sub)
-        HirExpr::Binary { op, left, right } => {
-            matches!(
-                op,
-                BinOp::Mul | BinOp::Div | BinOp::Add | BinOp::Sub | BinOp::Mod | BinOp::Pow
-            ) && (expr_infers_float(left, ctx) || expr_infers_float(right, ctx))
-        }
-        // Unary operations preserve float type
-        HirExpr::Unary { operand, .. } => expr_infers_float(operand, ctx),
-        // IfExpr: float if both branches are float
-        HirExpr::IfExpr { body, orelse, .. } => {
-            expr_infers_float(body, ctx) && expr_infers_float(orelse, ctx)
-        }
-        _ => false,
-    }
-}
-
-/// DEPYLER-0520: Check if an expression produces an iterator (not a collection)
-///
-/// Generator expressions and method chains ending in iterator adapters produce
-/// iterators that should NOT have .iter().cloned() added when iterated over.
-///
-/// Complexity: 4 (recursive pattern matching)
-fn is_iterator_producing_expr(expr: &HirExpr) -> bool {
-    match expr {
-        // Generator expressions always produce iterators
-        HirExpr::GeneratorExp { .. } => true,
-
-        // Method chains ending in iterator adapters
-        HirExpr::MethodCall { method, object, .. } => {
-            // Check if this method produces an iterator
-            let is_iterator_method = matches!(
-                method.as_str(),
-                "iter"
-                    | "iter_mut"
-                    | "into_iter"
-                    | "map"
-                    | "filter"
-                    | "filter_map"
-                    | "flat_map"
-                    | "enumerate"
-                    | "zip"
-                    | "chain"
-                    | "take"
-                    | "skip"
-                    | "take_while"
-                    | "skip_while"
-                    | "peekable"
-                    | "fuse"
-                    | "inspect"
-                    | "by_ref"
-                    | "rev"
-                    | "cycle"
-            );
-            // Either this method produces an iterator, or the chain does
-            is_iterator_method || is_iterator_producing_expr(object)
-        }
-
-        // Some builtin functions produce iterators
-        HirExpr::Call { func, .. } => {
-            matches!(
-                func.as_str(),
-                "iter" | "map" | "filter" | "enumerate" | "zip" | "reversed"
-            )
-        }
-
-        _ => false,
-    }
-}
-
-/// DEPYLER-0932: Check if an expression produces a numpy/trueno Vector value
-///
-/// This detects:
-/// - Direct numpy function calls (np.array, np.zeros, etc.)
-/// - Binary operations on numpy arrays
-/// - Ternary expressions where branches are numpy expressions
-/// - Variables already tracked as numpy
-///
-/// Complexity: 5 (recursive pattern matching)
-fn is_numpy_value_expr(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
-    match expr {
-        // np.array([...]) or numpy.array([...])
-        HirExpr::Call { func, .. } => {
-            matches!(
-                func.as_str(),
-                "array"
-                    | "zeros"
-                    | "ones"
-                    | "empty"
-                    | "linspace"
-                    | "arange"
-                    | "full"
-                    | "copy"
-                    | "abs"
-                    | "sqrt"
-                    | "sin"
-                    | "cos"
-                    | "exp"
-                    | "log"
-                    | "clip"
-                    | "clamp"
-                    | "normalize"
-            )
-        }
-
-        // np.method() via MethodCall
-        HirExpr::MethodCall { object, method, .. } => {
-            // Check if object is numpy module
-            let _is_numpy_module = matches!(object.as_ref(), HirExpr::Var(name) if name == "np" || name == "numpy");
-            let is_numpy_method = matches!(
-                method.as_str(),
-                "array"
-                    | "zeros"
-                    | "ones"
-                    | "abs"
-                    | "sqrt"
-                    | "sin"
-                    | "cos"
-                    | "exp"
-                    | "log"
-                    | "clip"
-                    | "clamp"
-                    | "unwrap"
-                    | "scale"
-            );
-            is_numpy_method
-        }
-
-        // Binary operations on numpy arrays propagate numpy-ness
-        HirExpr::Binary { left, right, .. } => {
-            is_numpy_value_expr(left, ctx) || is_numpy_value_expr(right, ctx)
-        }
-
-        // Ternary: result = numpy_expr if cond else numpy_expr
-        HirExpr::IfExpr { body, orelse, .. } => {
-            is_numpy_value_expr(body, ctx) || is_numpy_value_expr(orelse, ctx)
-        }
-
-        // Variable already tracked as numpy
-        HirExpr::Var(name) => {
-            ctx.numpy_vars.contains(name)
-                || matches!(name.as_str(), "arr" | "array" | "data" | "values" | "vec" | "vector")
-        }
-
-        _ => false,
-    }
-}
-
-/// Check if a type annotation requires explicit conversion
-///
-/// DEPYLER-0272 FIX: Now checks the actual expression to determine if cast is needed.
-/// Only adds cast when expression returns usize (from len(), count(), etc.)
-/// Complexity: 3 (type check + expression check)
-fn needs_type_conversion(target_type: &Type, expr: &HirExpr, _ctx: &CodeGenContext) -> bool {
-    match target_type {
-        Type::Int => {
-            // Only convert if expression actually returns usize
-            // This prevents unnecessary casts like `(x: i32) as i32`
-            expr_returns_usize(expr)
-        }
-        Type::String => {
-            // DEPYLER-0455 Bug 7: Convert &str to String for validator functions
-            // When returning a parameter from a validator function, the parameter is &str
-            // but the return type is Result<String, ...>, so we need .to_string()
-            // Apply .to_string() for all variables returned as String - it's safe:
-            // - If already String, it's a clone (acceptable overhead)
-            // - If &str parameter, it converts correctly
-            matches!(expr, HirExpr::Var(_))
-        }
-        _ => false,
-    }
-}
-
-/// Apply type conversion to value expression
-///
-/// Wraps the expression with appropriate conversion (e.g., `as i32`, `.to_string()`)
-/// Complexity: 3 (match with 2 arms)
-fn apply_type_conversion(value_expr: syn::Expr, target_type: &Type) -> syn::Expr {
-    match target_type {
-        Type::Int => {
-            // Convert to i32 using 'as' cast
-            // This handles usize->i32 conversions
-            parse_quote! { #value_expr as i32 }
-        }
-        Type::String => {
-            // DEPYLER-0455 Bug 7: Convert &str to String using .to_string()
-            // This handles validator function parameters (&str) returned as String
-            parse_quote! { #value_expr.to_string() }
-        }
-        _ => value_expr,
-    }
-}
+// Note: apply_type_conversion is imported from
+// crate::rust_gen::type_conversion_helpers for testability (DEPYLER-0455)
 
 // ============================================================================
 // Statement Code Generation Helpers (DEPYLER-0140 Phase 1)
-// Extracted to reduce complexity of HirStmt::to_rust_tokens
+// Note: codegen_pass_stmt, codegen_break_stmt, codegen_continue_stmt
+// are imported from crate::rust_gen::control_stmt_helpers for testability
 // ============================================================================
-
-/// Generate code for Pass statement (no-op)
-#[inline]
-pub(crate) fn codegen_pass_stmt() -> Result<proc_macro2::TokenStream> {
-    Ok(quote! {})
-}
 
 /// Generate code for Assert statement
 #[inline]
@@ -315,30 +92,6 @@ pub(crate) fn codegen_assert_stmt(
         Ok(quote! { assert!(#test_expr, "{}", #msg_tokens); })
     } else {
         Ok(quote! { assert!(#test_expr); })
-    }
-}
-
-/// Generate code for Break statement with optional label
-#[inline]
-pub(crate) fn codegen_break_stmt(label: &Option<String>) -> Result<proc_macro2::TokenStream> {
-    if let Some(label_name) = label {
-        let label_ident =
-            syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
-        Ok(quote! { break #label_ident; })
-    } else {
-        Ok(quote! { break; })
-    }
-}
-
-/// Generate code for Continue statement with optional label
-#[inline]
-pub(crate) fn codegen_continue_stmt(label: &Option<String>) -> Result<proc_macro2::TokenStream> {
-    if let Some(label_name) = label {
-        let label_ident =
-            syn::Lifetime::new(&format!("'{}", label_name), proc_macro2::Span::call_site());
-        Ok(quote! { continue #label_ident; })
-    } else {
-        Ok(quote! { continue; })
     }
 }
 
@@ -750,34 +503,6 @@ pub(crate) fn codegen_expr_stmt(
     }
 }
 
-/// DEPYLER-0701: Check if an expression is "pure" (has no side effects)
-/// Pure expressions used as statements need `let _ =` to silence warnings
-fn is_pure_expression(expr: &HirExpr) -> bool {
-    use crate::hir::HirExpr;
-    match expr {
-        // Bare variable references have no side effects
-        HirExpr::Var(_) => true,
-        // Literals have no side effects
-        HirExpr::Literal(_) => true,
-        // Attribute access (self.x) has no side effects
-        HirExpr::Attribute { .. } => true,
-        // Binary operations with pure operands are pure
-        HirExpr::Binary { left, right, .. } => {
-            is_pure_expression(left) && is_pure_expression(right)
-        }
-        // Unary operations with pure operands are pure
-        HirExpr::Unary { operand, .. } => is_pure_expression(operand),
-        // Index access (arr[i]) has no side effects
-        HirExpr::Index { base, index } => {
-            is_pure_expression(base) && is_pure_expression(index)
-        }
-        // Tuple access is pure
-        HirExpr::Tuple(elts) => elts.iter().all(is_pure_expression),
-        // Everything else (calls, method calls, etc.) may have side effects
-        _ => false,
-    }
-}
-
 // ============================================================================
 // Statement Code Generation Helpers (DEPYLER-0140 Phase 2)
 // Medium-complexity handlers extracted from HirStmt::to_rust_tokens
@@ -817,7 +542,7 @@ pub(crate) fn codegen_return_stmt(
 
             // DEPYLER-0272: Pass expression to check if cast is actually needed
             // DEPYLER-0455 Bug 7: Also pass ctx to check validator function context
-            if needs_type_conversion(target_type, e, ctx) {
+            if needs_type_conversion(target_type, e) {
                 expr_tokens = apply_type_conversion(expr_tokens, target_type);
             }
         }
@@ -1317,18 +1042,7 @@ pub(crate) fn codegen_raise_stmt(
     }
 }
 
-/// DEPYLER-0333: Extract exception type from raise statement expression
-///
-/// # Complexity
-/// 2 (match + clone)
-fn extract_exception_type(exception: &HirExpr) -> String {
-    match exception {
-        HirExpr::Call { func, .. } => func.clone(),
-        HirExpr::Var(name) => name.clone(),
-        HirExpr::MethodCall { method, .. } => method.clone(),
-        _ => "Exception".to_string(),
-    }
-}
+// Note: extract_exception_type is imported from crate::rust_gen::exception_helpers
 
 /// Generate code for With (context manager) statement
 /// DEPYLER-0188: Now supports async with statements (is_async flag)
@@ -1514,17 +1228,11 @@ fn apply_negated_truthiness(
     }
 
     // DEPYLER-0966: Heuristic for self.* fields with common list/collection names
+    // DEPYLER-COVERAGE-95: Centralized in truthiness_helpers
     if let HirExpr::Attribute { value, attr } = operand {
         if let HirExpr::Var(obj_name) = value.as_ref() {
-            if obj_name == "self" {
-                // Common list/collection field names
-                let list_attr_names = [
-                    "heap", "stack", "queue", "items", "elements", "data", "values",
-                    "list", "array", "nodes", "children", "entries", "records",
-                ];
-                if list_attr_names.contains(&attr.as_str()) {
-                    return parse_quote! { #inner_expr.is_empty() };
-                }
+            if obj_name == "self" && is_collection_attr_name(attr) {
+                return parse_quote! { #inner_expr.is_empty() };
             }
         }
     }
@@ -1590,38 +1298,18 @@ fn apply_truthiness_conversion(
                 }
 
                 // DEPYLER-0969: Custom types that are collections (VecDeque, BinaryHeap, etc.)
+                // DEPYLER-COVERAGE-95: Centralized in truthiness_helpers
                 Type::Custom(type_name) => {
-                    if type_name.starts_with("VecDeque")
-                        || type_name.starts_with("std::collections::VecDeque")
-                        || type_name.starts_with("BinaryHeap")
-                        || type_name.starts_with("std::collections::BinaryHeap")
-                        || type_name.starts_with("LinkedList")
-                        || type_name.starts_with("std::collections::LinkedList")
-                        || type_name.starts_with("BTreeSet")
-                        || type_name.starts_with("BTreeMap")
-                        || type_name.starts_with("HashSet")
-                        || type_name.starts_with("HashMap")
-                        || type_name.contains("Deque")
-                        || type_name.contains("Queue")
-                        || type_name.contains("Stack")
-                        || type_name.contains("Heap")
-                    {
+                    if is_collection_type_name(type_name) {
                         return parse_quote! { !#cond_expr.is_empty() };
                     }
                     // Fall through to heuristics for non-collection custom types
                 }
 
                 // DEPYLER-0969: Generic types that are collections
+                // DEPYLER-COVERAGE-95: Centralized in truthiness_helpers
                 Type::Generic { base, .. } => {
-                    if base == "VecDeque"
-                        || base == "BinaryHeap"
-                        || base == "LinkedList"
-                        || base == "BTreeSet"
-                        || base == "BTreeMap"
-                        || base == "HashSet"
-                        || base == "HashMap"
-                        || base == "Vec"
-                    {
+                    if is_collection_generic_base(base) {
                         return parse_quote! { !#cond_expr.is_empty() };
                     }
                     // Fall through to heuristics for non-collection generic types
@@ -1640,47 +1328,16 @@ fn apply_truthiness_conversion(
         // DEPYLER-0517: Heuristic fallback for common string variable names
         // This handles variables from tuple unpacking that aren't tracked in var_types
         // e.g., `let (returncode, stdout, stderr) = run_command(...)`
-        // DEPYLER-0668: Remove "result" from heuristic - too general, often used for bools
-        let var_str = var_name.as_str();
-        if var_str == "stdout"
-            || var_str == "stderr"
-            || var_str == "output"
-            || var_str.ends_with("_output")
-            || var_str.ends_with("_result")
-            || var_str.ends_with("_str")
-            || var_str.ends_with("_string")
-        {
+        // DEPYLER-COVERAGE-95: Centralized in truthiness_helpers
+        if is_string_var_name(var_name) {
             return parse_quote! { !#cond_expr.is_empty() };
         }
 
         // DEPYLER-0969: Heuristic fallback for common collection variable names
         // This is the ARCHITECTURAL FIX for truthiness - handles untracked collection types
         // Pattern: `while queue:` where queue is VecDeque/Vec/etc not in var_types
-        // Rationale: Collection names like queue, stack, heap are almost always containers
-        if var_str == "queue"
-            || var_str == "stack"
-            || var_str == "heap"
-            || var_str == "items"
-            || var_str == "elements"
-            || var_str == "nodes"
-            || var_str == "visited"
-            || var_str == "seen"
-            || var_str == "pending"
-            || var_str == "worklist"
-            || var_str == "buffer"
-            || var_str == "entries"
-            || var_str == "results"
-            || var_str == "values"
-            || var_str == "keys"
-            || var_str == "children"
-            || var_str == "neighbors"
-            || var_str.ends_with("_queue")
-            || var_str.ends_with("_stack")
-            || var_str.ends_with("_heap")
-            || var_str.ends_with("_list")
-            || var_str.ends_with("_items")
-            || var_str.ends_with("_set")
-        {
+        // DEPYLER-COVERAGE-95: Centralized in truthiness_helpers
+        if is_collection_var_name(var_name) {
             return parse_quote! { !#cond_expr.is_empty() };
         }
     }
@@ -1694,23 +1351,14 @@ fn apply_truthiness_conversion(
         let has_string_key = matches!(index.as_ref(), HirExpr::Literal(Literal::String(_)));
 
         // Check if base is a dict (HashMap) or common dict variable name
+        // DEPYLER-COVERAGE-95: Centralized in truthiness_helpers
         let is_dict_access = if let HirExpr::Var(var_name) = base.as_ref() {
             // Known dict type
             if let Some(var_type) = ctx.var_types.get(var_name) {
                 matches!(var_type, Type::Dict(_, _))
             } else {
                 // Unknown type - use string key OR common dict variable names as heuristics
-                let name = var_name.as_str();
-                has_string_key
-                    || name == "info"
-                    || name == "data"
-                    || name == "config"
-                    || name == "options"
-                    || name == "result"
-                    || name == "response"
-                    || name.ends_with("_info")
-                    || name.ends_with("_data")
-                    || name.ends_with("_dict")
+                has_string_key || is_dict_var_name(var_name)
             }
         } else {
             // Nested access or other expression - use string key as heuristic
@@ -1934,44 +1582,6 @@ fn apply_truthiness_conversion(
     cond_expr
 }
 
-/// DEPYLER-0455: Heuristic to detect if an expression likely returns Option<T>
-///
-/// Checks for common patterns that return Option:
-/// - Calls to methods ending with .ok() (Result → Option conversion)
-/// - Calls to .get() methods (dict/map lookups)
-/// - os.environ.get() / std::env::var().ok()
-///
-/// DEPYLER-0455: Enhanced to detect chained method calls like env::var(...).ok()
-/// DEPYLER-0632: dict.get(key, default) with default value returns concrete type, not Option
-fn looks_like_option_expr(expr: &HirExpr) -> bool {
-    match expr {
-        // Method call ending in .ok() → definitely Option
-        HirExpr::MethodCall { method, .. } if method == "ok" => true,
-        // DEPYLER-0632: .get() only returns Option when no default value provided
-        // Python: dict.get(key) → Optional (None if missing)
-        // Python: dict.get(key, default) → concrete type (default if missing)
-        HirExpr::MethodCall { method, args, .. } if method == "get" => {
-            // Only 1 arg (the key) = returns Option
-            // 2 args (key + default) = returns concrete type
-            args.len() == 1
-        }
-        // DEPYLER-0455: Check for chained calls like std::env::var(...).ok()
-        // This handles cases where the RHS is a method chain
-        HirExpr::MethodCall { object, method, args, .. } => {
-            // Recursively check if the object is an Option-returning expression
-            if method == "ok" {
-                true
-            } else if method == "get" {
-                // DEPYLER-0632: Only Option if no default
-                args.len() == 1
-            } else {
-                looks_like_option_expr(object)
-            }
-        }
-        _ => false,
-    }
-}
-
 /// DEPYLER-0379: Extract all simple symbol assignments from a statement block
 ///
 /// Returns a set of variable names that are assigned (not reassigned) in the block.
@@ -1980,188 +1590,9 @@ fn looks_like_option_expr(expr: &HirExpr) -> bool {
 /// # Complexity
 /// 4 (recursive traversal with set operations)
 ///
-/// DEPYLER-0476: This function is currently unused after switching to extract_toplevel_assigned_symbols
-/// for if/else hoisting. Kept for potential future use (e.g., for other optimization passes).
-#[allow(dead_code)]
-fn extract_assigned_symbols(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
-    use std::collections::HashSet;
-    let mut symbols = HashSet::new();
-
-    for stmt in stmts {
-        match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } => {
-                symbols.insert(name.clone());
-            }
-            // Recursively check nested if/else, while, for, try blocks
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                symbols.extend(extract_assigned_symbols(then_body));
-                if let Some(else_stmts) = else_body {
-                    symbols.extend(extract_assigned_symbols(else_stmts));
-                }
-            }
-            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
-                symbols.extend(extract_assigned_symbols(body));
-            }
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
-                symbols.extend(extract_assigned_symbols(body));
-                for handler in handlers {
-                    symbols.extend(extract_assigned_symbols(&handler.body));
-                }
-                if let Some(finally) = finalbody {
-                    symbols.extend(extract_assigned_symbols(finally));
-                }
-            }
-            _ => {}
-        }
-    }
-
-    symbols
-}
-
-/// Extract symbols assigned ONLY at the top level (not in nested for/while loops)
-///
-/// DEPYLER-0476: Fix variable hoisting for variables with incompatible types in nested scopes.
-/// Variables assigned inside for/while loops should NOT be hoisted to the parent if/else scope
-/// because they may have different types than variables with the same name in the if branch.
-///
-/// Example (Python):
-/// ```python
-/// if condition:
-///     value = get_optional()  # Returns Option<String>
-/// else:
-///     for item in items:
-///         value = get_required(item)  # Returns String
-/// ```
-///
-/// The `value` in the for loop should NOT be hoisted because it has a different type.
-fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
-    use std::collections::HashSet;
-    let mut symbols = HashSet::new();
-
-    for stmt in stmts {
-        match stmt {
-            HirStmt::Assign {
-                target: AssignTarget::Symbol(name),
-                ..
-            } => {
-                symbols.insert(name.clone());
-            }
-            // DEPYLER-0939: Handle tuple unpacking assignments like `(success, error) = operation()`
-            HirStmt::Assign {
-                target: AssignTarget::Tuple(targets),
-                ..
-            } => {
-                for t in targets {
-                    if let AssignTarget::Symbol(name) = t {
-                        symbols.insert(name.clone());
-                    }
-                }
-            }
-            // Recursively check nested if/else blocks (these are still at the same conceptual level)
-            HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                symbols.extend(extract_toplevel_assigned_symbols(then_body));
-                if let Some(else_stmts) = else_body {
-                    symbols.extend(extract_toplevel_assigned_symbols(else_stmts));
-                }
-            }
-            // Recursively check try/except blocks (these are still at the same conceptual level)
-            HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
-                symbols.extend(extract_toplevel_assigned_symbols(body));
-                for handler in handlers {
-                    symbols.extend(extract_toplevel_assigned_symbols(&handler.body));
-                }
-                if let Some(finally) = finalbody {
-                    symbols.extend(extract_toplevel_assigned_symbols(finally));
-                }
-            }
-            // DEPYLER-0476: DO NOT recurse into for/while loops - variables inside loops
-            // should not be hoisted because they may have different types/scopes
-            HirStmt::While { .. } | HirStmt::For { .. } => {
-                // Skip - don't extract symbols from loop bodies
-            }
-            _ => {}
-        }
-    }
-
-    symbols
-}
-
-/// DEPYLER-0188: Extract NamedExpr (walrus operator) assignments from a condition expression
-/// Returns: (hoisted_lets, simplified_condition)
-/// - hoisted_lets: Vec of (name, value_expr) for let statements to emit before the if
-/// - simplified_condition: The condition with NamedExpr replaced by simple Var references
-fn extract_walrus_from_condition(condition: &HirExpr) -> (Vec<(String, HirExpr)>, HirExpr) {
-    let mut walrus_assigns = Vec::new();
-    let simplified = extract_walrus_recursive(condition, &mut walrus_assigns);
-    (walrus_assigns, simplified)
-}
-
-/// Recursive helper to extract NamedExpr from expression tree
-fn extract_walrus_recursive(expr: &HirExpr, assigns: &mut Vec<(String, HirExpr)>) -> HirExpr {
-    match expr {
-        // DEPYLER-0188: When we find a walrus operator, extract it and replace with Var
-        HirExpr::NamedExpr { target, value } => {
-            // Recursively process the value in case it contains nested walrus
-            let simplified_value = extract_walrus_recursive(value, assigns);
-            assigns.push((target.clone(), simplified_value));
-            // Replace with just a variable reference
-            HirExpr::Var(target.clone())
-        }
-        // Recursively process binary expressions
-        HirExpr::Binary { op, left, right } => HirExpr::Binary {
-            op: *op,
-            left: Box::new(extract_walrus_recursive(left, assigns)),
-            right: Box::new(extract_walrus_recursive(right, assigns)),
-        },
-        // Recursively process unary expressions
-        HirExpr::Unary { op, operand } => HirExpr::Unary {
-            op: *op,
-            operand: Box::new(extract_walrus_recursive(operand, assigns)),
-        },
-        // Recursively process call arguments
-        HirExpr::Call { func, args, kwargs } => HirExpr::Call {
-            func: func.clone(),
-            args: args.iter().map(|a| extract_walrus_recursive(a, assigns)).collect(),
-            kwargs: kwargs
-                .iter()
-                .map(|(k, v)| (k.clone(), extract_walrus_recursive(v, assigns)))
-                .collect(),
-        },
-        // Recursively process method call arguments
-        HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
-            object: Box::new(extract_walrus_recursive(object, assigns)),
-            method: method.clone(),
-            args: args.iter().map(|a| extract_walrus_recursive(a, assigns)).collect(),
-            kwargs: kwargs
-                .iter()
-                .map(|(k, v)| (k.clone(), extract_walrus_recursive(v, assigns)))
-                .collect(),
-        },
-        // For other expressions, return as-is (walrus is rare in other contexts)
-        _ => expr.clone(),
-    }
-}
+// DEPYLER-0023: Symbol extraction and walrus operator functions (extract_assigned_symbols,
+// extract_toplevel_assigned_symbols, extract_walrus_from_condition, extract_walrus_recursive)
+// imported from var_analysis module
 
 /// Generate code for If statement with optional else clause
 ///
@@ -2569,443 +2000,13 @@ fn find_variable_type(var_name: &str, stmts: &[HirStmt]) -> Option<Type> {
     None
 }
 
-/// DEPYLER-0931: Find position of variable in tuple assignment target
-fn find_var_position_in_tuple(var_name: &str, targets: &[AssignTarget]) -> Option<usize> {
-    for (i, target) in targets.iter().enumerate() {
-        if let AssignTarget::Symbol(name) = target {
-            if name == var_name {
-                return Some(i);
-            }
-        }
-    }
-    None
-}
+// DEPYLER-COVERAGE-95: find_var_position_in_tuple, find_assigned_expr, needs_boxed_dyn_write moved to var_analysis module
+// DEPYLER-COVERAGE-95: is_file_creating_expr, is_stdio_expr, is_dict_index_access moved to expr_analysis module
 
-/// DEPYLER-0625: Check if expression creates a File (open() or File::create())
-fn is_file_creating_expr(expr: &HirExpr) -> bool {
-    match expr {
-        HirExpr::Call { func, .. } => func == "open",
-        HirExpr::MethodCall { object, method, .. } => {
-            if method == "create" || method == "open" {
-                if let HirExpr::Var(name) = object.as_ref() {
-                    return name == "File";
-                }
-                if let HirExpr::Attribute { attr, .. } = object.as_ref() {
-                    return attr == "File";
-                }
-            }
-            false
-        }
-        _ => false,
-    }
-}
+// DEPYLER-0023: is_var_used_in_expr and is_var_used_in_assign_target imported from var_analysis
 
-/// DEPYLER-0625: Check if expression is sys.stdout or sys.stderr
-fn is_stdio_expr(expr: &HirExpr) -> bool {
-    if let HirExpr::Attribute { value, attr } = expr {
-        if attr == "stdout" || attr == "stderr" {
-            if let HirExpr::Var(name) = value.as_ref() {
-                return name == "sys";
-            }
-        }
-    }
-    false
-}
-
-/// DEPYLER-0943: Check if expression is a dict/HashMap index access
-/// Dict subscript like `config["name"]` returns serde_json::Value, which needs
-/// conversion when returning as String. This detects:
-/// - Direct dict[key] access
-/// - Variables known to be dict-like (config, data, settings, etc.)
-fn is_dict_index_access(expr: &HirExpr) -> bool {
-    match expr {
-        // Direct dict[key] pattern
-        HirExpr::Index { base, index } => {
-            // String key indicates dict access (not list/array)
-            let has_string_key = matches!(index.as_ref(), HirExpr::Literal(Literal::String(_)));
-            if has_string_key {
-                return true;
-            }
-            // Check if base is a known dict-like variable
-            if let HirExpr::Var(name) = base.as_ref() {
-                let n = name.as_str();
-                return n.contains("dict")
-                    || n.contains("config")
-                    || n.contains("data")
-                    || n.contains("settings")
-                    || n.contains("params")
-                    || n.contains("options")
-                    || n.contains("env")
-                    || n.contains("json")
-                    || n == "d"
-                    || n == "m";
-            }
-            false
-        }
-        _ => false,
-    }
-}
-
-/// DEPYLER-0625: Find the expression assigned to a variable in a statement block
-fn find_assigned_expr<'a>(var_name: &str, stmts: &'a [HirStmt]) -> Option<&'a HirExpr> {
-    for stmt in stmts {
-        if let HirStmt::Assign {
-            target: AssignTarget::Symbol(name),
-            value,
-            ..
-        } = stmt
-        {
-            if name == var_name {
-                return Some(value);
-            }
-        }
-    }
-    None
-}
-
-/// DEPYLER-0625: Check if a variable needs Box<dyn Write> due to heterogeneous IO types
-/// Returns true if variable is assigned File in one branch and Stdout/Stderr in another
-fn needs_boxed_dyn_write(var_name: &str, then_body: &[HirStmt], else_body: &[HirStmt]) -> bool {
-    let then_expr = find_assigned_expr(var_name, then_body);
-    let else_expr = find_assigned_expr(var_name, else_body);
-
-    match (then_expr, else_expr) {
-        (Some(then_e), Some(else_e)) => {
-            let then_is_file = is_file_creating_expr(then_e);
-            let else_is_file = is_file_creating_expr(else_e);
-            let then_is_stdio = is_stdio_expr(then_e);
-            let else_is_stdio = is_stdio_expr(else_e);
-
-            // Heterogeneous: File in one branch, Stdio in another
-            (then_is_file && else_is_stdio) || (then_is_stdio && else_is_file)
-        }
-        _ => false,
-    }
-}
-
-/// Check if a variable is used in an expression
-fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
-    match expr {
-        HirExpr::Var(name) => name == var_name,
-        HirExpr::Binary { left, right, .. } => {
-            is_var_used_in_expr(var_name, left) || is_var_used_in_expr(var_name, right)
-        }
-        HirExpr::Unary { operand, .. } => is_var_used_in_expr(var_name, operand),
-        HirExpr::Call { func: _, args, .. } => {
-            args.iter().any(|arg| is_var_used_in_expr(var_name, arg))
-        }
-        HirExpr::MethodCall { object, args, .. } => {
-            // DEPYLER-0307 Fix #6: Check method receiver and arguments for variable usage
-            is_var_used_in_expr(var_name, object)
-                || args.iter().any(|arg| is_var_used_in_expr(var_name, arg))
-        }
-        HirExpr::Index { base, index } => {
-            is_var_used_in_expr(var_name, base) || is_var_used_in_expr(var_name, index)
-        }
-        HirExpr::Attribute { value, .. } => is_var_used_in_expr(var_name, value),
-        HirExpr::List(elements)
-        | HirExpr::Tuple(elements)
-        | HirExpr::Set(elements)
-        | HirExpr::FrozenSet(elements) => elements.iter().any(|e| is_var_used_in_expr(var_name, e)),
-        HirExpr::Dict(pairs) => pairs
-            .iter()
-            .any(|(k, v)| is_var_used_in_expr(var_name, k) || is_var_used_in_expr(var_name, v)),
-        HirExpr::IfExpr { test, body, orelse } => {
-            is_var_used_in_expr(var_name, test)
-                || is_var_used_in_expr(var_name, body)
-                || is_var_used_in_expr(var_name, orelse)
-        }
-        HirExpr::Lambda { params: _, body } => is_var_used_in_expr(var_name, body),
-        HirExpr::Slice {
-            base,
-            start,
-            stop,
-            step,
-        } => {
-            is_var_used_in_expr(var_name, base)
-                || start
-                    .as_ref()
-                    .is_some_and(|s| is_var_used_in_expr(var_name, s))
-                || stop
-                    .as_ref()
-                    .is_some_and(|s| is_var_used_in_expr(var_name, s))
-                || step
-                    .as_ref()
-                    .is_some_and(|s| is_var_used_in_expr(var_name, s))
-        }
-        HirExpr::FString { parts } => parts.iter().any(|part| match part {
-            crate::hir::FStringPart::Expr(expr) => is_var_used_in_expr(var_name, expr),
-            crate::hir::FStringPart::Literal(_) => false,
-        }),
-        // DEPYLER-0569: Handle generator expressions and comprehensions
-        // These can reference loop variables in their iterable or element expressions
-        HirExpr::GeneratorExp {
-            element,
-            generators,
-        }
-        | HirExpr::ListComp {
-            element,
-            generators,
-        }
-        | HirExpr::SetComp {
-            element,
-            generators,
-        } => {
-            is_var_used_in_expr(var_name, element)
-                || generators.iter().any(|gen| {
-                    is_var_used_in_expr(var_name, &gen.iter)
-                        || gen
-                            .conditions
-                            .iter()
-                            .any(|cond| is_var_used_in_expr(var_name, cond))
-                })
-        }
-        HirExpr::DictComp {
-            key,
-            value,
-            generators,
-        } => {
-            is_var_used_in_expr(var_name, key)
-                || is_var_used_in_expr(var_name, value)
-                || generators.iter().any(|gen| {
-                    is_var_used_in_expr(var_name, &gen.iter)
-                        || gen
-                            .conditions
-                            .iter()
-                            .any(|cond| is_var_used_in_expr(var_name, cond))
-                })
-        }
-        // DEPYLER-0619: Handle await expressions for variable usage detection
-        // Without this, loop variables used in async function calls inside await
-        // are incorrectly marked as unused and prefixed with underscore
-        HirExpr::Await { value } => is_var_used_in_expr(var_name, value),
-        // DEPYLER-0768: Handle yield expressions for variable usage detection
-        // Without this, loop variables used in yield statements inside generators
-        // are incorrectly marked as unused and prefixed with underscore, causing E0425
-        // Example: `for i in range(n): yield i` -> `for _i in ...: return Some(i)` ERROR
-        HirExpr::Yield { value } => {
-            value.as_ref().is_some_and(|v| is_var_used_in_expr(var_name, v))
-        }
-        _ => false, // Literals and other expressions don't reference variables
-    }
-}
-
-/// Check if a variable is used in an assignment target
-fn is_var_used_in_assign_target(var_name: &str, target: &AssignTarget) -> bool {
-    match target {
-        AssignTarget::Symbol(s) => s == var_name,
-        AssignTarget::Index { base, index } => {
-            is_var_used_in_expr(var_name, base) || is_var_used_in_expr(var_name, index)
-        }
-        AssignTarget::Attribute { value, .. } => is_var_used_in_expr(var_name, value),
-        AssignTarget::Tuple(targets) => targets
-            .iter()
-            .any(|t| is_var_used_in_assign_target(var_name, t)),
-    }
-}
-
-/// DEPYLER-0715: Check if a variable is used as a dictionary key
-/// Returns true if the variable appears as the index in dict[var] or as arg to dict.get(var)
-fn is_var_used_as_dict_key_in_expr(var_name: &str, expr: &HirExpr) -> bool {
-    match expr {
-        // Check dict[var] pattern - the variable is the INDEX, not the base
-        HirExpr::Index { base, index } => {
-            // If var_name is used as the index, check if base looks like a dict
-            if is_var_direct_or_simple_in_expr(var_name, index) {
-                // Check if base is likely a dict (variable or method call result)
-                matches!(base.as_ref(), HirExpr::Var(_) | HirExpr::MethodCall { .. })
-            } else {
-                // Recurse into both parts
-                is_var_used_as_dict_key_in_expr(var_name, base)
-                    || is_var_used_as_dict_key_in_expr(var_name, index)
-            }
-        }
-        // Check dict.get(var) pattern
-        HirExpr::MethodCall { method, args, object, .. } if method == "get" => {
-            if args.first().is_some_and(|arg| is_var_direct_or_simple_in_expr(var_name, arg)) {
-                true
-            } else {
-                is_var_used_as_dict_key_in_expr(var_name, object)
-                    || args.iter().any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
-            }
-        }
-        // Recurse into other expressions
-        HirExpr::Binary { left, right, .. } => {
-            is_var_used_as_dict_key_in_expr(var_name, left)
-                || is_var_used_as_dict_key_in_expr(var_name, right)
-        }
-        HirExpr::Unary { operand, .. } => is_var_used_as_dict_key_in_expr(var_name, operand),
-        HirExpr::Call { args, .. } => {
-            args.iter().any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
-        }
-        HirExpr::MethodCall { object, args, .. } => {
-            is_var_used_as_dict_key_in_expr(var_name, object)
-                || args.iter().any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
-        }
-        HirExpr::IfExpr { test, body, orelse } => {
-            is_var_used_as_dict_key_in_expr(var_name, test)
-                || is_var_used_as_dict_key_in_expr(var_name, body)
-                || is_var_used_as_dict_key_in_expr(var_name, orelse)
-        }
-        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => {
-            elements.iter().any(|e| is_var_used_as_dict_key_in_expr(var_name, e))
-        }
-        _ => false,
-    }
-}
-
-/// Helper to check if variable is directly referenced (not nested)
-fn is_var_direct_or_simple_in_expr(var_name: &str, expr: &HirExpr) -> bool {
-    match expr {
-        HirExpr::Var(name) => name == var_name,
-        _ => false,
-    }
-}
-
-/// DEPYLER-0715: Check if a variable is used as a dict key in a statement
-fn is_var_used_as_dict_key_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
-    match stmt {
-        HirStmt::Assign { target, value, .. } => {
-            // Check if var is used as key in target (e.g., dict[var] = x)
-            if let AssignTarget::Index { base, index } = target {
-                if is_var_direct_or_simple_in_expr(var_name, index)
-                    && matches!(base.as_ref(), HirExpr::Var(_))
-                {
-                    return true;
-                }
-            }
-            is_var_used_as_dict_key_in_expr(var_name, value)
-        }
-        HirStmt::If { condition, then_body, else_body } => {
-            is_var_used_as_dict_key_in_expr(var_name, condition)
-                || then_body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
-                || else_body.as_ref().is_some_and(|body| body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s)))
-        }
-        HirStmt::While { condition, body } => {
-            is_var_used_as_dict_key_in_expr(var_name, condition)
-                || body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
-        }
-        HirStmt::For { iter, body, .. } => {
-            is_var_used_as_dict_key_in_expr(var_name, iter)
-                || body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
-        }
-        HirStmt::Return(Some(expr)) => is_var_used_as_dict_key_in_expr(var_name, expr),
-        HirStmt::Expr(expr) => is_var_used_as_dict_key_in_expr(var_name, expr),
-        _ => false,
-    }
-}
-
-/// Check if a variable is reassigned in a statement
-/// DEPYLER-0756: Loop variables that are reassigned need `mut` in for pattern
-fn is_var_reassigned_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
-    match stmt {
-        HirStmt::Assign { target, .. } => {
-            // Only count as reassignment if the target is the exact variable
-            // Note: Augmented assignment (+=, -=) is also represented as Assign in HIR
-            matches!(target, AssignTarget::Symbol(name) if name == var_name)
-        }
-        HirStmt::If {
-            then_body,
-            else_body,
-            ..
-        } => {
-            then_body
-                .iter()
-                .any(|s| is_var_reassigned_in_stmt(var_name, s))
-                || else_body.as_ref().is_some_and(|body| {
-                    body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
-                })
-        }
-        HirStmt::While { body, .. } => body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)),
-        HirStmt::For { body, .. } => body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)),
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-            ..
-        } => {
-            body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
-                || handlers
-                    .iter()
-                    .any(|h| h.body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)))
-                || orelse.as_ref().is_some_and(|stmts| {
-                    stmts.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
-                })
-                || finalbody.as_ref().is_some_and(|stmts| {
-                    stmts.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
-                })
-        }
-        HirStmt::With { body, .. } => body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)),
-        _ => false,
-    }
-}
-
-/// Check if a variable is used in a statement
-/// DEPYLER-0303 Phase 2: Fixed to check assignment targets too (for `d[k] = v`)
-fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
-    match stmt {
-        HirStmt::Assign { target, value, .. } => {
-            // Check both target (e.g., d[k]) and value (e.g., v)
-            is_var_used_in_assign_target(var_name, target) || is_var_used_in_expr(var_name, value)
-        }
-        HirStmt::If {
-            condition,
-            then_body,
-            else_body,
-        } => {
-            is_var_used_in_expr(var_name, condition)
-                || then_body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                || else_body
-                    .as_ref()
-                    .is_some_and(|body| body.iter().any(|s| is_var_used_in_stmt(var_name, s)))
-        }
-        HirStmt::While { condition, body } => {
-            is_var_used_in_expr(var_name, condition)
-                || body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-        }
-        HirStmt::For { iter, body, .. } => {
-            is_var_used_in_expr(var_name, iter)
-                || body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-        }
-        HirStmt::Return(Some(expr)) => is_var_used_in_expr(var_name, expr),
-        HirStmt::Expr(expr) => is_var_used_in_expr(var_name, expr),
-        HirStmt::Raise { exception, .. } => exception
-            .as_ref()
-            .is_some_and(|e| is_var_used_in_expr(var_name, e)),
-        HirStmt::Assert { test, msg, .. } => {
-            is_var_used_in_expr(var_name, test)
-                || msg
-                    .as_ref()
-                    .is_some_and(|m| is_var_used_in_expr(var_name, m))
-        }
-        // DEPYLER-0593: Handle Try statements for variable usage detection
-        // Without this, loop variables used inside try/except are incorrectly marked unused
-        HirStmt::Try {
-            body,
-            handlers,
-            orelse,
-            finalbody,
-        } => {
-            body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                || handlers
-                    .iter()
-                    .any(|h| h.body.iter().any(|s| is_var_used_in_stmt(var_name, s)))
-                || orelse
-                    .as_ref()
-                    .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_in_stmt(var_name, s)))
-                || finalbody
-                    .as_ref()
-                    .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_in_stmt(var_name, s)))
-        }
-        // DEPYLER-0593: Handle With statements for variable usage detection
-        HirStmt::With { context, body, .. } => {
-            is_var_used_in_expr(var_name, context)
-                || body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-        }
-        _ => false,
-    }
-}
+// DEPYLER-0023: Variable analysis functions (is_var_used_as_dict_key_in_expr, is_var_direct_or_simple_in_expr,
+// is_var_used_as_dict_key_in_stmt, is_var_reassigned_in_stmt, is_var_used_in_stmt) imported from var_analysis module
 
 /// DEPYLER-0607: Check if a method chain leads back to a dict.get() on HashMap<_, serde_json::Value>
 /// This handles patterns like: data.get("key").cloned().unwrap_or_default()
@@ -3040,18 +2041,6 @@ fn is_json_value_method_chain_or_fallback(expr: &HirExpr, ctx: &CodeGenContext) 
             } else {
                 false
             }
-        }
-        _ => false,
-    }
-}
-
-/// DEPYLER-0607: Check if a dict has Value type values (explicit Value or Unknown)
-fn is_dict_with_value_type(t: &Type) -> bool {
-    match t {
-        Type::Dict(_, v) => {
-            matches!(v.as_ref(),
-                Type::Custom(n) if n.contains("Value") || n.contains("json"))
-            || matches!(v.as_ref(), Type::Unknown)
         }
         _ => false,
     }
@@ -3634,33 +2623,6 @@ pub(crate) fn codegen_for_stmt(
     }
 }
 
-/// Check if this is a dict augmented assignment pattern (dict[key] op= value)
-/// Returns true if target is Index and value is Binary with left being an Index to same location
-fn is_dict_augassign_pattern(target: &AssignTarget, value: &HirExpr) -> bool {
-    if let AssignTarget::Index {
-        base: target_base,
-        index: target_index,
-    } = target
-    {
-        if let HirExpr::Binary { left, .. } = value {
-            if let HirExpr::Index {
-                base: value_base,
-                index: value_index,
-            } = left.as_ref()
-            {
-                // Check if both indices refer to the same dict[key] location
-                // Simple heuristic: compare base and index expressions
-                // (This is simplified - a full solution would do deeper structural comparison)
-                return matches!((target_base.as_ref(), value_base.as_ref()),
-                    (HirExpr::Var(t_var), HirExpr::Var(v_var)) if t_var == v_var)
-                    && matches!((target_index.as_ref(), value_index.as_ref()),
-                        (HirExpr::Var(t_idx), HirExpr::Var(v_idx)) if t_idx == v_idx);
-            }
-        }
-    }
-    false
-}
-
 /// Generate code for Assign statement (variable/index/attribute/tuple assignment)
 #[inline]
 pub(crate) fn codegen_assign_stmt(
@@ -3699,7 +2661,7 @@ pub(crate) fn codegen_assign_stmt(
             if !cmd_name.is_empty() {
                 if let AssignTarget::Symbol(cse_var) = target {
                     use quote::{format_ident, quote};
-                    let variant_name = format_ident!("{}", to_pascal_case_subcommand(&cmd_name));
+                    let variant_name = format_ident!("{}", to_pascal_case(&cmd_name));
                     let var_ident = safe_ident(cse_var);
 
                     // DEPYLER-0456 Bug #2: Track this CSE temp so is_subcommand_check() can find it
@@ -4573,7 +3535,7 @@ pub(crate) fn codegen_assign_stmt(
         // DEPYLER-0272: Check if we need type conversion (e.g., usize to i32)
         // DEPYLER-0455 Bug 7: Also pass ctx for validator function detection
         // Pass the value expression to determine if cast is actually needed
-        if needs_type_conversion(actual_type, value, ctx) {
+        if needs_type_conversion(actual_type, value) {
             value_expr = apply_type_conversion(value_expr, actual_type);
         }
 
@@ -5601,38 +4563,7 @@ fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
     }
 }
 
-/// DEPYLER-0578: Check if handler ends with sys.exit() or process::exit()
-/// This indicates the variable WILL be assigned if we reach code after the try/except
-#[inline]
-fn handler_ends_with_exit(handler_body: &[HirStmt]) -> bool {
-    if let Some(last_stmt) = handler_body.last() {
-        match last_stmt {
-            // sys.exit(N) or exit(N)
-            HirStmt::Expr(HirExpr::Call { func, .. }) => {
-                func == "exit" || func == "sys.exit"
-            }
-            HirStmt::Expr(HirExpr::MethodCall { object, method, .. }) => {
-                // sys.exit() as method call
-                if let HirExpr::Var(module) = &**object {
-                    module == "sys" && method == "exit"
-                } else {
-                    false
-                }
-            }
-            _ => false,
-        }
-    } else {
-        false
-    }
-}
-
-/// DEPYLER-0819: Check if handler body contains a raise statement
-/// When handlers contain raise, the function returns Result<T, E>
-/// and the Ok arm must wrap the value in Ok()
-#[inline]
-fn handler_contains_raise(handler_body: &[HirStmt]) -> bool {
-    handler_body.iter().any(|stmt| matches!(stmt, HirStmt::Raise { .. }))
-}
+// DEPYLER-COVERAGE-95: handler_ends_with_exit and handler_contains_raise moved to expr_analysis module
 
 /// DEPYLER-0578: Try to detect and generate json.load(sys.stdin) pattern
 /// Pattern: try { data = json.load(sys.stdin) } except JSONDecodeError as e: { print; exit }
@@ -6417,91 +5348,9 @@ fn extract_parse_from_tokens(
     None
 }
 
-/// DEPYLER-0359: Check if an expression contains floor division operation
-fn contains_floor_div(expr: &HirExpr) -> bool {
-    match expr {
-        HirExpr::Binary {
-            op: BinOp::FloorDiv,
-            ..
-        } => true,
-        HirExpr::Binary { left, right, .. } => {
-            contains_floor_div(left) || contains_floor_div(right)
-        }
-        HirExpr::Unary { operand, .. } => contains_floor_div(operand),
-        HirExpr::Call { args, .. } => args.iter().any(contains_floor_div),
-        HirExpr::MethodCall { object, args, .. } => {
-            contains_floor_div(object) || args.iter().any(contains_floor_div)
-        }
-        HirExpr::Index { base, index } => contains_floor_div(base) || contains_floor_div(index),
-        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => {
-            elements.iter().any(contains_floor_div)
-        }
-        _ => false,
-    }
-}
-
-/// DEPYLER-0360: Extract the divisor (right operand) from a floor division expression
-fn extract_divisor_from_floor_div(expr: &HirExpr) -> Result<&HirExpr> {
-    match expr {
-        HirExpr::Binary {
-            op: BinOp::FloorDiv,
-            right,
-            ..
-        } => Ok(right),
-        HirExpr::Binary { left, right, .. } => {
-            // Recursively search for floor division
-            if contains_floor_div(left) {
-                extract_divisor_from_floor_div(left)
-            } else if contains_floor_div(right) {
-                extract_divisor_from_floor_div(right)
-            } else {
-                bail!("No floor division found in expression")
-            }
-        }
-        HirExpr::Unary { operand, .. } => extract_divisor_from_floor_div(operand),
-        _ => bail!("No floor division found in expression"),
-    }
-}
-
-/// DEPYLER-0399: Extract string literal from HirExpr
-///
-/// # Complexity
-/// 2 (pattern match + string clone)
-fn extract_string_literal(expr: &HirExpr) -> String {
-    match expr {
-        HirExpr::Literal(Literal::String(s)) => s.clone(),
-        _ => String::new(),
-    }
-}
-
-/// DEPYLER-0399: Extract string value from kwarg by name
-///
-/// # Complexity
-/// 4 (iterator + filter + match)
-fn extract_kwarg_string(kwargs: &[(String, HirExpr)], key: &str) -> Option<String> {
-    kwargs
-        .iter()
-        .find(|(k, _)| k == key)
-        .and_then(|(_, v)| match v {
-            HirExpr::Literal(Literal::String(s)) => Some(s.clone()),
-            _ => None,
-        })
-}
-
-/// DEPYLER-0399: Extract boolean value from kwarg by name
-///
-/// # Complexity
-/// 4 (iterator + filter + match)
-fn extract_kwarg_bool(kwargs: &[(String, HirExpr)], key: &str) -> Option<bool> {
-    kwargs
-        .iter()
-        .find(|(k, _)| k == key)
-        .and_then(|(_, v)| match v {
-            HirExpr::Var(s) if s == "True" => Some(true),
-            HirExpr::Var(s) if s == "False" => Some(false),
-            _ => None,
-        })
-}
+// DEPYLER-COVERAGE-95: extract_divisor_from_floor_div moved to expr_analysis module
+// DEPYLER-COVERAGE-95: extract_string_literal, extract_kwarg_string, extract_kwarg_bool
+// moved to crate::rust_gen::expr_analysis module for testability
 
 /// DEPYLER-0425: Extract subcommand fields accessed in handler body
 /// Analyzes HIR statements to find args.field attribute accesses
@@ -6845,7 +5694,7 @@ fn try_generate_subcommand_match(
         .filter(|(cmd_name, _)| !cmd_name.is_empty())
         .map(|(cmd_name, body)| {
             // Convert command name to PascalCase variant
-            let variant_name = format_ident!("{}", to_pascal_case_subcommand(cmd_name));
+            let variant_name = format_ident!("{}", to_pascal_case(cmd_name));
 
             // DEPYLER-0425: Detect which fields are accessed in the body
             // This determines whether we use Pattern A ({ .. }) or Pattern B ({ field1, field2, ... })
@@ -7392,19 +6241,6 @@ fn is_subcommand_check(expr: &HirExpr, dest_field: &str, ctx: &CodeGenContext) -
     }
 }
 
-/// DEPYLER-0399: Convert string to PascalCase for enum variants
-fn to_pascal_case_subcommand(s: &str) -> String {
-    s.split(&['-', '_'][..])
-        .map(|word| {
-            let mut chars = word.chars();
-            match chars.next() {
-                None => String::new(),
-                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
-            }
-        })
-        .collect()
-}
-
 impl RustCodeGen for HirStmt {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         match self {
@@ -7465,93 +6301,8 @@ impl RustCodeGen for HirStmt {
 // DEPYLER-0427: Nested Function Code Generation
 // ============================================================================
 
-/// Convert HIR Type to proc_macro2::TokenStream for code generation
-/// GH-70: Made public for use in func_gen.rs
-pub(crate) fn hir_type_to_tokens(ty: &Type, _ctx: &CodeGenContext) -> proc_macro2::TokenStream {
-    use quote::quote;
-
-    match ty {
-        // DEPYLER-0759: Use i32 to match all other type mappers in the codebase
-        // (codegen.rs, expr_gen.rs, argparse_transform.rs, etc.)
-        // Using i64 here caused E0308 mismatched types when nested functions
-        // captured i32 variables from outer scope
-        Type::Int => quote! { i32 },
-        Type::Float => quote! { f64 },
-        Type::String => quote! { String },
-        Type::Bool => quote! { bool },
-        Type::None => quote! { () },
-        Type::Unknown => quote! { () }, // Default to () for unknown types
-        Type::List(elem) => {
-            let elem_ty = hir_type_to_tokens(elem, _ctx);
-            quote! { Vec<#elem_ty> }
-        }
-        Type::Dict(key, value) => {
-            let key_ty = hir_type_to_tokens(key, _ctx);
-            let val_ty = hir_type_to_tokens(value, _ctx);
-            quote! { std::collections::HashMap<#key_ty, #val_ty> }
-        }
-        Type::Tuple(types) => {
-            let elem_types: Vec<_> = types.iter().map(|t| hir_type_to_tokens(t, _ctx)).collect();
-            quote! { (#(#elem_types),*) }
-        }
-        Type::Optional(inner) => {
-            let inner_ty = hir_type_to_tokens(inner, _ctx);
-            quote! { Option<#inner_ty> }
-        }
-        Type::Custom(name) => {
-            // DEPYLER-169: Map special Python types to their Rust equivalents
-            let mapped_name = match name.as_str() {
-                // Python's base object type needs dynamic typing in Rust
-                "object" | "builtins.object" => "serde_json::Value",
-                // Python Any type also maps to dynamic Value
-                "Any" | "typing.Any" | "any" => "serde_json::Value",
-                // DEPYLER-0674: Python bytearray maps to Vec<u8>
-                "bytearray" => "Vec<u8>",
-                // DEPYLER-0674: Python bytes maps to Vec<u8>
-                "bytes" => "Vec<u8>",
-                // DEPYLER-0674: Python memoryview maps to &[u8]
-                "memoryview" => "&[u8]",
-                // Preserve other custom types as-is
-                _ => name.as_str(),
-            };
-            // Parse as a full type path (handles `::` separators like serde_json::Value)
-            let ty: syn::Type = syn::parse_str(mapped_name).unwrap_or_else(|_| {
-                let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
-                syn::parse_quote! { #ident }
-            });
-            quote! { #ty }
-        }
-        // DEPYLER-0770: Handle Callable[[T1, T2], R] -> impl Fn(T1, T2) -> R
-        // NOTE: This generates `impl Fn` which is valid for function parameters but NOT
-        // for closure parameters. When used in closure context, the caller should use
-        // a different approach (generics or dyn Fn). For now we generate impl Fn as
-        // it works for the common case of function parameters.
-        Type::Generic { base, params } if base == "Callable" && params.len() == 2 => {
-            // params[0] is the parameter list type (may be Tuple, List, or single type)
-            // params[1] is the return type
-            let param_types: Vec<proc_macro2::TokenStream> = match &params[0] {
-                Type::Tuple(inner) => inner.iter().map(|t| hir_type_to_tokens(t, _ctx)).collect(),
-                Type::List(inner) => vec![hir_type_to_tokens(inner, _ctx)],
-                Type::None | Type::Unknown => vec![], // Empty param list from []
-                _ => vec![hir_type_to_tokens(&params[0], _ctx)],
-            };
-            let return_type = hir_type_to_tokens(&params[1], _ctx);
-
-            // DEPYLER-0770: Use &dyn Fn for closures since impl Fn is not allowed
-            // in closure parameters/return types. &dyn Fn works universally.
-            if matches!(params[1], Type::None) {
-                quote! { &dyn Fn(#(#param_types),*) }
-            } else {
-                quote! { &dyn Fn(#(#param_types),*) -> #return_type }
-            }
-        }
-        // DEPYLER-0770: Handle bare Callable without parameters
-        Type::Generic { base, params } if base == "Callable" && params.is_empty() => {
-            quote! { &dyn Fn() }
-        }
-        _ => quote! { () }, // Fallback for other types (Set, Function, Array, etc.)
-    }
-}
+// Note: hir_type_to_tokens is imported from crate::rust_gen::type_tokens
+// for better testability (DEPYLER-0759)
 
 /// Generate Rust code for nested function definitions (inner functions)
 ///
@@ -7615,7 +6366,7 @@ fn codegen_nested_function_def(
         .iter()
         .map(|p| {
             let param_name = safe_ident(&p.name);
-            let param_type = hir_type_to_tokens(&p.ty, ctx);
+            let param_type = hir_type_to_tokens(&p.ty);
 
             // For collection types and strings, take by reference for idiomatic Rust
             // This is necessary for closures used with filter() which provides &T
@@ -7634,7 +6385,7 @@ fn codegen_nested_function_def(
         .collect();
 
     // Generate return type
-    let return_type = hir_type_to_tokens(ret_type, ctx);
+    let return_type = hir_type_to_tokens(ret_type);
 
     // DEPYLER-0550: Save and restore can_fail flag for nested closures
     // Nested closures should NOT inherit can_fail from parent function
@@ -7772,138 +6523,6 @@ fn codegen_nested_function_def(
             };
         }
     })
-}
-
-/// DEPYLER-0790: Check if a nested function is recursive (calls itself)
-/// Returns true if the function body contains a call to the function itself
-fn is_nested_function_recursive(name: &str, body: &[HirStmt]) -> bool {
-    use crate::hir::{HirExpr, HirStmt};
-
-    fn check_expr(expr: &HirExpr, name: &str) -> bool {
-        match expr {
-            // Direct call to the function by name - func is Symbol, not Box<HirExpr>
-            HirExpr::Call { func, args, kwargs } => {
-                if func == name {
-                    return true;
-                }
-                // Check args and kwargs recursively
-                args.iter().any(|a| check_expr(a, name))
-                    || kwargs.iter().any(|(_, v)| check_expr(v, name))
-            }
-            // Dynamic call - check callee expression
-            HirExpr::DynamicCall { callee, args, kwargs } => {
-                check_expr(callee, name)
-                    || args.iter().any(|a| check_expr(a, name))
-                    || kwargs.iter().any(|(_, v)| check_expr(v, name))
-            }
-            // Recurse into all expression types
-            HirExpr::Binary { left, right, .. } => {
-                check_expr(left, name) || check_expr(right, name)
-            }
-            HirExpr::Unary { operand, .. } => check_expr(operand, name),
-            HirExpr::MethodCall { object, args, kwargs, .. } => {
-                check_expr(object, name)
-                    || args.iter().any(|a| check_expr(a, name))
-                    || kwargs.iter().any(|(_, v)| check_expr(v, name))
-            }
-            HirExpr::Attribute { value, .. } => check_expr(value, name),
-            HirExpr::Index { base, index } => {
-                check_expr(base, name) || check_expr(index, name)
-            }
-            HirExpr::IfExpr { test, body, orelse } => {
-                check_expr(test, name) || check_expr(body, name) || check_expr(orelse, name)
-            }
-            HirExpr::List(items)
-            | HirExpr::Tuple(items)
-            | HirExpr::Set(items)
-            | HirExpr::FrozenSet(items) => items.iter().any(|i| check_expr(i, name)),
-            HirExpr::Dict(pairs) => {
-                pairs.iter().any(|(k, v)| check_expr(k, name) || check_expr(v, name))
-            }
-            HirExpr::ListComp { element, generators }
-            | HirExpr::SetComp { element, generators }
-            | HirExpr::GeneratorExp { element, generators } => {
-                check_expr(element, name)
-                    || generators.iter().any(|g| {
-                        check_expr(&g.iter, name)
-                            || g.conditions.iter().any(|c| check_expr(c, name))
-                    })
-            }
-            HirExpr::DictComp { key, value, generators } => {
-                check_expr(key, name)
-                    || check_expr(value, name)
-                    || generators.iter().any(|g| {
-                        check_expr(&g.iter, name)
-                            || g.conditions.iter().any(|c| check_expr(c, name))
-                    })
-            }
-            HirExpr::Lambda { body, .. } => check_expr(body, name),
-            HirExpr::Await { value } => check_expr(value, name),
-            HirExpr::Slice { base, start, stop, step } => {
-                check_expr(base, name)
-                    || start.as_ref().is_some_and(|e| check_expr(e, name))
-                    || stop.as_ref().is_some_and(|e| check_expr(e, name))
-                    || step.as_ref().is_some_and(|e| check_expr(e, name))
-            }
-            HirExpr::Borrow { expr, .. } => check_expr(expr, name),
-            HirExpr::FString { parts } => {
-                parts.iter().any(|p| {
-                    if let crate::hir::FStringPart::Expr(e) = p {
-                        check_expr(e, name)
-                    } else {
-                        false
-                    }
-                })
-            }
-            HirExpr::Yield { value } => value.as_ref().is_some_and(|e| check_expr(e, name)),
-            HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
-                check_expr(iterable, name)
-                    || check_expr(key_body, name)
-                    || reverse_expr.as_ref().is_some_and(|e| check_expr(e, name))
-            }
-            HirExpr::NamedExpr { value, .. } => check_expr(value, name),
-            _ => false,
-        }
-    }
-
-    fn check_stmt(stmt: &HirStmt, name: &str) -> bool {
-        match stmt {
-            HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => check_expr(expr, name),
-            HirStmt::Assign { value, .. } => check_expr(value, name),
-            HirStmt::If { condition, then_body, else_body } => {
-                check_expr(condition, name)
-                    || then_body.iter().any(|s| check_stmt(s, name))
-                    || else_body.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
-            }
-            HirStmt::While { condition, body } => {
-                check_expr(condition, name) || body.iter().any(|s| check_stmt(s, name))
-            }
-            HirStmt::For { iter, body, .. } => {
-                check_expr(iter, name) || body.iter().any(|s| check_stmt(s, name))
-            }
-            HirStmt::With { context, body, .. } => {
-                check_expr(context, name) || body.iter().any(|s| check_stmt(s, name))
-            }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
-                body.iter().any(|s| check_stmt(s, name))
-                    || handlers.iter().any(|h| h.body.iter().any(|s| check_stmt(s, name)))
-                    || orelse.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
-                    || finalbody.as_ref().is_some_and(|b| b.iter().any(|s| check_stmt(s, name)))
-            }
-            HirStmt::FunctionDef { body, .. } => body.iter().any(|s| check_stmt(s, name)),
-            HirStmt::Block(stmts) => stmts.iter().any(|s| check_stmt(s, name)),
-            HirStmt::Assert { test, msg } => {
-                check_expr(test, name) || msg.as_ref().is_some_and(|m| check_expr(m, name))
-            }
-            HirStmt::Raise { exception, cause } => {
-                exception.as_ref().is_some_and(|e| check_expr(e, name))
-                    || cause.as_ref().is_some_and(|c| check_expr(c, name))
-            }
-            _ => false,
-        }
-    }
-
-    body.iter().any(|stmt| check_stmt(stmt, name))
 }
 
 /// DEPYLER-0790: Check if a nested function captures outer scope variables
@@ -8221,6 +6840,11 @@ fn captures_outer_scope(
 mod tests {
     use super::*;
     use crate::hir::{BinOp, HirExpr, Literal, Type};
+    use crate::rust_gen::expr_analysis::expr_returns_usize;
+    use crate::rust_gen::var_analysis::{
+        extract_assigned_symbols, extract_walrus_recursive, is_var_direct_or_simple_in_expr,
+        is_var_used_as_dict_key_in_expr, is_var_used_in_assign_target, is_var_used_in_expr,
+    };
 
     // ============ expr_returns_usize tests ============
 
@@ -9192,50 +7816,8 @@ mod tests {
         assert_eq!(find_var_position_in_tuple("outer", &targets), Some(1));
     }
 
-    // ============ codegen helper tests ============
-
-    #[test]
-    fn test_codegen_pass_stmt() {
-        let result = codegen_pass_stmt();
-        assert!(result.is_ok());
-        // pass generates empty tokens
-        let tokens = result.unwrap().to_string();
-        assert!(tokens.is_empty() || tokens.trim().is_empty());
-    }
-
-    #[test]
-    fn test_codegen_break_stmt_no_label() {
-        let result = codegen_break_stmt(&None);
-        assert!(result.is_ok());
-        let tokens = result.unwrap().to_string();
-        assert!(tokens.contains("break"));
-    }
-
-    #[test]
-    fn test_codegen_break_stmt_with_label() {
-        let result = codegen_break_stmt(&Some("outer".to_string()));
-        assert!(result.is_ok());
-        let tokens = result.unwrap().to_string();
-        assert!(tokens.contains("break"));
-        assert!(tokens.contains("outer"));
-    }
-
-    #[test]
-    fn test_codegen_continue_stmt_no_label() {
-        let result = codegen_continue_stmt(&None);
-        assert!(result.is_ok());
-        let tokens = result.unwrap().to_string();
-        assert!(tokens.contains("continue"));
-    }
-
-    #[test]
-    fn test_codegen_continue_stmt_with_label() {
-        let result = codegen_continue_stmt(&Some("outer".to_string()));
-        assert!(result.is_ok());
-        let tokens = result.unwrap().to_string();
-        assert!(tokens.contains("continue"));
-        assert!(tokens.contains("outer"));
-    }
+    // Note: codegen_pass_stmt, codegen_break_stmt, codegen_continue_stmt tests
+    // are in crate::rust_gen::control_stmt_helpers::tests
 
     // ============ extract_walrus tests ============
 
@@ -9356,4 +7938,2324 @@ mod tests {
         let expr = HirExpr::Literal(Literal::Int(42));
         assert!(!is_var_direct_or_simple_in_expr("x", &expr));
     }
+
+    // ============ expr_infers_float tests ============
+
+    #[test]
+    fn test_expr_infers_float_literal_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Float(3.14));
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_literal_int() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_var_with_float_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("x".to_string(), Type::Float);
+        let expr = HirExpr::Var("x".to_string());
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_var_without_float_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("x".to_string(), Type::Int);
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_call_with_float_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.function_return_types
+            .insert("compute".to_string(), Type::Float);
+        let expr = HirExpr::Call {
+            func: "compute".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_call_with_int_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.function_return_types
+            .insert("compute".to_string(), Type::Int);
+        let expr = HirExpr::Call {
+            func: "compute".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_binary_mul_with_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::Literal(Literal::Float(2.0))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_binary_div_with_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Div,
+            left: Box::new(HirExpr::Literal(Literal::Float(6.0))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_binary_add_with_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Float(1.5))),
+            right: Box::new(HirExpr::Literal(Literal::Float(2.5))),
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_binary_int_only() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(!expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_unary_neg_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Float(1.5))),
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_if_expr_both_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::IfExpr {
+            test: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            body: Box::new(HirExpr::Literal(Literal::Float(1.0))),
+            orelse: Box::new(HirExpr::Literal(Literal::Float(2.0))),
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_if_expr_mixed() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::IfExpr {
+            test: Box::new(HirExpr::Literal(Literal::Bool(true))),
+            body: Box::new(HirExpr::Literal(Literal::Float(1.0))),
+            orelse: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        // Both branches must be float
+        assert!(!expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_callable_with_float_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert(
+            "f".to_string(),
+            Type::Function {
+                params: vec![Type::Float],
+                ret: Box::new(Type::Float),
+            },
+        );
+        let expr = HirExpr::Call {
+            func: "f".to_string(),
+            args: vec![HirExpr::Literal(Literal::Float(1.0))],
+            kwargs: vec![],
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_generic_callable_with_float_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert(
+            "g".to_string(),
+            Type::Generic {
+                base: "Callable".to_string(),
+                params: vec![
+                    Type::List(Box::new(Type::Float)), // param types
+                    Type::Float,                       // return type
+                ],
+            },
+        );
+        let expr = HirExpr::Call {
+            func: "g".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_binary_pow_with_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Pow,
+            left: Box::new(HirExpr::Literal(Literal::Float(2.0))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_binary_mod_with_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Mod,
+            left: Box::new(HirExpr::Literal(Literal::Float(5.5))),
+            right: Box::new(HirExpr::Literal(Literal::Float(2.0))),
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    // ============ extract_fields_from_expr tests ============
+
+    #[test]
+    fn test_extract_fields_from_expr_attribute() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "input_file".to_string(),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("input_file"));
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_filters_dest_field() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "command".to_string(),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.is_empty()); // dest_field should be filtered out
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_wrong_var() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("other".to_string())),
+            attr: "field".to_string(),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.is_empty());
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_call_args() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "output".to_string(),
+            }],
+            kwargs: vec![],
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("output"));
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_binary() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "x".to_string(),
+            }),
+            right: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "y".to_string(),
+            }),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("x"));
+        assert!(fields.contains("y"));
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_unary() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "flag".to_string(),
+            }),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("flag"));
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_if_expr() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::IfExpr {
+            test: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "cond".to_string(),
+            }),
+            body: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "then_val".to_string(),
+            }),
+            orelse: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "else_val".to_string(),
+            }),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("cond"));
+        assert!(fields.contains("then_val"));
+        assert!(fields.contains("else_val"));
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_index() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "list".to_string(),
+            }),
+            index: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "idx".to_string(),
+            }),
+        };
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("list"));
+        assert!(fields.contains("idx"));
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_list() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::List(vec![
+            HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "item1".to_string(),
+            },
+            HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "item2".to_string(),
+            },
+        ]);
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("item1"));
+        assert!(fields.contains("item2"));
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_tuple() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::Tuple(vec![HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "val".to_string(),
+        }]);
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("val"));
+    }
+
+    #[test]
+    fn test_extract_fields_from_expr_set() {
+        let mut fields = std::collections::HashSet::new();
+        let expr = HirExpr::Set(vec![HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "elem".to_string(),
+        }]);
+        extract_fields_from_expr(&expr, "args", "command", &mut fields);
+        assert!(fields.contains("elem"));
+    }
+
+    // ============ extract_fields_recursive tests ============
+
+    #[test]
+    fn test_extract_fields_recursive_expr_stmt() {
+        let mut fields = std::collections::HashSet::new();
+        let stmts = vec![HirStmt::Expr(HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("args".to_string())),
+            attr: "value".to_string(),
+        })];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("value"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_assign() {
+        let mut fields = std::collections::HashSet::new();
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "source".to_string(),
+            },
+            type_annotation: None,
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("source"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_if_stmt() {
+        let mut fields = std::collections::HashSet::new();
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "cond".to_string(),
+            },
+            then_body: vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "then".to_string(),
+            })],
+            else_body: Some(vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "else".to_string(),
+            })]),
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("cond"));
+        assert!(fields.contains("then"));
+        assert!(fields.contains("else"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_while_stmt() {
+        let mut fields = std::collections::HashSet::new();
+        let stmts = vec![HirStmt::While {
+            condition: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "running".to_string(),
+            },
+            body: vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "body_val".to_string(),
+            })],
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("running"));
+        assert!(fields.contains("body_val"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_for_stmt() {
+        let mut fields = std::collections::HashSet::new();
+        let stmts = vec![HirStmt::For {
+            target: AssignTarget::Symbol("item".to_string()),
+            iter: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "items".to_string(),
+            },
+            body: vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "loop_val".to_string(),
+            })],
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("items"));
+        assert!(fields.contains("loop_val"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_try_stmt() {
+        let mut fields = std::collections::HashSet::new();
+        let stmts = vec![HirStmt::Try {
+            body: vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "try_val".to_string(),
+            })],
+            handlers: vec![ExceptHandler {
+                exception_type: Some("ValueError".to_string()),
+                name: Some("e".to_string()),
+                body: vec![HirStmt::Expr(HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "handler_val".to_string(),
+                })],
+            }],
+            orelse: Some(vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "else_val".to_string(),
+            })]),
+            finalbody: Some(vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "finally_val".to_string(),
+            })]),
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("try_val"));
+        assert!(fields.contains("handler_val"));
+        assert!(fields.contains("else_val"));
+        assert!(fields.contains("finally_val"));
+    }
+
+    #[test]
+    fn test_extract_fields_recursive_with_stmt() {
+        let mut fields = std::collections::HashSet::new();
+        let stmts = vec![HirStmt::With {
+            context: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("args".to_string())),
+                    attr: "file".to_string(),
+                }],
+                kwargs: vec![],
+            },
+            target: Some("f".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("args".to_string())),
+                attr: "with_body".to_string(),
+            })],
+            is_async: false,
+        }];
+        extract_fields_recursive(&stmts, "args", "command", &mut fields);
+        assert!(fields.contains("file"));
+        assert!(fields.contains("with_body"));
+    }
+
+    // ============ extract_nested_indices_tokens tests ============
+
+    #[test]
+    fn test_extract_nested_indices_simple() {
+        let mut ctx = CodeGenContext::default();
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("dict".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+        };
+        let result = extract_nested_indices_tokens(&expr, &mut ctx);
+        assert!(result.is_ok());
+        let (_, indices) = result.unwrap();
+        assert_eq!(indices.len(), 1);
+    }
+
+    #[test]
+    fn test_extract_nested_indices_nested() {
+        let mut ctx = CodeGenContext::default();
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Index {
+                base: Box::new(HirExpr::Var("nested".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::String("outer".to_string()))),
+            }),
+            index: Box::new(HirExpr::Literal(Literal::String("inner".to_string()))),
+        };
+        let result = extract_nested_indices_tokens(&expr, &mut ctx);
+        assert!(result.is_ok());
+        let (_, indices) = result.unwrap();
+        assert_eq!(indices.len(), 2);
+    }
+
+    // ============ expr_infers_float tests ============
+
+    #[test]
+    fn test_expr_infers_float_literal() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Float(3.14));
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_int_literal() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!expr_infers_float(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_expr_infers_float_binary_with_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Float(1.0))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(expr_infers_float(&expr, &ctx));
+    }
+
+    // ============ is_pure_expression tests ============
+
+    #[test]
+    fn test_is_pure_expression_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(is_pure_expression(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(is_pure_expression(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(is_pure_expression(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_call_not_pure() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_method_call_not_pure() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("lst".to_string())),
+            method: "append".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression(&expr));
+    }
+
+    // ============ looks_like_option_expr tests ============
+
+    #[test]
+    fn test_looks_like_option_expr_get_call() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("dict".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(looks_like_option_expr(&expr));
+    }
+
+    #[test]
+    fn test_looks_like_option_expr_simple_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!looks_like_option_expr(&expr));
+    }
+
+    // ============ is_file_creating_expr tests ============
+
+    #[test]
+    fn test_is_file_creating_expr_open_call() {
+        let expr = HirExpr::Call {
+            func: "open".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("file.txt".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_expr_not_file() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_file_creating_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_expr_stdout() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "stdout".to_string(),
+        };
+        assert!(is_stdio_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_expr_stderr() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "stderr".to_string(),
+        };
+        assert!(is_stdio_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_expr_not_stdio() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!is_stdio_expr(&expr));
+    }
+
+    // ============ handler_ends_with_exit extra tests ============
+
+    #[test]
+    fn test_handler_ends_with_exit_call() {
+        let handler_body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "exit".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(handler_ends_with_exit(&handler_body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_sys_exit_call() {
+        let handler_body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("sys".to_string())),
+            method: "exit".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(handler_ends_with_exit(&handler_body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_no_exit() {
+        let handler_body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        assert!(!handler_ends_with_exit(&handler_body));
+    }
+
+    // ============ handler_contains_raise extra tests ============
+
+    #[test]
+    fn test_handler_raise_present() {
+        let handler_body = vec![HirStmt::Raise {
+            exception: Some(HirExpr::Var("ValueError".to_string())),
+            cause: None,
+        }];
+        assert!(handler_contains_raise(&handler_body));
+    }
+
+    #[test]
+    fn test_handler_no_raise_present() {
+        let handler_body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        assert!(!handler_contains_raise(&handler_body));
+    }
+
+    // ============ find_variable_type extra tests ============
+
+    #[test]
+    fn test_find_var_type_annotated() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        let result = find_variable_type("x", &stmts);
+        assert_eq!(result, Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_var_type_not_found() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("y".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        let result = find_variable_type("x", &stmts);
+        assert_eq!(result, None);
+    }
+
+
+    // ============ infer_expr_return_type extra tests ============
+
+    #[test]
+    fn test_infer_return_type_int() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let result = infer_expr_return_type(&expr, &ctx);
+        assert_eq!(result, Type::Int);
+    }
+
+    #[test]
+    fn test_infer_return_type_float() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let result = infer_expr_return_type(&expr, &ctx);
+        assert_eq!(result, Type::Float);
+    }
+
+    #[test]
+    fn test_infer_return_type_string() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        let result = infer_expr_return_type(&expr, &ctx);
+        assert_eq!(result, Type::String);
+    }
+
+    #[test]
+    fn test_infer_return_type_bool() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Bool(true));
+        let result = infer_expr_return_type(&expr, &ctx);
+        assert_eq!(result, Type::Bool);
+    }
+
+    // ============ is_dict_augassign_pattern extra tests ============
+
+    #[test]
+    fn test_dict_augassign_pattern_positive() {
+        let target = AssignTarget::Index {
+            base: Box::new(HirExpr::Var("counter".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        let value = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Index {
+                base: Box::new(HirExpr::Var("counter".to_string())),
+                index: Box::new(HirExpr::Var("key".to_string())),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(is_dict_augassign_pattern(&target, &value));
+    }
+
+    #[test]
+    fn test_dict_augassign_pattern_negative() {
+        let target = AssignTarget::Symbol("x".to_string());
+        let value = HirExpr::Literal(Literal::Int(1));
+        assert!(!is_dict_augassign_pattern(&target, &value));
+    }
+
+    // ============ handler_ends_with_exit tests ============
+
+    #[test]
+    fn test_handler_ends_with_exit_true() {
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "sys.exit".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_false() {
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))];
+        assert!(!handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_empty() {
+        let body: Vec<HirStmt> = vec![];
+        assert!(!handler_ends_with_exit(&body));
+    }
+
+    // ============ handler_contains_raise tests ============
+
+    #[test]
+    fn test_handler_contains_raise_true() {
+        let body = vec![HirStmt::Raise {
+            exception: Some(HirExpr::Call {
+                func: "ValueError".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            cause: None,
+        }];
+        assert!(handler_contains_raise(&body));
+    }
+
+    #[test]
+    fn test_handler_contains_raise_false() {
+        let body = vec![HirStmt::Expr(HirExpr::Var("x".to_string()))];
+        assert!(!handler_contains_raise(&body));
+    }
+
+    #[test]
+    fn test_handler_contains_raise_empty() {
+        let body: Vec<HirStmt> = vec![];
+        assert!(!handler_contains_raise(&body));
+    }
+
+    // ============ contains_floor_div tests ============
+
+    #[test]
+    fn test_contains_floor_div_true() {
+        let expr = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_false() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Div,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        assert!(!contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_nested() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Binary {
+                op: BinOp::FloorDiv,
+                left: Box::new(HirExpr::Literal(Literal::Int(10))),
+                right: Box::new(HirExpr::Literal(Literal::Int(3))),
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!contains_floor_div(&expr));
+    }
+
+    // ============ extract_string_literal tests ============
+
+    #[test]
+    fn test_extract_string_literal_string() {
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        assert_eq!(extract_string_literal(&expr), "hello");
+    }
+
+    #[test]
+    fn test_extract_string_literal_non_string() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert_eq!(extract_string_literal(&expr), "");
+    }
+
+    #[test]
+    fn test_extract_string_literal_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert_eq!(extract_string_literal(&expr), "");
+    }
+
+    // ============ extract_kwarg_string tests ============
+
+    #[test]
+    fn test_extract_kwarg_string_found() {
+        let kwargs = vec![
+            ("name".to_string(), HirExpr::Literal(Literal::String("test".to_string()))),
+        ];
+        assert_eq!(extract_kwarg_string(&kwargs, "name"), Some("test".to_string()));
+    }
+
+    #[test]
+    fn test_extract_kwarg_string_not_found() {
+        let kwargs = vec![
+            ("other".to_string(), HirExpr::Literal(Literal::String("test".to_string()))),
+        ];
+        assert_eq!(extract_kwarg_string(&kwargs, "name"), None);
+    }
+
+    #[test]
+    fn test_extract_kwarg_string_not_string() {
+        let kwargs = vec![
+            ("name".to_string(), HirExpr::Literal(Literal::Int(42))),
+        ];
+        assert_eq!(extract_kwarg_string(&kwargs, "name"), None);
+    }
+
+    // ============ extract_kwarg_bool tests ============
+
+    #[test]
+    fn test_extract_kwarg_bool_true() {
+        // Function expects HirExpr::Var("True") not Literal::Bool
+        let kwargs = vec![
+            ("flag".to_string(), HirExpr::Var("True".to_string())),
+        ];
+        assert_eq!(extract_kwarg_bool(&kwargs, "flag"), Some(true));
+    }
+
+    #[test]
+    fn test_extract_kwarg_bool_false() {
+        // Function expects HirExpr::Var("False") not Literal::Bool
+        let kwargs = vec![
+            ("flag".to_string(), HirExpr::Var("False".to_string())),
+        ];
+        assert_eq!(extract_kwarg_bool(&kwargs, "flag"), Some(false));
+    }
+
+    #[test]
+    fn test_extract_kwarg_bool_not_found() {
+        let kwargs = vec![
+            ("other".to_string(), HirExpr::Var("True".to_string())),
+        ];
+        assert_eq!(extract_kwarg_bool(&kwargs, "flag"), None);
+    }
+
+    #[test]
+    fn test_extract_kwarg_bool_not_bool() {
+        // Literal::Bool doesn't match the Var("True")/Var("False") pattern
+        let kwargs = vec![
+            ("flag".to_string(), HirExpr::Literal(Literal::Bool(true))),
+        ];
+        assert_eq!(extract_kwarg_bool(&kwargs, "flag"), None);
+    }
+
+    // ============ is_nested_function_recursive tests ============
+
+    #[test]
+    fn test_is_nested_function_recursive_true() {
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "factorial".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(5))],
+            kwargs: vec![],
+        })];
+        assert!(is_nested_function_recursive("factorial", &body));
+    }
+
+    #[test]
+    fn test_is_nested_function_recursive_false() {
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))];
+        assert!(!is_nested_function_recursive("factorial", &body));
+    }
+
+    #[test]
+    fn test_is_nested_function_recursive_different_name() {
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "other_func".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        assert!(!is_nested_function_recursive("factorial", &body));
+    }
+
+    #[test]
+    fn test_is_nested_function_recursive_in_if() {
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Var("cond".to_string()),
+            then_body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "fib".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            })],
+            else_body: None,
+        }];
+        assert!(is_nested_function_recursive("fib", &body));
+    }
+
+    // ============ to_pascal_case tests ============
+
+    #[test]
+    fn test_to_pascal_case_simple() {
+        assert_eq!(to_pascal_case("hello"), "Hello");
+    }
+
+    #[test]
+    fn test_to_pascal_case_underscore() {
+        assert_eq!(to_pascal_case("hello_world"), "HelloWorld");
+    }
+
+    #[test]
+    fn test_to_pascal_case_hyphen() {
+        assert_eq!(to_pascal_case("hello-world"), "HelloWorld");
+    }
+
+    #[test]
+    fn test_to_pascal_case_mixed() {
+        assert_eq!(to_pascal_case("run_all-tests"), "RunAllTests");
+    }
+
+    #[test]
+    fn test_to_pascal_case_single_char() {
+        assert_eq!(to_pascal_case("a"), "A");
+    }
+
+    #[test]
+    fn test_to_pascal_case_empty() {
+        assert_eq!(to_pascal_case(""), "");
+    }
+
+    // ============ find_assigned_expr tests ============
+
+    #[test]
+    fn test_find_assigned_expr_found() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        }];
+        let result = find_assigned_expr("x", &stmts);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_find_assigned_expr_not_found() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("y".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        }];
+        let result = find_assigned_expr("x", &stmts);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_find_assigned_expr_empty() {
+        let stmts: Vec<HirStmt> = vec![];
+        let result = find_assigned_expr("x", &stmts);
+        assert!(result.is_none());
+    }
+
+    // ============ is_numpy_value_expr tests ============
+
+    #[test]
+    fn test_is_numpy_value_expr_zeros() {
+        let ctx = CodeGenContext::default();
+        // Function matches bare function names only, not "np.zeros"
+        let expr = HirExpr::Call {
+            func: "zeros".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_numpy_value_expr(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_is_numpy_value_expr_ones() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Call {
+            func: "ones".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_numpy_value_expr(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_is_numpy_value_expr_arange() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Call {
+            func: "arange".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_numpy_value_expr(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_is_numpy_value_expr_array() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Call {
+            func: "array".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_numpy_value_expr(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_is_numpy_value_expr_not_numpy() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_numpy_value_expr(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_is_numpy_value_expr_literal() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!is_numpy_value_expr(&expr, &ctx));
+    }
+
+    // Note: needs_type_conversion tests are in expr_analysis.rs
+
+    // ============ is_json_value_method_chain_or_fallback tests ============
+
+    #[test]
+    fn test_is_json_value_method_chain_as_str() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("data".to_string())),
+            method: "as_str".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        // Check if the function recognizes json value method chains
+        // The actual result depends on ctx state, but function should not panic
+        let _ = is_json_value_method_chain_or_fallback(&expr, &ctx);
+    }
+
+    #[test]
+    fn test_is_json_value_method_chain_as_i64() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("data".to_string())),
+            method: "as_i64".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        let _ = is_json_value_method_chain_or_fallback(&expr, &ctx);
+    }
+
+    #[test]
+    fn test_is_json_value_method_chain_regular_method() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("s".to_string())),
+            method: "upper".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        // Regular string method, not JSON value
+        assert!(!is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    // ============ extract_divisor_from_floor_div tests ============
+
+    #[test]
+    fn test_extract_divisor_from_floor_div_ok() {
+        let expr = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let result = extract_divisor_from_floor_div(&expr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_extract_divisor_from_floor_div_not_floor_div() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Div,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let result = extract_divisor_from_floor_div(&expr);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_extract_divisor_from_floor_div_not_binary() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let result = extract_divisor_from_floor_div(&expr);
+        assert!(result.is_err());
+    }
+
+    // ============ contains_floor_div comprehensive tests ============
+
+    #[test]
+    fn test_contains_floor_div_direct() {
+        let expr = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_regular_div() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Div,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        assert!(!contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_nested_in_left() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(inner),
+            right: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_nested_in_right() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(5))),
+            right: Box::new(inner),
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_in_unary() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Neg,
+            operand: Box::new(inner),
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_in_call_args() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![inner],
+            kwargs: vec![],
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_in_method_call_object() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::MethodCall {
+            object: Box::new(inner),
+            method: "to_string".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_in_method_call_args() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".to_string())),
+            method: "method".to_string(),
+            args: vec![inner],
+            kwargs: vec![],
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_in_index_base() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Index {
+            base: Box::new(inner),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_in_index_index() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(inner),
+        };
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_in_list() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            inner,
+        ]);
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_in_tuple() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            inner,
+        ]);
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_in_set() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Set(vec![inner]);
+        assert!(contains_floor_div(&expr));
+    }
+
+    #[test]
+    fn test_contains_floor_div_none() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!contains_floor_div(&expr));
+    }
+
+    // ============ extract_divisor_from_floor_div recursive tests ============
+
+    #[test]
+    fn test_extract_divisor_nested_in_left() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(inner),
+            right: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        let result = extract_divisor_from_floor_div(&expr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_extract_divisor_nested_in_right() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(5))),
+            right: Box::new(inner),
+        };
+        let result = extract_divisor_from_floor_div(&expr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_extract_divisor_in_unary() {
+        let inner = HirExpr::Binary {
+            op: BinOp::FloorDiv,
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Neg,
+            operand: Box::new(inner),
+        };
+        let result = extract_divisor_from_floor_div(&expr);
+        assert!(result.is_ok());
+    }
+
+    // ============ is_file_creating_expr additional tests ============
+
+    #[test]
+    fn test_is_file_creating_expr_file_create_via_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("File".to_string())),
+            method: "create".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_expr_file_open_via_method() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("File".to_string())),
+            method: "open".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_expr_via_attribute() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("std".to_string())),
+                attr: "File".to_string(),
+            }),
+            method: "create".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_expr_literal_returns_false() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(!is_file_creating_expr(&expr));
+    }
+
+    // ============ is_stdio_expr additional tests ============
+
+    #[test]
+    fn test_is_stdio_expr_not_sys_module() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("os".to_string())),
+            attr: "stdout".to_string(),
+        };
+        assert!(!is_stdio_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_expr_wrong_attr() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("sys".to_string())),
+            attr: "path".to_string(),
+        };
+        assert!(!is_stdio_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_expr_var_not_attr() {
+        let expr = HirExpr::Var("stdout".to_string());
+        assert!(!is_stdio_expr(&expr));
+    }
+
+    // ============ is_dict_index_access comprehensive tests ============
+
+    #[test]
+    fn test_is_dict_index_access_with_string_key() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("data".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_mydict_var() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("mydict".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_config() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("config".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_settings() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("settings".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_params() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("params".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_options() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("options".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_env() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("env".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_json() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("json_data".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_single_char_d() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("d".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_single_char_m() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("m".to_string())),
+            index: Box::new(HirExpr::Var("key".to_string())),
+        };
+        assert!(is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_list_with_int_key() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(!is_dict_index_access(&expr));
+    }
+
+    #[test]
+    fn test_is_dict_index_access_not_index_expr() {
+        let expr = HirExpr::Var("data".to_string());
+        assert!(!is_dict_index_access(&expr));
+    }
+
+    // ============ needs_boxed_dyn_write tests ============
+
+    #[test]
+    fn test_needs_boxed_dyn_write_heterogeneous() {
+        use crate::hir::HirStmt;
+        let then_body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("output".to_string()),
+            value: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("out.txt".to_string()))],
+                kwargs: vec![],
+            },
+            type_annotation: None,
+        }];
+        let else_body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("output".to_string()),
+            value: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("sys".to_string())),
+                attr: "stdout".to_string(),
+            },
+            type_annotation: None,
+        }];
+        assert!(needs_boxed_dyn_write("output", &then_body, &else_body));
+    }
+
+    #[test]
+    fn test_needs_boxed_dyn_write_homogeneous_files() {
+        use crate::hir::HirStmt;
+        let then_body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("output".to_string()),
+            value: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("out.txt".to_string()))],
+                kwargs: vec![],
+            },
+            type_annotation: None,
+        }];
+        let else_body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("output".to_string()),
+            value: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("other.txt".to_string()))],
+                kwargs: vec![],
+            },
+            type_annotation: None,
+        }];
+        // Both are files - homogeneous, no Box needed
+        assert!(!needs_boxed_dyn_write("output", &then_body, &else_body));
+    }
+
+    #[test]
+    fn test_needs_boxed_dyn_write_missing_assignment() {
+        use crate::hir::HirStmt;
+        let then_body = vec![HirStmt::Expr(HirExpr::Var("x".to_string()))];
+        let else_body = vec![HirStmt::Expr(HirExpr::Var("y".to_string()))];
+        assert!(!needs_boxed_dyn_write("output", &then_body, &else_body));
+    }
+
+    // ============ to_pascal_case additional tests ============
+
+    #[test]
+    fn test_to_pascal_case_basic() {
+        assert_eq!(to_pascal_case("hello"), "Hello");
+    }
+
+    #[test]
+    fn test_to_pascal_case_hyphen_sep() {
+        assert_eq!(to_pascal_case("hello-world"), "HelloWorld");
+    }
+
+    #[test]
+    fn test_to_pascal_case_underscore_sep() {
+        assert_eq!(to_pascal_case("hello_world"), "HelloWorld");
+    }
+
+    #[test]
+    fn test_to_pascal_case_mixed_delims() {
+        assert_eq!(to_pascal_case("hello-world_test"), "HelloWorldTest");
+    }
+
+    #[test]
+    fn test_to_pascal_case_empty_str() {
+        assert_eq!(to_pascal_case(""), "");
+    }
+
+    #[test]
+    fn test_to_pascal_case_single_letter() {
+        assert_eq!(to_pascal_case("a"), "A");
+    }
+
+    #[test]
+    fn test_to_pascal_case_already_capitalized() {
+        assert_eq!(to_pascal_case("Hello"), "Hello");
+    }
+
+    // ============ handler_ends_with_exit tests ============
+
+    #[test]
+    fn test_handler_ends_with_exit_exit_call() {
+        use crate::hir::HirStmt;
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "exit".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_sys_exit_call() {
+        use crate::hir::HirStmt;
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "sys.exit".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_sys_exit_method() {
+        use crate::hir::HirStmt;
+        let body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("sys".to_string())),
+            method: "exit".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_no_exit() {
+        use crate::hir::HirStmt;
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        assert!(!handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_empty_body() {
+        let body: Vec<crate::hir::HirStmt> = vec![];
+        assert!(!handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_wrong_method_object() {
+        use crate::hir::HirStmt;
+        let body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("os".to_string())),
+            method: "exit".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        assert!(!handler_ends_with_exit(&body));
+    }
+
+    // ============ handler_contains_raise tests ============
+
+    #[test]
+    fn test_handler_contains_raise_with_raise() {
+        use crate::hir::HirStmt;
+        let body = vec![
+            HirStmt::Expr(HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            HirStmt::Raise {
+                exception: Some(HirExpr::Var("e".to_string())),
+                cause: None,
+            },
+        ];
+        assert!(handler_contains_raise(&body));
+    }
+
+    #[test]
+    fn test_handler_contains_raise_without_raise() {
+        use crate::hir::HirStmt;
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        assert!(!handler_contains_raise(&body));
+    }
+
+    #[test]
+    fn test_handler_contains_raise_empty_body() {
+        let body: Vec<crate::hir::HirStmt> = vec![];
+        assert!(!handler_contains_raise(&body));
+    }
+
+    #[test]
+    fn test_handler_contains_raise_bare_raise() {
+        use crate::hir::HirStmt;
+        let body = vec![HirStmt::Raise {
+            exception: None,
+            cause: None,
+        }];
+        assert!(handler_contains_raise(&body));
+    }
+
+    // ============ is_dict_with_value_type tests ============
+
+    #[test]
+    fn test_is_dict_with_value_type_dict_unknown() {
+        assert!(is_dict_with_value_type(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Unknown)
+        )));
+    }
+
+    #[test]
+    fn test_is_dict_with_value_type_dict_value() {
+        assert!(is_dict_with_value_type(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Custom("Value".to_string()))
+        )));
+    }
+
+    #[test]
+    fn test_is_dict_with_value_type_dict_json_value() {
+        assert!(is_dict_with_value_type(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Custom("serde_json::Value".to_string()))
+        )));
+    }
+
+    #[test]
+    fn test_is_dict_with_value_type_dict_int() {
+        assert!(!is_dict_with_value_type(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int)
+        )));
+    }
+
+    #[test]
+    fn test_is_dict_with_value_type_non_dict_type() {
+        assert!(!is_dict_with_value_type(&Type::Int));
+    }
+
+    // ============ find_var_position_in_tuple tests ============
+
+    #[test]
+    fn test_find_var_position_first() {
+        let targets = vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ];
+        assert_eq!(find_var_position_in_tuple("a", &targets), Some(0));
+    }
+
+    #[test]
+    fn test_find_var_position_second() {
+        let targets = vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ];
+        assert_eq!(find_var_position_in_tuple("b", &targets), Some(1));
+    }
+
+    #[test]
+    fn test_find_var_position_not_found() {
+        let targets = vec![
+            AssignTarget::Symbol("a".to_string()),
+            AssignTarget::Symbol("b".to_string()),
+        ];
+        assert_eq!(find_var_position_in_tuple("c", &targets), None);
+    }
+
+    #[test]
+    fn test_find_var_position_empty() {
+        let targets: Vec<AssignTarget> = vec![];
+        assert_eq!(find_var_position_in_tuple("a", &targets), None);
+    }
+
+    // ============ is_nested_function_recursive additional tests ============
+
+    #[test]
+    fn test_is_nested_function_recursive_via_direct_call() {
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "factorial".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(is_nested_function_recursive("factorial", &body));
+    }
+
+    #[test]
+    fn test_is_nested_function_recursive_via_return() {
+        let body = vec![HirStmt::Return(Some(HirExpr::Call {
+            func: "factorial".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        }))];
+        assert!(is_nested_function_recursive("factorial", &body));
+    }
+
+    #[test]
+    fn test_is_nested_function_recursive_not_found() {
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "other_func".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        assert!(!is_nested_function_recursive("factorial", &body));
+    }
+
+    #[test]
+    fn test_is_nested_function_recursive_with_empty_body() {
+        let body: Vec<HirStmt> = vec![];
+        assert!(!is_nested_function_recursive("anything", &body));
+    }
+
+    // ============ needs_boxed_dyn_write tests ============
+
+    #[test]
+    fn test_needs_boxed_dyn_write_same_type() {
+        // Both branches use open() - same file type, no boxing needed
+        let then_body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("writer".to_string()),
+            value: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("a.txt".to_string()))],
+                kwargs: vec![],
+            },
+            type_annotation: None,
+        }];
+        let else_body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("writer".to_string()),
+            value: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("b.txt".to_string()))],
+                kwargs: vec![],
+            },
+            type_annotation: None,
+        }];
+        // Same type in both branches - no boxing needed
+        assert!(!needs_boxed_dyn_write("writer", &then_body, &else_body));
+    }
+
+    #[test]
+    fn test_needs_boxed_dyn_write_file_vs_stdout() {
+        // One branch uses open() (file), other uses sys.stdout - heterogeneous types
+        let then_body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("writer".to_string()),
+            value: HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Literal(Literal::String("out.txt".to_string()))],
+                kwargs: vec![],
+            },
+            type_annotation: None,
+        }];
+        let else_body = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("writer".to_string()),
+            value: HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("sys".to_string())),
+                attr: "stdout".to_string(),
+            },
+            type_annotation: None,
+        }];
+        // Different types - needs boxing
+        assert!(needs_boxed_dyn_write("writer", &then_body, &else_body));
+    }
+
+    // ============ find_variable_type tests ============
+
+    #[test]
+    fn test_find_variable_type_annotated() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        assert_eq!(find_variable_type("x", &stmts), Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_variable_type_not_found() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("y".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        assert_eq!(find_variable_type("x", &stmts), None);
+    }
+
+    #[test]
+    fn test_find_variable_type_no_annotation() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        }];
+        // Without annotation, function infers from the value (Int literal -> Type::Int)
+        let result = find_variable_type("x", &stmts);
+        assert_eq!(result, Some(Type::Int));
+    }
+
+    // ============ Additional handler tests (not duplicates) ============
+
+    #[test]
+    fn test_handler_ends_with_exit_call_exit_func() {
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "exit".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_call_sys_dot_exit() {
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "sys.exit".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_method_call() {
+        let body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("sys".to_string())),
+            method: "exit".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        })];
+        assert!(handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_not_last() {
+        let body = vec![
+            HirStmt::Expr(HirExpr::Call {
+                func: "exit".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            HirStmt::Expr(HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+        ];
+        assert!(!handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_empty_vec() {
+        let body: Vec<HirStmt> = vec![];
+        assert!(!handler_ends_with_exit(&body));
+    }
+
+    #[test]
+    fn test_handler_ends_with_exit_wrong_object() {
+        let body = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("os".to_string())),
+            method: "exit".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
+        assert!(!handler_ends_with_exit(&body));
+    }
+
+    // ============ handler_contains_raise additional tests ============
+
+    #[test]
+    fn test_handler_contains_raise_with_exception() {
+        let body = vec![HirStmt::Raise {
+            exception: Some(HirExpr::Var("ValueError".to_string())),
+            cause: None,
+        }];
+        assert!(handler_contains_raise(&body));
+    }
+
+    #[test]
+    fn test_handler_contains_raise_bare() {
+        let body = vec![HirStmt::Raise {
+            exception: None,
+            cause: None,
+        }];
+        assert!(handler_contains_raise(&body));
+    }
+
+    #[test]
+    fn test_handler_contains_raise_none() {
+        let body = vec![
+            HirStmt::Expr(HirExpr::Call {
+                func: "print".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+        ];
+        assert!(!handler_contains_raise(&body));
+    }
+
+    // ============ is_dict_with_value_type additional tests ============
+
+    #[test]
+    fn test_is_dict_with_value_type_with_json() {
+        let t = Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Custom("serde_json::Value".to_string())),
+        );
+        assert!(is_dict_with_value_type(&t));
+    }
+
+    #[test]
+    fn test_is_dict_with_value_type_with_unknown() {
+        let t = Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Unknown),
+        );
+        assert!(is_dict_with_value_type(&t));
+    }
+
+    #[test]
+    fn test_is_dict_with_value_type_string() {
+        let t = Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::String),
+        );
+        assert!(!is_dict_with_value_type(&t));
+    }
+
+    #[test]
+    fn test_is_dict_with_value_type_non_dict() {
+        assert!(!is_dict_with_value_type(&Type::String));
+        assert!(!is_dict_with_value_type(&Type::Int));
+        assert!(!is_dict_with_value_type(&Type::List(Box::new(Type::Int))));
+    }
+
+    // ============ is_nested_function_recursive additional edge cases ============
+
+    #[test]
+    fn test_is_nested_recursive_in_binary() {
+        let body = vec![HirStmt::Expr(HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Call {
+                func: "fib".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            right: Box::new(HirExpr::Literal(Literal::Int(1))),
+        })];
+        assert!(is_nested_function_recursive("fib", &body));
+    }
+
+    #[test]
+    fn test_is_nested_recursive_in_if() {
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "recurse".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            })],
+            else_body: None,
+        }];
+        assert!(is_nested_function_recursive("recurse", &body));
+    }
+
+    #[test]
+    fn test_is_nested_recursive_not_found() {
+        let body = vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(42)))];
+        assert!(!is_nested_function_recursive("func", &body));
+    }
+
+    // ============ extract_string_literal edge cases ============
+
+    #[test]
+    fn test_extract_string_literal_success() {
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        assert_eq!(extract_string_literal(&expr), "hello");
+    }
+
+    #[test]
+    fn test_extract_string_literal_empty() {
+        let expr = HirExpr::Literal(Literal::String("".to_string()));
+        assert_eq!(extract_string_literal(&expr), "");
+    }
+
+    #[test]
+    fn test_extract_string_literal_int_and_var() {
+        assert_eq!(extract_string_literal(&HirExpr::Literal(Literal::Int(42))), "");
+        assert_eq!(extract_string_literal(&HirExpr::Var("x".to_string())), "");
+    }
+
+    // ============ extract_kwarg edge cases ============
+
+    #[test]
+    fn test_extract_kwarg_string_success() {
+        let kwargs = vec![("key".to_string(), HirExpr::Literal(Literal::String("value".to_string())))];
+        assert_eq!(extract_kwarg_string(&kwargs, "key"), Some("value".to_string()));
+    }
+
+    #[test]
+    fn test_extract_kwarg_string_missing() {
+        let kwargs = vec![("other".to_string(), HirExpr::Literal(Literal::String("value".to_string())))];
+        assert_eq!(extract_kwarg_string(&kwargs, "key"), None);
+    }
+
+    #[test]
+    fn test_extract_kwarg_bool_true_val() {
+        let kwargs = vec![("flag".to_string(), HirExpr::Var("True".to_string()))];
+        assert_eq!(extract_kwarg_bool(&kwargs, "flag"), Some(true));
+    }
+
+    #[test]
+    fn test_extract_kwarg_bool_false_val() {
+        let kwargs = vec![("flag".to_string(), HirExpr::Var("False".to_string()))];
+        assert_eq!(extract_kwarg_bool(&kwargs, "flag"), Some(false));
+    }
+
+    #[test]
+    fn test_extract_kwarg_bool_missing() {
+        let kwargs: Vec<(String, HirExpr)> = vec![];
+        assert_eq!(extract_kwarg_bool(&kwargs, "flag"), None);
+    }
+
+    // ============ is_file_creating_expr edge cases ============
+
+    #[test]
+    fn test_is_file_creating_via_attribute() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("std".to_string())),
+                attr: "File".to_string(),
+            }),
+            method: "create".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_file_creating_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_file_creating_non_file() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("Buffer".to_string())),
+            method: "create".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_file_creating_expr(&expr));
+    }
+
+    // ============ is_stdio_expr edge cases ============
+
+    #[test]
+    fn test_is_stdio_non_sys() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("os".to_string())),
+            attr: "stdout".to_string(),
+        };
+        assert!(!is_stdio_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_stdio_nested() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Attribute {
+                value: Box::new(HirExpr::Var("sys".to_string())),
+                attr: "io".to_string(),
+            }),
+            attr: "stdout".to_string(),
+        };
+        assert!(!is_stdio_expr(&expr));
+    }
 }
+

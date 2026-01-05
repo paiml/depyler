@@ -10,6 +10,7 @@ use syn::{self, parse_quote};
 // Module declarations for rust_gen refactoring (v3.18.0 Phases 2-7)
 mod argparse_transform;
 mod array_initialization; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
+pub mod binary_ops; // DEPYLER-SPLIT-001: Extracted binary operation handling
 mod builtin_conversions; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
 pub mod numpy_gen; // Phase 3: NumPy→Trueno codegen
 mod collection_constructors; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
@@ -25,8 +26,25 @@ mod stmt_gen;
 mod type_gen;
 
 // Helper modules (v3.21.0)
+pub mod iterator_utils; // DEPYLER-SPLIT-001: Extracted iterator utilities
 mod string_method_helpers;
+pub mod type_coercion; // DEPYLER-SPLIT-001: Extracted type coercion utilities
+pub mod unary_ops; // DEPYLER-SPLIT-002: Extracted unary operation handling
 mod truthiness_helpers;
+pub mod expr_analysis; // PMAT: Extracted expression analysis for 100% unit test coverage
+pub mod var_analysis; // PMAT: Extracted variable analysis for 100% unit test coverage
+pub mod control_flow_analysis; // PMAT: Extracted control flow analysis for 100% unit test coverage
+pub mod string_analysis; // PMAT: Extracted string analysis for 100% unit test coverage
+pub mod walrus_helpers; // DEPYLER-0792: Walrus operator helpers extracted for testability
+pub mod precedence; // DEPYLER-0582: Operator precedence helpers extracted for testability
+pub mod numeric_coercion; // DEPYLER-0582: Numeric type coercion helpers extracted
+pub mod exception_helpers; // DEPYLER-0333: Exception type extraction helpers
+pub mod type_tokens; // DEPYLER-0759: HIR type to token conversion extracted for testability
+pub mod control_stmt_helpers; // DEPYLER-0140: Control statement codegen helpers extracted
+pub mod type_conversion_helpers; // DEPYLER-0455: Type conversion helpers extracted
+pub mod borrowing_helpers; // DEPYLER-COVERAGE-95: Borrowing helpers extracted
+pub mod json_helpers; // DEPYLER-COVERAGE-95: JSON serialization helpers extracted
+pub mod name_heuristics; // DEPYLER-COVERAGE-95: Name-based type heuristics extracted
 
 // Test modules (DEPYLER-QUALITY-002: 95% coverage target)
 #[cfg(test)]
@@ -61,11 +79,12 @@ use error_gen::generate_error_type_definitions;
 use format::format_rust_code;
 use import_gen::process_module_imports;
 #[cfg(test)]
+use control_stmt_helpers::{codegen_break_stmt, codegen_continue_stmt, codegen_pass_stmt};
+#[cfg(test)]
 use stmt_gen::{
     codegen_assign_attribute, codegen_assign_index, codegen_assign_symbol, codegen_assign_tuple,
-    codegen_break_stmt, codegen_continue_stmt, codegen_expr_stmt, codegen_pass_stmt,
-    codegen_raise_stmt, codegen_return_stmt, codegen_try_stmt, codegen_while_stmt,
-    codegen_with_stmt,
+    codegen_expr_stmt, codegen_raise_stmt, codegen_return_stmt, codegen_try_stmt,
+    codegen_while_stmt, codegen_with_stmt,
 };
 
 // Public re-exports for external modules (union_enum_gen, etc.)

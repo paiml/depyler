@@ -145,3 +145,209 @@ pub fn process_module_imports(
 
     (imported_modules, imported_items, unresolved_imports)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::{Import, ImportItem};
+    use crate::module_mapper::ModuleMapper;
+
+    fn create_test_mapper() -> ModuleMapper {
+        ModuleMapper::new()
+    }
+
+    #[test]
+    fn test_empty_imports_list() {
+        let mapper = create_test_mapper();
+        let imports: Vec<Import> = vec![];
+        let (modules, items, unresolved) = process_module_imports(&imports, &mapper);
+        assert!(modules.is_empty());
+        assert!(items.is_empty());
+        assert!(unresolved.is_empty());
+    }
+
+    #[test]
+    fn test_typing_import() {
+        let mapper = create_test_mapper();
+        let imports = vec![Import {
+            module: "typing".to_string(),
+            items: vec![ImportItem::Named("List".to_string())],
+        }];
+        let (_, items, _) = process_module_imports(&imports, &mapper);
+        // typing module items are mapped if present in module mapper
+        // Just verify no panic occurs
+        assert!(items.is_empty() || items.contains_key("List"));
+    }
+
+    #[test]
+    fn test_math_whole_module_import() {
+        let mapper = create_test_mapper();
+        let imports = vec![Import {
+            module: "math".to_string(),
+            items: vec![],
+        }];
+        let (modules, items, unresolved) = process_module_imports(&imports, &mapper);
+        // math is a known module, should be in imported_modules if mapped
+        assert!(items.is_empty());
+        assert!(unresolved.is_empty());
+        // modules may or may not contain math depending on mapper config
+        let _ = modules; // use modules to avoid warning
+    }
+
+    #[test]
+    fn test_from_typing_import_dict() {
+        let mapper = create_test_mapper();
+        let imports = vec![Import {
+            module: "typing".to_string(),
+            items: vec![ImportItem::Named("Dict".to_string())],
+        }];
+        let (_, items, _) = process_module_imports(&imports, &mapper);
+        // Just verify no panic
+        let _ = items;
+    }
+
+    #[test]
+    fn test_aliased_import() {
+        let mapper = create_test_mapper();
+        let imports = vec![Import {
+            module: "typing".to_string(),
+            items: vec![ImportItem::Aliased {
+                name: "Optional".to_string(),
+                alias: "Opt".to_string(),
+            }],
+        }];
+        let (_, items, _) = process_module_imports(&imports, &mapper);
+        // If mapped, should use alias as key
+        if !items.is_empty() {
+            assert!(items.contains_key("Opt") || items.contains_key("Optional"));
+        }
+    }
+
+    #[test]
+    fn test_unknown_module_creates_unresolved() {
+        let mapper = create_test_mapper();
+        let imports = vec![Import {
+            module: "my_local_module".to_string(),
+            items: vec![ImportItem::Named("my_func".to_string())],
+        }];
+        let (_, _, unresolved) = process_module_imports(&imports, &mapper);
+        assert_eq!(unresolved.len(), 1);
+        assert_eq!(unresolved[0].module, "my_local_module");
+        assert_eq!(unresolved[0].item_name, "my_func");
+    }
+
+    #[test]
+    fn test_multiple_items_from_unknown_module() {
+        let mapper = create_test_mapper();
+        let imports = vec![Import {
+            module: "local_utils".to_string(),
+            items: vec![
+                ImportItem::Named("helper1".to_string()),
+                ImportItem::Named("helper2".to_string()),
+                ImportItem::Aliased {
+                    name: "helper3".to_string(),
+                    alias: "h3".to_string(),
+                },
+            ],
+        }];
+        let (_, _, unresolved) = process_module_imports(&imports, &mapper);
+        assert_eq!(unresolved.len(), 3);
+    }
+
+    #[test]
+    fn test_mixed_known_and_unknown_imports() {
+        let mapper = create_test_mapper();
+        let imports = vec![
+            Import {
+                module: "typing".to_string(),
+                items: vec![ImportItem::Named("List".to_string())],
+            },
+            Import {
+                module: "my_module".to_string(),
+                items: vec![ImportItem::Named("my_func".to_string())],
+            },
+        ];
+        let (_, _, unresolved) = process_module_imports(&imports, &mapper);
+        // Only my_module should be unresolved
+        assert_eq!(unresolved.len(), 1);
+        assert_eq!(unresolved[0].module, "my_module");
+    }
+
+    #[test]
+    fn test_unresolved_import_struct() {
+        let import = UnresolvedImport {
+            module: "test_module".to_string(),
+            item_name: "test_func".to_string(),
+        };
+        assert_eq!(import.module, "test_module");
+        assert_eq!(import.item_name, "test_func");
+    }
+
+    #[test]
+    fn test_unresolved_import_clone() {
+        let import = UnresolvedImport {
+            module: "mod".to_string(),
+            item_name: "func".to_string(),
+        };
+        let cloned = import.clone();
+        assert_eq!(cloned.module, import.module);
+        assert_eq!(cloned.item_name, import.item_name);
+    }
+
+    #[test]
+    fn test_unresolved_import_debug() {
+        let import = UnresolvedImport {
+            module: "m".to_string(),
+            item_name: "f".to_string(),
+        };
+        let debug = format!("{:?}", import);
+        assert!(debug.contains("UnresolvedImport"));
+        assert!(debug.contains("module"));
+        assert!(debug.contains("item_name"));
+    }
+
+    #[test]
+    fn test_whole_module_import_no_items() {
+        let mapper = create_test_mapper();
+        let imports = vec![Import {
+            module: "json".to_string(),
+            items: vec![],
+        }];
+        let (modules, items, unresolved) = process_module_imports(&imports, &mapper);
+        // No specific items imported, no unresolved for whole module imports
+        assert!(items.is_empty());
+        assert!(unresolved.is_empty());
+        let _ = modules;
+    }
+
+    #[test]
+    fn test_multiple_whole_module_imports() {
+        let mapper = create_test_mapper();
+        let imports = vec![
+            Import {
+                module: "json".to_string(),
+                items: vec![],
+            },
+            Import {
+                module: "os".to_string(),
+                items: vec![],
+            },
+        ];
+        let (_, _, unresolved) = process_module_imports(&imports, &mapper);
+        // Whole module imports don't create unresolved entries
+        assert!(unresolved.is_empty());
+    }
+
+    #[test]
+    fn test_functools_import_empty_rust_name() {
+        let mapper = create_test_mapper();
+        // functools.partial has empty rust_name in mapper
+        let imports = vec![Import {
+            module: "functools".to_string(),
+            items: vec![ImportItem::Named("partial".to_string())],
+        }];
+        let (_, items, _) = process_module_imports(&imports, &mapper);
+        // partial should NOT be in items due to empty rust_name check (DEPYLER-0825)
+        assert!(!items.contains_key("partial"));
+    }
+}

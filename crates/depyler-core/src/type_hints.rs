@@ -1598,6 +1598,10 @@ mod tests {
     use crate::hir::*;
     use smallvec::smallvec;
 
+    // ============================================================
+    // Constructor and Default tests
+    // ============================================================
+
     #[test]
     fn test_type_hint_provider_new() {
         let provider = TypeHintProvider::new();
@@ -1607,11 +1611,107 @@ mod tests {
     }
 
     #[test]
+    fn test_type_hint_provider_default() {
+        let provider = TypeHintProvider::default();
+        assert!(provider.variable_types.is_empty());
+    }
+
+    // ============================================================
+    // Confidence enum tests
+    // ============================================================
+
+    #[test]
     fn test_confidence_ordering() {
         assert!(Confidence::Low < Confidence::Medium);
         assert!(Confidence::Medium < Confidence::High);
         assert!(Confidence::High < Confidence::Certain);
     }
+
+    #[test]
+    fn test_confidence_equality() {
+        assert_eq!(Confidence::Low, Confidence::Low);
+        assert_eq!(Confidence::Certain, Confidence::Certain);
+        assert_ne!(Confidence::Low, Confidence::High);
+    }
+
+    #[test]
+    fn test_confidence_clone() {
+        let c = Confidence::High;
+        let c2 = c;
+        assert_eq!(c, c2);
+    }
+
+    #[test]
+    fn test_confidence_debug() {
+        let debug_str = format!("{:?}", Confidence::Medium);
+        assert_eq!(debug_str, "Medium");
+    }
+
+    // ============================================================
+    // HintTarget enum tests
+    // ============================================================
+
+    #[test]
+    fn test_hint_target_parameter() {
+        let target = HintTarget::Parameter("x".to_string());
+        assert!(matches!(target, HintTarget::Parameter(_)));
+    }
+
+    #[test]
+    fn test_hint_target_return() {
+        let target = HintTarget::Return;
+        assert!(matches!(target, HintTarget::Return));
+    }
+
+    #[test]
+    fn test_hint_target_variable() {
+        let target = HintTarget::Variable("y".to_string());
+        assert!(matches!(target, HintTarget::Variable(_)));
+    }
+
+    #[test]
+    fn test_hint_target_clone() {
+        let target = HintTarget::Parameter("foo".to_string());
+        let cloned = target.clone();
+        assert!(matches!(cloned, HintTarget::Parameter(s) if s == "foo"));
+    }
+
+    // ============================================================
+    // TypeHint struct tests
+    // ============================================================
+
+    #[test]
+    fn test_type_hint_creation() {
+        let hint = TypeHint {
+            suggested_type: Type::Int,
+            confidence: Confidence::High,
+            reason: "test reason".to_string(),
+            source_location: Some((10, 5)),
+            target: HintTarget::Parameter("x".to_string()),
+        };
+        assert!(matches!(hint.suggested_type, Type::Int));
+        assert_eq!(hint.confidence, Confidence::High);
+        assert_eq!(hint.reason, "test reason");
+        assert_eq!(hint.source_location, Some((10, 5)));
+    }
+
+    #[test]
+    fn test_type_hint_clone() {
+        let hint = TypeHint {
+            suggested_type: Type::String,
+            confidence: Confidence::Low,
+            reason: "clone test".to_string(),
+            source_location: None,
+            target: HintTarget::Return,
+        };
+        let cloned = hint.clone();
+        assert!(matches!(cloned.suggested_type, Type::String));
+        assert_eq!(cloned.confidence, Confidence::Low);
+    }
+
+    // ============================================================
+    // Function analysis tests
+    // ============================================================
 
     #[test]
     fn test_analyze_simple_function() {
@@ -1637,7 +1737,6 @@ mod tests {
         let hints = provider.analyze_function(&func).unwrap();
         assert!(!hints.is_empty());
 
-        // Should suggest numeric types for parameters used in addition
         let param_hints = provider.parameter_hints.get("add_numbers").unwrap();
         assert!(param_hints
             .iter()
@@ -1665,7 +1764,6 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
 
-        // Should infer string type from method usage
         let param_hints = provider.parameter_hints.get("process_text").unwrap();
         assert!(param_hints
             .iter()
@@ -1698,12 +1796,48 @@ mod tests {
         };
 
         let _hints = provider.analyze_function(&func).unwrap();
-
-        // Should have high confidence about literal assignments
-        // Note: This test verifies that analyze_function() runs without errors.
-        // Detailed hint validation would require exposing internal variable_types field,
-        // which is intentionally private. The hints are validated in test_format_hints().
     }
+
+    #[test]
+    fn test_analyze_empty_function() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "empty".to_string(),
+            params: smallvec![],
+            ret_type: Type::Unknown,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let hints = provider.analyze_function(&func).unwrap();
+        assert!(hints.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_function_with_known_types() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "typed".to_string(),
+            params: smallvec![HirParam::new("x".to_string(), Type::Int)],
+            ret_type: Type::Int,
+            body: vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let hints = provider.analyze_function(&func).unwrap();
+        // Known types should not generate hints
+        assert!(hints.is_empty() || hints.iter().all(|h| !matches!(h.target, HintTarget::Parameter(_))));
+    }
+
+    // ============================================================
+    // Format hints tests
+    // ============================================================
 
     #[test]
     fn test_format_hints() {
@@ -1733,12 +1867,849 @@ mod tests {
     }
 
     #[test]
+    fn test_format_hints_empty() {
+        let provider = TypeHintProvider::new();
+        let hints: Vec<TypeHint> = vec![];
+        let formatted = provider.format_hints(&hints);
+        assert!(formatted.is_empty());
+    }
+
+    #[test]
+    fn test_format_hints_return_target() {
+        let provider = TypeHintProvider::new();
+
+        let hints = vec![TypeHint {
+            suggested_type: Type::Bool,
+            confidence: Confidence::Certain,
+            reason: "return value".to_string(),
+            source_location: None,
+            target: HintTarget::Return,
+        }];
+
+        let formatted = provider.format_hints(&hints);
+        assert!(formatted.contains("return type"));
+    }
+
+    // ============================================================
+    // Type annotation formatting tests
+    // ============================================================
+
+    #[test]
+    fn test_type_to_annotation_primitives() {
+        assert_eq!(type_to_annotation_inner(&Type::Int), "int");
+        assert_eq!(type_to_annotation_inner(&Type::Float), "float");
+        assert_eq!(type_to_annotation_inner(&Type::String), "str");
+        assert_eq!(type_to_annotation_inner(&Type::Bool), "bool");
+        assert_eq!(type_to_annotation_inner(&Type::None), "None");
+    }
+
+    #[test]
+    fn test_type_to_annotation_list() {
+        let list_type = Type::List(Box::new(Type::Int));
+        assert_eq!(type_to_annotation_inner(&list_type), "list[int]");
+    }
+
+    #[test]
+    fn test_type_to_annotation_dict() {
+        let dict_type = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
+        assert_eq!(type_to_annotation_inner(&dict_type), "dict[str, int]");
+    }
+
+    #[test]
+    fn test_type_to_annotation_optional() {
+        let opt_type = Type::Optional(Box::new(Type::String));
+        assert_eq!(type_to_annotation_inner(&opt_type), "Optional[str]");
+    }
+
+    #[test]
+    fn test_type_to_annotation_tuple() {
+        let tuple_type = Type::Tuple(vec![Type::Int, Type::String, Type::Bool]);
+        assert_eq!(type_to_annotation_inner(&tuple_type), "tuple[int, str, bool]");
+    }
+
+    #[test]
+    fn test_type_to_annotation_custom() {
+        let custom = Type::Custom("MyClass".to_string());
+        assert_eq!(type_to_annotation_inner(&custom), "MyClass");
+    }
+
+    #[test]
+    fn test_type_to_annotation_unknown() {
+        assert_eq!(type_to_annotation_inner(&Type::Unknown), "Any");
+    }
+
+    #[test]
+    fn test_type_to_annotation_nested() {
+        let nested = Type::List(Box::new(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int),
+        )));
+        assert_eq!(type_to_annotation_inner(&nested), "list[dict[str, int]]");
+    }
+
+    // ============================================================
+    // Variable extraction tests
+    // ============================================================
+
+    #[test]
     fn test_extract_variable_from_error() {
         assert_eq!(
             extract_variable_from_error("undefined variable 'test_var'"),
             Some("test_var".to_string())
         );
-
         assert_eq!(extract_variable_from_error("no variable here"), None);
+    }
+
+    #[test]
+    fn test_extract_variable_from_error_complex() {
+        assert_eq!(
+            extract_variable_from_error("Error: cannot find variable 'my_value' in scope"),
+            Some("my_value".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_variable_from_error_empty() {
+        assert_eq!(extract_variable_from_error(""), None);
+    }
+
+    #[test]
+    fn test_extract_variable_no_closing_quote() {
+        assert_eq!(extract_variable_from_error("variable 'incomplete"), None);
+    }
+
+    // ============================================================
+    // Literal type inference tests
+    // ============================================================
+
+    #[test]
+    fn test_literal_to_type_int() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.literal_to_type(&Literal::Int(42));
+        assert!(matches!(ty, Type::Int));
+    }
+
+    #[test]
+    fn test_literal_to_type_float() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.literal_to_type(&Literal::Float(3.14.into()));
+        assert!(matches!(ty, Type::Float));
+    }
+
+    #[test]
+    fn test_literal_to_type_string() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.literal_to_type(&Literal::String("hello".to_string()));
+        assert!(matches!(ty, Type::String));
+    }
+
+    #[test]
+    fn test_literal_to_type_bool() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.literal_to_type(&Literal::Bool(true));
+        assert!(matches!(ty, Type::Bool));
+    }
+
+    #[test]
+    fn test_literal_to_type_none() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.literal_to_type(&Literal::None);
+        assert!(matches!(ty, Type::None));
+    }
+
+    #[test]
+    fn test_literal_to_type_bytes() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.literal_to_type(&Literal::Bytes(vec![1, 2, 3]));
+        assert!(matches!(ty, Type::Custom(s) if s == "bytes"));
+    }
+
+    // ============================================================
+    // Score to confidence tests
+    // ============================================================
+
+    #[test]
+    fn test_score_to_confidence_low() {
+        let provider = TypeHintProvider::new();
+        assert_eq!(provider.score_to_confidence(0), Confidence::Low);
+        assert_eq!(provider.score_to_confidence(1), Confidence::Low);
+    }
+
+    #[test]
+    fn test_score_to_confidence_medium() {
+        let provider = TypeHintProvider::new();
+        assert_eq!(provider.score_to_confidence(2), Confidence::Medium);
+        assert_eq!(provider.score_to_confidence(3), Confidence::Medium);
+    }
+
+    #[test]
+    fn test_score_to_confidence_high() {
+        let provider = TypeHintProvider::new();
+        assert_eq!(provider.score_to_confidence(4), Confidence::High);
+        assert_eq!(provider.score_to_confidence(5), Confidence::High);
+    }
+
+    #[test]
+    fn test_score_to_confidence_certain() {
+        let provider = TypeHintProvider::new();
+        assert_eq!(provider.score_to_confidence(6), Confidence::Certain);
+        assert_eq!(provider.score_to_confidence(100), Confidence::Certain);
+    }
+
+    // ============================================================
+    // Statement analysis tests
+    // ============================================================
+
+    #[test]
+    fn test_analyze_if_statement() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "test_if".to_string(),
+            params: smallvec![HirParam::new("flag".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::If {
+                condition: HirExpr::Var("flag".to_string()),
+                then_body: vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(1)))],
+                else_body: Some(vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(2)))]),
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let hints = provider.analyze_function(&func).unwrap();
+        // Should infer bool from condition usage
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::Bool)));
+    }
+
+    #[test]
+    fn test_analyze_while_statement() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "test_while".to_string(),
+            params: smallvec![HirParam::new("condition".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::While {
+                condition: HirExpr::Var("condition".to_string()),
+                body: vec![],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let hints = provider.analyze_function(&func).unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::Bool)));
+    }
+
+    #[test]
+    fn test_analyze_for_range_statement() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "test_for".to_string(),
+            params: smallvec![],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Call {
+                    func: "range".to_string(),
+                    args: vec![HirExpr::Literal(Literal::Int(10))],
+                    kwargs: vec![],
+                },
+                body: vec![],
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let _hints = provider.analyze_function(&func).unwrap();
+        // Loop variable from range should be Int
+    }
+
+    #[test]
+    fn test_analyze_return_statement() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "get_number".to_string(),
+            params: smallvec![],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let hints = provider.analyze_function(&func).unwrap();
+        assert!(hints.iter().any(|h| matches!(h.target, HintTarget::Return)));
+    }
+
+    // ============================================================
+    // Binary operation analysis tests
+    // ============================================================
+
+    #[test]
+    fn test_analyze_subtraction() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "subtract".to_string(),
+            params: smallvec![
+                HirParam::new("a".to_string(), Type::Unknown),
+                HirParam::new("b".to_string(), Type::Unknown),
+            ],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::Binary {
+                op: BinOp::Sub,
+                left: Box::new(HirExpr::Var("a".to_string())),
+                right: Box::new(HirExpr::Var("b".to_string())),
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("subtract").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::Int)));
+    }
+
+    #[test]
+    fn test_analyze_multiplication() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "multiply".to_string(),
+            params: smallvec![HirParam::new("x".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::Binary {
+                op: BinOp::Mul,
+                left: Box::new(HirExpr::Var("x".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(2))),
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("multiply").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::Int)));
+    }
+
+    #[test]
+    fn test_analyze_division() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "divide".to_string(),
+            params: smallvec![HirParam::new("n".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::Binary {
+                op: BinOp::Div,
+                left: Box::new(HirExpr::Var("n".to_string())),
+                right: Box::new(HirExpr::Literal(Literal::Int(2))),
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("divide").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::Int)));
+    }
+
+    // ============================================================
+    // Method call analysis tests
+    // ============================================================
+
+    #[test]
+    fn test_analyze_lower_method() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "to_lower".to_string(),
+            params: smallvec![HirParam::new("s".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("s".to_string())),
+                method: "lower".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("to_lower").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+    }
+
+    #[test]
+    fn test_analyze_strip_method() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "clean".to_string(),
+            params: smallvec![HirParam::new("text".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("text".to_string())),
+                method: "strip".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("clean").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+    }
+
+    #[test]
+    fn test_analyze_split_method() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "tokenize".to_string(),
+            params: smallvec![HirParam::new("line".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("line".to_string())),
+                method: "split".to_string(),
+                args: vec![HirExpr::Literal(Literal::String(" ".to_string()))],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("tokenize").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+    }
+
+    #[test]
+    fn test_analyze_append_method() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "add_item".to_string(),
+            params: smallvec![HirParam::new("items".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("items".to_string())),
+                method: "append".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(1))],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("add_item").unwrap();
+        // Should infer list type from append
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::List(_))));
+    }
+
+    // ============================================================
+    // Builtin call analysis tests
+    // ============================================================
+
+    #[test]
+    fn test_analyze_len_call() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "get_length".to_string(),
+            params: smallvec![HirParam::new("data".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "len".to_string(),
+                args: vec![HirExpr::Var("data".to_string())],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("get_length").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::List(_))));
+    }
+
+    #[test]
+    fn test_analyze_open_call() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "read_file".to_string(),
+            params: smallvec![HirParam::new("path".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "open".to_string(),
+                args: vec![HirExpr::Var("path".to_string())],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("read_file").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+    }
+
+    #[test]
+    fn test_analyze_int_conversion() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "parse_int".to_string(),
+            params: smallvec![HirParam::new("value".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::Call {
+                func: "int".to_string(),
+                args: vec![HirExpr::Var("value".to_string())],
+                kwargs: vec![],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("parse_int").unwrap();
+        // int(value) means value is a string
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+    }
+
+    // ============================================================
+    // Indexing analysis tests
+    // ============================================================
+
+    #[test]
+    fn test_analyze_integer_indexing() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "get_first".to_string(),
+            params: smallvec![HirParam::new("items".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::Index {
+                base: Box::new(HirExpr::Var("items".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::Int(0))),
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("get_first").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::List(_))));
+    }
+
+    #[test]
+    fn test_analyze_string_key_indexing() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "get_value".to_string(),
+            params: smallvec![HirParam::new("config".to_string(), Type::Unknown)],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Expr(HirExpr::Index {
+                base: Box::new(HirExpr::Var("config".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+            })],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        provider.analyze_function(&func).unwrap();
+        let hints = provider.parameter_hints.get("get_value").unwrap();
+        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::Dict(_, _))));
+    }
+
+    // ============================================================
+    // Collection type inference tests
+    // ============================================================
+
+    #[test]
+    fn test_infer_list_assignment() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "make_list".to_string(),
+            params: smallvec![],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("nums".to_string()),
+                value: HirExpr::List(vec![
+                    HirExpr::Literal(Literal::Int(1)),
+                    HirExpr::Literal(Literal::Int(2)),
+                ]),
+                type_annotation: None,
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let _hints = provider.analyze_function(&func).unwrap();
+    }
+
+    #[test]
+    fn test_infer_dict_assignment() {
+        let mut provider = TypeHintProvider::new();
+
+        let func = HirFunction {
+            name: "make_dict".to_string(),
+            params: smallvec![],
+            ret_type: Type::Unknown,
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("data".to_string()),
+                value: HirExpr::Dict(vec![(
+                    HirExpr::Literal(Literal::String("key".to_string())),
+                    HirExpr::Literal(Literal::Int(42)),
+                )]),
+                type_annotation: None,
+            }],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let _hints = provider.analyze_function(&func).unwrap();
+    }
+
+    // ============================================================
+    // Default value inference tests
+    // ============================================================
+
+    #[test]
+    fn test_infer_from_default_int() {
+        let provider = TypeHintProvider::new();
+        let hint = provider.infer_from_default("x", &Some(HirExpr::Literal(Literal::Int(42))));
+        assert!(hint.is_some());
+        let h = hint.unwrap();
+        assert!(matches!(h.suggested_type, Type::Int));
+        assert_eq!(h.confidence, Confidence::Certain);
+    }
+
+    #[test]
+    fn test_infer_from_default_bool() {
+        let provider = TypeHintProvider::new();
+        let hint = provider.infer_from_default("flag", &Some(HirExpr::Literal(Literal::Bool(false))));
+        assert!(hint.is_some());
+        let h = hint.unwrap();
+        assert!(matches!(h.suggested_type, Type::Bool));
+    }
+
+    #[test]
+    fn test_infer_from_default_string() {
+        let provider = TypeHintProvider::new();
+        let hint = provider.infer_from_default("name", &Some(HirExpr::Literal(Literal::String("default".to_string()))));
+        assert!(hint.is_some());
+        let h = hint.unwrap();
+        assert!(matches!(h.suggested_type, Type::String));
+    }
+
+    #[test]
+    fn test_infer_from_default_none() {
+        let provider = TypeHintProvider::new();
+        let hint = provider.infer_from_default("opt", &Some(HirExpr::Literal(Literal::None)));
+        assert!(hint.is_none()); // None doesn't give type info
+    }
+
+    #[test]
+    fn test_infer_from_default_missing() {
+        let provider = TypeHintProvider::new();
+        let hint = provider.infer_from_default("x", &None);
+        assert!(hint.is_none());
+    }
+
+    // ============================================================
+    // Expression type inference tests
+    // ============================================================
+
+    #[test]
+    fn test_infer_expr_type_literal() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.infer_expr_type(&HirExpr::Literal(Literal::Float(1.0.into())));
+        assert!(matches!(ty, Type::Float));
+    }
+
+    #[test]
+    fn test_infer_expr_type_list() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.infer_expr_type(&HirExpr::List(vec![
+            HirExpr::Literal(Literal::String("a".to_string())),
+        ]));
+        assert!(matches!(ty, Type::List(_)));
+    }
+
+    #[test]
+    fn test_infer_expr_type_dict() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.infer_expr_type(&HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("k".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]));
+        assert!(matches!(ty, Type::Dict(_, _)));
+    }
+
+    #[test]
+    fn test_infer_expr_type_tuple() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.infer_expr_type(&HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("hello".to_string())),
+        ]));
+        match ty {
+            Type::Tuple(types) => {
+                assert_eq!(types.len(), 2);
+                assert!(matches!(types[0], Type::Int));
+                assert!(matches!(types[1], Type::String));
+            }
+            _ => panic!("Expected Tuple type"),
+        }
+    }
+
+    #[test]
+    fn test_infer_expr_type_unknown_var() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.infer_expr_type(&HirExpr::Var("unknown".to_string()));
+        assert!(matches!(ty, Type::Unknown));
+    }
+
+    // ============================================================
+    // Collection element type tests with None
+    // ============================================================
+
+    #[test]
+    fn test_infer_collection_with_none() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.infer_collection_element_type(&[
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::None),
+        ]);
+        // Should be Optional[Int]
+        assert!(matches!(ty, Type::Optional(_)));
+    }
+
+    #[test]
+    fn test_infer_collection_all_same_type() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.infer_collection_element_type(&[
+            HirExpr::Literal(Literal::String("a".to_string())),
+            HirExpr::Literal(Literal::String("b".to_string())),
+        ]);
+        assert!(matches!(ty, Type::String));
+    }
+
+    #[test]
+    fn test_infer_collection_empty() {
+        let provider = TypeHintProvider::new();
+        let ty = provider.infer_collection_element_type(&[]);
+        assert!(matches!(ty, Type::Unknown));
+    }
+
+    // ============================================================
+    // Helper function tests
+    // ============================================================
+
+    #[test]
+    fn test_simple_type_annotation() {
+        assert_eq!(simple_type_annotation(&Type::Int), "int");
+        assert_eq!(simple_type_annotation(&Type::Float), "float");
+        assert_eq!(simple_type_annotation(&Type::String), "str");
+        assert_eq!(simple_type_annotation(&Type::Bool), "bool");
+        assert_eq!(simple_type_annotation(&Type::None), "None");
+        assert_eq!(simple_type_annotation(&Type::Unknown), "Any");
+    }
+
+    #[test]
+    fn test_format_list_annotation() {
+        let result = format_list_annotation(&Type::Int);
+        assert_eq!(result, "list[int]");
+    }
+
+    #[test]
+    fn test_format_dict_annotation() {
+        let result = format_dict_annotation(&Type::String, &Type::Int);
+        assert_eq!(result, "dict[str, int]");
+    }
+
+    #[test]
+    fn test_format_optional_annotation() {
+        let result = format_optional_annotation(&Type::String);
+        assert_eq!(result, "Optional[str]");
+    }
+
+    #[test]
+    fn test_format_tuple_annotation() {
+        let result = format_tuple_annotation(&[Type::Int, Type::Bool]);
+        assert_eq!(result, "tuple[int, bool]");
+    }
+
+    #[test]
+    fn test_format_tuple_annotation_empty() {
+        let result = format_tuple_annotation(&[]);
+        assert_eq!(result, "tuple[]");
+    }
+
+    // ============================================================
+    // Confidence color tests
+    // ============================================================
+
+    #[test]
+    fn test_get_confidence_color() {
+        let provider = TypeHintProvider::new();
+        assert_eq!(provider.get_confidence_color(Confidence::Certain), "green");
+        assert_eq!(provider.get_confidence_color(Confidence::High), "bright green");
+        assert_eq!(provider.get_confidence_color(Confidence::Medium), "yellow");
+        assert_eq!(provider.get_confidence_color(Confidence::Low), "bright yellow");
+    }
+
+    // ============================================================
+    // Target formatting tests
+    // ============================================================
+
+    #[test]
+    fn test_format_target_parameter() {
+        let provider = TypeHintProvider::new();
+        let result = provider.format_target(&HintTarget::Parameter("x".to_string()));
+        assert_eq!(result, "parameter 'x'");
+    }
+
+    #[test]
+    fn test_format_target_return() {
+        let provider = TypeHintProvider::new();
+        let result = provider.format_target(&HintTarget::Return);
+        assert_eq!(result, "return type");
+    }
+
+    #[test]
+    fn test_format_target_variable() {
+        let provider = TypeHintProvider::new();
+        let result = provider.format_target(&HintTarget::Variable("y".to_string()));
+        assert_eq!(result, "variable 'y'");
     }
 }

@@ -2788,7 +2788,7 @@ roadmap:
   priority: medium
   assigned_to: null
   created: 2025-12-12T12:06:56.478796900+00:00
-  updated: 2026-01-02T19:07:58.835130266+00:00
+  updated: 2026-01-05T08:37:18.277213901+00:00
   spec: null
   acceptance_criteria: []
   phases: []
@@ -3029,6 +3029,38 @@ roadmap:
   assigned_to: null
   created: 2026-01-03T09:56:20.446113694+00:00
   updated: 2026-01-03T09:56:20.446113694+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-SPLIT-001
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-SPLIT-001'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-04T14:40:38.711509771+00:00
+  updated: 2026-01-04T14:40:38.711509771+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-SPLIT-002
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-SPLIT-002'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-04T14:56:27.244289903+00:00
+  updated: 2026-01-04T14:56:27.244289903+00:00
   spec: null
   acceptance_criteria: []
   phases: []
