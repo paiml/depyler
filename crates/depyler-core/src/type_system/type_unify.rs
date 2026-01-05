@@ -779,6 +779,333 @@ pub fn unify_module_types(module: &mut HirModule) -> Result<(), UnifyError> {
 mod tests {
     use super::*;
 
+    // =========================================================================
+    // TypeVar tests
+    // =========================================================================
+
+    #[test]
+    fn test_type_var_creation() {
+        let tv = TypeVar(0);
+        assert_eq!(tv.0, 0);
+    }
+
+    #[test]
+    fn test_type_var_equality() {
+        let tv1 = TypeVar(5);
+        let tv2 = TypeVar(5);
+        let tv3 = TypeVar(10);
+        assert_eq!(tv1, tv2);
+        assert_ne!(tv1, tv3);
+    }
+
+    #[test]
+    fn test_type_var_clone() {
+        let tv = TypeVar(42);
+        let cloned = tv;
+        assert_eq!(tv, cloned);
+    }
+
+    #[test]
+    fn test_type_var_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(TypeVar(1));
+        set.insert(TypeVar(2));
+        set.insert(TypeVar(1)); // duplicate
+        assert_eq!(set.len(), 2);
+    }
+
+    // =========================================================================
+    // NodeId tests
+    // =========================================================================
+
+    #[test]
+    fn test_node_id_creation() {
+        let n = NodeId(0);
+        assert_eq!(n.0, 0);
+    }
+
+    #[test]
+    fn test_node_id_equality() {
+        let n1 = NodeId(5);
+        let n2 = NodeId(5);
+        let n3 = NodeId(10);
+        assert_eq!(n1, n2);
+        assert_ne!(n1, n3);
+    }
+
+    #[test]
+    fn test_node_id_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(NodeId(1));
+        set.insert(NodeId(2));
+        assert_eq!(set.len(), 2);
+    }
+
+    // =========================================================================
+    // ConcreteType tests
+    // =========================================================================
+
+    #[test]
+    fn test_concrete_type_i32() {
+        let t = ConcreteType::I32;
+        assert_eq!(t, ConcreteType::I32);
+    }
+
+    #[test]
+    fn test_concrete_type_i64() {
+        let t = ConcreteType::I64;
+        assert_eq!(t, ConcreteType::I64);
+    }
+
+    #[test]
+    fn test_concrete_type_f32() {
+        let t = ConcreteType::F32;
+        assert_eq!(t, ConcreteType::F32);
+    }
+
+    #[test]
+    fn test_concrete_type_f64() {
+        let t = ConcreteType::F64;
+        assert_eq!(t, ConcreteType::F64);
+    }
+
+    #[test]
+    fn test_concrete_type_bool() {
+        let t = ConcreteType::Bool;
+        assert_eq!(t, ConcreteType::Bool);
+    }
+
+    #[test]
+    fn test_concrete_type_string() {
+        let t = ConcreteType::String;
+        assert_eq!(t, ConcreteType::String);
+    }
+
+    #[test]
+    fn test_concrete_type_str_ref() {
+        let t = ConcreteType::StrRef;
+        assert_eq!(t, ConcreteType::StrRef);
+    }
+
+    #[test]
+    fn test_concrete_type_unit() {
+        let t = ConcreteType::Unit;
+        assert_eq!(t, ConcreteType::Unit);
+    }
+
+    #[test]
+    fn test_concrete_type_vec() {
+        let t = ConcreteType::Vec(Box::new(ConcreteType::I64));
+        assert!(matches!(t, ConcreteType::Vec(_)));
+    }
+
+    #[test]
+    fn test_concrete_type_option() {
+        let t = ConcreteType::Option(Box::new(ConcreteType::String));
+        assert!(matches!(t, ConcreteType::Option(_)));
+    }
+
+    #[test]
+    fn test_concrete_type_hashmap() {
+        let t = ConcreteType::HashMap(
+            Box::new(ConcreteType::String),
+            Box::new(ConcreteType::I64),
+        );
+        assert!(matches!(t, ConcreteType::HashMap(_, _)));
+    }
+
+    #[test]
+    fn test_concrete_type_unknown() {
+        let t = ConcreteType::Unknown;
+        assert_eq!(t, ConcreteType::Unknown);
+    }
+
+    #[test]
+    fn test_concrete_type_clone() {
+        let t = ConcreteType::Vec(Box::new(ConcreteType::Bool));
+        let cloned = t.clone();
+        assert_eq!(t, cloned);
+    }
+
+    // =========================================================================
+    // ConcreteType::from_hir_type tests
+    // =========================================================================
+
+    #[test]
+    fn test_from_hir_type_int() {
+        let ct = ConcreteType::from_hir_type(&Type::Int);
+        assert_eq!(ct, ConcreteType::I64);
+    }
+
+    #[test]
+    fn test_from_hir_type_float() {
+        let ct = ConcreteType::from_hir_type(&Type::Float);
+        assert_eq!(ct, ConcreteType::F64);
+    }
+
+    #[test]
+    fn test_from_hir_type_bool() {
+        let ct = ConcreteType::from_hir_type(&Type::Bool);
+        assert_eq!(ct, ConcreteType::Bool);
+    }
+
+    #[test]
+    fn test_from_hir_type_string() {
+        let ct = ConcreteType::from_hir_type(&Type::String);
+        assert_eq!(ct, ConcreteType::String);
+    }
+
+    #[test]
+    fn test_from_hir_type_none() {
+        let ct = ConcreteType::from_hir_type(&Type::None);
+        assert_eq!(ct, ConcreteType::Unit);
+    }
+
+    #[test]
+    fn test_from_hir_type_list() {
+        let ct = ConcreteType::from_hir_type(&Type::List(Box::new(Type::Int)));
+        assert!(matches!(ct, ConcreteType::Vec(_)));
+    }
+
+    #[test]
+    fn test_from_hir_type_optional() {
+        let ct = ConcreteType::from_hir_type(&Type::Optional(Box::new(Type::String)));
+        assert!(matches!(ct, ConcreteType::Option(_)));
+    }
+
+    #[test]
+    fn test_from_hir_type_dict() {
+        let ct = ConcreteType::from_hir_type(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int),
+        ));
+        assert!(matches!(ct, ConcreteType::HashMap(_, _)));
+    }
+
+    #[test]
+    fn test_from_hir_type_unknown() {
+        let ct = ConcreteType::from_hir_type(&Type::Unknown);
+        assert_eq!(ct, ConcreteType::Unknown);
+    }
+
+    // =========================================================================
+    // ConcreteType::to_hir_type tests
+    // =========================================================================
+
+    #[test]
+    fn test_to_hir_type_i32() {
+        let ht = ConcreteType::I32.to_hir_type();
+        assert_eq!(ht, Type::Int);
+    }
+
+    #[test]
+    fn test_to_hir_type_i64() {
+        let ht = ConcreteType::I64.to_hir_type();
+        assert_eq!(ht, Type::Int);
+    }
+
+    #[test]
+    fn test_to_hir_type_f32() {
+        let ht = ConcreteType::F32.to_hir_type();
+        assert_eq!(ht, Type::Float);
+    }
+
+    #[test]
+    fn test_to_hir_type_f64() {
+        let ht = ConcreteType::F64.to_hir_type();
+        assert_eq!(ht, Type::Float);
+    }
+
+    #[test]
+    fn test_to_hir_type_bool() {
+        let ht = ConcreteType::Bool.to_hir_type();
+        assert_eq!(ht, Type::Bool);
+    }
+
+    #[test]
+    fn test_to_hir_type_string() {
+        let ht = ConcreteType::String.to_hir_type();
+        assert_eq!(ht, Type::String);
+    }
+
+    #[test]
+    fn test_to_hir_type_str_ref() {
+        let ht = ConcreteType::StrRef.to_hir_type();
+        assert_eq!(ht, Type::String);
+    }
+
+    #[test]
+    fn test_to_hir_type_unit() {
+        let ht = ConcreteType::Unit.to_hir_type();
+        assert_eq!(ht, Type::None);
+    }
+
+    #[test]
+    fn test_to_hir_type_vec() {
+        let ht = ConcreteType::Vec(Box::new(ConcreteType::I64)).to_hir_type();
+        assert!(matches!(ht, Type::List(_)));
+    }
+
+    #[test]
+    fn test_to_hir_type_option() {
+        let ht = ConcreteType::Option(Box::new(ConcreteType::String)).to_hir_type();
+        assert!(matches!(ht, Type::Optional(_)));
+    }
+
+    #[test]
+    fn test_to_hir_type_hashmap() {
+        let ht = ConcreteType::HashMap(
+            Box::new(ConcreteType::String),
+            Box::new(ConcreteType::I64),
+        ).to_hir_type();
+        assert!(matches!(ht, Type::Dict(_, _)));
+    }
+
+    #[test]
+    fn test_to_hir_type_unknown() {
+        let ht = ConcreteType::Unknown.to_hir_type();
+        assert_eq!(ht, Type::Unknown);
+    }
+
+    // =========================================================================
+    // Constraint tests
+    // =========================================================================
+
+    #[test]
+    fn test_constraint_equal() {
+        let c = Constraint::Equal(TypeVar(0), TypeVar(1));
+        assert!(matches!(c, Constraint::Equal(_, _)));
+    }
+
+    #[test]
+    fn test_constraint_assign() {
+        let c = Constraint::Assign(TypeVar(0), ConcreteType::I64);
+        assert!(matches!(c, Constraint::Assign(_, _)));
+    }
+
+    #[test]
+    fn test_constraint_call() {
+        let c = Constraint::Call {
+            callee: "foo".to_string(),
+            args: vec![TypeVar(0), TypeVar(1)],
+            ret: TypeVar(2),
+        };
+        assert!(matches!(c, Constraint::Call { .. }));
+    }
+
+    #[test]
+    fn test_constraint_clone() {
+        let c = Constraint::Assign(TypeVar(5), ConcreteType::Bool);
+        let cloned = c.clone();
+        assert!(matches!(cloned, Constraint::Assign(_, _)));
+    }
+
+    // =========================================================================
+    // CallGraph tests
+    // =========================================================================
+
     #[test]
     fn test_call_graph_basic() {
         let mut cg = CallGraph::new();
@@ -791,6 +1118,96 @@ mod tests {
     }
 
     #[test]
+    fn test_call_graph_new() {
+        let cg = CallGraph::new();
+        assert!(cg.fn_to_node.is_empty());
+        assert!(cg.node_to_fn.is_empty());
+    }
+
+    #[test]
+    fn test_call_graph_add_function() {
+        let mut cg = CallGraph::new();
+        let id = cg.add_function("test");
+        assert_eq!(id.0, 0);
+        assert!(cg.fn_to_node.contains_key("test"));
+    }
+
+    #[test]
+    fn test_call_graph_add_same_function_twice() {
+        let mut cg = CallGraph::new();
+        let id1 = cg.add_function("test");
+        let id2 = cg.add_function("test");
+        assert_eq!(id1, id2);
+    }
+
+    #[test]
+    fn test_call_graph_add_multiple_functions() {
+        let mut cg = CallGraph::new();
+        let a = cg.add_function("a");
+        let b = cg.add_function("b");
+        let c = cg.add_function("c");
+        assert_ne!(a, b);
+        assert_ne!(b, c);
+        assert_eq!(cg.fn_to_node.len(), 3);
+    }
+
+    #[test]
+    fn test_call_graph_add_call_no_duplicates() {
+        let mut cg = CallGraph::new();
+        let a = cg.add_function("a");
+        let b = cg.add_function("b");
+        cg.add_call(a, b);
+        cg.add_call(a, b); // duplicate
+        assert_eq!(cg.callees(a).len(), 1);
+    }
+
+    #[test]
+    fn test_call_graph_callees_empty() {
+        let mut cg = CallGraph::new();
+        let a = cg.add_function("a");
+        assert!(cg.callees(a).is_empty());
+    }
+
+    #[test]
+    fn test_call_graph_callers_empty() {
+        let mut cg = CallGraph::new();
+        let a = cg.add_function("a");
+        assert!(cg.callers(a).is_empty());
+    }
+
+    #[test]
+    fn test_call_graph_topological_order_empty() {
+        let cg = CallGraph::new();
+        let order = cg.topological_order();
+        assert!(order.is_empty());
+    }
+
+    #[test]
+    fn test_call_graph_topological_order_single() {
+        let mut cg = CallGraph::new();
+        let a = cg.add_function("a");
+        let order = cg.topological_order();
+        assert_eq!(order.len(), 1);
+        assert_eq!(order[0], a);
+    }
+
+    #[test]
+    fn test_call_graph_topological_order_chain() {
+        let mut cg = CallGraph::new();
+        let a = cg.add_function("a");
+        let b = cg.add_function("b");
+        let c = cg.add_function("c");
+        cg.add_call(a, b);
+        cg.add_call(b, c);
+        let order = cg.topological_order();
+        assert_eq!(order.len(), 3);
+    }
+
+    // =========================================================================
+    // UnionFind tests
+    // =========================================================================
+
+    #[test]
     fn test_union_find_basic() {
         let mut uf = UnionFind::new(10);
         uf.assign(0, ConcreteType::I64).unwrap();
@@ -798,6 +1215,113 @@ mod tests {
 
         assert_eq!(uf.get_type(1), Some(ConcreteType::I64));
     }
+
+    #[test]
+    fn test_union_find_new() {
+        let uf = UnionFind::new(5);
+        assert_eq!(uf.parent.len(), 5);
+        assert_eq!(uf.rank.len(), 5);
+    }
+
+    #[test]
+    fn test_union_find_find_self() {
+        let mut uf = UnionFind::new(5);
+        assert_eq!(uf.find(0), 0);
+        assert_eq!(uf.find(4), 4);
+    }
+
+    #[test]
+    fn test_union_find_union_same() {
+        let mut uf = UnionFind::new(5);
+        assert!(uf.union(0, 0).is_ok());
+    }
+
+    #[test]
+    fn test_union_find_union_different() {
+        let mut uf = UnionFind::new(5);
+        assert!(uf.union(0, 1).is_ok());
+        assert_eq!(uf.find(0), uf.find(1));
+    }
+
+    #[test]
+    fn test_union_find_assign() {
+        let mut uf = UnionFind::new(5);
+        assert!(uf.assign(0, ConcreteType::Bool).is_ok());
+        assert_eq!(uf.get_type(0), Some(ConcreteType::Bool));
+    }
+
+    #[test]
+    fn test_union_find_assign_same_type() {
+        let mut uf = UnionFind::new(5);
+        uf.assign(0, ConcreteType::I64).unwrap();
+        assert!(uf.assign(0, ConcreteType::I64).is_ok());
+    }
+
+    #[test]
+    fn test_union_find_assign_coercible() {
+        let mut uf = UnionFind::new(5);
+        uf.assign(0, ConcreteType::I32).unwrap();
+        assert!(uf.assign(0, ConcreteType::I64).is_ok());
+        assert_eq!(uf.get_type(0), Some(ConcreteType::I64));
+    }
+
+    #[test]
+    fn test_union_find_assign_conflict() {
+        let mut uf = UnionFind::new(5);
+        uf.assign(0, ConcreteType::Bool).unwrap();
+        assert!(uf.assign(0, ConcreteType::String).is_err());
+    }
+
+    #[test]
+    fn test_union_find_get_type_none() {
+        let mut uf = UnionFind::new(5);
+        assert_eq!(uf.get_type(0), None);
+    }
+
+    #[test]
+    fn test_union_find_union_with_types() {
+        let mut uf = UnionFind::new(5);
+        uf.assign(0, ConcreteType::I64).unwrap();
+        uf.assign(1, ConcreteType::I64).unwrap();
+        assert!(uf.union(0, 1).is_ok());
+    }
+
+    #[test]
+    fn test_union_find_union_type_conflict() {
+        let mut uf = UnionFind::new(5);
+        uf.assign(0, ConcreteType::Bool).unwrap();
+        uf.assign(1, ConcreteType::String).unwrap();
+        assert!(uf.union(0, 1).is_err());
+    }
+
+    #[test]
+    fn test_union_find_union_type_coercion() {
+        let mut uf = UnionFind::new(5);
+        uf.assign(0, ConcreteType::I32).unwrap();
+        uf.assign(1, ConcreteType::F64).unwrap();
+        assert!(uf.union(0, 1).is_ok());
+    }
+
+    // =========================================================================
+    // UnifyError tests
+    // =========================================================================
+
+    #[test]
+    fn test_unify_error_type_conflict() {
+        let err = UnifyError::TypeConflict(ConcreteType::Bool, ConcreteType::String);
+        assert!(matches!(err, UnifyError::TypeConflict(_, _)));
+    }
+
+    #[test]
+    fn test_unify_error_clone() {
+        let err = UnifyError::TypeConflict(ConcreteType::I32, ConcreteType::Bool);
+        let cloned = err.clone();
+        assert!(matches!(cloned, UnifyError::TypeConflict(_, _)));
+    }
+
+    // =========================================================================
+    // coerce_types tests
+    // =========================================================================
 
     #[test]
     fn test_coercion_lattice() {
@@ -813,5 +1337,66 @@ mod tests {
             coerce_types(&ConcreteType::Bool, &ConcreteType::String),
             None
         );
+    }
+
+    #[test]
+    fn test_coerce_same_type() {
+        assert_eq!(coerce_types(&ConcreteType::Bool, &ConcreteType::Bool), Some(ConcreteType::Bool));
+        assert_eq!(coerce_types(&ConcreteType::Unit, &ConcreteType::Unit), Some(ConcreteType::Unit));
+    }
+
+    #[test]
+    fn test_coerce_i32_i64() {
+        assert_eq!(coerce_types(&ConcreteType::I32, &ConcreteType::I64), Some(ConcreteType::I64));
+        assert_eq!(coerce_types(&ConcreteType::I64, &ConcreteType::I32), Some(ConcreteType::I64));
+    }
+
+    #[test]
+    fn test_coerce_f32_f64() {
+        assert_eq!(coerce_types(&ConcreteType::F32, &ConcreteType::F64), Some(ConcreteType::F64));
+        assert_eq!(coerce_types(&ConcreteType::F64, &ConcreteType::F32), Some(ConcreteType::F64));
+    }
+
+    #[test]
+    fn test_coerce_i32_f32() {
+        assert_eq!(coerce_types(&ConcreteType::I32, &ConcreteType::F32), Some(ConcreteType::F32));
+        assert_eq!(coerce_types(&ConcreteType::F32, &ConcreteType::I32), Some(ConcreteType::F32));
+    }
+
+    #[test]
+    fn test_coerce_i32_f64() {
+        assert_eq!(coerce_types(&ConcreteType::I32, &ConcreteType::F64), Some(ConcreteType::F64));
+        assert_eq!(coerce_types(&ConcreteType::F64, &ConcreteType::I32), Some(ConcreteType::F64));
+    }
+
+    #[test]
+    fn test_coerce_i64_f32() {
+        assert_eq!(coerce_types(&ConcreteType::I64, &ConcreteType::F32), Some(ConcreteType::F64));
+        assert_eq!(coerce_types(&ConcreteType::F32, &ConcreteType::I64), Some(ConcreteType::F64));
+    }
+
+    #[test]
+    fn test_coerce_i64_f64() {
+        assert_eq!(coerce_types(&ConcreteType::I64, &ConcreteType::F64), Some(ConcreteType::F64));
+        assert_eq!(coerce_types(&ConcreteType::F64, &ConcreteType::I64), Some(ConcreteType::F64));
+    }
+
+    #[test]
+    fn test_coerce_string_strref() {
+        assert_eq!(coerce_types(&ConcreteType::String, &ConcreteType::StrRef), Some(ConcreteType::String));
+        assert_eq!(coerce_types(&ConcreteType::StrRef, &ConcreteType::String), Some(ConcreteType::String));
+    }
+
+    #[test]
+    fn test_coerce_unknown() {
+        assert_eq!(coerce_types(&ConcreteType::Unknown, &ConcreteType::I64), Some(ConcreteType::I64));
+        assert_eq!(coerce_types(&ConcreteType::Bool, &ConcreteType::Unknown), Some(ConcreteType::Bool));
+    }
+
+    #[test]
+    fn test_coerce_incompatible() {
+        assert_eq!(coerce_types(&ConcreteType::Bool, &ConcreteType::I64), None);
+        assert_eq!(coerce_types(&ConcreteType::String, &ConcreteType::F64), None);
+        assert_eq!(coerce_types(&ConcreteType::Unit, &ConcreteType::Bool), None);
     }
 }
