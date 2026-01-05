@@ -814,13 +814,75 @@ mod tests {
         }
     }
 
+    // === PerformanceConfig tests ===
+
     #[test]
     fn test_performance_config_default() {
         let config = PerformanceConfig::default();
         assert!(config.warn_string_concat);
         assert!(config.warn_allocations);
+        assert!(config.warn_algorithms);
+        assert!(config.warn_repeated_computation);
         assert_eq!(config.max_loop_depth, 3);
+        assert_eq!(config.quadratic_threshold, 100);
     }
+
+    #[test]
+    fn test_performance_config_clone() {
+        let config = PerformanceConfig {
+            warn_string_concat: false,
+            warn_allocations: false,
+            max_loop_depth: 5,
+            ..Default::default()
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.warn_string_concat, false);
+        assert_eq!(cloned.max_loop_depth, 5);
+    }
+
+    #[test]
+    fn test_performance_config_debug() {
+        let config = PerformanceConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("PerformanceConfig"));
+        assert!(debug.contains("warn_string_concat"));
+    }
+
+    // === WarningCategory tests ===
+
+    #[test]
+    fn test_warning_category_variants() {
+        let categories = [
+            WarningCategory::StringPerformance,
+            WarningCategory::MemoryAllocation,
+            WarningCategory::AlgorithmComplexity,
+            WarningCategory::RedundantComputation,
+            WarningCategory::IoPerformance,
+            WarningCategory::CollectionUsage,
+        ];
+        assert_eq!(categories.len(), 6);
+    }
+
+    #[test]
+    fn test_warning_category_eq() {
+        assert_eq!(WarningCategory::StringPerformance, WarningCategory::StringPerformance);
+        assert_ne!(WarningCategory::StringPerformance, WarningCategory::MemoryAllocation);
+    }
+
+    #[test]
+    fn test_warning_category_clone() {
+        let cat = WarningCategory::AlgorithmComplexity;
+        let cloned = cat.clone();
+        assert_eq!(cat, cloned);
+    }
+
+    #[test]
+    fn test_warning_category_debug() {
+        let debug = format!("{:?}", WarningCategory::IoPerformance);
+        assert!(debug.contains("IoPerformance"));
+    }
+
+    // === WarningSeverity tests ===
 
     #[test]
     fn test_severity_ordering() {
@@ -828,6 +890,272 @@ mod tests {
         assert!(WarningSeverity::High > WarningSeverity::Medium);
         assert!(WarningSeverity::Medium > WarningSeverity::Low);
     }
+
+    #[test]
+    fn test_severity_eq() {
+        assert_eq!(WarningSeverity::Low, WarningSeverity::Low);
+        assert_ne!(WarningSeverity::Low, WarningSeverity::High);
+    }
+
+    #[test]
+    fn test_severity_copy() {
+        let s1 = WarningSeverity::Critical;
+        let s2 = s1;
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_severity_clone() {
+        let s = WarningSeverity::Medium;
+        let cloned = s.clone();
+        assert_eq!(s, cloned);
+    }
+
+    #[test]
+    fn test_severity_debug() {
+        let debug = format!("{:?}", WarningSeverity::High);
+        assert!(debug.contains("High"));
+    }
+
+    #[test]
+    fn test_severity_ord_all() {
+        let mut severities = vec![
+            WarningSeverity::Medium,
+            WarningSeverity::Critical,
+            WarningSeverity::Low,
+            WarningSeverity::High,
+        ];
+        severities.sort();
+        assert_eq!(severities[0], WarningSeverity::Low);
+        assert_eq!(severities[3], WarningSeverity::Critical);
+    }
+
+    // === PerformanceImpact tests ===
+
+    #[test]
+    fn test_performance_impact_new() {
+        let impact = PerformanceImpact {
+            complexity: "O(n²)".to_string(),
+            scales_with_input: true,
+            in_hot_path: false,
+        };
+        assert_eq!(impact.complexity, "O(n²)");
+        assert!(impact.scales_with_input);
+        assert!(!impact.in_hot_path);
+    }
+
+    #[test]
+    fn test_performance_impact_clone() {
+        let impact = PerformanceImpact {
+            complexity: "O(1)".to_string(),
+            scales_with_input: false,
+            in_hot_path: true,
+        };
+        let cloned = impact.clone();
+        assert_eq!(cloned.complexity, "O(1)");
+    }
+
+    #[test]
+    fn test_performance_impact_debug() {
+        let impact = PerformanceImpact {
+            complexity: "O(n)".to_string(),
+            scales_with_input: true,
+            in_hot_path: true,
+        };
+        let debug = format!("{:?}", impact);
+        assert!(debug.contains("PerformanceImpact"));
+    }
+
+    // === Location tests ===
+
+    #[test]
+    fn test_location_new() {
+        let loc = Location {
+            function: "my_func".to_string(),
+            line: 42,
+            in_loop: true,
+            loop_depth: 2,
+        };
+        assert_eq!(loc.function, "my_func");
+        assert_eq!(loc.line, 42);
+        assert!(loc.in_loop);
+        assert_eq!(loc.loop_depth, 2);
+    }
+
+    #[test]
+    fn test_location_clone() {
+        let loc = Location {
+            function: "test".to_string(),
+            line: 1,
+            in_loop: false,
+            loop_depth: 0,
+        };
+        let cloned = loc.clone();
+        assert_eq!(loc.function, cloned.function);
+    }
+
+    #[test]
+    fn test_location_debug() {
+        let loc = Location {
+            function: "f".to_string(),
+            line: 10,
+            in_loop: true,
+            loop_depth: 1,
+        };
+        let debug = format!("{:?}", loc);
+        assert!(debug.contains("Location"));
+    }
+
+    // === PerformanceWarning tests ===
+
+    #[test]
+    fn test_performance_warning_new() {
+        let warning = PerformanceWarning {
+            category: WarningCategory::StringPerformance,
+            severity: WarningSeverity::High,
+            message: "test message".to_string(),
+            explanation: "test explanation".to_string(),
+            suggestion: "test suggestion".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(n)".to_string(),
+                scales_with_input: true,
+                in_hot_path: true,
+            },
+            location: Some(Location {
+                function: "test".to_string(),
+                line: 1,
+                in_loop: true,
+                loop_depth: 1,
+            }),
+        };
+        assert_eq!(warning.category, WarningCategory::StringPerformance);
+        assert_eq!(warning.severity, WarningSeverity::High);
+    }
+
+    #[test]
+    fn test_performance_warning_no_location() {
+        let warning = PerformanceWarning {
+            category: WarningCategory::MemoryAllocation,
+            severity: WarningSeverity::Low,
+            message: "msg".to_string(),
+            explanation: "exp".to_string(),
+            suggestion: "sug".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(1)".to_string(),
+                scales_with_input: false,
+                in_hot_path: false,
+            },
+            location: None,
+        };
+        assert!(warning.location.is_none());
+    }
+
+    #[test]
+    fn test_performance_warning_clone() {
+        let warning = PerformanceWarning {
+            category: WarningCategory::CollectionUsage,
+            severity: WarningSeverity::Medium,
+            message: "test".to_string(),
+            explanation: "exp".to_string(),
+            suggestion: "sug".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(n)".to_string(),
+                scales_with_input: true,
+                in_hot_path: false,
+            },
+            location: None,
+        };
+        let cloned = warning.clone();
+        assert_eq!(cloned.category, WarningCategory::CollectionUsage);
+    }
+
+    #[test]
+    fn test_performance_warning_debug() {
+        let warning = PerformanceWarning {
+            category: WarningCategory::RedundantComputation,
+            severity: WarningSeverity::Critical,
+            message: "debug test".to_string(),
+            explanation: "".to_string(),
+            suggestion: "".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(1)".to_string(),
+                scales_with_input: false,
+                in_hot_path: false,
+            },
+            location: None,
+        };
+        let debug = format!("{:?}", warning);
+        assert!(debug.contains("PerformanceWarning"));
+    }
+
+    // === PerformanceAnalyzer tests ===
+
+    #[test]
+    fn test_analyzer_new() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        assert_eq!(analyzer.current_loop_depth, 0);
+    }
+
+    #[test]
+    fn test_analyzer_format_warnings_empty() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let output = analyzer.format_warnings(&[]);
+        assert!(output.contains("No performance warnings"));
+    }
+
+    #[test]
+    fn test_analyzer_format_warnings_with_warnings() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = vec![PerformanceWarning {
+            category: WarningCategory::StringPerformance,
+            severity: WarningSeverity::High,
+            message: "Test warning".to_string(),
+            explanation: "Test explanation".to_string(),
+            suggestion: "Test suggestion".to_string(),
+            impact: PerformanceImpact {
+                complexity: "O(n²)".to_string(),
+                scales_with_input: true,
+                in_hot_path: true,
+            },
+            location: Some(Location {
+                function: "test_func".to_string(),
+                line: 10,
+                in_loop: true,
+                loop_depth: 1,
+            }),
+        }];
+        let output = analyzer.format_warnings(&warnings);
+        assert!(output.contains("Performance Warnings"));
+        assert!(output.contains("Test warning"));
+        assert!(output.contains("test_func"));
+    }
+
+    #[test]
+    fn test_analyzer_empty_program() {
+        let program = HirProgram {
+            functions: vec![],
+            classes: vec![],
+            imports: vec![],
+        };
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_analyzer_simple_function() {
+        let func = create_test_function("simple", vec![]);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+        assert!(warnings.is_empty());
+    }
+
+    // === Detection tests ===
 
     #[test]
     fn test_string_concat_in_loop_detection() {
@@ -896,6 +1224,47 @@ mod tests {
     }
 
     #[test]
+    fn test_deeply_nested_loop_warning() {
+        // Create 4 levels of nesting to exceed max_loop_depth=3
+        let innermost = HirStmt::Expr(HirExpr::Var("x".to_string()));
+        let level3 = HirStmt::For {
+            target: AssignTarget::Symbol("d".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![innermost],
+        };
+        let level2 = HirStmt::For {
+            target: AssignTarget::Symbol("c".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![level3],
+        };
+        let level1 = HirStmt::For {
+            target: AssignTarget::Symbol("b".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![level2],
+        };
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("a".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![level1],
+        }];
+
+        let func = create_test_function("test", body);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+
+        assert!(warnings
+            .iter()
+            .any(|w| w.category == WarningCategory::AlgorithmComplexity
+                && w.message.contains("Deeply nested")));
+    }
+
+    #[test]
     fn test_expensive_function_in_loop() {
         let body = vec![HirStmt::For {
             target: AssignTarget::Symbol("item".to_string()),
@@ -926,5 +1295,335 @@ mod tests {
             w.category == WarningCategory::AlgorithmComplexity
                 || w.category == WarningCategory::RedundantComputation
         }));
+    }
+
+    #[test]
+    fn test_while_loop_analysis() {
+        let body = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+        }];
+
+        let func = create_test_function("test", body);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+        // Simple while loop without issues
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_range_len_antipattern() {
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Call {
+                    func: "len".to_string(),
+                    args: vec![HirExpr::Var("items".to_string())],
+                    kwargs: vec![],
+                }],
+                kwargs: vec![],
+            },
+            body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
+        }];
+
+        let func = create_test_function("test", body);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+
+        assert!(warnings
+            .iter()
+            .any(|w| w.message.contains("range(len")));
+    }
+
+    #[test]
+    fn test_large_list_in_loop() {
+        let large_list = HirExpr::List(vec![HirExpr::Literal(Literal::Int(1)); 15]);
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Expr(large_list)],
+        }];
+
+        let func = create_test_function("test", body);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+
+        assert!(warnings
+            .iter()
+            .any(|w| w.category == WarningCategory::MemoryAllocation));
+    }
+
+    #[test]
+    fn test_append_in_loop() {
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("result".to_string())),
+                method: "append".to_string(),
+                args: vec![HirExpr::Var("i".to_string())],
+                kwargs: vec![],
+            })],
+        }];
+
+        let func = create_test_function("test", body);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+
+        assert!(warnings
+            .iter()
+            .any(|w| w.category == WarningCategory::CollectionUsage));
+    }
+
+    #[test]
+    fn test_linear_search_in_loop() {
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("data".to_string())),
+                method: "index".to_string(),
+                args: vec![HirExpr::Var("i".to_string())],
+                kwargs: vec![],
+            })],
+        }];
+
+        let func = create_test_function("test", body);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+
+        assert!(warnings
+            .iter()
+            .any(|w| w.message.contains("Linear search")));
+    }
+
+    #[test]
+    fn test_power_in_loop() {
+        let body = vec![HirStmt::For {
+            target: AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("result".to_string()),
+                value: HirExpr::Binary {
+                    op: BinOp::Pow,
+                    left: Box::new(HirExpr::Var("x".to_string())),
+                    right: Box::new(HirExpr::Var("i".to_string())),
+                },
+                type_annotation: None,
+            }],
+        }];
+
+        let func = create_test_function("test", body);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+
+        assert!(warnings
+            .iter()
+            .any(|w| w.message.contains("Power operation")));
+    }
+
+    // === Helper method tests ===
+
+    #[test]
+    fn test_is_large_type_list() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        assert!(analyzer.is_large_type(&Type::List(Box::new(Type::Int))));
+    }
+
+    #[test]
+    fn test_is_large_type_dict() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        assert!(analyzer.is_large_type(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int)
+        )));
+    }
+
+    #[test]
+    fn test_is_large_type_string() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        assert!(analyzer.is_large_type(&Type::String));
+    }
+
+    #[test]
+    fn test_is_large_type_int() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        assert!(!analyzer.is_large_type(&Type::Int));
+    }
+
+    #[test]
+    fn test_is_large_type_custom() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        assert!(analyzer.is_large_type(&Type::Custom("MyStruct".to_string())));
+        assert!(!analyzer.is_large_type(&Type::Custom("i32".to_string())));
+    }
+
+    #[test]
+    fn test_is_expensive_function() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        assert!(analyzer.is_expensive_function("sorted"));
+        assert!(analyzer.is_expensive_function("deepcopy"));
+        assert!(analyzer.is_expensive_function("eval"));
+        assert!(!analyzer.is_expensive_function("len"));
+        assert!(!analyzer.is_expensive_function("print"));
+    }
+
+    #[test]
+    fn test_is_string_concatenation() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+
+        let concat = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Var("a".to_string())),
+            right: Box::new(HirExpr::Var("b".to_string())),
+        };
+        assert!(analyzer.is_string_concatenation(&concat));
+
+        let mult = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::Var("a".to_string())),
+            right: Box::new(HirExpr::Var("b".to_string())),
+        };
+        assert!(!analyzer.is_string_concatenation(&mult));
+    }
+
+    // === Formatting helper tests ===
+
+    #[test]
+    fn test_severity_color() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        assert_eq!(analyzer.get_severity_color(WarningSeverity::Critical), "red");
+        assert_eq!(analyzer.get_severity_color(WarningSeverity::High), "bright red");
+        assert_eq!(analyzer.get_severity_color(WarningSeverity::Medium), "yellow");
+        assert_eq!(analyzer.get_severity_color(WarningSeverity::Low), "bright yellow");
+    }
+
+    #[test]
+    fn test_format_loop_info() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+
+        let loc_in_loop = Location {
+            function: "f".to_string(),
+            line: 1,
+            in_loop: true,
+            loop_depth: 2,
+        };
+        let info = analyzer.format_loop_info(&loc_in_loop);
+        assert!(info.contains("loop"));
+        assert!(info.contains("2"));
+
+        let loc_not_in_loop = Location {
+            function: "f".to_string(),
+            line: 1,
+            in_loop: false,
+            loop_depth: 0,
+        };
+        let info2 = analyzer.format_loop_info(&loc_not_in_loop);
+        assert!(info2.is_empty());
+    }
+
+    #[test]
+    fn test_count_severity_levels() {
+        let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = vec![
+            PerformanceWarning {
+                category: WarningCategory::StringPerformance,
+                severity: WarningSeverity::Critical,
+                message: "".to_string(),
+                explanation: "".to_string(),
+                suggestion: "".to_string(),
+                impact: PerformanceImpact {
+                    complexity: "".to_string(),
+                    scales_with_input: false,
+                    in_hot_path: false,
+                },
+                location: None,
+            },
+            PerformanceWarning {
+                category: WarningCategory::StringPerformance,
+                severity: WarningSeverity::High,
+                message: "".to_string(),
+                explanation: "".to_string(),
+                suggestion: "".to_string(),
+                impact: PerformanceImpact {
+                    complexity: "".to_string(),
+                    scales_with_input: false,
+                    in_hot_path: false,
+                },
+                location: None,
+            },
+            PerformanceWarning {
+                category: WarningCategory::StringPerformance,
+                severity: WarningSeverity::High,
+                message: "".to_string(),
+                explanation: "".to_string(),
+                suggestion: "".to_string(),
+                impact: PerformanceImpact {
+                    complexity: "".to_string(),
+                    scales_with_input: false,
+                    in_hot_path: false,
+                },
+                location: None,
+            },
+        ];
+
+        let (critical, high) = analyzer.count_severity_levels(&warnings);
+        assert_eq!(critical, 1);
+        assert_eq!(high, 2);
+    }
+
+    #[test]
+    fn test_warnings_sorted_by_severity() {
+        let func = create_test_function("test", vec![]);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
+        let warnings = analyzer.analyze_program(&program);
+
+        // Check that warnings are sorted by severity (descending)
+        for window in warnings.windows(2) {
+            assert!(window[0].severity >= window[1].severity);
+        }
     }
 }
