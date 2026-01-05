@@ -543,6 +543,429 @@ pub fn analyze_score_failures(
 mod tests {
     use super::*;
 
+    // === ScoringMode tests ===
+
+    #[test]
+    fn test_scoring_mode_default() {
+        let mode = ScoringMode::default();
+        assert_eq!(mode, ScoringMode::Fast);
+    }
+
+    #[test]
+    fn test_scoring_mode_quick() {
+        let mode = ScoringMode::Quick;
+        assert_eq!(mode, ScoringMode::Quick);
+    }
+
+    #[test]
+    fn test_scoring_mode_full() {
+        let mode = ScoringMode::Full;
+        assert_eq!(mode, ScoringMode::Full);
+    }
+
+    #[test]
+    fn test_scoring_mode_clone() {
+        let mode = ScoringMode::Fast;
+        let cloned = mode;
+        assert_eq!(cloned, ScoringMode::Fast);
+    }
+
+    #[test]
+    fn test_scoring_mode_debug() {
+        let debug = format!("{:?}", ScoringMode::Quick);
+        assert!(debug.contains("Quick"));
+    }
+
+    // === SingleShotScore tests ===
+
+    #[test]
+    fn test_single_shot_score_default() {
+        let score = SingleShotScore::default();
+        assert_eq!(score.total, 0);
+        assert_eq!(score.compilation, 0);
+        assert!(!score.gateway_passed);
+    }
+
+    #[test]
+    fn test_single_shot_score_clone() {
+        let score = SingleShotScore {
+            total: 75,
+            compilation: 35,
+            type_inference: 20,
+            test_coverage: 10,
+            code_quality: 5,
+            semantic_equivalence: 5,
+            gateway_passed: true,
+            mode: ScoringMode::Fast,
+        };
+        let cloned = score.clone();
+        assert_eq!(cloned.total, 75);
+        assert_eq!(cloned.compilation, 35);
+    }
+
+    #[test]
+    fn test_single_shot_score_debug() {
+        let score = SingleShotScore::default();
+        let debug = format!("{:?}", score);
+        assert!(debug.contains("SingleShotScore"));
+    }
+
+    // === CategoryBreakdown tests ===
+
+    #[test]
+    fn test_category_breakdown_default() {
+        let breakdown = CategoryBreakdown::default();
+        assert_eq!(breakdown.a1_parse, 0);
+        assert_eq!(breakdown.a2_type_check, 0);
+        assert_eq!(breakdown.b1_no_e0308, 0);
+    }
+
+    #[test]
+    fn test_category_breakdown_clone() {
+        let breakdown = CategoryBreakdown {
+            a1_parse: 10,
+            a2_type_check: 15,
+            ..Default::default()
+        };
+        let cloned = breakdown.clone();
+        assert_eq!(cloned.a1_parse, 10);
+        assert_eq!(cloned.a2_type_check, 15);
+    }
+
+    #[test]
+    fn test_category_breakdown_debug() {
+        let breakdown = CategoryBreakdown::default();
+        let debug = format!("{:?}", breakdown);
+        assert!(debug.contains("CategoryBreakdown"));
+    }
+
+    // === CompilationError tests ===
+
+    #[test]
+    fn test_compilation_error_fields() {
+        let error = CompilationError {
+            code: "E0308".to_string(),
+            message: "mismatched types".to_string(),
+            location: Some("src/lib.rs".to_string()),
+            line: Some(42),
+        };
+        assert_eq!(error.code, "E0308");
+        assert_eq!(error.message, "mismatched types");
+        assert_eq!(error.location, Some("src/lib.rs".to_string()));
+        assert_eq!(error.line, Some(42));
+    }
+
+    #[test]
+    fn test_compilation_error_none_fields() {
+        let error = CompilationError {
+            code: "E0001".to_string(),
+            message: "error".to_string(),
+            location: None,
+            line: None,
+        };
+        assert!(error.location.is_none());
+        assert!(error.line.is_none());
+    }
+
+    #[test]
+    fn test_compilation_error_clone() {
+        let error = CompilationError {
+            code: "E0308".to_string(),
+            message: "test".to_string(),
+            location: None,
+            line: None,
+        };
+        let cloned = error.clone();
+        assert_eq!(cloned.code, error.code);
+    }
+
+    #[test]
+    fn test_compilation_error_debug() {
+        let error = CompilationError {
+            code: "E0308".to_string(),
+            message: "test".to_string(),
+            location: None,
+            line: None,
+        };
+        let debug = format!("{:?}", error);
+        assert!(debug.contains("CompilationError"));
+    }
+
+    // === TranspilerDecision tests ===
+
+    #[test]
+    fn test_transpiler_decision_type_inference() {
+        let decision = TranspilerDecision::TypeInference {
+            variable: "x".to_string(),
+            inferred_type: "i32".to_string(),
+        };
+        assert!(matches!(decision, TranspilerDecision::TypeInference { .. }));
+    }
+
+    #[test]
+    fn test_transpiler_decision_method_translation() {
+        let decision = TranspilerDecision::MethodTranslation {
+            python_method: "append".to_string(),
+            rust_method: "push".to_string(),
+        };
+        assert!(matches!(decision, TranspilerDecision::MethodTranslation { .. }));
+    }
+
+    #[test]
+    fn test_transpiler_decision_import_mapping() {
+        let decision = TranspilerDecision::ImportMapping {
+            python_import: "json".to_string(),
+            rust_import: "serde_json".to_string(),
+        };
+        assert!(matches!(decision, TranspilerDecision::ImportMapping { .. }));
+    }
+
+    #[test]
+    fn test_transpiler_decision_value_fallback() {
+        let decision = TranspilerDecision::ValueFallback {
+            context: "unknown type".to_string(),
+        };
+        assert!(matches!(decision, TranspilerDecision::ValueFallback { .. }));
+    }
+
+    #[test]
+    fn test_transpiler_decision_other() {
+        let decision = TranspilerDecision::Other("custom decision".to_string());
+        assert!(matches!(decision, TranspilerDecision::Other(_)));
+    }
+
+    #[test]
+    fn test_transpiler_decision_clone() {
+        let decision = TranspilerDecision::TypeInference {
+            variable: "x".to_string(),
+            inferred_type: "i32".to_string(),
+        };
+        let cloned = decision.clone();
+        assert_eq!(cloned, decision);
+    }
+
+    #[test]
+    fn test_transpiler_decision_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        let d1 = TranspilerDecision::Other("a".to_string());
+        let d2 = TranspilerDecision::Other("b".to_string());
+        set.insert(d1.clone());
+        set.insert(d2.clone());
+        assert_eq!(set.len(), 2);
+        assert!(set.contains(&d1));
+    }
+
+    // === ScoringConfig tests ===
+
+    #[test]
+    fn test_scoring_config_default() {
+        let config = ScoringConfig::default();
+        assert!((config.gateway_threshold - 0.6).abs() < f32::EPSILON);
+        assert!(config.enable_semantic_check);
+        assert!(config.oracle_feedback);
+    }
+
+    #[test]
+    fn test_scoring_config_clone() {
+        let config = ScoringConfig::default();
+        let cloned = config.clone();
+        assert_eq!(cloned.gateway_threshold, config.gateway_threshold);
+    }
+
+    #[test]
+    fn test_scoring_config_debug() {
+        let config = ScoringConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("ScoringConfig"));
+    }
+
+    // === CategoryWeights tests ===
+
+    #[test]
+    fn test_category_weights_default() {
+        let weights = CategoryWeights::default();
+        assert!((weights.compilation - 0.40).abs() < f32::EPSILON);
+        assert!((weights.type_inference - 0.25).abs() < f32::EPSILON);
+        assert!((weights.test_coverage - 0.15).abs() < f32::EPSILON);
+        assert!((weights.code_quality - 0.10).abs() < f32::EPSILON);
+        assert!((weights.semantic_equiv - 0.10).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_category_weights_sum_to_one() {
+        let weights = CategoryWeights::default();
+        let sum = weights.compilation
+            + weights.type_inference
+            + weights.test_coverage
+            + weights.code_quality
+            + weights.semantic_equiv;
+        assert!((sum - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_category_weights_clone() {
+        let weights = CategoryWeights::default();
+        let cloned = weights.clone();
+        assert_eq!(cloned.compilation, weights.compilation);
+    }
+
+    // === OutputFormat tests ===
+
+    #[test]
+    fn test_output_format_default() {
+        let format = OutputFormat::default();
+        assert_eq!(format, OutputFormat::Human);
+    }
+
+    #[test]
+    fn test_output_format_json() {
+        let format = OutputFormat::Json;
+        assert_eq!(format, OutputFormat::Json);
+    }
+
+    #[test]
+    fn test_output_format_parquet() {
+        let format = OutputFormat::Parquet;
+        assert_eq!(format, OutputFormat::Parquet);
+    }
+
+    #[test]
+    fn test_output_format_markdown() {
+        let format = OutputFormat::Markdown;
+        assert_eq!(format, OutputFormat::Markdown);
+    }
+
+    #[test]
+    fn test_output_format_debug() {
+        let debug = format!("{:?}", OutputFormat::Json);
+        assert!(debug.contains("Json"));
+    }
+
+    // === Grade tests ===
+
+    #[test]
+    fn test_grade_as_str() {
+        assert_eq!(Grade::APlus.as_str(), "A+");
+        assert_eq!(Grade::A.as_str(), "A");
+        assert_eq!(Grade::AMinus.as_str(), "A-");
+        assert_eq!(Grade::BPlus.as_str(), "B+");
+        assert_eq!(Grade::B.as_str(), "B");
+        assert_eq!(Grade::C.as_str(), "C");
+        assert_eq!(Grade::D.as_str(), "D");
+        assert_eq!(Grade::F.as_str(), "F");
+    }
+
+    #[test]
+    fn test_grade_clone() {
+        let grade = Grade::APlus;
+        let cloned = grade;
+        assert_eq!(cloned, Grade::APlus);
+    }
+
+    #[test]
+    fn test_grade_debug() {
+        let debug = format!("{:?}", Grade::APlus);
+        assert!(debug.contains("APlus"));
+    }
+
+    #[test]
+    fn test_grade_eq() {
+        assert_eq!(Grade::A, Grade::A);
+        assert_ne!(Grade::A, Grade::B);
+    }
+
+    // === Blocker tests ===
+
+    #[test]
+    fn test_blocker_fields() {
+        let blocker = Blocker {
+            pattern: "E0308".to_string(),
+            affected_files: 5,
+            avg_points_lost: 15.5,
+        };
+        assert_eq!(blocker.pattern, "E0308");
+        assert_eq!(blocker.affected_files, 5);
+        assert!((blocker.avg_points_lost - 15.5).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_blocker_clone() {
+        let blocker = Blocker {
+            pattern: "test".to_string(),
+            affected_files: 3,
+            avg_points_lost: 10.0,
+        };
+        let cloned = blocker.clone();
+        assert_eq!(cloned.pattern, blocker.pattern);
+    }
+
+    #[test]
+    fn test_blocker_debug() {
+        let blocker = Blocker {
+            pattern: "test".to_string(),
+            affected_files: 1,
+            avg_points_lost: 5.0,
+        };
+        let debug = format!("{:?}", blocker);
+        assert!(debug.contains("Blocker"));
+    }
+
+    // === BreakdownInput tests ===
+
+    #[test]
+    fn test_breakdown_input_default() {
+        let input = BreakdownInput::default();
+        assert!(!input.parse_ok);
+        assert!(!input.type_check_ok);
+        assert!(!input.build_ok);
+    }
+
+    #[test]
+    fn test_breakdown_input_clone() {
+        let empty: Vec<CompilationError> = vec![];
+        let input = BreakdownInput {
+            parse_ok: true,
+            type_check_ok: true,
+            build_ok: false,
+            errors: &empty,
+            ..Default::default()
+        };
+        let cloned = input.clone();
+        assert_eq!(cloned.parse_ok, input.parse_ok);
+    }
+
+    #[test]
+    fn test_breakdown_input_debug() {
+        let input = BreakdownInput::default();
+        let debug = format!("{:?}", input);
+        assert!(debug.contains("BreakdownInput"));
+    }
+
+    // === ScoreCalculator tests ===
+
+    #[test]
+    fn test_score_calculator_new() {
+        let calc = ScoreCalculator::new();
+        assert!((calc.config.gateway_threshold - 0.6).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_score_calculator_default() {
+        let calc = ScoreCalculator::default();
+        assert!((calc.config.gateway_threshold - 0.6).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn test_score_calculator_with_config() {
+        let config = ScoringConfig {
+            gateway_threshold: 0.8,
+            ..Default::default()
+        };
+        let calc = ScoreCalculator::with_config(config);
+        assert!((calc.config.gateway_threshold - 0.8).abs() < f32::EPSILON);
+    }
+
     #[test]
     fn test_score_calculation_perfect() {
         let calculator = ScoreCalculator::new();
@@ -696,6 +1119,41 @@ mod tests {
     }
 
     #[test]
+    fn test_breakdown_from_errors_all_pass() {
+        let calculator = ScoreCalculator::new();
+        let empty: Vec<CompilationError> = vec![];
+
+        let breakdown = calculator.breakdown_from_errors(&BreakdownInput {
+            parse_ok: true,
+            type_check_ok: true,
+            build_ok: true,
+            errors: &empty,
+            doctest_pass: true,
+            unit_test_pass: true,
+            property_test_pass: true,
+            clippy_clean: true,
+            tdg_grade_b_or_better: true,
+            complexity_ok: true,
+            trace_match: true,
+            output_equiv: true,
+        });
+
+        assert_eq!(breakdown.a1_parse, 10);
+        assert_eq!(breakdown.a2_type_check, 15);
+        assert_eq!(breakdown.a3_cargo_build, 15);
+        assert_eq!(breakdown.c1_doctest, 5);
+        assert_eq!(breakdown.c2_unit_test, 5);
+        assert_eq!(breakdown.c3_property_test, 5);
+        assert_eq!(breakdown.d1_clippy, 5);
+        assert_eq!(breakdown.d2_tdg, 3);
+        assert_eq!(breakdown.d3_complexity, 2);
+        assert_eq!(breakdown.e1_trace_match, 5);
+        assert_eq!(breakdown.e2_output_equiv, 5);
+    }
+
+    // === TarantulaScore tests ===
+
+    #[test]
     fn test_tarantula_score() {
         let stats = DecisionStats {
             failed_count: 8,
@@ -709,6 +1167,92 @@ mod tests {
         // suspiciousness = 0.8 / (0.8 + 0.2) = 0.8
         assert!((tarantula.suspiciousness - 0.8).abs() < 0.01);
     }
+
+    #[test]
+    fn test_tarantula_score_zero_failed() {
+        let stats = DecisionStats {
+            failed_count: 0,
+            passed_count: 5,
+        };
+
+        let tarantula = stats.tarantula_score(0, 10);
+        assert_eq!(tarantula.suspiciousness, 0.0);
+    }
+
+    #[test]
+    fn test_tarantula_score_zero_passed() {
+        let stats = DecisionStats {
+            failed_count: 5,
+            passed_count: 0,
+        };
+
+        let tarantula = stats.tarantula_score(10, 0);
+        // failed_ratio = 5/10 = 0.5
+        // passed_ratio = 0 (total_passed = 0)
+        // suspiciousness = 0.5 / (0.5 + 0) = 1.0
+        assert!((tarantula.suspiciousness - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_tarantula_score_both_zero() {
+        let stats = DecisionStats {
+            failed_count: 0,
+            passed_count: 0,
+        };
+
+        let tarantula = stats.tarantula_score(0, 0);
+        assert_eq!(tarantula.suspiciousness, 0.0);
+    }
+
+    #[test]
+    fn test_tarantula_score_clone() {
+        let score = TarantulaScore {
+            suspiciousness: 0.5,
+            failed_count: 3,
+            passed_count: 7,
+        };
+        let cloned = score.clone();
+        assert_eq!(cloned.suspiciousness, score.suspiciousness);
+    }
+
+    #[test]
+    fn test_tarantula_score_debug() {
+        let score = TarantulaScore {
+            suspiciousness: 0.5,
+            failed_count: 3,
+            passed_count: 7,
+        };
+        let debug = format!("{:?}", score);
+        assert!(debug.contains("TarantulaScore"));
+    }
+
+    // === DecisionStats tests ===
+
+    #[test]
+    fn test_decision_stats_default() {
+        let stats = DecisionStats::default();
+        assert_eq!(stats.failed_count, 0);
+        assert_eq!(stats.passed_count, 0);
+    }
+
+    #[test]
+    fn test_decision_stats_clone() {
+        let stats = DecisionStats {
+            failed_count: 5,
+            passed_count: 10,
+        };
+        let cloned = stats.clone();
+        assert_eq!(cloned.failed_count, stats.failed_count);
+    }
+
+    #[test]
+    fn test_decision_stats_debug() {
+        let stats = DecisionStats::default();
+        let debug = format!("{:?}", stats);
+        assert!(debug.contains("DecisionStats"));
+    }
+
+    // === Corpus aggregation tests ===
 
     #[test]
     fn test_corpus_aggregation() {
@@ -753,5 +1297,177 @@ mod tests {
 
         assert!((report.aggregate_score - 70.0).abs() < 0.01);
         assert_eq!(report.grade, Grade::B);
+    }
+
+    #[test]
+    fn test_corpus_aggregation_empty() {
+        let calculator = ScoreCalculator::new();
+        let results: Vec<SingleShotResult> = vec![];
+
+        let report = calculator.aggregate(&results);
+
+        assert_eq!(report.aggregate_score, 0.0);
+        assert_eq!(report.grade, Grade::F);
+        assert!(report.results.is_empty());
+        assert!(report.top_blockers.is_empty());
+    }
+
+    #[test]
+    fn test_corpus_aggregation_with_errors() {
+        let calculator = ScoreCalculator::new();
+
+        let results = vec![
+            SingleShotResult {
+                file_path: PathBuf::from("a.py"),
+                score: SingleShotScore {
+                    total: 50,
+                    ..Default::default()
+                },
+                category_breakdown: CategoryBreakdown::default(),
+                error_details: vec![
+                    CompilationError {
+                        code: "E0308".to_string(),
+                        message: "type mismatch".to_string(),
+                        location: None,
+                        line: None,
+                    },
+                ],
+                transpiler_decisions: vec![],
+            },
+            SingleShotResult {
+                file_path: PathBuf::from("b.py"),
+                score: SingleShotScore {
+                    total: 50,
+                    ..Default::default()
+                },
+                category_breakdown: CategoryBreakdown::default(),
+                error_details: vec![
+                    CompilationError {
+                        code: "E0308".to_string(),
+                        message: "type mismatch".to_string(),
+                        location: None,
+                        line: None,
+                    },
+                ],
+                transpiler_decisions: vec![],
+            },
+        ];
+
+        let report = calculator.aggregate(&results);
+
+        // E0308 should be identified as a top blocker
+        assert!(!report.top_blockers.is_empty());
+        assert_eq!(report.top_blockers[0].pattern, "E0308");
+        assert_eq!(report.top_blockers[0].affected_files, 2);
+    }
+
+    #[test]
+    fn test_corpus_score_report_clone() {
+        let report = CorpusScoreReport {
+            results: vec![],
+            aggregate_score: 75.0,
+            grade: Grade::B,
+            category_averages: CategoryBreakdown::default(),
+            top_blockers: vec![],
+        };
+        let cloned = report.clone();
+        assert_eq!(cloned.aggregate_score, report.aggregate_score);
+    }
+
+    #[test]
+    fn test_corpus_score_report_debug() {
+        let report = CorpusScoreReport {
+            results: vec![],
+            aggregate_score: 0.0,
+            grade: Grade::F,
+            category_averages: CategoryBreakdown::default(),
+            top_blockers: vec![],
+        };
+        let debug = format!("{:?}", report);
+        assert!(debug.contains("CorpusScoreReport"));
+    }
+
+    // === analyze_score_failures tests ===
+
+    #[test]
+    fn test_analyze_score_failures_empty() {
+        let results: Vec<SingleShotResult> = vec![];
+        let analysis = analyze_score_failures(&results);
+        assert!(analysis.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_score_failures_with_decisions() {
+        let results = vec![
+            SingleShotResult {
+                file_path: PathBuf::from("a.py"),
+                score: SingleShotScore {
+                    total: 50, // Failed (< 80)
+                    ..Default::default()
+                },
+                category_breakdown: CategoryBreakdown::default(),
+                error_details: vec![],
+                transpiler_decisions: vec![
+                    TranspilerDecision::TypeInference {
+                        variable: "x".to_string(),
+                        inferred_type: "Value".to_string(),
+                    },
+                ],
+            },
+            SingleShotResult {
+                file_path: PathBuf::from("b.py"),
+                score: SingleShotScore {
+                    total: 90, // Passed (>= 80)
+                    ..Default::default()
+                },
+                category_breakdown: CategoryBreakdown::default(),
+                error_details: vec![],
+                transpiler_decisions: vec![
+                    TranspilerDecision::TypeInference {
+                        variable: "x".to_string(),
+                        inferred_type: "Value".to_string(),
+                    },
+                ],
+            },
+        ];
+
+        let analysis = analyze_score_failures(&results);
+
+        assert_eq!(analysis.len(), 1);
+        let decision = TranspilerDecision::TypeInference {
+            variable: "x".to_string(),
+            inferred_type: "Value".to_string(),
+        };
+        let score = analysis.get(&decision).unwrap();
+        // 1 failed, 1 passed => suspiciousness = 0.5
+        assert!((score.suspiciousness - 0.5).abs() < 0.01);
+    }
+
+    // === SingleShotResult tests ===
+
+    #[test]
+    fn test_single_shot_result_clone() {
+        let result = SingleShotResult {
+            file_path: PathBuf::from("test.py"),
+            score: SingleShotScore::default(),
+            category_breakdown: CategoryBreakdown::default(),
+            error_details: vec![],
+            transpiler_decisions: vec![],
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.file_path, result.file_path);
+    }
+
+    #[test]
+    fn test_single_shot_result_debug() {
+        let result = SingleShotResult {
+            file_path: PathBuf::from("test.py"),
+            score: SingleShotScore::default(),
+            category_breakdown: CategoryBreakdown::default(),
+            error_details: vec![],
+            transpiler_decisions: vec![],
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("SingleShotResult"));
     }
 }

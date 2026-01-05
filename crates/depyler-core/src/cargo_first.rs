@@ -376,6 +376,244 @@ pub fn quick_check(name: &str, rust_code: &str, cargo_toml: Option<&str>) -> Res
 mod tests {
     use super::*;
 
+    // === CheckResult tests ===
+
+    #[test]
+    fn test_check_result_success_fields() {
+        let result = CheckResult {
+            success: true,
+            errors: vec![],
+            warnings: vec![],
+            stderr: String::new(),
+        };
+        assert!(result.success);
+        assert!(result.errors.is_empty());
+        assert!(result.warnings.is_empty());
+        assert!(result.stderr.is_empty());
+    }
+
+    #[test]
+    fn test_check_result_with_errors() {
+        let result = CheckResult {
+            success: false,
+            errors: vec![CompilerError {
+                code: Some("E0308".to_string()),
+                message: "mismatched types".to_string(),
+                span: None,
+                is_semantic: true,
+            }],
+            warnings: vec![],
+            stderr: "error: mismatched types".to_string(),
+        };
+        assert!(!result.success);
+        assert_eq!(result.errors.len(), 1);
+        assert_eq!(result.errors[0].code.as_deref(), Some("E0308"));
+    }
+
+    #[test]
+    fn test_check_result_with_warnings() {
+        let result = CheckResult {
+            success: true,
+            errors: vec![],
+            warnings: vec![CompilerWarning {
+                code: Some("unused_variables".to_string()),
+                message: "unused variable `x`".to_string(),
+            }],
+            stderr: String::new(),
+        };
+        assert!(result.success);
+        assert_eq!(result.warnings.len(), 1);
+        assert!(result.warnings[0].message.contains("unused"));
+    }
+
+    #[test]
+    fn test_check_result_clone() {
+        let result = CheckResult {
+            success: true,
+            errors: vec![],
+            warnings: vec![],
+            stderr: "test".to_string(),
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.success, result.success);
+        assert_eq!(cloned.stderr, result.stderr);
+    }
+
+    #[test]
+    fn test_check_result_debug() {
+        let result = CheckResult {
+            success: true,
+            errors: vec![],
+            warnings: vec![],
+            stderr: String::new(),
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("CheckResult"));
+        assert!(debug.contains("success"));
+    }
+
+    // === CompilerError tests ===
+
+    #[test]
+    fn test_compiler_error_all_fields() {
+        let error = CompilerError {
+            code: Some("E0308".to_string()),
+            message: "mismatched types".to_string(),
+            span: Some(ErrorSpan {
+                file: "lib.rs".to_string(),
+                line_start: 10,
+                line_end: 10,
+                column_start: 5,
+                column_end: 15,
+            }),
+            is_semantic: true,
+        };
+        assert_eq!(error.code.as_deref(), Some("E0308"));
+        assert!(error.message.contains("mismatched"));
+        assert!(error.span.is_some());
+        assert!(error.is_semantic);
+    }
+
+    #[test]
+    fn test_compiler_error_no_code() {
+        let error = CompilerError {
+            code: None,
+            message: "some error".to_string(),
+            span: None,
+            is_semantic: false,
+        };
+        assert!(error.code.is_none());
+        assert!(!error.is_semantic);
+    }
+
+    #[test]
+    fn test_compiler_error_clone() {
+        let error = CompilerError {
+            code: Some("E0001".to_string()),
+            message: "test".to_string(),
+            span: None,
+            is_semantic: true,
+        };
+        let cloned = error.clone();
+        assert_eq!(cloned.code, error.code);
+        assert_eq!(cloned.message, error.message);
+    }
+
+    #[test]
+    fn test_compiler_error_debug() {
+        let error = CompilerError {
+            code: Some("E0001".to_string()),
+            message: "test".to_string(),
+            span: None,
+            is_semantic: true,
+        };
+        let debug = format!("{:?}", error);
+        assert!(debug.contains("CompilerError"));
+        assert!(debug.contains("E0001"));
+    }
+
+    // === CompilerWarning tests ===
+
+    #[test]
+    fn test_compiler_warning_fields() {
+        let warning = CompilerWarning {
+            code: Some("unused_variables".to_string()),
+            message: "unused variable: `x`".to_string(),
+        };
+        assert_eq!(warning.code.as_deref(), Some("unused_variables"));
+        assert!(warning.message.contains("unused"));
+    }
+
+    #[test]
+    fn test_compiler_warning_no_code() {
+        let warning = CompilerWarning {
+            code: None,
+            message: "warning without code".to_string(),
+        };
+        assert!(warning.code.is_none());
+    }
+
+    #[test]
+    fn test_compiler_warning_clone() {
+        let warning = CompilerWarning {
+            code: Some("dead_code".to_string()),
+            message: "unused".to_string(),
+        };
+        let cloned = warning.clone();
+        assert_eq!(cloned.code, warning.code);
+        assert_eq!(cloned.message, warning.message);
+    }
+
+    #[test]
+    fn test_compiler_warning_debug() {
+        let warning = CompilerWarning {
+            code: Some("test".to_string()),
+            message: "msg".to_string(),
+        };
+        let debug = format!("{:?}", warning);
+        assert!(debug.contains("CompilerWarning"));
+    }
+
+    // === ErrorSpan tests ===
+
+    #[test]
+    fn test_error_span_fields() {
+        let span = ErrorSpan {
+            file: "src/main.rs".to_string(),
+            line_start: 10,
+            line_end: 15,
+            column_start: 1,
+            column_end: 20,
+        };
+        assert_eq!(span.file, "src/main.rs");
+        assert_eq!(span.line_start, 10);
+        assert_eq!(span.line_end, 15);
+        assert_eq!(span.column_start, 1);
+        assert_eq!(span.column_end, 20);
+    }
+
+    #[test]
+    fn test_error_span_single_line() {
+        let span = ErrorSpan {
+            file: "lib.rs".to_string(),
+            line_start: 5,
+            line_end: 5,
+            column_start: 10,
+            column_end: 25,
+        };
+        assert_eq!(span.line_start, span.line_end);
+    }
+
+    #[test]
+    fn test_error_span_clone() {
+        let span = ErrorSpan {
+            file: "test.rs".to_string(),
+            line_start: 1,
+            line_end: 2,
+            column_start: 3,
+            column_end: 4,
+        };
+        let cloned = span.clone();
+        assert_eq!(cloned.file, span.file);
+        assert_eq!(cloned.line_start, span.line_start);
+    }
+
+    #[test]
+    fn test_error_span_debug() {
+        let span = ErrorSpan {
+            file: "test.rs".to_string(),
+            line_start: 1,
+            line_end: 1,
+            column_start: 1,
+            column_end: 10,
+        };
+        let debug = format!("{:?}", span);
+        assert!(debug.contains("ErrorSpan"));
+        assert!(debug.contains("test.rs"));
+    }
+
+    // === EphemeralWorkspace tests ===
+
     #[test]
     fn test_ephemeral_workspace_creates_files() {
         let rust_code = r#"
@@ -402,6 +640,40 @@ mod tests {
     }
 
     #[test]
+    fn test_ephemeral_workspace_path_accessors() {
+        let rust_code = "pub fn test() {}";
+        let cargo_toml = r#"
+[package]
+name = "test_paths"
+version = "0.1.0"
+edition = "2021"
+"#;
+        let workspace = EphemeralWorkspace::new("test_paths", rust_code, cargo_toml).unwrap();
+
+        // path() returns temp dir
+        assert!(workspace.path().exists());
+        assert!(workspace.path().is_dir());
+
+        // lib_path() returns lib.rs path
+        assert!(workspace.lib_path().exists());
+        assert!(workspace.lib_path().ends_with("lib.rs"));
+    }
+
+    #[test]
+    fn test_ephemeral_workspace_with_special_name() {
+        let rust_code = "pub fn test() {}";
+        let cargo_toml = r#"
+[package]
+name = "test_special_name"
+version = "0.1.0"
+edition = "2021"
+"#;
+        let workspace =
+            EphemeralWorkspace::new("test-special-name", rust_code, cargo_toml).unwrap();
+        assert!(workspace.path().exists());
+    }
+
+    #[test]
     fn test_valid_code_compiles() {
         let rust_code = r#"
             pub fn add(a: i32, b: i32) -> i32 {
@@ -418,7 +690,11 @@ edition = "2021"
         let workspace = EphemeralWorkspace::new("test_valid", rust_code, cargo_toml).unwrap();
         let result = workspace.check().unwrap();
 
-        assert!(result.success, "Valid code should compile: {:?}", result.errors);
+        assert!(
+            result.success,
+            "Valid code should compile: {:?}",
+            result.errors
+        );
         assert!(result.errors.is_empty(), "Should have no errors");
     }
 
@@ -479,6 +755,8 @@ serde = { version = "1.0", features = ["derive"] }
         );
     }
 
+    // === is_dependency_error tests ===
+
     #[test]
     fn test_is_dependency_error() {
         // E0432 is dependency error
@@ -504,5 +782,214 @@ serde = { version = "1.0", features = ["derive"] }
             &Some("E0599".to_string()),
             "method not found"
         ));
+    }
+
+    #[test]
+    fn test_is_dependency_error_e0433() {
+        // E0433 - failed to resolve
+        assert!(EphemeralWorkspace::is_dependency_error(
+            &Some("E0433".to_string()),
+            "failed to resolve"
+        ));
+    }
+
+    #[test]
+    fn test_is_dependency_error_message_based() {
+        // Check message-based detection
+        assert!(EphemeralWorkspace::is_dependency_error(
+            &None,
+            "can't find crate `foo`"
+        ));
+
+        assert!(EphemeralWorkspace::is_dependency_error(
+            &None,
+            "unresolved import `bar::baz`"
+        ));
+
+        assert!(EphemeralWorkspace::is_dependency_error(
+            &None,
+            "could not find `qux` in `xyz`"
+        ));
+    }
+
+    #[test]
+    fn test_is_dependency_error_not_dependency() {
+        // Various non-dependency errors
+        assert!(!EphemeralWorkspace::is_dependency_error(
+            &Some("E0277".to_string()),
+            "trait bound not satisfied"
+        ));
+
+        assert!(!EphemeralWorkspace::is_dependency_error(
+            &Some("E0382".to_string()),
+            "borrow of moved value"
+        ));
+
+        assert!(!EphemeralWorkspace::is_dependency_error(&None, "some other error message"));
+    }
+
+    #[test]
+    fn test_is_dependency_error_none_code() {
+        // With None code, relies on message
+        assert!(!EphemeralWorkspace::is_dependency_error(&None, "type mismatch"));
+    }
+
+    // === compile_with_cargo tests ===
+
+    #[test]
+    fn test_compile_with_cargo_default_toml() {
+        let rust_code = r#"
+            pub fn simple() -> i32 {
+                42
+            }
+        "#;
+        let result = compile_with_cargo("test_default", rust_code, None).unwrap();
+        assert!(result.success, "Simple code should compile with default toml");
+    }
+
+    #[test]
+    fn test_compile_with_cargo_custom_toml() {
+        let rust_code = "pub fn test() {}";
+        let custom_toml = r#"
+[package]
+name = "custom_pkg"
+version = "0.2.0"
+edition = "2021"
+"#;
+        let result = compile_with_cargo("custom_pkg", rust_code, Some(custom_toml)).unwrap();
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_compile_with_cargo_name_with_dash() {
+        // Test that names with dashes are converted to underscores
+        let rust_code = "pub fn test() {}";
+        let result = compile_with_cargo("my-test-module", rust_code, None).unwrap();
+        assert!(result.success);
+    }
+
+    // === quick_check tests ===
+
+    #[test]
+    fn test_quick_check_success() {
+        let rust_code = "pub fn hello() {}";
+        let result = quick_check("test_quick_ok", rust_code, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_quick_check_semantic_error() {
+        let rust_code = r#"
+            pub fn broken() -> i32 {
+                "string"  // type error
+            }
+        "#;
+        let result = quick_check("test_quick_fail", rust_code, None);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        // Should contain error code for semantic error
+        assert!(err.contains("E0") || !err.is_empty());
+    }
+
+    #[test]
+    fn test_quick_check_with_custom_toml() {
+        let rust_code = "pub fn test() {}";
+        let toml = r#"
+[package]
+name = "quick_custom"
+version = "0.1.0"
+edition = "2021"
+"#;
+        let result = quick_check("quick_custom", rust_code, Some(toml));
+        assert!(result.is_ok());
+    }
+
+    // === Edge case tests ===
+
+    #[test]
+    fn test_empty_rust_code() {
+        let rust_code = "";
+        let result = compile_with_cargo("empty_code", rust_code, None).unwrap();
+        // Empty code should compile (creates empty lib)
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_code_with_warnings() {
+        let rust_code = r#"
+            pub fn test() {
+                let unused_var = 42;
+            }
+        "#;
+        let result = compile_with_cargo("with_warnings", rust_code, None).unwrap();
+        // Should still succeed (warnings don't fail check by default)
+        assert!(result.success);
+        // May have warnings
+        // (Note: warning detection depends on cargo check behavior)
+    }
+
+    #[test]
+    fn test_multiple_functions() {
+        let rust_code = r#"
+            pub fn add(a: i32, b: i32) -> i32 { a + b }
+            pub fn sub(a: i32, b: i32) -> i32 { a - b }
+            pub fn mul(a: i32, b: i32) -> i32 { a * b }
+        "#;
+        let result = compile_with_cargo("multi_fn", rust_code, None).unwrap();
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_with_struct() {
+        let rust_code = r#"
+            pub struct Point {
+                pub x: f64,
+                pub y: f64,
+            }
+
+            impl Point {
+                pub fn new(x: f64, y: f64) -> Self {
+                    Self { x, y }
+                }
+            }
+        "#;
+        let result = compile_with_cargo("with_struct", rust_code, None).unwrap();
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_with_enum() {
+        let rust_code = r#"
+            pub enum Status {
+                Active,
+                Inactive,
+                Pending,
+            }
+        "#;
+        let result = compile_with_cargo("with_enum", rust_code, None).unwrap();
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_with_generics() {
+        let rust_code = r#"
+            pub fn identity<T>(x: T) -> T {
+                x
+            }
+
+            pub struct Container<T> {
+                pub value: T,
+            }
+        "#;
+        let result = compile_with_cargo("with_generics", rust_code, None).unwrap();
+        assert!(result.success);
+    }
+
+    #[test]
+    fn test_syntax_error() {
+        let rust_code = "pub fn broken( { }"; // syntax error
+        let result = compile_with_cargo("syntax_err", rust_code, None).unwrap();
+        assert!(!result.success);
+        assert!(!result.errors.is_empty());
     }
 }

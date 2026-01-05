@@ -91,6 +91,7 @@ pub mod performance_warnings;
 pub mod profiling;
 pub mod pytest_extractor;
 pub mod rust_gen;
+pub mod scoring;
 pub mod simplified_hir;
 pub mod stdlib_mappings;
 pub mod string_optimization;
