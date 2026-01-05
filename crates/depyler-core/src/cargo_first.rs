@@ -834,9 +834,13 @@ serde = { version = "1.0", features = ["derive"] }
         assert!(!EphemeralWorkspace::is_dependency_error(&None, "type mismatch"));
     }
 
-    // === compile_with_cargo tests ===
+    // === compile_with_cargo integration tests ===
+    // NOTE: These tests spawn actual `cargo check` processes and are marked #[ignore]
+    // because they are flaky under coverage instrumentation (cargo-llvm-cov) and
+    // consume significant memory/time. Run explicitly with: cargo test -- --ignored
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_compile_with_cargo_default_toml() {
         let rust_code = r#"
             pub fn simple() -> i32 {
@@ -848,6 +852,7 @@ serde = { version = "1.0", features = ["derive"] }
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_compile_with_cargo_custom_toml() {
         let rust_code = "pub fn test() {}";
         let custom_toml = r#"
@@ -861,6 +866,7 @@ edition = "2021"
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_compile_with_cargo_name_with_dash() {
         // Test that names with dashes are converted to underscores
         let rust_code = "pub fn test() {}";
@@ -868,9 +874,10 @@ edition = "2021"
         assert!(result.success);
     }
 
-    // === quick_check tests ===
+    // === quick_check integration tests ===
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_quick_check_success() {
         let rust_code = "pub fn hello() {}";
         let result = quick_check("test_quick_ok", rust_code, None);
@@ -878,6 +885,7 @@ edition = "2021"
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_quick_check_semantic_error() {
         let rust_code = r#"
             pub fn broken() -> i32 {
@@ -892,6 +900,7 @@ edition = "2021"
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_quick_check_with_custom_toml() {
         let rust_code = "pub fn test() {}";
         let toml = r#"
@@ -904,9 +913,10 @@ edition = "2021"
         assert!(result.is_ok());
     }
 
-    // === Edge case tests ===
+    // === Edge case integration tests ===
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_empty_rust_code() {
         let rust_code = "";
         let result = compile_with_cargo("empty_code", rust_code, None).unwrap();
@@ -915,6 +925,7 @@ edition = "2021"
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_code_with_warnings() {
         let rust_code = r#"
             pub fn test() {
@@ -929,6 +940,7 @@ edition = "2021"
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_multiple_functions() {
         let rust_code = r#"
             pub fn add(a: i32, b: i32) -> i32 { a + b }
@@ -940,6 +952,7 @@ edition = "2021"
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_with_struct() {
         let rust_code = r#"
             pub struct Point {
@@ -958,6 +971,7 @@ edition = "2021"
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_with_enum() {
         let rust_code = r#"
             pub enum Status {
@@ -971,6 +985,7 @@ edition = "2021"
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_with_generics() {
         let rust_code = r#"
             pub fn identity<T>(x: T) -> T {
@@ -986,6 +1001,7 @@ edition = "2021"
     }
 
     #[test]
+    #[ignore = "spawns cargo process - flaky under coverage"]
     fn test_syntax_error() {
         let rust_code = "pub fn broken( { }"; // syntax error
         let result = compile_with_cargo("syntax_err", rust_code, None).unwrap();

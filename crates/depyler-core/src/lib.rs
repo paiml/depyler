@@ -100,6 +100,7 @@ pub mod type_hints;
 pub mod type_mapper;
 pub mod type_inference_telemetry;
 pub mod type_system;
+pub mod type_propagation;
 pub mod typeshed_ingest;
 pub mod union_enum_gen;
 
@@ -250,554 +251,6 @@ pub struct ValidationResult {
     pub is_valid: bool,
     pub errors: Vec<String>,
     pub warnings: Vec<String>,
-}
-
-/// DEPYLER-0575: Cross-function type propagation from call sites
-/// When a variable with known type is passed to a function, propagate that type
-/// to the function's parameter if the parameter type is still Unknown.
-fn propagate_call_site_types(hir: &mut hir::HirModule) {
-    use std::collections::HashMap;
-
-    // Phase 1: Build map of function names to their parameter counts and return types
-    let func_param_counts: HashMap<String, usize> = hir
-        .functions
-        .iter()
-        .map(|f| (f.name.clone(), f.params.len()))
-        .collect();
-
-    let func_return_types: HashMap<String, hir::Type> = hir
-        .functions
-        .iter()
-        .filter(|f| !matches!(f.ret_type, hir::Type::Unknown))
-        .map(|f| (f.name.clone(), f.ret_type.clone()))
-        .collect();
-
-    // Phase 2: Build map of variable types from all functions
-    // Collect from: parameters with types, return values, locals
-    let mut var_types: HashMap<(String, String), hir::Type> = HashMap::new(); // (func_name, var_name) -> Type
-
-    for func in &hir.functions {
-        // Collect parameter types
-        for param in &func.params {
-            if !matches!(param.ty, hir::Type::Unknown) {
-                var_types.insert((func.name.clone(), param.name.clone()), param.ty.clone());
-            }
-        }
-
-        // Collect variable types from assignments (including from function calls)
-        collect_var_types_from_stmts(&func.body, &func.name, &func_return_types, &mut var_types);
-    }
-
-    // Phase 3: Collect call site argument types
-    // Maps (called_func_name, param_index) -> inferred_type
-    let mut call_site_types: HashMap<(String, usize), hir::Type> = HashMap::new();
-
-    for func in &hir.functions {
-        collect_call_site_types(
-            &func.body,
-            &func.name,
-            &var_types,
-            &func_param_counts,
-            &mut call_site_types,
-        );
-    }
-
-    // Phase 4: Apply call site types to function parameters
-    for func in &mut hir.functions {
-        for (idx, param) in func.params.iter_mut().enumerate() {
-            if let Some(inferred_type) = call_site_types.get(&(func.name.clone(), idx)) {
-                // DEPYLER-0950: Call-site evidence from literals is authoritative
-                // Override Unknown types AND heuristic String inferences
-                // when there's concrete literal evidence (Int/Float/Bool)
-                let should_apply = matches!(param.ty, hir::Type::Unknown)
-                    || (matches!(param.ty, hir::Type::String)
-                        && matches!(
-                            inferred_type,
-                            hir::Type::Int | hir::Type::Float | hir::Type::Bool
-                        ));
-
-                if should_apply {
-                    param.ty = inferred_type.clone();
-                    eprintln!(
-                        "DEPYLER-0575: Applied call-site type: {}::{} -> {:?}",
-                        func.name, param.name, param.ty
-                    );
-                }
-            }
-        }
-    }
-}
-
-/// Collect variable types from statements (assignments, etc.)
-fn collect_var_types_from_stmts(
-    stmts: &[hir::HirStmt],
-    func_name: &str,
-    func_return_types: &std::collections::HashMap<String, hir::Type>,
-    var_types: &mut std::collections::HashMap<(String, String), hir::Type>,
-) {
-    for stmt in stmts {
-        match stmt {
-            hir::HirStmt::Assign {
-                target: hir::AssignTarget::Symbol(var_name),
-                value,
-                type_annotation,
-            } => {
-                // If there's a type annotation, use that
-                if let Some(ty) = type_annotation {
-                    if !matches!(ty, hir::Type::Unknown) {
-                        var_types.insert((func_name.to_string(), var_name.clone()), ty.clone());
-                        continue;
-                    }
-                }
-                // Otherwise infer from value (including function call return types)
-                if let Some(ty) = infer_expr_type_with_returns(value, func_return_types) {
-                    var_types.insert((func_name.to_string(), var_name.clone()), ty);
-                }
-            }
-            hir::HirStmt::If {
-                then_body,
-                else_body,
-                ..
-            } => {
-                collect_var_types_from_stmts(then_body, func_name, func_return_types, var_types);
-                if let Some(else_stmts) = else_body {
-                    collect_var_types_from_stmts(
-                        else_stmts,
-                        func_name,
-                        func_return_types,
-                        var_types,
-                    );
-                }
-            }
-            hir::HirStmt::While { body, .. } => {
-                collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
-            }
-            hir::HirStmt::For { target, iter, body } => {
-                // DEPYLER-0587: Track loop variable types from iterator
-                if let Some(iter_type) = infer_expr_type_with_returns(iter, func_return_types) {
-                    let elem_type = extract_element_type(&iter_type);
-                    add_target_to_var_types(target, &elem_type, func_name, var_types);
-                }
-                collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
-            }
-            hir::HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
-                collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
-                for handler in handlers {
-                    collect_var_types_from_stmts(
-                        &handler.body,
-                        func_name,
-                        func_return_types,
-                        var_types,
-                    );
-                }
-                if let Some(finally) = finalbody {
-                    collect_var_types_from_stmts(finally, func_name, func_return_types, var_types);
-                }
-            }
-            hir::HirStmt::With { body, .. } => {
-                collect_var_types_from_stmts(body, func_name, func_return_types, var_types);
-            }
-            _ => {}
-        }
-    }
-}
-
-/// DEPYLER-0587: Extract element type from iterator type (Vec<T> → T)
-fn extract_element_type(iter_type: &hir::Type) -> hir::Type {
-    match iter_type {
-        hir::Type::List(elem) => (**elem).clone(),
-        hir::Type::Dict(k, _) => (**k).clone(), // dict iteration yields keys
-        hir::Type::Tuple(elems) => {
-            // Tuple iteration - return first element type as approximation
-            elems.first().cloned().unwrap_or(hir::Type::Unknown)
-        }
-        hir::Type::String => hir::Type::String, // str iteration yields str (chars)
-        _ => hir::Type::Unknown,
-    }
-}
-
-/// DEPYLER-0587: Add target variable(s) to var_types map
-fn add_target_to_var_types(
-    target: &hir::AssignTarget,
-    elem_type: &hir::Type,
-    func_name: &str,
-    var_types: &mut std::collections::HashMap<(String, String), hir::Type>,
-) {
-    match target {
-        hir::AssignTarget::Symbol(var_name) => {
-            var_types.insert((func_name.to_string(), var_name.clone()), elem_type.clone());
-        }
-        hir::AssignTarget::Tuple(targets) => {
-            // Handle tuple unpacking: for (i, x) in enumerate(items)
-            // elem_type should be Tuple type for enumerate
-            if let hir::Type::Tuple(elem_types) = elem_type {
-                for (target, ty) in targets.iter().zip(elem_types.iter()) {
-                    add_target_to_var_types(target, ty, func_name, var_types);
-                }
-            } else {
-                // Fallback: all targets get Unknown type
-                for t in targets {
-                    add_target_to_var_types(t, &hir::Type::Unknown, func_name, var_types);
-                }
-            }
-        }
-        _ => {} // Index and Attribute targets not typical in for loops
-    }
-}
-
-/// Infer type from an expression (simple cases only)
-#[allow(dead_code)]
-fn infer_expr_type(expr: &hir::HirExpr) -> Option<hir::Type> {
-    infer_expr_type_with_returns(expr, &std::collections::HashMap::new())
-}
-
-/// Infer type from an expression, including function return types
-fn infer_expr_type_with_returns(
-    expr: &hir::HirExpr,
-    func_return_types: &std::collections::HashMap<String, hir::Type>,
-) -> Option<hir::Type> {
-    match expr {
-        hir::HirExpr::Literal(lit) => Some(match lit {
-            hir::Literal::Int(_) => hir::Type::Int,
-            hir::Literal::Float(_) => hir::Type::Float,
-            hir::Literal::String(_) => hir::Type::String,
-            hir::Literal::Bool(_) => hir::Type::Bool,
-            hir::Literal::None => hir::Type::None,
-            _ => return None,
-        }),
-        hir::HirExpr::List(elems) => {
-            let elem_type = elems
-                .first()
-                .and_then(|e| infer_expr_type_with_returns(e, func_return_types))
-                .unwrap_or(hir::Type::Unknown);
-            Some(hir::Type::List(Box::new(elem_type)))
-        }
-        hir::HirExpr::Dict(_) => Some(hir::Type::Dict(
-            Box::new(hir::Type::String),
-            Box::new(hir::Type::Custom("serde_json::Value".to_string())),
-        )),
-        // DEPYLER-0575: Infer type from function call return type
-        hir::HirExpr::Call { func, .. } => func_return_types.get(func).cloned(),
-        _ => None,
-    }
-}
-
-/// Collect call site types: when func(var) is called and var has a known type,
-/// record that type for the function's parameter at that position
-fn collect_call_site_types(
-    stmts: &[hir::HirStmt],
-    caller_func_name: &str,
-    var_types: &std::collections::HashMap<(String, String), hir::Type>,
-    func_param_counts: &std::collections::HashMap<String, usize>,
-    call_site_types: &mut std::collections::HashMap<(String, usize), hir::Type>,
-) {
-    for stmt in stmts {
-        match stmt {
-            hir::HirStmt::Assign { value, .. } => {
-                collect_call_site_types_from_expr(
-                    value,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-            }
-            hir::HirStmt::Expr(expr) | hir::HirStmt::Return(Some(expr)) => {
-                collect_call_site_types_from_expr(
-                    expr,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-            }
-            hir::HirStmt::If {
-                condition,
-                then_body,
-                else_body,
-            } => {
-                collect_call_site_types_from_expr(
-                    condition,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-                collect_call_site_types(
-                    then_body,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-                if let Some(else_stmts) = else_body {
-                    collect_call_site_types(
-                        else_stmts,
-                        caller_func_name,
-                        var_types,
-                        func_param_counts,
-                        call_site_types,
-                    );
-                }
-            }
-            hir::HirStmt::While { condition, body } => {
-                collect_call_site_types_from_expr(
-                    condition,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-                collect_call_site_types(
-                    body,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-            }
-            hir::HirStmt::For { iter, body, .. } => {
-                collect_call_site_types_from_expr(
-                    iter,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-                collect_call_site_types(
-                    body,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-            }
-            hir::HirStmt::Try {
-                body,
-                handlers,
-                finalbody,
-                ..
-            } => {
-                collect_call_site_types(
-                    body,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-                for handler in handlers {
-                    collect_call_site_types(
-                        &handler.body,
-                        caller_func_name,
-                        var_types,
-                        func_param_counts,
-                        call_site_types,
-                    );
-                }
-                if let Some(finally) = finalbody {
-                    collect_call_site_types(
-                        finally,
-                        caller_func_name,
-                        var_types,
-                        func_param_counts,
-                        call_site_types,
-                    );
-                }
-            }
-            hir::HirStmt::With { context, body, .. } => {
-                collect_call_site_types_from_expr(
-                    context,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-                collect_call_site_types(
-                    body,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Collect call site types from an expression
-fn collect_call_site_types_from_expr(
-    expr: &hir::HirExpr,
-    caller_func_name: &str,
-    var_types: &std::collections::HashMap<(String, String), hir::Type>,
-    func_param_counts: &std::collections::HashMap<String, usize>,
-    call_site_types: &mut std::collections::HashMap<(String, usize), hir::Type>,
-) {
-    match expr {
-        hir::HirExpr::Call { func, args, .. } => {
-            // Check if this is a call to a user-defined function
-            if func_param_counts.contains_key(func) {
-                // For each argument, if it's a variable with known type, record it
-                for (idx, arg) in args.iter().enumerate() {
-                    // DEPYLER-0950: Handle both variable and literal arguments
-                    let arg_type = match arg {
-                        hir::HirExpr::Var(var_name) => {
-                            // Look up the variable's type in the caller's scope
-                            var_types
-                                .get(&(caller_func_name.to_string(), var_name.clone()))
-                                .cloned()
-                        }
-                        // Handle literal arguments (e.g., process(10), add(1, 2.5))
-                        hir::HirExpr::Literal(lit) => Some(match lit {
-                            hir::Literal::Int(_) => hir::Type::Int,
-                            hir::Literal::Float(_) => hir::Type::Float,
-                            hir::Literal::String(_) => hir::Type::String,
-                            hir::Literal::Bool(_) => hir::Type::Bool,
-                            _ => hir::Type::Unknown,
-                        }),
-                        _ => None,
-                    };
-
-                    if let Some(ty) = arg_type {
-                        // DEPYLER-0575: Skip Unknown and Optional types
-                        // Optional types often get unwrapped before use, so don't propagate them
-                        let should_propagate =
-                            !matches!(ty, hir::Type::Unknown | hir::Type::Optional(_));
-                        if should_propagate {
-                            call_site_types.insert((func.clone(), idx), ty.clone());
-                        }
-                    }
-                }
-            }
-            // Recurse into arguments
-            for arg in args {
-                collect_call_site_types_from_expr(
-                    arg,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-            }
-        }
-        hir::HirExpr::MethodCall { object, args, .. } => {
-            collect_call_site_types_from_expr(
-                object,
-                caller_func_name,
-                var_types,
-                func_param_counts,
-                call_site_types,
-            );
-            for arg in args {
-                collect_call_site_types_from_expr(
-                    arg,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-            }
-        }
-        hir::HirExpr::Binary { left, right, .. } => {
-            collect_call_site_types_from_expr(
-                left,
-                caller_func_name,
-                var_types,
-                func_param_counts,
-                call_site_types,
-            );
-            collect_call_site_types_from_expr(
-                right,
-                caller_func_name,
-                var_types,
-                func_param_counts,
-                call_site_types,
-            );
-        }
-        hir::HirExpr::Unary { operand, .. } => {
-            collect_call_site_types_from_expr(
-                operand,
-                caller_func_name,
-                var_types,
-                func_param_counts,
-                call_site_types,
-            );
-        }
-        hir::HirExpr::Index { base, index } => {
-            collect_call_site_types_from_expr(
-                base,
-                caller_func_name,
-                var_types,
-                func_param_counts,
-                call_site_types,
-            );
-            collect_call_site_types_from_expr(
-                index,
-                caller_func_name,
-                var_types,
-                func_param_counts,
-                call_site_types,
-            );
-        }
-        hir::HirExpr::List(elems) => {
-            for elem in elems {
-                collect_call_site_types_from_expr(
-                    elem,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-            }
-        }
-        hir::HirExpr::Dict(items) => {
-            for (k, v) in items {
-                collect_call_site_types_from_expr(
-                    k,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-                collect_call_site_types_from_expr(
-                    v,
-                    caller_func_name,
-                    var_types,
-                    func_param_counts,
-                    call_site_types,
-                );
-            }
-        }
-        hir::HirExpr::IfExpr { test, body, orelse } => {
-            collect_call_site_types_from_expr(
-                test,
-                caller_func_name,
-                var_types,
-                func_param_counts,
-                call_site_types,
-            );
-            collect_call_site_types_from_expr(
-                body,
-                caller_func_name,
-                var_types,
-                func_param_counts,
-                call_site_types,
-            );
-            collect_call_site_types_from_expr(
-                orelse,
-                caller_func_name,
-                var_types,
-                func_param_counts,
-                call_site_types,
-            );
-        }
-        _ => {}
-    }
 }
 
 impl Default for DepylerPipeline {
@@ -1002,7 +455,7 @@ impl DepylerPipeline {
         }
 
         // DEPYLER-0575: Cross-function type propagation from call sites
-        propagate_call_site_types(&mut hir);
+        type_propagation::propagate_call_site_types(&mut hir);
 
         // DEPYLER-0202: Constraint-based type inference via Hindley-Milner
         // Collect constraints from HIR and solve for unknown types
@@ -1174,7 +627,7 @@ impl DepylerPipeline {
         }
 
         // DEPYLER-0575: Cross-function type propagation from call sites
-        propagate_call_site_types(&mut hir);
+        type_propagation::propagate_call_site_types(&mut hir);
 
         // DEPYLER-0202: Constraint-based type inference via Hindley-Milner
         // Collect constraints from HIR and solve for unknown types
@@ -1572,5 +1025,318 @@ def create_map() -> Dict[str, int]:
             func.annotations.hash_strategy,
             depyler_annotations::HashStrategy::Fnv
         );
+    }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_lazy_mcp_client_default() {
+        let client = LazyMcpClient::default();
+        assert!(client.endpoint.is_none());
+    }
+
+    #[test]
+    fn test_lazy_mcp_client_debug() {
+        let client = LazyMcpClient::default();
+        let debug_str = format!("{:?}", client);
+        assert!(debug_str.contains("LazyMcpClient"));
+    }
+
+    #[test]
+    fn test_optimization_level_debug() {
+        assert_eq!(format!("{:?}", OptimizationLevel::Debug), "Debug");
+        assert_eq!(format!("{:?}", OptimizationLevel::Release), "Release");
+        assert_eq!(format!("{:?}", OptimizationLevel::Size), "Size");
+    }
+
+    #[test]
+    fn test_optimization_level_default() {
+        let level: OptimizationLevel = Default::default();
+        assert!(matches!(level, OptimizationLevel::Debug));
+    }
+
+    #[test]
+    fn test_optimization_level_clone() {
+        let level = OptimizationLevel::Release;
+        let cloned = level.clone();
+        assert!(matches!(cloned, OptimizationLevel::Release));
+    }
+
+    #[test]
+    fn test_config_default() {
+        let config: Config = Default::default();
+        assert!(!config.enable_verification);
+        assert!(!config.enable_metrics);
+        assert!(matches!(config.optimization_level, OptimizationLevel::Debug));
+    }
+
+    #[test]
+    fn test_config_debug() {
+        let config = Config {
+            enable_verification: true,
+            enable_metrics: true,
+            optimization_level: OptimizationLevel::Size,
+        };
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("Config"));
+        assert!(debug_str.contains("enable_verification"));
+    }
+
+    #[test]
+    fn test_config_clone() {
+        let config = Config {
+            enable_verification: true,
+            enable_metrics: false,
+            optimization_level: OptimizationLevel::Release,
+        };
+        let cloned = config.clone();
+        assert!(cloned.enable_verification);
+        assert!(!cloned.enable_metrics);
+    }
+
+    #[test]
+    fn test_core_analyzer_debug() {
+        let analyzer = CoreAnalyzer {
+            metrics_enabled: true,
+            type_inference_enabled: false,
+        };
+        let debug_str = format!("{:?}", analyzer);
+        assert!(debug_str.contains("CoreAnalyzer"));
+        assert!(debug_str.contains("metrics_enabled"));
+    }
+
+    #[test]
+    fn test_core_analyzer_clone() {
+        let analyzer = CoreAnalyzer {
+            metrics_enabled: false,
+            type_inference_enabled: true,
+        };
+        let cloned = analyzer.clone();
+        assert!(!cloned.metrics_enabled);
+        assert!(cloned.type_inference_enabled);
+    }
+
+    #[test]
+    fn test_direct_transpiler_debug() {
+        let transpiler = DirectTranspiler {
+            type_mapper: type_mapper::TypeMapper::default(),
+        };
+        let debug_str = format!("{:?}", transpiler);
+        assert!(debug_str.contains("DirectTranspiler"));
+    }
+
+    #[test]
+    fn test_direct_transpiler_clone() {
+        let transpiler = DirectTranspiler {
+            type_mapper: type_mapper::TypeMapper::default(),
+        };
+        let _cloned = transpiler.clone();
+        // If clone compiles and runs, the test passes
+    }
+
+    #[test]
+    fn test_property_verifier_debug() {
+        let verifier = PropertyVerifier {
+            enable_quickcheck: true,
+            enable_contracts: false,
+        };
+        let debug_str = format!("{:?}", verifier);
+        assert!(debug_str.contains("PropertyVerifier"));
+        assert!(debug_str.contains("enable_quickcheck"));
+    }
+
+    #[test]
+    fn test_property_verifier_clone() {
+        let verifier = PropertyVerifier {
+            enable_quickcheck: false,
+            enable_contracts: true,
+        };
+        let cloned = verifier.clone();
+        assert!(!cloned.enable_quickcheck);
+        assert!(cloned.enable_contracts);
+    }
+
+    #[test]
+    fn test_validation_result_debug() {
+        let result = ValidationResult {
+            is_valid: false,
+            errors: vec!["error1".to_string()],
+            warnings: vec![],
+        };
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("ValidationResult"));
+        assert!(debug_str.contains("error1"));
+    }
+
+    #[test]
+    fn test_validation_result_clone() {
+        let result = ValidationResult {
+            is_valid: true,
+            errors: vec![],
+            warnings: vec!["warn".to_string()],
+        };
+        let cloned = result.clone();
+        assert!(cloned.is_valid);
+        assert_eq!(cloned.warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_pipeline_with_debug() {
+        let debug_config = debug::DebugConfig::default();
+        let pipeline = DepylerPipeline::new().with_debug(debug_config);
+        assert!(pipeline.debug_config.is_some());
+    }
+
+    #[test]
+    fn test_pipeline_debug_impl() {
+        let pipeline = DepylerPipeline::new();
+        let debug_str = format!("{:?}", pipeline);
+        assert!(debug_str.contains("DepylerPipeline"));
+        assert!(debug_str.contains("analyzer"));
+    }
+
+    #[test]
+    fn test_pipeline_clone() {
+        let pipeline = DepylerPipeline::new().with_verification();
+        let cloned = pipeline.clone();
+        assert!(cloned.verifier.is_some());
+    }
+
+    #[test]
+    fn test_transpile_with_dependencies() {
+        let pipeline = DepylerPipeline::new();
+        let python_code = r#"
+def greet(name: str) -> str:
+    return "Hello, " + name
+"#;
+        let result = pipeline.transpile_with_dependencies(python_code);
+        assert!(result.is_ok());
+        let (rust_code, dependencies) = result.unwrap();
+        assert!(rust_code.contains("pub fn greet"));
+        // Dependencies may be empty for simple code
+        assert!(dependencies.is_empty() || !dependencies.is_empty());
+    }
+
+    #[test]
+    fn test_transpile_with_dependencies_error() {
+        let pipeline = DepylerPipeline::new();
+        let invalid_python = "def broken(";
+        let result = pipeline.transpile_with_dependencies(invalid_python);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_analyze_to_typed_hir() {
+        let pipeline = DepylerPipeline::new();
+        let python_code = r#"
+def double(x: int) -> int:
+    return x * 2
+"#;
+        let hir = pipeline.analyze_to_typed_hir(python_code).unwrap();
+        assert_eq!(hir.functions.len(), 1);
+        assert_eq!(hir.functions[0].name, "double");
+    }
+
+    #[test]
+    fn test_parse_python_directly() {
+        let pipeline = DepylerPipeline::new();
+        let result = pipeline.parse_python("x = 42");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_parse_python_error() {
+        let pipeline = DepylerPipeline::new();
+        let result = pipeline.parse_python("def incomplete(");
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        assert!(err.to_string().contains("parse error"));
+    }
+
+    #[test]
+    fn test_pipeline_serialization() {
+        let pipeline = DepylerPipeline::new().with_verification();
+        let json = serde_json::to_string(&pipeline).unwrap();
+        assert!(json.contains("analyzer"));
+        assert!(json.contains("transpiler"));
+        assert!(json.contains("verifier"));
+    }
+
+    #[test]
+    fn test_pipeline_deserialization() {
+        let json = r#"{
+            "analyzer": {"metrics_enabled": false, "type_inference_enabled": true},
+            "transpiler": {"type_mapper": {"width_preference": "I32", "string_type": "AlwaysOwned"}},
+            "verifier": {"enable_quickcheck": true, "enable_contracts": false}
+        }"#;
+        let pipeline: DepylerPipeline = serde_json::from_str(json).unwrap();
+        assert!(!pipeline.analyzer.metrics_enabled);
+        assert!(pipeline.analyzer.type_inference_enabled);
+        assert!(pipeline.verifier.is_some());
+    }
+
+    #[test]
+    fn test_validation_result_with_errors_and_warnings() {
+        let result = ValidationResult {
+            is_valid: false,
+            errors: vec!["err1".to_string(), "err2".to_string()],
+            warnings: vec!["warn1".to_string()],
+        };
+        assert!(!result.is_valid);
+        assert_eq!(result.errors.len(), 2);
+        assert_eq!(result.warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_config_with_all_levels() {
+        // Test Debug level
+        let debug_config = Config {
+            enable_verification: false,
+            enable_metrics: false,
+            optimization_level: OptimizationLevel::Debug,
+        };
+        let _pipeline = DepylerPipeline::new_with_config(debug_config);
+
+        // Test Size level
+        let size_config = Config {
+            enable_verification: true,
+            enable_metrics: true,
+            optimization_level: OptimizationLevel::Size,
+        };
+        let pipeline = DepylerPipeline::new_with_config(size_config);
+        assert!(pipeline.analyzer.metrics_enabled);
+        assert!(pipeline.verifier.is_some());
+    }
+
+    #[test]
+    fn test_pipeline_default_trait() {
+        let pipeline: DepylerPipeline = Default::default();
+        assert!(pipeline.analyzer.metrics_enabled);
+        assert!(pipeline.verifier.is_none());
+    }
+
+    #[test]
+    fn test_empty_python_transpilation() {
+        let pipeline = DepylerPipeline::new();
+        let result = pipeline.transpile("");
+        // Empty Python is valid (produces empty module)
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_multiple_functions() {
+        let pipeline = DepylerPipeline::new();
+        let python_code = r#"
+def add(a: int, b: int) -> int:
+    return a + b
+
+def subtract(a: int, b: int) -> int:
+    return a - b
+"#;
+        let result = pipeline.transpile(python_code);
+        assert!(result.is_ok());
+        let rust_code = result.unwrap();
+        assert!(rust_code.contains("pub fn add"));
+        assert!(rust_code.contains("pub fn subtract"));
     }
 }

@@ -12,9 +12,9 @@ use crate::rust_gen::expr_analysis::{
     contains_floor_div, expr_infers_float, extract_divisor_from_floor_div,
     extract_kwarg_bool, extract_kwarg_string, extract_string_literal,
     handler_contains_raise, handler_ends_with_exit, is_dict_augassign_pattern,
-    is_dict_index_access, is_dict_with_value_type, is_file_creating_expr,
+    is_dict_index_access, is_dict_with_value_type,
     is_iterator_producing_expr, is_nested_function_recursive, is_numpy_value_expr,
-    is_pure_expression, is_stdio_expr, looks_like_option_expr, needs_type_conversion,
+    is_pure_expression, looks_like_option_expr, needs_type_conversion,
     to_pascal_case,
 };
 use crate::rust_gen::keywords::safe_ident; // DEPYLER-0023: Keyword escaping
@@ -29,7 +29,7 @@ use crate::rust_gen::truthiness_helpers::{
     is_collection_var_name, is_dict_var_name, is_string_var_name,
 }; // DEPYLER-COVERAGE-95: Use centralized truthiness helpers
 use crate::rust_gen::var_analysis::{
-    extract_toplevel_assigned_symbols, extract_walrus_from_condition, find_assigned_expr,
+    extract_toplevel_assigned_symbols, extract_walrus_from_condition,
     find_var_position_in_tuple, is_var_reassigned_in_stmt, is_var_used_as_dict_key_in_stmt,
     is_var_used_in_stmt, needs_boxed_dyn_write,
 }; // DEPYLER-0023: Centralized var analysis
@@ -1582,14 +1582,11 @@ fn apply_truthiness_conversion(
     cond_expr
 }
 
-/// DEPYLER-0379: Extract all simple symbol assignments from a statement block
-///
-/// Returns a set of variable names that are assigned (not reassigned) in the block.
-/// Only captures simple symbol assignments like `x = value`, not `x[i] = value` or `x.attr = value`.
-///
-/// # Complexity
-/// 4 (recursive traversal with set operations)
-///
+// DEPYLER-0379: Extract all simple symbol assignments from a statement block
+// Returns a set of variable names that are assigned (not reassigned) in the block.
+// Only captures simple symbol assignments like `x = value`, not `x[i] = value` or `x.attr = value`.
+// Complexity: 4 (recursive traversal with set operations)
+//
 // DEPYLER-0023: Symbol extraction and walrus operator functions (extract_assigned_symbols,
 // extract_toplevel_assigned_symbols, extract_walrus_from_condition, extract_walrus_recursive)
 // imported from var_analysis module
@@ -6840,10 +6837,13 @@ fn captures_outer_scope(
 mod tests {
     use super::*;
     use crate::hir::{BinOp, HirExpr, Literal, Type};
-    use crate::rust_gen::expr_analysis::expr_returns_usize;
+    use crate::rust_gen::expr_analysis::{
+        expr_returns_usize, is_file_creating_expr, is_stdio_expr,
+    };
     use crate::rust_gen::var_analysis::{
-        extract_assigned_symbols, extract_walrus_recursive, is_var_direct_or_simple_in_expr,
-        is_var_used_as_dict_key_in_expr, is_var_used_in_assign_target, is_var_used_in_expr,
+        extract_assigned_symbols, extract_walrus_recursive, find_assigned_expr,
+        is_var_direct_or_simple_in_expr, is_var_used_as_dict_key_in_expr,
+        is_var_used_in_assign_target, is_var_used_in_expr,
     };
 
     // ============ expr_returns_usize tests ============
@@ -10256,6 +10256,763 @@ mod tests {
             attr: "stdout".to_string(),
         };
         assert!(!is_stdio_expr(&expr));
+    }
+
+    // ============ find_variable_type tuple unpacking tests (DEPYLER-0931) ============
+
+    #[test]
+    fn test_find_variable_type_tuple_unpacking_first_element() {
+        // (a, b, c) = (1, 2, 3) -> a should be Type::Int
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("a".to_string()),
+                AssignTarget::Symbol("b".to_string()),
+                AssignTarget::Symbol("c".to_string()),
+            ]),
+            value: HirExpr::Tuple(vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::Int(2)),
+                HirExpr::Literal(Literal::Int(3)),
+            ]),
+            type_annotation: None,
+        }];
+        assert_eq!(find_variable_type("a", &stmts), Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_variable_type_tuple_unpacking_second_element() {
+        // (a, b, c) = (1, "hello", 3) -> b should be Type::String
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("a".to_string()),
+                AssignTarget::Symbol("b".to_string()),
+                AssignTarget::Symbol("c".to_string()),
+            ]),
+            value: HirExpr::Tuple(vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::String("hello".to_string())),
+                HirExpr::Literal(Literal::Int(3)),
+            ]),
+            type_annotation: None,
+        }];
+        assert_eq!(find_variable_type("b", &stmts), Some(Type::String));
+    }
+
+    #[test]
+    fn test_find_variable_type_tuple_unpacking_not_found() {
+        // (a, b) = (1, 2) -> z should be None
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("a".to_string()),
+                AssignTarget::Symbol("b".to_string()),
+            ]),
+            value: HirExpr::Tuple(vec![
+                HirExpr::Literal(Literal::Int(1)),
+                HirExpr::Literal(Literal::Int(2)),
+            ]),
+            type_annotation: None,
+        }];
+        assert_eq!(find_variable_type("z", &stmts), None);
+    }
+
+    #[test]
+    fn test_find_variable_type_tuple_unpacking_with_type_annotation() {
+        // Test when RHS has Type::Tuple annotation
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Tuple(vec![
+                AssignTarget::Symbol("x".to_string()),
+                AssignTarget::Symbol("y".to_string()),
+            ]),
+            value: HirExpr::Var("some_tuple".to_string()),
+            type_annotation: Some(Type::Tuple(vec![Type::Int, Type::String])),
+        }];
+        // Variable "z" not in tuple - should be None
+        assert_eq!(find_variable_type("z", &stmts), None);
+    }
+
+    // ============ find_variable_type recursive search in try/except (DEPYLER-0931) ============
+
+    #[test]
+    fn test_find_variable_type_in_try_body() {
+        let stmts = vec![HirStmt::Try {
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(42)),
+                type_annotation: Some(Type::Int),
+            }],
+            handlers: vec![],
+            orelse: None,
+            finalbody: None,
+        }];
+        assert_eq!(find_variable_type("x", &stmts), Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_variable_type_in_except_handler() {
+        let stmts = vec![HirStmt::Try {
+            body: vec![],
+            handlers: vec![crate::hir::ExceptHandler {
+                exception_type: Some("ValueError".to_string()),
+                name: None,
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("result".to_string()),
+                    value: HirExpr::Literal(Literal::String("error".to_string())),
+                    type_annotation: Some(Type::String),
+                }],
+            }],
+            orelse: None,
+            finalbody: None,
+        }];
+        assert_eq!(find_variable_type("result", &stmts), Some(Type::String));
+    }
+
+    #[test]
+    fn test_find_variable_type_in_finally_block() {
+        let stmts = vec![HirStmt::Try {
+            body: vec![],
+            handlers: vec![],
+            orelse: None,
+            finalbody: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("cleanup".to_string()),
+                value: HirExpr::Literal(Literal::Bool(true)),
+                type_annotation: Some(Type::Bool),
+            }]),
+        }];
+        assert_eq!(find_variable_type("cleanup", &stmts), Some(Type::Bool));
+    }
+
+    // ============ find_variable_type recursive search in if/else (DEPYLER-0931) ============
+
+    #[test]
+    fn test_find_variable_type_in_then_body() {
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("count".to_string()),
+                value: HirExpr::Literal(Literal::Int(10)),
+                type_annotation: Some(Type::Int),
+            }],
+            else_body: None,
+        }];
+        assert_eq!(find_variable_type("count", &stmts), Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_variable_type_in_else_body() {
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(false)),
+            then_body: vec![],
+            else_body: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("fallback".to_string()),
+                value: HirExpr::Literal(Literal::Float(3.14)),
+                type_annotation: Some(Type::Float),
+            }]),
+        }];
+        assert_eq!(find_variable_type("fallback", &stmts), Some(Type::Float));
+    }
+
+    #[test]
+    fn test_find_variable_type_prefers_then_over_else() {
+        // If same variable defined in both, should find in then_body first
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("val".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: Some(Type::Int),
+            }],
+            else_body: Some(vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("val".to_string()),
+                value: HirExpr::Literal(Literal::String("str".to_string())),
+                type_annotation: Some(Type::String),
+            }]),
+        }];
+        // Should find Int from then_body first
+        assert_eq!(find_variable_type("val", &stmts), Some(Type::Int));
+    }
+
+    // ============ is_json_value_method_chain_or_fallback edge cases ============
+
+    #[test]
+    fn test_json_value_chain_get_on_unknown_value_type() {
+        // Dict with Unknown value type -> should return true (treated as Value)
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert(
+            "data".to_string(),
+            Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+        );
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("data".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_json_value_chain_get_with_cloned_unwrap_or_default() {
+        // data.get("key").cloned().unwrap_or_default() chain
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert(
+            "data".to_string(),
+            Type::Dict(
+                Box::new(Type::String),
+                Box::new(Type::Custom("serde_json::Value".to_string())),
+            ),
+        );
+        let base = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("data".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        let cloned = HirExpr::MethodCall {
+            object: Box::new(base),
+            method: "cloned".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        let expr = HirExpr::MethodCall {
+            object: Box::new(cloned),
+            method: "unwrap_or_default".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_json_value_chain_fallback_when_needs_serde_json() {
+        // Untracked local dict but context needs serde_json -> should return true
+        let mut ctx = CodeGenContext::default();
+        ctx.needs_serde_json = true;
+        // No type info for "local_data"
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("local_data".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_json_value_chain_non_get_method() {
+        // Non-chain method like .insert() should return false
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert(
+            "data".to_string(),
+            Type::Dict(
+                Box::new(Type::String),
+                Box::new(Type::Custom("serde_json::Value".to_string())),
+            ),
+        );
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("data".to_string())),
+            method: "insert".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_json_value_chain_non_value_dict() {
+        // Dict with String value type -> should return false
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert(
+            "data".to_string(),
+            Type::Dict(Box::new(Type::String), Box::new(Type::String)),
+        );
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("data".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(!is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_json_value_chain_variable_not_found() {
+        // Variable not in context and needs_serde_json is false
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("unknown_var".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(!is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_json_value_chain_unwrap_chain() {
+        // data.get("key").unwrap() chain
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert(
+            "data".to_string(),
+            Type::Dict(
+                Box::new(Type::String),
+                Box::new(Type::Custom("json::Value".to_string())),
+            ),
+        );
+        let base = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("data".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        let expr = HirExpr::MethodCall {
+            object: Box::new(base),
+            method: "unwrap".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_json_value_chain_unwrap_or_chain() {
+        // data.get("key").unwrap_or(default) chain
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert(
+            "data".to_string(),
+            Type::Dict(
+                Box::new(Type::String),
+                Box::new(Type::Custom("Value".to_string())),
+            ),
+        );
+        let base = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("data".to_string())),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        let expr = HirExpr::MethodCall {
+            object: Box::new(base),
+            method: "unwrap_or".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("default".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_json_value_chain_non_var_object() {
+        // When object is not a Var - should return false
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Call {
+                func: "get_data".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            method: "get".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("key".to_string()))],
+            kwargs: vec![],
+        };
+        assert!(!is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    #[test]
+    fn test_json_value_chain_non_method_call_expr() {
+        // Non-MethodCall expression should return false
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Var("data".to_string());
+        assert!(!is_json_value_method_chain_or_fallback(&expr, &ctx));
+    }
+
+    // === Tests for apply_negated_truthiness (DEPYLER-COVERAGE-95) ===
+
+    #[test]
+    fn test_apply_negated_truthiness_bool_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("flag".to_string(), Type::Bool);
+        let operand = HirExpr::Var("flag".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { !flag };
+        let result = apply_negated_truthiness(&operand, cond_expr.clone(), &ctx);
+        // Bool type should keep negation as-is
+        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
+    }
+
+    #[test]
+    fn test_apply_negated_truthiness_string_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("s".to_string(), Type::String);
+        let operand = HirExpr::Var("s".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { !s };
+        let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
+        // String type should convert to is_empty()
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("is_empty"));
+    }
+
+    #[test]
+    fn test_apply_negated_truthiness_list_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("items".to_string(), Type::List(Box::new(Type::Int)));
+        let operand = HirExpr::Var("items".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { !items };
+        let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("is_empty"));
+    }
+
+    #[test]
+    fn test_apply_negated_truthiness_optional_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
+        let operand = HirExpr::Var("opt".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { !opt };
+        let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("is_none"));
+    }
+
+    #[test]
+    fn test_apply_negated_truthiness_int_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("num".to_string(), Type::Int);
+        let operand = HirExpr::Var("num".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { !num };
+        let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("== 0"));
+    }
+
+    #[test]
+    fn test_apply_negated_truthiness_float_type() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("val".to_string(), Type::Float);
+        let operand = HirExpr::Var("val".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { !val };
+        let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("== 0.0"));
+    }
+
+    #[test]
+    fn test_apply_negated_truthiness_already_converted_is_empty() {
+        let ctx = CodeGenContext::default();
+        let operand = HirExpr::Var("items".to_string());
+        // Already converted to is_empty()
+        let cond_expr: syn::Expr = syn::parse_quote! { items.is_empty() };
+        let result = apply_negated_truthiness(&operand, cond_expr.clone(), &ctx);
+        // Should return as-is
+        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
+    }
+
+    #[test]
+    fn test_apply_negated_truthiness_already_converted_is_none() {
+        let ctx = CodeGenContext::default();
+        let operand = HirExpr::Var("opt".to_string());
+        // Already converted to is_none()
+        let cond_expr: syn::Expr = syn::parse_quote! { opt.is_none() };
+        let result = apply_negated_truthiness(&operand, cond_expr.clone(), &ctx);
+        // Should return as-is
+        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
+    }
+
+    #[test]
+    fn test_apply_negated_truthiness_self_items_attr() {
+        let ctx = CodeGenContext::default();
+        let operand = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("self".to_string())),
+            attr: "items".to_string(),
+        };
+        let cond_expr: syn::Expr = syn::parse_quote! { !self.items };
+        let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
+        // self.items should be treated as collection
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("is_empty"));
+    }
+
+    // === Tests for apply_truthiness_conversion (DEPYLER-COVERAGE-95) ===
+
+    #[test]
+    fn test_apply_truthiness_conversion_bool() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("flag".to_string(), Type::Bool);
+        let condition = HirExpr::Var("flag".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { flag };
+        let result = apply_truthiness_conversion(&condition, cond_expr.clone(), &ctx);
+        // Bool should not be converted
+        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
+    }
+
+    #[test]
+    fn test_apply_truthiness_conversion_string() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("s".to_string(), Type::String);
+        let condition = HirExpr::Var("s".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { s };
+        let result = apply_truthiness_conversion(&condition, cond_expr, &ctx);
+        let result_str = quote::quote!(#result).to_string();
+        // String should convert to !s.is_empty()
+        assert!(result_str.contains("is_empty"));
+    }
+
+    #[test]
+    fn test_apply_truthiness_conversion_optional() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
+        let condition = HirExpr::Var("opt".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { opt };
+        let result = apply_truthiness_conversion(&condition, cond_expr, &ctx);
+        let result_str = quote::quote!(#result).to_string();
+        // Optional should convert to opt.is_some()
+        assert!(result_str.contains("is_some"));
+    }
+
+    #[test]
+    fn test_apply_truthiness_conversion_int() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("n".to_string(), Type::Int);
+        let condition = HirExpr::Var("n".to_string());
+        let cond_expr: syn::Expr = syn::parse_quote! { n };
+        let result = apply_truthiness_conversion(&condition, cond_expr, &ctx);
+        let result_str = quote::quote!(#result).to_string();
+        // Int should convert to n != 0
+        assert!(result_str.contains("!= 0"));
+    }
+
+    #[test]
+    fn test_apply_truthiness_conversion_not_expr() {
+        // Test `not x` where x is non-boolean
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("items".to_string(), Type::List(Box::new(Type::Int)));
+        let condition = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Var("items".to_string())),
+        };
+        let cond_expr: syn::Expr = syn::parse_quote! { !items };
+        let result = apply_truthiness_conversion(&condition, cond_expr, &ctx);
+        let result_str = quote::quote!(#result).to_string();
+        // Should delegate to apply_negated_truthiness
+        assert!(result_str.contains("is_empty"));
+    }
+
+    // === Tests for extract_nested_indices_tokens (DEPYLER-COVERAGE-95) ===
+
+    #[test]
+    fn test_extract_nested_indices_single_index() {
+        let mut ctx = CodeGenContext::default();
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        let (base, indices) = extract_nested_indices_tokens(&expr, &mut ctx).unwrap();
+        let base_str = quote::quote!(#base).to_string();
+        assert!(base_str.contains("arr"));
+        assert_eq!(indices.len(), 1);
+    }
+
+    #[test]
+    fn test_extract_nested_indices_double_index() {
+        let mut ctx = CodeGenContext::default();
+        let inner = HirExpr::Index {
+            base: Box::new(HirExpr::Var("matrix".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        let expr = HirExpr::Index {
+            base: Box::new(inner),
+            index: Box::new(HirExpr::Literal(Literal::Int(1))),
+        };
+        let (base, indices) = extract_nested_indices_tokens(&expr, &mut ctx).unwrap();
+        let base_str = quote::quote!(#base).to_string();
+        assert!(base_str.contains("matrix"));
+        assert_eq!(indices.len(), 2);
+    }
+
+    #[test]
+    fn test_extract_nested_indices_var_base() {
+        let mut ctx = CodeGenContext::default();
+        // Just a variable, no indices
+        let expr = HirExpr::Var("x".to_string());
+        let (base, indices) = extract_nested_indices_tokens(&expr, &mut ctx).unwrap();
+        let base_str = quote::quote!(#base).to_string();
+        assert!(base_str.contains("x"));
+        assert_eq!(indices.len(), 0);
+    }
+
+    // === Tests for captures_outer_scope (DEPYLER-COVERAGE-95) ===
+
+    #[test]
+    fn test_captures_outer_scope_no_capture() {
+        use crate::hir::HirParam;
+        let params = vec![HirParam {
+            name: "x".to_string(),
+            ty: Type::Int,
+            default: None,
+            is_vararg: false,
+        }];
+        let body = vec![HirStmt::Return(Some(HirExpr::Var("x".to_string())))];
+        let outer_vars = std::collections::HashSet::new();
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_with_capture() {
+        use crate::hir::HirParam;
+        let params = vec![HirParam {
+            name: "x".to_string(),
+            ty: Type::Int,
+            default: None,
+            is_vararg: false,
+        }];
+        // Uses 'y' which is not a parameter
+        let body = vec![HirStmt::Return(Some(HirExpr::Binary {
+            op: crate::hir::BinOp::Add,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Var("y".to_string())),
+        }))];
+        let mut outer_vars = std::collections::HashSet::new();
+        outer_vars.insert("y".to_string());
+        assert!(captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    #[test]
+    fn test_captures_outer_scope_local_assignment() {
+        use crate::hir::HirParam;
+        let params = vec![];
+        // Defines 'y' locally then uses it
+        let body = vec![
+            HirStmt::Assign {
+                target: crate::hir::AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::Literal(Literal::Int(10)),
+                type_annotation: None,
+            },
+            HirStmt::Return(Some(HirExpr::Var("y".to_string()))),
+        ];
+        let outer_vars = std::collections::HashSet::new();
+        assert!(!captures_outer_scope(&params, &body, &outer_vars));
+    }
+
+    // === Tests for find_variable_type (DEPYLER-COVERAGE-95) ===
+
+    #[test]
+    fn test_find_variable_type_from_assign() {
+        let stmts = vec![HirStmt::Assign {
+            target: crate::hir::AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        let result = find_variable_type("x", &stmts);
+        assert_eq!(result, Some(Type::Int));
+    }
+
+    #[test]
+    fn test_find_variable_type_missing_var() {
+        let stmts = vec![HirStmt::Assign {
+            target: crate::hir::AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: Some(Type::Int),
+        }];
+        let result = find_variable_type("y", &stmts);
+        assert_eq!(result, None);
+    }
+
+    #[test]
+    fn test_find_variable_type_from_for_loop() {
+        // Note: find_variable_type doesn't scan For loop targets
+        // Only Assign statements are scanned
+        let stmts = vec![HirStmt::For {
+            target: crate::hir::AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Call {
+                func: "range".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(10))],
+                kwargs: vec![],
+            },
+            body: vec![],
+        }];
+        let result = find_variable_type("i", &stmts);
+        // For loops are not scanned - returns None
+        assert!(result.is_none());
+    }
+
+    // === Tests for infer_expr_return_type (DEPYLER-COVERAGE-95) ===
+
+    #[test]
+    fn test_infer_expr_return_type_literal_int() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let result = infer_expr_return_type(&expr, &ctx);
+        assert_eq!(result, Type::Int);
+    }
+
+    #[test]
+    fn test_infer_expr_return_type_literal_string() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        let result = infer_expr_return_type(&expr, &ctx);
+        assert_eq!(result, Type::String);
+    }
+
+    #[test]
+    fn test_infer_expr_return_type_literal_bool() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Literal(Literal::Bool(true));
+        let result = infer_expr_return_type(&expr, &ctx);
+        assert_eq!(result, Type::Bool);
+    }
+
+    #[test]
+    fn test_infer_expr_return_type_var() {
+        let mut ctx = CodeGenContext::default();
+        ctx.var_types.insert("x".to_string(), Type::Float);
+        let expr = HirExpr::Var("x".to_string());
+        let result = infer_expr_return_type(&expr, &ctx);
+        assert_eq!(result, Type::Float);
+    }
+
+    #[test]
+    fn test_infer_expr_return_type_unknown_var() {
+        let ctx = CodeGenContext::default();
+        let expr = HirExpr::Var("unknown".to_string());
+        let result = infer_expr_return_type(&expr, &ctx);
+        // Unknown vars default to Unknown type
+        assert!(matches!(result, Type::Unknown));
+    }
+
+    // === Tests for try_return_type_to_tokens (DEPYLER-COVERAGE-95) ===
+
+    #[test]
+    fn test_try_return_type_to_tokens_int() {
+        let tokens = try_return_type_to_tokens(&Type::Int);
+        let tokens_str = tokens.to_string();
+        assert!(tokens_str.contains("i64") || tokens_str.contains("i32"));
+    }
+
+    #[test]
+    fn test_try_return_type_to_tokens_string() {
+        let tokens = try_return_type_to_tokens(&Type::String);
+        let tokens_str = tokens.to_string();
+        assert!(tokens_str.contains("String"));
+    }
+
+    #[test]
+    fn test_try_return_type_to_tokens_bool() {
+        let tokens = try_return_type_to_tokens(&Type::Bool);
+        let tokens_str = tokens.to_string();
+        assert!(tokens_str.contains("bool"));
+    }
+
+    #[test]
+    fn test_try_return_type_to_tokens_list() {
+        // Note: try_return_type_to_tokens doesn't handle List, falls to ()
+        let tokens = try_return_type_to_tokens(&Type::List(Box::new(Type::Int)));
+        let tokens_str = tokens.to_string();
+        // List not specifically handled, falls back to unit type
+        assert!(tokens_str.contains("()"));
+    }
+
+    #[test]
+    fn test_try_return_type_to_tokens_optional() {
+        let tokens = try_return_type_to_tokens(&Type::Optional(Box::new(Type::String)));
+        let tokens_str = tokens.to_string();
+        assert!(tokens_str.contains("Option"));
     }
 }
 

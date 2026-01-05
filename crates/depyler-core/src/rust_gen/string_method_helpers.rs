@@ -19,6 +19,7 @@ use syn::parse_quote;
 ///
 /// # Returns
 /// A syn::Expr that is guaranteed to implement Pattern trait
+#[allow(dead_code)]
 pub fn extract_pattern_arg(
     hir_arg: &HirExpr,
     rust_arg: &syn::Expr,
@@ -38,6 +39,7 @@ pub fn extract_pattern_arg(
 
 /// Check if a variable name suggests it's a char from iteration.
 /// Used for char-specific string method handling.
+#[allow(dead_code)]
 pub fn is_char_variable_name(name: &str) -> bool {
     matches!(name, "char" | "ch" | "c" | "character")
 }

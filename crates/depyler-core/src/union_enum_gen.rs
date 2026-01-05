@@ -232,6 +232,180 @@ impl UnionEnumGenerator {
 mod tests {
     use super::*;
 
+    // ============ generate_enum_name tests ============
+
+    #[test]
+    fn test_generate_enum_name_two_types() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Int, Type::String];
+        let name = generator.generate_enum_name(&types);
+        assert_eq!(name, "IntOrStringUnion");
+    }
+
+    #[test]
+    fn test_generate_enum_name_three_types() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Int, Type::Float, Type::String];
+        let name = generator.generate_enum_name(&types);
+        assert_eq!(name, "IntOrFloatOrStringUnion");
+    }
+
+    #[test]
+    fn test_generate_enum_name_more_than_three() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Int, Type::Float, Type::String, Type::Bool];
+        let name = generator.generate_enum_name(&types);
+        assert_eq!(name, "UnionType1");
+    }
+
+    #[test]
+    fn test_generate_enum_name_increments_counter() {
+        let mut generator = UnionEnumGenerator::new();
+        let types1 = vec![Type::Int, Type::Float, Type::String, Type::Bool];
+        let types2 = vec![Type::Int, Type::Float, Type::String, Type::None];
+        let name1 = generator.generate_enum_name(&types1);
+        let name2 = generator.generate_enum_name(&types2);
+        assert_eq!(name1, "UnionType1");
+        assert_eq!(name2, "UnionType2");
+    }
+
+    #[test]
+    fn test_generate_enum_name_list_type() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::List(Box::new(Type::Int)), Type::None];
+        let name = generator.generate_enum_name(&types);
+        assert_eq!(name, "ListOrNoneUnion");
+    }
+
+    #[test]
+    fn test_generate_enum_name_dict_type() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Dict(Box::new(Type::String), Box::new(Type::Int)), Type::None];
+        let name = generator.generate_enum_name(&types);
+        assert_eq!(name, "DictOrNoneUnion");
+    }
+
+    #[test]
+    fn test_generate_enum_name_custom_type() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Custom("MyClass".to_string()), Type::None];
+        let name = generator.generate_enum_name(&types);
+        assert_eq!(name, "MyClassOrNoneUnion");
+    }
+
+    // ============ type_to_variant_name tests ============
+
+    #[test]
+    fn test_variant_name_int() {
+        let generator = UnionEnumGenerator::new();
+        assert_eq!(generator.type_to_variant_name(&Type::Int, 0), "Integer");
+    }
+
+    #[test]
+    fn test_variant_name_float() {
+        let generator = UnionEnumGenerator::new();
+        assert_eq!(generator.type_to_variant_name(&Type::Float, 0), "Float");
+    }
+
+    #[test]
+    fn test_variant_name_string() {
+        let generator = UnionEnumGenerator::new();
+        assert_eq!(generator.type_to_variant_name(&Type::String, 0), "Text");
+    }
+
+    #[test]
+    fn test_variant_name_bool() {
+        let generator = UnionEnumGenerator::new();
+        assert_eq!(generator.type_to_variant_name(&Type::Bool, 0), "Boolean");
+    }
+
+    #[test]
+    fn test_variant_name_none() {
+        let generator = UnionEnumGenerator::new();
+        assert_eq!(generator.type_to_variant_name(&Type::None, 0), "None");
+    }
+
+    #[test]
+    fn test_variant_name_list() {
+        let generator = UnionEnumGenerator::new();
+        assert_eq!(
+            generator.type_to_variant_name(&Type::List(Box::new(Type::Int)), 0),
+            "List"
+        );
+    }
+
+    #[test]
+    fn test_variant_name_dict() {
+        let generator = UnionEnumGenerator::new();
+        let dict_type = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
+        assert_eq!(generator.type_to_variant_name(&dict_type, 0), "Dict");
+    }
+
+    #[test]
+    fn test_variant_name_custom() {
+        let generator = UnionEnumGenerator::new();
+        assert_eq!(
+            generator.type_to_variant_name(&Type::Custom("MyClass".to_string()), 0),
+            "MyClass"
+        );
+    }
+
+    #[test]
+    fn test_variant_name_typevar() {
+        let generator = UnionEnumGenerator::new();
+        assert_eq!(
+            generator.type_to_variant_name(&Type::TypeVar("T".to_string()), 0),
+            "TypeT"
+        );
+    }
+
+    #[test]
+    fn test_variant_name_unknown() {
+        let generator = UnionEnumGenerator::new();
+        assert_eq!(generator.type_to_variant_name(&Type::Unknown, 5), "Variant5");
+    }
+
+    // ============ type_to_rust_type tests ============
+
+    #[test]
+    fn test_type_to_rust_type_int() {
+        let generator = UnionEnumGenerator::new();
+        let rust_type = generator.type_to_rust_type(&Type::Int);
+        assert!(matches!(
+            rust_type,
+            RustType::Primitive(crate::type_mapper::PrimitiveType::I32)
+        ));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_float() {
+        let generator = UnionEnumGenerator::new();
+        let rust_type = generator.type_to_rust_type(&Type::Float);
+        assert!(matches!(
+            rust_type,
+            RustType::Primitive(crate::type_mapper::PrimitiveType::F64)
+        ));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_string() {
+        let generator = UnionEnumGenerator::new();
+        let rust_type = generator.type_to_rust_type(&Type::String);
+        assert!(matches!(rust_type, RustType::String));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_bool() {
+        let generator = UnionEnumGenerator::new();
+        let rust_type = generator.type_to_rust_type(&Type::Bool);
+        assert!(matches!(
+            rust_type,
+            RustType::Primitive(crate::type_mapper::PrimitiveType::Bool)
+        ));
+    }
+
+    // ============ generate_union_enum integration tests ============
+
     #[test]
     fn test_simple_union_enum() {
         let mut generator = UnionEnumGenerator::new();
@@ -282,5 +456,58 @@ mod tests {
         assert_eq!(name1, name2);
         // Second call should return empty tokens (no redefinition)
         assert_eq!(tokens2.to_string(), "");
+    }
+
+    #[test]
+    fn test_union_enum_generates_from_impls() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Int, Type::String];
+        let (_, tokens) = generator.generate_union_enum(&types);
+        let code = tokens.to_string();
+        // Should generate From implementations for each non-None type
+        assert!(code.contains("impl From"));
+    }
+
+    #[test]
+    fn test_union_enum_generates_as_methods() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Int, Type::String];
+        let (_, tokens) = generator.generate_union_enum(&types);
+        let code = tokens.to_string();
+        // Should generate as_* methods
+        assert!(code.contains("as_integer") || code.contains("as_text"));
+    }
+
+    #[test]
+    fn test_union_enum_derives() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Int, Type::String];
+        let (_, tokens) = generator.generate_union_enum(&types);
+        let code = tokens.to_string();
+        // Should include serde derives for JSON support
+        assert!(code.contains("Serialize"));
+        assert!(code.contains("Deserialize"));
+    }
+
+    #[test]
+    fn test_union_enum_with_float() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Float, Type::None];
+        let (name, tokens) = generator.generate_union_enum(&types);
+        assert_eq!(name, "FloatOrNoneUnion");
+        let code = tokens.to_string();
+        assert!(code.contains("is_float"));
+    }
+
+    #[test]
+    fn test_union_enum_only_primitives() {
+        let mut generator = UnionEnumGenerator::new();
+        let types = vec![Type::Int, Type::Float, Type::Bool];
+        let (name, tokens) = generator.generate_union_enum(&types);
+        assert_eq!(name, "BoolOrFloatOrIntUnion"); // Sorted alphabetically by type debug string
+        let code = tokens.to_string();
+        assert!(code.contains("is_integer"));
+        assert!(code.contains("is_float"));
+        assert!(code.contains("is_boolean"));
     }
 }

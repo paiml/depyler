@@ -68,7 +68,7 @@ pub fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
         | HirExpr::SetComp { element, generators } => {
             is_var_used_in_expr(var_name, element)
                 || generators.iter().any(|gen| {
-                    is_var_used_in_expr(var_name, &*gen.iter)
+                    is_var_used_in_expr(var_name, &gen.iter)
                         || gen.conditions.iter().any(|cond| is_var_used_in_expr(var_name, cond))
                 })
         }
@@ -76,7 +76,7 @@ pub fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
             is_var_used_in_expr(var_name, key)
                 || is_var_used_in_expr(var_name, value)
                 || generators.iter().any(|gen| {
-                    is_var_used_in_expr(var_name, &*gen.iter)
+                    is_var_used_in_expr(var_name, &gen.iter)
                         || gen.conditions.iter().any(|cond| is_var_used_in_expr(var_name, cond))
                 })
         }

@@ -389,4 +389,215 @@ mod tests {
         assert!(!chain.found_root_cause());
         assert!(chain.root_cause().is_none());
     }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_why_step_debug() {
+        let step = WhyStep::new(2, "Test step");
+        let debug_str = format!("{:?}", step);
+        assert!(debug_str.contains("WhyStep"));
+        assert!(debug_str.contains("depth"));
+        assert!(debug_str.contains("Test step"));
+    }
+
+    #[test]
+    fn test_why_step_clone() {
+        let step = WhyStep::new(3, "Original")
+            .mark_as_root("Fix it")
+            .with_deeper_cause("Deeper");
+        let cloned = step.clone();
+        assert_eq!(cloned.depth, 3);
+        assert!(cloned.is_root_cause);
+        assert_eq!(cloned.preventive_measure, "Fix it");
+    }
+
+    #[test]
+    fn test_why_step_with_deeper_cause() {
+        let step = WhyStep::new(1, "Problem")
+            .with_deeper_cause("Root issue");
+        assert_eq!(step.deeper_cause, Some("Root issue".to_string()));
+    }
+
+    #[test]
+    fn test_why_step_question_format() {
+        let step = WhyStep::new(4, "desc");
+        assert_eq!(step.question, "Why #4?");
+    }
+
+    #[test]
+    fn test_root_cause_chain_default() {
+        let chain: RootCauseChain = Default::default();
+        assert!(chain.whys.is_empty());
+        assert_eq!(chain.depth(), 0);
+    }
+
+    #[test]
+    fn test_root_cause_chain_debug() {
+        let chain = RootCauseChain::new();
+        let debug_str = format!("{:?}", chain);
+        assert!(debug_str.contains("RootCauseChain"));
+    }
+
+    #[test]
+    fn test_root_cause_chain_clone() {
+        let mut chain = RootCauseChain::new();
+        chain.add_why(WhyStep::new(1, "Step 1"));
+        chain.add_why(WhyStep::new(2, "Step 2").mark_as_root("Fix"));
+
+        let cloned = chain.clone();
+        assert_eq!(cloned.depth(), 2);
+        assert!(cloned.found_root_cause());
+    }
+
+    #[test]
+    fn test_root_cause_chain_depth() {
+        let mut chain = RootCauseChain::new();
+        assert_eq!(chain.depth(), 0);
+
+        chain.add_why(WhyStep::new(1, "First"));
+        assert_eq!(chain.depth(), 1);
+
+        chain.add_why(WhyStep::new(2, "Second"));
+        chain.add_why(WhyStep::new(3, "Third"));
+        assert_eq!(chain.depth(), 3);
+    }
+
+    #[test]
+    fn test_five_whys_analyzer_default() {
+        let analyzer: FiveWhysAnalyzer = Default::default();
+        // Default has no patterns
+        assert!(analyzer.known_patterns.is_empty());
+    }
+
+    #[test]
+    fn test_five_whys_analyzer_debug() {
+        let analyzer = FiveWhysAnalyzer::new();
+        let debug_str = format!("{:?}", analyzer);
+        assert!(debug_str.contains("FiveWhysAnalyzer"));
+    }
+
+    #[test]
+    fn test_analyze_trait_bound_error() {
+        let analyzer = FiveWhysAnalyzer::new();
+        let chain = analyzer.analyze("E0277", "the trait bound is not satisfied");
+
+        assert!(chain.found_root_cause());
+        assert!(chain.depth() >= 3);
+
+        let root = chain.root_cause().unwrap();
+        assert!(root.preventive_measure.contains("serde_json::Value") ||
+                root.preventive_measure.contains("Box<dyn Trait>"));
+    }
+
+    #[test]
+    fn test_analyze_borrow_error() {
+        let analyzer = FiveWhysAnalyzer::new();
+        let chain = analyzer.analyze("E0502", "cannot borrow as mutable");
+
+        assert!(chain.found_root_cause());
+        assert!(chain.depth() >= 3);
+
+        let root = chain.root_cause().unwrap();
+        assert!(root.preventive_measure.contains("clone") ||
+                root.preventive_measure.contains("RefCell"));
+    }
+
+    #[test]
+    fn test_analyze_from_outcome() {
+        use super::super::hansei::CycleOutcome;
+        use super::super::planner::{FailurePattern, PatternCategory};
+        use super::super::isolator::ReproCase;
+        use super::super::verifier::VerifyResult;
+        use super::super::kaizen::KaizenMetrics;
+
+        let analyzer = FiveWhysAnalyzer::new();
+        let outcome = CycleOutcome {
+            pattern: FailurePattern {
+                id: "test".to_string(),
+                error_code: "E0308".to_string(),
+                description: "expected String found i32".to_string(),
+                category: PatternCategory::TypeInference,
+                affected_count: 10,
+                fix_complexity: 5,
+                trigger_example: String::new(),
+            },
+            repro: ReproCase::new("test".to_string(), "E0308".to_string(), "test".to_string()),
+            verify_result: VerifyResult::Success,
+            metrics_snapshot: KaizenMetrics::default(),
+        };
+
+        let chain = analyzer.analyze_from_outcome(&outcome);
+        assert!(chain.found_root_cause());
+    }
+
+    #[test]
+    fn test_interactive_session() {
+        let analyzer = FiveWhysAnalyzer::new();
+        let chain = analyzer.interactive_session("Code doesn't compile");
+
+        // Interactive session creates a basic chain
+        assert!(!chain.whys.is_empty());
+        assert!(chain.found_root_cause());
+    }
+
+    #[test]
+    fn test_to_markdown_with_deeper_cause() {
+        let mut chain = RootCauseChain::new();
+        chain.add_why(WhyStep::new(1, "Surface problem")
+            .with_deeper_cause("Leads to deeper issue"));
+
+        let md = chain.to_markdown();
+        assert!(md.contains("Leads to:"));
+        assert!(md.contains("deeper issue"));
+    }
+
+    #[test]
+    fn test_to_markdown_empty_chain() {
+        let chain = RootCauseChain::new();
+        let md = chain.to_markdown();
+        assert!(md.contains("Five Whys Analysis"));
+        // No whys in empty chain
+        assert!(!md.contains("Why #1"));
+    }
+
+    #[test]
+    fn test_known_patterns_count() {
+        let analyzer = FiveWhysAnalyzer::new();
+        // Should have patterns for E0308, E0432, E0277, E0502
+        assert_eq!(analyzer.known_patterns.len(), 4);
+    }
+
+    #[test]
+    fn test_generic_chain_structure() {
+        let analyzer = FiveWhysAnalyzer::new();
+        let chain = analyzer.build_generic_chain("E1234", "unknown error message");
+
+        assert!(chain.found_root_cause());
+        assert_eq!(chain.depth(), 3);
+
+        let root = chain.root_cause().unwrap();
+        assert!(root.preventive_measure.contains("expr_gen") ||
+                root.preventive_measure.contains("stmt_gen"));
+    }
+
+    #[test]
+    fn test_analyze_no_keyword_match() {
+        let analyzer = FiveWhysAnalyzer::new();
+        // E0308 pattern but no matching keywords
+        let chain = analyzer.analyze("E0308", "completely different message");
+
+        // Should fall back to generic chain
+        assert!(chain.found_root_cause());
+    }
+
+    #[test]
+    fn test_root_cause_pattern_clone() {
+        let analyzer = FiveWhysAnalyzer::new();
+        let chain1 = analyzer.analyze("E0308", "expected String, found i32");
+        let chain2 = analyzer.analyze("E0308", "expected String, found bool");
+
+        // Both should return cloned chains from the same pattern
+        assert_eq!(chain1.depth(), chain2.depth());
+    }
 }

@@ -6,6 +6,10 @@
 use crate::hir::*;
 use crate::lifetime_analysis::LifetimeInference;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen};
+// DEPYLER-COVERAGE-95: Pure helpers extracted to func_gen_helpers for testability
+use crate::rust_gen::func_gen_helpers::{
+    codegen_function_attrs, codegen_generic_params, codegen_where_clause,
+};
 #[allow(unused_imports)] // DEPYLER-COVERAGE-95: Some imports only used in tests
 use crate::rust_gen::control_flow_analysis::{
     collect_all_assigned_variables, collect_if_escaping_variables,
@@ -211,117 +215,8 @@ fn extract_args_field_accesses(body: &[HirStmt], args_name: &str) -> Vec<String>
 }
 
 // DEPYLER-COVERAGE-95: stmt_always_returns moved to control_flow_analysis module
-
-/// Generate combined generic parameters (<'a, 'b, T, U: Bound>)
-#[inline]
-pub(crate) fn codegen_generic_params(
-    type_params: &[crate::generic_inference::TypeParameter],
-    lifetime_params: &[String],
-) -> proc_macro2::TokenStream {
-    if type_params.is_empty() && lifetime_params.is_empty() {
-        return quote! {};
-    }
-
-    let mut all_params = Vec::new();
-
-    // Add lifetime parameters first
-    // Note: Filter out 'static as it's a reserved keyword in Rust and doesn't need to be declared
-    for lt in lifetime_params {
-        if lt != "'static" {
-            let lt_ident = syn::Lifetime::new(lt, proc_macro2::Span::call_site());
-            all_params.push(quote! { #lt_ident });
-        }
-    }
-
-    // Add type parameters with their bounds
-    for type_param in type_params {
-        let param_name = syn::Ident::new(&type_param.name, proc_macro2::Span::call_site());
-        if type_param.bounds.is_empty() {
-            all_params.push(quote! { #param_name });
-        } else {
-            let bounds: Vec<_> = type_param
-                .bounds
-                .iter()
-                .map(|b| {
-                    // DEPYLER-0715: Parse as TypeParamBound to support HRTB like for<'a> PartialEq<&'a str>
-                    // First try as TypeParamBound (supports HRTB), then fall back to Path
-                    syn::parse_str::<syn::TypeParamBound>(b)
-                        .map(|bound| quote! { #bound })
-                        .or_else(|_| {
-                            syn::parse_str::<syn::Path>(b).map(|path| quote! { #path })
-                        })
-                        .unwrap_or_else(|_| quote! { Clone })
-                })
-                .collect();
-            all_params.push(quote! { #param_name: #(#bounds)+* });
-        }
-    }
-
-    quote! { <#(#all_params),*> }
-}
-
-/// Generate where clause for lifetime bounds (where 'a: 'b, 'c: 'd)
-#[inline]
-pub(crate) fn codegen_where_clause(
-    lifetime_bounds: &[(String, String)],
-) -> proc_macro2::TokenStream {
-    if lifetime_bounds.is_empty() {
-        return quote! {};
-    }
-
-    let bounds: Vec<_> = lifetime_bounds
-        .iter()
-        .map(|(from, to)| {
-            let from_lt = syn::Lifetime::new(from, proc_macro2::Span::call_site());
-            let to_lt = syn::Lifetime::new(to, proc_macro2::Span::call_site());
-            quote! { #from_lt: #to_lt }
-        })
-        .collect();
-
-    quote! { where #(#bounds),* }
-}
-
-/// Generate function attributes (doc comments, panic-free, termination proofs, custom attributes)
-#[inline]
-pub(crate) fn codegen_function_attrs(
-    docstring: &Option<String>,
-    properties: &crate::hir::FunctionProperties,
-    custom_attributes: &[String],
-) -> Vec<proc_macro2::TokenStream> {
-    let mut attrs = vec![];
-
-    // Add docstring as documentation if present
-    if let Some(docstring) = docstring {
-        attrs.push(quote! {
-            #[doc = #docstring]
-        });
-    }
-
-    if properties.panic_free {
-        attrs.push(quote! {
-            #[doc = " Depyler: verified panic-free"]
-        });
-    }
-
-    if properties.always_terminates {
-        attrs.push(quote! {
-            #[doc = " Depyler: proven to terminate"]
-        });
-    }
-
-    // Add custom Rust attributes
-    for attr in custom_attributes {
-        // Parse the attribute string as a TokenStream
-        // This allows complex attributes like inline(always), repr(C), etc.
-        if let Ok(tokens) = attr.parse::<proc_macro2::TokenStream>() {
-            attrs.push(quote! {
-                #[#tokens]
-            });
-        }
-    }
-
-    attrs
-}
+// DEPYLER-COVERAGE-95: codegen_generic_params, codegen_where_clause, codegen_function_attrs
+//                      moved to func_gen_helpers module for testability
 
 // ============================================================================
 // DEPYLER-0141 Phase 2: Medium Complexity Helpers
@@ -492,11 +387,13 @@ fn find_var_type_in_body_with_params(
 }
 
 /// Check if a variable is used in any of the remaining statements
+#[allow(dead_code)]
 fn is_var_used_in_remaining_stmts(var_name: &str, stmts: &[HirStmt]) -> bool {
     stmts.iter().any(|stmt| is_var_used_anywhere(var_name, stmt))
 }
 
 /// Check if a variable is used anywhere in a statement (recursive)
+#[allow(dead_code)]
 fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
@@ -558,6 +455,7 @@ fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
 }
 
 /// Check if variable is used in an assign target (e.g., d[x] = v uses x)
+#[allow(dead_code)]
 fn is_var_used_in_target(var_name: &str, target: &AssignTarget) -> bool {
     match target {
         AssignTarget::Symbol(_) => false, // Target itself doesn't use the var
@@ -570,6 +468,7 @@ fn is_var_used_in_target(var_name: &str, target: &AssignTarget) -> bool {
 }
 
 /// Check if a variable is used in an expression (recursive)
+#[allow(dead_code)]
 fn is_var_used_in_expr_any(var_name: &str, expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Var(name) => name == var_name,
@@ -6685,106 +6584,9 @@ mod tests {
     }
 
     // ==========================================================================
-    // Tests for codegen_generic_params
+    // DEPYLER-COVERAGE-95: Tests for codegen_generic_params and codegen_where_clause
+    // moved to func_gen_helpers module for isolated testability
     // ==========================================================================
-
-    #[test]
-    fn test_codegen_generic_params_empty() {
-        let result = codegen_generic_params(&[], &[]);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_codegen_generic_params_lifetime_only() {
-        let result = codegen_generic_params(&[], &["'a".to_string()]);
-        let result_str = result.to_string();
-        assert!(result_str.contains("'a"));
-    }
-
-    #[test]
-    fn test_codegen_generic_params_type_only() {
-        use crate::generic_inference::TypeParameter;
-        let params = vec![TypeParameter {
-            name: "T".to_string(),
-            bounds: vec![],
-            default: None,
-        }];
-        let result = codegen_generic_params(&params, &[]);
-        let result_str = result.to_string();
-        assert!(result_str.contains("T"));
-    }
-
-    #[test]
-    fn test_codegen_generic_params_type_with_bounds() {
-        use crate::generic_inference::TypeParameter;
-        let params = vec![TypeParameter {
-            name: "T".to_string(),
-            bounds: vec!["Clone".to_string()],
-            default: None,
-        }];
-        let result = codegen_generic_params(&params, &[]);
-        let result_str = result.to_string();
-        assert!(result_str.contains("T"));
-        assert!(result_str.contains("Clone"));
-    }
-
-    #[test]
-    fn test_codegen_generic_params_lifetime_and_type() {
-        use crate::generic_inference::TypeParameter;
-        let params = vec![TypeParameter {
-            name: "T".to_string(),
-            bounds: vec![],
-            default: None,
-        }];
-        let result = codegen_generic_params(&params, &["'a".to_string()]);
-        let result_str = result.to_string();
-        assert!(result_str.contains("'a"));
-        assert!(result_str.contains("T"));
-    }
-
-    #[test]
-    fn test_codegen_generic_params_with_static_filtered() {
-        let result = codegen_generic_params(&[], &["'static".to_string()]);
-        // 'static is filtered out per line 280: if lt != "'static"
-        // Result will be empty angle brackets "<>"
-        let result_str = result.to_string();
-        // The result is "<>" which is still non-empty tokenstream
-        assert!(!result_str.contains("'static"));
-    }
-
-    // ==========================================================================
-    // Tests for codegen_where_clause
-    // ==========================================================================
-
-    #[test]
-    fn test_codegen_where_clause_empty() {
-        let result = codegen_where_clause(&[]);
-        assert!(result.is_empty());
-    }
-
-    #[test]
-    fn test_codegen_where_clause_single() {
-        // codegen_where_clause takes lifetime bounds as (from_lifetime, to_lifetime)
-        let result = codegen_where_clause(&[("'a".to_string(), "'b".to_string())]);
-        let result_str = result.to_string();
-        assert!(result_str.contains("where"));
-        assert!(result_str.contains("'a"));
-        assert!(result_str.contains("'b"));
-    }
-
-    #[test]
-    fn test_codegen_where_clause_multiple() {
-        let result = codegen_where_clause(&[
-            ("'a".to_string(), "'b".to_string()),
-            ("'c".to_string(), "'d".to_string()),
-        ]);
-        let result_str = result.to_string();
-        assert!(result_str.contains("where"));
-        assert!(result_str.contains("'a"));
-        assert!(result_str.contains("'b"));
-        assert!(result_str.contains("'c"));
-        assert!(result_str.contains("'d"));
-    }
 
     // ==========================================================================
     // Tests for collect_all_assigned_variables - additional
@@ -6882,79 +6684,9 @@ mod tests {
     }
 
     // ==========================================================================
-    // EXTREME TDD: Tests for codegen_function_attrs
-    // Covers lines 336-374 of func_gen.rs
+    // DEPYLER-COVERAGE-95: Tests for codegen_function_attrs moved to
+    // func_gen_helpers module for isolated testability
     // ==========================================================================
-
-    fn make_default_props() -> FunctionProperties {
-        FunctionProperties {
-            is_pure: false,
-            max_stack_depth: None,
-            always_terminates: false,
-            panic_free: false,
-            can_fail: false,
-            error_types: vec![],
-            is_async: false,
-            is_generator: false,
-        }
-    }
-
-    #[test]
-    fn test_codegen_function_attrs_empty() {
-        let props = make_default_props();
-        let attrs = codegen_function_attrs(&None, &props, &[]);
-        assert!(attrs.is_empty());
-    }
-
-    #[test]
-    fn test_codegen_function_attrs_with_docstring() {
-        let props = make_default_props();
-        let attrs = codegen_function_attrs(&Some("Test function".to_string()), &props, &[]);
-        assert_eq!(attrs.len(), 1);
-        let attr_str = attrs[0].to_string();
-        assert!(attr_str.contains("doc"));
-        assert!(attr_str.contains("Test function"));
-    }
-
-    #[test]
-    fn test_codegen_function_attrs_panic_free() {
-        let mut props = make_default_props();
-        props.panic_free = true;
-        let attrs = codegen_function_attrs(&None, &props, &[]);
-        assert_eq!(attrs.len(), 1);
-        let attr_str = attrs[0].to_string();
-        assert!(attr_str.contains("panic-free"));
-    }
-
-    #[test]
-    fn test_codegen_function_attrs_always_terminates() {
-        let mut props = make_default_props();
-        props.always_terminates = true;
-        let attrs = codegen_function_attrs(&None, &props, &[]);
-        assert_eq!(attrs.len(), 1);
-        let attr_str = attrs[0].to_string();
-        assert!(attr_str.contains("terminate"));
-    }
-
-    #[test]
-    fn test_codegen_function_attrs_custom_attributes() {
-        let props = make_default_props();
-        let custom = vec!["inline".to_string()];
-        let attrs = codegen_function_attrs(&None, &props, &custom);
-        assert_eq!(attrs.len(), 1);
-        let attr_str = attrs[0].to_string();
-        assert!(attr_str.contains("inline"));
-    }
-
-    #[test]
-    fn test_codegen_function_attrs_all_flags() {
-        let mut props = make_default_props();
-        props.panic_free = true;
-        props.always_terminates = true;
-        let custom = vec!["inline(always)".to_string()];
-        let attrs = codegen_function_attrs(&Some("Test".to_string()), &props, &custom);
-        assert_eq!(attrs.len(), 4); // docstring + panic_free + always_terminates + inline
-    }
 
     // ==========================================================================
     // EXTREME TDD: Tests for find_var_type_in_body_with_params

@@ -736,4 +736,449 @@ mod tests {
             Some(1000)
         );
     }
+
+    // ============================================================
+    // DEPYLER-COVERAGE-95: Additional comprehensive tests
+    // ============================================================
+
+    #[test]
+    fn test_optimization_strategy_equality() {
+        assert_eq!(OptimizationStrategy::BinarySize, OptimizationStrategy::BinarySize);
+        assert_ne!(OptimizationStrategy::BinarySize, OptimizationStrategy::ColdStart);
+    }
+
+    #[test]
+    fn test_optimization_strategy_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(OptimizationStrategy::BinarySize);
+        set.insert(OptimizationStrategy::ColdStart);
+        set.insert(OptimizationStrategy::PreWarming);
+        set.insert(OptimizationStrategy::MemoryUsage);
+        set.insert(OptimizationStrategy::CompileTime);
+        assert_eq!(set.len(), 5);
+    }
+
+    #[test]
+    fn test_optimization_config_default() {
+        let config = OptimizationConfig::default();
+        assert!(config.enabled);
+        assert!(!config.aggressive_mode);
+        assert_eq!(config.size_threshold_kb, Some(1024));
+        assert_eq!(config.cold_start_threshold_ms, Some(100));
+    }
+
+    #[test]
+    fn test_performance_targets_default() {
+        let targets = PerformanceTargets::default();
+        assert_eq!(targets.max_cold_start_ms, 50);
+        assert_eq!(targets.max_binary_size_kb, 2048);
+        assert_eq!(targets.max_memory_usage_mb, 128);
+        assert!(targets.target_throughput_rps.is_none());
+    }
+
+    #[test]
+    fn test_lambda_optimizer_default() {
+        let optimizer = LambdaOptimizer::default();
+        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::BinarySize));
+        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::ColdStart));
+        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::PreWarming));
+        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::MemoryUsage));
+    }
+
+    #[test]
+    fn test_lambda_optimizer_strategies_count() {
+        let optimizer = LambdaOptimizer::new();
+        assert_eq!(optimizer.strategies.len(), 4);
+    }
+
+    #[test]
+    fn test_is_strategy_enabled_true() {
+        let optimizer = LambdaOptimizer::new();
+        assert!(optimizer.is_strategy_enabled(&OptimizationStrategy::BinarySize));
+        assert!(optimizer.is_strategy_enabled(&OptimizationStrategy::ColdStart));
+    }
+
+    #[test]
+    fn test_is_strategy_enabled_disabled() {
+        let mut optimizer = LambdaOptimizer::new();
+        optimizer.strategies.get_mut(&OptimizationStrategy::PreWarming).unwrap().enabled = false;
+        assert!(!optimizer.is_strategy_enabled(&OptimizationStrategy::PreWarming));
+    }
+
+    #[test]
+    fn test_is_strategy_enabled_missing() {
+        let optimizer = LambdaOptimizer::new();
+        assert!(!optimizer.is_strategy_enabled(&OptimizationStrategy::CompileTime));
+    }
+
+    #[test]
+    fn test_generate_lambda_profile_contains_header() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations::default();
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        let profile = optimizer.generate_lambda_profile(&plan);
+        assert!(profile.contains("[profile.lambda]"));
+    }
+
+    #[test]
+    fn test_generate_lambda_profile_contains_package_override() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations::default();
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        let profile = optimizer.generate_lambda_profile(&plan);
+        assert!(profile.contains("[profile.lambda.package.\"*\"]"));
+    }
+
+    #[test]
+    fn test_build_script_arm64() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            architecture: Architecture::Arm64,
+            ..Default::default()
+        };
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        let script = optimizer.generate_optimized_build_script(&plan, &annotations);
+        assert!(script.contains("--arm64"));
+        assert!(script.contains("ARM64"));
+    }
+
+    #[test]
+    fn test_build_script_x86_64() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            architecture: Architecture::X86_64,
+            ..Default::default()
+        };
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        let script = optimizer.generate_optimized_build_script(&plan, &annotations);
+        assert!(script.contains("--x86-64"));
+        assert!(script.contains("x86_64"));
+    }
+
+    #[test]
+    fn test_build_script_contains_strip() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations::default();
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        let script = optimizer.generate_optimized_build_script(&plan, &annotations);
+        assert!(script.contains("strip"));
+    }
+
+    #[test]
+    fn test_build_script_contains_memory_size() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            memory_size: 256,
+            ..Default::default()
+        };
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        let script = optimizer.generate_optimized_build_script(&plan, &annotations);
+        assert!(script.contains("256 MB memory"));
+    }
+
+    #[test]
+    fn test_performance_monitoring_code() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations::default();
+        let code = optimizer.generate_performance_monitoring(&annotations);
+        assert!(code.contains("PerformanceMonitor"));
+        assert!(code.contains("cold_start_duration_ms"));
+    }
+
+    #[test]
+    fn test_performance_monitoring_memory_usage() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations::default();
+        let code = optimizer.generate_performance_monitoring(&annotations);
+        assert!(code.contains("log_memory_usage"));
+        assert!(code.contains("VmRSS"));
+    }
+
+    #[test]
+    fn test_estimate_performance_with_lto() {
+        let mut plan = OptimizationPlan {
+            profile_overrides: HashMap::new(),
+            cargo_flags: vec![],
+            rustc_flags: vec!["-Clto=fat".to_string()],
+            pre_warm_code: String::new(),
+            init_array_code: String::new(),
+            dependency_optimizations: vec![],
+        };
+        plan.profile_overrides.insert("opt-level".to_string(), "z".to_string());
+
+        let optimizer = LambdaOptimizer::new();
+        let estimate = optimizer.estimate_performance_impact(&plan);
+        assert!(estimate.binary_size_reduction_percent >= 40.0); // 25 + 15
+    }
+
+    #[test]
+    fn test_estimate_performance_with_strip() {
+        let plan = OptimizationPlan {
+            profile_overrides: HashMap::new(),
+            cargo_flags: vec![],
+            rustc_flags: vec!["-Cstrip=symbols".to_string()],
+            pre_warm_code: String::new(),
+            init_array_code: String::new(),
+            dependency_optimizations: vec![],
+        };
+
+        let optimizer = LambdaOptimizer::new();
+        let estimate = optimizer.estimate_performance_impact(&plan);
+        assert!(estimate.binary_size_reduction_percent >= 30.0);
+    }
+
+    #[test]
+    fn test_estimate_performance_with_prewarm() {
+        let plan = OptimizationPlan {
+            profile_overrides: HashMap::new(),
+            cargo_flags: vec![],
+            rustc_flags: vec![],
+            pre_warm_code: "// Some prewarm code".to_string(),
+            init_array_code: String::new(),
+            dependency_optimizations: vec![],
+        };
+
+        let optimizer = LambdaOptimizer::new();
+        let estimate = optimizer.estimate_performance_impact(&plan);
+        assert!(estimate.cold_start_improvement_percent >= 40.0);
+    }
+
+    #[test]
+    fn test_estimate_performance_with_init_array() {
+        let plan = OptimizationPlan {
+            profile_overrides: HashMap::new(),
+            cargo_flags: vec![],
+            rustc_flags: vec![],
+            pre_warm_code: String::new(),
+            init_array_code: "// Some init code".to_string(),
+            dependency_optimizations: vec![],
+        };
+
+        let optimizer = LambdaOptimizer::new();
+        let estimate = optimizer.estimate_performance_impact(&plan);
+        assert!(estimate.cold_start_improvement_percent >= 20.0);
+    }
+
+    #[test]
+    fn test_estimate_performance_with_mimalloc() {
+        let plan = OptimizationPlan {
+            profile_overrides: HashMap::new(),
+            cargo_flags: vec![],
+            rustc_flags: vec![],
+            pre_warm_code: String::new(),
+            init_array_code: String::new(),
+            dependency_optimizations: vec![DependencyOptimization {
+                crate_name: "mimalloc".to_string(),
+                features: vec![],
+                disabled_features: vec![],
+                replacement: None,
+            }],
+        };
+
+        let optimizer = LambdaOptimizer::new();
+        let estimate = optimizer.estimate_performance_impact(&plan);
+        assert!(estimate.memory_improvement_percent >= 15.0);
+    }
+
+    #[test]
+    fn test_performance_estimate_default() {
+        let estimate = PerformanceEstimate::default();
+        assert_eq!(estimate.binary_size_reduction_percent, 0.0);
+        assert_eq!(estimate.cold_start_improvement_percent, 0.0);
+        assert_eq!(estimate.memory_improvement_percent, 0.0);
+        assert_eq!(estimate.compile_time_impact_percent, 0.0);
+    }
+
+    #[test]
+    fn test_s3_event_prewarm() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            cold_start_optimize: true,
+            event_type: Some(LambdaEventType::S3Event),
+            ..Default::default()
+        };
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        assert!(plan.pre_warm_code.contains("S3") || !plan.pre_warm_code.is_empty());
+    }
+
+    #[test]
+    fn test_dynamodb_event_prewarm() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            cold_start_optimize: true,
+            event_type: Some(LambdaEventType::DynamodbEvent),
+            ..Default::default()
+        };
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        assert!(!plan.pre_warm_code.is_empty());
+    }
+
+    #[test]
+    fn test_sns_event_prewarm() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            cold_start_optimize: true,
+            event_type: Some(LambdaEventType::SnsEvent),
+            ..Default::default()
+        };
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        assert!(!plan.pre_warm_code.is_empty());
+    }
+
+    #[test]
+    fn test_eventbridge_event_prewarm() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            cold_start_optimize: true,
+            event_type: Some(LambdaEventType::EventBridgeEvent(None)),
+            ..Default::default()
+        };
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        assert!(!plan.pre_warm_code.is_empty());
+    }
+
+    #[test]
+    fn test_api_gateway_v2_event_prewarm() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            cold_start_optimize: true,
+            event_type: Some(LambdaEventType::ApiGatewayV2HttpRequest),
+            ..Default::default()
+        };
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        assert!(!plan.pre_warm_code.is_empty());
+    }
+
+    #[test]
+    fn test_low_memory_optimizations() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            memory_size: 64, // Very low memory
+            ..Default::default()
+        };
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        // Should apply memory optimizations
+        assert!(plan.pre_warm_code.contains("Memory") || !plan.dependency_optimizations.is_empty());
+    }
+
+    #[test]
+    fn test_high_memory_optimizations() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            memory_size: 1024, // High memory
+            ..Default::default()
+        };
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        // Should still generate valid plan
+        assert!(!plan.profile_overrides.is_empty());
+    }
+
+    #[test]
+    fn test_optimization_plan_default_has_rustc_flags() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations::default();
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        // Should have some rustc flags for binary size optimization
+        assert!(!plan.rustc_flags.is_empty() || !plan.profile_overrides.is_empty());
+    }
+
+    #[test]
+    fn test_dependency_optimization_struct() {
+        let dep_opt = DependencyOptimization {
+            crate_name: "serde".to_string(),
+            features: vec!["derive".to_string()],
+            disabled_features: vec!["std".to_string()],
+            replacement: Some("miniserde".to_string()),
+        };
+
+        assert_eq!(dep_opt.crate_name, "serde");
+        assert_eq!(dep_opt.features.len(), 1);
+        assert_eq!(dep_opt.disabled_features.len(), 1);
+        assert!(dep_opt.replacement.is_some());
+    }
+
+    #[test]
+    fn test_optimization_plan_struct() {
+        let plan = OptimizationPlan {
+            profile_overrides: HashMap::new(),
+            cargo_flags: vec!["--release".to_string()],
+            rustc_flags: vec!["-Copt-level=z".to_string()],
+            pre_warm_code: "prewarm".to_string(),
+            init_array_code: "init".to_string(),
+            dependency_optimizations: vec![],
+        };
+
+        assert_eq!(plan.cargo_flags.len(), 1);
+        assert_eq!(plan.rustc_flags.len(), 1);
+        assert!(!plan.pre_warm_code.is_empty());
+        assert!(!plan.init_array_code.is_empty());
+    }
+
+    #[test]
+    fn test_with_targets_chaining() {
+        let targets1 = PerformanceTargets {
+            max_cold_start_ms: 10,
+            ..Default::default()
+        };
+        let targets2 = PerformanceTargets {
+            max_cold_start_ms: 20,
+            ..Default::default()
+        };
+
+        let optimizer = LambdaOptimizer::new()
+            .with_targets(targets1)
+            .with_targets(targets2);
+
+        // Last one wins
+        assert_eq!(optimizer.performance_targets.max_cold_start_ms, 20);
+    }
+
+    #[test]
+    fn test_enable_aggressive_mode_chaining() {
+        let optimizer = LambdaOptimizer::new()
+            .enable_aggressive_mode()
+            .enable_aggressive_mode();
+
+        for config in optimizer.strategies.values() {
+            assert!(config.aggressive_mode);
+        }
+    }
+
+    #[test]
+    fn test_cold_start_optimize_disabled() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            cold_start_optimize: false,
+            event_type: Some(LambdaEventType::SqsEvent),
+            ..Default::default()
+        };
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        // Cold start specific optimizations should not be applied
+        // but binary size optimizations still will be
+        assert!(!plan.profile_overrides.is_empty());
+    }
+
+    #[test]
+    fn test_no_event_type_optimization() {
+        let optimizer = LambdaOptimizer::new();
+        let annotations = LambdaAnnotations {
+            cold_start_optimize: true,
+            event_type: None,
+            ..Default::default()
+        };
+
+        let plan = optimizer.generate_optimization_plan(&annotations).unwrap();
+        // Should still generate valid plan without event type
+        assert!(!plan.profile_overrides.is_empty());
+    }
 }

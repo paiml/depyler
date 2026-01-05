@@ -400,4 +400,210 @@ mod tests {
         assert!(verifier.status().should_halt());
         assert!(matches!(verifier.status(), AndonStatus::Red { .. }));
     }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_verify_result_debug() {
+        let success = VerifyResult::Success;
+        assert!(format!("{:?}", success).contains("Success"));
+
+        let no_fix = VerifyResult::NoFixAvailable;
+        assert!(format!("{:?}", no_fix).contains("NoFixAvailable"));
+
+        let failed = VerifyResult::FixFailed("error".to_string());
+        assert!(format!("{:?}", failed).contains("FixFailed"));
+
+        let needs_review = VerifyResult::NeedsReview {
+            fix: create_test_fix(),
+            confidence: 0.5,
+            reason: "low confidence".to_string(),
+        };
+        assert!(format!("{:?}", needs_review).contains("NeedsReview"));
+    }
+
+    #[test]
+    fn test_verify_result_clone() {
+        let success = VerifyResult::Success;
+        let cloned = success.clone();
+        assert!(matches!(cloned, VerifyResult::Success));
+
+        let failed = VerifyResult::FixFailed("test".to_string());
+        let cloned = failed.clone();
+        assert!(matches!(cloned, VerifyResult::FixFailed(_)));
+    }
+
+    #[test]
+    fn test_andon_status_is_problem() {
+        let green = AndonStatus::Green {
+            compilation_rate: 0.9,
+            message: "good".to_string(),
+        };
+        assert!(!green.is_problem());
+
+        let yellow_attention = AndonStatus::Yellow {
+            warnings: vec!["warn".to_string()],
+            needs_attention: true,
+        };
+        assert!(yellow_attention.is_problem());
+
+        let yellow_no_attention = AndonStatus::Yellow {
+            warnings: vec![],
+            needs_attention: false,
+        };
+        assert!(!yellow_no_attention.is_problem());
+
+        let red = AndonStatus::Red {
+            error: "err".to_string(),
+            cycle_halted: false,
+        };
+        assert!(red.is_problem());
+
+        let idle = AndonStatus::Idle;
+        assert!(!idle.is_problem());
+    }
+
+    #[test]
+    fn test_andon_status_color() {
+        assert_eq!(AndonStatus::Green { compilation_rate: 0.0, message: String::new() }.color(), "green");
+        assert_eq!(AndonStatus::Yellow { warnings: vec![], needs_attention: false }.color(), "yellow");
+        assert_eq!(AndonStatus::Red { error: String::new(), cycle_halted: false }.color(), "red");
+        assert_eq!(AndonStatus::Idle.color(), "gray");
+    }
+
+    #[test]
+    fn test_andon_status_display_yellow() {
+        let yellow = AndonStatus::Yellow {
+            warnings: vec!["warn1".to_string(), "warn2".to_string()],
+            needs_attention: true,
+        };
+        let display = format!("{}", yellow);
+        assert!(display.contains("YELLOW"));
+        assert!(display.contains("2 warning(s)"));
+    }
+
+    #[test]
+    fn test_andon_status_display_red() {
+        let red = AndonStatus::Red {
+            error: "Critical failure".to_string(),
+            cycle_halted: true,
+        };
+        let display = format!("{}", red);
+        assert!(display.contains("RED"));
+        assert!(display.contains("Critical failure"));
+    }
+
+    #[test]
+    fn test_andon_status_display_idle() {
+        let idle = AndonStatus::Idle;
+        let display = format!("{}", idle);
+        assert!(display.contains("IDLE"));
+    }
+
+    #[test]
+    fn test_andon_status_debug() {
+        let green = AndonStatus::Green {
+            compilation_rate: 0.85,
+            message: "ok".to_string(),
+        };
+        let debug_str = format!("{:?}", green);
+        assert!(debug_str.contains("Green"));
+        assert!(debug_str.contains("0.85"));
+    }
+
+    #[test]
+    fn test_andon_status_clone() {
+        let yellow = AndonStatus::Yellow {
+            warnings: vec!["w1".to_string()],
+            needs_attention: true,
+        };
+        let cloned = yellow.clone();
+        if let AndonStatus::Yellow { warnings, needs_attention } = cloned {
+            assert_eq!(warnings.len(), 1);
+            assert!(needs_attention);
+        } else {
+            panic!("Expected Yellow variant");
+        }
+    }
+
+    #[test]
+    fn test_andon_verifier_default() {
+        let verifier: AndonVerifier = Default::default();
+        assert!(matches!(verifier.status(), AndonStatus::Idle));
+        assert_eq!(verifier.stats(), (0, 0));
+    }
+
+    #[test]
+    fn test_andon_verifier_debug() {
+        let verifier = AndonVerifier::new();
+        let debug_str = format!("{:?}", verifier);
+        assert!(debug_str.contains("AndonVerifier"));
+        assert!(debug_str.contains("status"));
+    }
+
+    #[test]
+    fn test_andon_verifier_stats() {
+        let verifier = AndonVerifier::new();
+        let (total, successful) = verifier.stats();
+        assert_eq!(total, 0);
+        assert_eq!(successful, 0);
+    }
+
+    #[test]
+    fn test_request_human_review() {
+        let mut verifier = AndonVerifier::new();
+        verifier.request_human_review("Need review");
+
+        assert!(verifier.status().is_problem());
+        if let AndonStatus::Yellow { warnings, needs_attention } = verifier.status() {
+            assert!(warnings.contains(&"Need review".to_string()));
+            assert!(*needs_attention);
+        } else {
+            panic!("Expected Yellow status");
+        }
+    }
+
+    #[test]
+    fn test_reset_clears_status() {
+        let mut verifier = AndonVerifier::new();
+        verifier.halt("error");
+        assert!(verifier.status().should_halt());
+
+        verifier.reset();
+        assert!(matches!(verifier.status(), AndonStatus::Idle));
+    }
+
+    #[test]
+    fn test_multiple_status_changes_history() {
+        let mut verifier = AndonVerifier::new();
+
+        verifier.request_human_review("warning 1");
+        verifier.halt("critical");
+        verifier.reset();
+
+        assert_eq!(verifier.history().len(), 3);
+    }
+
+    #[test]
+    fn test_should_halt_false_for_non_halted_red() {
+        let red = AndonStatus::Red {
+            error: "error".to_string(),
+            cycle_halted: false,
+        };
+        assert!(!red.should_halt());
+    }
+
+    #[test]
+    fn test_should_halt_false_for_other_statuses() {
+        assert!(!AndonStatus::Green { compilation_rate: 0.9, message: String::new() }.should_halt());
+        assert!(!AndonStatus::Yellow { warnings: vec![], needs_attention: true }.should_halt());
+        assert!(!AndonStatus::Idle.should_halt());
+    }
+
+    #[test]
+    fn test_try_compile_empty_code() {
+        let verifier = AndonVerifier::new();
+        let result = verifier.try_compile("");
+        assert!(result.is_ok());
+    }
 }

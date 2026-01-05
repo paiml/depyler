@@ -2,7 +2,7 @@
 //!
 //! Extracts testable logic from codegen.rs
 
-use crate::hir::{AssignTarget, HirExpr, HirStmt, Literal, Type};
+use crate::hir::{AssignTarget, HirExpr, HirStmt, Type};
 use std::collections::HashSet;
 
 /// Check if a type uses HashMap
@@ -196,7 +196,7 @@ pub fn is_primitive_type(ty: &Type) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::BinOp;
+    use crate::hir::{BinOp, Literal};
 
     // Helper to create literal expressions
     fn int_expr(n: i64) -> HirExpr {

@@ -919,4 +919,362 @@ mod tests {
         // Sets need references
         assert!(mapper.needs_reference(&RustType::HashSet(Box::new(RustType::String))));
     }
+
+    // ============ datetime type mappings (DEPYLER-0592) ============
+
+    #[test]
+    fn test_date_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let date = PythonType::Custom("date".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&date) {
+            assert_eq!(name, "chrono::NaiveDate");
+        } else {
+            panic!("Expected Custom type for 'date'");
+        }
+
+        let datetime_date = PythonType::Custom("datetime.date".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&datetime_date) {
+            assert_eq!(name, "chrono::NaiveDate");
+        } else {
+            panic!("Expected Custom type for 'datetime.date'");
+        }
+    }
+
+    #[test]
+    fn test_datetime_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let datetime = PythonType::Custom("datetime".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&datetime) {
+            assert_eq!(name, "chrono::NaiveDateTime");
+        } else {
+            panic!("Expected Custom type for 'datetime'");
+        }
+
+        let datetime_datetime = PythonType::Custom("datetime.datetime".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&datetime_datetime) {
+            assert_eq!(name, "chrono::NaiveDateTime");
+        } else {
+            panic!("Expected Custom type for 'datetime.datetime'");
+        }
+    }
+
+    #[test]
+    fn test_time_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let time = PythonType::Custom("time".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&time) {
+            assert_eq!(name, "chrono::NaiveTime");
+        } else {
+            panic!("Expected Custom type for 'time'");
+        }
+
+        let datetime_time = PythonType::Custom("datetime.time".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&datetime_time) {
+            assert_eq!(name, "chrono::NaiveTime");
+        } else {
+            panic!("Expected Custom type for 'datetime.time'");
+        }
+    }
+
+    #[test]
+    fn test_timedelta_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let timedelta = PythonType::Custom("timedelta".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&timedelta) {
+            assert_eq!(name, "chrono::Duration");
+        } else {
+            panic!("Expected Custom type for 'timedelta'");
+        }
+
+        let datetime_timedelta = PythonType::Custom("datetime.timedelta".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&datetime_timedelta) {
+            assert_eq!(name, "chrono::Duration");
+        } else {
+            panic!("Expected Custom type for 'datetime.timedelta'");
+        }
+    }
+
+    // ============ Path type mappings (DEPYLER-197) ============
+
+    #[test]
+    fn test_path_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let path = PythonType::Custom("Path".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&path) {
+            assert_eq!(name, "std::path::PathBuf");
+        } else {
+            panic!("Expected Custom type for 'Path'");
+        }
+
+        let pathlib_path = PythonType::Custom("pathlib.Path".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&pathlib_path) {
+            assert_eq!(name, "std::path::PathBuf");
+        } else {
+            panic!("Expected Custom type for 'pathlib.Path'");
+        }
+    }
+
+    #[test]
+    fn test_purepath_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let pure_path = PythonType::Custom("PurePath".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&pure_path) {
+            assert_eq!(name, "std::path::PathBuf");
+        } else {
+            panic!("Expected Custom type for 'PurePath'");
+        }
+
+        let pathlib_purepath = PythonType::Custom("pathlib.PurePath".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&pathlib_purepath) {
+            assert_eq!(name, "std::path::PathBuf");
+        } else {
+            panic!("Expected Custom type for 'pathlib.PurePath'");
+        }
+    }
+
+    // ============ bytes/bytearray mappings (DEPYLER-0584, DEPYLER-0674) ============
+
+    #[test]
+    fn test_bytes_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let bytes = PythonType::Custom("bytes".to_string());
+        assert_eq!(
+            mapper.map_type(&bytes),
+            RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8)))
+        );
+    }
+
+    #[test]
+    fn test_bytearray_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let bytearray = PythonType::Custom("bytearray".to_string());
+        assert_eq!(
+            mapper.map_type(&bytearray),
+            RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8)))
+        );
+    }
+
+    // ============ exception type mappings (DEPYLER-0597) ============
+
+    #[test]
+    fn test_oserror_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let oserror = PythonType::Custom("OSError".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&oserror) {
+            assert_eq!(name, "std::io::Error");
+        } else {
+            panic!("Expected Custom type for 'OSError'");
+        }
+    }
+
+    #[test]
+    fn test_ioerror_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let ioerror = PythonType::Custom("IOError".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&ioerror) {
+            assert_eq!(name, "std::io::Error");
+        } else {
+            panic!("Expected Custom type for 'IOError'");
+        }
+    }
+
+    #[test]
+    fn test_filenotfounderror_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let fnf = PythonType::Custom("FileNotFoundError".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&fnf) {
+            assert_eq!(name, "std::io::Error");
+        } else {
+            panic!("Expected Custom type for 'FileNotFoundError'");
+        }
+    }
+
+    #[test]
+    fn test_permissionerror_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let perr = PythonType::Custom("PermissionError".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&perr) {
+            assert_eq!(name, "std::io::Error");
+        } else {
+            panic!("Expected Custom type for 'PermissionError'");
+        }
+    }
+
+    // ============ argparse/object type mappings ============
+
+    #[test]
+    fn test_namespace_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let ns = PythonType::Custom("Namespace".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&ns) {
+            assert_eq!(name, "Args");
+        } else {
+            panic!("Expected Custom type for 'Namespace'");
+        }
+
+        let argparse_ns = PythonType::Custom("argparse.Namespace".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&argparse_ns) {
+            assert_eq!(name, "Args");
+        } else {
+            panic!("Expected Custom type for 'argparse.Namespace'");
+        }
+    }
+
+    #[test]
+    fn test_object_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let object = PythonType::Custom("object".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&object) {
+            assert_eq!(name, "serde_json::Value");
+        } else {
+            panic!("Expected Custom type for 'object'");
+        }
+    }
+
+    // ============ bare collection type mappings (DEPYLER-0718) ============
+
+    #[test]
+    fn test_bare_dict_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let dict = PythonType::Custom("Dict".to_string());
+        if let RustType::HashMap(k, v) = mapper.map_type(&dict) {
+            assert_eq!(*k, RustType::String);
+            assert_eq!(*v, RustType::Custom("serde_json::Value".to_string()));
+        } else {
+            panic!("Expected HashMap for 'Dict'");
+        }
+    }
+
+    #[test]
+    fn test_bare_list_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let list = PythonType::Custom("List".to_string());
+        if let RustType::Vec(inner) = mapper.map_type(&list) {
+            assert_eq!(*inner, RustType::Custom("serde_json::Value".to_string()));
+        } else {
+            panic!("Expected Vec for 'List'");
+        }
+
+        let list_lower = PythonType::Custom("list".to_string());
+        if let RustType::Vec(inner) = mapper.map_type(&list_lower) {
+            assert_eq!(*inner, RustType::Custom("serde_json::Value".to_string()));
+        } else {
+            panic!("Expected Vec for 'list'");
+        }
+    }
+
+    #[test]
+    fn test_bare_set_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let set = PythonType::Custom("Set".to_string());
+        if let RustType::HashSet(inner) = mapper.map_type(&set) {
+            assert_eq!(*inner, RustType::String);
+        } else {
+            panic!("Expected HashSet for 'Set'");
+        }
+    }
+
+    #[test]
+    fn test_bare_tuple_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let tuple = PythonType::Custom("tuple".to_string());
+        if let RustType::Tuple(types) = mapper.map_type(&tuple) {
+            assert!(types.is_empty());
+        } else {
+            panic!("Expected empty Tuple for 'tuple'");
+        }
+    }
+
+    // ============ type parameter mappings ============
+
+    #[test]
+    fn test_single_letter_type_param() {
+        let mapper = TypeMapper::new();
+
+        let t = PythonType::Custom("T".to_string());
+        assert_eq!(mapper.map_type(&t), RustType::TypeParam("T".to_string()));
+
+        let v = PythonType::Custom("V".to_string());
+        assert_eq!(mapper.map_type(&v), RustType::TypeParam("V".to_string()));
+
+        let k = PythonType::Custom("K".to_string());
+        assert_eq!(mapper.map_type(&k), RustType::TypeParam("K".to_string()));
+    }
+
+    // ============ File type mapping (DEPYLER-0525) ============
+
+    #[test]
+    fn test_file_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let file = PythonType::Custom("File".to_string());
+        if let RustType::Reference { mutable, inner, .. } = mapper.map_type(&file) {
+            assert!(mutable);
+            assert_eq!(*inner, RustType::Custom("impl std::io::Write".to_string()));
+        } else {
+            panic!("Expected Reference type for 'File'");
+        }
+    }
+
+    // ============ RustConstGeneric tests ============
+
+    #[test]
+    fn test_const_generic_literal() {
+        assert_eq!(RustConstGeneric::Literal(10).to_rust_string(), "10");
+        assert_eq!(RustConstGeneric::Literal(0).to_rust_string(), "0");
+    }
+
+    #[test]
+    fn test_const_generic_parameter() {
+        assert_eq!(
+            RustConstGeneric::Parameter("N".to_string()).to_rust_string(),
+            "N"
+        );
+    }
+
+    #[test]
+    fn test_const_generic_expression() {
+        assert_eq!(
+            RustConstGeneric::Expression("N + 1".to_string()).to_rust_string(),
+            "N + 1"
+        );
+    }
+
+    // ============ Array type tests ============
+
+    #[test]
+    fn test_array_type_to_string() {
+        let array = RustType::Array {
+            element_type: Box::new(RustType::Primitive(PrimitiveType::I32)),
+            size: RustConstGeneric::Literal(5),
+        };
+        assert_eq!(array.to_rust_string(), "[i32; 5]");
+    }
+
+    #[test]
+    fn test_array_type_with_param() {
+        let array = RustType::Array {
+            element_type: Box::new(RustType::Primitive(PrimitiveType::F64)),
+            size: RustConstGeneric::Parameter("N".to_string()),
+        };
+        assert_eq!(array.to_rust_string(), "[f64; N]");
+    }
 }

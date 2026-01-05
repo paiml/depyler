@@ -3,7 +3,8 @@
 //! This module provides helper functions for type coercion and conversion
 //! in Python-to-Rust transpilation.
 
-use crate::hir::{HirExpr, Literal, Type};
+use crate::hir::{BinOp, HirExpr, Literal, Type};
+use std::collections::HashMap;
 use syn::parse_quote;
 
 /// Check if an expression is an integer literal
@@ -229,6 +230,116 @@ pub fn supports_containment(ty: &Type) -> bool {
         ty,
         Type::List(_) | Type::Set(_) | Type::Dict(_, _) | Type::String | Type::Tuple(_)
     )
+}
+
+// ============================================================================
+// DEPYLER-COVERAGE-95: Extended type coercion helpers from expr_gen.rs
+// ============================================================================
+
+/// Check if Type represents f32 specifically (for trueno/numpy compatibility)
+pub fn is_f32_type(ty: &Type) -> bool {
+    matches!(ty, Type::Custom(s) if s == "f32")
+}
+
+/// Check if Type represents any integer variant including custom Rust types
+pub fn is_int_type_extended(ty: &Type) -> bool {
+    match ty {
+        Type::Int => true,
+        Type::Custom(s) => matches!(s.as_str(), "i32" | "i64" | "i128" | "isize" | "u32" | "u64" | "u128" | "usize"),
+        _ => false,
+    }
+}
+
+/// Check if Type represents any float variant including custom Rust types
+pub fn is_float_type_extended(ty: &Type) -> bool {
+    match ty {
+        Type::Float => true,
+        Type::Custom(s) => matches!(s.as_str(), "f64" | "f32"),
+        _ => false,
+    }
+}
+
+/// Heuristic: Check if variable name suggests float type
+/// Matches common ML parameter names and color channel variables
+pub fn is_float_var_name(name: &str) -> bool {
+    let name_lower = name.to_lowercase();
+
+    // ML hyperparameter names
+    if name_lower.contains("beta")
+        || name_lower.contains("alpha")
+        || name_lower.contains("lr")
+        || name_lower.contains("eps")
+        || name_lower.contains("rate")
+        || name_lower.contains("momentum")
+    {
+        return true;
+    }
+
+    // DEPYLER-0950: Color channel variables (r, g, h, s, v, l, c, m, k)
+    // Single-letter names from colorsys.hsv_to_rgb(), rgb_to_hsv(), etc.
+    // DEPYLER-0954: Exclude a, b, x, y (too generic, causes false positives)
+    matches!(name, "r" | "g" | "h" | "s" | "v" | "l" | "c" | "m" | "k")
+}
+
+/// Check if an HirExpr is a pure integer expression (recursive)
+/// Handles variables, literals, and binary operations on integers
+pub fn is_int_expr_recursive(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
+    match expr {
+        HirExpr::Var(name) => {
+            var_types.get(name).map(is_int_type_extended).unwrap_or(false)
+        }
+        HirExpr::Literal(Literal::Int(_)) => true,
+        // Binary operations on integers produce integers (except division)
+        HirExpr::Binary { left, right, op } => {
+            // Add, Sub, Mul, Mod, FloorDiv produce Int if both operands are Int
+            // Division always produces Float in Python
+            if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv) {
+                is_int_expr_recursive(left, var_types) && is_int_expr_recursive(right, var_types)
+            } else {
+                false
+            }
+        }
+        // Unary minus on integer is still integer
+        HirExpr::Unary { operand, .. } => is_int_expr_recursive(operand, var_types),
+        _ => false,
+    }
+}
+
+/// Coerce an integer literal to a float literal expression (f64)
+pub fn coerce_int_literal_to_f64(val: i64) -> syn::Expr {
+    let float_val = val as f64;
+    parse_quote! { #float_val }
+}
+
+/// Coerce an integer literal to an f32 literal expression
+pub fn coerce_int_literal_to_f32(val: i64) -> syn::Expr {
+    let float_val = val as f32;
+    parse_quote! { #float_val }
+}
+
+/// Check if expression is a comparison operator
+pub fn is_comparison_op(op: &BinOp) -> bool {
+    matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq | BinOp::Eq | BinOp::NotEq)
+}
+
+/// Check if expression is an ordering comparison (excludes equality)
+pub fn is_ordering_comparison(op: &BinOp) -> bool {
+    matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq)
+}
+
+/// Check if operator is a logical operator (and/or)
+pub fn is_logical_op(op: &BinOp) -> bool {
+    matches!(op, BinOp::And | BinOp::Or)
+}
+
+/// Check if operator is a bitwise operator
+pub fn is_bitwise_op(op: &BinOp) -> bool {
+    matches!(op, BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift)
+}
+
+/// Check if operator is an arithmetic operator
+pub fn is_arithmetic_op(op: &BinOp) -> bool {
+    matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod | BinOp::FloorDiv | BinOp::Pow)
 }
 
 #[cfg(test)]
@@ -588,5 +699,558 @@ mod tests {
         assert!(!supports_containment(&Type::Int));
         assert!(!supports_containment(&Type::Float));
         assert!(!supports_containment(&Type::Bool));
+    }
+
+    // ============================================================================
+    // DEPYLER-COVERAGE-95: Extended type coercion helper tests
+    // ============================================================================
+
+    #[test]
+    fn test_is_f32_type_f32() {
+        assert!(is_f32_type(&Type::Custom("f32".to_string())));
+    }
+
+    #[test]
+    fn test_is_f32_type_f64() {
+        assert!(!is_f32_type(&Type::Custom("f64".to_string())));
+    }
+
+    #[test]
+    fn test_is_f32_type_float() {
+        assert!(!is_f32_type(&Type::Float));
+    }
+
+    #[test]
+    fn test_is_f32_type_int() {
+        assert!(!is_f32_type(&Type::Int));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_int() {
+        assert!(is_int_type_extended(&Type::Int));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_i32() {
+        assert!(is_int_type_extended(&Type::Custom("i32".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_i64() {
+        assert!(is_int_type_extended(&Type::Custom("i64".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_i128() {
+        assert!(is_int_type_extended(&Type::Custom("i128".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_isize() {
+        assert!(is_int_type_extended(&Type::Custom("isize".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_u32() {
+        assert!(is_int_type_extended(&Type::Custom("u32".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_u64() {
+        assert!(is_int_type_extended(&Type::Custom("u64".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_u128() {
+        assert!(is_int_type_extended(&Type::Custom("u128".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_usize() {
+        assert!(is_int_type_extended(&Type::Custom("usize".to_string())));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_float() {
+        assert!(!is_int_type_extended(&Type::Float));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_string() {
+        assert!(!is_int_type_extended(&Type::String));
+    }
+
+    #[test]
+    fn test_is_int_type_extended_custom_other() {
+        assert!(!is_int_type_extended(&Type::Custom("MyType".to_string())));
+    }
+
+    #[test]
+    fn test_is_float_type_extended_float() {
+        assert!(is_float_type_extended(&Type::Float));
+    }
+
+    #[test]
+    fn test_is_float_type_extended_f64() {
+        assert!(is_float_type_extended(&Type::Custom("f64".to_string())));
+    }
+
+    #[test]
+    fn test_is_float_type_extended_f32() {
+        assert!(is_float_type_extended(&Type::Custom("f32".to_string())));
+    }
+
+    #[test]
+    fn test_is_float_type_extended_int() {
+        assert!(!is_float_type_extended(&Type::Int));
+    }
+
+    #[test]
+    fn test_is_float_type_extended_string() {
+        assert!(!is_float_type_extended(&Type::String));
+    }
+
+    #[test]
+    fn test_is_float_var_name_beta() {
+        assert!(is_float_var_name("beta"));
+        assert!(is_float_var_name("beta1"));
+        assert!(is_float_var_name("BETA"));
+    }
+
+    #[test]
+    fn test_is_float_var_name_alpha() {
+        assert!(is_float_var_name("alpha"));
+        assert!(is_float_var_name("alpha_decay"));
+    }
+
+    #[test]
+    fn test_is_float_var_name_lr() {
+        assert!(is_float_var_name("lr"));
+        assert!(is_float_var_name("learning_lr"));
+    }
+
+    #[test]
+    fn test_is_float_var_name_eps() {
+        assert!(is_float_var_name("eps"));
+        assert!(is_float_var_name("epsilon"));
+    }
+
+    #[test]
+    fn test_is_float_var_name_rate() {
+        assert!(is_float_var_name("rate"));
+        assert!(is_float_var_name("learning_rate"));
+    }
+
+    #[test]
+    fn test_is_float_var_name_momentum() {
+        assert!(is_float_var_name("momentum"));
+        assert!(is_float_var_name("MOMENTUM"));
+    }
+
+    #[test]
+    fn test_is_float_var_name_color_channels() {
+        assert!(is_float_var_name("r"));
+        assert!(is_float_var_name("g"));
+        assert!(is_float_var_name("h"));
+        assert!(is_float_var_name("s"));
+        assert!(is_float_var_name("v"));
+        assert!(is_float_var_name("l"));
+        assert!(is_float_var_name("c"));
+        assert!(is_float_var_name("m"));
+        assert!(is_float_var_name("k"));
+    }
+
+    #[test]
+    fn test_is_float_var_name_excluded_generic() {
+        // These are too generic and excluded per DEPYLER-0954
+        assert!(!is_float_var_name("a"));
+        assert!(!is_float_var_name("b"));
+        assert!(!is_float_var_name("x"));
+        assert!(!is_float_var_name("y"));
+    }
+
+    #[test]
+    fn test_is_float_var_name_regular_vars() {
+        assert!(!is_float_var_name("count"));
+        assert!(!is_float_var_name("index"));
+        assert!(!is_float_var_name("name"));
+        assert!(!is_float_var_name("items"));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_int_literal() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let var_types = HashMap::new();
+        assert!(is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_float_literal() {
+        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let var_types = HashMap::new();
+        assert!(!is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_int_var() {
+        let expr = HirExpr::Var("count".to_string());
+        let mut var_types = HashMap::new();
+        var_types.insert("count".to_string(), Type::Int);
+        assert!(is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_float_var() {
+        let expr = HirExpr::Var("rate".to_string());
+        let mut var_types = HashMap::new();
+        var_types.insert("rate".to_string(), Type::Float);
+        assert!(!is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_unknown_var() {
+        let expr = HirExpr::Var("unknown".to_string());
+        let var_types = HashMap::new();
+        assert!(!is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_binary_add_ints() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        let var_types = HashMap::new();
+        assert!(is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_binary_sub_ints() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(5))),
+            op: BinOp::Sub,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let var_types = HashMap::new();
+        assert!(is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_binary_mul_ints() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(2))),
+            op: BinOp::Mul,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let var_types = HashMap::new();
+        assert!(is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_binary_mod_ints() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            op: BinOp::Mod,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let var_types = HashMap::new();
+        assert!(is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_binary_floordiv_ints() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            op: BinOp::FloorDiv,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let var_types = HashMap::new();
+        assert!(is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_binary_div_ints_not_int() {
+        // Division always returns float in Python
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(10))),
+            op: BinOp::Div,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let var_types = HashMap::new();
+        assert!(!is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_binary_add_mixed() {
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            op: BinOp::Add,
+            right: Box::new(HirExpr::Literal(Literal::Float(2.0))),
+        };
+        let var_types = HashMap::new();
+        assert!(!is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_unary_minus_int() {
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(5))),
+        };
+        let var_types = HashMap::new();
+        assert!(is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_unary_minus_float() {
+        let expr = HirExpr::Unary {
+            op: crate::hir::UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Float(5.0))),
+        };
+        let var_types = HashMap::new();
+        assert!(!is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_nested_binary() {
+        // (1 + 2) * 3
+        let expr = HirExpr::Binary {
+            left: Box::new(HirExpr::Binary {
+                left: Box::new(HirExpr::Literal(Literal::Int(1))),
+                op: BinOp::Add,
+                right: Box::new(HirExpr::Literal(Literal::Int(2))),
+            }),
+            op: BinOp::Mul,
+            right: Box::new(HirExpr::Literal(Literal::Int(3))),
+        };
+        let var_types = HashMap::new();
+        assert!(is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_string_literal() {
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        let var_types = HashMap::new();
+        assert!(!is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_is_int_expr_recursive_bool_literal() {
+        let expr = HirExpr::Literal(Literal::Bool(true));
+        let var_types = HashMap::new();
+        assert!(!is_int_expr_recursive(&expr, &var_types));
+    }
+
+    #[test]
+    fn test_coerce_int_literal_to_f64_zero() {
+        let expr = coerce_int_literal_to_f64(0);
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("0"));
+    }
+
+    #[test]
+    fn test_coerce_int_literal_to_f64_positive() {
+        let expr = coerce_int_literal_to_f64(42);
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("42"));
+    }
+
+    #[test]
+    fn test_coerce_int_literal_to_f64_negative() {
+        let expr = coerce_int_literal_to_f64(-10);
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("10"));
+    }
+
+    #[test]
+    fn test_coerce_int_literal_to_f32_zero() {
+        let expr = coerce_int_literal_to_f32(0);
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("0"));
+    }
+
+    #[test]
+    fn test_coerce_int_literal_to_f32_positive() {
+        let expr = coerce_int_literal_to_f32(100);
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("100"));
+    }
+
+    #[test]
+    fn test_is_comparison_op_lt() {
+        assert!(is_comparison_op(&BinOp::Lt));
+    }
+
+    #[test]
+    fn test_is_comparison_op_lteq() {
+        assert!(is_comparison_op(&BinOp::LtEq));
+    }
+
+    #[test]
+    fn test_is_comparison_op_gt() {
+        assert!(is_comparison_op(&BinOp::Gt));
+    }
+
+    #[test]
+    fn test_is_comparison_op_gteq() {
+        assert!(is_comparison_op(&BinOp::GtEq));
+    }
+
+    #[test]
+    fn test_is_comparison_op_eq() {
+        assert!(is_comparison_op(&BinOp::Eq));
+    }
+
+    #[test]
+    fn test_is_comparison_op_noteq() {
+        assert!(is_comparison_op(&BinOp::NotEq));
+    }
+
+    #[test]
+    fn test_is_comparison_op_add() {
+        assert!(!is_comparison_op(&BinOp::Add));
+    }
+
+    #[test]
+    fn test_is_comparison_op_sub() {
+        assert!(!is_comparison_op(&BinOp::Sub));
+    }
+
+    #[test]
+    fn test_is_comparison_op_mul() {
+        assert!(!is_comparison_op(&BinOp::Mul));
+    }
+
+    #[test]
+    fn test_is_comparison_op_and() {
+        assert!(!is_comparison_op(&BinOp::And));
+    }
+
+    #[test]
+    fn test_is_ordering_comparison_lt() {
+        assert!(is_ordering_comparison(&BinOp::Lt));
+    }
+
+    #[test]
+    fn test_is_ordering_comparison_lteq() {
+        assert!(is_ordering_comparison(&BinOp::LtEq));
+    }
+
+    #[test]
+    fn test_is_ordering_comparison_gt() {
+        assert!(is_ordering_comparison(&BinOp::Gt));
+    }
+
+    #[test]
+    fn test_is_ordering_comparison_gteq() {
+        assert!(is_ordering_comparison(&BinOp::GtEq));
+    }
+
+    #[test]
+    fn test_is_ordering_comparison_eq() {
+        // Equality is NOT an ordering comparison
+        assert!(!is_ordering_comparison(&BinOp::Eq));
+    }
+
+    #[test]
+    fn test_is_ordering_comparison_noteq() {
+        // Not-equal is NOT an ordering comparison
+        assert!(!is_ordering_comparison(&BinOp::NotEq));
+    }
+
+    #[test]
+    fn test_is_logical_op_and() {
+        assert!(is_logical_op(&BinOp::And));
+    }
+
+    #[test]
+    fn test_is_logical_op_or() {
+        assert!(is_logical_op(&BinOp::Or));
+    }
+
+    #[test]
+    fn test_is_logical_op_add() {
+        assert!(!is_logical_op(&BinOp::Add));
+    }
+
+    #[test]
+    fn test_is_logical_op_lt() {
+        assert!(!is_logical_op(&BinOp::Lt));
+    }
+
+    #[test]
+    fn test_is_bitwise_op_bitand() {
+        assert!(is_bitwise_op(&BinOp::BitAnd));
+    }
+
+    #[test]
+    fn test_is_bitwise_op_bitor() {
+        assert!(is_bitwise_op(&BinOp::BitOr));
+    }
+
+    #[test]
+    fn test_is_bitwise_op_bitxor() {
+        assert!(is_bitwise_op(&BinOp::BitXor));
+    }
+
+    #[test]
+    fn test_is_bitwise_op_lshift() {
+        assert!(is_bitwise_op(&BinOp::LShift));
+    }
+
+    #[test]
+    fn test_is_bitwise_op_rshift() {
+        assert!(is_bitwise_op(&BinOp::RShift));
+    }
+
+    #[test]
+    fn test_is_bitwise_op_add() {
+        assert!(!is_bitwise_op(&BinOp::Add));
+    }
+
+    #[test]
+    fn test_is_arithmetic_op_add() {
+        assert!(is_arithmetic_op(&BinOp::Add));
+    }
+
+    #[test]
+    fn test_is_arithmetic_op_sub() {
+        assert!(is_arithmetic_op(&BinOp::Sub));
+    }
+
+    #[test]
+    fn test_is_arithmetic_op_mul() {
+        assert!(is_arithmetic_op(&BinOp::Mul));
+    }
+
+    #[test]
+    fn test_is_arithmetic_op_div() {
+        assert!(is_arithmetic_op(&BinOp::Div));
+    }
+
+    #[test]
+    fn test_is_arithmetic_op_mod() {
+        assert!(is_arithmetic_op(&BinOp::Mod));
+    }
+
+    #[test]
+    fn test_is_arithmetic_op_floordiv() {
+        assert!(is_arithmetic_op(&BinOp::FloorDiv));
+    }
+
+    #[test]
+    fn test_is_arithmetic_op_pow() {
+        assert!(is_arithmetic_op(&BinOp::Pow));
+    }
+
+    #[test]
+    fn test_is_arithmetic_op_and() {
+        assert!(!is_arithmetic_op(&BinOp::And));
+    }
+
+    #[test]
+    fn test_is_arithmetic_op_eq() {
+        assert!(!is_arithmetic_op(&BinOp::Eq));
     }
 }

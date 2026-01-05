@@ -436,4 +436,363 @@ mod tests {
         assert!(fix.confidence > 0.85);
         assert!(fix.patch_location.is_some());
     }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_repair_result_debug() {
+        let fix = Fix {
+            id: "test".to_string(),
+            ticket_id: "DEPYLER-001".to_string(),
+            description: "desc".to_string(),
+            mutator_name: "mut".to_string(),
+            confidence: 0.9,
+            rust_output: String::new(),
+            patch_location: None,
+        };
+        let success = RepairResult::Success(fix.clone());
+        let debug_str = format!("{:?}", success);
+        assert!(debug_str.contains("Success"));
+
+        let no_fix = RepairResult::NoFixFound;
+        let debug_str = format!("{:?}", no_fix);
+        assert!(debug_str.contains("NoFixFound"));
+
+        let needs_review = RepairResult::NeedsHumanReview {
+            fix,
+            confidence: 0.5,
+            reason: "low conf".to_string(),
+        };
+        let debug_str = format!("{:?}", needs_review);
+        assert!(debug_str.contains("NeedsHumanReview"));
+    }
+
+    #[test]
+    fn test_repair_result_clone() {
+        let fix = Fix {
+            id: "clone_test".to_string(),
+            ticket_id: "DEPYLER-002".to_string(),
+            description: "clone".to_string(),
+            mutator_name: "CloneMut".to_string(),
+            confidence: 0.8,
+            rust_output: "fn f() {}".to_string(),
+            patch_location: None,
+        };
+        let result = RepairResult::Success(fix);
+        let cloned = result.clone();
+        assert!(matches!(cloned, RepairResult::Success(_)));
+    }
+
+    #[test]
+    fn test_fix_debug() {
+        let fix = Fix {
+            id: "debug_fix".to_string(),
+            ticket_id: "DEPYLER-003".to_string(),
+            description: "debug test".to_string(),
+            mutator_name: "DebugMutator".to_string(),
+            confidence: 0.75,
+            rust_output: "let x = 1;".to_string(),
+            patch_location: Some(PatchLocation {
+                file: "src/lib.rs".to_string(),
+                line: 100,
+                change_description: "Add variable".to_string(),
+            }),
+        };
+        let debug_str = format!("{:?}", fix);
+        assert!(debug_str.contains("debug_fix"));
+        assert!(debug_str.contains("DEPYLER-003"));
+        assert!(debug_str.contains("DebugMutator"));
+    }
+
+    #[test]
+    fn test_fix_clone() {
+        let fix = Fix {
+            id: "orig".to_string(),
+            ticket_id: "DEPYLER-004".to_string(),
+            description: "original".to_string(),
+            mutator_name: "OrigMut".to_string(),
+            confidence: 0.95,
+            rust_output: "fn main() {}".to_string(),
+            patch_location: None,
+        };
+        let cloned = fix.clone();
+        assert_eq!(cloned.id, "orig");
+        assert_eq!(cloned.ticket_id, "DEPYLER-004");
+        assert_eq!(cloned.confidence, 0.95);
+    }
+
+    #[test]
+    fn test_patch_location_debug() {
+        let loc = PatchLocation {
+            file: "expr_gen.rs".to_string(),
+            line: 250,
+            change_description: "Fix type coercion".to_string(),
+        };
+        let debug_str = format!("{:?}", loc);
+        assert!(debug_str.contains("expr_gen.rs"));
+        assert!(debug_str.contains("250"));
+        assert!(debug_str.contains("Fix type coercion"));
+    }
+
+    #[test]
+    fn test_patch_location_clone() {
+        let loc = PatchLocation {
+            file: "stmt_gen.rs".to_string(),
+            line: 500,
+            change_description: "Modify statement".to_string(),
+        };
+        let cloned = loc.clone();
+        assert_eq!(cloned.file, "stmt_gen.rs");
+        assert_eq!(cloned.line, 500);
+        assert_eq!(cloned.change_description, "Modify statement");
+    }
+
+    #[test]
+    fn test_engine_stats() {
+        let mut engine = JidokaRepairEngine::new(0.5);
+        assert_eq!(engine.stats(), (0, 0));
+
+        let repro = create_test_repro("E0432", "import json");
+        let _ = engine.attempt_repair(&repro);
+
+        let (attempts, _successes) = engine.stats();
+        assert_eq!(attempts, 1);
+    }
+
+    #[test]
+    fn test_success_rate_zero_attempts() {
+        let engine = JidokaRepairEngine::new(0.85);
+        assert_eq!(engine.success_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_register_custom_mutator() {
+        #[derive(Debug)]
+        struct CustomMutator;
+        impl Mutator for CustomMutator {
+            fn name(&self) -> &str { "CustomMutator" }
+            fn can_handle(&self, _repro: &ReproCase) -> bool { false }
+            fn apply(&self, _repro: &ReproCase) -> Option<Fix> { None }
+            fn base_confidence(&self) -> f64 { 0.5 }
+        }
+
+        let mut engine = JidokaRepairEngine::new(0.85);
+        let initial_count = engine.mutators.len();
+        engine.register_mutator(Box::new(CustomMutator));
+        assert_eq!(engine.mutators.len(), initial_count + 1);
+    }
+
+    #[test]
+    fn test_import_mutator_name() {
+        let mutator = ImportMutator;
+        assert_eq!(mutator.name(), "ImportMutator");
+    }
+
+    #[test]
+    fn test_import_mutator_can_handle() {
+        let mutator = ImportMutator;
+        assert!(mutator.can_handle(&create_test_repro("E0432", "import x")));
+        assert!(mutator.can_handle(&create_test_repro("E0433", "from x import y")));
+        assert!(!mutator.can_handle(&create_test_repro("E0308", "type error")));
+    }
+
+    #[test]
+    fn test_import_mutator_base_confidence() {
+        let mutator = ImportMutator;
+        assert_eq!(mutator.base_confidence(), 0.95);
+    }
+
+    #[test]
+    fn test_type_coercion_mutator_name() {
+        let mutator = TypeCoercionMutator;
+        assert_eq!(mutator.name(), "TypeCoercionMutator");
+    }
+
+    #[test]
+    fn test_type_coercion_mutator_can_handle() {
+        let mutator = TypeCoercionMutator;
+        assert!(mutator.can_handle(&create_test_repro("E0308", "mismatched types")));
+        assert!(!mutator.can_handle(&create_test_repro("E0432", "import")));
+    }
+
+    #[test]
+    fn test_type_coercion_mutator_apply() {
+        let mutator = TypeCoercionMutator;
+        let repro = create_test_repro("E0308", "def f() -> str: return 42");
+        let fix = mutator.apply(&repro);
+        assert!(fix.is_some());
+        let fix = fix.unwrap();
+        assert_eq!(fix.mutator_name, "TypeCoercionMutator");
+        assert!(fix.patch_location.is_some());
+    }
+
+    #[test]
+    fn test_type_coercion_mutator_base_confidence() {
+        let mutator = TypeCoercionMutator;
+        assert_eq!(mutator.base_confidence(), 0.80);
+    }
+
+    #[test]
+    fn test_serde_value_fallback_mutator_name() {
+        let mutator = SerdeValueFallbackMutator;
+        assert_eq!(mutator.name(), "SerdeValueFallbackMutator");
+    }
+
+    #[test]
+    fn test_serde_value_fallback_mutator_can_handle() {
+        let mutator = SerdeValueFallbackMutator;
+        assert!(mutator.can_handle(&create_test_repro("E0277", "trait not satisfied")));
+        assert!(mutator.can_handle(&create_test_repro("E0308", "type mismatch")));
+        assert!(!mutator.can_handle(&create_test_repro("E0382", "moved value")));
+    }
+
+    #[test]
+    fn test_serde_value_fallback_mutator_apply_no_dict() {
+        let mutator = SerdeValueFallbackMutator;
+        let repro = create_test_repro("E0277", "def f(x: int): pass");
+        let fix = mutator.apply(&repro);
+        assert!(fix.is_none(), "Should not apply to non-dict code");
+    }
+
+    #[test]
+    fn test_serde_value_fallback_mutator_apply_with_json() {
+        let mutator = SerdeValueFallbackMutator;
+        let repro = create_test_repro("E0277", "def f(data: json): pass");
+        let fix = mutator.apply(&repro);
+        assert!(fix.is_some(), "Should apply to json-related code");
+    }
+
+    #[test]
+    fn test_serde_value_fallback_mutator_base_confidence() {
+        let mutator = SerdeValueFallbackMutator;
+        assert_eq!(mutator.base_confidence(), 0.75);
+    }
+
+    #[test]
+    fn test_to_string_mutator_name() {
+        let mutator = ToStringMutator;
+        assert_eq!(mutator.name(), "ToStringMutator");
+    }
+
+    #[test]
+    fn test_to_string_mutator_can_handle() {
+        let mutator = ToStringMutator;
+        assert!(mutator.can_handle(&create_test_repro("E0308", "type mismatch")));
+        assert!(!mutator.can_handle(&create_test_repro("E0432", "import")));
+    }
+
+    #[test]
+    fn test_to_string_mutator_apply() {
+        let mutator = ToStringMutator;
+        let repro = create_test_repro("E0308", "def f() -> str: return x");
+        let fix = mutator.apply(&repro);
+        assert!(fix.is_none(), "ToStringMutator returns None (conservative)");
+    }
+
+    #[test]
+    fn test_to_string_mutator_base_confidence() {
+        let mutator = ToStringMutator;
+        assert_eq!(mutator.base_confidence(), 0.90);
+    }
+
+    #[test]
+    fn test_clone_mutator_name() {
+        let mutator = CloneMutator;
+        assert_eq!(mutator.name(), "CloneMutator");
+    }
+
+    #[test]
+    fn test_clone_mutator_can_handle() {
+        let mutator = CloneMutator;
+        assert!(mutator.can_handle(&create_test_repro("E0382", "value used after move")));
+        assert!(mutator.can_handle(&create_test_repro("E0507", "cannot move out of")));
+        assert!(!mutator.can_handle(&create_test_repro("E0308", "type mismatch")));
+    }
+
+    #[test]
+    fn test_clone_mutator_apply() {
+        let mutator = CloneMutator;
+        let repro = create_test_repro("E0382", "def f(x): y = x; z = x");
+        let fix = mutator.apply(&repro);
+        assert!(fix.is_some());
+        let fix = fix.unwrap();
+        assert_eq!(fix.mutator_name, "CloneMutator");
+        assert!(fix.description.contains("clone"));
+    }
+
+    #[test]
+    fn test_clone_mutator_base_confidence() {
+        let mutator = CloneMutator;
+        assert_eq!(mutator.base_confidence(), 0.70);
+    }
+
+    #[test]
+    fn test_engine_debug() {
+        let engine = JidokaRepairEngine::new(0.85);
+        let debug_str = format!("{:?}", engine);
+        assert!(debug_str.contains("JidokaRepairEngine"));
+        assert!(debug_str.contains("mutators"));
+    }
+
+    #[test]
+    fn test_fix_without_patch_location() {
+        let fix = Fix {
+            id: "no_patch".to_string(),
+            ticket_id: "DEPYLER-005".to_string(),
+            description: "No patch needed".to_string(),
+            mutator_name: "NoPatchMut".to_string(),
+            confidence: 0.99,
+            rust_output: "let x = 42;".to_string(),
+            patch_location: None,
+        };
+        assert!(fix.patch_location.is_none());
+        assert_eq!(fix.confidence, 0.99);
+    }
+
+    #[test]
+    fn test_attempt_repair_type_coercion() {
+        let mut engine = JidokaRepairEngine::new(0.5);
+        let repro = create_test_repro("E0308", "def f() -> str: return 42");
+        let result = engine.attempt_repair(&repro).unwrap();
+        // TypeCoercionMutator should handle E0308
+        assert!(!matches!(result, RepairResult::NoFixFound));
+    }
+
+    #[test]
+    fn test_attempt_repair_clone_error() {
+        let mut engine = JidokaRepairEngine::new(0.5);
+        let repro = create_test_repro("E0382", "def f(x): y = x; z = x");
+        let result = engine.attempt_repair(&repro).unwrap();
+        // CloneMutator should handle E0382
+        assert!(!matches!(result, RepairResult::NoFixFound));
+    }
+
+    #[test]
+    fn test_multiple_repairs_stats() {
+        let mut engine = JidokaRepairEngine::new(0.5);
+
+        // Several repairs
+        let _ = engine.attempt_repair(&create_test_repro("E0432", "import json"));
+        let _ = engine.attempt_repair(&create_test_repro("E0308", "type error"));
+        let _ = engine.attempt_repair(&create_test_repro("E9999", "unknown"));
+        let _ = engine.attempt_repair(&create_test_repro("E0382", "move error"));
+
+        let (attempts, _) = engine.stats();
+        assert_eq!(attempts, 4);
+        assert!(engine.success_rate() > 0.0);
+    }
+
+    #[test]
+    fn test_needs_human_review_reason() {
+        let mut engine = JidokaRepairEngine::new(0.95); // Very high threshold
+        let repro = create_test_repro("E0382", "def f(x): y = x");
+        let result = engine.attempt_repair(&repro).unwrap();
+
+        if let RepairResult::NeedsHumanReview { reason, confidence, .. } = result {
+            assert!(reason.contains("below threshold"));
+            assert!(confidence < 0.95);
+        } else {
+            panic!("Expected NeedsHumanReview result");
+        }
+    }
 }
