@@ -447,7 +447,9 @@ fn test_unsupported_type_returns_error() {
     let ty = RustType::Unsupported("Not yet implemented".to_string());
     let result = rust_type_to_syn(&ty);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Unsupported"));
+    if let Err(e) = result {
+        assert!(e.to_string().contains("Unsupported"));
+    }
 }
 
 // ============================================================================

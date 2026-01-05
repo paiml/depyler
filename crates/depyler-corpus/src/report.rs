@@ -452,7 +452,9 @@ impl CorpusReport {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::taxonomy::{BlockerInfo, ErrorCategory};
     use std::collections::HashMap;
+    use tempfile::TempDir;
 
     fn create_test_report() -> CorpusReport {
         let config = CorpusConfig::default();
@@ -508,6 +510,100 @@ mod tests {
     }
 
     #[test]
+    fn test_report_with_failures() {
+        let config = CorpusConfig::default();
+        let transpile_results = vec![
+            TranspilationResult {
+                python_file: std::path::PathBuf::from("a.py"),
+                rust_file: None,
+                cargo_dir: None,
+                success: false,
+                error: Some("Parse error".to_string()),
+                duration: std::time::Duration::from_millis(100),
+            },
+            TranspilationResult {
+                python_file: std::path::PathBuf::from("b.py"),
+                rust_file: Some(std::path::PathBuf::from("b.rs")),
+                cargo_dir: None,
+                success: true,
+                error: None,
+                duration: std::time::Duration::from_millis(100),
+            },
+        ];
+        let compile_results = vec![
+            CompilationResult {
+                rust_file: std::path::PathBuf::from("b.rs"),
+                python_file: std::path::PathBuf::from("b.py"),
+                success: false,
+                exit_code: Some(1),
+                stderr: Some("error[E0308]: mismatched types".to_string()),
+                stdout: None,
+                duration: std::time::Duration::from_millis(50),
+                cargo_first: false,
+            },
+        ];
+
+        let mut by_category = HashMap::new();
+        by_category.insert(ErrorCategory::TypeMismatch, 1);
+
+        let mut by_code = HashMap::new();
+        by_code.insert("E0308".to_string(), 1);
+
+        let taxonomy = ErrorTaxonomy {
+            errors: vec![],
+            by_category,
+            by_code,
+            blockers: vec![],
+        };
+
+        let statistics = StatisticalAnalysis {
+            total_files: 1,
+            passed_files: 0,
+            failed_files: 1,
+            single_shot_rate: 0.0,
+            ci_95_lower: 0.0,
+            ci_95_upper: 5.0,
+            mean_errors_per_file: 1.0,
+            std_deviation: 0.0,
+            median_errors: 1.0,
+            total_errors: 1,
+        };
+
+        let report = CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
+        assert_eq!(report.summary.transpilation.failure, 1);
+        assert_eq!(report.summary.compilation.failure, 1);
+        assert!(!report.error_distribution.by_category.is_empty());
+    }
+
+    #[test]
+    fn test_report_empty_transpile() {
+        let config = CorpusConfig::default();
+        let transpile_results: Vec<TranspilationResult> = vec![];
+        let compile_results: Vec<CompilationResult> = vec![];
+        let taxonomy = ErrorTaxonomy {
+            errors: vec![],
+            by_category: HashMap::new(),
+            by_code: HashMap::new(),
+            blockers: vec![],
+        };
+        let statistics = StatisticalAnalysis {
+            total_files: 0,
+            passed_files: 0,
+            failed_files: 0,
+            single_shot_rate: 0.0,
+            ci_95_lower: 0.0,
+            ci_95_upper: 0.0,
+            mean_errors_per_file: 0.0,
+            std_deviation: 0.0,
+            median_errors: 0.0,
+            total_errors: 0,
+        };
+
+        let report = CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
+        assert_eq!(report.summary.transpilation.rate, 0.0);
+    }
+
+    #[test]
     fn test_to_json() {
         let report = create_test_report();
         let json = report.to_json().unwrap();
@@ -527,6 +623,57 @@ mod tests {
     }
 
     #[test]
+    fn test_to_markdown_with_blockers() {
+        let config = CorpusConfig::default();
+        let transpile_results = vec![];
+        let compile_results = vec![];
+
+        let taxonomy = ErrorTaxonomy {
+            errors: vec![],
+            by_category: HashMap::new(),
+            by_code: HashMap::new(),
+            blockers: vec![
+                BlockerInfo {
+                    error_code: "E0308".to_string(),
+                    count: 50,
+                    priority: BlockerPriority::P0Critical,
+                    category: ErrorCategory::TypeMismatch,
+                    root_cause: "Type inference failure".to_string(),
+                    recommended_fix: "Fix types".to_string(),
+                },
+                BlockerInfo {
+                    error_code: "E0412".to_string(),
+                    count: 20,
+                    priority: BlockerPriority::P1High,
+                    category: ErrorCategory::UndefinedType,
+                    root_cause: "Missing type".to_string(),
+                    recommended_fix: "Add type".to_string(),
+                },
+            ],
+        };
+
+        let statistics = StatisticalAnalysis {
+            total_files: 0,
+            passed_files: 0,
+            failed_files: 0,
+            single_shot_rate: 0.0,
+            ci_95_lower: 0.0,
+            ci_95_upper: 0.0,
+            mean_errors_per_file: 0.0,
+            std_deviation: 0.0,
+            median_errors: 0.0,
+            total_errors: 0,
+        };
+
+        let report = CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
+        let md = report.to_markdown();
+
+        assert!(md.contains("P0 Critical"));
+        assert!(md.contains("P1 High"));
+        assert!(md.contains("E0308"));
+    }
+
+    #[test]
     fn test_to_terminal() {
         let report = create_test_report();
         let term = report.to_terminal();
@@ -539,5 +686,192 @@ mod tests {
     fn test_single_shot_rate() {
         let report = create_test_report();
         assert_eq!(report.single_shot_rate(), 100.0);
+    }
+
+    #[test]
+    fn test_error_code_description_all() {
+        assert_eq!(CorpusReport::error_code_description("E0308"), "mismatched types");
+        assert_eq!(CorpusReport::error_code_description("E0412"), "cannot find type");
+        assert_eq!(CorpusReport::error_code_description("E0425"), "cannot find value");
+        assert_eq!(CorpusReport::error_code_description("E0282"), "type annotations needed");
+        assert_eq!(CorpusReport::error_code_description("E0277"), "trait not implemented");
+        assert_eq!(CorpusReport::error_code_description("E9999"), "other error");
+    }
+
+    #[test]
+    fn test_generate_hansei_items() {
+        let mut by_code = HashMap::new();
+        by_code.insert("E0308".to_string(), 15);
+        by_code.insert("E0412".to_string(), 15);
+        by_code.insert("E0425".to_string(), 15);
+
+        let taxonomy = ErrorTaxonomy {
+            errors: vec![],
+            by_category: HashMap::new(),
+            by_code,
+            blockers: vec![],
+        };
+
+        let items = CorpusReport::generate_hansei_items(&taxonomy);
+        assert_eq!(items.len(), 3);
+        assert!(items.iter().any(|i| i.contains("Type inference")));
+        assert!(items.iter().any(|i| i.contains("Generic type")));
+        assert!(items.iter().any(|i| i.contains("Import/binding")));
+    }
+
+    #[test]
+    fn test_generate_hansei_items_empty() {
+        let taxonomy = ErrorTaxonomy {
+            errors: vec![],
+            by_category: HashMap::new(),
+            by_code: HashMap::new(),
+            blockers: vec![],
+        };
+
+        let items = CorpusReport::generate_hansei_items(&taxonomy);
+        assert!(items.is_empty());
+    }
+
+    #[test]
+    fn test_build_blocker_analysis_all_priorities() {
+        let taxonomy = ErrorTaxonomy {
+            errors: vec![],
+            by_category: HashMap::new(),
+            by_code: HashMap::new(),
+            blockers: vec![
+                BlockerInfo {
+                    error_code: "E0308".to_string(),
+                    count: 50,
+                    priority: BlockerPriority::P0Critical,
+                    category: ErrorCategory::TypeMismatch,
+                    root_cause: "Critical".to_string(),
+                    recommended_fix: "Fix".to_string(),
+                },
+                BlockerInfo {
+                    error_code: "E0412".to_string(),
+                    count: 20,
+                    priority: BlockerPriority::P1High,
+                    category: ErrorCategory::UndefinedType,
+                    root_cause: "High".to_string(),
+                    recommended_fix: "Fix".to_string(),
+                },
+                BlockerInfo {
+                    error_code: "E0425".to_string(),
+                    count: 10,
+                    priority: BlockerPriority::P2Medium,
+                    category: ErrorCategory::UndefinedValue,
+                    root_cause: "Medium".to_string(),
+                    recommended_fix: "Fix".to_string(),
+                },
+                BlockerInfo {
+                    error_code: "E0282".to_string(),
+                    count: 5,
+                    priority: BlockerPriority::P3Low,
+                    category: ErrorCategory::TypeAnnotation,
+                    root_cause: "Low".to_string(),
+                    recommended_fix: "Fix".to_string(),
+                },
+            ],
+        };
+
+        let analysis = CorpusReport::build_blocker_analysis(&taxonomy);
+        assert_eq!(analysis.p0_critical.len(), 1);
+        assert_eq!(analysis.p1_high.len(), 1);
+        assert_eq!(analysis.p2_medium.len(), 1);
+        assert_eq!(analysis.p3_low.len(), 1);
+    }
+
+    #[test]
+    fn test_write_to_file_json() {
+        let report = create_test_report();
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("report.json");
+
+        report.write_to_file(&path, ReportFormat::Json).unwrap();
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("single_shot_rate"));
+    }
+
+    #[test]
+    fn test_write_to_file_markdown() {
+        let report = create_test_report();
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("report.md");
+
+        report.write_to_file(&path, ReportFormat::Markdown).unwrap();
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("# Corpus Analysis Report"));
+    }
+
+    #[test]
+    fn test_write_to_file_terminal() {
+        let report = create_test_report();
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().join("report.txt");
+
+        report.write_to_file(&path, ReportFormat::Terminal).unwrap();
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("CORPUS ANALYSIS"));
+    }
+
+    #[test]
+    fn test_report_format_debug() {
+        assert_eq!(format!("{:?}", ReportFormat::Json), "Json");
+        assert_eq!(format!("{:?}", ReportFormat::Markdown), "Markdown");
+        assert_eq!(format!("{:?}", ReportFormat::Terminal), "Terminal");
+    }
+
+    #[test]
+    fn test_report_format_eq() {
+        assert_eq!(ReportFormat::Json, ReportFormat::Json);
+        assert_ne!(ReportFormat::Json, ReportFormat::Markdown);
+    }
+
+    #[test]
+    fn test_toyota_metrics_with_red_andon() {
+        let stats = StatisticalAnalysis {
+            total_files: 100,
+            passed_files: 20,
+            failed_files: 80,
+            single_shot_rate: 20.0,
+            ci_95_lower: 10.0,
+            ci_95_upper: 30.0,
+            mean_errors_per_file: 5.0,
+            std_deviation: 2.0,
+            median_errors: 4.0,
+            total_errors: 500,
+        };
+
+        let taxonomy = ErrorTaxonomy {
+            errors: vec![],
+            by_category: HashMap::new(),
+            by_code: HashMap::new(),
+            blockers: vec![
+                BlockerInfo {
+                    error_code: "E0308".to_string(),
+                    count: 50,
+                    priority: BlockerPriority::P0Critical,
+                    category: ErrorCategory::TypeMismatch,
+                    root_cause: "Critical".to_string(),
+                    recommended_fix: "Fix".to_string(),
+                },
+                BlockerInfo {
+                    error_code: "E0412".to_string(),
+                    count: 20,
+                    priority: BlockerPriority::P1High,
+                    category: ErrorCategory::UndefinedType,
+                    root_cause: "High".to_string(),
+                    recommended_fix: "Fix".to_string(),
+                },
+            ],
+        };
+
+        let metrics = CorpusReport::build_toyota_metrics(&stats, &taxonomy, 80.0);
+        assert_eq!(metrics.jidoka_alerts, 1);
+        assert_eq!(metrics.andon_triggers, 1);
+        assert_eq!(metrics.kaizen_opportunities, 1);
     }
 }

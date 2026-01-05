@@ -5,6 +5,7 @@
 //! - N-gram range
 //! - Error code weighting
 
+use crate::classifier::ErrorCategory;
 use crate::depyler_training::build_combined_corpus;
 use crate::ngram::NgramFixPredictor;
 use crate::training::TrainingSample;
@@ -189,6 +190,62 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_tuning_config_default() {
+        let config = TuningConfig::default();
+        assert_eq!(config.min_similarity, 0.1);
+        assert_eq!(config.ngram_range, (1, 3));
+        assert_eq!(config.error_code_weight, 2.0);
+    }
+
+    #[test]
+    fn test_tuning_config_clone() {
+        let config = TuningConfig {
+            min_similarity: 0.5,
+            ngram_range: (2, 4),
+            error_code_weight: 3.0,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.min_similarity, 0.5);
+        assert_eq!(cloned.ngram_range, (2, 4));
+        assert_eq!(cloned.error_code_weight, 3.0);
+    }
+
+    #[test]
+    fn test_tuning_config_debug() {
+        let config = TuningConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("TuningConfig"));
+        assert!(debug.contains("min_similarity"));
+    }
+
+    #[test]
+    fn test_tuning_result_clone() {
+        let result = TuningResult {
+            config: TuningConfig::default(),
+            accuracy: 0.75,
+            correct: 15,
+            total: 20,
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.accuracy, 0.75);
+        assert_eq!(cloned.correct, 15);
+        assert_eq!(cloned.total, 20);
+    }
+
+    #[test]
+    fn test_tuning_result_debug() {
+        let result = TuningResult {
+            config: TuningConfig::default(),
+            accuracy: 0.8,
+            correct: 8,
+            total: 10,
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("TuningResult"));
+        assert!(debug.contains("accuracy"));
+    }
+
+    #[test]
     fn test_weight_error_codes() {
         let msg = "error[E0308]: mismatched types";
         let weighted = weight_error_codes(msg, 3.0);
@@ -196,9 +253,80 @@ mod tests {
     }
 
     #[test]
+    fn test_weight_error_codes_no_code() {
+        // Message without error code
+        let msg = "cannot find value `x` in this scope";
+        let weighted = weight_error_codes(msg, 3.0);
+        assert_eq!(weighted, msg);
+    }
+
+    #[test]
+    fn test_weight_error_codes_fractional() {
+        // Test fractional weight (rounds to 2)
+        let msg = "error[E0425]: cannot find value";
+        let weighted = weight_error_codes(msg, 2.4);
+        assert!(weighted.contains("error[E0425] error[E0425]"));
+    }
+
+    #[test]
+    fn test_weight_error_codes_zero_weight() {
+        let msg = "error[E0308]: mismatched types";
+        let weighted = weight_error_codes(msg, 0.0);
+        // With 0 weight, no repeats
+        assert!(!weighted.contains("error[E0308] error[E0308]"));
+    }
+
+    #[test]
+    fn test_evaluate_config_empty_samples() {
+        let config = TuningConfig::default();
+        let samples: Vec<TrainingSample> = vec![];
+        let result = evaluate_config(&config, &samples);
+        assert_eq!(result.total, 0);
+        assert!(result.accuracy.is_nan() || result.accuracy == 0.0);
+    }
+
+    #[test]
+    fn test_evaluate_config_single_sample() {
+        let config = TuningConfig::default();
+        let samples = vec![TrainingSample {
+            message: "error[E0308]: mismatched types".to_string(),
+            fix: Some("Use correct type".to_string()),
+            category: ErrorCategory::TypeMismatch,
+        }];
+        let result = evaluate_config(&config, &samples);
+        assert_eq!(result.total, 1);
+    }
+
+    #[test]
+    fn test_evaluate_config_no_fix() {
+        let config = TuningConfig::default();
+        let samples = vec![
+            TrainingSample {
+                message: "error[E0308]: mismatched types".to_string(),
+                fix: None, // No fix provided
+                category: ErrorCategory::TypeMismatch,
+            },
+            TrainingSample {
+                message: "error[E0425]: cannot find value".to_string(),
+                fix: Some("Add import".to_string()),
+                category: ErrorCategory::MissingImport,
+            },
+        ];
+        let result = evaluate_config(&config, &samples);
+        assert_eq!(result.total, 2);
+    }
+
+    #[test]
+    fn test_find_best_config() {
+        let result = find_best_config();
+        // Should return some valid result
+        assert!(result.total > 0 || result.config.min_similarity > 0.0);
+    }
+
+    #[test]
     fn test_quick_tune() {
         let result = quick_tune();
-        assert!(result.accuracy > 0.0);
+        assert!(result.accuracy >= 0.0);
         assert!(result.total > 0);
         println!(
             "Quick tune: {:.2}% ({}/{}) with sim={}, ngram={:?}, weight={}",

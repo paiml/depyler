@@ -302,6 +302,10 @@ pub fn convert_list_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Res
 mod tests {
     use super::*;
 
+    fn make_ctx() -> CodeGenContext<'static> {
+        CodeGenContext::default()
+    }
+
     #[test]
     fn test_already_collected_true() {
         let expr: syn::Expr = parse_quote! { items.collect::<Vec<_>>() };
@@ -351,5 +355,370 @@ mod tests {
     fn test_is_csv_reader_var_false() {
         let expr: syn::Expr = parse_quote! { items };
         assert!(!is_csv_reader_var(&expr));
+    }
+
+    // ========== convert_set_constructor tests ==========
+
+    #[test]
+    fn test_convert_set_constructor_empty() {
+        let mut ctx = make_ctx();
+        let result = convert_set_constructor(&mut ctx, &[]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("HashSet"));
+        assert!(code.contains("new"));
+        assert!(ctx.needs_hashset);
+    }
+
+    #[test]
+    fn test_convert_set_constructor_with_iterable() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { items };
+        let result = convert_set_constructor(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("collect"));
+        assert!(code.contains("HashSet"));
+    }
+
+    #[test]
+    fn test_convert_set_constructor_with_tuple() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { (1, 2, 3) };
+        let result = convert_set_constructor(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        // Tuple is converted via vec![elements] pattern
+        assert!(code.contains("collect"));
+        assert!(code.contains("HashSet"));
+    }
+
+    #[test]
+    fn test_convert_set_constructor_too_many_args() {
+        let mut ctx = make_ctx();
+        let arg1: syn::Expr = parse_quote! { a };
+        let arg2: syn::Expr = parse_quote! { b };
+        let result = convert_set_constructor(&mut ctx, &[arg1, arg2]);
+        assert!(result.is_err());
+    }
+
+    // ========== convert_frozenset_constructor tests ==========
+
+    #[test]
+    fn test_convert_frozenset_constructor_empty() {
+        let mut ctx = make_ctx();
+        let result = convert_frozenset_constructor(&mut ctx, &[]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Arc"));
+        assert!(code.contains("HashSet"));
+        assert!(ctx.needs_hashset);
+    }
+
+    #[test]
+    fn test_convert_frozenset_constructor_with_iterable() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { items };
+        let result = convert_frozenset_constructor(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Arc"));
+        assert!(code.contains("collect"));
+    }
+
+    #[test]
+    fn test_convert_frozenset_constructor_with_tuple() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { (1, 2, 3) };
+        let result = convert_frozenset_constructor(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        // Tuple converted via vec![elements] pattern wrapped in Arc
+        assert!(code.contains("collect"));
+        assert!(code.contains("Arc"));
+    }
+
+    #[test]
+    fn test_convert_frozenset_constructor_too_many_args() {
+        let mut ctx = make_ctx();
+        let arg1: syn::Expr = parse_quote! { a };
+        let arg2: syn::Expr = parse_quote! { b };
+        let result = convert_frozenset_constructor(&mut ctx, &[arg1, arg2]);
+        assert!(result.is_err());
+    }
+
+    // ========== convert_counter_builtin tests ==========
+
+    #[test]
+    fn test_convert_counter_builtin_empty() {
+        let mut ctx = make_ctx();
+        let result = convert_counter_builtin(&mut ctx, &[]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("HashMap :: new"));
+        assert!(ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_convert_counter_builtin_with_iterable() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { items };
+        let result = convert_counter_builtin(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("fold"));
+        assert!(code.contains("entry"));
+        assert!(code.contains("or_insert"));
+    }
+
+    #[test]
+    fn test_convert_counter_builtin_too_many_args() {
+        let mut ctx = make_ctx();
+        let arg1: syn::Expr = parse_quote! { a };
+        let arg2: syn::Expr = parse_quote! { b };
+        let result = convert_counter_builtin(&mut ctx, &[arg1, arg2]);
+        assert!(result.is_err());
+    }
+
+    // ========== convert_defaultdict_builtin tests ==========
+
+    #[test]
+    fn test_convert_defaultdict_builtin_empty() {
+        let mut ctx = make_ctx();
+        let result = convert_defaultdict_builtin(&mut ctx, &[]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("HashMap :: new"));
+        assert!(ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_convert_defaultdict_builtin_with_factory() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { int };
+        let result = convert_defaultdict_builtin(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        // Always generates HashMap::new()
+        assert!(code.contains("HashMap :: new"));
+    }
+
+    // ========== convert_dict_builtin tests ==========
+
+    #[test]
+    fn test_convert_dict_builtin_empty() {
+        let mut ctx = make_ctx();
+        let result = convert_dict_builtin(&mut ctx, &[]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("HashMap"));
+        assert!(code.contains("new"));
+        assert!(ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_convert_dict_builtin_with_mapping() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { items };
+        let result = convert_dict_builtin(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("collect"));
+        assert!(code.contains("HashMap"));
+    }
+
+    #[test]
+    fn test_convert_dict_builtin_too_many_args() {
+        let mut ctx = make_ctx();
+        let arg1: syn::Expr = parse_quote! { a };
+        let arg2: syn::Expr = parse_quote! { b };
+        let result = convert_dict_builtin(&mut ctx, &[arg1, arg2]);
+        assert!(result.is_err());
+    }
+
+    // ========== convert_deque_builtin tests ==========
+
+    #[test]
+    fn test_convert_deque_builtin_empty() {
+        let mut ctx = make_ctx();
+        let result = convert_deque_builtin(&mut ctx, &[]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("VecDeque"));
+        assert!(code.contains("new"));
+        assert!(ctx.needs_vecdeque);
+    }
+
+    #[test]
+    fn test_convert_deque_builtin_with_iterable() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { items };
+        let result = convert_deque_builtin(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("VecDeque"));
+        assert!(code.contains("from"));
+    }
+
+    #[test]
+    fn test_convert_deque_builtin_too_many_args() {
+        let mut ctx = make_ctx();
+        let arg1: syn::Expr = parse_quote! { a };
+        let arg2: syn::Expr = parse_quote! { b };
+        let result = convert_deque_builtin(&mut ctx, &[arg1, arg2]);
+        assert!(result.is_err());
+    }
+
+    // ========== convert_list_builtin tests ==========
+
+    #[test]
+    fn test_convert_list_builtin_empty() {
+        let mut ctx = make_ctx();
+        let result = convert_list_builtin(&mut ctx, &[]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("Vec :: new"));
+    }
+
+    #[test]
+    fn test_convert_list_builtin_with_iterable() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { items };
+        let result = convert_list_builtin(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("collect"));
+        assert!(code.contains("Vec"));
+    }
+
+    #[test]
+    fn test_convert_list_builtin_with_range() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { 0..10 };
+        let result = convert_list_builtin(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("collect"));
+    }
+
+    #[test]
+    fn test_convert_list_builtin_already_collected() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { items.iter().collect::<Vec<_>>() };
+        let result = convert_list_builtin(&mut ctx, &[arg.clone()]).unwrap();
+        // Should return the same expression
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("collect"));
+    }
+
+    #[test]
+    fn test_convert_list_builtin_with_iterator() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { items.iter().filter(|x| *x > 0) };
+        let result = convert_list_builtin(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("filter"));
+        assert!(code.contains("collect"));
+    }
+
+    #[test]
+    fn test_convert_list_builtin_with_csv_reader() {
+        let mut ctx = make_ctx();
+        let arg: syn::Expr = parse_quote! { reader };
+        let result = convert_list_builtin(&mut ctx, &[arg]).unwrap();
+        let code = quote::quote!(#result).to_string();
+        assert!(code.contains("deserialize"));
+        assert!(ctx.needs_csv);
+    }
+
+    #[test]
+    fn test_convert_list_builtin_too_many_args() {
+        let mut ctx = make_ctx();
+        let arg1: syn::Expr = parse_quote! { a };
+        let arg2: syn::Expr = parse_quote! { b };
+        let result = convert_list_builtin(&mut ctx, &[arg1, arg2]);
+        assert!(result.is_err());
+    }
+
+    // ========== Additional iterator detection tests ==========
+
+    #[test]
+    fn test_is_iterator_expr_enumerate() {
+        let expr: syn::Expr = parse_quote! { items.enumerate() };
+        assert!(is_iterator_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_expr_chain() {
+        let expr: syn::Expr = parse_quote! { a.chain(b) };
+        assert!(is_iterator_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_expr_take() {
+        let expr: syn::Expr = parse_quote! { items.take(5) };
+        assert!(is_iterator_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_expr_skip() {
+        let expr: syn::Expr = parse_quote! { items.skip(5) };
+        assert!(is_iterator_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_expr_flat_map() {
+        let expr: syn::Expr = parse_quote! { items.flat_map(|x| x) };
+        assert!(is_iterator_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_expr_iter() {
+        let expr: syn::Expr = parse_quote! { items.iter() };
+        assert!(is_iterator_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_expr_into_iter() {
+        let expr: syn::Expr = parse_quote! { items.into_iter() };
+        assert!(is_iterator_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_iterator_expr_non_iterator() {
+        let expr: syn::Expr = parse_quote! { items.push(1) };
+        assert!(!is_iterator_expr(&expr));
+    }
+
+    // ========== CSV reader detection tests ==========
+
+    #[test]
+    fn test_is_csv_reader_var_ends_with_reader() {
+        let expr: syn::Expr = parse_quote! { csv_file_reader };
+        assert!(is_csv_reader_var(&expr));
+    }
+
+    #[test]
+    fn test_is_csv_reader_var_starts_with_reader() {
+        let expr: syn::Expr = parse_quote! { reader_csv };
+        assert!(is_csv_reader_var(&expr));
+    }
+
+    #[test]
+    fn test_is_csv_reader_var_method_call() {
+        // Method call is not a path expression
+        let expr: syn::Expr = parse_quote! { file.reader() };
+        assert!(!is_csv_reader_var(&expr));
+    }
+
+    // ========== Range expression tests ==========
+
+    #[test]
+    fn test_is_range_expr_inclusive() {
+        let expr: syn::Expr = parse_quote! { 0..=5 };
+        assert!(is_range_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_range_expr_half_open() {
+        let expr: syn::Expr = parse_quote! { start..end };
+        assert!(is_range_expr(&expr));
+    }
+
+    // ========== Edge case tests ==========
+
+    #[test]
+    fn test_already_collected_nested() {
+        let expr: syn::Expr = parse_quote! { a.iter().filter(|x| true).collect::<Vec<_>>() };
+        assert!(already_collected(&expr));
+    }
+
+    #[test]
+    fn test_already_collected_literal() {
+        let expr: syn::Expr = parse_quote! { 42 };
+        assert!(!already_collected(&expr));
     }
 }
