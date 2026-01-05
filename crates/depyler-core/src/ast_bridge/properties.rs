@@ -1,5 +1,9 @@
 use crate::hir::{BinOp, FunctionProperties, HirExpr, HirStmt};
 
+#[cfg(test)]
+#[path = "properties_tests.rs"]
+mod tests;
+
 pub struct FunctionAnalyzer;
 
 impl FunctionAnalyzer {
