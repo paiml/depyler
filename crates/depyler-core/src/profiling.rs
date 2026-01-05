@@ -699,12 +699,285 @@ mod tests {
         }
     }
 
+    // === ProfileConfig tests ===
+
+    #[test]
+    fn test_profile_config_default() {
+        let config = ProfileConfig::default();
+        assert!(config.count_instructions);
+        assert!(config.track_allocations);
+        assert!(config.detect_hot_paths);
+        assert_eq!(config.hot_path_threshold, 100);
+        assert!(!config.generate_flamegraph);
+        assert!(config.include_hints);
+    }
+
+    #[test]
+    fn test_profile_config_clone() {
+        let config = ProfileConfig {
+            count_instructions: false,
+            hot_path_threshold: 50,
+            ..Default::default()
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.count_instructions, false);
+        assert_eq!(cloned.hot_path_threshold, 50);
+    }
+
+    #[test]
+    fn test_profile_config_debug() {
+        let config = ProfileConfig::default();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("ProfileConfig"));
+    }
+
+    // === FunctionMetrics tests ===
+
+    #[test]
+    fn test_function_metrics_new() {
+        let metrics = FunctionMetrics {
+            name: "test_func".to_string(),
+            instruction_count: 100,
+            allocation_count: 5,
+            estimated_time: 150.0,
+            call_count: 10,
+            time_percentage: 25.0,
+            is_hot: true,
+        };
+        assert_eq!(metrics.name, "test_func");
+        assert!(metrics.is_hot);
+    }
+
+    #[test]
+    fn test_function_metrics_clone() {
+        let metrics = FunctionMetrics {
+            name: "clone_test".to_string(),
+            instruction_count: 50,
+            allocation_count: 2,
+            estimated_time: 75.0,
+            call_count: 5,
+            time_percentage: 10.0,
+            is_hot: false,
+        };
+        let cloned = metrics.clone();
+        assert_eq!(metrics.name, cloned.name);
+    }
+
+    #[test]
+    fn test_function_metrics_debug() {
+        let metrics = FunctionMetrics {
+            name: "debug".to_string(),
+            instruction_count: 0,
+            allocation_count: 0,
+            estimated_time: 0.0,
+            call_count: 0,
+            time_percentage: 0.0,
+            is_hot: false,
+        };
+        let debug = format!("{:?}", metrics);
+        assert!(debug.contains("FunctionMetrics"));
+    }
+
+    // === HotPath tests ===
+
+    #[test]
+    fn test_hot_path_new() {
+        let path = HotPath {
+            call_chain: vec!["main".to_string(), "process".to_string()],
+            time_percentage: 45.0,
+            loop_depth: 2,
+            has_io: true,
+        };
+        assert_eq!(path.call_chain.len(), 2);
+        assert!(path.has_io);
+    }
+
+    #[test]
+    fn test_hot_path_clone() {
+        let path = HotPath {
+            call_chain: vec!["func".to_string()],
+            time_percentage: 30.0,
+            loop_depth: 1,
+            has_io: false,
+        };
+        let cloned = path.clone();
+        assert_eq!(path.time_percentage, cloned.time_percentage);
+    }
+
+    #[test]
+    fn test_hot_path_debug() {
+        let path = HotPath {
+            call_chain: vec![],
+            time_percentage: 0.0,
+            loop_depth: 0,
+            has_io: false,
+        };
+        let debug = format!("{:?}", path);
+        assert!(debug.contains("HotPath"));
+    }
+
+    // === PerformancePrediction tests ===
+
+    #[test]
+    fn test_performance_prediction_new() {
+        let pred = PerformancePrediction {
+            category: PredictionCategory::TypeSystemOptimization,
+            confidence: 0.9,
+            speedup_factor: 2.5,
+            explanation: "Type checks removed".to_string(),
+            functions: vec!["func1".to_string()],
+        };
+        assert_eq!(pred.confidence, 0.9);
+        assert_eq!(pred.speedup_factor, 2.5);
+    }
+
+    #[test]
+    fn test_performance_prediction_clone() {
+        let pred = PerformancePrediction {
+            category: PredictionCategory::IteratorOptimization,
+            confidence: 0.8,
+            speedup_factor: 1.5,
+            explanation: "test".to_string(),
+            functions: vec![],
+        };
+        let cloned = pred.clone();
+        assert_eq!(pred.category, cloned.category);
+    }
+
+    #[test]
+    fn test_performance_prediction_debug() {
+        let pred = PerformancePrediction {
+            category: PredictionCategory::StringOptimization,
+            confidence: 0.5,
+            speedup_factor: 1.0,
+            explanation: "".to_string(),
+            functions: vec![],
+        };
+        let debug = format!("{:?}", pred);
+        assert!(debug.contains("PerformancePrediction"));
+    }
+
+    // === PredictionCategory tests ===
+
+    #[test]
+    fn test_prediction_category_variants() {
+        let categories = [
+            PredictionCategory::TypeSystemOptimization,
+            PredictionCategory::ZeroCostAbstraction,
+            PredictionCategory::MemoryLayoutOptimization,
+            PredictionCategory::IteratorOptimization,
+            PredictionCategory::StringOptimization,
+            PredictionCategory::ParallelizationOpportunity,
+        ];
+        assert_eq!(categories.len(), 6);
+    }
+
+    #[test]
+    fn test_prediction_category_eq() {
+        assert_eq!(
+            PredictionCategory::TypeSystemOptimization,
+            PredictionCategory::TypeSystemOptimization
+        );
+        assert_ne!(
+            PredictionCategory::TypeSystemOptimization,
+            PredictionCategory::StringOptimization
+        );
+    }
+
+    #[test]
+    fn test_prediction_category_clone() {
+        let cat = PredictionCategory::MemoryLayoutOptimization;
+        let cloned = cat.clone();
+        assert_eq!(cat, cloned);
+    }
+
+    #[test]
+    fn test_prediction_category_debug() {
+        let debug = format!("{:?}", PredictionCategory::ZeroCostAbstraction);
+        assert!(debug.contains("ZeroCostAbstraction"));
+    }
+
+    // === ProfilingAnnotation tests ===
+
+    #[test]
+    fn test_profiling_annotation_new() {
+        let annotation = ProfilingAnnotation {
+            kind: AnnotationKind::TimingProbe,
+            target: "func".to_string(),
+            value: "probe_1".to_string(),
+        };
+        assert_eq!(annotation.target, "func");
+    }
+
+    #[test]
+    fn test_profiling_annotation_clone() {
+        let annotation = ProfilingAnnotation {
+            kind: AnnotationKind::AllocationCounter,
+            target: "test".to_string(),
+            value: "100".to_string(),
+        };
+        let cloned = annotation.clone();
+        assert_eq!(annotation.target, cloned.target);
+    }
+
+    #[test]
+    fn test_profiling_annotation_debug() {
+        let annotation = ProfilingAnnotation {
+            kind: AnnotationKind::HotPathMarker,
+            target: "".to_string(),
+            value: "".to_string(),
+        };
+        let debug = format!("{:?}", annotation);
+        assert!(debug.contains("ProfilingAnnotation"));
+    }
+
+    // === AnnotationKind tests ===
+
+    #[test]
+    fn test_annotation_kind_variants() {
+        let kinds = [
+            AnnotationKind::TimingProbe,
+            AnnotationKind::AllocationCounter,
+            AnnotationKind::HotPathMarker,
+            AnnotationKind::PerformanceHint,
+        ];
+        assert_eq!(kinds.len(), 4);
+    }
+
+    #[test]
+    fn test_annotation_kind_clone() {
+        let kind = AnnotationKind::PerformanceHint;
+        let cloned = kind.clone();
+        assert!(matches!(cloned, AnnotationKind::PerformanceHint));
+    }
+
+    #[test]
+    fn test_annotation_kind_debug() {
+        let debug = format!("{:?}", AnnotationKind::TimingProbe);
+        assert!(debug.contains("TimingProbe"));
+    }
+
+    // === Profiler tests ===
+
     #[test]
     fn test_profiler_creation() {
         let config = ProfileConfig::default();
         let profiler = Profiler::new(config);
         assert!(profiler.metrics.is_empty());
         assert!(profiler.hot_paths.is_empty());
+    }
+
+    #[test]
+    fn test_profiler_empty_program() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+        let program = HirProgram {
+            functions: vec![],
+            classes: vec![],
+            imports: vec![],
+        };
+        let report = profiler.analyze_program(&program);
+        assert!(report.metrics.is_empty());
+        assert_eq!(report.total_instructions, 0);
     }
 
     #[test]
@@ -763,6 +1036,51 @@ mod tests {
     }
 
     #[test]
+    fn test_while_loop_analysis() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+
+        let func = create_test_function(
+            "with_while",
+            vec![HirStmt::While {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                body: vec![HirStmt::Expr(HirExpr::Var("x".to_string()))],
+            }],
+        );
+
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let report = profiler.analyze_program(&program);
+        assert!(report.metrics.get("with_while").is_some());
+    }
+
+    #[test]
+    fn test_if_else_analysis() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+
+        let func = create_test_function(
+            "with_if",
+            vec![HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
+            }],
+        );
+
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let report = profiler.analyze_program(&program);
+        assert!(report.metrics.get("with_if").is_some());
+    }
+
+    #[test]
     fn test_hot_path_detection() {
         let mut profiler = Profiler::new(ProfileConfig {
             detect_hot_paths: true,
@@ -806,6 +1124,24 @@ mod tests {
     }
 
     #[test]
+    fn test_hot_path_disabled() {
+        let mut profiler = Profiler::new(ProfileConfig {
+            detect_hot_paths: false,
+            ..Default::default()
+        });
+
+        let func = create_test_function("test", vec![]);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let report = profiler.analyze_program(&program);
+        assert!(report.hot_paths.is_empty());
+    }
+
+    #[test]
     fn test_performance_predictions() {
         let mut profiler = Profiler::new(ProfileConfig::default());
 
@@ -843,6 +1179,52 @@ mod tests {
     }
 
     #[test]
+    fn test_iterator_optimization_prediction() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+
+        let func = create_test_function(
+            "with_for",
+            vec![HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Var("items".to_string()),
+                body: vec![HirStmt::Expr(HirExpr::Var("i".to_string()))],
+            }],
+        );
+
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let report = profiler.analyze_program(&program);
+        assert!(report
+            .predictions
+            .iter()
+            .any(|p| p.category == PredictionCategory::IteratorOptimization));
+    }
+
+    #[test]
+    fn test_memory_layout_prediction() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+
+        let func = create_test_function("empty", vec![]);
+        let program = HirProgram {
+            functions: vec![func],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let report = profiler.analyze_program(&program);
+        assert!(report
+            .predictions
+            .iter()
+            .any(|p| p.category == PredictionCategory::MemoryLayoutOptimization));
+    }
+
+    // === ProfilingReport tests ===
+
+    #[test]
     fn test_report_formatting() {
         let mut profiler = Profiler::new(ProfileConfig::default());
 
@@ -863,5 +1245,348 @@ mod tests {
         assert!(formatted.contains("Profiling Report"));
         assert!(formatted.contains("Summary"));
         assert!(formatted.contains("Function Metrics"));
+    }
+
+    #[test]
+    fn test_report_with_hot_paths() {
+        let report = ProfilingReport {
+            metrics: HashMap::new(),
+            hot_paths: vec![HotPath {
+                call_chain: vec!["main".to_string(), "process".to_string()],
+                time_percentage: 50.0,
+                loop_depth: 1,
+                has_io: false,
+            }],
+            predictions: vec![],
+            total_instructions: 100,
+            total_allocations: 10,
+            annotations: vec![],
+        };
+
+        let formatted = report.format_report();
+        assert!(formatted.contains("Hot Paths"));
+        assert!(formatted.contains("main"));
+    }
+
+    #[test]
+    fn test_report_with_predictions() {
+        let report = ProfilingReport {
+            metrics: HashMap::new(),
+            hot_paths: vec![],
+            predictions: vec![PerformancePrediction {
+                category: PredictionCategory::TypeSystemOptimization,
+                confidence: 0.9,
+                speedup_factor: 2.0,
+                explanation: "Type checks removed".to_string(),
+                functions: vec![],
+            }],
+            total_instructions: 100,
+            total_allocations: 10,
+            annotations: vec![],
+        };
+
+        let formatted = report.format_report();
+        assert!(formatted.contains("Performance Predictions"));
+        assert!(formatted.contains("Type checks removed"));
+    }
+
+    #[test]
+    fn test_report_clone() {
+        let report = ProfilingReport {
+            metrics: HashMap::new(),
+            hot_paths: vec![],
+            predictions: vec![],
+            total_instructions: 50,
+            total_allocations: 5,
+            annotations: vec![],
+        };
+        let cloned = report.clone();
+        assert_eq!(report.total_instructions, cloned.total_instructions);
+    }
+
+    #[test]
+    fn test_report_debug() {
+        let report = ProfilingReport {
+            metrics: HashMap::new(),
+            hot_paths: vec![],
+            predictions: vec![],
+            total_instructions: 0,
+            total_allocations: 0,
+            annotations: vec![],
+        };
+        let debug = format!("{:?}", report);
+        assert!(debug.contains("ProfilingReport"));
+    }
+
+    #[test]
+    fn test_generate_flamegraph_data() {
+        let mut metrics = HashMap::new();
+        metrics.insert(
+            "func1".to_string(),
+            FunctionMetrics {
+                name: "func1".to_string(),
+                instruction_count: 100,
+                allocation_count: 5,
+                estimated_time: 100.0,
+                call_count: 10,
+                time_percentage: 50.0,
+                is_hot: true,
+            },
+        );
+
+        let report = ProfilingReport {
+            metrics,
+            hot_paths: vec![],
+            predictions: vec![],
+            total_instructions: 200,
+            total_allocations: 10,
+            annotations: vec![],
+        };
+
+        let flamegraph = report.generate_flamegraph_data();
+        assert!(flamegraph.contains("func1"));
+    }
+
+    #[test]
+    fn test_generate_perf_annotations() {
+        let report = ProfilingReport {
+            metrics: HashMap::new(),
+            hot_paths: vec![],
+            predictions: vec![],
+            total_instructions: 0,
+            total_allocations: 0,
+            annotations: vec![
+                ProfilingAnnotation {
+                    kind: AnnotationKind::TimingProbe,
+                    target: "func1".to_string(),
+                    value: "probe".to_string(),
+                },
+                ProfilingAnnotation {
+                    kind: AnnotationKind::AllocationCounter,
+                    target: "func2".to_string(),
+                    value: "100".to_string(),
+                },
+            ],
+        };
+
+        let perf = report.generate_perf_annotations();
+        assert!(perf.contains("@probe func1"));
+        assert!(perf.contains("allocation counter"));
+    }
+
+    #[test]
+    fn test_format_annotation_hot_path() {
+        let report = ProfilingReport {
+            metrics: HashMap::new(),
+            hot_paths: vec![],
+            predictions: vec![],
+            total_instructions: 0,
+            total_allocations: 0,
+            annotations: vec![],
+        };
+
+        let annotation = ProfilingAnnotation {
+            kind: AnnotationKind::HotPathMarker,
+            target: "hot_func".to_string(),
+            value: "".to_string(),
+        };
+
+        let formatted = report.format_annotation(&annotation);
+        assert!(formatted.contains("@hot"));
+        assert!(formatted.contains("hot_func"));
+    }
+
+    #[test]
+    fn test_format_annotation_performance_hint() {
+        let report = ProfilingReport {
+            metrics: HashMap::new(),
+            hot_paths: vec![],
+            predictions: vec![],
+            total_instructions: 0,
+            total_allocations: 0,
+            annotations: vec![],
+        };
+
+        let annotation = ProfilingAnnotation {
+            kind: AnnotationKind::PerformanceHint,
+            target: "func".to_string(),
+            value: "Consider caching".to_string(),
+        };
+
+        let formatted = report.format_annotation(&annotation);
+        assert!(formatted.contains("@hint"));
+        assert!(formatted.contains("Consider caching"));
+    }
+
+    // === Expression analysis tests ===
+
+    #[test]
+    fn test_analyze_literal() {
+        let (inst, alloc) = analyze_expr_inner(&HirExpr::Literal(Literal::Int(42)));
+        assert_eq!(inst, 1);
+        assert_eq!(alloc, 0);
+    }
+
+    #[test]
+    fn test_analyze_var() {
+        let (inst, alloc) = analyze_expr_inner(&HirExpr::Var("x".to_string()));
+        assert_eq!(inst, 1);
+        assert_eq!(alloc, 0);
+    }
+
+    #[test]
+    fn test_analyze_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        let (inst, alloc) = analyze_expr_inner(&expr);
+        assert_eq!(inst, 3); // 1 + 1 + 1
+        assert_eq!(alloc, 0);
+    }
+
+    #[test]
+    fn test_analyze_call() {
+        let expr = HirExpr::Call {
+            func: "foo".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        let (inst, alloc) = analyze_expr_inner(&expr);
+        assert!(inst > 10); // Base cost + arg
+        assert_eq!(alloc, 0);
+    }
+
+    #[test]
+    fn test_analyze_list() {
+        let expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        let (inst, alloc) = analyze_expr_inner(&expr);
+        assert!(inst >= 3); // Base + 2 items
+        assert_eq!(alloc, 1); // List allocation
+    }
+
+    #[test]
+    fn test_analyze_dict() {
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]);
+        let (inst, alloc) = analyze_expr_inner(&expr);
+        assert!(inst >= 4); // Base + key + value + overhead
+        assert_eq!(alloc, 1); // Dict allocation
+    }
+
+    // === Multiple functions test ===
+
+    #[test]
+    fn test_multiple_functions() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+
+        let func1 = create_test_function("func1", vec![HirStmt::Return(None)]);
+        let func2 = create_test_function(
+            "func2",
+            vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(1)))],
+        );
+
+        let program = HirProgram {
+            functions: vec![func1, func2],
+            classes: vec![],
+            imports: vec![],
+        };
+
+        let report = profiler.analyze_program(&program);
+        assert_eq!(report.metrics.len(), 2);
+        assert!(report.metrics.contains_key("func1"));
+        assert!(report.metrics.contains_key("func2"));
+    }
+
+    // === Type check detection tests ===
+
+    #[test]
+    fn test_type_check_isinstance() {
+        let profiler = Profiler::new(ProfileConfig::default());
+        let expr = HirExpr::Call {
+            func: "isinstance".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(profiler.is_type_check_expr(&expr));
+    }
+
+    #[test]
+    fn test_type_check_type() {
+        let profiler = Profiler::new(ProfileConfig::default());
+        let expr = HirExpr::Call {
+            func: "type".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(profiler.is_type_check_expr(&expr));
+    }
+
+    #[test]
+    fn test_not_type_check() {
+        let profiler = Profiler::new(ProfileConfig::default());
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!profiler.is_type_check_expr(&expr));
+    }
+
+    #[test]
+    fn test_not_type_check_non_call() {
+        let profiler = Profiler::new(ProfileConfig::default());
+        let expr = HirExpr::Var("isinstance".to_string());
+        assert!(!profiler.is_type_check_expr(&expr));
+    }
+
+    // === Annotations generation tests ===
+
+    #[test]
+    fn test_generate_annotations_for_hot_function() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+        profiler.metrics.insert(
+            "hot".to_string(),
+            FunctionMetrics {
+                name: "hot".to_string(),
+                instruction_count: 1000,
+                allocation_count: 5,
+                estimated_time: 1000.0,
+                call_count: 100,
+                time_percentage: 80.0,
+                is_hot: true,
+            },
+        );
+
+        let annotations = profiler.generate_annotations();
+        assert!(annotations.iter().any(|a| matches!(a.kind, AnnotationKind::TimingProbe)));
+    }
+
+    #[test]
+    fn test_generate_annotations_for_high_allocation() {
+        let mut profiler = Profiler::new(ProfileConfig::default());
+        profiler.metrics.insert(
+            "alloc_heavy".to_string(),
+            FunctionMetrics {
+                name: "alloc_heavy".to_string(),
+                instruction_count: 100,
+                allocation_count: 50,
+                estimated_time: 100.0,
+                call_count: 10,
+                time_percentage: 10.0,
+                is_hot: false,
+            },
+        );
+
+        let annotations = profiler.generate_annotations();
+        assert!(annotations
+            .iter()
+            .any(|a| matches!(a.kind, AnnotationKind::AllocationCounter)));
     }
 }
