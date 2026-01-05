@@ -339,4 +339,267 @@ mod tests {
         assert_eq!(format!("{}", PatternCategory::TypeInference), "Type Inference");
         assert_eq!(format!("{}", PatternCategory::ExternalDeps), "External Dependencies");
     }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_error_cluster_debug() {
+        let cluster = create_test_cluster("1", "E0308", 10);
+        let debug_str = format!("{:?}", cluster);
+        assert!(debug_str.contains("ErrorCluster"));
+        assert!(debug_str.contains("E0308"));
+    }
+
+    #[test]
+    fn test_error_cluster_clone() {
+        let cluster = create_test_cluster("orig", "E0432", 20);
+        let cloned = cluster.clone();
+        assert_eq!(cloned.id, "orig");
+        assert_eq!(cloned.error_code, "E0432");
+        assert_eq!(cloned.frequency, 20);
+    }
+
+    #[test]
+    fn test_failure_pattern_debug() {
+        let planner = HuntPlanner::new();
+        let cluster = create_test_cluster("1", "E0308", 10);
+        let pattern = planner.cluster_to_pattern(&cluster);
+
+        let debug_str = format!("{:?}", pattern);
+        assert!(debug_str.contains("FailurePattern"));
+        assert!(debug_str.contains("E0308"));
+    }
+
+    #[test]
+    fn test_failure_pattern_clone() {
+        let planner = HuntPlanner::new();
+        let cluster = create_test_cluster("1", "E0277", 15);
+        let pattern = planner.cluster_to_pattern(&cluster);
+        let cloned = pattern.clone();
+
+        assert_eq!(cloned.error_code, "E0277");
+        assert_eq!(cloned.affected_count, 15);
+    }
+
+    #[test]
+    fn test_pattern_category_debug() {
+        let cat = PatternCategory::TypeInference;
+        let debug_str = format!("{:?}", cat);
+        assert!(debug_str.contains("TypeInference"));
+    }
+
+    #[test]
+    fn test_pattern_category_copy() {
+        let cat = PatternCategory::Borrowing;
+        let copied = cat;
+        assert_eq!(copied, PatternCategory::Borrowing);
+    }
+
+    #[test]
+    fn test_pattern_category_eq() {
+        assert_eq!(PatternCategory::ControlFlow, PatternCategory::ControlFlow);
+        assert_ne!(PatternCategory::ControlFlow, PatternCategory::Borrowing);
+    }
+
+    #[test]
+    fn test_pattern_category_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(PatternCategory::TypeInference);
+        set.insert(PatternCategory::TypeInference);
+        set.insert(PatternCategory::ExternalDeps);
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn test_pattern_category_display_all() {
+        assert_eq!(format!("{}", PatternCategory::Borrowing), "Borrowing");
+        assert_eq!(format!("{}", PatternCategory::ControlFlow), "Control Flow");
+        assert_eq!(format!("{}", PatternCategory::Miscellaneous), "Miscellaneous");
+    }
+
+    #[test]
+    fn test_prioritized_pattern_debug() {
+        let planner = HuntPlanner::new();
+        let cluster = create_test_cluster("1", "E0308", 10);
+        let pattern = planner.cluster_to_pattern(&cluster);
+        let prioritized = PrioritizedPattern { pattern, priority: 5.0 };
+
+        let debug_str = format!("{:?}", prioritized);
+        assert!(debug_str.contains("PrioritizedPattern"));
+        assert!(debug_str.contains("priority"));
+    }
+
+    #[test]
+    fn test_prioritized_pattern_clone() {
+        let planner = HuntPlanner::new();
+        let cluster = create_test_cluster("1", "E0432", 25);
+        let pattern = planner.cluster_to_pattern(&cluster);
+        let prioritized = PrioritizedPattern { pattern, priority: 12.5 };
+        let cloned = prioritized.clone();
+
+        assert_eq!(cloned.priority, 12.5);
+        assert_eq!(cloned.pattern.error_code, "E0432");
+    }
+
+    #[test]
+    fn test_prioritized_pattern_eq() {
+        let planner = HuntPlanner::new();
+        let cluster1 = create_test_cluster("1", "E0308", 10);
+        let cluster2 = create_test_cluster("2", "E0432", 20);
+        let pattern1 = planner.cluster_to_pattern(&cluster1);
+        let pattern2 = planner.cluster_to_pattern(&cluster2);
+
+        let p1 = PrioritizedPattern { pattern: pattern1, priority: 5.0 };
+        let p2 = PrioritizedPattern { pattern: pattern2, priority: 5.0 };
+
+        assert_eq!(p1, p2); // Same priority = equal
+    }
+
+    #[test]
+    fn test_prioritized_pattern_ord() {
+        let planner = HuntPlanner::new();
+        let cluster = create_test_cluster("1", "E0308", 10);
+        let pattern = planner.cluster_to_pattern(&cluster);
+
+        let low = PrioritizedPattern { pattern: pattern.clone(), priority: 1.0 };
+        let high = PrioritizedPattern { pattern, priority: 10.0 };
+
+        assert!(high > low);
+        assert!(low < high);
+    }
+
+    #[test]
+    fn test_hunt_planner_default() {
+        let planner: HuntPlanner = Default::default();
+        assert!(planner.clusters().is_empty());
+        assert_eq!(planner.remaining_count(), 0);
+    }
+
+    #[test]
+    fn test_hunt_planner_debug() {
+        let planner = HuntPlanner::new();
+        let debug_str = format!("{:?}", planner);
+        assert!(debug_str.contains("HuntPlanner"));
+    }
+
+    #[test]
+    fn test_remaining_count_after_selection() {
+        let mut planner = HuntPlanner::new();
+        planner.add_clusters(vec![
+            create_test_cluster("1", "E0308", 10),
+            create_test_cluster("2", "E0432", 20),
+        ]);
+        planner.build_priority_queue();
+
+        assert_eq!(planner.remaining_count(), 2);
+        planner.select_next_target();
+        assert_eq!(planner.remaining_count(), 1);
+        planner.select_next_target();
+        assert_eq!(planner.remaining_count(), 0);
+    }
+
+    #[test]
+    fn test_calculate_priority() {
+        let planner = HuntPlanner::new();
+        let mut cluster = create_test_cluster("1", "E0308", 100);
+        cluster.frequency = 100;
+        let pattern = planner.cluster_to_pattern(&cluster);
+
+        // Priority = (frequency * 10) / complexity
+        // E0308 has complexity 4, so priority = (100 * 10) / 4 = 250
+        let priority = planner.calculate_priority(&pattern);
+        assert!(priority > 200.0);
+    }
+
+    #[test]
+    fn test_calculate_priority_zero_complexity() {
+        let planner = HuntPlanner::new();
+        let pattern = FailurePattern {
+            id: "test".to_string(),
+            error_code: "E0000".to_string(),
+            description: "test".to_string(),
+            category: PatternCategory::Miscellaneous,
+            affected_count: 10,
+            fix_complexity: 0, // Zero complexity (edge case)
+            trigger_example: String::new(),
+        };
+
+        // Should not panic, complexity clamped to 1.0
+        let priority = planner.calculate_priority(&pattern);
+        assert!(priority > 0.0);
+    }
+
+    #[test]
+    fn test_categorize_all_error_codes() {
+        let planner = HuntPlanner::new();
+
+        // Type inference
+        assert_eq!(planner.categorize_error("E0282"), PatternCategory::TypeInference);
+
+        // External deps
+        assert_eq!(planner.categorize_error("E0433"), PatternCategory::ExternalDeps);
+
+        // Borrowing - various codes
+        assert_eq!(planner.categorize_error("E0503"), PatternCategory::Borrowing);
+        assert_eq!(planner.categorize_error("E0505"), PatternCategory::Borrowing);
+        assert_eq!(planner.categorize_error("E0506"), PatternCategory::Borrowing);
+        assert_eq!(planner.categorize_error("E0507"), PatternCategory::Borrowing);
+        assert_eq!(planner.categorize_error("E0382"), PatternCategory::Borrowing);
+        assert_eq!(planner.categorize_error("E0383"), PatternCategory::Borrowing);
+
+        // Lifetime errors
+        assert_eq!(planner.categorize_error("E0106"), PatternCategory::Borrowing);
+        assert_eq!(planner.categorize_error("E0621"), PatternCategory::Borrowing);
+        assert_eq!(planner.categorize_error("E0623"), PatternCategory::Borrowing);
+
+        // Control flow
+        assert_eq!(planner.categorize_error("E0005"), PatternCategory::ControlFlow);
+    }
+
+    #[test]
+    fn test_estimate_complexity_all_codes() {
+        let planner = HuntPlanner::new();
+
+        // Easy imports
+        assert!(planner.estimate_complexity("E0433") <= 3);
+
+        // Medium type mismatch
+        let e0308_complexity = planner.estimate_complexity("E0308");
+        assert!(e0308_complexity >= 3 && e0308_complexity <= 5);
+
+        // Hard borrowing
+        assert!(planner.estimate_complexity("E0503") >= 6);
+        assert!(planner.estimate_complexity("E0505") >= 6);
+
+        // Very hard lifetime
+        assert!(planner.estimate_complexity("E0621") >= 7);
+        assert!(planner.estimate_complexity("E0623") >= 7);
+    }
+
+    #[test]
+    fn test_cluster_to_pattern_with_examples() {
+        let planner = HuntPlanner::new();
+        let mut cluster = create_test_cluster("1", "E0308", 10);
+        cluster.examples = vec!["first example".to_string(), "second".to_string()];
+
+        let pattern = planner.cluster_to_pattern(&cluster);
+        assert_eq!(pattern.trigger_example, "first example");
+    }
+
+    #[test]
+    fn test_cluster_to_pattern_no_examples() {
+        let planner = HuntPlanner::new();
+        let mut cluster = create_test_cluster("1", "E0308", 10);
+        cluster.examples.clear();
+
+        let pattern = planner.cluster_to_pattern(&cluster);
+        assert!(pattern.trigger_example.is_empty());
+    }
+
+    #[test]
+    fn test_select_empty_queue() {
+        let mut planner = HuntPlanner::new();
+        assert!(planner.select_next_target().is_none());
+    }
 }

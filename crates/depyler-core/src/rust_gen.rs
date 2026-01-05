@@ -19,6 +19,7 @@ mod error_gen;
 mod expr_gen;
 mod format;
 pub mod func_gen; // DEPYLER-0518: Made public for type inference from lifetime_analysis
+pub mod func_gen_helpers; // DEPYLER-COVERAGE-95: Extracted pure helpers for testability
 mod generator_gen;
 mod import_gen;
 pub mod keywords; // DEPYLER-0023: Centralized keyword escaping
@@ -45,6 +46,11 @@ pub mod type_conversion_helpers; // DEPYLER-0455: Type conversion helpers extrac
 pub mod borrowing_helpers; // DEPYLER-COVERAGE-95: Borrowing helpers extracted
 pub mod json_helpers; // DEPYLER-COVERAGE-95: JSON serialization helpers extracted
 pub mod name_heuristics; // DEPYLER-COVERAGE-95: Name-based type heuristics extracted
+pub mod expr_type_helpers; // DEPYLER-COVERAGE-95: Expression type helpers extracted
+pub mod mutation_helpers; // DEPYLER-COVERAGE-95: Mutation analysis helpers extracted
+
+// Stdlib method code generation (DEPYLER-COVERAGE-95: Extracted from expr_gen.rs)
+pub mod stdlib_method_gen;
 
 // Test modules (DEPYLER-QUALITY-002: 95% coverage target)
 #[cfg(test)]
@@ -313,32 +319,14 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
         }
     }
 
+    // DEPYLER-COVERAGE-95: Delegate to extracted mutation helpers
     fn is_mutating_method(method: &str) -> bool {
-        matches!(
-            method,
-            // List methods
-            "append" | "extend" | "insert" | "remove" | "pop" | "clear" | "reverse" | "sort" |
-            // Dict methods
-            "update" | "setdefault" | "popitem" |
-            // Set methods
-            "add" | "discard" | "difference_update" | "intersection_update" |
-            // DEPYLER-0529: File I/O methods that require mutable access
-            "write" | "write_all" | "writelines" | "flush" | "seek" | "truncate" |
-            // DEPYLER-0549: CSV reader/writer methods that require mutable access
-            // csv::Reader requires &mut self for headers(), records(), deserialize()
-            // csv::Writer requires &mut self for write_record(), serialize()
-            "headers" | "records" | "deserialize" | "serialize" | "write_record" |
-            "writeheader" | "writerow"
-        )
+        mutation_helpers::is_mutating_method(method)
     }
 
     /// DEPYLER-0835: Python attributes that translate to mutating method calls in Rust
     fn is_mutating_attribute(attr: &str) -> bool {
-        matches!(
-            attr,
-            // csv.DictReader.fieldnames → reader.headers() requires &mut self
-            "fieldnames"
-        )
+        mutation_helpers::is_mutating_attribute(attr)
     }
 
     fn analyze_stmt(
@@ -2853,5 +2841,693 @@ mod tests {
             "Expected float return type, got: {}",
             code
         );
+    }
+
+    // === DEPYLER-COVERAGE-95: Additional tests for untested helper functions ===
+
+    #[test]
+    fn test_deduplicate_use_statements_empty() {
+        let items: Vec<proc_macro2::TokenStream> = vec![];
+        let result = deduplicate_use_statements(items);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_deduplicate_use_statements_no_duplicates() {
+        let items = vec![
+            quote! { use std::collections::HashMap; },
+            quote! { use std::collections::HashSet; },
+        ];
+        let result = deduplicate_use_statements(items);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_deduplicate_use_statements_with_duplicates() {
+        let items = vec![
+            quote! { use std::collections::HashMap; },
+            quote! { use std::collections::HashMap; },
+            quote! { use std::collections::HashSet; },
+        ];
+        let result = deduplicate_use_statements(items);
+        assert_eq!(result.len(), 2);
+    }
+
+    #[test]
+    fn test_deduplicate_use_statements_keeps_non_use() {
+        let items = vec![
+            quote! { fn foo() {} },
+            quote! { fn foo() {} }, // Duplicate non-use - should be kept
+        ];
+        let result = deduplicate_use_statements(items);
+        assert_eq!(result.len(), 2); // Non-use items are always kept
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_call() {
+        let expr = HirExpr::Call {
+            func: "Path".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_purepath() {
+        let expr = HirExpr::Call {
+            func: "PurePath".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_pathbuf() {
+        let expr = HirExpr::Call {
+            func: "PathBuf".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_non_path_call() {
+        let expr = HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_method_join() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("p".to_string())),
+            method: "join".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_method_parent() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("p".to_string())),
+            method: "parent".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_attribute_parent() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("path".to_string())),
+            attr: "parent".to_string(),
+        };
+        assert!(is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_binary_div() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Div,
+            left: Box::new(HirExpr::Call {
+                func: "Path".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }),
+            right: Box::new(HirExpr::Literal(Literal::String("subdir".to_string()))),
+        };
+        assert!(is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_non_path_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(!is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_is_path_constant_expr_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(!is_path_constant_expr(&expr));
+    }
+
+    #[test]
+    fn test_infer_unary_type_neg_int() {
+        let mut ctx = create_test_context();
+        let result = infer_unary_type(
+            &UnaryOp::Neg,
+            &HirExpr::Literal(Literal::Int(42)),
+            &mut ctx,
+        );
+        assert!(result.to_string().contains("i32"));
+    }
+
+    #[test]
+    fn test_infer_unary_type_neg_float() {
+        let mut ctx = create_test_context();
+        let result = infer_unary_type(
+            &UnaryOp::Neg,
+            &HirExpr::Literal(Literal::Float(3.14)),
+            &mut ctx,
+        );
+        assert!(result.to_string().contains("f64"));
+    }
+
+    #[test]
+    fn test_infer_unary_type_pos_int() {
+        let mut ctx = create_test_context();
+        let result = infer_unary_type(
+            &UnaryOp::Pos,
+            &HirExpr::Literal(Literal::Int(10)),
+            &mut ctx,
+        );
+        assert!(result.to_string().contains("i32"));
+    }
+
+    #[test]
+    fn test_infer_unary_type_nested_neg_int() {
+        let mut ctx = create_test_context();
+        let result = infer_unary_type(
+            &UnaryOp::Neg,
+            &HirExpr::Unary {
+                op: UnaryOp::Neg,
+                operand: Box::new(HirExpr::Literal(Literal::Int(5))),
+            },
+            &mut ctx,
+        );
+        assert!(result.to_string().contains("i32"));
+    }
+
+    #[test]
+    fn test_infer_unary_type_nested_neg_float() {
+        let mut ctx = create_test_context();
+        let result = infer_unary_type(
+            &UnaryOp::Neg,
+            &HirExpr::Unary {
+                op: UnaryOp::Neg,
+                operand: Box::new(HirExpr::Literal(Literal::Float(2.5))),
+            },
+            &mut ctx,
+        );
+        assert!(result.to_string().contains("f64"));
+    }
+
+    #[test]
+    fn test_infer_unary_type_not_fallback() {
+        let mut ctx = create_test_context();
+        let result = infer_unary_type(
+            &UnaryOp::Not,
+            &HirExpr::Var("x".to_string()),
+            &mut ctx,
+        );
+        // Fallback to serde_json::Value
+        assert!(result.to_string().contains("Value"));
+        assert!(ctx.needs_serde_json);
+    }
+
+    #[test]
+    fn test_generate_conditional_imports_none_needed() {
+        let ctx = create_test_context();
+        let imports = generate_conditional_imports(&ctx);
+        assert!(imports.is_empty());
+    }
+
+    #[test]
+    fn test_generate_conditional_imports_hashmap() {
+        let mut ctx = create_test_context();
+        ctx.needs_hashmap = true;
+        let imports = generate_conditional_imports(&ctx);
+        assert!(!imports.is_empty());
+        let import_str = imports[0].to_string();
+        assert!(import_str.contains("HashMap"));
+    }
+
+    #[test]
+    fn test_generate_conditional_imports_multiple() {
+        let mut ctx = create_test_context();
+        ctx.needs_hashmap = true;
+        ctx.needs_hashset = true;
+        ctx.needs_arc = true;
+        let imports = generate_conditional_imports(&ctx);
+        assert_eq!(imports.len(), 3);
+    }
+
+    // === Additional tests for analyze_validators ===
+
+    #[test]
+    fn test_scan_expr_for_validators_add_argument_with_type() {
+        let mut ctx = create_test_context();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("parser".to_string())),
+            method: "add_argument".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("--value".to_string()))],
+            kwargs: vec![
+                ("type".to_string(), HirExpr::Var("validate_positive".to_string())),
+            ],
+        };
+        scan_expr_for_validators(&expr, &mut ctx);
+        assert!(ctx.validator_functions.contains("validate_positive"));
+    }
+
+    #[test]
+    fn test_scan_expr_for_validators_builtin_types_skipped() {
+        let mut ctx = create_test_context();
+        // Built-in types should be skipped
+        for builtin in &["str", "int", "float", "Path"] {
+            let expr = HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("parser".to_string())),
+                method: "add_argument".to_string(),
+                args: vec![],
+                kwargs: vec![
+                    ("type".to_string(), HirExpr::Var(builtin.to_string())),
+                ],
+            };
+            scan_expr_for_validators(&expr, &mut ctx);
+        }
+        assert!(ctx.validator_functions.is_empty());
+    }
+
+    #[test]
+    fn test_scan_expr_for_validators_non_add_argument() {
+        let mut ctx = create_test_context();
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("parser".to_string())),
+            method: "parse_args".to_string(),
+            args: vec![],
+            kwargs: vec![
+                ("type".to_string(), HirExpr::Var("my_validator".to_string())),
+            ],
+        };
+        scan_expr_for_validators(&expr, &mut ctx);
+        // parse_args is not add_argument, so validator should not be tracked
+        assert!(ctx.validator_functions.is_empty());
+    }
+
+    #[test]
+    fn test_scan_stmts_for_validators_expr_stmt() {
+        let mut ctx = create_test_context();
+        let stmts = vec![
+            HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("parser".to_string())),
+                method: "add_argument".to_string(),
+                args: vec![],
+                kwargs: vec![
+                    ("type".to_string(), HirExpr::Var("custom_type".to_string())),
+                ],
+            }),
+        ];
+        scan_stmts_for_validators(&stmts, &mut ctx);
+        assert!(ctx.validator_functions.contains("custom_type"));
+    }
+
+    #[test]
+    fn test_scan_stmts_for_validators_if_body() {
+        let mut ctx = create_test_context();
+        let stmts = vec![
+            HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![
+                    HirStmt::Expr(HirExpr::MethodCall {
+                        object: Box::new(HirExpr::Var("parser".to_string())),
+                        method: "add_argument".to_string(),
+                        args: vec![],
+                        kwargs: vec![
+                            ("type".to_string(), HirExpr::Var("if_validator".to_string())),
+                        ],
+                    }),
+                ],
+                else_body: None,
+            },
+        ];
+        scan_stmts_for_validators(&stmts, &mut ctx);
+        assert!(ctx.validator_functions.contains("if_validator"));
+    }
+
+    #[test]
+    fn test_scan_stmts_for_validators_else_body() {
+        let mut ctx = create_test_context();
+        let stmts = vec![
+            HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Pass],
+                else_body: Some(vec![
+                    HirStmt::Expr(HirExpr::MethodCall {
+                        object: Box::new(HirExpr::Var("parser".to_string())),
+                        method: "add_argument".to_string(),
+                        args: vec![],
+                        kwargs: vec![
+                            ("type".to_string(), HirExpr::Var("else_validator".to_string())),
+                        ],
+                    }),
+                ]),
+            },
+        ];
+        scan_stmts_for_validators(&stmts, &mut ctx);
+        assert!(ctx.validator_functions.contains("else_validator"));
+    }
+
+    #[test]
+    fn test_scan_stmts_for_validators_while_body() {
+        let mut ctx = create_test_context();
+        let stmts = vec![
+            HirStmt::While {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                body: vec![
+                    HirStmt::Expr(HirExpr::MethodCall {
+                        object: Box::new(HirExpr::Var("parser".to_string())),
+                        method: "add_argument".to_string(),
+                        args: vec![],
+                        kwargs: vec![
+                            ("type".to_string(), HirExpr::Var("while_validator".to_string())),
+                        ],
+                    }),
+                ],
+            },
+        ];
+        scan_stmts_for_validators(&stmts, &mut ctx);
+        assert!(ctx.validator_functions.contains("while_validator"));
+    }
+
+    #[test]
+    fn test_scan_stmts_for_validators_for_body() {
+        let mut ctx = create_test_context();
+        let stmts = vec![
+            HirStmt::For {
+                target: crate::hir::AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Var("items".to_string()),
+                body: vec![
+                    HirStmt::Expr(HirExpr::MethodCall {
+                        object: Box::new(HirExpr::Var("parser".to_string())),
+                        method: "add_argument".to_string(),
+                        args: vec![],
+                        kwargs: vec![
+                            ("type".to_string(), HirExpr::Var("for_validator".to_string())),
+                        ],
+                    }),
+                ],
+            },
+        ];
+        scan_stmts_for_validators(&stmts, &mut ctx);
+        assert!(ctx.validator_functions.contains("for_validator"));
+    }
+
+    // === Tests for infer_constant_type ===
+
+    #[test]
+    fn test_infer_constant_type_int() {
+        let mut ctx = create_test_context();
+        let result = infer_constant_type(&HirExpr::Literal(Literal::Int(42)), &mut ctx);
+        assert!(result.to_string().contains("i32"));
+    }
+
+    #[test]
+    fn test_infer_constant_type_float() {
+        let mut ctx = create_test_context();
+        let result = infer_constant_type(&HirExpr::Literal(Literal::Float(3.14)), &mut ctx);
+        assert!(result.to_string().contains("f64"));
+    }
+
+    #[test]
+    fn test_infer_constant_type_string() {
+        let mut ctx = create_test_context();
+        let result = infer_constant_type(&HirExpr::Literal(Literal::String("hello".to_string())), &mut ctx);
+        assert!(result.to_string().contains("str"));
+    }
+
+    #[test]
+    fn test_infer_constant_type_bool() {
+        let mut ctx = create_test_context();
+        let result = infer_constant_type(&HirExpr::Literal(Literal::Bool(true)), &mut ctx);
+        assert!(result.to_string().contains("bool"));
+    }
+
+    #[test]
+    fn test_infer_constant_type_none() {
+        let mut ctx = create_test_context();
+        let result = infer_constant_type(&HirExpr::Literal(Literal::None), &mut ctx);
+        // DEPYLER-0798: None should be Option<()>
+        assert!(result.to_string().contains("Option"));
+    }
+
+    #[test]
+    fn test_infer_constant_type_path_call() {
+        let mut ctx = create_test_context();
+        let expr = HirExpr::Call {
+            func: "Path".to_string(),
+            args: vec![HirExpr::Literal(Literal::String("/tmp".to_string()))],
+            kwargs: vec![],
+        };
+        let result = infer_constant_type(&expr, &mut ctx);
+        assert!(result.to_string().contains("PathBuf"));
+    }
+
+    #[test]
+    fn test_infer_constant_type_dict_infers_hashmap() {
+        let mut ctx = create_test_context();
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]);
+        let result = infer_constant_type(&expr, &mut ctx);
+        // Dict is inferred via infer_expr_type_simple -> HashMap or Value
+        let result_str = result.to_string();
+        assert!(
+            result_str.contains("HashMap") || result_str.contains("Value"),
+            "Expected HashMap or Value, got: {}",
+            result_str
+        );
+    }
+
+    // === Tests for analyze_mutable_vars ===
+
+    #[test]
+    fn test_analyze_mutable_vars_empty() {
+        let mut ctx = create_test_context();
+        let stmts: Vec<HirStmt> = vec![];
+        let params: Vec<HirParam> = vec![];
+        analyze_mutable_vars(&stmts, &mut ctx, &params);
+        assert!(ctx.mutable_vars.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_mutable_vars_reassignment() {
+        let mut ctx = create_test_context();
+        let stmts = vec![
+            HirStmt::Assign {
+                target: crate::hir::AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+            HirStmt::Assign {
+                target: crate::hir::AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(2)),
+                type_annotation: None,
+            },
+        ];
+        let params: Vec<HirParam> = vec![];
+        analyze_mutable_vars(&stmts, &mut ctx, &params);
+        assert!(ctx.mutable_vars.contains("x"));
+    }
+
+    #[test]
+    fn test_analyze_mutable_vars_param_reassignment() {
+        let mut ctx = create_test_context();
+        let stmts = vec![
+            HirStmt::Assign {
+                target: crate::hir::AssignTarget::Symbol("a".to_string()),
+                value: HirExpr::Literal(Literal::Int(100)),
+                type_annotation: None,
+            },
+        ];
+        let params = vec![HirParam::new("a".to_string(), Type::Int)];
+        analyze_mutable_vars(&stmts, &mut ctx, &params);
+        // Parameter 'a' is reassigned, so it should be marked mutable
+        assert!(ctx.mutable_vars.contains("a"));
+    }
+
+    #[test]
+    fn test_analyze_mutable_vars_clears_previous() {
+        let mut ctx = create_test_context();
+        ctx.mutable_vars.insert("old_var".to_string());
+        let stmts: Vec<HirStmt> = vec![];
+        let params: Vec<HirParam> = vec![];
+        analyze_mutable_vars(&stmts, &mut ctx, &params);
+        // DEPYLER-0707: Should clear mutable_vars
+        assert!(!ctx.mutable_vars.contains("old_var"));
+    }
+
+    // === Tests for detect_adt_patterns ===
+
+    #[test]
+    fn test_detect_adt_patterns_empty() {
+        let classes: Vec<HirClass> = vec![];
+        let result = detect_adt_patterns(&classes);
+        assert!(result.abc_to_children.is_empty());
+        assert!(result.child_to_parent.is_empty());
+    }
+
+    #[test]
+    fn test_detect_adt_patterns_no_inheritance() {
+        let classes = vec![
+            HirClass {
+                name: "Point".to_string(),
+                base_classes: vec![],
+                type_params: vec![],
+                fields: vec![],
+                methods: vec![],
+                is_dataclass: true,
+                docstring: None,
+            },
+        ];
+        let result = detect_adt_patterns(&classes);
+        assert!(result.abc_to_children.is_empty());
+    }
+
+    #[test]
+    fn test_detect_adt_patterns_with_abc() {
+        let classes = vec![
+            HirClass {
+                name: "Option".to_string(),
+                base_classes: vec!["ABC".to_string(), "Generic[T]".to_string()],
+                type_params: vec!["T".to_string()],
+                fields: vec![],
+                methods: vec![],
+                is_dataclass: false,
+                docstring: None,
+            },
+            HirClass {
+                name: "Some".to_string(),
+                base_classes: vec!["Option[T]".to_string()],
+                type_params: vec![],
+                fields: vec![crate::hir::HirField {
+                    name: "value".to_string(),
+                    field_type: Type::TypeVar("T".to_string()),
+                    default_value: None,
+                    is_class_var: false,
+                }],
+                methods: vec![],
+                is_dataclass: true,
+                docstring: None,
+            },
+            HirClass {
+                name: "Nothing".to_string(),
+                base_classes: vec!["Option[T]".to_string()],
+                type_params: vec![],
+                fields: vec![],
+                methods: vec![],
+                is_dataclass: true,
+                docstring: None,
+            },
+        ];
+        let result = detect_adt_patterns(&classes);
+        assert!(result.abc_to_children.contains_key("Option"));
+        let children = result.abc_to_children.get("Option").unwrap();
+        assert!(children.contains(&"Some".to_string()));
+        assert!(children.contains(&"Nothing".to_string()));
+        // Check reverse mapping
+        assert_eq!(result.child_to_parent.get("Some"), Some(&"Option".to_string()));
+        assert_eq!(result.child_to_parent.get("Nothing"), Some(&"Option".to_string()));
+    }
+
+    // === Tests for generate_interned_string_tokens ===
+
+    #[test]
+    fn test_generate_interned_string_tokens_empty() {
+        let optimizer = StringOptimizer::new();
+        let result = generate_interned_string_tokens(&optimizer);
+        assert!(result.is_empty());
+    }
+
+    // === Tests for analyze_string_optimization ===
+
+    #[test]
+    fn test_analyze_string_optimization_empty() {
+        let mut ctx = create_test_context();
+        let functions: Vec<HirFunction> = vec![];
+        analyze_string_optimization(&mut ctx, &functions);
+        // Should complete without error
+    }
+
+    #[test]
+    fn test_analyze_string_optimization_with_function() {
+        let mut ctx = create_test_context();
+        let functions = vec![
+            HirFunction {
+                name: "greet".to_string(),
+                params: vec![HirParam::new("name".to_string(), Type::String)].into(),
+                ret_type: Type::String,
+                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String("Hello".to_string()))))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            },
+        ];
+        analyze_string_optimization(&mut ctx, &functions);
+        // Should complete without error
+    }
+
+    // === Tests for analyze_validators ===
+
+    #[test]
+    fn test_analyze_validators_from_function() {
+        let mut ctx = create_test_context();
+        let functions = vec![
+            HirFunction {
+                name: "setup_args".to_string(),
+                params: vec![].into(),
+                ret_type: Type::None,
+                body: vec![
+                    HirStmt::Expr(HirExpr::MethodCall {
+                        object: Box::new(HirExpr::Var("parser".to_string())),
+                        method: "add_argument".to_string(),
+                        args: vec![],
+                        kwargs: vec![
+                            ("type".to_string(), HirExpr::Var("my_validator".to_string())),
+                        ],
+                    }),
+                ],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            },
+        ];
+        let constants: Vec<HirConstant> = vec![];
+        analyze_validators(&mut ctx, &functions, &constants);
+        assert!(ctx.validator_functions.contains("my_validator"));
+    }
+
+    #[test]
+    fn test_analyze_validators_from_constant() {
+        let mut ctx = create_test_context();
+        let functions: Vec<HirFunction> = vec![];
+        let constants = vec![
+            HirConstant {
+                name: "PARSER_SETUP".to_string(),
+                value: HirExpr::MethodCall {
+                    object: Box::new(HirExpr::Var("parser".to_string())),
+                    method: "add_argument".to_string(),
+                    args: vec![],
+                    kwargs: vec![
+                        ("type".to_string(), HirExpr::Var("const_validator".to_string())),
+                    ],
+                },
+                type_annotation: None,
+            },
+        ];
+        analyze_validators(&mut ctx, &functions, &constants);
+        assert!(ctx.validator_functions.contains("const_validator"));
     }
 }

@@ -555,4 +555,315 @@ mod tests {
         let code = pattern.generate_rust_code("reader", &[]);
         assert_eq!(code, "reader.get_headers()?");
     }
+
+    // ============================================================
+    // DEPYLER-COVERAGE-95: Additional comprehensive tests
+    // ============================================================
+
+    #[test]
+    fn test_stdlib_mappings_default() {
+        let mappings = StdlibMappings::default();
+        // Should have built-in CSV mappings
+        assert!(mappings.lookup("csv", "DictReader", "fieldnames").is_some());
+        assert!(mappings.lookup("csv", "DictReader", "__iter__").is_some());
+    }
+
+    #[test]
+    fn test_stdlib_api_mapping_clone() {
+        let mapping = StdlibApiMapping {
+            module: "csv",
+            class: "Reader",
+            python_attr: "test",
+            rust_pattern: RustPattern::PropertyToMethod {
+                method: "test",
+                propagate_error: false,
+            },
+        };
+        let cloned = mapping.clone();
+        assert_eq!(cloned.module, "csv");
+        assert_eq!(cloned.class, "Reader");
+    }
+
+    #[test]
+    fn test_stdlib_api_mapping_debug() {
+        let mapping = StdlibApiMapping {
+            module: "csv",
+            class: "Reader",
+            python_attr: "test",
+            rust_pattern: RustPattern::PropertyToMethod {
+                method: "test",
+                propagate_error: false,
+            },
+        };
+        let debug = format!("{:?}", mapping);
+        assert!(debug.contains("csv"));
+        assert!(debug.contains("Reader"));
+    }
+
+    #[test]
+    fn test_rust_pattern_debug() {
+        let pattern = RustPattern::MethodCall {
+            method: "test",
+            extra_args: vec![],
+            propagate_error: false,
+        };
+        let debug = format!("{:?}", pattern);
+        assert!(debug.contains("MethodCall"));
+    }
+
+    #[test]
+    fn test_rust_pattern_clone() {
+        let pattern = RustPattern::CustomTemplate {
+            template: "test({var})",
+        };
+        let cloned = pattern.clone();
+        if let RustPattern::CustomTemplate { template } = cloned {
+            assert_eq!(template, "test({var})");
+        } else {
+            panic!("Clone should preserve variant");
+        }
+    }
+
+    #[test]
+    fn test_method_call_with_args() {
+        let pattern = RustPattern::MethodCall {
+            method: "fetch",
+            extra_args: vec![],
+            propagate_error: false,
+        };
+        let code = pattern.generate_rust_code("client", &["url".to_string()]);
+        assert_eq!(code, "client.fetch(url)");
+    }
+
+    #[test]
+    fn test_method_call_with_extra_args() {
+        let pattern = RustPattern::MethodCall {
+            method: "fetch",
+            extra_args: vec!["timeout"],
+            propagate_error: false,
+        };
+        let code = pattern.generate_rust_code("client", &["url".to_string()]);
+        assert_eq!(code, "client.fetch(url, timeout)");
+    }
+
+    #[test]
+    fn test_method_call_no_propagate_error() {
+        let pattern = RustPattern::MethodCall {
+            method: "get",
+            extra_args: vec![],
+            propagate_error: false,
+        };
+        let code = pattern.generate_rust_code("obj", &[]);
+        assert_eq!(code, "obj.get()");
+    }
+
+    #[test]
+    fn test_method_call_propagate_error() {
+        let pattern = RustPattern::MethodCall {
+            method: "get",
+            extra_args: vec![],
+            propagate_error: true,
+        };
+        let code = pattern.generate_rust_code("obj", &[]);
+        assert_eq!(code, "obj.get()?");
+    }
+
+    #[test]
+    fn test_property_to_method_no_error() {
+        let pattern = RustPattern::PropertyToMethod {
+            method: "len",
+            propagate_error: false,
+        };
+        let code = pattern.generate_rust_code("list", &[]);
+        assert_eq!(code, "list.len()");
+    }
+
+    #[test]
+    fn test_property_to_method_with_error() {
+        let pattern = RustPattern::PropertyToMethod {
+            method: "headers",
+            propagate_error: true,
+        };
+        let code = pattern.generate_rust_code("reader", &[]);
+        assert_eq!(code, "reader.headers()?");
+    }
+
+    #[test]
+    fn test_iteration_pattern_no_element_type() {
+        let pattern = RustPattern::IterationPattern {
+            iter_method: "iter",
+            element_type: None,
+            yields_results: false,
+        };
+        let code = pattern.generate_rust_code("collection", &[]);
+        assert_eq!(code, "collection.iter()");
+    }
+
+    #[test]
+    fn test_iteration_pattern_with_element_type() {
+        let pattern = RustPattern::IterationPattern {
+            iter_method: "deserialize",
+            element_type: Some("Record"),
+            yields_results: true,
+        };
+        let code = pattern.generate_rust_code("reader", &[]);
+        assert_eq!(code, "reader.deserialize::<Record>()");
+    }
+
+    #[test]
+    fn test_custom_template_with_var() {
+        let pattern = RustPattern::CustomTemplate {
+            template: "Box::new({var})",
+        };
+        let code = pattern.generate_rust_code("value", &[]);
+        assert_eq!(code, "Box::new(value)");
+    }
+
+    #[test]
+    fn test_custom_template_multiple_vars() {
+        let pattern = RustPattern::CustomTemplate {
+            template: "process({var}).map(|x| x + {var})",
+        };
+        let code = pattern.generate_rust_code("n", &[]);
+        assert_eq!(code, "process(n).map(|x| x + n)");
+    }
+
+    #[test]
+    fn test_yields_results_true() {
+        let pattern = RustPattern::IterationPattern {
+            iter_method: "deserialize",
+            element_type: Some("Row"),
+            yields_results: true,
+        };
+        assert!(pattern.yields_results());
+    }
+
+    #[test]
+    fn test_yields_results_false() {
+        let pattern = RustPattern::IterationPattern {
+            iter_method: "iter",
+            element_type: None,
+            yields_results: false,
+        };
+        assert!(!pattern.yields_results());
+    }
+
+    #[test]
+    fn test_yields_results_method_call() {
+        let pattern = RustPattern::MethodCall {
+            method: "test",
+            extra_args: vec![],
+            propagate_error: true,
+        };
+        assert!(!pattern.yields_results());
+    }
+
+    #[test]
+    fn test_yields_results_property_to_method() {
+        let pattern = RustPattern::PropertyToMethod {
+            method: "test",
+            propagate_error: true,
+        };
+        assert!(!pattern.yields_results());
+    }
+
+    #[test]
+    fn test_yields_results_custom_template() {
+        let pattern = RustPattern::CustomTemplate {
+            template: "{var}.iter()",
+        };
+        assert!(!pattern.yields_results());
+    }
+
+    #[test]
+    fn test_has_iteration_mapping_true() {
+        let mappings = StdlibMappings::new();
+        assert!(mappings.has_iteration_mapping("csv", "DictReader"));
+    }
+
+    #[test]
+    fn test_has_iteration_mapping_false() {
+        let mappings = StdlibMappings::new();
+        assert!(!mappings.has_iteration_mapping("unknown", "Unknown"));
+    }
+
+    #[test]
+    fn test_lookup_nonexistent() {
+        let mappings = StdlibMappings::new();
+        assert!(mappings.lookup("nonexistent", "Foo", "bar").is_none());
+    }
+
+    #[test]
+    fn test_csv_reader_fieldnames() {
+        let mappings = StdlibMappings::new();
+        let pattern = mappings.lookup("csv", "Reader", "fieldnames");
+        assert!(pattern.is_some());
+        let code = pattern.unwrap().generate_rust_code("reader", &[]);
+        assert_eq!(code, "reader.headers()?");
+    }
+
+    #[test]
+    fn test_io_text_wrapper_iteration() {
+        let mappings = StdlibMappings::new();
+        let pattern = mappings.lookup("io", "TextIOWrapper", "__iter__");
+        assert!(pattern.is_some());
+        let code = pattern.unwrap().generate_rust_code("file", &[]);
+        assert_eq!(code, "BufReader::new(file).lines()");
+    }
+
+    #[test]
+    fn test_plugin_default_version() {
+        struct MinimalPlugin;
+        impl StdlibPlugin for MinimalPlugin {
+            fn register_mappings(&self, _registry: &mut StdlibMappings) {}
+            fn name(&self) -> &str {
+                "minimal"
+            }
+        }
+        let plugin = MinimalPlugin;
+        assert_eq!(plugin.version(), "0.1.0");
+        assert_eq!(plugin.name(), "minimal");
+    }
+
+    #[test]
+    fn test_plugin_custom_version() {
+        assert_eq!(TestRequestsPlugin.version(), "1.0.0");
+    }
+
+    #[test]
+    fn test_get_iteration_pattern_nonexistent() {
+        let mappings = StdlibMappings::new();
+        assert!(mappings
+            .get_iteration_pattern("unknown", "Unknown")
+            .is_none());
+    }
+
+    #[test]
+    fn test_method_call_with_multiple_extra_args() {
+        let pattern = RustPattern::MethodCall {
+            method: "request",
+            extra_args: vec!["headers", "timeout"],
+            propagate_error: true,
+        };
+        let code = pattern.generate_rust_code("client", &["url".to_string()]);
+        assert_eq!(code, "client.request(url, headers, timeout)?");
+    }
+
+    #[test]
+    fn test_empty_module_lookup() {
+        let mappings = StdlibMappings::new();
+        assert!(mappings.lookup("", "DictReader", "fieldnames").is_none());
+    }
+
+    #[test]
+    fn test_empty_class_lookup() {
+        let mappings = StdlibMappings::new();
+        assert!(mappings.lookup("csv", "", "fieldnames").is_none());
+    }
+
+    #[test]
+    fn test_empty_attribute_lookup() {
+        let mappings = StdlibMappings::new();
+        assert!(mappings.lookup("csv", "DictReader", "").is_none());
+    }
 }

@@ -329,4 +329,195 @@ mod tests {
         let fails = reproducer.verify_fails(&mut repro).unwrap();
         assert!(!fails);
     }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_repro_case_debug() {
+        let repro = ReproCase::new(
+            "def f(): pass".to_string(),
+            "E0308".to_string(),
+            "pattern_1".to_string(),
+        );
+        let debug_str = format!("{:?}", repro);
+        assert!(debug_str.contains("ReproCase"));
+        assert!(debug_str.contains("E0308"));
+        assert!(debug_str.contains("pattern_1"));
+    }
+
+    #[test]
+    fn test_repro_case_clone() {
+        let repro = ReproCase::new(
+            "source code".to_string(),
+            "E0432".to_string(),
+            "p2".to_string(),
+        );
+        let cloned = repro.clone();
+        assert_eq!(cloned.source, "source code");
+        assert_eq!(cloned.expected_error, "E0432");
+        assert_eq!(cloned.pattern_id, "p2");
+        assert!(!cloned.verified_failing);
+    }
+
+    #[test]
+    fn test_repro_case_fields() {
+        let repro = ReproCase::new(
+            "test".to_string(),
+            "E0277".to_string(),
+            "test_pat".to_string(),
+        );
+        assert_eq!(repro.source, "test");
+        assert_eq!(repro.expected_error, "E0277");
+        assert_eq!(repro.pattern_id, "test_pat");
+        assert!(repro.file_path.is_none());
+        assert!(!repro.verified_failing);
+    }
+
+    #[test]
+    fn test_minimal_reproducer_default() {
+        let reproducer: MinimalReproducer = Default::default();
+        // Default has no templates
+        assert!(reproducer.templates.is_empty());
+    }
+
+    #[test]
+    fn test_minimal_reproducer_debug() {
+        let reproducer = MinimalReproducer::new();
+        let debug_str = format!("{:?}", reproducer);
+        assert!(debug_str.contains("MinimalReproducer"));
+    }
+
+    #[test]
+    fn test_synthesize_repro_e0277() {
+        let reproducer = MinimalReproducer::new();
+        let pattern = create_test_pattern("E0277");
+
+        let repro = reproducer.synthesize_repro(&pattern).unwrap();
+        assert_eq!(repro.expected_error, "E0277");
+        assert!(repro.source.contains("E0277"));
+    }
+
+    #[test]
+    fn test_synthesize_repro_e0502() {
+        let reproducer = MinimalReproducer::new();
+        let pattern = create_test_pattern("E0502");
+
+        let repro = reproducer.synthesize_repro(&pattern).unwrap();
+        assert_eq!(repro.expected_error, "E0502");
+        assert!(repro.source.contains("borrowing"));
+    }
+
+    #[test]
+    fn test_synthesize_repro_e0382() {
+        let reproducer = MinimalReproducer::new();
+        let pattern = create_test_pattern("E0382");
+
+        let repro = reproducer.synthesize_repro(&pattern).unwrap();
+        assert_eq!(repro.expected_error, "E0382");
+        assert!(repro.source.contains("move"));
+    }
+
+    #[test]
+    fn test_synthesize_repro_e0432() {
+        let reproducer = MinimalReproducer::new();
+        let pattern = create_test_pattern("E0432");
+
+        let repro = reproducer.synthesize_repro(&pattern).unwrap();
+        assert_eq!(repro.expected_error, "E0432");
+        assert!(repro.source.contains("import"));
+    }
+
+    #[test]
+    fn test_synthesize_repro_with_trigger_example() {
+        let reproducer = MinimalReproducer::new();
+        let mut pattern = create_test_pattern("E9999");
+        pattern.trigger_example = "def custom(): return 42".to_string();
+
+        let repro = reproducer.synthesize_repro(&pattern).unwrap();
+        assert!(repro.source.contains("def custom()"));
+    }
+
+    #[test]
+    fn test_write_to_disk() {
+        let reproducer = MinimalReproducer::new();
+        let pattern = create_test_pattern("E0308");
+        let mut repro = reproducer.synthesize_repro(&pattern).unwrap();
+
+        let temp_dir = std::env::temp_dir();
+        let path = reproducer.write_to_disk(&mut repro, &temp_dir).unwrap();
+
+        assert!(path.exists());
+        assert!(repro.file_path.is_some());
+        assert_eq!(repro.file_path.unwrap(), path);
+
+        // Cleanup
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn test_repro_template_fields() {
+        let reproducer = MinimalReproducer::new();
+        // Verify all templates have required fields
+        for template in &reproducer.templates {
+            assert!(!template.error_code.is_empty());
+            assert!(!template.template.is_empty());
+            assert!(!template.description.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_builtin_templates_count() {
+        let reproducer = MinimalReproducer::new();
+        // Should have templates for: E0308, E0432, E0277, E0502, E0382
+        assert_eq!(reproducer.templates.len(), 5);
+    }
+
+    #[test]
+    fn test_find_template_exists() {
+        let reproducer = MinimalReproducer::new();
+        let template = reproducer.find_template("E0308");
+        assert!(template.is_some());
+        assert!(template.unwrap().contains("type mismatch"));
+    }
+
+    #[test]
+    fn test_find_template_not_exists() {
+        let reproducer = MinimalReproducer::new();
+        let template = reproducer.find_template("E9999");
+        assert!(template.is_none());
+    }
+
+    #[test]
+    fn test_generate_stub_repro() {
+        let reproducer = MinimalReproducer::new();
+        let pattern = create_test_pattern("E1234");
+
+        let stub = reproducer.generate_stub_repro(&pattern);
+        assert!(stub.contains("E1234"));
+        assert!(stub.contains("TODO: Fill in minimal code"));
+        assert!(stub.contains("repro_function"));
+    }
+
+    #[test]
+    fn test_verify_fails_marks_repro() {
+        let reproducer = MinimalReproducer::new();
+        let pattern = create_test_pattern("E0308");
+        let mut repro = reproducer.synthesize_repro(&pattern).unwrap();
+
+        assert!(!repro.verified_failing);
+        reproducer.verify_fails(&mut repro).unwrap();
+        assert!(repro.verified_failing);
+    }
+
+    #[test]
+    fn test_repro_case_created_at() {
+        use std::time::SystemTime;
+
+        let before = SystemTime::now();
+        let repro = ReproCase::new("test".to_string(), "E0308".to_string(), "p".to_string());
+        let after = SystemTime::now();
+
+        assert!(repro.created_at >= before);
+        assert!(repro.created_at <= after);
+    }
 }

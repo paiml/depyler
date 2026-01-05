@@ -1626,4 +1626,122 @@ mod tests {
             assert!(window[0].severity >= window[1].severity);
         }
     }
+
+    // === DEPYLER-COVERAGE-95: Additional tests for untested components ===
+
+    #[test]
+    fn test_warning_severity_ordering_comprehensive() {
+        assert!(WarningSeverity::Critical > WarningSeverity::High);
+        assert!(WarningSeverity::High > WarningSeverity::Medium);
+        assert!(WarningSeverity::Medium > WarningSeverity::Low);
+        // Also test equality
+        assert_eq!(WarningSeverity::Critical, WarningSeverity::Critical);
+    }
+
+    #[test]
+    fn test_warning_severity_copy_trait() {
+        let s1 = WarningSeverity::High;
+        let s2 = s1; // Copy, not move
+        assert_eq!(s1, s2);
+        // Can still use s1 after copy
+        let _s3 = s1;
+    }
+
+    #[test]
+    fn test_config_all_fields_custom() {
+        let config = PerformanceConfig {
+            warn_string_concat: false,
+            warn_allocations: false,
+            warn_algorithms: true,
+            warn_repeated_computation: true,
+            max_loop_depth: 10,
+            quadratic_threshold: 50,
+        };
+        assert!(!config.warn_string_concat);
+        assert!(!config.warn_allocations);
+        assert!(config.warn_algorithms);
+        assert!(config.warn_repeated_computation);
+        assert_eq!(config.max_loop_depth, 10);
+        assert_eq!(config.quadratic_threshold, 50);
+    }
+
+    #[test]
+    fn test_all_warning_categories_debug() {
+        // Verify all enum variants have valid debug format
+        let categories = [
+            WarningCategory::StringPerformance,
+            WarningCategory::MemoryAllocation,
+            WarningCategory::AlgorithmComplexity,
+            WarningCategory::RedundantComputation,
+            WarningCategory::IoPerformance,
+            WarningCategory::CollectionUsage,
+        ];
+        for cat in categories {
+            let debug = format!("{:?}", cat);
+            assert!(!debug.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_all_warning_severities_debug() {
+        let severities = [
+            WarningSeverity::Low,
+            WarningSeverity::Medium,
+            WarningSeverity::High,
+            WarningSeverity::Critical,
+        ];
+        for sev in severities {
+            let debug = format!("{:?}", sev);
+            assert!(!debug.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_analyzer_with_disabled_warnings() {
+        let config = PerformanceConfig {
+            warn_string_concat: false,
+            warn_allocations: false,
+            warn_algorithms: false,
+            warn_repeated_computation: false,
+            max_loop_depth: 100,
+            quadratic_threshold: 1000,
+        };
+        let analyzer = PerformanceAnalyzer::new(config);
+        // Verify it starts empty
+        assert!(analyzer.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_warning_category_ne() {
+        // Test inequality between different categories
+        assert_ne!(WarningCategory::StringPerformance, WarningCategory::IoPerformance);
+        assert_ne!(WarningCategory::MemoryAllocation, WarningCategory::CollectionUsage);
+        assert_ne!(WarningCategory::AlgorithmComplexity, WarningCategory::RedundantComputation);
+    }
+
+    #[test]
+    fn test_performance_impact_fields() {
+        let impact = PerformanceImpact {
+            complexity: "O(n log n)".to_string(),
+            scales_with_input: true,
+            in_hot_path: false,
+        };
+        assert_eq!(impact.complexity, "O(n log n)");
+        assert!(impact.scales_with_input);
+        assert!(!impact.in_hot_path);
+    }
+
+    #[test]
+    fn test_location_all_fields() {
+        let loc = Location {
+            function: "process".to_string(),
+            line: 42,
+            in_loop: true,
+            loop_depth: 2,
+        };
+        assert_eq!(loc.function, "process");
+        assert_eq!(loc.line, 42);
+        assert!(loc.in_loop);
+        assert_eq!(loc.loop_depth, 2);
+    }
 }

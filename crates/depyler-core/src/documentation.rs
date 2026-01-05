@@ -505,6 +505,7 @@ impl DocGenerator {
 mod tests {
     use super::*;
     use crate::hir::*;
+    use crate::hir::ConstGeneric;
     use smallvec::smallvec;
 
     fn create_test_function(name: &str) -> HirFunction {
@@ -705,5 +706,671 @@ mod tests {
         assert!(docs.contains("Python to Rust Migration"));
         assert!(docs.contains("process_list`: List parameters are passed as slices"));
         assert!(docs.contains("process_list`: Returns `Option<T>` instead of potentially `None`"));
+    }
+
+    // ============================================================
+    // DEPYLER-COVERAGE-95: Additional comprehensive tests
+    // ============================================================
+
+    #[test]
+    fn test_doc_config_default() {
+        let config = DocConfig::default();
+        assert!(config.include_python_source);
+        assert!(config.generate_examples);
+        assert!(config.include_migration_notes);
+        assert!(config.generate_module_docs);
+        assert!(!config.include_performance_notes);
+    }
+
+    #[test]
+    fn test_doc_config_clone() {
+        let config = DocConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.include_python_source, cloned.include_python_source);
+    }
+
+    #[test]
+    fn test_doc_generator_new() {
+        let config = DocConfig::default();
+        let generator = DocGenerator::new(config);
+        // Generator created successfully
+        assert!(generator.python_source.is_none());
+    }
+
+    #[test]
+    fn test_format_type_unknown() {
+        let result = format_type_inner(&Type::Unknown);
+        assert_eq!(result, "?");
+    }
+
+    #[test]
+    fn test_format_type_none() {
+        let result = format_type_inner(&Type::None);
+        assert_eq!(result, "()");
+    }
+
+    #[test]
+    fn test_format_type_bool() {
+        let result = format_type_inner(&Type::Bool);
+        assert_eq!(result, "bool");
+    }
+
+    #[test]
+    fn test_format_type_float() {
+        let result = format_type_inner(&Type::Float);
+        assert_eq!(result, "f64");
+    }
+
+    #[test]
+    fn test_format_type_dict() {
+        let result = format_type_inner(&Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
+        assert_eq!(result, "HashMap<&str, i32>");
+    }
+
+    #[test]
+    fn test_format_type_tuple() {
+        let result = format_type_inner(&Type::Tuple(vec![Type::Int, Type::String]));
+        assert_eq!(result, "(i32, &str)");
+    }
+
+    #[test]
+    fn test_format_type_set() {
+        let result = format_type_inner(&Type::Set(Box::new(Type::Int)));
+        assert_eq!(result, "HashSet<i32>");
+    }
+
+    #[test]
+    fn test_format_type_final() {
+        let result = format_type_inner(&Type::Final(Box::new(Type::Int)));
+        assert_eq!(result, "i32");
+    }
+
+    #[test]
+    fn test_format_type_custom() {
+        let result = format_type_inner(&Type::Custom("MyType".to_string()));
+        assert_eq!(result, "MyType");
+    }
+
+    #[test]
+    fn test_format_type_union() {
+        let result = format_type_inner(&Type::Union(vec![Type::Int, Type::String]));
+        assert_eq!(result, "Union<i32, &str>");
+    }
+
+    #[test]
+    fn test_format_type_generic_no_params() {
+        let result = format_type_inner(&Type::Generic {
+            base: "Vec".to_string(),
+            params: vec![],
+        });
+        assert_eq!(result, "Vec");
+    }
+
+    #[test]
+    fn test_format_type_generic_with_params() {
+        let result = format_type_inner(&Type::Generic {
+            base: "Vec".to_string(),
+            params: vec![Type::Int],
+        });
+        assert_eq!(result, "Vec<i32>");
+    }
+
+    #[test]
+    fn test_format_type_function() {
+        let result = format_type_inner(&Type::Function {
+            params: vec![Type::Int, Type::String],
+            ret: Box::new(Type::Bool),
+        });
+        assert_eq!(result, "fn(i32, &str) -> bool");
+    }
+
+    #[test]
+    fn test_format_type_typevar() {
+        let result = format_type_inner(&Type::TypeVar("T".to_string()));
+        assert_eq!(result, "T");
+    }
+
+    #[test]
+    fn test_format_type_array() {
+        let result = format_type_inner(&Type::Array {
+            element_type: Box::new(Type::Int),
+            size: ConstGeneric::Literal(10),
+        });
+        assert_eq!(result, "&[i32]");
+    }
+
+    #[test]
+    #[should_panic(expected = "BUG: UnificationVar")]
+    fn test_format_type_unification_var_panics() {
+        let _ = format_type_inner(&Type::UnificationVar(42));
+    }
+
+    #[test]
+    fn test_example_value_for_bool() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let result = generator.example_value_for_type("flag", &Type::Bool);
+        assert_eq!(result, "true");
+    }
+
+    #[test]
+    fn test_example_value_for_int() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let result = generator.example_value_for_type("num", &Type::Int);
+        assert_eq!(result, "42");
+    }
+
+    #[test]
+    fn test_example_value_for_float() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let result = generator.example_value_for_type("val", &Type::Float);
+        assert_eq!(result, "3.14");
+    }
+
+    #[test]
+    fn test_example_value_for_string() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let result = generator.example_value_for_type("s", &Type::String);
+        assert_eq!(result, "\"example\"");
+    }
+
+    #[test]
+    fn test_example_value_for_list() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let result = generator.example_value_for_type("items", &Type::List(Box::new(Type::Int)));
+        assert_eq!(result, "&vec![1, 2, 3]");
+    }
+
+    #[test]
+    fn test_example_value_for_dict() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let result = generator.example_value_for_type(
+            "map",
+            &Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+        );
+        assert_eq!(result, "&HashMap::new()");
+    }
+
+    #[test]
+    fn test_example_value_for_optional() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let result =
+            generator.example_value_for_type("opt", &Type::Optional(Box::new(Type::Int)));
+        assert_eq!(result, "Some(value)");
+    }
+
+    #[test]
+    fn test_example_value_for_unknown_type() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let result = generator.example_value_for_type("custom_var", &Type::Custom("Foo".into()));
+        assert_eq!(result, "custom_var");
+    }
+
+    #[test]
+    fn test_function_signature_no_return() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let func = HirFunction {
+            name: "greet".to_string(),
+            params: smallvec![HirParam::new("name".to_string(), Type::String)],
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+        let sig = generator.format_function_signature(&func);
+        assert_eq!(sig, "fn greet(name: &str)");
+    }
+
+    #[test]
+    fn test_method_signature_static() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let method = HirMethod {
+            name: "create".to_string(),
+            params: smallvec![HirParam::new("value".to_string(), Type::Int)],
+            ret_type: Type::Custom("Self".to_string()),
+            body: vec![],
+            is_static: true,
+            is_classmethod: false,
+            is_property: false,
+            is_async: false,
+            docstring: None,
+        };
+        let sig = generator.format_method_signature(&method);
+        assert_eq!(sig, "fn create(value: i32) -> Self");
+    }
+
+    #[test]
+    fn test_method_signature_instance() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let method = HirMethod {
+            name: "get_value".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            is_static: false,
+            is_classmethod: false,
+            is_property: false,
+            is_async: false,
+            docstring: None,
+        };
+        let sig = generator.format_method_signature(&method);
+        assert_eq!(sig, "fn get_value(&self) -> i32");
+    }
+
+    #[test]
+    fn test_method_signature_instance_with_params() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let method = HirMethod {
+            name: "set_value".to_string(),
+            params: smallvec![HirParam::new("value".to_string(), Type::Int)],
+            ret_type: Type::None,
+            body: vec![],
+            is_static: false,
+            is_classmethod: false,
+            is_property: false,
+            is_async: false,
+            docstring: None,
+        };
+        let sig = generator.format_method_signature(&method);
+        assert_eq!(sig, "fn set_value(&self, value: i32)");
+    }
+
+    #[test]
+    fn test_module_docs_with_imports() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![
+                Import {
+                    module: "std".to_string(),
+                    items: vec![],
+                },
+                Import {
+                    module: "json".to_string(),
+                    items: vec![],
+                },
+            ],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+        };
+
+        let docs = generator.generate_docs(&module);
+        assert!(docs.contains("### Dependencies"));
+        assert!(docs.contains("- `std`"));
+        assert!(docs.contains("- `json`"));
+    }
+
+    #[test]
+    fn test_function_with_all_properties() {
+        let config = DocConfig {
+            generate_examples: true,
+            include_performance_notes: true,
+            ..Default::default()
+        };
+        let generator = DocGenerator::new(config);
+
+        let mut props = FunctionProperties::default();
+        props.is_pure = true;
+        props.always_terminates = true;
+        props.panic_free = true;
+        props.is_async = true;
+        props.max_stack_depth = Some(10);
+
+        let func = HirFunction {
+            name: "pure_func".to_string(),
+            params: smallvec![HirParam::new("s".to_string(), Type::String)],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: props,
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let module = HirModule {
+            functions: vec![func],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+        };
+
+        let docs = generator.generate_docs(&module);
+        assert!(docs.contains("Pure function (no side effects)"));
+        assert!(docs.contains("Always terminates"));
+        assert!(docs.contains("Panic-free"));
+        assert!(docs.contains("Async function"));
+        assert!(docs.contains("Performance Notes"));
+        assert!(docs.contains("deep recursion"));
+        assert!(docs.contains("String parameters use"));
+    }
+
+    #[test]
+    fn test_static_method_documentation() {
+        let generator = DocGenerator::new(DocConfig::default());
+
+        let class = HirClass {
+            name: "Factory".to_string(),
+            fields: vec![],
+            methods: vec![HirMethod {
+                name: "create".to_string(),
+                params: smallvec![],
+                ret_type: Type::Custom("Self".to_string()),
+                body: vec![],
+                is_static: true,
+                is_classmethod: false,
+                is_property: false,
+                is_async: false,
+                docstring: None,
+            }],
+            base_classes: vec![],
+            is_dataclass: false,
+            docstring: None,
+            type_params: vec![],
+        };
+
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![class],
+            constants: vec![],
+        };
+
+        let docs = generator.generate_docs(&module);
+        assert!(docs.contains("**Static method**"));
+    }
+
+    #[test]
+    fn test_classmethod_documentation() {
+        let generator = DocGenerator::new(DocConfig::default());
+
+        let class = HirClass {
+            name: "Builder".to_string(),
+            fields: vec![],
+            methods: vec![HirMethod {
+                name: "from_config".to_string(),
+                params: smallvec![],
+                ret_type: Type::Custom("Self".to_string()),
+                body: vec![],
+                is_static: false,
+                is_classmethod: true,
+                is_property: false,
+                is_async: false,
+                docstring: None,
+            }],
+            base_classes: vec![],
+            is_dataclass: false,
+            docstring: None,
+            type_params: vec![],
+        };
+
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![class],
+            constants: vec![],
+        };
+
+        let docs = generator.generate_docs(&module);
+        assert!(docs.contains("**Class method**"));
+    }
+
+    #[test]
+    fn test_property_documentation() {
+        let generator = DocGenerator::new(DocConfig::default());
+
+        let class = HirClass {
+            name: "Container".to_string(),
+            fields: vec![],
+            methods: vec![HirMethod {
+                name: "size".to_string(),
+                params: smallvec![],
+                ret_type: Type::Int,
+                body: vec![],
+                is_static: false,
+                is_classmethod: false,
+                is_property: true,
+                is_async: false,
+                docstring: None,
+            }],
+            base_classes: vec![],
+            is_dataclass: false,
+            docstring: None,
+            type_params: vec![],
+        };
+
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![class],
+            constants: vec![],
+        };
+
+        let docs = generator.generate_docs(&module);
+        assert!(docs.contains("**Property getter**"));
+    }
+
+    #[test]
+    fn test_no_python_source_when_disabled() {
+        let config = DocConfig {
+            include_python_source: false,
+            ..Default::default()
+        };
+        let generator =
+            DocGenerator::new(config).with_python_source("def foo(): pass".to_string());
+        let module = create_test_module();
+
+        let docs = generator.generate_docs(&module);
+        assert!(!docs.contains("Original Python Source"));
+    }
+
+    #[test]
+    fn test_no_migration_notes_when_disabled() {
+        let config = DocConfig {
+            include_migration_notes: false,
+            ..Default::default()
+        };
+        let generator = DocGenerator::new(config);
+        let module = create_test_module();
+
+        let docs = generator.generate_docs(&module);
+        assert!(!docs.contains("## Migration Notes"));
+    }
+
+    #[test]
+    fn test_no_examples_when_disabled() {
+        let config = DocConfig {
+            generate_examples: false,
+            ..Default::default()
+        };
+        let generator = DocGenerator::new(config);
+        let module = create_test_module();
+
+        let docs = generator.generate_docs(&module);
+        assert!(!docs.contains("**Example:**"));
+    }
+
+    #[test]
+    fn test_no_module_docs_when_disabled() {
+        let config = DocConfig {
+            generate_module_docs: false,
+            ..Default::default()
+        };
+        let generator = DocGenerator::new(config);
+        let module = create_test_module();
+
+        let docs = generator.generate_docs(&module);
+        assert!(!docs.contains("## Module Overview"));
+    }
+
+    #[test]
+    fn test_empty_module() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+        };
+
+        let docs = generator.generate_docs(&module);
+        assert!(docs.contains("# Generated Rust Documentation"));
+        assert!(!docs.contains("## Functions"));
+        assert!(!docs.contains("## Classes"));
+        assert!(!docs.contains("## Migration Notes"));
+    }
+
+    #[test]
+    fn test_api_reference_empty_module() {
+        let generator = DocGenerator::new(DocConfig::default());
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+        };
+
+        let api_ref = generator.generate_api_reference(&module);
+        assert!(api_ref.contains("# API Reference"));
+        assert!(api_ref.contains("## Table of Contents"));
+    }
+
+    #[test]
+    fn test_api_reference_with_classes() {
+        let generator = DocGenerator::new(DocConfig::default());
+
+        let class = HirClass {
+            name: "Point".to_string(),
+            fields: vec![],
+            methods: vec![],
+            base_classes: vec![],
+            is_dataclass: false,
+            docstring: None,
+            type_params: vec![],
+        };
+
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![class],
+            constants: vec![],
+        };
+
+        let api_ref = generator.generate_api_reference(&module);
+        assert!(api_ref.contains("### Classes"));
+        assert!(api_ref.contains("- [`Point`](#point)"));
+    }
+
+    #[test]
+    fn test_usage_guide_with_many_functions() {
+        let generator = DocGenerator::new(DocConfig::default());
+
+        let module = HirModule {
+            functions: vec![
+                create_test_function("func1"),
+                create_test_function("func2"),
+                create_test_function("func3"),
+                create_test_function("func4"),
+                create_test_function("func5"),
+            ],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+        };
+
+        let guide = generator.generate_usage_guide(&module);
+        // Only first 3 functions shown
+        assert!(guide.contains("// Using func1"));
+        assert!(guide.contains("// Using func2"));
+        assert!(guide.contains("// Using func3"));
+        assert!(!guide.contains("// Using func4"));
+    }
+
+    #[test]
+    fn test_class_without_docstring() {
+        let generator = DocGenerator::new(DocConfig::default());
+
+        let class = HirClass {
+            name: "Bare".to_string(),
+            fields: vec![],
+            methods: vec![],
+            base_classes: vec![],
+            is_dataclass: false,
+            docstring: None,
+            type_params: vec![],
+        };
+
+        let module = HirModule {
+            functions: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![class],
+            constants: vec![],
+        };
+
+        let docs = generator.generate_docs(&module);
+        assert!(docs.contains("### `Bare`"));
+    }
+
+    #[test]
+    fn test_function_without_params() {
+        let generator = DocGenerator::new(DocConfig::default());
+
+        let func = HirFunction {
+            name: "no_args".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: Default::default(),
+            docstring: None,
+        };
+
+        let sig = generator.format_function_signature(&func);
+        assert_eq!(sig, "fn no_args() -> i32");
+
+        let module = HirModule {
+            functions: vec![func],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            classes: vec![],
+            constants: vec![],
+        };
+
+        let docs = generator.generate_docs(&module);
+        assert!(!docs.contains("**Parameters:**"));
+    }
+
+    #[test]
+    fn test_format_type_nested_generic() {
+        let result = format_type_inner(&Type::Generic {
+            base: "Result".to_string(),
+            params: vec![Type::Int, Type::String],
+        });
+        assert_eq!(result, "Result<i32, &str>");
+    }
+
+    #[test]
+    fn test_format_type_nested_optional_list() {
+        let result = format_type_inner(&Type::Optional(Box::new(Type::List(Box::new(Type::Int)))));
+        assert_eq!(result, "Option<&[i32]>");
     }
 }

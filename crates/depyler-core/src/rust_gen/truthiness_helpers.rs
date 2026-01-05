@@ -39,6 +39,7 @@ pub const STRING_VAR_SUFFIXES: &[&str] = &["_output", "_result", "_str", "_strin
 
 /// Common string attribute/field names used in classes and structs.
 /// These are typically String fields that need `!.is_empty()` for truthiness.
+#[allow(dead_code)]
 pub const STRING_ATTR_NAMES: &[&str] = &[
     "email",
     "name",
@@ -112,6 +113,7 @@ pub fn is_string_var_name(name: &str) -> bool {
 
 /// Check if an attribute name suggests it's a string field.
 #[inline]
+#[allow(dead_code)]
 pub fn is_string_attr_name(name: &str) -> bool {
     STRING_ATTR_NAMES.contains(&name)
 }

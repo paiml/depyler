@@ -1321,4 +1321,209 @@ mod tests {
         assert!(result.param_strategies.contains_key("a"));
         assert!(result.param_strategies.contains_key("b"));
     }
+
+    // === DEPYLER-COVERAGE-95: Additional tests for untested components ===
+
+    #[test]
+    fn test_analysis_context_loop_debug() {
+        let ctx = AnalysisContext::Loop;
+        let debug = format!("{:?}", ctx);
+        assert!(debug.contains("Loop"));
+    }
+
+    #[test]
+    fn test_analysis_context_conditional_debug() {
+        let ctx = AnalysisContext::Conditional;
+        let debug = format!("{:?}", ctx);
+        assert!(debug.contains("Conditional"));
+    }
+
+    #[test]
+    fn test_analysis_context_closure_debug() {
+        let ctx = AnalysisContext::Closure {
+            captures: HashSet::from(["x".to_string(), "y".to_string()]),
+        };
+        let debug = format!("{:?}", ctx);
+        assert!(debug.contains("Closure"));
+        assert!(debug.contains("captures"));
+    }
+
+    #[test]
+    fn test_analysis_context_function_debug() {
+        let ctx = AnalysisContext::Function;
+        let debug = format!("{:?}", ctx);
+        assert!(debug.contains("Function"));
+    }
+
+    #[test]
+    fn test_analysis_context_clone() {
+        let ctx = AnalysisContext::Closure {
+            captures: HashSet::from(["var".to_string()]),
+        };
+        let cloned = ctx.clone();
+        if let AnalysisContext::Closure { captures } = cloned {
+            assert!(captures.contains("var"));
+        } else {
+            panic!("Expected Closure variant");
+        }
+    }
+
+    #[test]
+    fn test_borrowing_context_debug() {
+        let ctx = BorrowingContext::new(None);
+        let debug = format!("{:?}", ctx);
+        assert!(debug.contains("BorrowingContext"));
+    }
+
+    #[test]
+    fn test_borrowing_context_initial_state() {
+        let ctx = BorrowingContext::new(Some(PythonType::String));
+        assert!(ctx.param_usage.is_empty());
+        assert!(ctx.moved_vars.is_empty());
+        assert!(ctx.mut_borrowed_vars.is_empty());
+        assert!(ctx.immut_borrowed_vars.is_empty());
+        assert!(!ctx.context_stack.is_empty()); // Should have Function context
+    }
+
+    #[test]
+    fn test_parameter_usage_pattern_all_fields() {
+        let mut pattern = ParameterUsagePattern::default();
+        pattern.is_read = true;
+        pattern.is_mutated = true;
+        pattern.is_moved = false;
+        pattern.escapes_through_return = true;
+        pattern.is_stored = false;
+        pattern.used_in_closure = true;
+        pattern.used_in_loop = true;
+        pattern.field_accesses.insert("name".to_string());
+        pattern.method_calls.insert("len".to_string());
+
+        assert!(pattern.is_read);
+        assert!(pattern.is_mutated);
+        assert!(!pattern.is_moved);
+        assert!(pattern.escapes_through_return);
+        assert!(!pattern.is_stored);
+        assert!(pattern.used_in_closure);
+        assert!(pattern.used_in_loop);
+        assert!(pattern.field_accesses.contains("name"));
+        assert!(pattern.method_calls.contains("len"));
+    }
+
+    #[test]
+    fn test_parameter_usage_pattern_debug() {
+        let pattern = ParameterUsagePattern::default();
+        let debug = format!("{:?}", pattern);
+        assert!(debug.contains("ParameterUsagePattern"));
+        assert!(debug.contains("is_read"));
+    }
+
+    #[test]
+    fn test_usage_site_all_fields() {
+        let site = UsageSite {
+            usage_type: UsageType::Write,
+            in_loop: true,
+            in_conditional: false,
+            borrow_depth: 2,
+        };
+        assert!(matches!(site.usage_type, UsageType::Write));
+        assert!(site.in_loop);
+        assert!(!site.in_conditional);
+        assert_eq!(site.borrow_depth, 2);
+    }
+
+    #[test]
+    fn test_usage_site_debug() {
+        let site = UsageSite {
+            usage_type: UsageType::Read,
+            in_loop: false,
+            in_conditional: true,
+            borrow_depth: 0,
+        };
+        let debug = format!("{:?}", site);
+        assert!(debug.contains("UsageSite"));
+        assert!(debug.contains("Read"));
+    }
+
+    #[test]
+    fn test_usage_type_read_eq() {
+        assert_eq!(UsageType::Read, UsageType::Read);
+        assert_ne!(UsageType::Read, UsageType::Write);
+    }
+
+    #[test]
+    fn test_usage_type_closure_variants() {
+        let by_value = UsageType::Closure { captures_by_value: true };
+        let by_ref = UsageType::Closure { captures_by_value: false };
+        assert_ne!(by_value, by_ref);
+    }
+
+    #[test]
+    fn test_borrowing_strategy_eq() {
+        assert_eq!(BorrowingStrategy::TakeOwnership, BorrowingStrategy::TakeOwnership);
+        assert_ne!(
+            BorrowingStrategy::TakeOwnership,
+            BorrowingStrategy::BorrowMutable { lifetime: None }
+        );
+    }
+
+    #[test]
+    fn test_borrowing_strategy_debug_all() {
+        let strategies = [
+            BorrowingStrategy::TakeOwnership,
+            BorrowingStrategy::BorrowImmutable { lifetime: None },
+            BorrowingStrategy::BorrowImmutable { lifetime: Some("a".to_string()) },
+            BorrowingStrategy::BorrowMutable { lifetime: None },
+            BorrowingStrategy::UseCow { lifetime: "b".to_string() },
+            BorrowingStrategy::UseSharedOwnership { is_thread_safe: true },
+        ];
+        for strategy in strategies {
+            let debug = format!("{:?}", strategy);
+            assert!(!debug.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_borrowing_insight_debug_all() {
+        let insights = [
+            BorrowingInsight::UnnecessaryMove("x".to_string()),
+            BorrowingInsight::LifetimeOptimization {
+                param: "p".to_string(),
+                suggestion: "Consider borrow".to_string(),
+            },
+            BorrowingInsight::SuggestCopyDerive("y".to_string()),
+            BorrowingInsight::PotentialBorrowConflict {
+                param: "z".to_string(),
+                locations: vec!["line 1".to_string(), "line 2".to_string()],
+            },
+        ];
+        for insight in insights {
+            let debug = format!("{:?}", insight);
+            assert!(!debug.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_borrowing_analysis_result_debug() {
+        let result = BorrowingAnalysisResult {
+            param_strategies: IndexMap::new(),
+            insights: vec![],
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("BorrowingAnalysisResult"));
+    }
+
+    #[test]
+    fn test_borrowing_analysis_result_with_insights() {
+        let result = BorrowingAnalysisResult {
+            param_strategies: IndexMap::new(),
+            insights: vec![
+                BorrowingInsight::SuggestCopyDerive("val".to_string()),
+                BorrowingInsight::LifetimeOptimization {
+                    param: "p".to_string(),
+                    suggestion: "Borrow instead".to_string(),
+                },
+            ],
+        };
+        assert_eq!(result.insights.len(), 2);
+    }
 }

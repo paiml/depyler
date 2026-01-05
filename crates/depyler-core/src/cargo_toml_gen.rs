@@ -942,6 +942,137 @@ mod tests {
         assert!(deps.is_empty(), "Default context should have no dependencies");
     }
 
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_dependency_new_basic() {
+        let dep = Dependency::new("test_crate", "1.0.0");
+        assert_eq!(dep.crate_name, "test_crate");
+        assert_eq!(dep.version, "1.0.0");
+        assert!(dep.features.is_empty());
+    }
+
+    #[test]
+    fn test_dependency_new_from_string() {
+        let dep = Dependency::new(String::from("my_crate"), String::from("2.0"));
+        assert_eq!(dep.crate_name, "my_crate");
+        assert_eq!(dep.version, "2.0");
+    }
+
+    #[test]
+    fn test_dependency_with_features_chained() {
+        let dep = Dependency::new("tokio", "1.0")
+            .with_features(vec!["rt".to_string()])
+            .with_features(vec!["macros".to_string()]); // Replaces features
+
+        assert_eq!(dep.features, vec!["macros".to_string()]);
+    }
+
+    #[test]
+    fn test_dependency_debug_format() {
+        let dep = Dependency::new("serde", "1.0").with_features(vec!["derive".to_string()]);
+        let debug_str = format!("{:?}", dep);
+        assert!(debug_str.contains("Dependency"));
+        assert!(debug_str.contains("serde"));
+        assert!(debug_str.contains("1.0"));
+        assert!(debug_str.contains("derive"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_package_name_variants() {
+        // Underscores
+        let toml1 = generate_cargo_toml("my_package", "main.rs", &[]);
+        assert!(toml1.contains("name = \"my_package\""));
+
+        // Hyphens
+        let toml2 = generate_cargo_toml("my-package", "main.rs", &[]);
+        assert!(toml2.contains("name = \"my-package\""));
+
+        // Numbers
+        let toml3 = generate_cargo_toml("pkg123", "main.rs", &[]);
+        assert!(toml3.contains("name = \"pkg123\""));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_source_path_variants() {
+        let toml1 = generate_cargo_toml("test", "src/main.rs", &[]);
+        assert!(toml1.contains("path = \"src/main.rs\""));
+
+        let toml2 = generate_cargo_toml("test", "./app.rs", &[]);
+        assert!(toml2.contains("path = \"./app.rs\""));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_lib_quickcheck_version() {
+        let toml = generate_cargo_toml_lib("lib", "lib.rs", &[]);
+        assert!(toml.contains("quickcheck = \"1\""));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_lib_no_bin_section() {
+        let toml = generate_cargo_toml_lib("mylib", "src/lib.rs", &[]);
+        assert!(!toml.contains("[[bin]]"));
+        assert!(toml.contains("[lib]"));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_auto_test_prefix_cases() {
+        // test_* prefix → lib
+        assert!(generate_cargo_toml_auto("test_module", "t.rs", &[]).contains("[lib]"));
+
+        // testing_* prefix → bin (doesn't start with test_)
+        assert!(generate_cargo_toml_auto("testing_module", "t.rs", &[]).contains("[[bin]]"));
+
+        // tests → bin (doesn't start with test_)
+        assert!(generate_cargo_toml_auto("tests", "t.rs", &[]).contains("[[bin]]"));
+    }
+
+    #[test]
+    fn test_dependency_to_toml_many_features() {
+        let dep = Dependency::new("clap", "4.0").with_features(vec![
+            "derive".to_string(),
+            "cargo".to_string(),
+            "env".to_string(),
+            "wrap_help".to_string(),
+        ]);
+        let line = dep.to_toml_line();
+        assert!(line.contains("\"derive\""));
+        assert!(line.contains("\"cargo\""));
+        assert!(line.contains("\"env\""));
+        assert!(line.contains("\"wrap_help\""));
+        assert!(line.contains("features = ["));
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_order_sections() {
+        let deps = vec![Dependency::new("serde", "1.0")];
+        let toml = generate_cargo_toml("test", "test.rs", &deps);
+
+        let package_idx = toml.find("[package]").unwrap();
+        let bin_idx = toml.find("[[bin]]").unwrap();
+        let deps_idx = toml.find("[dependencies]").unwrap();
+
+        // Order: [package] < [[bin]] < [dependencies]
+        assert!(package_idx < bin_idx);
+        assert!(bin_idx < deps_idx);
+    }
+
+    #[test]
+    fn test_generate_cargo_toml_lib_order_sections() {
+        let deps = vec![Dependency::new("serde", "1.0")];
+        let toml = generate_cargo_toml_lib("test", "test.rs", &deps);
+
+        let package_idx = toml.find("[package]").unwrap();
+        let lib_idx = toml.find("[lib]").unwrap();
+        let deps_idx = toml.find("[dependencies]").unwrap();
+        let dev_deps_idx = toml.find("[dev-dependencies]").unwrap();
+
+        // Order: [package] < [lib] < [dependencies] < [dev-dependencies]
+        assert!(package_idx < lib_idx);
+        assert!(lib_idx < deps_idx);
+        assert!(deps_idx < dev_deps_idx);
+    }
+
     /// Integration Test: Verify clap has derive feature
     #[test]
     fn test_integration_clap_has_derive_feature() {
@@ -1083,5 +1214,225 @@ mod tests {
             clap_dep.unwrap().features.contains(&"derive".to_string()),
             "clap needs derive feature for ArgumentParser"
         );
+    }
+
+    // === Focused unit tests for individual needs_* flags ===
+
+    fn make_ctx_with<F: FnOnce(&mut crate::rust_gen::CodeGenContext)>(f: F) -> crate::rust_gen::CodeGenContext<'static> {
+        use crate::type_mapper::TypeMapper;
+
+        let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
+        let mut ctx = crate::rust_gen::CodeGenContext {
+            type_mapper,
+            annotation_aware_mapper: crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
+            ..Default::default()
+        };
+        f(&mut ctx);
+        ctx
+    }
+
+    #[test]
+    fn test_needs_regex_adds_regex() {
+        let ctx = make_ctx_with(|c| c.needs_regex = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "regex"));
+    }
+
+    #[test]
+    fn test_needs_chrono_adds_chrono() {
+        let ctx = make_ctx_with(|c| c.needs_chrono = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "chrono"));
+    }
+
+    #[test]
+    fn test_needs_tempfile_adds_tempfile() {
+        let ctx = make_ctx_with(|c| c.needs_tempfile = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "tempfile"));
+    }
+
+    #[test]
+    fn test_needs_itertools_adds_itertools() {
+        let ctx = make_ctx_with(|c| c.needs_itertools = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "itertools"));
+    }
+
+    #[test]
+    fn test_needs_csv_adds_csv() {
+        let ctx = make_ctx_with(|c| c.needs_csv = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "csv"));
+    }
+
+    #[test]
+    fn test_needs_rust_decimal_adds_rust_decimal() {
+        let ctx = make_ctx_with(|c| c.needs_rust_decimal = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "rust_decimal"));
+    }
+
+    #[test]
+    fn test_needs_num_rational_adds_num_rational() {
+        let ctx = make_ctx_with(|c| c.needs_num_rational = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "num-rational"));
+    }
+
+    #[test]
+    fn test_needs_base64_adds_base64() {
+        let ctx = make_ctx_with(|c| c.needs_base64 = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "base64"));
+    }
+
+    #[test]
+    fn test_needs_md5_adds_md5() {
+        let ctx = make_ctx_with(|c| c.needs_md5 = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "md-5"));
+    }
+
+    #[test]
+    fn test_needs_sha2_adds_sha2() {
+        let ctx = make_ctx_with(|c| c.needs_sha2 = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "sha2"));
+    }
+
+    #[test]
+    fn test_needs_sha3_adds_sha3() {
+        let ctx = make_ctx_with(|c| c.needs_sha3 = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "sha3"));
+    }
+
+    #[test]
+    fn test_needs_blake2_adds_blake2() {
+        let ctx = make_ctx_with(|c| c.needs_blake2 = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "blake2"));
+    }
+
+    #[test]
+    fn test_needs_digest_adds_digest() {
+        let ctx = make_ctx_with(|c| c.needs_digest = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "digest"));
+    }
+
+    #[test]
+    fn test_needs_trueno_adds_trueno() {
+        let ctx = make_ctx_with(|c| c.needs_trueno = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "trueno"));
+    }
+
+    #[test]
+    fn test_needs_tokio_adds_tokio_with_full_feature() {
+        let ctx = make_ctx_with(|c| c.needs_tokio = true);
+        let deps = extract_dependencies(&ctx);
+        let tokio = deps.iter().find(|d| d.crate_name == "tokio");
+        assert!(tokio.is_some());
+        assert!(tokio.unwrap().features.contains(&"full".to_string()));
+    }
+
+    #[test]
+    fn test_needs_hex_adds_hex() {
+        let ctx = make_ctx_with(|c| c.needs_hex = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "hex"));
+    }
+
+    #[test]
+    fn test_needs_uuid_adds_uuid() {
+        let ctx = make_ctx_with(|c| c.needs_uuid = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "uuid"));
+    }
+
+    #[test]
+    fn test_needs_hmac_adds_hmac() {
+        let ctx = make_ctx_with(|c| c.needs_hmac = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "hmac"));
+    }
+
+    #[test]
+    fn test_needs_crc32_adds_crc32fast() {
+        let ctx = make_ctx_with(|c| c.needs_crc32 = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "crc32fast"));
+    }
+
+    #[test]
+    fn test_needs_url_encoding_adds_percent_encoding() {
+        let ctx = make_ctx_with(|c| c.needs_url_encoding = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "percent-encoding"));
+    }
+
+    #[test]
+    fn test_needs_rand_adds_rand() {
+        let ctx = make_ctx_with(|c| c.needs_rand = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "rand"));
+    }
+
+    #[test]
+    fn test_needs_rand_distr_adds_rand_distr() {
+        let ctx = make_ctx_with(|c| c.needs_rand_distr = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "rand_distr"));
+    }
+
+    #[test]
+    fn test_needs_glob_adds_glob() {
+        let ctx = make_ctx_with(|c| c.needs_glob = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "glob"));
+    }
+
+    #[test]
+    fn test_needs_once_cell_adds_once_cell() {
+        let ctx = make_ctx_with(|c| c.needs_once_cell = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "once_cell"));
+    }
+
+    #[test]
+    fn test_needs_serde_json_adds_serde_and_serde_json() {
+        let ctx = make_ctx_with(|c| c.needs_serde_json = true);
+        let deps = extract_dependencies(&ctx);
+        assert!(deps.iter().any(|d| d.crate_name == "serde_json"));
+        let serde = deps.iter().find(|d| d.crate_name == "serde");
+        assert!(serde.is_some());
+        assert!(serde.unwrap().features.contains(&"derive".to_string()));
+    }
+
+    #[test]
+    fn test_needs_clap_adds_clap_with_derive_feature() {
+        let ctx = make_ctx_with(|c| c.needs_clap = true);
+        let deps = extract_dependencies(&ctx);
+        let clap = deps.iter().find(|d| d.crate_name == "clap");
+        assert!(clap.is_some());
+        assert!(clap.unwrap().features.contains(&"derive".to_string()));
+    }
+
+    // === Additional Dependency struct tests ===
+
+    #[test]
+    fn test_dependency_special_chars_in_version() {
+        let dep = Dependency::new("some-crate", ">=1.0, <2.0");
+        let line = dep.to_toml_line();
+        assert_eq!(line, "some-crate = \">=1.0, <2.0\"");
+    }
+
+    #[test]
+    fn test_dependency_feature_with_slash() {
+        let dep = Dependency::new("tokio", "1.0").with_features(vec!["rt/multi-thread".to_string()]);
+        let line = dep.to_toml_line();
+        assert!(line.contains("rt/multi-thread"));
     }
 }

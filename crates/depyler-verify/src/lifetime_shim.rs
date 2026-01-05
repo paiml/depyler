@@ -253,11 +253,10 @@ pub fn is_mutating_method(method: &str) -> bool {
 
 /// Check if two borrow kinds conflict
 pub fn borrows_conflict(kind1: &BorrowState, kind2: &BorrowState) -> bool {
-    match (kind1, kind2) {
-        (BorrowState::MutableBorrow, _) => true,
-        (_, BorrowState::MutableBorrow) => true,
-        _ => false,
-    }
+    matches!(
+        (kind1, kind2),
+        (BorrowState::MutableBorrow, _) | (_, BorrowState::MutableBorrow)
+    )
 }
 
 #[cfg(test)]

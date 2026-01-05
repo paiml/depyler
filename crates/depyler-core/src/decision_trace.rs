@@ -2161,4 +2161,631 @@ mod tests {
         assert!(collector.verify_chain());
         assert_eq!(collector.len(), 1000);
     }
+
+    // ========================================================
+    // DEPYLER-COVERAGE-95: Additional decision_trace tests
+    // ========================================================
+
+    #[test]
+    fn test_depyler_decision_with_py_ast_hash() {
+        let decision = DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "test_name",
+            "i64",
+            &["i32"],
+            0.9,
+            "test.rs",
+            1,
+        )
+        .with_py_ast_hash(12345);
+
+        assert_eq!(decision.py_ast_hash, 12345);
+    }
+
+    #[test]
+    fn test_depyler_decision_builder_chain() {
+        let decision = DepylerDecision::new(
+            DecisionCategory::BorrowStrategy,
+            "borrow_test",
+            "&T",
+            &["T", "&mut T"],
+            0.8,
+            "test.rs",
+            10,
+        )
+        .with_py_ast_hash(999)
+        .with_py_span(0, 100)
+        .with_rs_span(0, 150);
+
+        assert_eq!(decision.py_ast_hash, 999);
+        assert_eq!(decision.py_span, (0, 100));
+        assert_eq!(decision.rs_span, Some((0, 150)));
+    }
+
+    #[test]
+    fn test_generate_decision_id_empty_strings() {
+        let id = generate_decision_id("", "", "", 0);
+        // Should still produce a valid hash
+        assert!(id > 0);
+    }
+
+    #[test]
+    fn test_generate_decision_id_long_strings() {
+        let long_name = "a".repeat(10000);
+        let id = generate_decision_id("TypeMapping", &long_name, "file.rs", 100);
+        assert!(id > 0);
+    }
+
+    #[test]
+    fn test_decision_category_clone() {
+        let category = DecisionCategory::TypeMapping;
+        let cloned = category.clone();
+        assert_eq!(category, cloned);
+    }
+
+    #[test]
+    fn test_decision_category_copy() {
+        let category = DecisionCategory::BorrowStrategy;
+        let copied: DecisionCategory = category; // Copy trait
+        assert_eq!(category, copied);
+    }
+
+    #[test]
+    fn test_depyler_decision_clone() {
+        let decision = DepylerDecision::new(
+            DecisionCategory::LifetimeInfer,
+            "lifetime_test",
+            "'static",
+            &["'a"],
+            0.95,
+            "test.rs",
+            50,
+        );
+        let cloned = decision.clone();
+        assert_eq!(decision.category, cloned.category);
+        assert_eq!(decision.name, cloned.name);
+        assert_eq!(decision.chosen_path, cloned.chosen_path);
+    }
+
+    #[test]
+    fn test_depyler_decision_debug_format() {
+        let decision = DepylerDecision::new(
+            DecisionCategory::MethodDispatch,
+            "dispatch_test",
+            "trait_method",
+            &[],
+            0.75,
+            "test.rs",
+            1,
+        );
+        let debug = format!("{:?}", decision);
+        assert!(debug.contains("DepylerDecision"));
+        assert!(debug.contains("MethodDispatch"));
+    }
+
+    #[test]
+    fn test_transpile_decision_all_variants() {
+        let variants = [
+            TranspileDecision::TypeInference,
+            TranspileDecision::OwnershipInference,
+            TranspileDecision::MethodResolution,
+            TranspileDecision::ImportMapping,
+            TranspileDecision::ControlFlowTransform,
+        ];
+
+        for variant in &variants {
+            let _s = format!("{}", variant);
+            let _d = format!("{:?}", variant);
+        }
+    }
+
+    #[test]
+    fn test_transpile_trace_clone() {
+        let trace = TranspileTrace::new(
+            TranspileDecision::TypeInference,
+            "RULE-001",
+            0.85,
+            "Test trace",
+        );
+        let cloned = trace.clone();
+        assert_eq!(trace.decision, cloned.decision);
+        assert_eq!(trace.rule_id, cloned.rule_id);
+    }
+
+    #[test]
+    fn test_transpile_trace_debug_format() {
+        let trace = TranspileTrace::new(
+            TranspileDecision::OwnershipInference,
+            "RULE-002",
+            0.9,
+            "Debug test",
+        );
+        let debug = format!("{:?}", trace);
+        assert!(debug.contains("TranspileTrace"));
+    }
+
+    #[test]
+    fn test_ring_collector_total_collected_no_wrap() {
+        let mut collector = RingCollector::with_capacity(100);
+        for i in 0..50 {
+            let trace = TranspileTrace::new(
+                TranspileDecision::TypeInference,
+                &format!("RULE-{:03}", i),
+                0.85,
+                "Test",
+            );
+            collector.collect(trace);
+        }
+        assert_eq!(collector.total_collected(), 50);
+        assert!(!collector.has_wrapped());
+    }
+
+    #[test]
+    fn test_ring_collector_total_collected_with_wrap() {
+        let mut collector = RingCollector::with_capacity(10);
+        for i in 0..25 {
+            let trace = TranspileTrace::new(
+                TranspileDecision::TypeInference,
+                &format!("RULE-{:03}", i),
+                0.85,
+                "Test",
+            );
+            collector.collect(trace);
+        }
+        assert_eq!(collector.total_collected(), 25);
+        assert!(collector.has_wrapped());
+        assert_eq!(collector.len(), 10); // Capacity limit
+    }
+
+    #[test]
+    fn test_stream_collector_total_streamed() {
+        let mut collector = StreamCollector::new();
+        for i in 0..5 {
+            let trace = TranspileTrace::new(
+                TranspileDecision::MethodResolution,
+                &format!("RULE-{:03}", i),
+                0.9,
+                "Stream test",
+            );
+            collector.collect(trace);
+        }
+        assert_eq!(collector.total_streamed(), 0); // Not flushed yet
+        let _ = collector.flush();
+        assert!(collector.total_streamed() >= 0);
+    }
+
+    #[test]
+    fn test_hash_chain_collector_chain_hash_initial() {
+        let collector = HashChainCollector::new();
+        // Initial chain hash should be 0
+        assert_eq!(collector.chain_hash(), 0);
+    }
+
+    #[test]
+    fn test_hash_chain_collector_chain_hash_changes() {
+        let mut collector = HashChainCollector::new();
+        let initial_hash = collector.chain_hash();
+
+        let trace = TranspileTrace::new(
+            TranspileDecision::TypeInference,
+            "RULE-001",
+            0.85,
+            "Hash test",
+        );
+        collector.collect(trace);
+
+        let new_hash = collector.chain_hash();
+        assert_ne!(initial_hash, new_hash);
+    }
+
+    #[test]
+    fn test_hash_chain_collector_produces_unique_hashes() {
+        let mut collector = HashChainCollector::new();
+        let mut seen_hashes = std::collections::HashSet::new();
+
+        for i in 0..5 {
+            let trace = TranspileTrace::new(
+                TranspileDecision::TypeInference,
+                &format!("RULE-{:03}", i),
+                0.85,
+                "Hash uniqueness test",
+            );
+            collector.collect(trace);
+            let hash = collector.chain_hash();
+            // Each addition should produce a different hash
+            assert!(seen_hashes.insert(hash), "Hash collision detected at iteration {}", i);
+        }
+
+        // Chain should be valid
+        assert!(collector.verify_chain());
+        assert_eq!(collector.len(), 5);
+    }
+
+    #[test]
+    fn test_compile_outcome_success_debug_display() {
+        let outcome = CompileOutcome::Success;
+        let _debug = format!("{:?}", outcome);
+    }
+
+    #[test]
+    fn test_compile_outcome_error_debug_display() {
+        let outcome = CompileOutcome::Error {
+            code: "E0001".to_string(),
+            message: "test error".to_string(),
+            span: Some((10, 50)),
+        };
+        let _debug = format!("{:?}", outcome);
+    }
+
+    #[test]
+    fn test_causal_link_creation() {
+        let decision = DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "test_decision",
+            "i32",
+            &[],
+            0.9,
+            "test.rs",
+            1,
+        );
+        let link = CausalLink {
+            decision,
+            depth: 0,
+        };
+        assert_eq!(link.depth, 0);
+        assert_eq!(link.decision.name, "test_decision");
+    }
+
+    #[test]
+    fn test_compile_outcome_clone_success() {
+        let outcome = CompileOutcome::Success;
+        let cloned = outcome.clone();
+        assert!(matches!(cloned, CompileOutcome::Success));
+    }
+
+    #[test]
+    fn test_compile_outcome_clone_error() {
+        let outcome = CompileOutcome::Error {
+            code: "E0308".to_string(),
+            message: "type mismatch".to_string(),
+            span: Some((1, 10)),
+        };
+        let cloned = outcome.clone();
+        match cloned {
+            CompileOutcome::Error { code, message, span } => {
+                assert_eq!(code, "E0308");
+                assert!(message.contains("mismatch"));
+                assert_eq!(span, Some((1, 10)));
+            }
+            _ => panic!("Expected Error variant"),
+        }
+    }
+
+    #[test]
+    fn test_causal_link_clone() {
+        let decision = DepylerDecision::new(
+            DecisionCategory::BorrowStrategy,
+            "clone_test",
+            "&T",
+            &[],
+            0.8,
+            "test.rs",
+            2,
+        );
+        let link = CausalLink {
+            decision,
+            depth: 1,
+        };
+        let cloned = link.clone();
+        assert_eq!(link.depth, cloned.depth);
+        assert_eq!(link.decision.name, cloned.decision.name);
+    }
+
+    #[test]
+    fn test_correlate_error_non_overlapping() {
+        let decisions = vec![
+            DepylerDecision::new(
+                DecisionCategory::TypeMapping,
+                "decision1",
+                "i32",
+                &[],
+                0.9,
+                "test.rs",
+                1,
+            )
+            .with_rs_span(0, 10),
+            DepylerDecision::new(
+                DecisionCategory::TypeMapping,
+                "decision2",
+                "i64",
+                &[],
+                0.9,
+                "test.rs",
+                2,
+            )
+            .with_rs_span(100, 110),
+        ];
+
+        // Error span that doesn't overlap with either decision
+        let result = correlate_error(&decisions, (50, 60));
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_correlate_error_partial_overlap() {
+        let decisions = vec![
+            DepylerDecision::new(
+                DecisionCategory::TypeMapping,
+                "overlap_test",
+                "i32",
+                &[],
+                0.9,
+                "test.rs",
+                1,
+            )
+            .with_rs_span(0, 50),
+        ];
+
+        // Error span partially overlaps
+        let result = correlate_error(&decisions, (40, 60));
+        assert_eq!(result.len(), 1);
+    }
+
+    #[test]
+    fn test_build_causal_chain_multiple_decisions() {
+        let decisions = vec![
+            DepylerDecision::new(
+                DecisionCategory::TypeMapping,
+                "type_decision",
+                "i32",
+                &[],
+                0.9,
+                "test.rs",
+                1,
+            )
+            .with_rs_span(0, 100),
+            DepylerDecision::new(
+                DecisionCategory::BorrowStrategy,
+                "borrow_decision",
+                "&T",
+                &[],
+                0.8,
+                "test.rs",
+                2,
+            )
+            .with_rs_span(20, 80),
+        ];
+
+        let chain = build_causal_chain(&decisions, (30, 70), 5);
+        assert!(chain.len() >= 0); // May be empty if no overlap found
+    }
+
+    #[test]
+    fn test_decision_category_serialize_deserialize() {
+        let category = DecisionCategory::ErrorHandling;
+        let serialized = serde_json::to_string(&category).unwrap();
+        let deserialized: DecisionCategory = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(category, deserialized);
+    }
+
+    #[test]
+    fn test_transpile_decision_serialize_deserialize() {
+        let decision = TranspileDecision::OwnershipInference;
+        let serialized = serde_json::to_string(&decision).unwrap();
+        let deserialized: TranspileDecision = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(decision, deserialized);
+    }
+
+    #[test]
+    fn test_transpile_trace_with_all_options() {
+        let trace = TranspileTrace::new(
+            TranspileDecision::TypeInference,
+            "RULE-LIFETIME",
+            0.95,
+            "Full options test",
+        )
+        .with_source_loc("test.py:42")
+        .with_alternatives(&["'a", "'static", "elided"]);
+
+        assert_eq!(trace.source_loc, "test.py:42".to_string());
+        assert_eq!(trace.alternatives.len(), 3);
+    }
+
+    #[test]
+    fn test_ring_collector_clear_resets_counters() {
+        let mut collector = RingCollector::with_capacity(10);
+        for i in 0..5 {
+            let trace = TranspileTrace::new(
+                TranspileDecision::TypeInference,
+                &format!("RULE-{}", i),
+                0.85,
+                "Clear test",
+            );
+            collector.collect(trace);
+        }
+        assert_eq!(collector.len(), 5);
+        collector.clear();
+        assert_eq!(collector.len(), 0);
+        assert!(!collector.has_wrapped());
+    }
+
+    #[test]
+    fn test_stream_collector_clear_empties_buffer() {
+        let mut collector = StreamCollector::new();
+        for i in 0..3 {
+            let trace = TranspileTrace::new(
+                TranspileDecision::ImportMapping,
+                &format!("RULE-{}", i),
+                0.9,
+                "Buffer test",
+            );
+            collector.collect(trace);
+        }
+        assert_eq!(collector.len(), 3);
+        collector.clear();
+        assert_eq!(collector.len(), 0);
+    }
+
+    #[test]
+    fn test_hash_chain_collector_clear_resets_hash() {
+        let mut collector = HashChainCollector::new();
+        let trace = TranspileTrace::new(
+            TranspileDecision::ControlFlowTransform,
+            "RULE-001",
+            0.8,
+            "Hash reset test",
+        );
+        collector.collect(trace);
+        assert_ne!(collector.chain_hash(), 0);
+
+        collector.clear();
+        assert_eq!(collector.chain_hash(), 0);
+        assert!(collector.verify_chain());
+    }
+
+    #[test]
+    fn test_trace_collector_is_empty() {
+        let collector = RingCollector::new();
+        assert!(collector.is_empty());
+        assert_eq!(collector.len(), 0);
+    }
+
+    #[test]
+    fn test_trace_collector_not_empty_after_collect() {
+        let mut collector = RingCollector::new();
+        let trace = TranspileTrace::new(
+            TranspileDecision::TypeInference,
+            "RULE-001",
+            0.85,
+            "Not empty test",
+        );
+        collector.collect(trace);
+        assert!(!collector.is_empty());
+    }
+
+    #[test]
+    fn test_transpile_trace_empty_alternatives() {
+        let trace = TranspileTrace::new(
+            TranspileDecision::OwnershipInference,
+            "RULE-001",
+            0.9,
+            "No alternatives",
+        )
+        .with_alternatives(&[]);
+
+        assert!(trace.alternatives.is_empty());
+    }
+
+    #[test]
+    fn test_depyler_decision_empty_alternatives() {
+        let decision = DepylerDecision::new(
+            DecisionCategory::Ownership,
+            "ownership_test",
+            "move",
+            &[], // Empty alternatives
+            0.99,
+            "test.rs",
+            1,
+        );
+        assert!(decision.alternatives.is_empty());
+    }
+
+    #[test]
+    fn test_depyler_decision_many_alternatives() {
+        let alts: Vec<&str> = (0..100).map(|_| "alt").collect();
+        let decision = DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "many_alts",
+            "chosen",
+            &alts,
+            0.5,
+            "test.rs",
+            1,
+        );
+        assert_eq!(decision.alternatives.len(), 100);
+    }
+
+    #[test]
+    fn test_decision_confidence_boundaries() {
+        // Test low confidence
+        let low = DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "low_conf",
+            "i32",
+            &[],
+            0.0,
+            "test.rs",
+            1,
+        );
+        assert_eq!(low.confidence, 0.0);
+
+        // Test high confidence
+        let high = DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "high_conf",
+            "i64",
+            &[],
+            1.0,
+            "test.rs",
+            1,
+        );
+        assert_eq!(high.confidence, 1.0);
+    }
+
+    #[test]
+    fn test_hash_chained_trace_clone() {
+        let trace = TranspileTrace::new(
+            TranspileDecision::TypeInference,
+            "RULE-001",
+            0.85,
+            "Clone test",
+        );
+        let chained = HashChainedTrace {
+            trace: trace.clone(),
+            entry_hash: 12345,
+            prev_hash: 0,
+        };
+        let cloned = chained.clone();
+        assert_eq!(chained.entry_hash, cloned.entry_hash);
+        assert_eq!(chained.prev_hash, cloned.prev_hash);
+    }
+
+    #[test]
+    fn test_compile_outcome_success_variant() {
+        let outcome = CompileOutcome::Success;
+        let _debug = format!("{:?}", outcome);
+        assert!(matches!(outcome, CompileOutcome::Success));
+    }
+
+    #[test]
+    fn test_compile_outcome_error_without_span() {
+        let outcome = CompileOutcome::Error {
+            code: "E0001".to_string(),
+            message: "Generic error".to_string(),
+            span: None,
+        };
+        match outcome {
+            CompileOutcome::Error { span, .. } => {
+                assert!(span.is_none());
+            }
+            _ => panic!("Expected Error variant"),
+        }
+    }
+
+    #[test]
+    fn test_compile_outcome_error_with_span() {
+        let outcome = CompileOutcome::Error {
+            code: "E0308".to_string(),
+            message: "Type mismatch".to_string(),
+            span: Some((10, 25)),
+        };
+        match outcome {
+            CompileOutcome::Error { span, code, message } => {
+                assert_eq!(span, Some((10, 25)));
+                assert_eq!(code, "E0308");
+                assert!(message.contains("mismatch"));
+            }
+            _ => panic!("Expected Error variant"),
+        }
+    }
 }

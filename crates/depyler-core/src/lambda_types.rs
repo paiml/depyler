@@ -656,4 +656,435 @@ mod tests {
         let retrieved = mapper.get_event_mapping(&custom_event).unwrap();
         assert_eq!(retrieved.rust_type, "MyCustomEvent");
     }
+
+    // ============================================================
+    // DEPYLER-COVERAGE-95: Additional comprehensive tests
+    // ============================================================
+
+    #[test]
+    fn test_lambda_type_mapper_default() {
+        let mapper = LambdaTypeMapper::default();
+        // Default impl calls new()
+        assert!(mapper.get_event_mapping(&LambdaEventType::S3Event).is_some());
+    }
+
+    #[test]
+    fn test_sqs_event_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::SqsEvent).unwrap();
+        assert_eq!(mapping.rust_type, "SqsEvent");
+        assert_eq!(mapping.aws_events_module, "sqs");
+    }
+
+    #[test]
+    fn test_sqs_response_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::SqsEvent).unwrap();
+        assert_eq!(mapping.rust_type, "SqsBatchResponse");
+    }
+
+    #[test]
+    fn test_sns_event_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::SnsEvent).unwrap();
+        assert_eq!(mapping.rust_type, "SnsEvent");
+        assert_eq!(mapping.aws_events_module, "sns");
+    }
+
+    #[test]
+    fn test_sns_response_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::SnsEvent).unwrap();
+        assert_eq!(mapping.rust_type, "serde_json::Value");
+    }
+
+    #[test]
+    fn test_dynamodb_event_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::DynamodbEvent).unwrap();
+        assert_eq!(mapping.rust_type, "DynamodbEvent");
+        assert_eq!(mapping.aws_events_module, "dynamodb");
+    }
+
+    #[test]
+    fn test_dynamodb_response_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::DynamodbEvent).unwrap();
+        assert_eq!(mapping.rust_type, "serde_json::Value");
+    }
+
+    #[test]
+    fn test_eventbridge_base_event_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::EventBridgeEvent(None)).unwrap();
+        assert_eq!(mapping.rust_type, "EventBridgeEvent<serde_json::Value>");
+        assert_eq!(mapping.aws_events_module, "eventbridge");
+    }
+
+    #[test]
+    fn test_eventbridge_base_response_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::EventBridgeEvent(None)).unwrap();
+        assert_eq!(mapping.rust_type, "()");
+    }
+
+    #[test]
+    fn test_eventbridge_custom_response_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let custom_event = LambdaEventType::EventBridgeEvent(Some("MyEvent".to_string()));
+        let mapping = mapper.get_response_mapping(&custom_event).unwrap();
+        assert_eq!(mapping.rust_type, "()");
+    }
+
+    #[test]
+    fn test_s3_response_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::S3Event).unwrap();
+        assert_eq!(mapping.rust_type, "serde_json::Value");
+    }
+
+    #[test]
+    fn test_apigw_v1_event_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
+        assert_eq!(mapping.rust_type, "ApiGatewayProxyRequest");
+        assert_eq!(mapping.aws_events_module, "apigw");
+        assert!(!mapping.imports.is_empty());
+    }
+
+    #[test]
+    fn test_apigw_v2_event_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::ApiGatewayV2HttpRequest).unwrap();
+        assert_eq!(mapping.rust_type, "ApiGatewayV2httpRequest");
+        assert_eq!(mapping.aws_events_module, "apigw");
+    }
+
+    #[test]
+    fn test_apigw_v2_response_mapping() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::ApiGatewayV2HttpRequest).unwrap();
+        assert_eq!(mapping.rust_type, "ApiGatewayV2httpResponse");
+        assert!(mapping.conversion_impl.is_some());
+    }
+
+    #[test]
+    fn test_get_event_mapping_unknown() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::Custom("Unknown".to_string()));
+        assert!(mapping.is_none());
+    }
+
+    #[test]
+    fn test_get_response_mapping_unknown() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::Custom("Unknown".to_string()));
+        assert!(mapping.is_none());
+    }
+
+    #[test]
+    fn test_type_conversion_rules_count() {
+        let mapper = LambdaTypeMapper::new();
+        let rules = mapper.get_type_conversion_rules();
+        // We define 8 conversion rules
+        assert_eq!(rules.len(), 8);
+    }
+
+    #[test]
+    fn test_type_conversion_rules_status_code() {
+        let mapper = LambdaTypeMapper::new();
+        let rules = mapper.get_type_conversion_rules();
+        let status_rule = rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::StatusCode)).unwrap();
+        assert_eq!(status_rule.python_pattern, "int");
+        assert_eq!(status_rule.rust_type, "u16");
+    }
+
+    #[test]
+    fn test_type_conversion_rules_timestamp() {
+        let mapper = LambdaTypeMapper::new();
+        let rules = mapper.get_type_conversion_rules();
+        let timestamp_rule = rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::Timestamp)).unwrap();
+        assert_eq!(timestamp_rule.python_pattern, "float");
+        assert_eq!(timestamp_rule.rust_type, "f64");
+        assert!(timestamp_rule.serde_attribute.is_some());
+    }
+
+    #[test]
+    fn test_type_conversion_rules_records() {
+        let mapper = LambdaTypeMapper::new();
+        let rules = mapper.get_type_conversion_rules();
+        let records_rule = rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::Records)).unwrap();
+        assert_eq!(records_rule.python_pattern, "List[dict]");
+        assert_eq!(records_rule.rust_type, "Vec<Record>");
+    }
+
+    #[test]
+    fn test_type_conversion_rules_path_params() {
+        let mapper = LambdaTypeMapper::new();
+        let rules = mapper.get_type_conversion_rules();
+        let path_rule = rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::PathParameters)).unwrap();
+        assert_eq!(path_rule.rust_type, "HashMap<String, String>");
+    }
+
+    #[test]
+    fn test_type_conversion_rules_query_params() {
+        let mapper = LambdaTypeMapper::new();
+        let rules = mapper.get_type_conversion_rules();
+        let query_rule = rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::QueryStringParameters)).unwrap();
+        assert_eq!(query_rule.rust_type, "HashMap<String, Vec<String>>");
+    }
+
+    #[test]
+    fn test_type_conversion_rules_body() {
+        let mapper = LambdaTypeMapper::new();
+        let rules = mapper.get_type_conversion_rules();
+        let body_rule = rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::Body)).unwrap();
+        assert_eq!(body_rule.rust_type, "Option<String>");
+    }
+
+    #[test]
+    fn test_type_conversion_rules_header_value() {
+        let mapper = LambdaTypeMapper::new();
+        let rules = mapper.get_type_conversion_rules();
+        let header_rule = rules.iter().find(|r| matches!(r.lambda_context, LambdaContext::HeaderValue)).unwrap();
+        assert_eq!(header_rule.rust_type, "HeaderValue");
+    }
+
+    #[test]
+    fn test_generate_response_builders_apigw_v2() {
+        let mapper = LambdaTypeMapper::new();
+        let builder = mapper.generate_response_builders(&LambdaEventType::ApiGatewayV2HttpRequest).unwrap();
+        assert!(builder.contains("ResponseBuilderV2"));
+        assert!(builder.contains("fn status"));
+        assert!(builder.contains("fn json"));
+    }
+
+    #[test]
+    fn test_generate_response_builders_sqs() {
+        let mapper = LambdaTypeMapper::new();
+        let builder = mapper.generate_response_builders(&LambdaEventType::SqsEvent).unwrap();
+        assert!(builder.contains("SqsResponseBuilder"));
+        assert!(builder.contains("add_failure"));
+    }
+
+    #[test]
+    fn test_generate_response_builders_s3() {
+        let mapper = LambdaTypeMapper::new();
+        let builder = mapper.generate_response_builders(&LambdaEventType::S3Event).unwrap();
+        assert!(builder.is_empty()); // S3 has no custom builder
+    }
+
+    #[test]
+    fn test_generate_response_builders_sns() {
+        let mapper = LambdaTypeMapper::new();
+        let builder = mapper.generate_response_builders(&LambdaEventType::SnsEvent).unwrap();
+        assert!(builder.is_empty());
+    }
+
+    #[test]
+    fn test_generate_response_builders_dynamodb() {
+        let mapper = LambdaTypeMapper::new();
+        let builder = mapper.generate_response_builders(&LambdaEventType::DynamodbEvent).unwrap();
+        assert!(builder.is_empty());
+    }
+
+    #[test]
+    fn test_generate_response_builders_eventbridge() {
+        let mapper = LambdaTypeMapper::new();
+        let builder = mapper.generate_response_builders(&LambdaEventType::EventBridgeEvent(None)).unwrap();
+        assert!(builder.is_empty());
+    }
+
+    #[test]
+    fn test_add_custom_response_mapping() {
+        let mut mapper = LambdaTypeMapper::new();
+        let custom_event = LambdaEventType::Custom("MyEvent".to_string());
+        let custom_mapping = ResponseTypeMapping {
+            rust_type: "MyResponse".to_string(),
+            conversion_impl: Some("impl From ...".to_string()),
+            imports: vec!["use my_crate::MyResponse;".to_string()],
+        };
+
+        mapper.add_custom_response_mapping(custom_event.clone(), custom_mapping);
+
+        let retrieved = mapper.get_response_mapping(&custom_event).unwrap();
+        assert_eq!(retrieved.rust_type, "MyResponse");
+        assert!(retrieved.conversion_impl.is_some());
+    }
+
+    #[test]
+    fn test_required_imports_deduplication() {
+        let mapper = LambdaTypeMapper::new();
+        let imports = mapper.get_required_imports(&LambdaEventType::ApiGatewayProxyRequest);
+        // Check no duplicates (sorted + dedup in implementation)
+        let mut sorted = imports.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(imports.len(), sorted.len());
+    }
+
+    #[test]
+    fn test_required_imports_s3() {
+        let mapper = LambdaTypeMapper::new();
+        let imports = mapper.get_required_imports(&LambdaEventType::S3Event);
+        assert!(imports.iter().any(|i| i.contains("S3Event")));
+        assert!(imports.iter().any(|i| i.contains("serde_json")));
+    }
+
+    #[test]
+    fn test_required_imports_sqs() {
+        let mapper = LambdaTypeMapper::new();
+        let imports = mapper.get_required_imports(&LambdaEventType::SqsEvent);
+        assert!(imports.iter().any(|i| i.contains("SqsEvent")));
+        assert!(imports.iter().any(|i| i.contains("SqsBatchResponse")));
+    }
+
+    #[test]
+    fn test_error_conversions_content() {
+        let mapper = LambdaTypeMapper::new();
+        let errors = mapper.generate_error_conversions();
+        assert!(errors.contains("Serialization"));
+        assert!(errors.contains("Handler"));
+        assert!(errors.contains("Http"));
+        assert!(errors.contains("KeyError"));
+        assert!(errors.contains("ValueError"));
+    }
+
+    #[test]
+    fn test_event_type_mapping_fields() {
+        let mapping = EventTypeMapping {
+            rust_type: "Test".to_string(),
+            aws_events_module: "test".to_string(),
+            imports: vec!["use test::Test;".to_string()],
+            serde_attributes: vec!["#[serde(default)]".to_string()],
+        };
+        assert_eq!(mapping.rust_type, "Test");
+        assert_eq!(mapping.aws_events_module, "test");
+        assert_eq!(mapping.imports.len(), 1);
+        assert_eq!(mapping.serde_attributes.len(), 1);
+    }
+
+    #[test]
+    fn test_response_type_mapping_fields() {
+        let mapping = ResponseTypeMapping {
+            rust_type: "TestResponse".to_string(),
+            conversion_impl: None,
+            imports: vec![],
+        };
+        assert_eq!(mapping.rust_type, "TestResponse");
+        assert!(mapping.conversion_impl.is_none());
+        assert!(mapping.imports.is_empty());
+    }
+
+    #[test]
+    fn test_type_conversion_rule_fields() {
+        let rule = TypeConversionRule {
+            python_pattern: "str".to_string(),
+            rust_type: "String".to_string(),
+            lambda_context: LambdaContext::Body,
+            serde_attribute: None,
+        };
+        assert_eq!(rule.python_pattern, "str");
+        assert_eq!(rule.rust_type, "String");
+        assert!(matches!(rule.lambda_context, LambdaContext::Body));
+        assert!(rule.serde_attribute.is_none());
+    }
+
+    #[test]
+    fn test_lambda_context_variants() {
+        // Ensure all variants are usable
+        let contexts = [
+            LambdaContext::EventRoot,
+            LambdaContext::HeaderValue,
+            LambdaContext::StatusCode,
+            LambdaContext::Timestamp,
+            LambdaContext::Records,
+            LambdaContext::RequestContext,
+            LambdaContext::PathParameters,
+            LambdaContext::QueryStringParameters,
+            LambdaContext::Body,
+        ];
+        assert_eq!(contexts.len(), 9);
+    }
+
+    #[test]
+    fn test_apigw_response_impl_content() {
+        assert!(APIGW_RESPONSE_IMPL.contains("impl From<HandlerOutput>"));
+        assert!(APIGW_RESPONSE_IMPL.contains("ApiGatewayProxyResponse"));
+        assert!(APIGW_RESPONSE_IMPL.contains("status_code"));
+    }
+
+    #[test]
+    fn test_apigw_v2_response_impl_content() {
+        assert!(APIGW_V2_RESPONSE_IMPL.contains("impl From<HandlerOutput>"));
+        assert!(APIGW_V2_RESPONSE_IMPL.contains("ApiGatewayV2httpResponse"));
+        assert!(APIGW_V2_RESPONSE_IMPL.contains("cookies"));
+    }
+
+    #[test]
+    fn test_custom_eventbridge_types_struct_definition() {
+        let mapper = LambdaTypeMapper::new();
+        let generated = mapper.generate_custom_eventbridge_types("TestEvent").unwrap();
+        assert!(generated.contains("pub struct TestEvent"));
+        assert!(generated.contains("#[derive(Debug, Deserialize, Serialize)]"));
+    }
+
+    #[test]
+    fn test_custom_eventbridge_types_enum_definition() {
+        let mapper = LambdaTypeMapper::new();
+        let generated = mapper.generate_custom_eventbridge_types("MyCustom").unwrap();
+        assert!(generated.contains("pub enum EventType"));
+        assert!(generated.contains("CustomEvent(MyCustom)"));
+    }
+
+    #[test]
+    fn test_s3_event_imports() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::S3Event).unwrap();
+        assert!(mapping.imports.iter().any(|i| i.contains("aws_lambda_events::s3")));
+    }
+
+    #[test]
+    fn test_apigw_v1_response_has_conversion() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_response_mapping(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
+        let impl_str = mapping.conversion_impl.as_ref().unwrap();
+        assert!(impl_str.contains("From<HandlerOutput>"));
+    }
+
+    #[test]
+    fn test_eventbridge_imports() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::EventBridgeEvent(None)).unwrap();
+        assert!(mapping.imports.iter().any(|i| i.contains("EventBridgeEvent")));
+        assert!(mapping.imports.iter().any(|i| i.contains("serde_json")));
+    }
+
+    #[test]
+    fn test_empty_serde_attributes() {
+        let mapper = LambdaTypeMapper::new();
+        let mapping = mapper.get_event_mapping(&LambdaEventType::S3Event).unwrap();
+        assert!(mapping.serde_attributes.is_empty());
+    }
+
+    #[test]
+    fn test_response_builder_contains_build_method() {
+        let mapper = LambdaTypeMapper::new();
+        let builder = mapper.generate_response_builders(&LambdaEventType::ApiGatewayProxyRequest).unwrap();
+        assert!(builder.contains("fn build(self)"));
+    }
+
+    #[test]
+    fn test_sqs_response_builder_batch_failures() {
+        let mapper = LambdaTypeMapper::new();
+        let builder = mapper.generate_response_builders(&LambdaEventType::SqsEvent).unwrap();
+        assert!(builder.contains("batch_item_failures"));
+        assert!(builder.contains("SqsBatchItemFailure"));
+    }
+
+    #[test]
+    fn test_lambda_error_conversions_from_str() {
+        let errors = LAMBDA_ERROR_CONVERSIONS;
+        assert!(errors.contains("impl From<&str> for LambdaError"));
+    }
 }
