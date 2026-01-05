@@ -299,6 +299,170 @@ macro_rules! record_unknown_type {
 mod tests {
     use super::*;
 
+    // === UnknownTypeEvent tests ===
+
+    #[test]
+    fn test_unknown_type_event_new() {
+        let event = UnknownTypeEvent::new("Attribute", "obj.field");
+        assert_eq!(event.expr_kind, "Attribute");
+        assert_eq!(event.expr_repr, "obj.field");
+        assert!(event.context.is_none());
+        assert!(event.source_location.is_none());
+        assert!(event.parent_function.is_none());
+        assert!(event.expected_type.is_none());
+        assert!(event.timestamp > 0);
+    }
+
+    #[test]
+    fn test_unknown_type_event_with_context() {
+        let event = UnknownTypeEvent::new("Call", "func()").with_context("some_context");
+        assert_eq!(event.context, Some("some_context".to_string()));
+    }
+
+    #[test]
+    fn test_unknown_type_event_with_location() {
+        let event = UnknownTypeEvent::new("Call", "func()").with_location("test.py:42");
+        assert_eq!(event.source_location, Some("test.py:42".to_string()));
+    }
+
+    #[test]
+    fn test_unknown_type_event_with_function() {
+        let event = UnknownTypeEvent::new("Call", "func()").with_function("main");
+        assert_eq!(event.parent_function, Some("main".to_string()));
+    }
+
+    #[test]
+    fn test_unknown_type_event_with_expected() {
+        let event = UnknownTypeEvent::new("Call", "func()").with_expected("int");
+        assert_eq!(event.expected_type, Some("int".to_string()));
+    }
+
+    #[test]
+    fn test_unknown_type_event_builder_chain() {
+        let event = UnknownTypeEvent::new("MethodCall", "obj.method()")
+            .with_context("method")
+            .with_location("file.py:10")
+            .with_function("process")
+            .with_expected("str");
+
+        assert_eq!(event.expr_kind, "MethodCall");
+        assert_eq!(event.context, Some("method".to_string()));
+        assert_eq!(event.source_location, Some("file.py:10".to_string()));
+        assert_eq!(event.parent_function, Some("process".to_string()));
+        assert_eq!(event.expected_type, Some("str".to_string()));
+    }
+
+    #[test]
+    fn test_unknown_type_event_clone() {
+        let event = UnknownTypeEvent::new("Attr", "x.y").with_context("y");
+        let cloned = event.clone();
+        assert_eq!(event.expr_kind, cloned.expr_kind);
+        assert_eq!(event.context, cloned.context);
+    }
+
+    #[test]
+    fn test_unknown_type_event_debug() {
+        let event = UnknownTypeEvent::new("Test", "test_expr");
+        let debug = format!("{:?}", event);
+        assert!(debug.contains("UnknownTypeEvent"));
+        assert!(debug.contains("Test"));
+    }
+
+    #[test]
+    fn test_unknown_type_event_serialize() {
+        let event = UnknownTypeEvent::new("Attribute", "x.y");
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("Attribute"));
+        assert!(json.contains("x.y"));
+    }
+
+    #[test]
+    fn test_unknown_type_event_deserialize() {
+        let json = r#"{"expr_kind":"Call","expr_repr":"foo()","context":null,"source_location":null,"parent_function":null,"expected_type":null,"timestamp":0}"#;
+        let event: UnknownTypeEvent = serde_json::from_str(json).unwrap();
+        assert_eq!(event.expr_kind, "Call");
+        assert_eq!(event.expr_repr, "foo()");
+    }
+
+    // === ExprKindStats tests ===
+
+    #[test]
+    fn test_expr_kind_stats_default() {
+        let stats = ExprKindStats::default();
+        assert_eq!(stats.count, 0);
+        assert!(stats.unique_contexts.is_empty());
+        assert!(stats.sample_exprs.is_empty());
+    }
+
+    #[test]
+    fn test_expr_kind_stats_clone() {
+        let mut stats = ExprKindStats::default();
+        stats.count = 5;
+        stats.unique_contexts.push("ctx".to_string());
+        let cloned = stats.clone();
+        assert_eq!(cloned.count, 5);
+        assert_eq!(cloned.unique_contexts.len(), 1);
+    }
+
+    #[test]
+    fn test_expr_kind_stats_debug() {
+        let stats = ExprKindStats::default();
+        let debug = format!("{:?}", stats);
+        assert!(debug.contains("ExprKindStats"));
+    }
+
+    #[test]
+    fn test_expr_kind_stats_serialize() {
+        let stats = ExprKindStats {
+            count: 10,
+            unique_contexts: vec!["a".to_string()],
+            sample_exprs: vec!["expr".to_string()],
+        };
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("10"));
+    }
+
+    // === TypeInferenceTelemetry tests ===
+
+    #[test]
+    fn test_telemetry_new() {
+        let telemetry = TypeInferenceTelemetry::new();
+        assert!(telemetry.events().is_empty());
+        assert!(telemetry.stats().is_empty());
+        assert!(telemetry.is_enabled());
+    }
+
+    #[test]
+    fn test_telemetry_default() {
+        let telemetry = TypeInferenceTelemetry::default();
+        // Default derives use bool::default() = false for enabled field
+        // This differs from new() which explicitly sets enabled = true
+        assert!(!telemetry.is_enabled());
+    }
+
+    #[test]
+    fn test_telemetry_enable_disable() {
+        let telemetry = TypeInferenceTelemetry::new();
+        assert!(telemetry.is_enabled());
+
+        telemetry.set_enabled(false);
+        assert!(!telemetry.is_enabled());
+
+        telemetry.set_enabled(true);
+        assert!(telemetry.is_enabled());
+    }
+
+    #[test]
+    fn test_telemetry_disabled_no_record() {
+        let telemetry = TypeInferenceTelemetry::new();
+        telemetry.set_enabled(false);
+
+        telemetry.record_unknown(UnknownTypeEvent::new("Test", "x"));
+
+        assert!(telemetry.events().is_empty());
+        assert!(telemetry.stats().is_empty());
+    }
+
     #[test]
     fn test_record_unknown() {
         let telemetry = TypeInferenceTelemetry::new();
@@ -315,6 +479,59 @@ mod tests {
 
         let stats = telemetry.stats();
         assert_eq!(stats.get("Attribute").unwrap().count, 1);
+    }
+
+    #[test]
+    fn test_record_multiple_same_kind() {
+        let telemetry = TypeInferenceTelemetry::new();
+
+        telemetry.record_unknown(UnknownTypeEvent::new("Attr", "a.b"));
+        telemetry.record_unknown(UnknownTypeEvent::new("Attr", "c.d"));
+        telemetry.record_unknown(UnknownTypeEvent::new("Attr", "e.f"));
+
+        let stats = telemetry.stats();
+        assert_eq!(stats.get("Attr").unwrap().count, 3);
+        assert_eq!(stats.get("Attr").unwrap().sample_exprs.len(), 3);
+    }
+
+    #[test]
+    fn test_record_unique_contexts() {
+        let telemetry = TypeInferenceTelemetry::new();
+
+        telemetry.record_unknown(UnknownTypeEvent::new("A", "x").with_context("ctx1"));
+        telemetry.record_unknown(UnknownTypeEvent::new("A", "y").with_context("ctx2"));
+        telemetry.record_unknown(UnknownTypeEvent::new("A", "z").with_context("ctx1")); // dup
+
+        let stats = telemetry.stats();
+        let a_stats = stats.get("A").unwrap();
+        assert_eq!(a_stats.unique_contexts.len(), 2);
+    }
+
+    #[test]
+    fn test_sample_exprs_limit() {
+        let telemetry = TypeInferenceTelemetry::new();
+
+        for i in 0..15 {
+            telemetry.record_unknown(UnknownTypeEvent::new("X", format!("expr{}", i)));
+        }
+
+        let stats = telemetry.stats();
+        assert_eq!(stats.get("X").unwrap().sample_exprs.len(), 10); // Max 10
+    }
+
+    #[test]
+    fn test_telemetry_clear() {
+        let telemetry = TypeInferenceTelemetry::new();
+        telemetry.record_unknown(UnknownTypeEvent::new("A", "x"));
+        telemetry.record_unknown(UnknownTypeEvent::new("B", "y"));
+
+        assert!(!telemetry.events().is_empty());
+        assert!(!telemetry.stats().is_empty());
+
+        telemetry.clear();
+
+        assert!(telemetry.events().is_empty());
+        assert!(telemetry.stats().is_empty());
     }
 
     #[test]
@@ -335,6 +552,15 @@ mod tests {
     }
 
     #[test]
+    fn test_summary_empty() {
+        let telemetry = TypeInferenceTelemetry::new();
+        let summary = telemetry.summary();
+        assert_eq!(summary.total_unknowns, 0);
+        assert_eq!(summary.unique_expr_kinds, 0);
+        assert!(summary.top_unknown_kinds.is_empty());
+    }
+
+    #[test]
     fn test_export_json() {
         let telemetry = TypeInferenceTelemetry::new();
         telemetry.record_unknown(UnknownTypeEvent::new("Call", "foo()"));
@@ -342,5 +568,127 @@ mod tests {
         let json = telemetry.export_json().unwrap();
         assert!(json.contains("Call"));
         assert!(json.contains("foo()"));
+    }
+
+    #[test]
+    fn test_export_json_empty() {
+        let telemetry = TypeInferenceTelemetry::new();
+        let json = telemetry.export_json().unwrap();
+        assert_eq!(json, "[]");
+    }
+
+    #[test]
+    fn test_export_stats_json() {
+        let telemetry = TypeInferenceTelemetry::new();
+        telemetry.record_unknown(UnknownTypeEvent::new("Test", "expr"));
+
+        let json = telemetry.export_stats_json().unwrap();
+        assert!(json.contains("Test"));
+        assert!(json.contains("count"));
+    }
+
+    #[test]
+    fn test_export_stats_json_empty() {
+        let telemetry = TypeInferenceTelemetry::new();
+        let json = telemetry.export_stats_json().unwrap();
+        assert_eq!(json, "{}");
+    }
+
+    #[test]
+    fn test_telemetry_debug() {
+        let telemetry = TypeInferenceTelemetry::new();
+        let debug = format!("{:?}", telemetry);
+        assert!(debug.contains("TypeInferenceTelemetry"));
+    }
+
+    // === TelemetrySummary tests ===
+
+    #[test]
+    fn test_telemetry_summary_display() {
+        let summary = TelemetrySummary {
+            total_unknowns: 100,
+            unique_expr_kinds: 5,
+            top_unknown_kinds: vec![
+                ("Attribute".to_string(), 50),
+                ("Call".to_string(), 30),
+            ],
+        };
+
+        let display = format!("{}", summary);
+        assert!(display.contains("Type Inference Telemetry Summary"));
+        assert!(display.contains("100"));
+        assert!(display.contains("Attribute"));
+        assert!(display.contains("50 occurrences"));
+    }
+
+    #[test]
+    fn test_telemetry_summary_clone() {
+        let summary = TelemetrySummary {
+            total_unknowns: 10,
+            unique_expr_kinds: 2,
+            top_unknown_kinds: vec![("A".to_string(), 5)],
+        };
+        let cloned = summary.clone();
+        assert_eq!(summary.total_unknowns, cloned.total_unknowns);
+    }
+
+    #[test]
+    fn test_telemetry_summary_debug() {
+        let summary = TelemetrySummary {
+            total_unknowns: 0,
+            unique_expr_kinds: 0,
+            top_unknown_kinds: vec![],
+        };
+        let debug = format!("{:?}", summary);
+        assert!(debug.contains("TelemetrySummary"));
+    }
+
+    #[test]
+    fn test_telemetry_summary_serialize() {
+        let summary = TelemetrySummary {
+            total_unknowns: 42,
+            unique_expr_kinds: 3,
+            top_unknown_kinds: vec![("X".to_string(), 20)],
+        };
+        let json = serde_json::to_string(&summary).unwrap();
+        assert!(json.contains("42"));
+        assert!(json.contains("X"));
+    }
+
+    // === Global instance tests ===
+
+    #[test]
+    fn test_global_instance() {
+        let global1 = TypeInferenceTelemetry::global();
+        let global2 = TypeInferenceTelemetry::global();
+        // Both should point to the same instance
+        assert!(Arc::ptr_eq(&global1, &global2));
+    }
+
+    #[test]
+    fn test_reset_global() {
+        let global = TypeInferenceTelemetry::global();
+        global.record_unknown(UnknownTypeEvent::new("Reset", "test"));
+
+        TypeInferenceTelemetry::reset_global();
+
+        // After reset, events should be cleared
+        assert!(global.events().is_empty());
+    }
+
+    // === Edge cases ===
+
+    #[test]
+    fn test_empty_strings() {
+        let event = UnknownTypeEvent::new("", "");
+        assert_eq!(event.expr_kind, "");
+        assert_eq!(event.expr_repr, "");
+    }
+
+    #[test]
+    fn test_special_characters() {
+        let event = UnknownTypeEvent::new("Test<T>", "obj.method(\"arg\")");
+        assert_eq!(event.expr_kind, "Test<T>");
+        assert!(event.expr_repr.contains("\"arg\""));
     }
 }
