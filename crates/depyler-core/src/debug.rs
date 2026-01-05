@@ -304,6 +304,477 @@ macro_rules! depyler_trace {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::hir::{FunctionProperties, HirParam};
+    use smallvec::smallvec;
+
+    // === SourceMap tests ===
+
+    #[test]
+    fn test_source_map_new() {
+        let sm = SourceMap {
+            source_file: PathBuf::from("input.py"),
+            target_file: PathBuf::from("output.rs"),
+            mappings: vec![],
+            function_map: HashMap::new(),
+        };
+        assert_eq!(sm.source_file, PathBuf::from("input.py"));
+        assert_eq!(sm.target_file, PathBuf::from("output.rs"));
+        assert!(sm.mappings.is_empty());
+    }
+
+    #[test]
+    fn test_source_map_clone() {
+        let sm = SourceMap {
+            source_file: PathBuf::from("a.py"),
+            target_file: PathBuf::from("a.rs"),
+            mappings: vec![SourceMapping {
+                python_line: 1,
+                python_column: 0,
+                rust_line: 1,
+                rust_column: 0,
+                symbol: None,
+            }],
+            function_map: HashMap::new(),
+        };
+        let cloned = sm.clone();
+        assert_eq!(cloned.mappings.len(), 1);
+    }
+
+    #[test]
+    fn test_source_map_serialize() {
+        let sm = SourceMap {
+            source_file: PathBuf::from("test.py"),
+            target_file: PathBuf::from("test.rs"),
+            mappings: vec![],
+            function_map: HashMap::new(),
+        };
+        let json = serde_json::to_string(&sm).unwrap();
+        assert!(json.contains("test.py"));
+        let deserialized: SourceMap = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.source_file, sm.source_file);
+    }
+
+    // === SourceMapping tests ===
+
+    #[test]
+    fn test_source_mapping_new() {
+        let mapping = SourceMapping {
+            python_line: 42,
+            python_column: 8,
+            rust_line: 100,
+            rust_column: 4,
+            symbol: Some("my_func".to_string()),
+        };
+        assert_eq!(mapping.python_line, 42);
+        assert_eq!(mapping.rust_line, 100);
+        assert_eq!(mapping.symbol, Some("my_func".to_string()));
+    }
+
+    #[test]
+    fn test_source_mapping_clone() {
+        let mapping = SourceMapping {
+            python_line: 1,
+            python_column: 0,
+            rust_line: 5,
+            rust_column: 0,
+            symbol: None,
+        };
+        let cloned = mapping.clone();
+        assert_eq!(cloned.python_line, mapping.python_line);
+    }
+
+    #[test]
+    fn test_source_mapping_serialize() {
+        let mapping = SourceMapping {
+            python_line: 10,
+            python_column: 2,
+            rust_line: 20,
+            rust_column: 4,
+            symbol: Some("var".to_string()),
+        };
+        let json = serde_json::to_string(&mapping).unwrap();
+        assert!(json.contains("10"));
+        assert!(json.contains("var"));
+    }
+
+    // === FunctionMapping tests ===
+
+    #[test]
+    fn test_function_mapping_new() {
+        let fm = FunctionMapping {
+            python_name: "py_func".to_string(),
+            rust_name: "rust_func".to_string(),
+            python_start_line: 5,
+            python_end_line: 15,
+            rust_start_line: 10,
+            rust_end_line: 30,
+        };
+        assert_eq!(fm.python_name, "py_func");
+        assert_eq!(fm.rust_name, "rust_func");
+    }
+
+    #[test]
+    fn test_function_mapping_clone() {
+        let fm = FunctionMapping {
+            python_name: "f".to_string(),
+            rust_name: "f".to_string(),
+            python_start_line: 1,
+            python_end_line: 2,
+            rust_start_line: 3,
+            rust_end_line: 4,
+        };
+        let cloned = fm.clone();
+        assert_eq!(cloned.python_name, fm.python_name);
+    }
+
+    // === DebugLevel tests ===
+
+    #[test]
+    fn test_debug_level_none() {
+        assert_eq!(DebugLevel::None, DebugLevel::None);
+        assert_ne!(DebugLevel::None, DebugLevel::Basic);
+    }
+
+    #[test]
+    fn test_debug_level_basic() {
+        assert_eq!(DebugLevel::Basic, DebugLevel::Basic);
+    }
+
+    #[test]
+    fn test_debug_level_full() {
+        let level = DebugLevel::Full;
+        let cloned = level;
+        assert_eq!(cloned, DebugLevel::Full);
+    }
+
+    #[test]
+    fn test_debug_level_serialize() {
+        let level = DebugLevel::Full;
+        let json = serde_json::to_string(&level).unwrap();
+        let deserialized: DebugLevel = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized, level);
+    }
+
+    // === DebugInfoGenerator tests ===
+
+    #[test]
+    fn test_debug_info_generator_new() {
+        let gen = DebugInfoGenerator::new(
+            PathBuf::from("src.py"),
+            PathBuf::from("src.rs"),
+            DebugLevel::Basic,
+        );
+        assert_eq!(gen.current_rust_line, 1);
+        assert_eq!(gen.debug_level, DebugLevel::Basic);
+    }
+
+    #[test]
+    fn test_debug_info_generator_add_mapping_none_level() {
+        let mut gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::None,
+        );
+        gen.add_mapping(10, 0, Some("test".to_string()));
+        // Should not add mappings when debug level is None
+        assert!(gen.source_map().mappings.is_empty());
+    }
+
+    #[test]
+    fn test_debug_info_generator_new_line() {
+        let mut gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::Basic,
+        );
+        assert_eq!(gen.current_rust_line, 1);
+        gen.new_line();
+        assert_eq!(gen.current_rust_line, 2);
+        gen.new_line();
+        gen.new_line();
+        assert_eq!(gen.current_rust_line, 4);
+    }
+
+    #[test]
+    fn test_debug_info_generator_source_map_getter() {
+        let gen = DebugInfoGenerator::new(
+            PathBuf::from("test.py"),
+            PathBuf::from("test.rs"),
+            DebugLevel::Full,
+        );
+        let sm = gen.source_map();
+        assert_eq!(sm.source_file, PathBuf::from("test.py"));
+    }
+
+    #[test]
+    fn test_generate_function_debug_none_level() {
+        let gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::None,
+        );
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: depyler_annotations::TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let debug = gen.generate_function_debug(&func);
+        assert!(debug.is_empty());
+    }
+
+    #[test]
+    fn test_generate_function_debug_basic_level() {
+        let gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::Basic,
+        );
+        let func = HirFunction {
+            name: "my_func".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: depyler_annotations::TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let debug = gen.generate_function_debug(&func);
+        assert!(debug.contains("// Function: my_func"));
+        assert!(!debug.contains("Parameters")); // Basic doesn't include params
+    }
+
+    #[test]
+    fn test_generate_function_debug_full_level() {
+        let gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::Full,
+        );
+        let func = HirFunction {
+            name: "calc".to_string(),
+            params: smallvec![HirParam::new("x".to_string(), Type::Int)],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: depyler_annotations::TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        let debug = gen.generate_function_debug(&func);
+        assert!(debug.contains("// Function: calc"));
+        assert!(debug.contains("Parameters"));
+        assert!(debug.contains("Returns"));
+    }
+
+    #[test]
+    fn test_generate_debug_print_none_level() {
+        let gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::None,
+        );
+        let debug = gen.generate_debug_print("x", &Type::Int);
+        assert!(debug.is_empty());
+    }
+
+    #[test]
+    fn test_generate_debug_print_float() {
+        let gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::Basic,
+        );
+        let debug = gen.generate_debug_print("value", &Type::Float);
+        assert!(debug.contains("eprintln!"));
+        assert!(debug.contains("value = {}"));
+    }
+
+    #[test]
+    fn test_generate_debug_print_bool() {
+        let gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::Full,
+        );
+        let debug = gen.generate_debug_print("flag", &Type::Bool);
+        assert!(debug.contains("flag = {}"));
+    }
+
+    #[test]
+    fn test_generate_debug_print_string() {
+        let gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::Basic,
+        );
+        let debug = gen.generate_debug_print("name", &Type::String);
+        assert!(debug.contains("name = {}"));
+    }
+
+    #[test]
+    fn test_add_function_mapping_none_level() {
+        let mut gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::None,
+        );
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::None,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: depyler_annotations::TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        gen.add_function_mapping(&func, 1);
+        assert!(gen.source_map().function_map.is_empty());
+    }
+
+    #[test]
+    fn test_add_function_mapping_full_level() {
+        let mut gen = DebugInfoGenerator::new(
+            PathBuf::from("a.py"),
+            PathBuf::from("a.rs"),
+            DebugLevel::Full,
+        );
+        gen.new_line(); // line 2
+        gen.new_line(); // line 3
+        let func = HirFunction {
+            name: "my_func".to_string(),
+            params: smallvec![],
+            ret_type: Type::Int,
+            body: vec![],
+            properties: FunctionProperties::default(),
+            annotations: depyler_annotations::TranspilationAnnotations::default(),
+            docstring: None,
+        };
+        gen.add_function_mapping(&func, 1);
+        assert!(gen.source_map().function_map.contains_key("my_func"));
+        let fm = gen.source_map().function_map.get("my_func").unwrap();
+        assert_eq!(fm.rust_start_line, 1);
+        assert_eq!(fm.rust_end_line, 3);
+    }
+
+    // === DebugRuntime tests ===
+
+    #[test]
+    fn test_debug_runtime_breakpoint() {
+        let bp = DebugRuntime::breakpoint();
+        assert_eq!(bp, "depyler_breakpoint!()");
+    }
+
+    #[test]
+    fn test_debug_runtime_debug_assert() {
+        let assertion = DebugRuntime::debug_assert("x > 0", "x must be positive");
+        assert!(assertion.contains("debug_assert!"));
+        assert!(assertion.contains("x > 0"));
+        assert!(assertion.contains("x must be positive"));
+    }
+
+    #[test]
+    fn test_debug_runtime_trace_point() {
+        let trace = DebugRuntime::trace_point("entering loop");
+        assert!(trace.contains("depyler_trace!"));
+        assert!(trace.contains("entering loop"));
+    }
+
+    // === DebuggerType tests ===
+
+    #[test]
+    fn test_debugger_type_gdb() {
+        let dt = DebuggerType::Gdb;
+        let debug = format!("{:?}", dt);
+        assert!(debug.contains("Gdb"));
+    }
+
+    #[test]
+    fn test_debugger_type_lldb() {
+        let dt = DebuggerType::Lldb;
+        let cloned = dt;
+        assert!(matches!(cloned, DebuggerType::Lldb));
+    }
+
+    #[test]
+    fn test_debugger_type_rust_gdb() {
+        let dt = DebuggerType::RustGdb;
+        let debug = format!("{:?}", dt);
+        assert!(debug.contains("RustGdb"));
+    }
+
+    // === DebuggerIntegration tests ===
+
+    #[test]
+    fn test_debugger_integration_new() {
+        let di = DebuggerIntegration::new(DebuggerType::Gdb);
+        assert!(matches!(di.debugger_type, DebuggerType::Gdb));
+    }
+
+    #[test]
+    fn test_generate_rust_gdb_script() {
+        let source_map = SourceMap {
+            source_file: PathBuf::from("test.py"),
+            target_file: PathBuf::from("test.rs"),
+            mappings: vec![],
+            function_map: HashMap::new(),
+        };
+        let di = DebuggerIntegration::new(DebuggerType::RustGdb);
+        let script = di.generate_init_script(&source_map);
+        assert!(script.contains("GDB initialization"));
+        assert!(script.contains("Rust pretty printers"));
+        assert!(script.contains("python"));
+    }
+
+    // === DebugConfig tests ===
+
+    #[test]
+    fn test_debug_config_default() {
+        let config = DebugConfig::default();
+        assert_eq!(config.debug_level, DebugLevel::Basic);
+        assert!(config.generate_source_map);
+        assert!(config.preserve_symbols);
+        assert!(!config.debug_prints);
+        assert!(!config.breakpoints);
+    }
+
+    #[test]
+    fn test_debug_config_clone() {
+        let config = DebugConfig {
+            debug_level: DebugLevel::Full,
+            generate_source_map: false,
+            preserve_symbols: false,
+            debug_prints: true,
+            breakpoints: true,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.debug_level, DebugLevel::Full);
+        assert!(cloned.debug_prints);
+    }
+
+    #[test]
+    fn test_debug_config_serialize() {
+        let config = DebugConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("Basic"));
+        let deserialized: DebugConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.debug_level, config.debug_level);
+    }
+
+    // === generate_debug_macros tests ===
+
+    #[test]
+    fn test_generate_debug_macros() {
+        let macros = generate_debug_macros();
+        assert!(macros.contains("depyler_breakpoint"));
+        assert!(macros.contains("depyler_trace"));
+        assert!(macros.contains("#[macro_export]"));
+        assert!(macros.contains("debug_assertions"));
+    }
+
+    // === Original tests ===
 
     #[test]
     fn test_source_mapping() {
