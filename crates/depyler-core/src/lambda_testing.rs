@@ -869,6 +869,244 @@ impl TestContext {
 mod tests {
     use super::*;
 
+    // === TestEvent tests ===
+
+    #[test]
+    fn test_test_event_fields() {
+        let event = TestEvent {
+            name: "my_test".to_string(),
+            event_data: json!({"key": "value"}),
+            expected_response: Some(json!({"status": "ok"})),
+            should_succeed: true,
+            description: "My test description".to_string(),
+        };
+        assert_eq!(event.name, "my_test");
+        assert_eq!(event.event_data["key"], "value");
+        assert!(event.expected_response.is_some());
+        assert!(event.should_succeed);
+        assert_eq!(event.description, "My test description");
+    }
+
+    #[test]
+    fn test_test_event_no_expected_response() {
+        let event = TestEvent {
+            name: "test".to_string(),
+            event_data: json!({}),
+            expected_response: None,
+            should_succeed: false,
+            description: String::new(),
+        };
+        assert!(event.expected_response.is_none());
+        assert!(!event.should_succeed);
+    }
+
+    #[test]
+    fn test_test_event_clone() {
+        let event = TestEvent {
+            name: "clone_test".to_string(),
+            event_data: json!({"a": 1}),
+            expected_response: None,
+            should_succeed: true,
+            description: "desc".to_string(),
+        };
+        let cloned = event.clone();
+        assert_eq!(cloned.name, event.name);
+        assert_eq!(cloned.event_data, event.event_data);
+    }
+
+    #[test]
+    fn test_test_event_debug() {
+        let event = TestEvent {
+            name: "debug_test".to_string(),
+            event_data: json!({}),
+            expected_response: None,
+            should_succeed: true,
+            description: String::new(),
+        };
+        let debug = format!("{:?}", event);
+        assert!(debug.contains("TestEvent"));
+        assert!(debug.contains("debug_test"));
+    }
+
+    // === TestContext tests ===
+
+    #[test]
+    fn test_test_context_default() {
+        let ctx = TestContext::default();
+        assert_eq!(ctx.function_name, "test-function");
+        assert_eq!(ctx.function_version, "$LATEST");
+        assert_eq!(ctx.memory_limit_mb, 128);
+        assert_eq!(ctx.timeout_ms, 15000);
+        assert_eq!(ctx.aws_request_id, "test-request-id");
+        assert!(ctx.invoked_function_arn.contains("arn:aws:lambda"));
+    }
+
+    #[test]
+    fn test_test_context_custom() {
+        let ctx = TestContext {
+            function_name: "custom-func".to_string(),
+            function_version: "v1".to_string(),
+            memory_limit_mb: 256,
+            timeout_ms: 30000,
+            aws_request_id: "custom-id".to_string(),
+            invoked_function_arn: "custom-arn".to_string(),
+        };
+        assert_eq!(ctx.function_name, "custom-func");
+        assert_eq!(ctx.memory_limit_mb, 256);
+    }
+
+    #[test]
+    fn test_test_context_clone() {
+        let ctx = TestContext::default();
+        let cloned = ctx.clone();
+        assert_eq!(cloned.function_name, ctx.function_name);
+        assert_eq!(cloned.timeout_ms, ctx.timeout_ms);
+    }
+
+    #[test]
+    fn test_test_context_debug() {
+        let ctx = TestContext::default();
+        let debug = format!("{:?}", ctx);
+        assert!(debug.contains("TestContext"));
+        assert!(debug.contains("test-function"));
+    }
+
+    // === PerformanceBenchmarks tests ===
+
+    #[test]
+    fn test_performance_benchmarks_default() {
+        let bench = PerformanceBenchmarks::default();
+        assert_eq!(bench.max_cold_start_ms, 100);
+        assert_eq!(bench.max_warm_start_ms, 10);
+        assert_eq!(bench.max_memory_usage_mb, 64);
+        assert_eq!(bench.min_throughput_rps, 100);
+    }
+
+    #[test]
+    fn test_performance_benchmarks_clone() {
+        let bench = PerformanceBenchmarks {
+            max_cold_start_ms: 50,
+            max_warm_start_ms: 5,
+            max_memory_usage_mb: 32,
+            min_throughput_rps: 200,
+        };
+        let cloned = bench.clone();
+        assert_eq!(cloned.max_cold_start_ms, bench.max_cold_start_ms);
+    }
+
+    #[test]
+    fn test_performance_benchmarks_debug() {
+        let bench = PerformanceBenchmarks::default();
+        let debug = format!("{:?}", bench);
+        assert!(debug.contains("PerformanceBenchmarks"));
+    }
+
+    // === TestResult tests ===
+
+    #[test]
+    fn test_test_result_success() {
+        let result = TestResult {
+            test_name: "success_test".to_string(),
+            success: true,
+            duration_ms: 100,
+            memory_usage_mb: Some(32),
+            error_message: None,
+            response: Some(json!({"result": "ok"})),
+        };
+        assert!(result.success);
+        assert_eq!(result.duration_ms, 100);
+        assert!(result.error_message.is_none());
+    }
+
+    #[test]
+    fn test_test_result_failure() {
+        let result = TestResult {
+            test_name: "failure_test".to_string(),
+            success: false,
+            duration_ms: 50,
+            memory_usage_mb: None,
+            error_message: Some("Test failed".to_string()),
+            response: None,
+        };
+        assert!(!result.success);
+        assert!(result.error_message.is_some());
+        assert!(result.memory_usage_mb.is_none());
+    }
+
+    #[test]
+    fn test_test_result_clone() {
+        let result = TestResult {
+            test_name: "test".to_string(),
+            success: true,
+            duration_ms: 10,
+            memory_usage_mb: None,
+            error_message: None,
+            response: None,
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.test_name, result.test_name);
+    }
+
+    #[test]
+    fn test_test_result_debug() {
+        let result = TestResult {
+            test_name: "debug_test".to_string(),
+            success: true,
+            duration_ms: 0,
+            memory_usage_mb: None,
+            error_message: None,
+            response: None,
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("TestResult"));
+    }
+
+    // === BenchmarkResult tests ===
+
+    #[test]
+    fn test_benchmark_result_fields() {
+        let result = BenchmarkResult {
+            cold_start_ms: 50,
+            warm_start_ms: 5,
+            memory_usage_mb: 32,
+            throughput_rps: 150.5,
+            binary_size_kb: 1024,
+        };
+        assert_eq!(result.cold_start_ms, 50);
+        assert_eq!(result.warm_start_ms, 5);
+        assert_eq!(result.memory_usage_mb, 32);
+        assert!((result.throughput_rps - 150.5).abs() < f64::EPSILON);
+        assert_eq!(result.binary_size_kb, 1024);
+    }
+
+    #[test]
+    fn test_benchmark_result_clone() {
+        let result = BenchmarkResult {
+            cold_start_ms: 100,
+            warm_start_ms: 10,
+            memory_usage_mb: 64,
+            throughput_rps: 100.0,
+            binary_size_kb: 512,
+        };
+        let cloned = result.clone();
+        assert_eq!(cloned.cold_start_ms, result.cold_start_ms);
+    }
+
+    #[test]
+    fn test_benchmark_result_debug() {
+        let result = BenchmarkResult {
+            cold_start_ms: 0,
+            warm_start_ms: 0,
+            memory_usage_mb: 0,
+            throughput_rps: 0.0,
+            binary_size_kb: 0,
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("BenchmarkResult"));
+    }
+
+    // === LambdaTestHarness tests ===
+
     #[test]
     fn test_harness_creation() {
         let harness = LambdaTestHarness::new();
@@ -878,6 +1116,36 @@ mod tests {
             .contains_key(&LambdaEventType::ApiGatewayProxyRequest));
         assert!(harness.test_events.contains_key(&LambdaEventType::S3Event));
         assert!(harness.test_events.contains_key(&LambdaEventType::SqsEvent));
+    }
+
+    #[test]
+    fn test_harness_default() {
+        let harness = LambdaTestHarness::default();
+        assert!(!harness.test_events.is_empty());
+    }
+
+    #[test]
+    fn test_harness_clone() {
+        let harness = LambdaTestHarness::new();
+        let cloned = harness.clone();
+        assert_eq!(cloned.test_events.len(), harness.test_events.len());
+    }
+
+    #[test]
+    fn test_harness_debug() {
+        let harness = LambdaTestHarness::new();
+        let debug = format!("{:?}", harness);
+        assert!(debug.contains("LambdaTestHarness"));
+    }
+
+    #[test]
+    fn test_harness_with_context() {
+        let ctx = TestContext {
+            function_name: "custom-func".to_string(),
+            ..TestContext::default()
+        };
+        let harness = LambdaTestHarness::new().with_context(ctx);
+        assert_eq!(harness.test_context.function_name, "custom-func");
     }
 
     #[test]
@@ -902,6 +1170,22 @@ mod tests {
     }
 
     #[test]
+    fn test_add_test_event_new_type() {
+        let mut harness = LambdaTestHarness::new();
+
+        let event = TestEvent {
+            name: "sns_test".to_string(),
+            event_data: json!({"Records": []}),
+            expected_response: None,
+            should_succeed: true,
+            description: "SNS test".to_string(),
+        };
+
+        harness.add_test_event(LambdaEventType::SnsEvent, event);
+        assert!(harness.test_events.contains_key(&LambdaEventType::SnsEvent));
+    }
+
+    #[test]
     fn test_test_suite_generation() {
         let harness = LambdaTestHarness::new();
         let annotations = depyler_annotations::LambdaAnnotations {
@@ -914,6 +1198,87 @@ mod tests {
         assert!(test_suite.contains("#[tokio::test]"));
         assert!(test_suite.contains("test_basic_get_request"));
         assert!(test_suite.contains("test_cold_start_performance"));
+    }
+
+    #[test]
+    fn test_test_suite_no_event_type() {
+        let harness = LambdaTestHarness::new();
+        let annotations = depyler_annotations::LambdaAnnotations::default();
+
+        let test_suite = harness.generate_test_suite(&annotations).unwrap();
+
+        // Should still generate performance and integration tests
+        assert!(test_suite.contains("test_cold_start_performance"));
+        assert!(test_suite.contains("test_error_handling"));
+    }
+
+    #[test]
+    fn test_test_suite_sqs_event() {
+        let harness = LambdaTestHarness::new();
+        let annotations = depyler_annotations::LambdaAnnotations {
+            event_type: Some(LambdaEventType::SqsEvent),
+            ..Default::default()
+        };
+
+        let test_suite = harness.generate_test_suite(&annotations).unwrap();
+
+        assert!(test_suite.contains("test_sqs_single_message"));
+        assert!(test_suite.contains("test_sqs_batch_messages"));
+    }
+
+    #[test]
+    fn test_test_suite_s3_event() {
+        let harness = LambdaTestHarness::new();
+        let annotations = depyler_annotations::LambdaAnnotations {
+            event_type: Some(LambdaEventType::S3Event),
+            ..Default::default()
+        };
+
+        let test_suite = harness.generate_test_suite(&annotations).unwrap();
+
+        assert!(test_suite.contains("test_s3_object_created"));
+    }
+
+    #[test]
+    fn test_generate_test_imports() {
+        let harness = LambdaTestHarness::new();
+        let imports = harness.generate_test_imports();
+
+        assert!(imports.contains("#[cfg(test)]"));
+        assert!(imports.contains("mod tests"));
+        assert!(imports.contains("use super::*"));
+        assert!(imports.contains("serde_json"));
+    }
+
+    #[test]
+    fn test_generate_test_helpers() {
+        let harness = LambdaTestHarness::new();
+        let helpers = harness.generate_test_helpers();
+
+        assert!(helpers.contains("create_test_context"));
+        assert!(helpers.contains("run_with_timeout"));
+        assert!(helpers.contains("test-request-id"));
+    }
+
+    #[test]
+    fn test_generate_performance_tests() {
+        let harness = LambdaTestHarness::new();
+        let perf_tests = harness.generate_performance_tests();
+
+        assert!(perf_tests.contains("test_cold_start_performance"));
+        assert!(perf_tests.contains("test_warm_start_performance"));
+        assert!(perf_tests.contains("test_memory_usage"));
+        assert!(perf_tests.contains("test_concurrent_invocations"));
+    }
+
+    #[test]
+    fn test_generate_integration_tests() {
+        let harness = LambdaTestHarness::new();
+        let integration_tests = harness.generate_integration_tests();
+
+        assert!(integration_tests.contains("test_error_handling"));
+        assert!(integration_tests.contains("test_timeout_handling"));
+        assert!(integration_tests.contains("test_large_payload"));
     }
 
     #[test]
@@ -931,6 +1296,36 @@ mod tests {
     }
 
     #[test]
+    fn test_github_actions_workflow_arm64() {
+        let harness = LambdaTestHarness::new();
+        let annotations = depyler_annotations::LambdaAnnotations {
+            architecture: depyler_annotations::Architecture::Arm64,
+            ..Default::default()
+        };
+
+        let workflow = harness
+            .generate_github_actions_workflow(&annotations)
+            .unwrap();
+
+        assert!(workflow.contains("--arm64"));
+    }
+
+    #[test]
+    fn test_github_actions_workflow_x86() {
+        let harness = LambdaTestHarness::new();
+        let annotations = depyler_annotations::LambdaAnnotations {
+            architecture: depyler_annotations::Architecture::X86_64,
+            ..Default::default()
+        };
+
+        let workflow = harness
+            .generate_github_actions_workflow(&annotations)
+            .unwrap();
+
+        assert!(workflow.contains("--x86-64"));
+    }
+
+    #[test]
     fn test_cargo_lambda_script() {
         let harness = LambdaTestHarness::new();
         let annotations = depyler_annotations::LambdaAnnotations {
@@ -945,6 +1340,45 @@ mod tests {
         assert!(script.contains("cargo lambda build"));
         assert!(script.contains("cargo lambda invoke"));
         assert!(script.contains("s3_object_created"));
+    }
+
+    #[test]
+    fn test_cargo_lambda_script_no_event_type() {
+        let harness = LambdaTestHarness::new();
+        let annotations = depyler_annotations::LambdaAnnotations::default();
+
+        let script = harness
+            .generate_cargo_lambda_test_script(&annotations)
+            .unwrap();
+
+        assert!(script.contains("cargo lambda build"));
+        assert!(script.contains("cargo test"));
+    }
+
+    #[test]
+    fn test_local_dev_script() {
+        let harness = LambdaTestHarness::new();
+        let script = harness.generate_local_dev_script();
+
+        assert!(script.contains("#!/bin/bash"));
+        assert!(script.contains("cargo lambda build"));
+        assert!(script.contains("cargo lambda start"));
+        assert!(script.contains("curl"));
+    }
+
+    #[test]
+    fn test_load_test_script() {
+        let harness = LambdaTestHarness::new();
+        let annotations = depyler_annotations::LambdaAnnotations {
+            memory_size: 256,
+            ..Default::default()
+        };
+
+        let script = harness.generate_load_test_script(&annotations).unwrap();
+
+        assert!(script.contains("#!/bin/bash"));
+        assert!(script.contains("MEMORY_SIZE=256"));
+        assert!(script.contains("hey") || script.contains("ab"));
     }
 
     #[test]
@@ -973,5 +1407,98 @@ mod tests {
 
         // Note: Context conversion would be available when using the actual lambda_runtime crate
         assert_eq!(test_context.aws_request_id, "test-123");
+    }
+
+    #[test]
+    fn test_generate_test_events_yaml() {
+        let harness = LambdaTestHarness::new();
+        let annotations = depyler_annotations::LambdaAnnotations {
+            event_type: Some(LambdaEventType::ApiGatewayProxyRequest),
+            ..Default::default()
+        };
+
+        let yaml = harness.generate_test_events_yaml(&annotations).unwrap();
+
+        assert!(yaml.contains("mkdir -p test_events"));
+        assert!(yaml.contains("test_events/"));
+        assert!(yaml.contains("basic_test.json"));
+    }
+
+    #[test]
+    fn test_generate_test_events_yaml_no_event_type() {
+        let harness = LambdaTestHarness::new();
+        let annotations = depyler_annotations::LambdaAnnotations::default();
+
+        let yaml = harness.generate_test_events_yaml(&annotations).unwrap();
+
+        // Should still create basic test event
+        assert!(yaml.contains("basic_test.json"));
+    }
+
+    #[test]
+    fn test_individual_test_generation_should_fail() {
+        let harness = LambdaTestHarness::new();
+        let event = TestEvent {
+            name: "fail_test".to_string(),
+            event_data: json!({"test": "data"}),
+            expected_response: None,
+            should_succeed: false,
+            description: "Should fail test".to_string(),
+        };
+
+        let test_code = harness
+            .generate_individual_test(&event, &LambdaEventType::ApiGatewayProxyRequest)
+            .unwrap();
+
+        assert!(test_code.contains("test_fail_test"));
+        assert!(test_code.contains("should fail but succeeded"));
+    }
+
+    #[test]
+    fn test_individual_test_generation_with_expected() {
+        let harness = LambdaTestHarness::new();
+        let event = TestEvent {
+            name: "expected_test".to_string(),
+            event_data: json!({"input": 1}),
+            expected_response: Some(json!({"output": 2})),
+            should_succeed: true,
+            description: "With expected response".to_string(),
+        };
+
+        let test_code = harness
+            .generate_individual_test(&event, &LambdaEventType::ApiGatewayProxyRequest)
+            .unwrap();
+
+        assert!(test_code.contains("expected_response"));
+        assert!(test_code.contains("assert_eq"));
+    }
+
+    #[test]
+    fn test_api_gateway_default_events() {
+        let harness = LambdaTestHarness::new();
+        let events = harness
+            .test_events
+            .get(&LambdaEventType::ApiGatewayProxyRequest)
+            .unwrap();
+
+        assert!(events.iter().any(|e| e.name == "basic_get_request"));
+        assert!(events.iter().any(|e| e.name == "post_request_with_body"));
+    }
+
+    #[test]
+    fn test_sqs_default_events() {
+        let harness = LambdaTestHarness::new();
+        let events = harness.test_events.get(&LambdaEventType::SqsEvent).unwrap();
+
+        assert!(events.iter().any(|e| e.name == "sqs_single_message"));
+        assert!(events.iter().any(|e| e.name == "sqs_batch_messages"));
+    }
+
+    #[test]
+    fn test_s3_default_events() {
+        let harness = LambdaTestHarness::new();
+        let events = harness.test_events.get(&LambdaEventType::S3Event).unwrap();
+
+        assert!(events.iter().any(|e| e.name == "s3_object_created"));
     }
 }
