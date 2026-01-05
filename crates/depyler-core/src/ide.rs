@@ -310,8 +310,516 @@ pub fn create_ide_integration(module: &HirModule, source: &str) -> IdeIntegratio
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{FunctionProperties, HirParam, Type};
+    use crate::hir::{FunctionProperties, HirClass, HirField, HirMethod, HirParam, Type};
     use smallvec::smallvec;
+
+    // === Symbol tests ===
+
+    #[test]
+    fn test_symbol_new() {
+        let symbol = Symbol {
+            name: "my_symbol".to_string(),
+            kind: SymbolKind::Function,
+            range: TextRange::new(TextSize::from(0), TextSize::from(50)),
+            detail: Some("fn my_symbol()".to_string()),
+            documentation: Some("A test symbol".to_string()),
+        };
+        assert_eq!(symbol.name, "my_symbol");
+        assert_eq!(symbol.kind, SymbolKind::Function);
+        assert!(symbol.detail.is_some());
+        assert!(symbol.documentation.is_some());
+    }
+
+    #[test]
+    fn test_symbol_clone() {
+        let symbol = Symbol {
+            name: "test".to_string(),
+            kind: SymbolKind::Class,
+            range: TextRange::new(TextSize::from(10), TextSize::from(20)),
+            detail: None,
+            documentation: None,
+        };
+        let cloned = symbol.clone();
+        assert_eq!(cloned.name, symbol.name);
+        assert_eq!(cloned.kind, symbol.kind);
+    }
+
+    #[test]
+    fn test_symbol_debug() {
+        let symbol = Symbol {
+            name: "debug_test".to_string(),
+            kind: SymbolKind::Variable,
+            range: TextRange::new(TextSize::from(0), TextSize::from(10)),
+            detail: None,
+            documentation: None,
+        };
+        let debug = format!("{:?}", symbol);
+        assert!(debug.contains("debug_test"));
+        assert!(debug.contains("Variable"));
+    }
+
+    // === SymbolKind tests ===
+
+    #[test]
+    fn test_symbol_kind_function() {
+        assert_eq!(SymbolKind::Function, SymbolKind::Function);
+        assert_ne!(SymbolKind::Function, SymbolKind::Class);
+    }
+
+    #[test]
+    fn test_symbol_kind_class() {
+        let kind = SymbolKind::Class;
+        assert_eq!(kind.clone(), SymbolKind::Class);
+    }
+
+    #[test]
+    fn test_symbol_kind_method() {
+        let kind = SymbolKind::Method;
+        let debug = format!("{:?}", kind);
+        assert!(debug.contains("Method"));
+    }
+
+    #[test]
+    fn test_symbol_kind_variable() {
+        assert_eq!(SymbolKind::Variable, SymbolKind::Variable);
+    }
+
+    #[test]
+    fn test_symbol_kind_parameter() {
+        assert_eq!(SymbolKind::Parameter, SymbolKind::Parameter);
+    }
+
+    #[test]
+    fn test_symbol_kind_field() {
+        assert_eq!(SymbolKind::Field, SymbolKind::Field);
+    }
+
+    #[test]
+    fn test_symbol_kind_module() {
+        assert_eq!(SymbolKind::Module, SymbolKind::Module);
+    }
+
+    // === DiagnosticSeverity tests ===
+
+    #[test]
+    fn test_diagnostic_severity_error() {
+        assert_eq!(DiagnosticSeverity::Error, DiagnosticSeverity::Error);
+        assert_ne!(DiagnosticSeverity::Error, DiagnosticSeverity::Warning);
+    }
+
+    #[test]
+    fn test_diagnostic_severity_warning() {
+        assert_eq!(DiagnosticSeverity::Warning, DiagnosticSeverity::Warning);
+    }
+
+    #[test]
+    fn test_diagnostic_severity_information() {
+        assert_eq!(DiagnosticSeverity::Information, DiagnosticSeverity::Information);
+    }
+
+    #[test]
+    fn test_diagnostic_severity_hint() {
+        let severity = DiagnosticSeverity::Hint;
+        let cloned = severity;
+        assert_eq!(cloned, DiagnosticSeverity::Hint);
+    }
+
+    // === Diagnostic tests ===
+
+    #[test]
+    fn test_diagnostic_new() {
+        let diag = Diagnostic {
+            range: TextRange::new(TextSize::from(0), TextSize::from(10)),
+            severity: DiagnosticSeverity::Error,
+            message: "Test error".to_string(),
+            code: Some("E0001".to_string()),
+            source: "depyler".to_string(),
+        };
+        assert_eq!(diag.message, "Test error");
+        assert_eq!(diag.severity, DiagnosticSeverity::Error);
+        assert_eq!(diag.code, Some("E0001".to_string()));
+    }
+
+    #[test]
+    fn test_diagnostic_clone() {
+        let diag = Diagnostic {
+            range: TextRange::new(TextSize::from(0), TextSize::from(5)),
+            severity: DiagnosticSeverity::Warning,
+            message: "Warning".to_string(),
+            code: None,
+            source: "test".to_string(),
+        };
+        let cloned = diag.clone();
+        assert_eq!(cloned.message, diag.message);
+        assert_eq!(cloned.severity, diag.severity);
+    }
+
+    #[test]
+    fn test_diagnostic_debug() {
+        let diag = Diagnostic {
+            range: TextRange::new(TextSize::from(0), TextSize::from(1)),
+            severity: DiagnosticSeverity::Information,
+            message: "Info".to_string(),
+            code: None,
+            source: "test".to_string(),
+        };
+        let debug = format!("{:?}", diag);
+        assert!(debug.contains("Information"));
+        assert!(debug.contains("Info"));
+    }
+
+    // === CompletionKind tests ===
+
+    #[test]
+    fn test_completion_kind_function() {
+        assert_eq!(CompletionKind::Function, CompletionKind::Function);
+    }
+
+    #[test]
+    fn test_completion_kind_class() {
+        assert_eq!(CompletionKind::Class, CompletionKind::Class);
+    }
+
+    #[test]
+    fn test_completion_kind_method() {
+        assert_eq!(CompletionKind::Method, CompletionKind::Method);
+    }
+
+    #[test]
+    fn test_completion_kind_variable() {
+        assert_eq!(CompletionKind::Variable, CompletionKind::Variable);
+    }
+
+    #[test]
+    fn test_completion_kind_field() {
+        assert_eq!(CompletionKind::Field, CompletionKind::Field);
+    }
+
+    #[test]
+    fn test_completion_kind_module() {
+        let kind = CompletionKind::Module;
+        let debug = format!("{:?}", kind);
+        assert!(debug.contains("Module"));
+    }
+
+    // === CompletionItem tests ===
+
+    #[test]
+    fn test_completion_item_new() {
+        let item = CompletionItem {
+            label: "my_func".to_string(),
+            kind: CompletionKind::Function,
+            detail: Some("fn my_func()".to_string()),
+            documentation: Some("Does something".to_string()),
+        };
+        assert_eq!(item.label, "my_func");
+        assert_eq!(item.kind, CompletionKind::Function);
+    }
+
+    #[test]
+    fn test_completion_item_clone() {
+        let item = CompletionItem {
+            label: "test".to_string(),
+            kind: CompletionKind::Variable,
+            detail: None,
+            documentation: None,
+        };
+        let cloned = item.clone();
+        assert_eq!(cloned.label, item.label);
+    }
+
+    // === IdeIntegration tests ===
+
+    #[test]
+    fn test_ide_integration_new() {
+        let ide = IdeIntegration::new();
+        assert!(ide.diagnostics.is_empty());
+        assert!(ide.symbols.is_empty());
+    }
+
+    #[test]
+    fn test_ide_integration_default() {
+        let ide = IdeIntegration::default();
+        assert!(ide.diagnostics.is_empty());
+    }
+
+    #[test]
+    fn test_add_diagnostic() {
+        let mut ide = IdeIntegration::new();
+        let diag = Diagnostic {
+            range: TextRange::new(TextSize::from(0), TextSize::from(10)),
+            severity: DiagnosticSeverity::Error,
+            message: "Test".to_string(),
+            code: None,
+            source: "test".to_string(),
+        };
+        ide.add_diagnostic(diag);
+        assert_eq!(ide.diagnostics().len(), 1);
+    }
+
+    #[test]
+    fn test_diagnostics_getter() {
+        let mut ide = IdeIntegration::new();
+        assert!(ide.diagnostics().is_empty());
+
+        ide.add_diagnostic(Diagnostic {
+            range: TextRange::new(TextSize::from(0), TextSize::from(1)),
+            severity: DiagnosticSeverity::Warning,
+            message: "Warn".to_string(),
+            code: None,
+            source: "test".to_string(),
+        });
+        assert_eq!(ide.diagnostics().len(), 1);
+        assert_eq!(ide.diagnostics()[0].message, "Warn");
+    }
+
+    #[test]
+    fn test_add_warning() {
+        let mut ide = IdeIntegration::new();
+        let range = TextRange::new(TextSize::from(5), TextSize::from(15));
+        ide.add_warning("Unused variable".to_string(), range);
+
+        assert_eq!(ide.diagnostics().len(), 1);
+        assert_eq!(ide.diagnostics()[0].severity, DiagnosticSeverity::Warning);
+        assert_eq!(ide.diagnostics()[0].message, "Unused variable");
+        assert_eq!(ide.diagnostics()[0].source, "depyler");
+    }
+
+    #[test]
+    fn test_add_error() {
+        let mut ide = IdeIntegration::new();
+        let range = TextRange::new(TextSize::from(0), TextSize::from(10));
+        let error = crate::error::ErrorKind::ParseError;
+        ide.add_error(&error, range);
+
+        assert_eq!(ide.diagnostics().len(), 1);
+        assert_eq!(ide.diagnostics()[0].severity, DiagnosticSeverity::Error);
+    }
+
+    #[test]
+    fn test_symbol_at_position_found() {
+        let mut ide = IdeIntegration::new();
+        ide.symbols.insert(
+            "test".to_string(),
+            vec![Symbol {
+                name: "test".to_string(),
+                kind: SymbolKind::Function,
+                range: TextRange::new(TextSize::from(10), TextSize::from(50)),
+                detail: None,
+                documentation: None,
+            }],
+        );
+
+        let symbol = ide.symbol_at_position(TextSize::from(25));
+        assert!(symbol.is_some());
+        assert_eq!(symbol.unwrap().name, "test");
+    }
+
+    #[test]
+    fn test_symbol_at_position_not_found() {
+        let mut ide = IdeIntegration::new();
+        ide.symbols.insert(
+            "test".to_string(),
+            vec![Symbol {
+                name: "test".to_string(),
+                kind: SymbolKind::Function,
+                range: TextRange::new(TextSize::from(10), TextSize::from(20)),
+                detail: None,
+                documentation: None,
+            }],
+        );
+
+        let symbol = ide.symbol_at_position(TextSize::from(100));
+        assert!(symbol.is_none());
+    }
+
+    #[test]
+    fn test_find_references_found() {
+        let mut ide = IdeIntegration::new();
+        ide.symbols.insert(
+            "my_func".to_string(),
+            vec![
+                Symbol {
+                    name: "my_func".to_string(),
+                    kind: SymbolKind::Function,
+                    range: TextRange::new(TextSize::from(0), TextSize::from(10)),
+                    detail: None,
+                    documentation: None,
+                },
+                Symbol {
+                    name: "my_func".to_string(),
+                    kind: SymbolKind::Function,
+                    range: TextRange::new(TextSize::from(50), TextSize::from(60)),
+                    detail: None,
+                    documentation: None,
+                },
+            ],
+        );
+
+        let refs = ide.find_references("my_func");
+        assert_eq!(refs.len(), 2);
+    }
+
+    #[test]
+    fn test_find_references_not_found() {
+        let ide = IdeIntegration::new();
+        let refs = ide.find_references("nonexistent");
+        assert!(refs.is_empty());
+    }
+
+    #[test]
+    fn test_completions_empty_prefix() {
+        let mut ide = IdeIntegration::new();
+        ide.symbols.insert(
+            "abc".to_string(),
+            vec![Symbol {
+                name: "abc".to_string(),
+                kind: SymbolKind::Variable,
+                range: TextRange::new(TextSize::from(0), TextSize::from(5)),
+                detail: None,
+                documentation: None,
+            }],
+        );
+
+        let completions = ide.completions_at_position(TextSize::from(0), "");
+        // Empty prefix matches nothing since "abc".starts_with("") is true
+        assert!(!completions.is_empty());
+    }
+
+    #[test]
+    fn test_completions_no_match() {
+        let mut ide = IdeIntegration::new();
+        ide.symbols.insert(
+            "foo".to_string(),
+            vec![Symbol {
+                name: "foo".to_string(),
+                kind: SymbolKind::Function,
+                range: TextRange::new(TextSize::from(0), TextSize::from(5)),
+                detail: None,
+                documentation: None,
+            }],
+        );
+
+        let completions = ide.completions_at_position(TextSize::from(0), "bar");
+        assert!(completions.is_empty());
+    }
+
+    #[test]
+    fn test_index_class_with_methods() {
+        let mut ide = IdeIntegration::new();
+
+        let class = HirClass {
+            name: "MyClass".to_string(),
+            fields: vec![HirField {
+                name: "value".to_string(),
+                field_type: Type::Int,
+                default_value: None,
+                is_class_var: false,
+            }],
+            methods: vec![HirMethod {
+                name: "get_value".to_string(),
+                params: smallvec![],
+                ret_type: Type::Int,
+                body: vec![],
+                docstring: None,
+                is_static: false,
+                is_classmethod: false,
+                is_property: false,
+                is_async: false,
+            }],
+            base_classes: vec![],
+            is_dataclass: false,
+            docstring: None,
+            type_params: vec![],
+        };
+
+        let module = HirModule {
+            functions: vec![],
+            classes: vec![class],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            constants: vec![],
+        };
+
+        ide.index_symbols(&module, "");
+
+        // Should have class, method, and field indexed
+        assert!(ide.symbols.contains_key("MyClass"));
+        assert!(ide.symbols.contains_key("get_value"));
+        assert!(ide.symbols.contains_key("value"));
+    }
+
+    #[test]
+    fn test_create_ide_integration() {
+        let module = HirModule {
+            functions: vec![HirFunction {
+                name: "main".to_string(),
+                params: smallvec![],
+                ret_type: Type::None,
+                body: vec![],
+                annotations: depyler_annotations::TranspilationAnnotations::default(),
+                docstring: None,
+                properties: FunctionProperties::default(),
+            }],
+            classes: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+            constants: vec![],
+        };
+
+        let ide = create_ide_integration(&module, "");
+        assert!(ide.symbols.contains_key("main"));
+    }
+
+    // === generate_hover_info tests ===
+
+    #[test]
+    fn test_generate_hover_info_with_detail_only() {
+        let symbol = Symbol {
+            name: "func".to_string(),
+            kind: SymbolKind::Function,
+            range: TextRange::new(TextSize::from(0), TextSize::from(10)),
+            detail: Some("fn func() -> i32".to_string()),
+            documentation: None,
+        };
+
+        let hover = generate_hover_info(&symbol);
+        assert!(hover.contains("```rust"));
+        assert!(hover.contains("fn func() -> i32"));
+        assert!(hover.contains("```"));
+    }
+
+    #[test]
+    fn test_generate_hover_info_with_doc_only() {
+        let symbol = Symbol {
+            name: "var".to_string(),
+            kind: SymbolKind::Variable,
+            range: TextRange::new(TextSize::from(0), TextSize::from(5)),
+            detail: None,
+            documentation: Some("A counter variable".to_string()),
+        };
+
+        let hover = generate_hover_info(&symbol);
+        assert!(hover.contains("A counter variable"));
+    }
+
+    #[test]
+    fn test_generate_hover_info_empty() {
+        let symbol = Symbol {
+            name: "empty".to_string(),
+            kind: SymbolKind::Variable,
+            range: TextRange::new(TextSize::from(0), TextSize::from(5)),
+            detail: None,
+            documentation: None,
+        };
+
+        let hover = generate_hover_info(&symbol);
+        assert!(hover.is_empty());
+    }
+
+    // === Original tests ===
 
     #[test]
     fn test_symbol_indexing() {
