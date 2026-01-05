@@ -422,4 +422,201 @@ mod tests {
         assert_eq!(lesson.occurrences, 2);
         assert!((lesson.confidence - 0.6).abs() < f64::EPSILON);
     }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_lesson_debug() {
+        let lesson = Lesson::new("type_system", "observation", "action");
+        let debug_str = format!("{:?}", lesson);
+        assert!(debug_str.contains("Lesson"));
+        assert!(debug_str.contains("type_system"));
+        assert!(debug_str.contains("observation"));
+    }
+
+    #[test]
+    fn test_lesson_clone() {
+        let lesson = Lesson {
+            category: "test".to_string(),
+            observation: "obs".to_string(),
+            action: "act".to_string(),
+            confidence: 0.75,
+            occurrences: 5,
+        };
+        let cloned = lesson.clone();
+        assert_eq!(cloned.category, "test");
+        assert_eq!(cloned.confidence, 0.75);
+        assert_eq!(cloned.occurrences, 5);
+    }
+
+    #[test]
+    fn test_lesson_reinforce_max_confidence() {
+        let mut lesson = Lesson {
+            category: "test".to_string(),
+            observation: "obs".to_string(),
+            action: "act".to_string(),
+            confidence: 0.95,
+            occurrences: 10,
+        };
+        lesson.reinforce();
+        lesson.reinforce();
+
+        // Confidence should cap at 1.0
+        assert!(lesson.confidence <= 1.0);
+        assert_eq!(lesson.occurrences, 12);
+    }
+
+    #[test]
+    fn test_cycle_outcome_debug() {
+        let outcome = create_test_outcome(true);
+        let debug_str = format!("{:?}", outcome);
+        assert!(debug_str.contains("CycleOutcome"));
+        assert!(debug_str.contains("pattern"));
+    }
+
+    #[test]
+    fn test_cycle_outcome_clone() {
+        let outcome = create_test_outcome(false);
+        let cloned = outcome.clone();
+        assert_eq!(cloned.pattern.id, outcome.pattern.id);
+        assert!(!cloned.was_successful());
+    }
+
+    #[test]
+    fn test_cycle_outcome_was_successful() {
+        let success = create_test_outcome(true);
+        assert!(success.was_successful());
+
+        let failure = create_test_outcome(false);
+        assert!(!failure.was_successful());
+    }
+
+    #[test]
+    fn test_cycle_outcome_needs_review() {
+        let outcome = CycleOutcome {
+            pattern: FailurePattern {
+                id: "test".to_string(),
+                error_code: "E0308".to_string(),
+                description: "Test".to_string(),
+                category: PatternCategory::TypeInference,
+                affected_count: 1,
+                fix_complexity: 1,
+                trigger_example: String::new(),
+            },
+            repro: ReproCase::new("test".to_string(), "E0308".to_string(), "test".to_string()),
+            verify_result: VerifyResult::NeedsReview {
+                fix: super::super::repair::Fix {
+                    id: "fix".to_string(),
+                    ticket_id: "DEPYLER-001".to_string(),
+                    description: "desc".to_string(),
+                    mutator_name: "mut".to_string(),
+                    confidence: 0.5,
+                    rust_output: String::new(),
+                    patch_location: None,
+                },
+                confidence: 0.5,
+                reason: "review".to_string(),
+            },
+            metrics_snapshot: KaizenMetrics::default(),
+        };
+        assert!(outcome.needs_review());
+        assert!(!outcome.was_successful());
+    }
+
+    #[test]
+    fn test_cycle_outcome_fix_category_type_inference() {
+        let outcome = create_test_outcome(true);
+        assert_eq!(outcome.fix_category(), "type_inference");
+    }
+
+    #[test]
+    fn test_cycle_outcome_fix_category_external_deps() {
+        let mut outcome = create_test_outcome(true);
+        outcome.pattern.category = PatternCategory::ExternalDeps;
+        assert_eq!(outcome.fix_category(), "external_deps");
+    }
+
+    #[test]
+    fn test_cycle_outcome_fix_category_borrowing() {
+        let mut outcome = create_test_outcome(true);
+        outcome.pattern.category = PatternCategory::Borrowing;
+        assert_eq!(outcome.fix_category(), "borrowing");
+    }
+
+    #[test]
+    fn test_cycle_outcome_fix_category_control_flow() {
+        let mut outcome = create_test_outcome(true);
+        outcome.pattern.category = PatternCategory::ControlFlow;
+        assert_eq!(outcome.fix_category(), "control_flow");
+    }
+
+    #[test]
+    fn test_cycle_outcome_fix_category_misc() {
+        let mut outcome = create_test_outcome(true);
+        outcome.pattern.category = PatternCategory::Miscellaneous;
+        assert_eq!(outcome.fix_category(), "misc");
+    }
+
+    #[test]
+    fn test_hansei_reflector_default() {
+        let reflector: HanseiReflector = Default::default();
+        assert!(reflector.lessons().is_empty());
+        assert!(reflector.history().is_empty());
+    }
+
+    #[test]
+    fn test_hansei_reflector_debug() {
+        let reflector = HanseiReflector::new();
+        let debug_str = format!("{:?}", reflector);
+        assert!(debug_str.contains("HanseiReflector"));
+    }
+
+    #[test]
+    fn test_success_rate_empty() {
+        let reflector = HanseiReflector::new();
+        assert_eq!(reflector.success_rate(), 0.0);
+    }
+
+    #[test]
+    fn test_high_confidence_lessons_empty() {
+        let reflector = HanseiReflector::new();
+        assert!(reflector.high_confidence_lessons().is_empty());
+    }
+
+    #[test]
+    fn test_lessons_by_category_empty() {
+        let reflector = HanseiReflector::new();
+        let lessons = reflector.lessons_by_category("nonexistent");
+        assert!(lessons.is_empty());
+    }
+
+    #[test]
+    fn test_export_markdown_empty() {
+        let reflector = HanseiReflector::new();
+        let md = reflector.export_markdown();
+        assert!(md.contains("# Hansei Report"));
+        assert!(md.contains("0 cycles"));
+    }
+
+    #[test]
+    fn test_lessons_by_category_success() {
+        let mut reflector = HanseiReflector::new();
+        reflector.reflect_on_cycle(&create_test_outcome(true));
+
+        let success_lessons = reflector.lessons_by_category("success_pattern");
+        assert!(!success_lessons.is_empty());
+    }
+
+    #[test]
+    fn test_high_confidence_after_reinforcement() {
+        let mut reflector = HanseiReflector::new();
+
+        // Add many similar outcomes to reinforce lessons
+        for _ in 0..10 {
+            reflector.reflect_on_cycle(&create_test_outcome(true));
+        }
+
+        let high_conf = reflector.high_confidence_lessons();
+        assert!(!high_conf.is_empty());
+    }
 }

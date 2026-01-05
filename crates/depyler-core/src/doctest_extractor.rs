@@ -725,4 +725,376 @@ def divide(a: float, b: float) -> float:
         assert_eq!(doctests.len(), 1);
         assert_eq!(doctests[0].expected, "2.5");
     }
+
+    // DEPYLER-COVERAGE-95: Additional tests for untested components
+
+    #[test]
+    fn test_doctest_struct_debug() {
+        let dt = Doctest {
+            function: "test_func".to_string(),
+            input: "test_func(1)".to_string(),
+            expected: "42".to_string(),
+            line: 10,
+        };
+
+        let debug = format!("{:?}", dt);
+        assert!(debug.contains("Doctest"));
+        assert!(debug.contains("test_func"));
+        assert!(debug.contains("42"));
+        assert!(debug.contains("10"));
+    }
+
+    #[test]
+    fn test_doctest_struct_clone() {
+        let dt = Doctest {
+            function: "original".to_string(),
+            input: "original()".to_string(),
+            expected: "1".to_string(),
+            line: 5,
+        };
+
+        let cloned = dt.clone();
+        assert_eq!(cloned.function, "original");
+        assert_eq!(cloned.input, "original()");
+        assert_eq!(cloned.expected, "1");
+        assert_eq!(cloned.line, 5);
+    }
+
+    #[test]
+    fn test_doctest_struct_partial_eq() {
+        let dt1 = Doctest {
+            function: "f".to_string(),
+            input: "f()".to_string(),
+            expected: "1".to_string(),
+            line: 1,
+        };
+
+        let dt2 = Doctest {
+            function: "f".to_string(),
+            input: "f()".to_string(),
+            expected: "1".to_string(),
+            line: 1,
+        };
+
+        let dt3 = Doctest {
+            function: "g".to_string(),
+            input: "g()".to_string(),
+            expected: "2".to_string(),
+            line: 2,
+        };
+
+        assert_eq!(dt1, dt2);
+        assert_ne!(dt1, dt3);
+    }
+
+    #[test]
+    fn test_doctest_result_default() {
+        let result = DoctestResult::default();
+        assert!(result.source.is_empty());
+        assert!(result.module.is_empty());
+        assert!(result.doctests.is_empty());
+    }
+
+    #[test]
+    fn test_doctest_result_debug() {
+        let result = DoctestResult {
+            source: "test.py".to_string(),
+            module: "test_module".to_string(),
+            doctests: vec![],
+        };
+
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("DoctestResult"));
+        assert!(debug.contains("test.py"));
+        assert!(debug.contains("test_module"));
+    }
+
+    #[test]
+    fn test_doctest_result_clone() {
+        let result = DoctestResult {
+            source: "source.py".to_string(),
+            module: "module".to_string(),
+            doctests: vec![FunctionDoctests {
+                function: "func".to_string(),
+                signature: Some("func(x: int) -> int".to_string()),
+                docstring: Some("Doc".to_string()),
+                examples: vec![],
+            }],
+        };
+
+        let cloned = result.clone();
+        assert_eq!(cloned.source, "source.py");
+        assert_eq!(cloned.module, "module");
+        assert_eq!(cloned.doctests.len(), 1);
+    }
+
+    #[test]
+    fn test_function_doctests_debug() {
+        let fd = FunctionDoctests {
+            function: "my_func".to_string(),
+            signature: Some("my_func() -> None".to_string()),
+            docstring: Some("Docstring text".to_string()),
+            examples: vec![],
+        };
+
+        let debug = format!("{:?}", fd);
+        assert!(debug.contains("FunctionDoctests"));
+        assert!(debug.contains("my_func"));
+    }
+
+    #[test]
+    fn test_function_doctests_clone() {
+        let fd = FunctionDoctests {
+            function: "func".to_string(),
+            signature: None,
+            docstring: None,
+            examples: vec![Doctest {
+                function: "func".to_string(),
+                input: "func()".to_string(),
+                expected: "42".to_string(),
+                line: 1,
+            }],
+        };
+
+        let cloned = fd.clone();
+        assert_eq!(cloned.function, "func");
+        assert!(cloned.signature.is_none());
+        assert!(cloned.docstring.is_none());
+        assert_eq!(cloned.examples.len(), 1);
+    }
+
+    #[test]
+    fn test_doctest_extractor_default() {
+        // Default derive uses false for bools, new() uses true
+        let extractor: DoctestExtractor = Default::default();
+        assert!(!extractor.include_module_doctests); // Default is false
+        assert!(!extractor.include_class_methods); // Default is false
+
+        // new() sets them to true
+        let extractor_new = DoctestExtractor::new();
+        assert!(extractor_new.include_module_doctests);
+        assert!(extractor_new.include_class_methods);
+    }
+
+    #[test]
+    fn test_doctest_extractor_debug() {
+        let extractor = DoctestExtractor::new();
+        let debug = format!("{:?}", extractor);
+        assert!(debug.contains("DoctestExtractor"));
+        assert!(debug.contains("include_module_doctests"));
+        assert!(debug.contains("include_class_methods"));
+    }
+
+    #[test]
+    fn test_doctest_extractor_clone() {
+        let extractor = DoctestExtractor::new()
+            .with_module_doctests(false)
+            .with_class_methods(false);
+
+        let cloned = extractor.clone();
+        assert!(!cloned.include_module_doctests);
+        assert!(!cloned.include_class_methods);
+    }
+
+    #[test]
+    fn test_with_module_doctests_builder() {
+        let extractor = DoctestExtractor::new().with_module_doctests(false);
+        assert!(!extractor.include_module_doctests);
+        assert!(extractor.include_class_methods); // Unchanged
+
+        let extractor2 = DoctestExtractor::new().with_module_doctests(true);
+        assert!(extractor2.include_module_doctests);
+    }
+
+    #[test]
+    fn test_with_class_methods_builder() {
+        let extractor = DoctestExtractor::new().with_class_methods(false);
+        assert!(extractor.include_module_doctests); // Unchanged
+        assert!(!extractor.include_class_methods);
+
+        let extractor2 = DoctestExtractor::new().with_class_methods(true);
+        assert!(extractor2.include_class_methods);
+    }
+
+    #[test]
+    fn test_builder_chaining() {
+        let extractor = DoctestExtractor::new()
+            .with_module_doctests(false)
+            .with_class_methods(false);
+
+        assert!(!extractor.include_module_doctests);
+        assert!(!extractor.include_class_methods);
+    }
+
+    #[test]
+    fn test_generate_rust_doc_tests_empty() {
+        let doctests: Vec<Doctest> = vec![];
+        let result = generate_rust_doc_tests(&doctests);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_generate_rust_doc_tests_single() {
+        let doctests = vec![Doctest {
+            function: "f".to_string(),
+            input: "f(1)".to_string(),
+            expected: "2".to_string(),
+            line: 1,
+        }];
+
+        let result = generate_rust_doc_tests(&doctests);
+        assert!(result.contains("/// ```"));
+        assert!(result.contains("assert_eq!(f(1), 2);"));
+    }
+
+    #[test]
+    fn test_extract_function_name_simple() {
+        let result = DoctestExtractor::extract_function_name("def foo():");
+        assert_eq!(result, Some("foo".to_string()));
+    }
+
+    #[test]
+    fn test_extract_function_name_with_args() {
+        let result = DoctestExtractor::extract_function_name("def bar(x: int, y: str) -> bool:");
+        assert_eq!(result, Some("bar".to_string()));
+    }
+
+    #[test]
+    fn test_extract_function_name_underscore() {
+        let result = DoctestExtractor::extract_function_name("def _private_func(arg):");
+        assert_eq!(result, Some("_private_func".to_string()));
+    }
+
+    #[test]
+    fn test_extract_function_name_invalid() {
+        let result = DoctestExtractor::extract_function_name("class Foo:");
+        assert!(result.is_none());
+
+        let result2 = DoctestExtractor::extract_function_name("x = 1");
+        assert!(result2.is_none());
+    }
+
+    #[test]
+    fn test_doctest_serialization() {
+        let dt = Doctest {
+            function: "test".to_string(),
+            input: "test()".to_string(),
+            expected: "42".to_string(),
+            line: 5,
+        };
+
+        let json = serde_json::to_string(&dt).unwrap();
+        assert!(json.contains("\"function\":\"test\""));
+        assert!(json.contains("\"input\":\"test()\""));
+        assert!(json.contains("\"expected\":\"42\""));
+        assert!(json.contains("\"line\":5"));
+    }
+
+    #[test]
+    fn test_doctest_deserialization() {
+        let json = r#"{"function":"f","input":"f()","expected":"1","line":10}"#;
+        let dt: Doctest = serde_json::from_str(json).unwrap();
+
+        assert_eq!(dt.function, "f");
+        assert_eq!(dt.input, "f()");
+        assert_eq!(dt.expected, "1");
+        assert_eq!(dt.line, 10);
+    }
+
+    #[test]
+    fn test_doctest_result_serialization() {
+        let result = DoctestResult {
+            source: "test.py".to_string(),
+            module: "test".to_string(),
+            doctests: vec![],
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"source\":\"test.py\""));
+        assert!(json.contains("\"module\":\"test\""));
+    }
+
+    #[test]
+    fn test_extract_to_result_grouping() {
+        let source = r#"
+def foo():
+    """Foo.
+
+    >>> foo()
+    1
+    """
+    return 1
+
+def bar():
+    """Bar.
+
+    >>> bar()
+    2
+    """
+    return 2
+"#;
+
+        let extractor = DoctestExtractor::new();
+        let result = extractor.extract_to_result(source, "test_mod").unwrap();
+
+        assert_eq!(result.module, "test_mod");
+        assert_eq!(result.source, "test_mod");
+        assert_eq!(result.doctests.len(), 2);
+    }
+
+    #[test]
+    fn test_module_level_doctest() {
+        let source = r#"
+"""Module docstring.
+
+>>> 1 + 1
+2
+"""
+
+def foo():
+    pass
+"#;
+
+        let extractor = DoctestExtractor::new();
+        let doctests = extractor.extract(source).unwrap();
+
+        // Module-level doctest should be captured with <module> function name
+        assert!(!doctests.is_empty());
+        assert!(doctests.iter().any(|dt| dt.function == "<module>"));
+    }
+
+    #[test]
+    fn test_doctest_with_whitespace() {
+        let source = r#"
+def foo():
+    """Test with whitespace.
+
+    >>>    foo()
+    42
+    """
+    return 42
+"#;
+
+        let extractor = DoctestExtractor::new();
+        let doctests = extractor.extract(source).unwrap();
+
+        assert_eq!(doctests.len(), 1);
+        // Input should have leading spaces stripped
+        assert_eq!(doctests[0].input.trim(), "foo()");
+    }
+
+    #[test]
+    fn test_inline_docstring() {
+        let source = r#"
+def foo():
+    """Inline docstring. >>> foo() should not be parsed here."""
+    return 42
+"#;
+
+        let extractor = DoctestExtractor::new();
+        let doctests = extractor.extract(source).unwrap();
+
+        // Inline >>> in docstring text should not be parsed
+        assert!(doctests.is_empty());
+    }
 }

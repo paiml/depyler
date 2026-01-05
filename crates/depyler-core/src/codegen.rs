@@ -1,7 +1,11 @@
+// DEPYLER-COVERAGE-95: Extracted submodules for better test coverage
+pub mod scope_tracker;
+pub mod union_type_resolution;
+
 use crate::hir::*;
 use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
-use std::collections::HashSet;
+use scope_tracker::ScopeTracker;
 use syn;
 
 pub fn generate_rust(file: syn::File) -> Result<String> {
@@ -93,37 +97,7 @@ fn expr_uses_hashmap(expr: &HirExpr) -> bool {
     }
 }
 
-struct ScopeTracker {
-    declared_vars: Vec<HashSet<String>>,
-}
-
-impl ScopeTracker {
-    fn new() -> Self {
-        Self {
-            declared_vars: vec![HashSet::new()],
-        }
-    }
-
-    fn enter_scope(&mut self) {
-        self.declared_vars.push(HashSet::new());
-    }
-
-    fn exit_scope(&mut self) {
-        self.declared_vars.pop();
-    }
-
-    fn is_declared(&self, var_name: &str) -> bool {
-        self.declared_vars
-            .iter()
-            .any(|scope| scope.contains(var_name))
-    }
-
-    fn declare_var(&mut self, var_name: &str) {
-        if let Some(current_scope) = self.declared_vars.last_mut() {
-            current_scope.insert(var_name.to_string());
-        }
-    }
-}
+// DEPYLER-COVERAGE-95: ScopeTracker extracted to scope_tracker module
 
 fn convert_function_to_rust(func: &HirFunction) -> Result<proc_macro2::TokenStream> {
     let name = syn::Ident::new(&func.name, proc_macro2::Span::call_site());
@@ -272,75 +246,9 @@ fn type_to_rust_type(ty: &Type) -> proc_macro2::TokenStream {
 }
 
 /// DEPYLER-0765: Resolve Python union types to valid Rust types
-///
-/// Strategy:
-/// 1. `int | float` → `f64` (widest numeric type)
-/// 2. `T | None` → `Option<T>` (optional type)
-/// 3. All same type → that type
-/// 4. Complex unions → `serde_json::Value` (catch-all)
+/// DEPYLER-COVERAGE-95: Delegate to extracted union_type_resolution module
 fn resolve_union_type(types: &[Type]) -> proc_macro2::TokenStream {
-    // Helper to check if type is None (including Custom("None"))
-    let is_none_type = |t: &Type| -> bool {
-        matches!(t, Type::None) || matches!(t, Type::Custom(n) if n == "None" || n == "NoneType")
-    };
-
-    // Helper to check if type is numeric (including Custom variants)
-    let is_numeric = |t: &Type| -> bool {
-        matches!(t, Type::Int | Type::Float)
-            || matches!(t, Type::Custom(n) if n == "int" || n == "float" || n == "i64" || n == "f64")
-    };
-
-    // Helper to check if type is float-like
-    let is_float_like = |t: &Type| -> bool {
-        matches!(t, Type::Float) || matches!(t, Type::Custom(n) if n == "float" || n == "f64")
-    };
-
-    // Helper to check if type is string-like
-    let is_string_like = |t: &Type| -> bool {
-        matches!(t, Type::String) || matches!(t, Type::Custom(n) if n == "str" || n == "String")
-    };
-
-    // Filter out duplicates and check for None
-    let has_none = types.iter().any(is_none_type);
-    let non_none_types: Vec<&Type> = types.iter().filter(|t| !is_none_type(t)).collect();
-
-    // Case 1: T | None → Option<T>
-    if has_none && non_none_types.len() == 1 {
-        let inner = type_to_rust_type(non_none_types[0]);
-        return quote! { Option<#inner> };
-    }
-
-    // Case 2: Only None → ()
-    if non_none_types.is_empty() {
-        return quote! { () };
-    }
-
-    // Case 3: All numeric types → use widest (f64)
-    let all_numeric = non_none_types.iter().all(|t| is_numeric(t));
-    if all_numeric {
-        // If float present, use f64; if only int, use i64
-        let has_float = non_none_types.iter().any(|t| is_float_like(t));
-        if has_float {
-            return quote! { f64 };
-        } else {
-            return quote! { i64 };
-        }
-    }
-
-    // Case 4: All string types → String
-    let all_string = non_none_types.iter().all(|t| is_string_like(t));
-    if all_string {
-        return quote! { String };
-    }
-
-    // Case 5: All same type → that type
-    if non_none_types.len() == 1 {
-        return type_to_rust_type(non_none_types[0]);
-    }
-
-    // Case 6: Check for int | str or other common patterns → use serde_json::Value
-    // This is the safest catch-all for heterogeneous unions
-    quote! { serde_json::Value }
+    union_type_resolution::resolve_union_type(types, type_to_rust_type)
 }
 
 #[allow(dead_code)]
@@ -398,7 +306,7 @@ fn handle_assign_target(
                             .collect();
                         Ok(quote! { (#(#idents),*) = #value_tokens; })
                     } else {
-                        symbols.iter().for_each(|s| scope_tracker.declare_var(s));
+                        scope_tracker.declare_vars(symbols.iter());
                         let idents: Vec<_> = symbols
                             .iter()
                             .map(|s| syn::Ident::new(s, proc_macro2::Span::call_site()))
@@ -2664,5 +2572,275 @@ mod tests {
         let tokens = type_to_rust_type(&array);
         let code = tokens.to_string();
         assert!(code.contains("[") || code.contains("i32"));
+    }
+
+    // Tests for frozen_set_to_rust_tokens
+    #[test]
+    fn test_frozen_set_to_rust_tokens_empty() {
+        let items: Vec<HirExpr> = vec![];
+        let result = frozen_set_to_rust_tokens(&items).unwrap();
+        let code = result.to_string();
+        assert!(code.contains("HashSet"));
+        assert!(code.contains("Arc"));
+    }
+
+    #[test]
+    fn test_frozen_set_to_rust_tokens_with_items() {
+        let items = vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+            HirExpr::Literal(Literal::Int(3)),
+        ];
+        let result = frozen_set_to_rust_tokens(&items).unwrap();
+        let code = result.to_string();
+        assert!(code.contains("HashSet"));
+        assert!(code.contains("insert"));
+        assert!(code.contains("Arc"));
+    }
+
+    // Tests for set_comp_to_rust_tokens
+    #[test]
+    fn test_set_comp_to_rust_tokens_no_condition() {
+        let element = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        let iter = HirExpr::Call {
+            func: "range".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(5))],
+            kwargs: vec![],
+        };
+        let result = set_comp_to_rust_tokens(&element, "x", &iter, &None).unwrap();
+        let code = result.to_string();
+        assert!(code.contains("into_iter"));
+        assert!(code.contains("map"));
+        assert!(code.contains("HashSet"));
+    }
+
+    #[test]
+    fn test_set_comp_to_rust_tokens_with_condition() {
+        let element = HirExpr::Var("x".to_string());
+        let iter = HirExpr::Var("items".to_string());
+        let condition = Some(Box::new(HirExpr::Binary {
+            op: BinOp::Gt,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::Int(0))),
+        }));
+        let result = set_comp_to_rust_tokens(&element, "x", &iter, &condition).unwrap();
+        let code = result.to_string();
+        assert!(code.contains("into_iter"));
+        assert!(code.contains("filter"));
+        assert!(code.contains("map"));
+        assert!(code.contains("HashSet"));
+    }
+
+    // Tests for dict_comp_to_rust_tokens
+    #[test]
+    fn test_dict_comp_to_rust_tokens_no_condition() {
+        let key = HirExpr::Var("x".to_string());
+        let value = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::Var("x".to_string())),
+            right: Box::new(HirExpr::Var("x".to_string())),
+        };
+        let iter = HirExpr::Var("items".to_string());
+        let result = dict_comp_to_rust_tokens(&key, &value, "x", &iter, &None).unwrap();
+        let code = result.to_string();
+        assert!(code.contains("into_iter"));
+        assert!(code.contains("map"));
+        assert!(code.contains("HashMap"));
+    }
+
+    #[test]
+    fn test_dict_comp_to_rust_tokens_with_condition() {
+        let key = HirExpr::Var("k".to_string());
+        let value = HirExpr::Var("v".to_string());
+        let iter = HirExpr::Var("pairs".to_string());
+        let condition = Some(Box::new(HirExpr::Binary {
+            op: BinOp::NotEq,
+            left: Box::new(HirExpr::Var("v".to_string())),
+            right: Box::new(HirExpr::Literal(Literal::None)),
+        }));
+        let result = dict_comp_to_rust_tokens(&key, &value, "k", &iter, &condition).unwrap();
+        let code = result.to_string();
+        assert!(code.contains("into_iter"));
+        assert!(code.contains("filter"));
+        assert!(code.contains("map"));
+        assert!(code.contains("HashMap"));
+    }
+
+    // Tests for binop_to_rust_tokens
+    #[test]
+    fn test_binop_to_rust_tokens_all_ops() {
+        assert_eq!(binop_to_rust_tokens(&BinOp::Add).to_string(), "+");
+        assert_eq!(binop_to_rust_tokens(&BinOp::Sub).to_string(), "-");
+        assert_eq!(binop_to_rust_tokens(&BinOp::Mul).to_string(), "*");
+        assert_eq!(binop_to_rust_tokens(&BinOp::Div).to_string(), "/");
+        assert_eq!(binop_to_rust_tokens(&BinOp::FloorDiv).to_string(), "/");
+        assert_eq!(binop_to_rust_tokens(&BinOp::Mod).to_string(), "%");
+        assert!(binop_to_rust_tokens(&BinOp::Pow).to_string().contains("pow"));
+        assert_eq!(binop_to_rust_tokens(&BinOp::Eq).to_string(), "==");
+        assert_eq!(binop_to_rust_tokens(&BinOp::NotEq).to_string(), "!=");
+        assert_eq!(binop_to_rust_tokens(&BinOp::Lt).to_string(), "<");
+        assert_eq!(binop_to_rust_tokens(&BinOp::LtEq).to_string(), "<=");
+        assert_eq!(binop_to_rust_tokens(&BinOp::Gt).to_string(), ">");
+        assert_eq!(binop_to_rust_tokens(&BinOp::GtEq).to_string(), ">=");
+        assert_eq!(binop_to_rust_tokens(&BinOp::And).to_string(), "&&");
+        assert_eq!(binop_to_rust_tokens(&BinOp::Or).to_string(), "||");
+        assert_eq!(binop_to_rust_tokens(&BinOp::BitAnd).to_string(), "&");
+        assert_eq!(binop_to_rust_tokens(&BinOp::BitOr).to_string(), "|");
+        assert_eq!(binop_to_rust_tokens(&BinOp::BitXor).to_string(), "^");
+        assert_eq!(binop_to_rust_tokens(&BinOp::LShift).to_string(), "<<");
+        assert_eq!(binop_to_rust_tokens(&BinOp::RShift).to_string(), ">>");
+        assert!(binop_to_rust_tokens(&BinOp::In).to_string().contains("contains"));
+        assert!(binop_to_rust_tokens(&BinOp::NotIn).to_string().contains("contains"));
+    }
+
+    // Tests for unaryop_to_rust_tokens
+    #[test]
+    fn test_unaryop_to_rust_tokens_all_ops() {
+        assert_eq!(unaryop_to_rust_tokens(&UnaryOp::Not).to_string(), "!");
+        assert_eq!(unaryop_to_rust_tokens(&UnaryOp::Neg).to_string(), "-");
+        assert_eq!(unaryop_to_rust_tokens(&UnaryOp::Pos).to_string(), "+");
+        assert_eq!(unaryop_to_rust_tokens(&UnaryOp::BitNot).to_string(), "!");
+    }
+
+    // Tests for literal_to_rust_tokens
+    #[test]
+    fn test_literal_to_rust_tokens_bytes() {
+        let bytes = Literal::Bytes(vec![0x48, 0x65, 0x6c, 0x6c, 0x6f]); // "Hello"
+        let result = literal_to_rust_tokens(&bytes).unwrap();
+        let code = result.to_string();
+        // Should generate a byte string
+        assert!(code.contains("b\"") || code.contains("Hello"));
+    }
+
+    #[test]
+    fn test_literal_to_rust_tokens_all_types() {
+        assert_eq!(literal_to_rust_tokens(&Literal::Int(42)).unwrap().to_string(), "42i64");
+        assert!(literal_to_rust_tokens(&Literal::Float(3.14)).unwrap().to_string().contains("3.14"));
+        assert!(literal_to_rust_tokens(&Literal::String("test".to_string())).unwrap().to_string().contains("test"));
+        assert_eq!(literal_to_rust_tokens(&Literal::Bool(true)).unwrap().to_string(), "true");
+        assert_eq!(literal_to_rust_tokens(&Literal::Bool(false)).unwrap().to_string(), "false");
+        assert_eq!(literal_to_rust_tokens(&Literal::None).unwrap().to_string(), "None");
+    }
+
+    // Tests for type_to_rust_type edge cases
+    #[test]
+    fn test_type_to_rust_type_tuple() {
+        let tuple = Type::Tuple(vec![Type::Int, Type::String, Type::Bool]);
+        let tokens = type_to_rust_type(&tuple);
+        let code = tokens.to_string();
+        assert!(code.contains("i64") || code.contains("String") || code.contains("bool"));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_optional() {
+        let optional = Type::Optional(Box::new(Type::String));
+        let tokens = type_to_rust_type(&optional);
+        let code = tokens.to_string();
+        assert!(code.contains("Option"));
+    }
+
+    #[test]
+    fn test_type_to_rust_type_list() {
+        let list = Type::List(Box::new(Type::Int));
+        let tokens = type_to_rust_type(&list);
+        let code = tokens.to_string();
+        assert!(code.contains("Vec"));
+    }
+
+    // Tests for uses_hashmap edge cases
+    #[test]
+    fn test_uses_hashmap_in_optional() {
+        let ty = Type::Optional(Box::new(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int),
+        )));
+        assert!(uses_hashmap(&ty));
+    }
+
+    #[test]
+    fn test_uses_hashmap_in_tuple() {
+        let ty = Type::Tuple(vec![
+            Type::Int,
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+        ]);
+        assert!(uses_hashmap(&ty));
+    }
+
+    #[test]
+    fn test_uses_hashmap_false_for_simple() {
+        assert!(!uses_hashmap(&Type::Int));
+        assert!(!uses_hashmap(&Type::String));
+        assert!(!uses_hashmap(&Type::Bool));
+        assert!(!uses_hashmap(&Type::Float));
+    }
+
+    // Tests for expr_uses_hashmap edge cases
+    #[test]
+    fn test_expr_uses_hashmap_direct_dict() {
+        let expr = HirExpr::Dict(vec![]);
+        assert!(expr_uses_hashmap(&expr));
+    }
+
+    #[test]
+    fn test_expr_uses_hashmap_nested_in_list() {
+        let expr = HirExpr::List(vec![HirExpr::Dict(vec![])]);
+        assert!(expr_uses_hashmap(&expr));
+    }
+
+    #[test]
+    fn test_expr_uses_hashmap_in_index_base() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Dict(vec![])),
+            index: Box::new(HirExpr::Literal(Literal::String("key".to_string()))),
+        };
+        assert!(expr_uses_hashmap(&expr));
+    }
+
+    #[test]
+    fn test_expr_uses_hashmap_unary() {
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Call {
+                func: "test".to_string(),
+                args: vec![HirExpr::Dict(vec![])],
+                kwargs: vec![],
+            }),
+        };
+        assert!(expr_uses_hashmap(&expr));
+    }
+
+    // Tests for stmt_uses_hashmap edge cases
+    #[test]
+    fn test_stmt_uses_hashmap_in_assign() {
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Dict(vec![]),
+            type_annotation: None,
+        };
+        assert!(stmt_uses_hashmap(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_uses_hashmap_in_expr() {
+        let stmt = HirStmt::Expr(HirExpr::Dict(vec![]));
+        assert!(stmt_uses_hashmap(&stmt));
+    }
+
+    #[test]
+    fn test_stmt_uses_hashmap_in_for_iter() {
+        let stmt = HirStmt::For {
+            target: AssignTarget::Symbol("k".to_string()),
+            iter: HirExpr::Call {
+                func: "keys".to_string(),
+                args: vec![HirExpr::Dict(vec![])],
+                kwargs: vec![],
+            },
+            body: vec![],
+        };
+        assert!(stmt_uses_hashmap(&stmt));
     }
 }

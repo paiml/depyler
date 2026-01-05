@@ -328,6 +328,117 @@ impl std::error::Error for TomlParseError {}
 mod tests {
     use super::*;
 
+    // ============ parse_param_type tests ============
+
+    #[test]
+    fn test_parse_param_type_expr() {
+        assert!(matches!(TomlPlugin::parse_param_type("expr"), ParamType::Expr));
+        assert!(matches!(TomlPlugin::parse_param_type("Expr"), ParamType::Expr));
+        assert!(matches!(TomlPlugin::parse_param_type("EXPR"), ParamType::Expr));
+    }
+
+    #[test]
+    fn test_parse_param_type_string() {
+        assert!(matches!(TomlPlugin::parse_param_type("string"), ParamType::String));
+        assert!(matches!(TomlPlugin::parse_param_type("String"), ParamType::String));
+    }
+
+    #[test]
+    fn test_parse_param_type_number() {
+        assert!(matches!(TomlPlugin::parse_param_type("number"), ParamType::Number));
+        assert!(matches!(TomlPlugin::parse_param_type("Number"), ParamType::Number));
+    }
+
+    #[test]
+    fn test_parse_param_type_bytes() {
+        assert!(matches!(TomlPlugin::parse_param_type("bytes"), ParamType::Bytes));
+        assert!(matches!(TomlPlugin::parse_param_type("Bytes"), ParamType::Bytes));
+    }
+
+    #[test]
+    fn test_parse_param_type_bool() {
+        assert!(matches!(TomlPlugin::parse_param_type("bool"), ParamType::Bool));
+        assert!(matches!(TomlPlugin::parse_param_type("Bool"), ParamType::Bool));
+    }
+
+    #[test]
+    fn test_parse_param_type_path() {
+        assert!(matches!(TomlPlugin::parse_param_type("path"), ParamType::Path));
+        assert!(matches!(TomlPlugin::parse_param_type("Path"), ParamType::Path));
+    }
+
+    #[test]
+    fn test_parse_param_type_list() {
+        assert!(matches!(TomlPlugin::parse_param_type("list"), ParamType::List));
+        assert!(matches!(TomlPlugin::parse_param_type("List"), ParamType::List));
+    }
+
+    #[test]
+    fn test_parse_param_type_dict() {
+        assert!(matches!(TomlPlugin::parse_param_type("dict"), ParamType::Dict));
+        assert!(matches!(TomlPlugin::parse_param_type("Dict"), ParamType::Dict));
+    }
+
+    #[test]
+    fn test_parse_param_type_unknown_defaults_expr() {
+        assert!(matches!(TomlPlugin::parse_param_type("unknown"), ParamType::Expr));
+        assert!(matches!(TomlPlugin::parse_param_type("custom"), ParamType::Expr));
+        assert!(matches!(TomlPlugin::parse_param_type(""), ParamType::Expr));
+    }
+
+    // ============ convert_confidence tests ============
+
+    #[test]
+    fn test_convert_confidence_verified() {
+        let conf = TomlConfidence::Verified;
+        assert!(matches!(TomlPlugin::convert_confidence(&conf), MappingConfidence::Verified));
+    }
+
+    #[test]
+    fn test_convert_confidence_community() {
+        let conf = TomlConfidence::Community;
+        assert!(matches!(TomlPlugin::convert_confidence(&conf), MappingConfidence::Community));
+    }
+
+    #[test]
+    fn test_convert_confidence_experimental() {
+        let conf = TomlConfidence::Experimental;
+        assert!(matches!(TomlPlugin::convert_confidence(&conf), MappingConfidence::Experimental));
+    }
+
+    // ============ TomlParseError tests ============
+
+    #[test]
+    fn test_toml_parse_error_display_with_line() {
+        let err = TomlParseError {
+            message: "unexpected token".to_string(),
+            line: Some(42),
+        };
+        let display = format!("{}", err);
+        assert!(display.contains("line 42"));
+        assert!(display.contains("unexpected token"));
+    }
+
+    #[test]
+    fn test_toml_parse_error_display_without_line() {
+        let err = TomlParseError {
+            message: "invalid syntax".to_string(),
+            line: None,
+        };
+        let display = format!("{}", err);
+        assert!(!display.contains("line"));
+        assert!(display.contains("invalid syntax"));
+    }
+
+    // ============ default_version_req tests ============
+
+    #[test]
+    fn test_default_version_req() {
+        assert_eq!(default_version_req(), "*");
+    }
+
+    // ============ TomlPlugin parsing tests ============
+
     #[test]
     fn test_toml_plugin_basic_parsing() {
         let toml = r#"
@@ -452,5 +563,198 @@ func = { rust_name = "func", pattern = "Direct" }
         let item = registry.lookup("custom", "func");
         assert!(item.is_some());
         assert_eq!(item.unwrap().rust_name, "func");
+    }
+
+    #[test]
+    fn test_toml_plugin_constructor_pattern() {
+        let toml = r#"
+[plugin]
+id = "test"
+version = "1.0.0"
+
+[[mappings]]
+python_module = "pathlib"
+rust_crate = "std::path"
+
+[mappings.items]
+Path = { rust_name = "PathBuf", pattern = "Constructor", method = "from" }
+"#;
+
+        let plugin = TomlPlugin::parse(toml).unwrap();
+        let item = &plugin.config.mappings[0].items["Path"];
+        assert_eq!(item.method, Some("from".to_string()));
+    }
+
+    #[test]
+    fn test_toml_plugin_property_to_method_pattern() {
+        let toml = r#"
+[plugin]
+id = "test"
+version = "1.0.0"
+
+[[mappings]]
+python_module = "os.path"
+rust_crate = "std::path"
+
+[mappings.items]
+exists = { rust_name = "exists", pattern = "PropertyToMethod" }
+"#;
+
+        let plugin = TomlPlugin::parse(toml).unwrap();
+        assert!(plugin.validate().is_ok());
+    }
+
+    #[test]
+    fn test_toml_plugin_with_features() {
+        let toml = r#"
+[plugin]
+id = "test"
+version = "1.0.0"
+
+[[mappings]]
+python_module = "crypto"
+rust_crate = "ring"
+features = ["std", "alloc"]
+
+[mappings.items]
+hash = { rust_name = "digest", pattern = "Direct" }
+"#;
+
+        let plugin = TomlPlugin::parse(toml).unwrap();
+        assert_eq!(plugin.config.mappings[0].features, vec!["std", "alloc"]);
+    }
+
+    #[test]
+    fn test_toml_plugin_with_confidence() {
+        let toml = r#"
+[plugin]
+id = "test"
+version = "1.0.0"
+
+[[mappings]]
+python_module = "verified_lib"
+rust_crate = "verified_rs"
+confidence = "Verified"
+provenance = "Official API mapping"
+
+[mappings.items]
+func = { rust_name = "func", pattern = "Direct" }
+"#;
+
+        let plugin = TomlPlugin::parse(toml).unwrap();
+        assert!(matches!(plugin.config.mappings[0].confidence, TomlConfidence::Verified));
+        assert_eq!(plugin.config.mappings[0].provenance, "Official API mapping");
+    }
+
+    #[test]
+    fn test_toml_plugin_with_type_transform() {
+        let toml = r#"
+[plugin]
+id = "test"
+version = "1.0.0"
+
+[[mappings]]
+python_module = "numpy"
+rust_crate = "ndarray"
+
+[mappings.items]
+array = { rust_name = "Array", pattern = "Constructor", type_transform = { python_type = "ndarray", rust_type = "Array<f64, Ix1>" } }
+"#;
+
+        let plugin = TomlPlugin::parse(toml).unwrap();
+        let type_transform = &plugin.config.mappings[0].items["array"].type_transform;
+        assert!(type_transform.is_some());
+        let tt = type_transform.as_ref().unwrap();
+        assert_eq!(tt.python_type, "ndarray");
+        assert_eq!(tt.rust_type, "Array<f64, Ix1>");
+    }
+
+    #[test]
+    fn test_toml_plugin_parse_error_invalid_toml() {
+        let invalid_toml = r#"
+[plugin
+id = "broken"
+"#;
+        let result = TomlPlugin::parse(invalid_toml);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_toml_plugin_parse_error_missing_required() {
+        let missing_id = r#"
+[plugin]
+version = "1.0.0"
+"#;
+        let result = TomlPlugin::parse(missing_id);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_toml_plugin_default_version_req_used() {
+        let toml = r#"
+[plugin]
+id = "test"
+version = "1.0.0"
+
+[[mappings]]
+python_module = "test"
+rust_crate = "test_rs"
+
+[mappings.items]
+func = { rust_name = "func", pattern = "Direct" }
+"#;
+
+        let plugin = TomlPlugin::parse(toml).unwrap();
+        // Should use default "*" for version requirements
+        assert_eq!(plugin.config.mappings[0].python_version_req, "*");
+        assert_eq!(plugin.config.mappings[0].rust_crate_version, "*");
+    }
+
+    #[test]
+    fn test_toml_plugin_multiple_mappings() {
+        let toml = r#"
+[plugin]
+id = "test"
+version = "1.0.0"
+
+[[mappings]]
+python_module = "module1"
+rust_crate = "crate1"
+
+[mappings.items]
+func1 = { rust_name = "func1", pattern = "Direct" }
+
+[[mappings]]
+python_module = "module2"
+rust_crate = "crate2"
+
+[mappings.items]
+func2 = { rust_name = "func2", pattern = "Direct" }
+"#;
+
+        let plugin = TomlPlugin::parse(toml).unwrap();
+        assert_eq!(plugin.config.mappings.len(), 2);
+        assert_eq!(plugin.config.mappings[0].python_module, "module1");
+        assert_eq!(plugin.config.mappings[1].python_module, "module2");
+    }
+
+    #[test]
+    fn test_toml_plugin_with_maintainer() {
+        let toml = r#"
+[plugin]
+id = "enterprise-plugin"
+version = "2.0.0"
+maintainer = "team@example.com"
+
+[[mappings]]
+python_module = "enterprise"
+rust_crate = "enterprise_rs"
+
+[mappings.items]
+func = { rust_name = "func", pattern = "Direct" }
+"#;
+
+        let plugin = TomlPlugin::parse(toml).unwrap();
+        assert_eq!(plugin.config.plugin.maintainer, Some("team@example.com".to_string()));
     }
 }

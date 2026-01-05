@@ -1,0 +1,509 @@
+//! JSON Module Code Generation - EXTREME TDD
+//!
+//! Handles Python `json` module method conversions to Rust serde_json.
+//! Extracted from expr_gen.rs for testability and maintainability.
+//!
+//! Coverage target: 100% line coverage, 100% branch coverage
+
+use crate::hir::{HirExpr, Type};
+use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
+use anyhow::{bail, Result};
+use syn::parse_quote;
+
+/// Convert Python json module method calls to Rust serde_json
+///
+/// # Supported Methods
+/// - `json.dumps(obj)` → `serde_json::to_string(&obj).unwrap()`
+/// - `json.dumps(obj, indent=n)` → `serde_json::to_string_pretty(&obj).unwrap()`
+/// - `json.loads(s)` → `serde_json::from_str::<Value>(&s).unwrap()`
+/// - `json.dump(obj, file)` → `serde_json::to_writer(file, &obj).unwrap()`
+/// - `json.load(file)` → `serde_json::from_reader::<_, Value>(file).unwrap()`
+///
+/// # Complexity: 5 (match with 5 branches)
+pub fn convert_json_method(
+    method: &str,
+    args: &[HirExpr],
+    ctx: &mut CodeGenContext,
+) -> Result<Option<syn::Expr>> {
+    // Convert arguments first
+    let arg_exprs: Vec<syn::Expr> = args
+        .iter()
+        .map(|arg| arg.to_rust_expr(ctx))
+        .collect::<Result<Vec<_>>>()?;
+
+    // Mark that we need serde_json crate
+    ctx.needs_serde_json = true;
+
+    let result = match method {
+        "dumps" => convert_dumps(&arg_exprs)?,
+        "loads" => convert_loads(&arg_exprs, ctx)?,
+        "dump" => convert_dump(&arg_exprs)?,
+        "load" => convert_load(&arg_exprs, ctx)?,
+        _ => bail!("json.{} not implemented yet", method),
+    };
+
+    Ok(Some(result))
+}
+
+/// Convert json.dumps() call
+fn convert_dumps(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+        bail!("json.dumps() requires 1 or 2 arguments");
+    }
+    let obj = &arg_exprs[0];
+
+    // DEPYLER-0377: Check if indent parameter is provided
+    if arg_exprs.len() >= 2 {
+        // json.dumps(obj, indent=n) → serde_json::to_string_pretty(&obj).unwrap()
+        Ok(parse_quote! { serde_json::to_string_pretty(&#obj).unwrap() })
+    } else {
+        // json.dumps(obj) → serde_json::to_string(&obj).unwrap()
+        Ok(parse_quote! { serde_json::to_string(&#obj).unwrap() })
+    }
+}
+
+/// Convert json.loads() call
+fn convert_loads(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
+    if arg_exprs.len() != 1 {
+        bail!("json.loads() requires exactly 1 argument");
+    }
+    let s = &arg_exprs[0];
+
+    // DEPYLER-0962: Check if return type is a Union of dict|list
+    if let Some(union_name) = return_type_is_dict_list_union(ctx) {
+        ctx.needs_hashmap = true;
+        let union_ident: syn::Ident =
+            syn::Ident::new(&union_name, proc_macro2::Span::call_site());
+        Ok(parse_quote! {
+            {
+                let __json_val = serde_json::from_str::<serde_json::Value>(&#s).unwrap();
+                match __json_val {
+                    serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect()),
+                    serde_json::Value::Array(arr) => #union_ident::List(arr),
+                    _ => panic!("json.loads expected dict or list"),
+                }
+            }
+        })
+    } else if return_type_needs_json_dict(ctx) {
+        // DEPYLER-0703: Check if return type is Dict[str, Any] → HashMap<String, Value>
+        ctx.needs_hashmap = true;
+        Ok(parse_quote! { serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#s).unwrap() })
+    } else {
+        // json.loads(s) → serde_json::from_str::<Value>(&s).unwrap()
+        Ok(parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).unwrap() })
+    }
+}
+
+/// Convert json.dump() call
+fn convert_dump(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    if arg_exprs.len() != 2 {
+        bail!("json.dump() requires exactly 2 arguments (obj, file)");
+    }
+    let obj = &arg_exprs[0];
+    let file = &arg_exprs[1];
+    Ok(parse_quote! { serde_json::to_writer(#file, &#obj).unwrap() })
+}
+
+/// Convert json.load() call
+fn convert_load(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
+    if arg_exprs.len() != 1 {
+        bail!("json.load() requires exactly 1 argument (file)");
+    }
+    let file = &arg_exprs[0];
+
+    // DEPYLER-0962: Check if return type is a Union of dict|list
+    if let Some(union_name) = return_type_is_dict_list_union(ctx) {
+        ctx.needs_hashmap = true;
+        let union_ident: syn::Ident =
+            syn::Ident::new(&union_name, proc_macro2::Span::call_site());
+        Ok(parse_quote! {
+            {
+                let __json_val = serde_json::from_reader::<_, serde_json::Value>(#file).unwrap();
+                match __json_val {
+                    serde_json::Value::Object(obj) => #union_ident::Dict(obj.into_iter().collect()),
+                    serde_json::Value::Array(arr) => #union_ident::List(arr),
+                    _ => panic!("json.load expected dict or list"),
+                }
+            }
+        })
+    } else {
+        Ok(parse_quote! { serde_json::from_reader::<_, serde_json::Value>(#file).unwrap() })
+    }
+}
+
+/// DEPYLER-0962: Check if return type is a Union of dict and list
+pub fn return_type_is_dict_list_union(ctx: &CodeGenContext) -> Option<String> {
+    if let Some(Type::Union(types)) = ctx.current_return_type.as_ref() {
+        let has_dict = types.iter().any(|t| matches!(t, Type::Dict(_, _)));
+        let has_list = types.iter().any(|t| matches!(t, Type::List(_)));
+        if has_dict && has_list && types.len() == 2 {
+            return Some("DictOrListUnion".to_string());
+        }
+    }
+    None
+}
+
+/// DEPYLER-0560: Check if function return type requires serde_json::Value
+pub fn return_type_needs_json_dict(ctx: &CodeGenContext) -> bool {
+    // Check assignment target type first
+    if let Some(ref assign_type) = ctx.current_assign_type {
+        match assign_type {
+            Type::Dict(_, value_type) => {
+                if is_json_value_type(value_type.as_ref()) {
+                    return true;
+                }
+            }
+            Type::Custom(s) if s.contains("HashMap") && s.contains("Value") => return true,
+            _ => {}
+        }
+    }
+
+    // Check function return type
+    if let Some(ref ret_type) = ctx.current_return_type {
+        match ret_type {
+            Type::Dict(_, value_type) => is_json_value_type(value_type.as_ref()),
+            Type::Custom(s) if s.contains("HashMap") && s.contains("Value") => true,
+            _ => false,
+        }
+    } else {
+        false
+    }
+}
+
+/// Check if a type represents serde_json::Value
+fn is_json_value_type(t: &Type) -> bool {
+    match t {
+        Type::Unknown => true,
+        Type::Custom(s) => s.contains("Value") || s.contains("Any"),
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hir::Literal;
+
+    // ============ convert_json_method tests ============
+
+    #[test]
+    fn test_convert_json_dumps_single_arg() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Var("data".to_string())];
+
+        let result = convert_json_method("dumps", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+        assert!(ctx.needs_serde_json);
+    }
+
+    #[test]
+    fn test_convert_json_dumps_with_indent() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Var("data".to_string()),
+            HirExpr::Literal(Literal::Int(2)),
+        ];
+
+        let result = convert_json_method("dumps", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(ctx.needs_serde_json);
+    }
+
+    #[test]
+    fn test_convert_json_dumps_no_args_error() {
+        let mut ctx = CodeGenContext::default();
+        let args: Vec<HirExpr> = vec![];
+
+        let result = convert_json_method("dumps", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_json_dumps_too_many_args_error() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Var("a".to_string()),
+            HirExpr::Var("b".to_string()),
+            HirExpr::Var("c".to_string()),
+        ];
+
+        let result = convert_json_method("dumps", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_json_loads_single_arg() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Var("json_str".to_string())];
+
+        let result = convert_json_method("loads", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(ctx.needs_serde_json);
+    }
+
+    #[test]
+    fn test_convert_json_loads_wrong_args_error() {
+        let mut ctx = CodeGenContext::default();
+        let args: Vec<HirExpr> = vec![];
+
+        let result = convert_json_method("loads", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_json_loads_with_dict_list_union_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Union(vec![
+            Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+            Type::List(Box::new(Type::Unknown)),
+        ]));
+        let args = vec![HirExpr::Var("json_str".to_string())];
+
+        let result = convert_json_method("loads", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_convert_json_loads_with_dict_any_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Unknown),  // Unknown represents Any
+        ));
+        let args = vec![HirExpr::Var("json_str".to_string())];
+
+        let result = convert_json_method("loads", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_convert_json_dump_correct_args() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![
+            HirExpr::Var("data".to_string()),
+            HirExpr::Var("file".to_string()),
+        ];
+
+        let result = convert_json_method("dump", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(ctx.needs_serde_json);
+    }
+
+    #[test]
+    fn test_convert_json_dump_wrong_args_error() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Var("data".to_string())];
+
+        let result = convert_json_method("dump", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_json_load_single_arg() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Var("file".to_string())];
+
+        let result = convert_json_method("load", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(ctx.needs_serde_json);
+    }
+
+    #[test]
+    fn test_convert_json_load_wrong_args_error() {
+        let mut ctx = CodeGenContext::default();
+        let args: Vec<HirExpr> = vec![];
+
+        let result = convert_json_method("load", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_json_load_with_dict_list_union_return() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Union(vec![
+            Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+            Type::List(Box::new(Type::Unknown)),
+        ]));
+        let args = vec![HirExpr::Var("file".to_string())];
+
+        let result = convert_json_method("load", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(ctx.needs_hashmap);
+    }
+
+    #[test]
+    fn test_convert_json_unknown_method_error() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Var("data".to_string())];
+
+        let result = convert_json_method("unknown_method", &args, &mut ctx);
+        assert!(result.is_err());
+    }
+
+    // ============ return_type_is_dict_list_union tests ============
+
+    #[test]
+    fn test_return_type_is_dict_list_union_true() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Union(vec![
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+            Type::List(Box::new(Type::Int)),
+        ]));
+
+        assert!(return_type_is_dict_list_union(&ctx).is_some());
+    }
+
+    #[test]
+    fn test_return_type_is_dict_list_union_false_no_dict() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Union(vec![
+            Type::String,
+            Type::List(Box::new(Type::Int)),
+        ]));
+
+        assert!(return_type_is_dict_list_union(&ctx).is_none());
+    }
+
+    #[test]
+    fn test_return_type_is_dict_list_union_false_no_list() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Union(vec![
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+            Type::String,
+        ]));
+
+        assert!(return_type_is_dict_list_union(&ctx).is_none());
+    }
+
+    #[test]
+    fn test_return_type_is_dict_list_union_false_too_many_types() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Union(vec![
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+            Type::List(Box::new(Type::Int)),
+            Type::String,
+        ]));
+
+        assert!(return_type_is_dict_list_union(&ctx).is_none());
+    }
+
+    #[test]
+    fn test_return_type_is_dict_list_union_false_not_union() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::String);
+
+        assert!(return_type_is_dict_list_union(&ctx).is_none());
+    }
+
+    #[test]
+    fn test_return_type_is_dict_list_union_false_no_return_type() {
+        let ctx = CodeGenContext::default();
+        assert!(return_type_is_dict_list_union(&ctx).is_none());
+    }
+
+    // ============ return_type_needs_json_dict tests ============
+
+    #[test]
+    fn test_return_type_needs_json_dict_true_any() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Custom("Any".to_string())),  // Any as custom type
+        ));
+
+        assert!(return_type_needs_json_dict(&ctx));
+    }
+
+    #[test]
+    fn test_return_type_needs_json_dict_true_unknown() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Unknown),
+        ));
+
+        assert!(return_type_needs_json_dict(&ctx));
+    }
+
+    #[test]
+    fn test_return_type_needs_json_dict_true_custom_hashmap_value() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Custom("HashMap<String, Value>".to_string()));
+
+        assert!(return_type_needs_json_dict(&ctx));
+    }
+
+    #[test]
+    fn test_return_type_needs_json_dict_false_int_value() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int),
+        ));
+
+        assert!(!return_type_needs_json_dict(&ctx));
+    }
+
+    #[test]
+    fn test_return_type_needs_json_dict_false_not_dict() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_return_type = Some(Type::String);
+
+        assert!(!return_type_needs_json_dict(&ctx));
+    }
+
+    #[test]
+    fn test_return_type_needs_json_dict_false_no_return_type() {
+        let ctx = CodeGenContext::default();
+        assert!(!return_type_needs_json_dict(&ctx));
+    }
+
+    #[test]
+    fn test_return_type_needs_json_dict_assign_type_any() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_assign_type = Some(Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Unknown),  // Unknown represents Any
+        ));
+
+        assert!(return_type_needs_json_dict(&ctx));
+    }
+
+    #[test]
+    fn test_return_type_needs_json_dict_assign_type_custom() {
+        let mut ctx = CodeGenContext::default();
+        ctx.current_assign_type = Some(Type::Custom("HashMap<String, Value>".to_string()));
+
+        assert!(return_type_needs_json_dict(&ctx));
+    }
+
+    // ============ is_json_value_type tests ============
+
+    #[test]
+    fn test_is_json_value_type_unknown() {
+        assert!(is_json_value_type(&Type::Unknown));
+    }
+
+    #[test]
+    fn test_is_json_value_type_custom_any() {
+        assert!(is_json_value_type(&Type::Custom("Any".to_string())));
+    }
+
+    #[test]
+    fn test_is_json_value_type_custom_value() {
+        assert!(is_json_value_type(&Type::Custom("Value".to_string())));
+    }
+
+    #[test]
+    fn test_is_json_value_type_int() {
+        assert!(!is_json_value_type(&Type::Int));
+    }
+
+    #[test]
+    fn test_is_json_value_type_string() {
+        assert!(!is_json_value_type(&Type::String));
+    }
+}

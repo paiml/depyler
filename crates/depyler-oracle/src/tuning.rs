@@ -5,7 +5,6 @@
 //! - N-gram range
 //! - Error code weighting
 
-use crate::classifier::ErrorCategory;
 use crate::depyler_training::build_combined_corpus;
 use crate::ngram::NgramFixPredictor;
 use crate::training::TrainingSample;
@@ -188,6 +187,7 @@ pub fn quick_tune() -> TuningResult {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::classifier::ErrorCategory;
 
     #[test]
     fn test_tuning_config_default() {

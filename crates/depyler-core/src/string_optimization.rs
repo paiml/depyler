@@ -1118,4 +1118,169 @@ mod tests {
             OptimalStringType::CowStr
         );
     }
+
+    // Tests for OptimalStringType traits
+    #[test]
+    fn test_optimal_string_type_debug() {
+        let static_str = OptimalStringType::StaticStr;
+        assert!(format!("{:?}", static_str).contains("StaticStr"));
+
+        let borrowed = OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) };
+        assert!(format!("{:?}", borrowed).contains("BorrowedStr"));
+        assert!(format!("{:?}", borrowed).contains("'a"));
+
+        let owned = OptimalStringType::OwnedString;
+        assert!(format!("{:?}", owned).contains("OwnedString"));
+
+        let cow = OptimalStringType::CowStr;
+        assert!(format!("{:?}", cow).contains("CowStr"));
+    }
+
+    #[test]
+    fn test_optimal_string_type_clone() {
+        let original = OptimalStringType::BorrowedStr { lifetime: Some("'b".to_string()) };
+        let cloned = original.clone();
+        assert_eq!(original, cloned);
+    }
+
+    #[test]
+    fn test_optimal_string_type_partial_eq() {
+        assert_eq!(OptimalStringType::StaticStr, OptimalStringType::StaticStr);
+        assert_eq!(OptimalStringType::OwnedString, OptimalStringType::OwnedString);
+        assert_eq!(OptimalStringType::CowStr, OptimalStringType::CowStr);
+        assert_ne!(OptimalStringType::StaticStr, OptimalStringType::OwnedString);
+        assert_ne!(OptimalStringType::CowStr, OptimalStringType::StaticStr);
+
+        let borrowed1 = OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) };
+        let borrowed2 = OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) };
+        let borrowed3 = OptimalStringType::BorrowedStr { lifetime: Some("'b".to_string()) };
+        let borrowed_none = OptimalStringType::BorrowedStr { lifetime: None };
+
+        assert_eq!(borrowed1, borrowed2);
+        assert_ne!(borrowed1, borrowed3);
+        assert_ne!(borrowed1, borrowed_none);
+    }
+
+    // Tests for StringOptimizer struct
+    #[test]
+    fn test_string_optimizer_debug() {
+        let optimizer = StringOptimizer::new();
+        let debug_str = format!("{:?}", optimizer);
+        assert!(debug_str.contains("StringOptimizer"));
+    }
+
+    #[test]
+    fn test_string_optimizer_default() {
+        let optimizer = StringOptimizer::default();
+        assert!(optimizer.read_only_strings.is_empty());
+        assert!(optimizer.immutable_params.is_empty());
+        assert!(optimizer.returned_strings.is_empty());
+        assert!(optimizer.mixed_usage_strings.is_empty());
+        assert!(optimizer.string_literal_count.is_empty());
+        assert!(optimizer.interned_strings.is_empty());
+        assert!(optimizer.interned_names.is_empty());
+    }
+
+    // Tests for escape_char
+    #[test]
+    fn test_escape_char_backslash() {
+        let result = escape_char('\\');
+        assert_eq!(result, vec!['\\', '\\']);
+    }
+
+    #[test]
+    fn test_escape_char_quote() {
+        let result = escape_char('"');
+        assert_eq!(result, vec!['\\', '"']);
+    }
+
+    #[test]
+    fn test_escape_char_newline() {
+        let result = escape_char('\n');
+        assert_eq!(result, vec!['\\', 'n']);
+    }
+
+    #[test]
+    fn test_escape_char_carriage_return() {
+        let result = escape_char('\r');
+        assert_eq!(result, vec!['\\', 'r']);
+    }
+
+    #[test]
+    fn test_escape_char_tab() {
+        let result = escape_char('\t');
+        assert_eq!(result, vec!['\\', 't']);
+    }
+
+    #[test]
+    fn test_escape_char_normal() {
+        let result = escape_char('a');
+        assert_eq!(result, vec!['a']);
+
+        let result = escape_char('Z');
+        assert_eq!(result, vec!['Z']);
+
+        let result = escape_char('5');
+        assert_eq!(result, vec!['5']);
+    }
+
+    // Tests for StringContext variants
+    #[test]
+    fn test_string_context_literal() {
+        let ctx = StringContext::Literal("hello".to_string());
+        if let StringContext::Literal(s) = ctx {
+            assert_eq!(s, "hello");
+        } else {
+            panic!("Expected Literal");
+        }
+    }
+
+    #[test]
+    fn test_string_context_parameter() {
+        let ctx = StringContext::Parameter("name".to_string());
+        if let StringContext::Parameter(s) = ctx {
+            assert_eq!(s, "name");
+        } else {
+            panic!("Expected Parameter");
+        }
+    }
+
+    #[test]
+    fn test_string_context_return() {
+        let ctx = StringContext::Return;
+        assert!(matches!(ctx, StringContext::Return));
+    }
+
+    #[test]
+    fn test_string_context_concatenation() {
+        let ctx = StringContext::Concatenation;
+        assert!(matches!(ctx, StringContext::Concatenation));
+    }
+
+    // Tests for is_read_only and is_immutable
+    #[test]
+    fn test_is_read_only_true() {
+        let mut optimizer = StringOptimizer::new();
+        optimizer.read_only_strings.insert("readonly".to_string());
+        assert!(optimizer.is_read_only("readonly"));
+    }
+
+    #[test]
+    fn test_is_read_only_false() {
+        let optimizer = StringOptimizer::new();
+        assert!(!optimizer.is_read_only("nonexistent"));
+    }
+
+    #[test]
+    fn test_is_immutable_param_true() {
+        let mut optimizer = StringOptimizer::new();
+        optimizer.immutable_params.insert("param".to_string());
+        assert!(optimizer.is_immutable("param"));
+    }
+
+    #[test]
+    fn test_is_immutable_param_false() {
+        let optimizer = StringOptimizer::new();
+        assert!(!optimizer.is_immutable("nonexistent")); // Returns false if not in immutable_params set
+    }
 }

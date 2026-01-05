@@ -564,4 +564,413 @@ mod tests {
             .iter()
             .any(|n| n.contains("borrowed reference")));
     }
+
+    // ============================================================
+    // DEPYLER-COVERAGE-95: Additional comprehensive tests
+    // ============================================================
+
+    #[test]
+    fn test_enhanced_error_new() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("async".to_string()));
+        assert!(matches!(&error.error, ErrorKind::UnsupportedFeature(f) if f == "async"));
+        assert!(error.file_path.is_none());
+        assert!(error.line.is_none());
+        assert!(error.column.is_none());
+        assert!(error.source_line.is_none());
+        assert!(error.suggestion.is_none());
+        assert!(error.notes.is_empty());
+    }
+
+    #[test]
+    fn test_enhanced_error_with_location() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()))
+            .with_location("file.py", 10, 5);
+        assert_eq!(error.file_path, Some("file.py".to_string()));
+        assert_eq!(error.line, Some(10));
+        assert_eq!(error.column, Some(5));
+    }
+
+    #[test]
+    fn test_enhanced_error_with_source_line() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()))
+            .with_source_line("x = 10");
+        assert_eq!(error.source_line, Some("x = 10".to_string()));
+    }
+
+    #[test]
+    fn test_enhanced_error_with_suggestion() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()))
+            .with_suggestion("Try this instead");
+        assert_eq!(error.suggestion, Some("Try this instead".to_string()));
+    }
+
+    #[test]
+    fn test_enhanced_error_add_note() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()))
+            .add_note("Note 1")
+            .add_note("Note 2");
+        assert_eq!(error.notes.len(), 2);
+        assert_eq!(error.notes[0], "Note 1");
+        assert_eq!(error.notes[1], "Note 2");
+    }
+
+    #[test]
+    fn test_get_source_line_valid() {
+        let source = "line1\nline2\nline3";
+        assert_eq!(get_source_line(source, 1), Some("line1".to_string()));
+        assert_eq!(get_source_line(source, 2), Some("line2".to_string()));
+        assert_eq!(get_source_line(source, 3), Some("line3".to_string()));
+    }
+
+    #[test]
+    fn test_get_source_line_invalid() {
+        let source = "line1\nline2";
+        assert!(get_source_line(source, 10).is_none());
+        assert!(get_source_line(source, 0).is_some()); // saturating_sub prevents panic
+    }
+
+    #[test]
+    fn test_get_line_column_start_of_lines() {
+        let source = "ab\ncde\nfgh";
+        // Line 1 starts at offset 0
+        assert_eq!(get_line_column(source, 0), (1, 1));
+        // Line 2 starts at offset 3 (after "ab\n")
+        assert_eq!(get_line_column(source, 3), (2, 1));
+        // Line 3 starts at offset 7 (after "ab\ncde\n")
+        assert_eq!(get_line_column(source, 7), (3, 1));
+    }
+
+    #[test]
+    fn test_get_line_column_middle_of_line() {
+        let source = "hello world";
+        assert_eq!(get_line_column(source, 0), (1, 1));
+        assert_eq!(get_line_column(source, 5), (1, 6)); // 'w' position
+        assert_eq!(get_line_column(source, 10), (1, 11));
+    }
+
+    #[test]
+    fn test_get_line_column_end_of_source() {
+        let source = "abc";
+        assert_eq!(get_line_column(source, 100), (1, 4)); // Past end, still on line 1
+    }
+
+    #[test]
+    fn test_suggest_unsupported_feature_yield() {
+        let result = suggest_unsupported_feature("yield");
+        assert!(result.is_some());
+        let (suggestion, notes) = result.unwrap();
+        assert!(suggestion.contains("Generator"));
+        assert!(!notes.is_empty());
+    }
+
+    #[test]
+    fn test_suggest_unsupported_feature_other() {
+        let result = suggest_unsupported_feature("async");
+        assert!(result.is_some());
+        let (suggestion, _) = result.unwrap();
+        assert!(suggestion.contains("async"));
+        assert!(suggestion.contains("not yet supported"));
+    }
+
+    #[test]
+    fn test_suggest_type_inference_fix_incompatible() {
+        let result = suggest_type_inference_fix("incompatible types in expression");
+        assert!(result.is_some());
+        let (suggestion, notes) = result.unwrap();
+        assert!(suggestion.contains("type annotations"));
+        assert!(notes.iter().any(|n| n.contains("Rust")));
+    }
+
+    #[test]
+    fn test_suggest_type_inference_fix_other() {
+        let result = suggest_type_inference_fix("unknown type");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_suggest_annotation_fix_borrow() {
+        let result = suggest_annotation_fix("cannot borrow twice");
+        assert!(result.is_some());
+        let (suggestion, notes) = result.unwrap();
+        assert!(suggestion.contains(".clone()"));
+        assert!(notes.iter().any(|n| n.contains("borrow checker")));
+    }
+
+    #[test]
+    fn test_suggest_annotation_fix_other() {
+        let result = suggest_annotation_fix("unknown annotation issue");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_suggest_collection_mismatch_vec_list() {
+        let result = suggest_collection_mismatch("Vec<i32>", "list[int]");
+        assert!(result.is_some());
+        let (suggestion, notes) = result.unwrap();
+        assert!(suggestion.contains("Collection type mismatch"));
+        assert!(notes.iter().any(|n| n.contains("dynamic arrays")));
+    }
+
+    #[test]
+    fn test_suggest_collection_mismatch_list_vec() {
+        let result = suggest_collection_mismatch("list[str]", "Vec<String>");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_suggest_collection_mismatch_no_match() {
+        let result = suggest_collection_mismatch("int", "float");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_suggest_generic_mismatch_return() {
+        let result = suggest_generic_mismatch("int", "str", "return statement");
+        assert!(result.is_some());
+        let (suggestion, notes) = result.unwrap();
+        assert!(suggestion.contains("Return type mismatch"));
+        assert!(notes.iter().any(|n| n.contains("return type annotation")));
+    }
+
+    #[test]
+    fn test_suggest_generic_mismatch_non_return() {
+        let result = suggest_generic_mismatch("int", "str", "assignment");
+        assert!(result.is_some());
+        let (suggestion, notes) = result.unwrap();
+        assert!(suggestion.contains("Type mismatch in assignment"));
+        assert!(notes.iter().any(|n| n.contains("stricter")));
+    }
+
+    #[test]
+    fn test_suggest_string_mismatch_str_to_string() {
+        let result = suggest_string_mismatch("str", "String");
+        assert!(result.is_some());
+        let (suggestion, notes) = result.unwrap();
+        assert!(suggestion.contains("String type mismatch"));
+        assert!(notes.iter().any(|n| n.contains(".to_string()")));
+    }
+
+    #[test]
+    fn test_suggest_string_mismatch_no_match() {
+        let result = suggest_string_mismatch("int", "float");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_suggest_division_mismatch_no_match() {
+        let result = suggest_division_mismatch("String", "i32");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_suggest_option_mismatch_with_unit() {
+        let result = suggest_option_mismatch("Option<String>", "()");
+        assert!(result.is_some());
+        let (suggestion, _) = result.unwrap();
+        assert!(suggestion.contains("None type mismatch"));
+    }
+
+    #[test]
+    fn test_suggest_option_mismatch_no_match() {
+        let result = suggest_option_mismatch("String", "int");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_suggest_ownership_mismatch_no_match() {
+        let result = suggest_ownership_mismatch("String", "String");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_apply_suggestion_to_error_with_suggestion() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()));
+        let suggestion = Some(("Use this".to_string(), vec!["Note 1".to_string(), "Note 2".to_string()]));
+        let result = apply_suggestion_to_error(error, suggestion);
+        assert_eq!(result.suggestion, Some("Use this".to_string()));
+        assert_eq!(result.notes.len(), 2);
+    }
+
+    #[test]
+    fn test_apply_suggestion_to_error_without_suggestion() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()));
+        let result = apply_suggestion_to_error(error, None);
+        assert!(result.suggestion.is_none());
+        assert!(result.notes.is_empty());
+    }
+
+    #[test]
+    fn test_error_reporter_new() {
+        let reporter = ErrorReporter::new("source code".to_string(), "test.py".to_string());
+        assert!(!reporter.has_errors());
+    }
+
+    #[test]
+    fn test_error_reporter_report_error() {
+        let mut reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        reporter.report_error(ErrorKind::UnsupportedFeature("async".to_string()));
+        assert!(reporter.has_errors());
+    }
+
+    #[test]
+    fn test_error_reporter_has_errors_false() {
+        let reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        assert!(!reporter.has_errors());
+    }
+
+    #[test]
+    fn test_error_reporter_has_errors_true() {
+        let mut reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        reporter.report_error(ErrorKind::UnsupportedFeature("test".to_string()));
+        assert!(reporter.has_errors());
+    }
+
+    #[test]
+    fn test_error_reporter_into_result_success() {
+        let reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        let result = reporter.into_result(42);
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), 42);
+    }
+
+    #[test]
+    fn test_error_reporter_into_result_failure() {
+        let mut reporter = ErrorReporter::new("source".to_string(), "test.py".to_string());
+        reporter.report_error(ErrorKind::UnsupportedFeature("test".to_string()));
+        let result = reporter.into_result::<i32>(42);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_enhanced_error_display_no_location() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()));
+        let display = format!("{}", error);
+        // ErrorKind::UnsupportedFeature displays as "Unsupported Python feature"
+        assert!(display.contains("Unsupported Python feature"));
+        // Should not contain location info
+        assert!(!display.contains("-->"));
+    }
+
+    #[test]
+    fn test_enhanced_error_display_with_notes() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()))
+            .add_note("First note")
+            .add_note("Second note");
+        let display = format!("{}", error);
+        assert!(display.contains("First note"));
+        assert!(display.contains("Second note"));
+    }
+
+    #[test]
+    fn test_add_automatic_suggestions_type_inference() {
+        let error = EnhancedError::new(ErrorKind::TypeInferenceError("incompatible types".to_string()));
+        let enhanced = add_automatic_suggestions(error);
+        assert!(enhanced.suggestion.is_some());
+    }
+
+    #[test]
+    fn test_add_automatic_suggestions_invalid_annotation() {
+        let error = EnhancedError::new(ErrorKind::InvalidTypeAnnotation("cannot borrow".to_string()));
+        let enhanced = add_automatic_suggestions(error);
+        assert!(enhanced.suggestion.is_some());
+    }
+
+    #[test]
+    fn test_add_automatic_suggestions_other_error() {
+        // ParseError is a unit variant, not a tuple variant
+        let error = EnhancedError::new(ErrorKind::ParseError);
+        let enhanced = add_automatic_suggestions(error);
+        // ParseError doesn't have automatic suggestions
+        assert!(enhanced.suggestion.is_none());
+    }
+
+    #[test]
+    fn test_generate_type_mismatch_suggestion_string() {
+        let result = generate_type_mismatch_suggestion("String", "&str", "return type");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_generate_type_mismatch_suggestion_division() {
+        let result = generate_type_mismatch_suggestion("f64", "i32", "division");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_generate_type_mismatch_suggestion_option() {
+        let result = generate_type_mismatch_suggestion("Option<i32>", "None", "return");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_generate_type_mismatch_suggestion_ownership() {
+        let result = generate_type_mismatch_suggestion("&str", "String", "parameter");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_generate_type_mismatch_suggestion_collection() {
+        let result = generate_type_mismatch_suggestion("Vec<i32>", "list[int]", "assignment");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_generate_type_mismatch_suggestion_fallback() {
+        let result = generate_type_mismatch_suggestion("CustomType", "OtherType", "expression");
+        assert!(result.is_some());
+        let (suggestion, _) = result.unwrap();
+        assert!(suggestion.contains("Type mismatch"));
+    }
+
+    #[test]
+    fn test_enhanced_error_chaining() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()))
+            .with_location("file.py", 1, 1)
+            .with_source_line("test code")
+            .with_suggestion("Try this")
+            .add_note("Note 1")
+            .add_note("Note 2");
+
+        assert_eq!(error.file_path, Some("file.py".to_string()));
+        assert_eq!(error.line, Some(1));
+        assert_eq!(error.column, Some(1));
+        assert_eq!(error.source_line, Some("test code".to_string()));
+        assert_eq!(error.suggestion, Some("Try this".to_string()));
+        assert_eq!(error.notes.len(), 2);
+    }
+
+    #[test]
+    fn test_enhanced_error_display_full() {
+        let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()))
+            .with_location("file.py", 5, 10)
+            .with_source_line("    test_code()")
+            .with_suggestion("Use something else")
+            .add_note("Important note");
+
+        let display = format!("{}", error);
+        assert!(display.contains("error"));
+        assert!(display.contains("file.py:5:10"));
+        assert!(display.contains("test_code()"));
+        assert!(display.contains("suggestion"));
+        assert!(display.contains("note:"));
+    }
+
+    #[test]
+    fn test_get_line_column_empty_source() {
+        let source = "";
+        assert_eq!(get_line_column(source, 0), (1, 1));
+    }
+
+    #[test]
+    fn test_get_source_line_empty_source() {
+        let source = "";
+        assert!(get_source_line(source, 1).is_none());
+    }
+
+    #[test]
+    fn test_get_source_line_single_line() {
+        let source = "only one line";
+        assert_eq!(get_source_line(source, 1), Some("only one line".to_string()));
+        assert!(get_source_line(source, 2).is_none());
+    }
 }
