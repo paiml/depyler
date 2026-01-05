@@ -402,6 +402,150 @@ fn offset_to_line_col(source: &str, offset: usize) -> (usize, usize) {
 mod tests {
     use super::*;
 
+    // === LintWarning tests ===
+
+    #[test]
+    fn test_lint_warning_new() {
+        let warning = LintWarning {
+            offset: 10,
+            code: "DPL001".to_string(),
+            message: "test message".to_string(),
+            severity: Severity::Error,
+            suggestion: Some("fix it".to_string()),
+        };
+        assert_eq!(warning.offset, 10);
+        assert_eq!(warning.code, "DPL001");
+        assert_eq!(warning.message, "test message");
+        assert_eq!(warning.severity, Severity::Error);
+        assert_eq!(warning.suggestion, Some("fix it".to_string()));
+    }
+
+    #[test]
+    fn test_lint_warning_no_suggestion() {
+        let warning = LintWarning {
+            offset: 0,
+            code: "DPL000".to_string(),
+            message: "msg".to_string(),
+            severity: Severity::Info,
+            suggestion: None,
+        };
+        assert!(warning.suggestion.is_none());
+    }
+
+    #[test]
+    fn test_lint_warning_clone() {
+        let warning = LintWarning {
+            offset: 5,
+            code: "DPL002".to_string(),
+            message: "exec".to_string(),
+            severity: Severity::Warning,
+            suggestion: None,
+        };
+        let cloned = warning.clone();
+        assert_eq!(warning, cloned);
+    }
+
+    #[test]
+    fn test_lint_warning_partial_eq() {
+        let w1 = LintWarning {
+            offset: 1,
+            code: "A".to_string(),
+            message: "m".to_string(),
+            severity: Severity::Error,
+            suggestion: None,
+        };
+        let w2 = LintWarning {
+            offset: 1,
+            code: "A".to_string(),
+            message: "m".to_string(),
+            severity: Severity::Error,
+            suggestion: None,
+        };
+        assert_eq!(w1, w2);
+    }
+
+    #[test]
+    fn test_lint_warning_debug() {
+        let warning = LintWarning {
+            offset: 0,
+            code: "DPL001".to_string(),
+            message: "test".to_string(),
+            severity: Severity::Error,
+            suggestion: None,
+        };
+        let debug = format!("{:?}", warning);
+        assert!(debug.contains("LintWarning"));
+        assert!(debug.contains("DPL001"));
+    }
+
+    // === Severity tests ===
+
+    #[test]
+    fn test_severity_display_error() {
+        assert_eq!(format!("{}", Severity::Error), "error");
+    }
+
+    #[test]
+    fn test_severity_display_warning() {
+        assert_eq!(format!("{}", Severity::Warning), "warning");
+    }
+
+    #[test]
+    fn test_severity_display_info() {
+        assert_eq!(format!("{}", Severity::Info), "info");
+    }
+
+    #[test]
+    fn test_severity_clone() {
+        let s = Severity::Error;
+        let cloned = s;
+        assert_eq!(s, cloned);
+    }
+
+    #[test]
+    fn test_severity_copy() {
+        let s1 = Severity::Warning;
+        let s2 = s1;
+        assert_eq!(s1, s2);
+    }
+
+    #[test]
+    fn test_severity_debug() {
+        let debug = format!("{:?}", Severity::Info);
+        assert!(debug.contains("Info"));
+    }
+
+    #[test]
+    fn test_severity_partial_eq() {
+        assert_eq!(Severity::Error, Severity::Error);
+        assert_ne!(Severity::Error, Severity::Warning);
+        assert_ne!(Severity::Warning, Severity::Info);
+    }
+
+    // === DepylintAnalyzer tests ===
+
+    #[test]
+    fn test_analyzer_new() {
+        let analyzer = DepylintAnalyzer::new();
+        assert!(analyzer.warnings.is_empty());
+        assert!(analyzer.reported.is_empty());
+    }
+
+    #[test]
+    fn test_analyzer_default() {
+        let analyzer = DepylintAnalyzer::default();
+        assert!(analyzer.warnings.is_empty());
+    }
+
+    #[test]
+    fn test_analyzer_reuse() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let w1 = analyzer.analyze("eval('1')");
+        assert_eq!(w1.len(), 1);
+        let w2 = analyzer.analyze("x = 1");
+        assert!(w2.is_empty());
+    }
+
     #[test]
     fn test_detect_eval() {
         let mut analyzer = DepylintAnalyzer::new();
@@ -436,6 +580,39 @@ mod tests {
     }
 
     #[test]
+    fn test_detect_locals() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("x = locals()");
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code, "DPL005");
+        assert_eq!(warnings[0].severity, Severity::Warning);
+    }
+
+    #[test]
+    fn test_detect_setattr() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("setattr(obj, 'name', value)");
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code, "DPL006");
+    }
+
+    #[test]
+    fn test_detect_getattr_func() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("x = getattr(obj, 'name')");
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code, "DPL006");
+    }
+
+    #[test]
+    fn test_detect_delattr() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("delattr(obj, 'name')");
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code, "DPL006");
+    }
+
+    #[test]
     fn test_detect_getattr_dunder() {
         let mut analyzer = DepylintAnalyzer::new();
         let warnings = analyzer.analyze(
@@ -447,6 +624,48 @@ class Foo:
         );
         assert_eq!(warnings.len(), 1);
         assert_eq!(warnings[0].code, "DPL008");
+    }
+
+    #[test]
+    fn test_detect_setattr_dunder() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+class Foo:
+    def __setattr__(self, name, value):
+        pass
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code, "DPL009");
+    }
+
+    #[test]
+    fn test_detect_delattr_dunder() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+class Foo:
+    def __delattr__(self, name):
+        pass
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code, "DPL010");
+    }
+
+    #[test]
+    fn test_detect_getattribute_dunder() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+class Foo:
+    def __getattribute__(self, name):
+        return object.__getattribute__(self, name)
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code, "DPL011");
     }
 
     #[test]
@@ -474,6 +693,164 @@ class Calculator:
     }
 
     #[test]
+    fn test_type_single_arg_ok() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("t = type(obj)");
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_no_duplicate_warnings() {
+        let mut analyzer = DepylintAnalyzer::new();
+        // Same eval at same offset should not be duplicated
+        let warnings = analyzer.analyze("eval('1')");
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_multiple_different_warnings() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+eval('1')
+exec('2')
+globals()
+"#,
+        );
+        assert_eq!(warnings.len(), 3);
+    }
+
+    #[test]
+    fn test_nested_in_function() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+def foo():
+    return eval('x')
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+        assert_eq!(warnings[0].code, "DPL001");
+    }
+
+    #[test]
+    fn test_nested_in_class() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+class Foo:
+    def method(self):
+        exec('pass')
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_in_if_statement() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+if True:
+    eval('1')
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_in_for_loop() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+for i in range(10):
+    eval(str(i))
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_in_while_loop() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+while True:
+    exec('break')
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_in_try_block() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+try:
+    eval('bad')
+except:
+    pass
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_in_with_statement() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+with open('f') as f:
+    eval(f.read())
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_in_lambda() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("f = lambda x: eval(x)");
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_in_list_comprehension() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("[eval(x) for x in items]");
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_in_dict_comprehension() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("{k: eval(v) for k, v in items}");
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_in_ternary() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("x = eval('1') if cond else 0");
+        assert_eq!(warnings.len(), 1);
+    }
+
+    #[test]
+    fn test_async_function() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+async def foo():
+    return eval('x')
+"#,
+        );
+        assert_eq!(warnings.len(), 1);
+    }
+
+    // === format_warnings tests ===
+
+    #[test]
     fn test_format_warnings() {
         let source = "result = eval('1 + 2')";
         let warnings = vec![LintWarning {
@@ -490,10 +867,126 @@ class Calculator:
     }
 
     #[test]
+    fn test_format_warnings_no_suggestion() {
+        let source = "exec('1')";
+        let warnings = vec![LintWarning {
+            offset: 0,
+            code: "DPL002".to_string(),
+            message: "exec".to_string(),
+            severity: Severity::Error,
+            suggestion: None,
+        }];
+        let output = format_warnings(&warnings, source, "file.py");
+        assert!(!output.contains("suggestion:"));
+    }
+
+    #[test]
+    fn test_format_warnings_empty() {
+        let output = format_warnings(&[], "x = 1", "file.py");
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_format_warnings_multiple() {
+        let source = "eval('1')\nexec('2')";
+        let warnings = vec![
+            LintWarning {
+                offset: 0,
+                code: "DPL001".to_string(),
+                message: "eval".to_string(),
+                severity: Severity::Error,
+                suggestion: None,
+            },
+            LintWarning {
+                offset: 10,
+                code: "DPL002".to_string(),
+                message: "exec".to_string(),
+                severity: Severity::Error,
+                suggestion: None,
+            },
+        ];
+        let output = format_warnings(&warnings, source, "test.py");
+        assert!(output.contains("DPL001"));
+        assert!(output.contains("DPL002"));
+    }
+
+    // === offset_to_line_col tests ===
+
+    #[test]
     fn test_offset_to_line_col() {
         let source = "line1\nline2\nline3";
         assert_eq!(offset_to_line_col(source, 0), (1, 1));  // 'l' in line1
         assert_eq!(offset_to_line_col(source, 6), (2, 1));  // 'l' in line2
         assert_eq!(offset_to_line_col(source, 12), (3, 1)); // 'l' in line3
+    }
+
+    #[test]
+    fn test_offset_to_line_col_empty() {
+        assert_eq!(offset_to_line_col("", 0), (1, 1));
+    }
+
+    #[test]
+    fn test_offset_to_line_col_single_line() {
+        let source = "hello world";
+        assert_eq!(offset_to_line_col(source, 0), (1, 1));
+        assert_eq!(offset_to_line_col(source, 5), (1, 6));
+    }
+
+    #[test]
+    fn test_offset_to_line_col_end_of_line() {
+        let source = "abc\ndef";
+        assert_eq!(offset_to_line_col(source, 3), (1, 4));  // newline char
+        assert_eq!(offset_to_line_col(source, 4), (2, 1));  // 'd'
+    }
+
+    #[test]
+    fn test_offset_to_line_col_beyond_end() {
+        let source = "ab";
+        assert_eq!(offset_to_line_col(source, 100), (1, 3));
+    }
+
+    // === Edge cases ===
+
+    #[test]
+    fn test_parse_error_graceful() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("def broken(");
+        assert!(warnings.is_empty()); // Parse error, no warnings
+    }
+
+    #[test]
+    fn test_empty_source() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("");
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_normal_dunder_ok() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze(
+            r#"
+class Foo:
+    def __init__(self):
+        pass
+    def __str__(self):
+        return ""
+"#,
+        );
+        assert!(warnings.is_empty());
+    }
+
+    #[test]
+    fn test_suggestions_present() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("eval('1')");
+        assert!(warnings[0].suggestion.is_some());
+    }
+
+    #[test]
+    fn test_offset_is_nonzero() {
+        let mut analyzer = DepylintAnalyzer::new();
+        let warnings = analyzer.analyze("x = 1\neval('2')");
+        assert!(warnings[0].offset > 0);
     }
 }

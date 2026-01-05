@@ -226,6 +226,153 @@ impl std::error::Error for ChaosError {}
 mod tests {
     use super::*;
 
+    // === ChaosConfig construction tests ===
+
+    #[test]
+    fn test_new() {
+        let config = ChaosConfig::new();
+        assert_eq!(config.memory_limit, 0);
+        assert_eq!(config.cpu_limit, 0.0);
+    }
+
+    #[test]
+    fn test_clone() {
+        let config = ChaosConfig::new()
+            .with_memory_limit(100)
+            .with_cpu_limit(0.5);
+        let cloned = config.clone();
+        assert_eq!(cloned.memory_limit, 100);
+        assert_eq!(cloned.cpu_limit, 0.5);
+    }
+
+    #[test]
+    fn test_debug() {
+        let config = ChaosConfig::gentle();
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("ChaosConfig"));
+        assert!(debug.contains("memory_limit"));
+    }
+
+    // === Individual builder method tests ===
+
+    #[test]
+    fn test_with_memory_limit_zero() {
+        let config = ChaosConfig::new().with_memory_limit(0);
+        assert_eq!(config.memory_limit, 0);
+    }
+
+    #[test]
+    fn test_with_memory_limit_large() {
+        let config = ChaosConfig::new().with_memory_limit(1024 * 1024 * 1024); // 1 GB
+        assert_eq!(config.memory_limit, 1024 * 1024 * 1024);
+    }
+
+    #[test]
+    fn test_with_timeout_zero() {
+        let config = ChaosConfig::new().with_timeout(Duration::ZERO);
+        assert_eq!(config.timeout, Duration::ZERO);
+    }
+
+    #[test]
+    fn test_with_signal_injection_false() {
+        let config = ChaosConfig::new().with_signal_injection(false);
+        assert!(!config.signal_injection);
+    }
+
+    #[test]
+    fn test_build_returns_self() {
+        let config = ChaosConfig::new().with_memory_limit(50);
+        let built = config.build();
+        assert_eq!(built.memory_limit, 50);
+    }
+
+    // === ChaosError tests ===
+
+    #[test]
+    fn test_chaos_error_memory_limit_exceeded() {
+        let err = ChaosError::MemoryLimitExceeded {
+            limit: 500,
+            used: 1000,
+        };
+        assert!(matches!(err, ChaosError::MemoryLimitExceeded { .. }));
+    }
+
+    #[test]
+    fn test_chaos_error_timeout() {
+        let err = ChaosError::Timeout {
+            elapsed: Duration::from_secs(10),
+            limit: Duration::from_secs(5),
+        };
+        assert!(matches!(err, ChaosError::Timeout { .. }));
+    }
+
+    #[test]
+    fn test_chaos_error_signal_injection_failed() {
+        let err = ChaosError::SignalInjectionFailed {
+            signal: 15,
+            reason: "Not permitted".to_string(),
+        };
+        assert!(matches!(err, ChaosError::SignalInjectionFailed { .. }));
+    }
+
+    #[test]
+    fn test_chaos_error_clone() {
+        let err = ChaosError::MemoryLimitExceeded {
+            limit: 100,
+            used: 200,
+        };
+        let cloned = err.clone();
+        assert_eq!(cloned, err);
+    }
+
+    #[test]
+    fn test_chaos_error_partial_eq() {
+        let err1 = ChaosError::Timeout {
+            elapsed: Duration::from_secs(1),
+            limit: Duration::from_secs(1),
+        };
+        let err2 = ChaosError::Timeout {
+            elapsed: Duration::from_secs(1),
+            limit: Duration::from_secs(1),
+        };
+        assert_eq!(err1, err2);
+    }
+
+    #[test]
+    fn test_chaos_error_ne() {
+        let err1 = ChaosError::Timeout {
+            elapsed: Duration::from_secs(1),
+            limit: Duration::from_secs(2),
+        };
+        let err2 = ChaosError::Timeout {
+            elapsed: Duration::from_secs(3),
+            limit: Duration::from_secs(2),
+        };
+        assert_ne!(err1, err2);
+    }
+
+    #[test]
+    fn test_chaos_error_debug() {
+        let err = ChaosError::SignalInjectionFailed {
+            signal: 9,
+            reason: "SIGKILL".to_string(),
+        };
+        let debug = format!("{:?}", err);
+        assert!(debug.contains("SignalInjectionFailed"));
+        assert!(debug.contains("9"));
+    }
+
+    #[test]
+    fn test_chaos_error_is_error() {
+        let err: Box<dyn std::error::Error> = Box::new(ChaosError::MemoryLimitExceeded {
+            limit: 1,
+            used: 2,
+        });
+        assert!(err.to_string().contains("Memory limit exceeded"));
+    }
+
+    // === Original tests ===
+
     #[test]
     fn test_default_config() {
         let config = ChaosConfig::default();
