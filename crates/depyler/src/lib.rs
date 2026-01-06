@@ -4242,4 +4242,415 @@ mod tests {
         // Will likely fail some validations with strict thresholds
         let _ = validations;
     }
+
+    // ============================================================================
+    // DEPYLER-COVERAGE-95: Pure function tests for explosion technique
+    // ============================================================================
+
+    #[test]
+    fn test_complexity_rating_good() {
+        let result = complexity_rating(2.5);
+        assert!(result.to_string().contains("Good"));
+    }
+
+    #[test]
+    fn test_complexity_rating_acceptable() {
+        let result = complexity_rating(7.5);
+        assert!(result.to_string().contains("Acceptable"));
+    }
+
+    #[test]
+    fn test_complexity_rating_high() {
+        let result = complexity_rating(15.0);
+        assert!(result.to_string().contains("High"));
+    }
+
+    #[test]
+    fn test_complexity_rating_boundary_good() {
+        let result = complexity_rating(5.0);
+        assert!(result.to_string().contains("Good"));
+    }
+
+    #[test]
+    fn test_complexity_rating_boundary_acceptable() {
+        let result = complexity_rating(10.0);
+        assert!(result.to_string().contains("Acceptable"));
+    }
+
+    #[test]
+    fn test_inspect_python_ast_pretty() {
+        let code = "def hello() -> int:\n    return 42";
+        let result = inspect_python_ast(code, "pretty");
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(!output.is_empty());
+    }
+
+    #[test]
+    fn test_inspect_python_ast_debug() {
+        let code = "def hello() -> int:\n    return 42";
+        let result = inspect_python_ast(code, "debug");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_python_ast_json() {
+        let code = "def hello() -> int:\n    return 42";
+        let result = inspect_python_ast(code, "json");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_python_ast_invalid_syntax() {
+        let code = "def broken(";
+        let result = inspect_python_ast(code, "pretty");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_inspect_hir_pretty() {
+        let pipeline = DepylerPipeline::new();
+        let code = "def hello() -> int:\n    return 42";
+        let hir = pipeline.parse_to_hir(code).unwrap();
+        let result = inspect_hir(&hir, "pretty");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_hir_debug() {
+        let pipeline = DepylerPipeline::new();
+        let code = "def hello() -> int:\n    return 42";
+        let hir = pipeline.parse_to_hir(code).unwrap();
+        let result = inspect_hir(&hir, "debug");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_hir_json() {
+        let pipeline = DepylerPipeline::new();
+        let code = "def hello() -> int:\n    return 42";
+        let hir = pipeline.parse_to_hir(code).unwrap();
+        let result = inspect_hir(&hir, "json");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_format_python_ast_pretty_function() {
+        use rustpython_parser::{parse, Mode};
+        let code = "def hello() -> int:\n    return 42";
+        let ast = parse(code, Mode::Module, "<test>").unwrap();
+        let result = format_python_ast_pretty(&ast);
+        assert!(result.contains("hello"));
+    }
+
+    #[test]
+    fn test_format_python_ast_pretty_class() {
+        use rustpython_parser::{parse, Mode};
+        let code = "class MyClass:\n    pass";
+        let ast = parse(code, Mode::Module, "<test>").unwrap();
+        let result = format_python_ast_pretty(&ast);
+        // ClassDef falls through to debug format which contains "ClassDef"
+        assert!(result.contains("ClassDef") || result.contains("Statement"));
+    }
+
+    #[test]
+    fn test_format_python_ast_pretty_import() {
+        use rustpython_parser::{parse, Mode};
+        let code = "import os";
+        let ast = parse(code, Mode::Module, "<test>").unwrap();
+        let result = format_python_ast_pretty(&ast);
+        // Import falls through to debug format which contains "Import"
+        assert!(result.contains("Import") || result.contains("Statement"));
+    }
+
+    #[test]
+    fn test_format_hir_pretty_function() {
+        let pipeline = DepylerPipeline::new();
+        let code = "def add(a: int, b: int) -> int:\n    return a + b";
+        let hir = pipeline.parse_to_hir(code).unwrap();
+        let result = format_hir_pretty(&hir);
+        assert!(result.contains("add"));
+    }
+
+    #[test]
+    fn test_format_hir_pretty_multiple_functions() {
+        let pipeline = DepylerPipeline::new();
+        let code = "def foo() -> int:\n    return 1\n\ndef bar() -> int:\n    return 2";
+        let hir = pipeline.parse_to_hir(code).unwrap();
+        let result = format_hir_pretty(&hir);
+        assert!(result.contains("foo"));
+        assert!(result.contains("bar"));
+    }
+
+    #[test]
+    fn test_check_rust_compilation_for_file_valid() {
+        let code = "fn main() { println!(\"hello\"); }";
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, code).unwrap();
+        let result = check_rust_compilation_for_file(file_path.to_str().unwrap());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_rust_compilation_for_file_invalid() {
+        let code = "fn main() { let x: i32 = \"not an int\"; }";
+        let temp_dir = TempDir::new().unwrap();
+        let file_path = temp_dir.path().join("test.rs");
+        fs::write(&file_path, code).unwrap();
+        let result = check_rust_compilation_for_file(file_path.to_str().unwrap());
+        // Invalid code should return Ok(false)
+        assert!(result.is_ok());
+        assert!(!result.unwrap());
+    }
+
+    #[test]
+    fn test_print_validation_results_all_pass() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
+        let report = generate_quality_report(&input_path).unwrap();
+        let validations = QualityValidations {
+            tdg_ok: true,
+            complexity_ok: true,
+            coverage_ok: true,
+            all_passed: true,
+            report,
+            min_tdg: 0.0,
+            max_tdg: 5.0,
+            max_complexity: 100,
+            min_coverage: 0,
+        };
+        // This just tests that it doesn't panic
+        print_validation_results(&validations);
+    }
+
+    #[test]
+    fn test_print_validation_results_some_fail() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
+        let report = generate_quality_report(&input_path).unwrap();
+        let validations = QualityValidations {
+            tdg_ok: false,
+            complexity_ok: true,
+            coverage_ok: false,
+            all_passed: false,
+            report,
+            min_tdg: 0.0,
+            max_tdg: 0.001,
+            max_complexity: 1,
+            min_coverage: 100,
+        };
+        print_validation_results(&validations);
+    }
+
+    #[test]
+    fn test_print_compilation_results_success() {
+        let results = CompilationResults {
+            compilation_ok: true,
+            clippy_ok: true,
+            all_passed: true,
+        };
+        print_compilation_results(&results);
+    }
+
+    #[test]
+    fn test_print_compilation_results_failure() {
+        let results = CompilationResults {
+            compilation_ok: false,
+            clippy_ok: false,
+            all_passed: false,
+        };
+        print_compilation_results(&results);
+    }
+
+    #[test]
+    fn test_generate_quality_report_simple() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
+        let result = generate_quality_report(&input_path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_quality_report_complex() {
+        let code = r#"
+def process(data: list) -> dict:
+    result = {}
+    for item in data:
+        if item > 0:
+            result[item] = item * 2
+    return result
+"#;
+        let (_temp_dir, input_path) = create_test_python_file(code);
+        let result = generate_quality_report(&input_path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_lambda_analyze_invalid_file() {
+        let result = lambda_analyze_command(PathBuf::from("/nonexistent/file.py"), "json".to_string(), 0.7);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_transpile_with_oracle_disabled() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
+        let result = transpile_command(
+            input_path, None, false, false, false, false, false, false, false, None, false, false, false, 0.8,
+            false,  // oracle disabled
+            None, 3, false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_with_async_mode() {
+        let (_temp_dir, input_path) = create_test_python_file("async def hello() -> int: return 42");
+        let result = transpile_command(
+            input_path, None, false, false, false, false, false, false, false, None, false,
+            true,   // async_mode
+            false, 0.8, false, None, 3, false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_suggest_fixes() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello(): return 42");
+        let result = transpile_command(
+            input_path, None, false, false, false, false, false, false, false, None, false, false,
+            true,   // suggest_fixes
+            0.8, false, None, 3, false,
+        );
+        // May or may not succeed depending on whether fixes are needed
+        let _ = result;
+    }
+
+    #[test]
+    fn test_check_compilation_quality_valid() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
+        let result = check_compilation_quality(&input_path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_quality_all_pass() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
+        let report = generate_quality_report(&input_path).unwrap();
+        // Use very loose thresholds to ensure passing
+        // min_tdg=0.0, max_tdg=100.0 means TDG between 0 and 100 (always passes)
+        let validations = validate_quality_targets(&report, 0.0, 100.0, 1000, 0);
+        assert!(validations.tdg_ok);
+        assert!(validations.complexity_ok);
+    }
+
+    #[test]
+    fn test_format_stmt_summary_function_def() {
+        use rustpython_parser::{parse, Mode};
+        let code = "def hello() -> int:\n    return 42";
+        let ast = parse(code, Mode::Module, "<test>").unwrap();
+        if let rustpython_ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                let summary = format_stmt_summary(stmt);
+                // format_stmt_summary returns "Function '...' with N parameters"
+                assert!(summary.contains("Function"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_format_stmt_summary_class_def() {
+        use rustpython_parser::{parse, Mode};
+        let code = "class MyClass:\n    pass";
+        let ast = parse(code, Mode::Module, "<test>").unwrap();
+        if let rustpython_ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                let summary = format_stmt_summary(stmt);
+                // ClassDef falls through to debug format which returns "ClassDef"
+                assert!(summary.contains("ClassDef"));
+            }
+        }
+    }
+
+    #[test]
+    fn test_format_stmt_summary_assign() {
+        use rustpython_parser::{parse, Mode};
+        let code = "x = 42";
+        let ast = parse(code, Mode::Module, "<test>").unwrap();
+        if let rustpython_ast::Mod::Module(module) = ast {
+            for stmt in &module.body {
+                let summary = format_stmt_summary(stmt);
+                assert!(!summary.is_empty());
+            }
+        }
+    }
+
+    #[test]
+    fn test_inspect_command_with_output() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
+        let output_path = input_path.with_extension("hir");
+        let result = inspect_command(
+            input_path,
+            "hir".to_string(),
+            "pretty".to_string(),
+            Some(output_path.clone()),
+        );
+        assert!(result.is_ok());
+        assert!(output_path.exists());
+    }
+
+    #[test]
+    fn test_debug_command_gen_script() {
+        let temp_dir = TempDir::new().unwrap();
+        let rust_file = temp_dir.path().join("test.rs");
+        let script_path = temp_dir.path().join("test.gdb");
+        // Create a source file since --source is required when using --gen-script
+        let source_path = temp_dir.path().join("test.py");
+        fs::write(&source_path, "def hello() -> int:\n    return 42").unwrap();
+        let result = debug_command(
+            false,
+            Some(rust_file),    // gen_script param (becomes rust_file in debug_cmd)
+            "gdb".to_string(),
+            Some(source_path),  // --source is required
+            Some(script_path.clone()),  // explicit output path
+            None,
+            false,
+        );
+        assert!(result.is_ok());
+        assert!(script_path.exists());
+    }
+
+    #[test]
+    fn test_debug_command_lldb_debugger() {
+        let result = debug_command(
+            true,
+            None,
+            "lldb".to_string(),
+            None,
+            None,
+            None,
+            false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_with_gen_tests() {
+        let (_temp_dir, input_path) = create_test_python_file("def add(a: int, b: int) -> int:\n    return a + b");
+        let result = transpile_command(
+            input_path, None,
+            true,   // gen_tests
+            false, false, false, false, false, false, None, false, false, false, 0.8, false, None, 3, false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_with_verify() {
+        let (_temp_dir, input_path) = create_test_python_file("def double(x: int) -> int:\n    return x * 2");
+        let result = transpile_command(
+            input_path, None, false,
+            true,   // verify
+            false, false, false, false, false, None, false, false, false, 0.8, false, None, 3, false,
+        );
+        // Verification may succeed or fail based on the code
+        let _ = result;
+    }
 }
