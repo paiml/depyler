@@ -1260,4 +1260,136 @@ mod tests {
         assert_eq!(args.target_rate, 0.8);
         assert!(!args.bisect);
     }
+
+    #[test]
+    fn test_print_terminal_report() {
+        let taxonomy = HashMap::new();
+        // Just verify it doesn't panic
+        print_terminal_report(10, 8, 2, 80.0, &taxonomy, 0.8);
+    }
+
+    #[test]
+    fn test_print_terminal_report_with_errors() {
+        let mut taxonomy = HashMap::new();
+        taxonomy.insert("E0425".to_string(), ErrorTaxonomy {
+            count: 5,
+            samples: vec!["sample1: error".to_string()],
+        });
+        taxonomy.insert("E0308".to_string(), ErrorTaxonomy {
+            count: 3,
+            samples: vec!["sample2: error".to_string(), "sample3: error".to_string()],
+        });
+        print_terminal_report(10, 2, 8, 20.0, &taxonomy, 0.8);
+    }
+
+    #[test]
+    fn test_print_terminal_report_yellow_status() {
+        let taxonomy = HashMap::new();
+        print_terminal_report(100, 60, 40, 60.0, &taxonomy, 0.8);
+    }
+
+    #[test]
+    fn test_print_terminal_report_green_status() {
+        let taxonomy = HashMap::new();
+        print_terminal_report(100, 85, 15, 85.0, &taxonomy, 0.8);
+    }
+
+    #[test]
+    fn test_print_json_report() {
+        let taxonomy = HashMap::new();
+        let results = vec![];
+        let result = print_json_report(0, 0, 0, 0.0, &taxonomy, 0.8, &results);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_print_json_report_with_data() {
+        let mut taxonomy = HashMap::new();
+        taxonomy.insert("E0425".to_string(), ErrorTaxonomy {
+            count: 2,
+            samples: vec!["sample: error".to_string()],
+        });
+        let results = vec![
+            CompileResult { name: "a".into(), success: true, error_code: None, error_message: None, python_source: Some("def foo(): pass".to_string()) },
+            CompileResult { name: "b".into(), success: false, error_code: Some("E0425".into()), error_message: Some("not found".into()), python_source: Some("def bar(): pass".to_string()) },
+        ];
+        let result = print_json_report(2, 1, 1, 50.0, &taxonomy, 0.8, &results);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_analyze_results_empty() {
+        let results: Vec<CompileResult> = vec![];
+        let (pass, fail, taxonomy) = analyze_results(&results);
+        assert_eq!(pass, 0);
+        assert_eq!(fail, 0);
+        assert!(taxonomy.is_empty());
+    }
+
+    #[test]
+    fn test_compile_result_debug() {
+        let result = CompileResult {
+            name: "test".to_string(),
+            success: true,
+            error_code: None,
+            error_message: None,
+            python_source: None,
+        };
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("test"));
+    }
+
+    #[test]
+    fn test_error_taxonomy_default() {
+        let taxonomy = ErrorTaxonomy::default();
+        assert_eq!(taxonomy.count, 0);
+        assert!(taxonomy.samples.is_empty());
+    }
+
+    #[test]
+    fn test_fix_recommendation_unknown() {
+        let recommendation = fix_recommendation("UNKNOWN_CODE");
+        assert!(!recommendation.is_empty());
+    }
+
+    #[test]
+    fn test_error_description_e0599() {
+        let desc = error_description("E0599");
+        assert!(!desc.is_empty());
+    }
+
+    #[test]
+    fn test_error_description_depyler() {
+        let desc = error_description("DEPYLER");
+        assert!(!desc.is_empty());
+    }
+
+    #[test]
+    fn test_ascii_bar_partial() {
+        let bar1 = ascii_bar(0.25, 20);
+        let bar2 = ascii_bar(0.75, 20);
+        assert!(bar1.len() > 0);
+        assert!(bar2.len() > 0);
+    }
+
+    #[test]
+    fn test_report_args_with_filters() {
+        let args = ReportArgs {
+            corpus: Some(PathBuf::from("/test/corpus")),
+            format: "json".into(),
+            output: Some(PathBuf::from("/test/output.json")),
+            skip_clean: true,
+            target_rate: 0.95,
+            filter: Some("argparse".into()),
+            tag: Some("Dict".into()),
+            limit: Some(50),
+            sample: Some(10),
+            bisect: true,
+            fail_fast: true,
+        };
+        assert_eq!(args.target_rate, 0.95);
+        assert!(args.bisect);
+        assert!(args.fail_fast);
+        assert!(args.skip_clean);
+    }
 }
