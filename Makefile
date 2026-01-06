@@ -471,7 +471,7 @@ COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno|interacti
 .PHONY: coverage
 coverage: ## Fast coverage report (~4 min)
 	@echo "📊 Coverage (lib tests, target: <5 min)..."
-	@PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo llvm-cov test --lib --workspace --ignore-filename-regex $(COVERAGE_IGNORE_REGEX) -- --test-threads=8
+	@PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo llvm-cov nextest --profile fast --lib --workspace --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@echo ""
 coverage-summary: ## Display coverage summary (run 'make coverage' first)
 	@echo "📊 Coverage Summary:"
