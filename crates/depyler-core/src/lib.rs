@@ -61,6 +61,7 @@ pub mod debug;
 pub mod decision_trace;
 pub mod depylint;
 pub mod direct_rules;
+mod direct_rules_convert; // DEPYLER-COVERAGE-95: Split from direct_rules.rs
 pub mod doctest_extractor;
 pub mod documentation;
 pub mod error;

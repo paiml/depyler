@@ -17,13 +17,16 @@ mod collection_constructors; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
 mod context;
 mod error_gen;
 mod expr_gen;
+mod expr_gen_instance_methods; // DEPYLER-COVERAGE-95: Instance method handlers split from expr_gen
 mod format;
 pub mod func_gen; // DEPYLER-0518: Made public for type inference from lifetime_analysis
 pub mod func_gen_helpers; // DEPYLER-COVERAGE-95: Extracted pure helpers for testability
+mod func_gen_inference; // DEPYLER-COVERAGE-95: Advanced function codegen helpers split from func_gen
 mod generator_gen;
 mod import_gen;
 pub mod keywords; // DEPYLER-0023: Centralized keyword escaping
 mod stmt_gen;
+mod stmt_gen_complex; // DEPYLER-COVERAGE-95: Complex statement handlers split from stmt_gen
 mod type_gen;
 
 // Helper modules (v3.21.0)
@@ -89,9 +92,11 @@ use control_stmt_helpers::{codegen_break_stmt, codegen_continue_stmt, codegen_pa
 #[cfg(test)]
 use stmt_gen::{
     codegen_assign_attribute, codegen_assign_index, codegen_assign_symbol, codegen_assign_tuple,
-    codegen_expr_stmt, codegen_raise_stmt, codegen_return_stmt, codegen_try_stmt,
+    codegen_expr_stmt, codegen_raise_stmt, codegen_return_stmt,
     codegen_while_stmt, codegen_with_stmt,
 };
+#[cfg(test)]
+use stmt_gen_complex::codegen_try_stmt;
 
 // Public re-exports for external modules (union_enum_gen, etc.)
 pub use argparse_transform::ArgParserTracker; // DEPYLER-0384: Export for testing

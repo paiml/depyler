@@ -2,6 +2,43 @@ roadmap_version: '1.0'
 github_enabled: true
 github_repo: paiml/depyler
 roadmap:
+- id: DEPYLER-0963
+  github_issue: null
+  item_type: refactor
+  title: Module extraction refactoring for rust_gen and direct_rules
+  status: completed
+  priority: medium
+  assigned_to: Claude
+  created: 2025-01-06T12:00:00+00:00
+  updated: 2025-01-06T12:00:00+00:00
+  spec: null
+  acceptance_criteria:
+  - expr_gen.rs split into expr_gen_instance_methods.rs (~7400 lines)
+  - func_gen.rs split into func_gen_inference.rs (~1100 lines)
+  - stmt_gen.rs split into stmt_gen_complex.rs (~2100 lines)
+  - direct_rules.rs split into direct_rules_convert.rs (~4200 lines)
+  - All modules compile and pass clippy
+  - No regressions in test suite
+  phases:
+  - name: Phase 1 - Extract modules
+    status: completed
+    estimated_effort: 2h
+    completion: 100
+  - name: Phase 2 - Update imports and references
+    status: completed
+    estimated_effort: 1h
+    completion: 100
+  - name: Phase 3 - Verify compilation and tests
+    status: completed
+    estimated_effort: 30m
+    completion: 100
+  subtasks: []
+  estimated_effort: 3.5h
+  labels:
+  - refactor
+  - code-organization
+  - DEPYLER-COVERAGE-95
+  notes: 'Extracted ~15k lines into 4 focused modules to improve testability and reduce file complexity'
 - id: DEPYLER-0496
   github_issue: null
   item_type: bug

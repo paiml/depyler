@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### 🔧 Code Organization & Refactoring (2025-01-06)
+
+#### Module Extraction Refactoring (DEPYLER-0963)
+**Impact**: Reduced file sizes and improved testability for core rust_gen modules
+**Status**: ✅ Completed
+
+**New Modules**:
+- `expr_gen_instance_methods.rs` (~7,400 lines) - Collection/instance method handlers
+- `func_gen_inference.rs` (~1,100 lines) - Type inference logic for functions
+- `stmt_gen_complex.rs` (~2,100 lines) - Complex statement handling
+- `direct_rules_convert.rs` (~4,200 lines) - Statement/expression conversion
+
+**Changes**:
+- Extracted ~15,000 lines into focused modules
+- Added 411 lines to `crates/depyler/src/lib.rs` for new exports
+- Added 132 lines to `crates/depyler/src/report_cmd/mod.rs`
+- Updated module imports and references
+- Removed `.cargo/config.toml` (deprecated)
+
+**Quality Gates**:
+- All modules compile ✅
+- Clippy clean ✅
+- Part of DEPYLER-COVERAGE-95 initiative
+
 ### 📚 Documentation & Infrastructure (2025-12-01)
 
 #### TDD Book mdBook Conversion (DEPYLER-0643)
