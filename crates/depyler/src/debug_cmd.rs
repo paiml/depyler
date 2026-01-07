@@ -177,6 +177,172 @@ mod tests {
         // Just ensure the function runs without panicking
         print_debugging_tips();
     }
+
+    #[test]
+    fn test_debugger_case_insensitive() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("case.py");
+        let rust_file = temp_dir.path().join("case.rs");
+
+        fs::write(&source_file, "def foo(): pass").unwrap();
+        fs::write(&rust_file, "fn foo() {}").unwrap();
+
+        // Test uppercase
+        let gdb_upper = temp_dir.path().join("upper.gdb");
+        let result = generate_debugger_script(&source_file, &rust_file, "GDB", Some(&gdb_upper));
+        assert!(result.is_ok());
+
+        // Test mixed case
+        let lldb_mixed = temp_dir.path().join("mixed.lldb");
+        let result = generate_debugger_script(&source_file, &rust_file, "LlDb", Some(&lldb_mixed));
+        assert!(result.is_ok());
+
+        // Test rust-gdb mixed case
+        let result = generate_debugger_script(&source_file, &rust_file, "Rust-GDB", None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_gdb_script_content() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("content.py");
+        let rust_file = temp_dir.path().join("content.rs");
+        let gdb_output = temp_dir.path().join("content.gdb");
+
+        fs::write(&source_file, "def test_func(): pass").unwrap();
+        fs::write(&rust_file, "fn test_func() {}").unwrap();
+
+        let result = generate_debugger_script(&source_file, &rust_file, "gdb", Some(&gdb_output));
+        assert!(result.is_ok());
+
+        let content = fs::read_to_string(&gdb_output).unwrap();
+        // GDB script should have some content
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn test_lldb_script_content() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("lldb_content.py");
+        let rust_file = temp_dir.path().join("lldb_content.rs");
+        let lldb_output = temp_dir.path().join("lldb_content.lldb");
+
+        fs::write(&source_file, "def another(): pass").unwrap();
+        fs::write(&rust_file, "fn another() {}").unwrap();
+
+        let result = generate_debugger_script(&source_file, &rust_file, "lldb", Some(&lldb_output));
+        assert!(result.is_ok());
+
+        let content = fs::read_to_string(&lldb_output).unwrap();
+        assert!(!content.is_empty());
+    }
+
+    #[test]
+    fn test_rust_gdb_script_default_extension() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("rustgdb.py");
+        let rust_file = temp_dir.path().join("rustgdb.rs");
+
+        fs::write(&source_file, "def rust_debug(): pass").unwrap();
+        fs::write(&rust_file, "fn rust_debug() {}").unwrap();
+
+        // rust-gdb should produce .gdb extension
+        let result = generate_debugger_script(&source_file, &rust_file, "rust-gdb", None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_spydecy_not_installed() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("spy.py");
+
+        fs::write(&source_file, "def spy(): pass").unwrap();
+
+        // spydecy likely not installed, should return error
+        let result = launch_spydecy_debugger(&source_file, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_spydecy_with_visualize() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("viz.py");
+
+        fs::write(&source_file, "def visualize(): pass").unwrap();
+
+        // spydecy likely not installed, should return error
+        let result = launch_spydecy_debugger(&source_file, true);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_empty_debugger_name() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("empty.py");
+        let rust_file = temp_dir.path().join("empty.rs");
+
+        let result = generate_debugger_script(&source_file, &rust_file, "", None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_various_unknown_debuggers() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("unknown.py");
+        let rust_file = temp_dir.path().join("unknown.rs");
+
+        let unknown_debuggers = vec!["windbg", "ollydbg", "ida", "x64dbg", "radare2"];
+        for dbg in unknown_debuggers {
+            let result = generate_debugger_script(&source_file, &rust_file, dbg, None);
+            assert!(result.is_err(), "Expected error for debugger: {}", dbg);
+        }
+    }
+
+    #[test]
+    fn test_paths_with_spaces() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("file with spaces.py");
+        let rust_file = temp_dir.path().join("file with spaces.rs");
+        let output = temp_dir.path().join("output with spaces.gdb");
+
+        fs::write(&source_file, "def spaced(): pass").unwrap();
+        fs::write(&rust_file, "fn spaced() {}").unwrap();
+
+        let result = generate_debugger_script(&source_file, &rust_file, "gdb", Some(&output));
+        assert!(result.is_ok());
+        assert!(output.exists());
+    }
+
+    #[test]
+    fn test_special_characters_in_filename() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("test_file-v2.0.py");
+        let rust_file = temp_dir.path().join("test_file-v2.0.rs");
+
+        fs::write(&source_file, "def version(): pass").unwrap();
+        fs::write(&rust_file, "fn version() {}").unwrap();
+
+        let result = generate_debugger_script(&source_file, &rust_file, "gdb", None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_all_debugger_types_produce_output() {
+        let temp_dir = TempDir::new().unwrap();
+        let source_file = temp_dir.path().join("alldbg.py");
+        let rust_file = temp_dir.path().join("alldbg.rs");
+
+        fs::write(&source_file, "def all_debug(): pass").unwrap();
+        fs::write(&rust_file, "fn all_debug() {}").unwrap();
+
+        let debuggers = vec![("gdb", "gdb"), ("lldb", "lldb"), ("rust-gdb", "gdb")];
+        for (dbg, ext) in debuggers {
+            let output = temp_dir.path().join(format!("alldbg_{}.{}", dbg, ext));
+            let result = generate_debugger_script(&source_file, &rust_file, dbg, Some(&output));
+            assert!(result.is_ok(), "Failed for debugger: {}", dbg);
+            assert!(output.exists(), "Output not created for: {}", dbg);
+        }
+    }
 }
 
 /// Doctests for public API

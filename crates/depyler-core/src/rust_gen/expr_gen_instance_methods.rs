@@ -7420,3 +7420,1790 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         })
     }
 }
+
+// ============================================================================
+// EXTREME TDD TESTS - DEPYLER-COVERAGE-95
+// ============================================================================
+#[cfg(test)]
+mod tests {
+    use crate::DepylerPipeline;
+
+    fn transpile(code: &str) -> String {
+        let pipeline = DepylerPipeline::new();
+        pipeline.transpile(code).expect("transpilation should succeed")
+    }
+
+    fn transpile_ok(code: &str) -> bool {
+        let pipeline = DepylerPipeline::new();
+        pipeline.transpile(code).is_ok()
+    }
+
+    // ========================================================================
+    // LIST METHOD TESTS - convert_list_method
+    // ========================================================================
+
+    #[test]
+    fn test_list_append() {
+        let code = transpile(
+            r#"
+def append_test():
+    items = [1, 2, 3]
+    items.append(4)
+    return items
+"#,
+        );
+        assert!(code.contains("push"));
+    }
+
+    #[test]
+    fn test_list_append_string() {
+        let code = transpile(
+            r#"
+def append_string():
+    items = ["a", "b"]
+    items.append("c")
+    return items
+"#,
+        );
+        assert!(code.contains("push"));
+    }
+
+    #[test]
+    fn test_list_extend() {
+        let code = transpile(
+            r#"
+def extend_test():
+    items = [1, 2]
+    items.extend([3, 4])
+    return items
+"#,
+        );
+        assert!(code.contains("extend"));
+    }
+
+    #[test]
+    fn test_list_pop_no_args() {
+        let code = transpile(
+            r#"
+def pop_test():
+    items = [1, 2, 3]
+    return items.pop()
+"#,
+        );
+        assert!(code.contains("pop"));
+    }
+
+    #[test]
+    fn test_list_pop_with_index() {
+        let code = transpile(
+            r#"
+def pop_index():
+    items = [1, 2, 3]
+    return items.pop(0)
+"#,
+        );
+        assert!(code.contains("remove"));
+    }
+
+    #[test]
+    fn test_list_insert() {
+        let code = transpile(
+            r#"
+def insert_test():
+    items = [1, 3]
+    items.insert(1, 2)
+    return items
+"#,
+        );
+        assert!(code.contains("insert"));
+    }
+
+    #[test]
+    fn test_list_remove() {
+        let code = transpile(
+            r#"
+def remove_test():
+    items = [1, 2, 3]
+    items.remove(2)
+    return items
+"#,
+        );
+        assert!(code.contains("remove") || code.contains("position"));
+    }
+
+    #[test]
+    fn test_list_index() {
+        let code = transpile(
+            r#"
+def index_test():
+    items = [1, 2, 3]
+    return items.index(2)
+"#,
+        );
+        assert!(code.contains("position"));
+    }
+
+    #[test]
+    fn test_list_count() {
+        let code = transpile(
+            r#"
+def count_test():
+    items = [1, 2, 2, 3]
+    return items.count(2)
+"#,
+        );
+        assert!(code.contains("filter") || code.contains("count"));
+    }
+
+    #[test]
+    fn test_list_copy() {
+        let code = transpile(
+            r#"
+def copy_test():
+    items = [1, 2, 3]
+    return items.copy()
+"#,
+        );
+        assert!(code.contains("clone"));
+    }
+
+    #[test]
+    fn test_list_clear() {
+        let code = transpile(
+            r#"
+def clear_test():
+    items = [1, 2, 3]
+    items.clear()
+    return items
+"#,
+        );
+        assert!(code.contains("clear"));
+    }
+
+    #[test]
+    fn test_list_reverse() {
+        let code = transpile(
+            r#"
+def reverse_test():
+    items = [1, 2, 3]
+    items.reverse()
+    return items
+"#,
+        );
+        assert!(code.contains("reverse"));
+    }
+
+    #[test]
+    fn test_list_sort() {
+        let code = transpile(
+            r#"
+def sort_test():
+    items = [3, 1, 2]
+    items.sort()
+    return items
+"#,
+        );
+        assert!(code.contains("sort"));
+    }
+
+    #[test]
+    fn test_list_sort_reverse() {
+        let code = transpile(
+            r#"
+def sort_reverse():
+    items = [1, 2, 3]
+    items.sort(reverse=True)
+    return items
+"#,
+        );
+        assert!(code.contains("sort"));
+    }
+
+    // ========================================================================
+    // DICT METHOD TESTS - convert_dict_method
+    // ========================================================================
+
+    #[test]
+    fn test_dict_get_single_arg() {
+        let code = transpile(
+            r#"
+def get_test():
+    d = {"a": 1}
+    return d.get("a")
+"#,
+        );
+        assert!(code.contains("get"));
+    }
+
+    #[test]
+    fn test_dict_get_with_default() {
+        let code = transpile(
+            r#"
+def get_default():
+    d = {"a": 1}
+    return d.get("b", 0)
+"#,
+        );
+        assert!(code.contains("get") || code.contains("unwrap_or"));
+    }
+
+    #[test]
+    fn test_dict_keys() {
+        let code = transpile(
+            r#"
+def keys_test():
+    d = {"a": 1, "b": 2}
+    return d.keys()
+"#,
+        );
+        assert!(code.contains("keys"));
+    }
+
+    #[test]
+    fn test_dict_values() {
+        let code = transpile(
+            r#"
+def values_test():
+    d = {"a": 1, "b": 2}
+    return d.values()
+"#,
+        );
+        assert!(code.contains("values"));
+    }
+
+    #[test]
+    fn test_dict_items() {
+        let code = transpile(
+            r#"
+def items_test():
+    d = {"a": 1, "b": 2}
+    return d.items()
+"#,
+        );
+        assert!(code.contains("iter") || code.contains("items"));
+    }
+
+    #[test]
+    fn test_dict_update() {
+        let code = transpile(
+            r#"
+def update_test():
+    d = {"a": 1}
+    d.update({"b": 2})
+    return d
+"#,
+        );
+        assert!(code.contains("insert") || code.contains("update"));
+    }
+
+    #[test]
+    fn test_dict_clear() {
+        let code = transpile(
+            r#"
+def clear_dict():
+    d = {"a": 1}
+    d.clear()
+    return d
+"#,
+        );
+        assert!(code.contains("clear"));
+    }
+
+    #[test]
+    fn test_dict_copy() {
+        let code = transpile(
+            r#"
+def copy_dict():
+    d = {"a": 1}
+    return d.copy()
+"#,
+        );
+        assert!(code.contains("clone"));
+    }
+
+    // ========================================================================
+    // STRING METHOD TESTS - convert_string_method
+    // ========================================================================
+
+    #[test]
+    fn test_string_upper() {
+        let code = transpile(
+            r#"
+def upper_test():
+    s = "hello"
+    return s.upper()
+"#,
+        );
+        assert!(code.contains("to_uppercase"));
+    }
+
+    #[test]
+    fn test_string_lower() {
+        let code = transpile(
+            r#"
+def lower_test():
+    s = "HELLO"
+    return s.lower()
+"#,
+        );
+        assert!(code.contains("to_lowercase"));
+    }
+
+    #[test]
+    fn test_string_strip() {
+        let code = transpile(
+            r#"
+def strip_test():
+    s = "  hello  "
+    return s.strip()
+"#,
+        );
+        assert!(code.contains("trim"));
+    }
+
+    #[test]
+    fn test_string_startswith() {
+        let code = transpile(
+            r#"
+def startswith_test():
+    s = "hello"
+    return s.startswith("he")
+"#,
+        );
+        assert!(code.contains("starts_with"));
+    }
+
+    #[test]
+    fn test_string_endswith() {
+        let code = transpile(
+            r#"
+def endswith_test():
+    s = "hello"
+    return s.endswith("lo")
+"#,
+        );
+        assert!(code.contains("ends_with"));
+    }
+
+    #[test]
+    fn test_string_split_no_args() {
+        let code = transpile(
+            r#"
+def split_test():
+    s = "a b c"
+    return s.split()
+"#,
+        );
+        assert!(code.contains("split"));
+    }
+
+    #[test]
+    fn test_string_split_with_sep() {
+        let code = transpile(
+            r#"
+def split_sep():
+    s = "a,b,c"
+    return s.split(",")
+"#,
+        );
+        assert!(code.contains("split"));
+    }
+
+    #[test]
+    fn test_string_join() {
+        let code = transpile(
+            r#"
+def join_test():
+    items = ["a", "b", "c"]
+    return ",".join(items)
+"#,
+        );
+        assert!(code.contains("join"));
+    }
+
+    #[test]
+    fn test_string_replace() {
+        let code = transpile(
+            r#"
+def replace_test():
+    s = "hello"
+    return s.replace("l", "x")
+"#,
+        );
+        assert!(code.contains("replace") || code.contains("replacen"));
+    }
+
+    #[test]
+    fn test_string_find() {
+        let code = transpile(
+            r#"
+def find_test():
+    s = "hello"
+    return s.find("l")
+"#,
+        );
+        assert!(code.contains("find") || code.contains("position"));
+    }
+
+    #[test]
+    fn test_string_count() {
+        let code = transpile(
+            r#"
+def count_str():
+    s = "hello"
+    return s.count("l")
+"#,
+        );
+        assert!(code.contains("matches") || code.contains("count"));
+    }
+
+    #[test]
+    fn test_string_isdigit() {
+        let code = transpile(
+            r#"
+def isdigit_test():
+    s = "123"
+    return s.isdigit()
+"#,
+        );
+        assert!(code.contains("is_ascii_digit") || code.contains("chars"));
+    }
+
+    #[test]
+    fn test_string_isalpha() {
+        let code = transpile(
+            r#"
+def isalpha_test():
+    s = "abc"
+    return s.isalpha()
+"#,
+        );
+        assert!(code.contains("is_alphabetic") || code.contains("chars"));
+    }
+
+    #[test]
+    fn test_string_lstrip() {
+        let code = transpile(
+            r#"
+def lstrip_test():
+    s = "  hello"
+    return s.lstrip()
+"#,
+        );
+        assert!(code.contains("trim_start"));
+    }
+
+    #[test]
+    fn test_string_rstrip() {
+        let code = transpile(
+            r#"
+def rstrip_test():
+    s = "hello  "
+    return s.rstrip()
+"#,
+        );
+        assert!(code.contains("trim_end"));
+    }
+
+    #[test]
+    fn test_string_capitalize() {
+        assert!(transpile_ok(
+            r#"
+def cap_test():
+    s = "hello"
+    return s.capitalize()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_title() {
+        assert!(transpile_ok(
+            r#"
+def title_test():
+    s = "hello world"
+    return s.title()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_center() {
+        assert!(transpile_ok(
+            r#"
+def center_test():
+    s = "hi"
+    return s.center(10)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_ljust() {
+        assert!(transpile_ok(
+            r#"
+def ljust_test():
+    s = "hi"
+    return s.ljust(10)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_rjust() {
+        assert!(transpile_ok(
+            r#"
+def rjust_test():
+    s = "hi"
+    return s.rjust(10)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_zfill() {
+        assert!(transpile_ok(
+            r#"
+def zfill_test():
+    s = "42"
+    return s.zfill(5)
+"#
+        ));
+    }
+
+    // ========================================================================
+    // SET METHOD TESTS - convert_set_method
+    // ========================================================================
+
+    #[test]
+    fn test_set_add() {
+        let code = transpile(
+            r#"
+def add_test():
+    s = {1, 2}
+    s.add(3)
+    return s
+"#,
+        );
+        assert!(code.contains("insert"));
+    }
+
+    #[test]
+    fn test_set_remove() {
+        let code = transpile(
+            r#"
+def remove_set():
+    s = {1, 2, 3}
+    s.remove(2)
+    return s
+"#,
+        );
+        assert!(code.contains("remove"));
+    }
+
+    #[test]
+    fn test_set_discard() {
+        let code = transpile(
+            r#"
+def discard_test():
+    s = {1, 2, 3}
+    s.discard(2)
+    return s
+"#,
+        );
+        assert!(code.contains("remove"));
+    }
+
+    #[test]
+    fn test_set_pop() {
+        let code = transpile(
+            r#"
+def pop_set():
+    s = {1, 2, 3}
+    return s.pop()
+"#,
+        );
+        assert!(code.contains("iter") || code.contains("next"));
+    }
+
+    #[test]
+    fn test_set_clear() {
+        let code = transpile(
+            r#"
+def clear_set():
+    s = {1, 2, 3}
+    s.clear()
+    return s
+"#,
+        );
+        assert!(code.contains("clear"));
+    }
+
+    #[test]
+    fn test_set_union() {
+        let code = transpile(
+            r#"
+def union_test():
+    s1 = {1, 2}
+    s2 = {3, 4}
+    return s1.union(s2)
+"#,
+        );
+        assert!(code.contains("union") || code.contains("extend"));
+    }
+
+    #[test]
+    fn test_set_intersection() {
+        let code = transpile(
+            r#"
+def intersection_test():
+    s1 = {1, 2, 3}
+    s2 = {2, 3, 4}
+    return s1.intersection(s2)
+"#,
+        );
+        assert!(code.contains("intersection") || code.contains("filter"));
+    }
+
+    #[test]
+    fn test_set_difference() {
+        let code = transpile(
+            r#"
+def difference_test():
+    s1 = {1, 2, 3}
+    s2 = {2, 3, 4}
+    return s1.difference(s2)
+"#,
+        );
+        assert!(code.contains("difference") || code.contains("filter"));
+    }
+
+    // ========================================================================
+    // INDEX CONVERSION TESTS - convert_index
+    // ========================================================================
+
+    #[test]
+    fn test_list_index_access() {
+        let code = transpile(
+            r#"
+def index_access():
+    items = [1, 2, 3]
+    return items[0]
+"#,
+        );
+        assert!(code.contains("[") && code.contains("]"));
+    }
+
+    #[test]
+    fn test_dict_index_access() {
+        let code = transpile(
+            r#"
+def dict_access():
+    d = {"a": 1}
+    return d["a"]
+"#,
+        );
+        assert!(code.contains("get") || code.contains("["));
+    }
+
+    #[test]
+    fn test_string_index_access() {
+        let code = transpile(
+            r#"
+def string_access():
+    s = "hello"
+    return s[0]
+"#,
+        );
+        assert!(code.contains("chars") || code.contains("nth"));
+    }
+
+    #[test]
+    fn test_negative_index() {
+        let code = transpile(
+            r#"
+def neg_index():
+    items = [1, 2, 3]
+    return items[-1]
+"#,
+        );
+        assert!(code.contains("len") || code.contains("-"));
+    }
+
+    // ========================================================================
+    // SLICE CONVERSION TESTS - convert_slice
+    // ========================================================================
+
+    #[test]
+    fn test_slice_basic() {
+        let code = transpile(
+            r#"
+def slice_basic():
+    items = [1, 2, 3, 4, 5]
+    return items[1:3]
+"#,
+        );
+        assert!(code.contains("[") || code.contains(".."));
+    }
+
+    #[test]
+    fn test_slice_from_start() {
+        let code = transpile(
+            r#"
+def slice_from_start():
+    items = [1, 2, 3, 4, 5]
+    return items[:3]
+"#,
+        );
+        assert!(code.contains("[") || code.contains(".."));
+    }
+
+    #[test]
+    fn test_slice_to_end() {
+        let code = transpile(
+            r#"
+def slice_to_end():
+    items = [1, 2, 3, 4, 5]
+    return items[2:]
+"#,
+        );
+        assert!(code.contains("[") || code.contains(".."));
+    }
+
+    #[test]
+    fn test_slice_full_copy() {
+        let code = transpile(
+            r#"
+def slice_copy():
+    items = [1, 2, 3]
+    return items[:]
+"#,
+        );
+        assert!(code.contains("clone") || code.contains("to_vec"));
+    }
+
+    #[test]
+    fn test_string_slice() {
+        let code = transpile(
+            r#"
+def string_slice():
+    s = "hello"
+    return s[1:4]
+"#,
+        );
+        assert!(code.contains("[") || code.contains(".."));
+    }
+
+    // ========================================================================
+    // LIST COMPREHENSION TESTS - convert_list_comp
+    // ========================================================================
+
+    #[test]
+    fn test_list_comp_simple() {
+        let code = transpile(
+            r#"
+def list_comp():
+    return [x * 2 for x in [1, 2, 3]]
+"#,
+        );
+        assert!(code.contains("map") || code.contains("collect"));
+    }
+
+    #[test]
+    fn test_list_comp_with_filter() {
+        let code = transpile(
+            r#"
+def list_comp_filter():
+    return [x for x in [1, 2, 3, 4] if x > 2]
+"#,
+        );
+        assert!(code.contains("filter") || code.contains("collect"));
+    }
+
+    #[test]
+    fn test_list_comp_nested() {
+        let code = transpile(
+            r#"
+def nested_comp():
+    return [x + y for x in [1, 2] for y in [10, 20]]
+"#,
+        );
+        assert!(code.contains("flat_map") || code.contains("map"));
+    }
+
+    // ========================================================================
+    // DICT COMPREHENSION TESTS - convert_dict_comp
+    // ========================================================================
+
+    #[test]
+    fn test_dict_comp_simple() {
+        let code = transpile(
+            r#"
+def dict_comp():
+    return {x: x * 2 for x in [1, 2, 3]}
+"#,
+        );
+        assert!(code.contains("map") || code.contains("collect") || code.contains("HashMap"));
+    }
+
+    #[test]
+    fn test_dict_comp_with_filter() {
+        let code = transpile(
+            r#"
+def dict_comp_filter():
+    return {x: x * 2 for x in [1, 2, 3, 4] if x > 2}
+"#,
+        );
+        assert!(code.contains("filter") || code.contains("collect"));
+    }
+
+    // ========================================================================
+    // SET COMPREHENSION TESTS - convert_set_comp
+    // ========================================================================
+
+    #[test]
+    fn test_set_comp_simple() {
+        let code = transpile(
+            r#"
+def set_comp():
+    return {x * 2 for x in [1, 2, 3]}
+"#,
+        );
+        assert!(code.contains("map") || code.contains("collect") || code.contains("HashSet"));
+    }
+
+    // ========================================================================
+    // GENERATOR EXPRESSION TESTS - convert_generator_expression
+    // ========================================================================
+
+    #[test]
+    fn test_generator_in_sum() {
+        let code = transpile(
+            r#"
+def gen_sum():
+    return sum(x for x in [1, 2, 3])
+"#,
+        );
+        assert!(code.contains("sum") || code.contains("fold"));
+    }
+
+    #[test]
+    fn test_generator_in_any() {
+        let code = transpile(
+            r#"
+def gen_any():
+    return any(x > 2 for x in [1, 2, 3])
+"#,
+        );
+        assert!(code.contains("any"));
+    }
+
+    #[test]
+    fn test_generator_in_all() {
+        let code = transpile(
+            r#"
+def gen_all():
+    return all(x > 0 for x in [1, 2, 3])
+"#,
+        );
+        assert!(code.contains("all"));
+    }
+
+    // ========================================================================
+    // TUPLE CONVERSION TESTS - convert_tuple
+    // ========================================================================
+
+    #[test]
+    fn test_tuple_creation() {
+        let code = transpile(
+            r#"
+def tuple_test():
+    return (1, 2, 3)
+"#,
+        );
+        assert!(code.contains("(") && code.contains(")"));
+    }
+
+    #[test]
+    fn test_tuple_mixed() {
+        let code = transpile(
+            r#"
+def tuple_mixed():
+    return (1, "hello", 3.14)
+"#,
+        );
+        assert!(code.contains("("));
+    }
+
+    // ========================================================================
+    // SET CONVERSION TESTS - convert_set
+    // ========================================================================
+
+    #[test]
+    fn test_set_creation() {
+        let code = transpile(
+            r#"
+def set_create():
+    return {1, 2, 3}
+"#,
+        );
+        assert!(code.contains("HashSet") || code.contains("from"));
+    }
+
+    // ========================================================================
+    // ATTRIBUTE CONVERSION TESTS - convert_attribute
+    // ========================================================================
+
+    #[test]
+    fn test_attribute_access() {
+        assert!(transpile_ok(
+            r#"
+class Point:
+    def __init__(self, x: int, y: int):
+        self.x = x
+        self.y = y
+
+def get_x(p: Point) -> int:
+    return p.x
+"#
+        ));
+    }
+
+    // ========================================================================
+    // F-STRING TESTS - convert_fstring
+    // ========================================================================
+
+    #[test]
+    fn test_fstring_simple() {
+        let code = transpile(
+            r#"
+def fstring_test():
+    name = "world"
+    return f"Hello, {name}!"
+"#,
+        );
+        assert!(code.contains("format!"));
+    }
+
+    #[test]
+    fn test_fstring_expression() {
+        let code = transpile(
+            r#"
+def fstring_expr():
+    x = 5
+    return f"Value: {x + 1}"
+"#,
+        );
+        assert!(code.contains("format!"));
+    }
+
+    #[test]
+    fn test_fstring_multiple() {
+        let code = transpile(
+            r#"
+def fstring_multi():
+    a = 1
+    b = 2
+    return f"{a} + {b} = {a + b}"
+"#,
+        );
+        assert!(code.contains("format!"));
+    }
+
+    // ========================================================================
+    // IF EXPRESSION TESTS - convert_ifexpr
+    // ========================================================================
+
+    #[test]
+    fn test_ifexpr_simple() {
+        let code = transpile(
+            r#"
+def ifexpr_test():
+    x = 5
+    return "big" if x > 3 else "small"
+"#,
+        );
+        assert!(code.contains("if") && code.contains("else"));
+    }
+
+    #[test]
+    fn test_ifexpr_nested() {
+        let code = transpile(
+            r#"
+def ifexpr_nested():
+    x = 5
+    return "big" if x > 10 else "medium" if x > 3 else "small"
+"#,
+        );
+        assert!(code.contains("if") && code.contains("else"));
+    }
+
+    // ========================================================================
+    // LAMBDA TESTS - convert_lambda
+    // ========================================================================
+
+    #[test]
+    fn test_lambda_simple() {
+        let code = transpile(
+            r#"
+def lambda_test():
+    f = lambda x: x * 2
+    return f(5)
+"#,
+        );
+        assert!(code.contains("|") || code.contains("Fn"));
+    }
+
+    #[test]
+    fn test_lambda_multi_args() {
+        let code = transpile(
+            r#"
+def lambda_multi():
+    f = lambda x, y: x + y
+    return f(2, 3)
+"#,
+        );
+        assert!(code.contains("|"));
+    }
+
+    // ========================================================================
+    // BOOLEAN HELPER TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_is_len_call_detection() {
+        let code = transpile(
+            r#"
+def len_test():
+    items = [1, 2, 3]
+    return len(items)
+"#,
+        );
+        assert!(code.contains("len()"));
+    }
+
+    // ========================================================================
+    // WALRUS OPERATOR TESTS - convert_named_expr
+    // ========================================================================
+
+    #[test]
+    fn test_walrus_in_if() {
+        let code = transpile(
+            r#"
+def walrus_test():
+    items = [1, 2, 3]
+    if (n := len(items)) > 2:
+        return n
+    return 0
+"#,
+        );
+        assert!(code.contains("let n"));
+    }
+
+    #[test]
+    fn test_walrus_in_while() {
+        let code = transpile(
+            r#"
+def walrus_while():
+    i = 0
+    while (x := i) < 5:
+        i += 1
+    return x
+"#,
+        );
+        assert!(code.contains("let x") || code.contains("while"));
+    }
+
+    // ========================================================================
+    // INSTANCE METHOD TESTS - convert_instance_method
+    // ========================================================================
+
+    #[test]
+    fn test_bytes_decode() {
+        assert!(transpile_ok(
+            r#"
+def decode_test():
+    b = b"hello"
+    return b.decode("utf-8")
+"#
+        ));
+    }
+
+    #[test]
+    fn test_str_encode() {
+        assert!(transpile_ok(
+            r#"
+def encode_test():
+    s = "hello"
+    return s.encode("utf-8")
+"#
+        ));
+    }
+
+    // ========================================================================
+    // ADDITIONAL STRING METHOD TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_string_isupper() {
+        assert!(transpile_ok(
+            r#"
+def isupper_test():
+    s = "HELLO"
+    return s.isupper()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_islower() {
+        assert!(transpile_ok(
+            r#"
+def islower_test():
+    s = "hello"
+    return s.islower()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_isalnum() {
+        assert!(transpile_ok(
+            r#"
+def isalnum_test():
+    s = "abc123"
+    return s.isalnum()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_isspace() {
+        assert!(transpile_ok(
+            r#"
+def isspace_test():
+    s = "   "
+    return s.isspace()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_format() {
+        assert!(transpile_ok(
+            r#"
+def format_test():
+    return "{} {}".format("hello", "world")
+"#
+        ));
+    }
+
+    // ========================================================================
+    // ADDITIONAL COLLECTION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_list_multiplication() {
+        let code = transpile(
+            r#"
+def list_mul():
+    return [0] * 5
+"#,
+        );
+        assert!(code.contains("vec!") || code.contains("*") || code.contains("repeat"));
+    }
+
+    #[test]
+    fn test_list_concatenation() {
+        let code = transpile(
+            r#"
+def list_concat():
+    return [1, 2] + [3, 4]
+"#,
+        );
+        assert!(code.contains("extend") || code.contains("concat") || code.contains("+"));
+    }
+
+    #[test]
+    fn test_dict_setdefault() {
+        let code = transpile(
+            r#"
+def setdefault_test():
+    d = {}
+    d.setdefault("a", 0)
+    return d
+"#,
+        );
+        assert!(code.contains("entry") || code.contains("or_insert"));
+    }
+
+    // ========================================================================
+    // NUMERIC TYPE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_int_bit_length() {
+        assert!(transpile_ok(
+            r#"
+def bit_length_test():
+    n = 255
+    return n.bit_length()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_float_is_integer() {
+        assert!(transpile_ok(
+            r#"
+def is_integer_test():
+    f = 3.0
+    return f.is_integer()
+"#
+        ));
+    }
+
+    // ========================================================================
+    // ITERATOR METHODS
+    // ========================================================================
+
+    #[test]
+    fn test_enumerate() {
+        let code = transpile(
+            r#"
+def enumerate_test():
+    items = ["a", "b", "c"]
+    result = []
+    for i, item in enumerate(items):
+        result.append((i, item))
+    return result
+"#,
+        );
+        assert!(code.contains("enumerate"));
+    }
+
+    #[test]
+    fn test_zip() {
+        let code = transpile(
+            r#"
+def zip_test():
+    a = [1, 2, 3]
+    b = ["a", "b", "c"]
+    return list(zip(a, b))
+"#,
+        );
+        assert!(code.contains("zip"));
+    }
+
+    #[test]
+    fn test_reversed() {
+        let code = transpile(
+            r#"
+def reversed_test():
+    items = [1, 2, 3]
+    return list(reversed(items))
+"#,
+        );
+        assert!(code.contains("rev"));
+    }
+
+    #[test]
+    fn test_sorted() {
+        let code = transpile(
+            r#"
+def sorted_test():
+    items = [3, 1, 2]
+    return sorted(items)
+"#,
+        );
+        assert!(code.contains("sort"));
+    }
+
+    // ========================================================================
+    // REGEX METHOD TESTS (convert_regex_method)
+    // ========================================================================
+
+    #[test]
+    fn test_regex_findall() {
+        assert!(transpile_ok(
+            r#"
+import re
+
+def findall_test():
+    text = "hello world"
+    return re.findall(r"\w+", text)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_regex_match() {
+        assert!(transpile_ok(
+            r#"
+import re
+
+def match_test():
+    text = "hello"
+    return re.match(r"he", text)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_regex_search() {
+        assert!(transpile_ok(
+            r#"
+import re
+
+def search_test():
+    text = "hello world"
+    return re.search(r"world", text)
+"#
+        ));
+    }
+
+    #[test]
+    fn test_regex_sub() {
+        assert!(transpile_ok(
+            r#"
+import re
+
+def sub_test():
+    text = "hello world"
+    return re.sub(r"world", "there", text)
+"#
+        ));
+    }
+
+    // ========================================================================
+    // TRUTHINESS CONVERSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_truthiness_list() {
+        let code = transpile(
+            r#"
+def truthiness_list():
+    items = [1, 2, 3]
+    if items:
+        return True
+    return False
+"#,
+        );
+        assert!(code.contains("is_empty") || code.contains("!"));
+    }
+
+    #[test]
+    fn test_truthiness_string() {
+        let code = transpile(
+            r#"
+def truthiness_str():
+    s = "hello"
+    if s:
+        return True
+    return False
+"#,
+        );
+        assert!(code.contains("is_empty") || code.contains("!"));
+    }
+
+    #[test]
+    fn test_truthiness_dict() {
+        let code = transpile(
+            r#"
+def truthiness_dict():
+    d = {"a": 1}
+    if d:
+        return True
+    return False
+"#,
+        );
+        assert!(code.contains("is_empty") || code.contains("!"));
+    }
+
+    // ========================================================================
+    // BORROW CONVERSION TESTS - convert_borrow
+    // ========================================================================
+
+    #[test]
+    fn test_immutable_borrow() {
+        let code = transpile(
+            r#"
+def borrow_test(items: list):
+    for item in items:
+        print(item)
+"#,
+        );
+        assert!(code.contains("&") || code.contains("iter"));
+    }
+
+    // ========================================================================
+    // DEQUE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_deque_append() {
+        assert!(transpile_ok(
+            r#"
+from collections import deque
+
+def deque_test():
+    d = deque([1, 2, 3])
+    d.append(4)
+    return d
+"#
+        ));
+    }
+
+    #[test]
+    fn test_deque_appendleft() {
+        assert!(transpile_ok(
+            r#"
+from collections import deque
+
+def deque_left():
+    d = deque([1, 2, 3])
+    d.appendleft(0)
+    return d
+"#
+        ));
+    }
+
+    #[test]
+    fn test_deque_popleft() {
+        assert!(transpile_ok(
+            r#"
+from collections import deque
+
+def deque_popleft():
+    d = deque([1, 2, 3])
+    return d.popleft()
+"#
+        ));
+    }
+
+    // ========================================================================
+    // COUNTER TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_counter_creation() {
+        assert!(transpile_ok(
+            r#"
+from collections import Counter
+
+def counter_test():
+    c = Counter([1, 1, 2, 2, 2, 3])
+    return c
+"#
+        ));
+    }
+
+    #[test]
+    fn test_counter_most_common() {
+        assert!(transpile_ok(
+            r#"
+from collections import Counter
+
+def counter_common():
+    c = Counter([1, 1, 2, 2, 2, 3])
+    return c.most_common(2)
+"#
+        ));
+    }
+
+    // ========================================================================
+    // AWAIT TESTS - convert_await
+    // ========================================================================
+
+    #[test]
+    fn test_async_await() {
+        assert!(transpile_ok(
+            r#"
+async def fetch_data():
+    return 42
+
+async def main():
+    result = await fetch_data()
+    return result
+"#
+        ));
+    }
+
+    // ========================================================================
+    // MORE EDGE CASE TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_empty_list() {
+        let code = transpile(
+            r#"
+def empty_list():
+    return []
+"#,
+        );
+        assert!(code.contains("vec!") || code.contains("Vec::new"));
+    }
+
+    #[test]
+    fn test_empty_dict() {
+        let code = transpile(
+            r#"
+def empty_dict():
+    return {}
+"#,
+        );
+        assert!(code.contains("HashMap::new") || code.contains("HashMap"));
+    }
+
+    #[test]
+    fn test_empty_set() {
+        let code = transpile(
+            r#"
+def empty_set():
+    return set()
+"#,
+        );
+        assert!(code.contains("HashSet::new") || code.contains("HashSet"));
+    }
+
+    #[test]
+    fn test_nested_list() {
+        let code = transpile(
+            r#"
+def nested_list():
+    return [[1, 2], [3, 4]]
+"#,
+        );
+        assert!(code.contains("vec!"));
+    }
+
+    #[test]
+    fn test_nested_dict() {
+        let code = transpile(
+            r#"
+def nested_dict():
+    return {"a": {"b": 1}}
+"#,
+        );
+        assert!(code.contains("HashMap") || code.contains("insert"));
+    }
+
+    // ========================================================================
+    // PARSE TARGET PATTERN TESTS - parse_target_pattern
+    // ========================================================================
+
+    #[test]
+    fn test_for_tuple_unpacking() {
+        let code = transpile(
+            r#"
+def tuple_unpack():
+    pairs = [(1, 2), (3, 4)]
+    result = 0
+    for a, b in pairs:
+        result += a + b
+    return result
+"#,
+        );
+        assert!(code.contains("(") && code.contains(")"));
+    }
+
+    #[test]
+    fn test_for_dict_items() {
+        let code = transpile(
+            r#"
+def dict_iter():
+    d = {"a": 1, "b": 2}
+    result = []
+    for k, v in d.items():
+        result.append((k, v))
+    return result
+"#,
+        );
+        assert!(code.contains("iter") || code.contains("items"));
+    }
+
+    // ========================================================================
+    // RETURN TYPE DETECTION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_expr_returns_result() {
+        assert!(transpile_ok(
+            r#"
+def file_read():
+    with open("test.txt") as f:
+        return f.read()
+"#
+        ));
+    }
+
+    // ========================================================================
+    // STRING METHOD EDGE CASES
+    // ========================================================================
+
+    #[test]
+    fn test_string_split_maxsplit() {
+        let code = transpile(
+            r#"
+def split_max():
+    s = "a,b,c,d"
+    return s.split(",", 2)
+"#,
+        );
+        assert!(code.contains("splitn") || code.contains("split"));
+    }
+
+    #[test]
+    fn test_string_rsplit() {
+        let code = transpile(
+            r#"
+def rsplit_test():
+    s = "a,b,c"
+    return s.rsplit(",")
+"#,
+        );
+        assert!(code.contains("rsplit") || code.contains("split"));
+    }
+
+    #[test]
+    fn test_string_partition() {
+        assert!(transpile_ok(
+            r#"
+def partition_test():
+    s = "hello world"
+    return s.partition(" ")
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_rpartition() {
+        assert!(transpile_ok(
+            r#"
+def rpartition_test():
+    s = "hello world hello"
+    return s.rpartition(" ")
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_swapcase() {
+        assert!(transpile_ok(
+            r#"
+def swapcase_test():
+    s = "Hello World"
+    return s.swapcase()
+"#
+        ));
+    }
+
+    #[test]
+    fn test_string_expandtabs() {
+        assert!(transpile_ok(
+            r#"
+def expandtabs_test():
+    s = "a\tb\tc"
+    return s.expandtabs(4)
+"#
+        ));
+    }
+
+    // ========================================================================
+    // FROZENSET TESTS - convert_frozenset
+    // ========================================================================
+
+    #[test]
+    fn test_frozenset_creation() {
+        assert!(transpile_ok(
+            r#"
+def frozenset_test():
+    return frozenset([1, 2, 3])
+"#
+        ));
+    }
+
+    // ========================================================================
+    // MORE DICT METHOD TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_dict_pop_with_default() {
+        let code = transpile(
+            r#"
+def dict_pop_default():
+    d = {"a": 1}
+    return d.pop("b", 0)
+"#,
+        );
+        assert!(code.contains("remove") || code.contains("unwrap_or"));
+    }
+
+    #[test]
+    fn test_dict_popitem() {
+        let code = transpile(
+            r#"
+def dict_popitem():
+    d = {"a": 1, "b": 2}
+    return d.popitem()
+"#,
+        );
+        assert!(code.contains("keys") || code.contains("remove"));
+    }
+
+    // ========================================================================
+    // SYS IO METHOD TESTS - convert_sys_io_method
+    // ========================================================================
+
+    #[test]
+    fn test_stdout_write() {
+        assert!(transpile_ok(
+            r#"
+import sys
+
+def stdout_test():
+    sys.stdout.write("hello")
+"#
+        ));
+    }
+
+    #[test]
+    fn test_stderr_write() {
+        assert!(transpile_ok(
+            r#"
+import sys
+
+def stderr_test():
+    sys.stderr.write("error")
+"#
+        ));
+    }
+
+    // ========================================================================
+    // ADDITIONAL CONVERSION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_range_in_parens() {
+        let code = transpile(
+            r#"
+def range_paren():
+    return [x for x in range(10)]
+"#,
+        );
+        assert!(code.contains("..") || code.contains("range"));
+    }
+
+    #[test]
+    fn test_owned_collection_detection() {
+        let code = transpile(
+            r#"
+def owned_test():
+    items = [1, 2, 3]
+    return items
+"#,
+        );
+        assert!(code.contains("vec!"));
+    }
+}

@@ -1582,4 +1582,807 @@ mod tests {
         let samples = extract_training_samples(&results);
         assert!(samples.is_empty());
     }
+
+    // ========================================================================
+    // Additional Configuration Tests (UTOL-040)
+    // ========================================================================
+
+    #[test]
+    fn test_corpus_config_default() {
+        let config = CorpusConfig::default();
+        assert!(config.path.to_string_lossy().contains("reprorusted"));
+        assert!(!config.include_patterns.is_empty());
+        assert!(!config.exclude_patterns.is_empty());
+    }
+
+    #[test]
+    fn test_corpus_config_serialization() {
+        let config = CorpusConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let restored: CorpusConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(config.include_patterns, restored.include_patterns);
+    }
+
+    #[test]
+    fn test_training_config_default() {
+        let config = TrainingConfig::default();
+        assert_eq!(config.synthetic_samples, 12_000);
+        assert_eq!(config.seed, 42);
+        assert!(config.balance_classes);
+    }
+
+    #[test]
+    fn test_training_config_serialization() {
+        let config = TrainingConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let restored: TrainingConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(config.seed, restored.seed);
+        assert_eq!(config.balance_classes, restored.balance_classes);
+    }
+
+    #[test]
+    fn test_convergence_config_default() {
+        let config = ConvergenceConfig::default();
+        assert!((config.target_rate - 0.80).abs() < 0.001);
+        assert_eq!(config.max_iterations, 50);
+        assert_eq!(config.patience, 5);
+        assert!((config.min_delta - 0.005).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_convergence_config_serialization() {
+        let config = ConvergenceConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let restored: ConvergenceConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(config.patience, restored.patience);
+    }
+
+    #[test]
+    fn test_model_config_default() {
+        let config = ModelConfig::default();
+        assert!(config.path.to_string_lossy().contains("oracle"));
+        assert_eq!(config.n_estimators, 100);
+        assert_eq!(config.max_depth, 10);
+    }
+
+    #[test]
+    fn test_model_config_serialization() {
+        let config = ModelConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let restored: ModelConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(config.n_estimators, restored.n_estimators);
+    }
+
+    #[test]
+    fn test_display_config_default() {
+        let config = DisplayConfig::default();
+        assert_eq!(config.mode, DisplayMode::Rich);
+        assert_eq!(config.refresh_ms, 500);
+        assert!(config.show_sparklines);
+        assert!(config.show_category_breakdown);
+    }
+
+    #[test]
+    fn test_display_config_serialization() {
+        let config = DisplayConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        let restored: DisplayConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(config.mode, restored.mode);
+        assert_eq!(config.refresh_ms, restored.refresh_ms);
+    }
+
+    #[test]
+    fn test_display_mode_default() {
+        let mode = DisplayMode::default();
+        assert_eq!(mode, DisplayMode::Rich);
+    }
+
+    #[test]
+    fn test_display_mode_serialization_all_variants() {
+        let modes = [DisplayMode::Rich, DisplayMode::Minimal, DisplayMode::Json, DisplayMode::Silent];
+        for mode in modes {
+            let json = serde_json::to_string(&mode).unwrap();
+            let restored: DisplayMode = serde_json::from_str(&json).unwrap();
+            assert_eq!(mode, restored);
+        }
+    }
+
+    #[test]
+    fn test_display_mode_debug() {
+        let mode = DisplayMode::Rich;
+        let debug = format!("{:?}", mode);
+        assert!(debug.contains("Rich"));
+    }
+
+    #[test]
+    fn test_display_mode_clone() {
+        let mode = DisplayMode::Json;
+        let cloned = mode;
+        assert_eq!(mode, cloned);
+    }
+
+    // ========================================================================
+    // Additional Loop State Tests
+    // ========================================================================
+
+    #[test]
+    fn test_loop_state_default_trait() {
+        let state = LoopState::default();
+        assert_eq!(state.iteration, 0);
+        assert!(state.rate_history.is_empty());
+    }
+
+    #[test]
+    fn test_loop_state_clone() {
+        let mut state = LoopState::new();
+        state.iteration = 5;
+        state.compile_rate = 0.75;
+        state.rate_history = vec![0.5, 0.6, 0.7];
+
+        let cloned = state.clone();
+        assert_eq!(state.iteration, cloned.iteration);
+        assert_eq!(state.rate_history.len(), cloned.rate_history.len());
+    }
+
+    #[test]
+    fn test_loop_state_debug() {
+        let state = LoopState::new();
+        let debug = format!("{:?}", state);
+        assert!(debug.contains("LoopState"));
+    }
+
+    #[test]
+    fn test_loop_state_category_rates() {
+        let mut state = LoopState::new();
+        state.category_rates.insert(ErrorCategory::TypeMismatch, 0.9);
+        state.category_rates.insert(ErrorCategory::TraitBound, 0.8);
+
+        assert_eq!(state.category_rates.len(), 2);
+        assert!((state.category_rates[&ErrorCategory::TypeMismatch] - 0.9).abs() < 0.001);
+    }
+
+    // ========================================================================
+    // Additional Convergence Estimator Tests
+    // ========================================================================
+
+    #[test]
+    fn test_convergence_estimator_clone() {
+        let mut estimator = ConvergenceEstimator::new(0.80);
+        estimator.update(0.6);
+
+        let cloned = estimator.clone();
+        assert!((estimator.estimate - cloned.estimate).abs() < 0.001);
+        assert_eq!(estimator.history.len(), cloned.history.len());
+    }
+
+    #[test]
+    fn test_convergence_estimator_debug() {
+        let estimator = ConvergenceEstimator::new(0.80);
+        let debug = format!("{:?}", estimator);
+        assert!(debug.contains("ConvergenceEstimator"));
+    }
+
+    #[test]
+    fn test_convergence_estimator_iterations_to_target_at_target() {
+        let mut estimator = ConvergenceEstimator::new(0.50);
+
+        // Update with values at target
+        for _ in 0..5 {
+            estimator.update(0.55);
+        }
+
+        let est = estimator.update(0.55);
+        assert!(est.iterations_to_target.is_some());
+    }
+
+    #[test]
+    fn test_convergence_estimator_with_many_updates() {
+        let mut estimator = ConvergenceEstimator::new(0.80);
+
+        // Simulate 50 iterations
+        for i in 0..50 {
+            let rate = 0.5 + (i as f64 * 0.01);
+            estimator.update(rate);
+        }
+
+        // Estimator should have full history
+        assert_eq!(estimator.history.len(), 50);
+    }
+
+    #[test]
+    fn test_convergence_estimate_fields() {
+        let mut estimator = ConvergenceEstimator::new(0.80);
+        let est = estimator.update(0.6);
+
+        assert!((est.current - 0.6).abs() < 0.001);
+        assert!(est.smoothed >= 0.0 && est.smoothed <= 1.0);
+        assert!(est.estimated_final >= 0.0 && est.estimated_final <= 1.0);
+        assert!(est.confidence >= 0.0 && est.confidence <= 1.0);
+    }
+
+    #[test]
+    fn test_convergence_estimate_clone() {
+        let mut estimator = ConvergenceEstimator::new(0.80);
+        let est = estimator.update(0.6);
+        let cloned = est.clone();
+
+        assert!((est.current - cloned.current).abs() < 0.001);
+        assert_eq!(est.will_converge, cloned.will_converge);
+    }
+
+    #[test]
+    fn test_convergence_estimate_debug() {
+        let mut estimator = ConvergenceEstimator::new(0.80);
+        let est = estimator.update(0.6);
+        let debug = format!("{:?}", est);
+        assert!(debug.contains("ConvergenceEstimate"));
+    }
+
+    // ========================================================================
+    // Additional Sparkline Tests
+    // ========================================================================
+
+    #[test]
+    fn test_sparkline_more_values_than_width() {
+        let values: Vec<f64> = (0..20).map(|i| i as f64 / 19.0).collect();
+        let result = sparkline(&values, 8);
+
+        // Should subsample to 8 chars
+        assert_eq!(result.chars().count(), 8);
+    }
+
+    #[test]
+    fn test_sparkline_negative_values() {
+        let values = vec![-1.0, -0.5, 0.0, 0.5, 1.0];
+        let result = sparkline(&values, 5);
+
+        // Should handle negative values by normalizing
+        assert_eq!(result.chars().count(), 5);
+        assert!(result.chars().all(|c| SPARK_CHARS.contains(&c)));
+    }
+
+    #[test]
+    fn test_sparkline_very_small_range() {
+        let values = vec![0.5, 0.500001, 0.500002];
+        let result = sparkline(&values, 3);
+
+        // Small range should still produce valid sparkline
+        assert_eq!(result.chars().count(), 3);
+    }
+
+    #[test]
+    fn test_sparkline_decreasing_values() {
+        let values: Vec<f64> = (0..8).rev().map(|i| i as f64 / 7.0).collect();
+        let result = sparkline(&values, 8);
+
+        let chars: Vec<char> = result.chars().collect();
+        assert_eq!(chars[0], SPARK_CHARS[7]); // Highest at start
+        assert_eq!(chars[7], SPARK_CHARS[0]); // Lowest at end
+    }
+
+    // ========================================================================
+    // Additional Progress Bar Tests
+    // ========================================================================
+
+    #[test]
+    fn test_progress_bar_overflow() {
+        let result = progress_bar(15, 10, 10);
+        // Should clamp to 100%
+        assert_eq!(result, "██████████");
+    }
+
+    #[test]
+    fn test_progress_bar_various_widths() {
+        for width in [5, 10, 20, 50] {
+            let result = progress_bar(5, 10, width);
+            // Should have approximately half filled
+            let filled = result.chars().filter(|&c| c == '█').count();
+            let empty = result.chars().filter(|&c| c == '░').count();
+            assert_eq!(filled + empty, width);
+        }
+    }
+
+    #[test]
+    fn test_progress_bar_one_quarter() {
+        let result = progress_bar(25, 100, 20);
+        let filled = result.chars().filter(|&c| c == '█').count();
+        assert_eq!(filled, 5); // 25% of 20 = 5
+    }
+
+    // ========================================================================
+    // Additional Drift Status Tests
+    // ========================================================================
+
+    #[test]
+    fn test_drift_status_equality() {
+        assert_eq!(DriftStatus::Stable, DriftStatus::Stable);
+        assert_ne!(DriftStatus::Stable, DriftStatus::Warning);
+        assert_ne!(DriftStatus::Warning, DriftStatus::Critical);
+        assert_ne!(DriftStatus::Critical, DriftStatus::Drift);
+    }
+
+    #[test]
+    fn test_drift_status_clone() {
+        let status = DriftStatus::Warning;
+        let cloned = status;
+        assert_eq!(status, cloned);
+    }
+
+    #[test]
+    fn test_drift_status_debug() {
+        let status = DriftStatus::Drift;
+        let debug = format!("{:?}", status);
+        assert!(debug.contains("Drift"));
+    }
+
+    // ========================================================================
+    // Additional Action Tests
+    // ========================================================================
+
+    #[test]
+    fn test_action_equality() {
+        assert_eq!(Action::Converged, Action::Converged);
+        assert_eq!(Action::Plateau, Action::Plateau);
+        assert_eq!(Action::NoImprovement, Action::NoImprovement);
+        assert_eq!(Action::Continue, Action::Continue);
+        assert_eq!(Action::Retrain { failing_count: 10 }, Action::Retrain { failing_count: 10 });
+    }
+
+    #[test]
+    fn test_action_inequality() {
+        assert_ne!(Action::Converged, Action::Plateau);
+        assert_ne!(Action::Retrain { failing_count: 5 }, Action::Retrain { failing_count: 10 });
+    }
+
+    #[test]
+    fn test_action_clone() {
+        let action = Action::Retrain { failing_count: 15 };
+        let cloned = action.clone();
+        assert_eq!(action, cloned);
+    }
+
+    #[test]
+    fn test_action_debug() {
+        let action = Action::Retrain { failing_count: 5 };
+        let debug = format!("{:?}", action);
+        assert!(debug.contains("Retrain"));
+        assert!(debug.contains("5"));
+    }
+
+    #[test]
+    fn test_action_first_iteration_assumes_improvement() {
+        let state = LoopState::new(); // Empty history
+        let config = ConvergenceConfig::default();
+
+        // First iteration with low rate should continue
+        let action = decide_action(&state, 0.3, &config, DriftStatus::Stable, 0);
+        assert_eq!(action, Action::Continue);
+    }
+
+    // ========================================================================
+    // Additional Andon Display Tests
+    // ========================================================================
+
+    #[test]
+    fn test_andon_display_json_mode_header() {
+        let config = DisplayConfig {
+            mode: DisplayMode::Json,
+            ..Default::default()
+        };
+        let display = AndonDisplay::new(&config);
+        let state = LoopState::new();
+        let conv_config = ConvergenceConfig::default();
+
+        let output = display.format_header(&state, &conv_config);
+        assert!(output.is_empty()); // JSON mode returns empty header
+    }
+
+    #[test]
+    fn test_andon_display_format_metrics() {
+        let config = DisplayConfig {
+            mode: DisplayMode::Rich,
+            show_sparklines: true,
+            ..Default::default()
+        };
+        let display = AndonDisplay::new(&config);
+        let mut state = LoopState::new();
+        state.compile_rate = 0.75;
+        state.rate_history = vec![0.5, 0.6, 0.7, 0.75];
+
+        let output = display.format_metrics(&state, DriftStatus::Stable);
+        assert!(output.contains("Compile Rate"));
+        assert!(output.contains("Drift Status"));
+    }
+
+    #[test]
+    fn test_andon_display_format_metrics_silent() {
+        let config = DisplayConfig {
+            mode: DisplayMode::Silent,
+            show_sparklines: true,
+            ..Default::default()
+        };
+        let display = AndonDisplay::new(&config);
+        let state = LoopState::new();
+
+        let output = display.format_metrics(&state, DriftStatus::Stable);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_andon_display_format_metrics_no_sparklines() {
+        let config = DisplayConfig {
+            mode: DisplayMode::Rich,
+            show_sparklines: false,
+            ..Default::default()
+        };
+        let display = AndonDisplay::new(&config);
+        let state = LoopState::new();
+
+        let output = display.format_metrics(&state, DriftStatus::Stable);
+        assert!(output.is_empty());
+    }
+
+    #[test]
+    fn test_andon_display_format_metrics_positive_delta() {
+        let config = DisplayConfig::default();
+        let display = AndonDisplay::new(&config);
+        let mut state = LoopState::new();
+        state.compile_rate = 0.8;
+        state.rate_history = vec![0.5, 0.6, 0.7, 0.8];
+
+        let output = display.format_metrics(&state, DriftStatus::Warning);
+        assert!(output.contains("+")); // Positive delta
+        assert!(output.contains("WARNING"));
+    }
+
+    #[test]
+    fn test_andon_display_format_metrics_negative_delta() {
+        let config = DisplayConfig::default();
+        let display = AndonDisplay::new(&config);
+        let mut state = LoopState::new();
+        state.compile_rate = 0.6;
+        state.rate_history = vec![0.5, 0.6, 0.7, 0.6]; // Went down
+
+        let output = display.format_metrics(&state, DriftStatus::Drift);
+        // Negative delta shown without explicit + sign
+        assert!(output.contains("DRIFT"));
+    }
+
+    #[test]
+    fn test_andon_display_mark_refreshed() {
+        let config = DisplayConfig {
+            refresh_ms: 1000,
+            ..Default::default()
+        };
+        let mut display = AndonDisplay::new(&config);
+
+        // After creation, may or may not need refresh
+        let before = display.should_refresh();
+
+        display.mark_refreshed();
+
+        // Right after refresh, should NOT need refresh
+        assert!(!display.should_refresh());
+
+        let _ = before; // suppress warning
+    }
+
+    #[test]
+    fn test_andon_display_rich_converged_status() {
+        let config = DisplayConfig {
+            mode: DisplayMode::Rich,
+            ..Default::default()
+        };
+        let display = AndonDisplay::new(&config);
+        let mut state = LoopState::new();
+        state.iteration = 10;
+        state.compile_rate = 0.85; // Above target
+        let conv_config = ConvergenceConfig::default();
+
+        let output = display.format_header(&state, &conv_config);
+        assert!(output.contains("CONVERGED"));
+    }
+
+    #[test]
+    fn test_andon_display_rich_stalled_status() {
+        let config = DisplayConfig {
+            mode: DisplayMode::Rich,
+            ..Default::default()
+        };
+        let display = AndonDisplay::new(&config);
+        let mut state = LoopState::new();
+        state.iteration = 10;
+        state.compile_rate = 0.5;
+        state.rate_history = vec![0.5, 0.5, 0.5, 0.5]; // Flat = stalled
+        let conv_config = ConvergenceConfig::default();
+
+        let output = display.format_header(&state, &conv_config);
+        assert!(output.contains("STALLED"));
+    }
+
+    #[test]
+    fn test_andon_display_minimal_converged_status() {
+        let config = DisplayConfig {
+            mode: DisplayMode::Minimal,
+            ..Default::default()
+        };
+        let display = AndonDisplay::new(&config);
+        let mut state = LoopState::new();
+        state.compile_rate = 0.85;
+        let conv_config = ConvergenceConfig::default();
+
+        let output = display.format_header(&state, &conv_config);
+        assert!(output.contains("CONVERGED"));
+    }
+
+    #[test]
+    fn test_andon_display_minimal_stalled_status() {
+        let config = DisplayConfig {
+            mode: DisplayMode::Minimal,
+            ..Default::default()
+        };
+        let display = AndonDisplay::new(&config);
+        let mut state = LoopState::new();
+        state.compile_rate = 0.5;
+        state.rate_history = vec![0.5, 0.5, 0.5, 0.5];
+        let conv_config = ConvergenceConfig::default();
+
+        let output = display.format_header(&state, &conv_config);
+        assert!(output.contains("STALLED"));
+    }
+
+    // ========================================================================
+    // Additional UtolResult Tests
+    // ========================================================================
+
+    #[test]
+    fn test_utol_result_deserialization() {
+        let json = r#"{
+            "compile_rate": 0.92,
+            "iterations": 25,
+            "model_version": "test-1.0",
+            "converged": true,
+            "category_rates": {"TypeMismatch": 0.95},
+            "duration_secs": 60.5
+        }"#;
+
+        let result: UtolResult = serde_json::from_str(json).unwrap();
+        assert!((result.compile_rate - 0.92).abs() < 0.001);
+        assert_eq!(result.iterations, 25);
+        assert!(result.converged);
+    }
+
+    #[test]
+    fn test_utol_result_clone() {
+        let result = UtolResult {
+            compile_rate: 0.85,
+            iterations: 15,
+            model_version: "test".to_string(),
+            converged: true,
+            category_rates: HashMap::new(),
+            duration_secs: 100.0,
+        };
+
+        let cloned = result.clone();
+        assert!((result.compile_rate - cloned.compile_rate).abs() < 0.001);
+        assert_eq!(result.model_version, cloned.model_version);
+    }
+
+    #[test]
+    fn test_utol_result_debug() {
+        let result = UtolResult {
+            compile_rate: 0.85,
+            iterations: 15,
+            model_version: "test".to_string(),
+            converged: true,
+            category_rates: HashMap::new(),
+            duration_secs: 100.0,
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("UtolResult"));
+    }
+
+    // ========================================================================
+    // Additional Compilation Types Tests
+    // ========================================================================
+
+    #[test]
+    fn test_compile_result_debug() {
+        let result = CompileResult {
+            file: PathBuf::from("test.py"),
+            success: true,
+            error: None,
+            category: None,
+            rust_code: Some("fn main() {}".to_string()),
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("CompileResult"));
+    }
+
+    #[test]
+    fn test_compile_result_clone() {
+        let result = CompileResult {
+            file: PathBuf::from("test.py"),
+            success: false,
+            error: Some("error".to_string()),
+            category: Some(ErrorCategory::TypeMismatch),
+            rust_code: None,
+        };
+        let cloned = result.clone();
+        assert_eq!(result.success, cloned.success);
+        assert_eq!(result.error, cloned.error);
+    }
+
+    #[test]
+    fn test_compilation_metrics_default() {
+        let metrics = CompilationMetrics::default();
+        assert_eq!(metrics.total, 0);
+        assert_eq!(metrics.successful, 0);
+        assert_eq!(metrics.failed, 0);
+        assert!((metrics.compile_rate - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_compilation_metrics_debug() {
+        let metrics = CompilationMetrics::default();
+        let debug = format!("{:?}", metrics);
+        assert!(debug.contains("CompilationMetrics"));
+    }
+
+    #[test]
+    fn test_compilation_metrics_clone() {
+        let metrics = CompilationMetrics {
+            total: 10,
+            successful: 8,
+            failed: 2,
+            compile_rate: 0.8,
+            ..Default::default()
+        };
+        let cloned = metrics.clone();
+        assert_eq!(metrics.total, cloned.total);
+        assert_eq!(metrics.successful, cloned.successful);
+    }
+
+    #[test]
+    fn test_compilation_metrics_all_failures() {
+        let results = vec![
+            CompileResult {
+                file: "a.py".into(),
+                success: false,
+                error: Some("E0308".into()),
+                category: Some(ErrorCategory::TypeMismatch),
+                rust_code: None
+            },
+            CompileResult {
+                file: "b.py".into(),
+                success: false,
+                error: Some("E0277".into()),
+                category: Some(ErrorCategory::TraitBound),
+                rust_code: None
+            },
+        ];
+
+        let metrics = CompilationMetrics::from_results(&results);
+        assert_eq!(metrics.total, 2);
+        assert_eq!(metrics.successful, 0);
+        assert_eq!(metrics.failed, 2);
+        assert!((metrics.compile_rate - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_compilation_metrics_with_no_category() {
+        let results = vec![
+            CompileResult {
+                file: "a.py".into(),
+                success: false,
+                error: Some("Unknown error".into()),
+                category: None, // No category
+                rust_code: None
+            },
+        ];
+
+        let metrics = CompilationMetrics::from_results(&results);
+        assert_eq!(metrics.failed, 1);
+        assert!(metrics.category_counts.is_empty()); // No category counted
+    }
+
+    // ========================================================================
+    // Additional Training Sample Tests
+    // ========================================================================
+
+    #[test]
+    fn test_training_sample_debug() {
+        let sample = TrainingSample {
+            error_text: "error[E0308]".to_string(),
+            category: ErrorCategory::TypeMismatch,
+            source_file: PathBuf::from("test.py"),
+        };
+        let debug = format!("{:?}", sample);
+        assert!(debug.contains("TrainingSample"));
+    }
+
+    #[test]
+    fn test_training_sample_clone() {
+        let sample = TrainingSample {
+            error_text: "test error".to_string(),
+            category: ErrorCategory::Other,
+            source_file: PathBuf::from("test.py"),
+        };
+        let cloned = sample.clone();
+        assert_eq!(sample.error_text, cloned.error_text);
+        assert_eq!(sample.category, cloned.category);
+    }
+
+    #[test]
+    fn test_extract_training_samples_skips_no_category() {
+        let results = vec![
+            CompileResult {
+                file: "fail.py".into(),
+                success: false,
+                error: Some("error".into()),
+                category: None, // No category
+                rust_code: None
+            },
+        ];
+
+        let samples = extract_training_samples(&results);
+        assert!(samples.is_empty()); // Skipped due to no category
+    }
+
+    #[test]
+    fn test_extract_training_samples_skips_no_error() {
+        let results = vec![
+            CompileResult {
+                file: "fail.py".into(),
+                success: false,
+                error: None, // No error message
+                category: Some(ErrorCategory::TypeMismatch),
+                rust_code: None
+            },
+        ];
+
+        let samples = extract_training_samples(&results);
+        assert!(samples.is_empty()); // Skipped due to no error
+    }
+
+    #[test]
+    fn test_extract_training_samples_multiple_failures() {
+        let results = vec![
+            CompileResult {
+                file: "a.py".into(),
+                success: false,
+                error: Some("E0308".into()),
+                category: Some(ErrorCategory::TypeMismatch),
+                rust_code: None
+            },
+            CompileResult {
+                file: "b.py".into(),
+                success: false,
+                error: Some("E0277".into()),
+                category: Some(ErrorCategory::TraitBound),
+                rust_code: None
+            },
+            CompileResult {
+                file: "c.py".into(),
+                success: false,
+                error: Some("E0599".into()),
+                category: Some(ErrorCategory::SyntaxError),
+                rust_code: None
+            },
+        ];
+
+        let samples = extract_training_samples(&results);
+        assert_eq!(samples.len(), 3);
+    }
+
+    // ========================================================================
+    // SPARK_CHARS Tests
+    // ========================================================================
+
+    #[test]
+    fn test_spark_chars_array() {
+        assert_eq!(SPARK_CHARS.len(), 8);
+        assert_eq!(SPARK_CHARS[0], '▁');
+        assert_eq!(SPARK_CHARS[7], '█');
+    }
 }

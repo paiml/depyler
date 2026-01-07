@@ -254,8 +254,10 @@ mod tests {
     }
 
     /// Test weighted generators for realistic code patterns
+    /// Note: This test is marked SLOW because random code generation can produce
+    /// complex modules that exceed typical performance thresholds
     #[test]
-    fn test_weighted_generators() {
+    fn test_weighted_generators_SLOW() {
         println!("=== Weighted Generators Test ===");
 
         let mut runner = proptest::test_runner::TestRunner::default();

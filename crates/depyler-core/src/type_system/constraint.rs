@@ -181,4 +181,154 @@ mod tests {
             ConstraintKind::HasField("a".into())
         );
     }
+
+    // ============================================================================
+    // EXTREME TDD: Additional comprehensive tests
+    // ============================================================================
+
+    #[test]
+    fn test_constraint_kind_debug() {
+        let kinds = vec![
+            ConstraintKind::Eq,
+            ConstraintKind::Subtype,
+            ConstraintKind::Supertype,
+            ConstraintKind::Callable,
+            ConstraintKind::HasField("field".to_string()),
+            ConstraintKind::Arithmetic,
+        ];
+        for kind in kinds {
+            let debug_str = format!("{:?}", kind);
+            assert!(!debug_str.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_type_constraint_with_optional() {
+        let c = TypeConstraint::subtype(
+            Type::Int,
+            Type::Optional(Box::new(Type::Int)),
+            "int to optional int"
+        );
+        assert_eq!(c.kind, ConstraintKind::Subtype);
+    }
+
+    #[test]
+    fn test_type_constraint_with_list() {
+        let c = TypeConstraint::eq(
+            Type::List(Box::new(Type::Int)),
+            Type::List(Box::new(Type::Int)),
+            "list equality"
+        );
+        assert_eq!(c.kind, ConstraintKind::Eq);
+    }
+
+    #[test]
+    fn test_type_constraint_with_dict() {
+        let c = TypeConstraint::eq(
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+            "dict equality"
+        );
+        assert_eq!(c.kind, ConstraintKind::Eq);
+    }
+
+    #[test]
+    fn test_constraint_kind_has_field_different() {
+        assert_ne!(
+            ConstraintKind::HasField("a".into()),
+            ConstraintKind::HasField("b".into())
+        );
+    }
+
+    #[test]
+    fn test_type_constraint_debug() {
+        let c = TypeConstraint::eq(Type::Int, Type::Int, "test");
+        let debug_str = format!("{:?}", c);
+        assert!(debug_str.contains("Int"));
+        assert!(debug_str.contains("test"));
+    }
+
+    #[test]
+    fn test_type_constraint_partial_eq() {
+        let c1 = TypeConstraint::eq(Type::Int, Type::Int, "same");
+        let c2 = TypeConstraint::eq(Type::Int, Type::Int, "same");
+        let c3 = TypeConstraint::eq(Type::Int, Type::Float, "different");
+        assert_eq!(c1, c2);
+        assert_ne!(c1, c3);
+    }
+
+    #[test]
+    fn test_constraint_kind_clone() {
+        let kinds = vec![
+            ConstraintKind::Eq,
+            ConstraintKind::Subtype,
+            ConstraintKind::Supertype,
+            ConstraintKind::Callable,
+            ConstraintKind::HasField("x".to_string()),
+            ConstraintKind::Arithmetic,
+        ];
+        for kind in kinds {
+            let cloned = kind.clone();
+            assert_eq!(kind, cloned);
+        }
+    }
+
+    #[test]
+    fn test_type_constraint_reason_conversion() {
+        // Test Into<String> conversion for reason
+        let c = TypeConstraint::eq(Type::Bool, Type::Bool, String::from("string reason"));
+        assert_eq!(c.reason, "string reason");
+
+        let c = TypeConstraint::subtype(Type::Int, Type::Float, "str reason");
+        assert_eq!(c.reason, "str reason");
+    }
+
+    #[test]
+    fn test_constraint_all_display_variants() {
+        // Ensure all variants can be displayed
+        let constraints = vec![
+            TypeConstraint {
+                lhs: Type::Int,
+                rhs: Type::Int,
+                kind: ConstraintKind::Eq,
+                reason: "eq test".to_string(),
+            },
+            TypeConstraint {
+                lhs: Type::Int,
+                rhs: Type::Float,
+                kind: ConstraintKind::Subtype,
+                reason: "sub test".to_string(),
+            },
+            TypeConstraint {
+                lhs: Type::Float,
+                rhs: Type::Int,
+                kind: ConstraintKind::Supertype,
+                reason: "super test".to_string(),
+            },
+            TypeConstraint {
+                lhs: Type::Unknown,
+                rhs: Type::Int,
+                kind: ConstraintKind::Callable,
+                reason: "call test".to_string(),
+            },
+            TypeConstraint {
+                lhs: Type::Unknown,
+                rhs: Type::String,
+                kind: ConstraintKind::HasField("name".to_string()),
+                reason: "field test".to_string(),
+            },
+            TypeConstraint {
+                lhs: Type::Int,
+                rhs: Type::Int,
+                kind: ConstraintKind::Arithmetic,
+                reason: "arith test".to_string(),
+            },
+        ];
+
+        for c in constraints {
+            let display = format!("{}", c);
+            assert!(!display.is_empty());
+            assert!(display.contains(&c.reason));
+        }
+    }
 }

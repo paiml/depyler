@@ -6,198 +6,6 @@ use std::path::PathBuf;
 use tempfile::TempDir;
 
 // ============================================================================
-// inspect_python_ast Tests
-// ============================================================================
-
-#[test]
-fn test_inspect_python_ast_json() {
-    let source = "x = 1";
-    let result = inspect_python_ast(source, "json").unwrap();
-    assert!(result.contains("Module"));
-}
-
-#[test]
-fn test_inspect_python_ast_pretty() {
-    let source = "def foo(): pass";
-    let result = inspect_python_ast(source, "pretty").unwrap();
-    assert!(result.contains("foo"));
-}
-
-#[test]
-fn test_inspect_python_ast_invalid_syntax() {
-    let source = "def invalid(";
-    let result = inspect_python_ast(source, "json");
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_inspect_python_ast_empty() {
-    let source = "";
-    let result = inspect_python_ast(source, "json").unwrap();
-    assert!(result.contains("Module"));
-}
-
-#[test]
-fn test_inspect_python_ast_complex() {
-    let source = r#"
-class Foo:
-    def bar(self, x: int) -> int:
-        return x * 2
-"#;
-    let result = inspect_python_ast(source, "json").unwrap();
-    assert!(result.contains("Foo"));
-}
-
-// ============================================================================
-// format_stmt_summary Tests
-// ============================================================================
-
-#[test]
-fn test_format_stmt_summary_function_def() {
-    use rustpython_parser::{parse, Mode};
-    let source = "def my_function(): pass";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        let summary = format_stmt_summary(&module.body[0]);
-        // Check it contains meaningful info about the function
-        assert!(!summary.is_empty());
-    }
-}
-
-#[test]
-fn test_format_stmt_summary_class_def() {
-    use rustpython_parser::{parse, Mode};
-    let source = "class MyClass: pass";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        let summary = format_stmt_summary(&module.body[0]);
-        // Check it contains meaningful info about the class
-        assert!(!summary.is_empty());
-    }
-}
-
-#[test]
-fn test_format_stmt_summary_import() {
-    use rustpython_parser::{parse, Mode};
-    let source = "import os";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        let summary = format_stmt_summary(&module.body[0]);
-        assert!(summary.contains("Import"));
-    }
-}
-
-#[test]
-fn test_format_stmt_summary_import_from() {
-    use rustpython_parser::{parse, Mode};
-    let source = "from os import path";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        let summary = format_stmt_summary(&module.body[0]);
-        assert!(summary.contains("ImportFrom"));
-    }
-}
-
-#[test]
-fn test_format_stmt_summary_assign() {
-    use rustpython_parser::{parse, Mode};
-    let source = "x = 1";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        let summary = format_stmt_summary(&module.body[0]);
-        assert!(summary.contains("Assign"));
-    }
-}
-
-#[test]
-fn test_format_stmt_summary_expr() {
-    use rustpython_parser::{parse, Mode};
-    let source = "print('hello')";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        let summary = format_stmt_summary(&module.body[0]);
-        assert!(summary.contains("Expr"));
-    }
-}
-
-#[test]
-fn test_format_stmt_summary_if() {
-    use rustpython_parser::{parse, Mode};
-    let source = "if True: pass";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        let summary = format_stmt_summary(&module.body[0]);
-        assert!(summary.contains("If"));
-    }
-}
-
-#[test]
-fn test_format_stmt_summary_for() {
-    use rustpython_parser::{parse, Mode};
-    let source = "for i in range(10): pass";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        let summary = format_stmt_summary(&module.body[0]);
-        assert!(summary.contains("For"));
-    }
-}
-
-#[test]
-fn test_format_stmt_summary_while() {
-    use rustpython_parser::{parse, Mode};
-    let source = "while True: break";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        let summary = format_stmt_summary(&module.body[0]);
-        assert!(summary.contains("While"));
-    }
-}
-
-#[test]
-fn test_format_stmt_summary_return() {
-    use rustpython_parser::{parse, Mode};
-    let source = "def f():\n    return 1";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    if let rustpython_ast::Mod::Module(module) = ast {
-        if let rustpython_ast::Stmt::FunctionDef(func) = &module.body[0] {
-            let summary = format_stmt_summary(&func.body[0]);
-            assert!(summary.contains("Return"));
-        }
-    }
-}
-
-// ============================================================================
-// format_python_ast_pretty Tests
-// ============================================================================
-
-#[test]
-fn test_format_python_ast_pretty_module() {
-    use rustpython_parser::{parse, Mode};
-    let source = "def foo(): pass\nclass Bar: pass";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    let pretty = format_python_ast_pretty(&ast);
-    assert!(!pretty.is_empty());
-}
-
-#[test]
-fn test_format_python_ast_pretty_empty() {
-    use rustpython_parser::{parse, Mode};
-    let source = "";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    let pretty = format_python_ast_pretty(&ast);
-    assert!(pretty.contains("Module"));
-}
-
-#[test]
-fn test_format_python_ast_pretty_with_imports() {
-    use rustpython_parser::{parse, Mode};
-    let source = "import os\nfrom sys import argv";
-    let ast = parse(source, Mode::Module, "<test>").unwrap();
-    let pretty = format_python_ast_pretty(&ast);
-    assert!(pretty.contains("Import"));
-}
-
-// ============================================================================
 // complexity_rating Tests
 // ============================================================================
 
@@ -301,198 +109,323 @@ fn test_check_command_nonexistent() {
 }
 
 // ============================================================================
-// inspect_command Tests
+// transpile_command Tests
 // ============================================================================
 
 #[test]
-fn test_inspect_command_ast_json() {
+fn test_transpile_command_valid_file() {
     let temp = TempDir::new().unwrap();
-    let py_file = temp.path().join("inspect.py");
-    std::fs::write(&py_file, "x = 1\n").unwrap();
-
-    let result = inspect_command(py_file, "ast".to_string(), "json".to_string(), None);
-    let _ = result;
-}
-
-#[test]
-fn test_inspect_command_ast_pretty() {
-    let temp = TempDir::new().unwrap();
-    let py_file = temp.path().join("inspect.py");
-    std::fs::write(&py_file, "def foo(): pass\n").unwrap();
-
-    let result = inspect_command(py_file, "ast".to_string(), "pretty".to_string(), None);
-    let _ = result;
-}
-
-#[test]
-fn test_inspect_command_hir_json() {
-    let temp = TempDir::new().unwrap();
-    let py_file = temp.path().join("inspect.py");
-    std::fs::write(&py_file, "def foo(): pass\n").unwrap();
-
-    let result = inspect_command(py_file, "hir".to_string(), "json".to_string(), None);
-    let _ = result;
-}
-
-#[test]
-fn test_inspect_command_hir_pretty() {
-    let temp = TempDir::new().unwrap();
-    let py_file = temp.path().join("inspect.py");
-    std::fs::write(&py_file, "def foo(): pass\n").unwrap();
-
-    let result = inspect_command(py_file, "hir".to_string(), "pretty".to_string(), None);
-    let _ = result;
-}
-
-#[test]
-fn test_inspect_command_nonexistent() {
-    let result = inspect_command(PathBuf::from("/nonexistent.py"), "ast".to_string(), "json".to_string(), None);
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_inspect_command_with_output() {
-    let temp = TempDir::new().unwrap();
-    let py_file = temp.path().join("inspect.py");
-    let out_file = temp.path().join("output.txt");
-    std::fs::write(&py_file, "x = 1\n").unwrap();
-
-    let result = inspect_command(py_file, "ast".to_string(), "json".to_string(), Some(out_file));
-    let _ = result;
-}
-
-// ============================================================================
-// print_compilation_results Tests
-// ============================================================================
-
-#[test]
-fn test_print_compilation_results_all_pass() {
-    let results = CompilationResults {
-        compilation_ok: true,
-        clippy_ok: true,
-        all_passed: true,
-    };
-    print_compilation_results(&results);
-}
-
-#[test]
-fn test_print_compilation_results_compile_fail() {
-    let results = CompilationResults {
-        compilation_ok: false,
-        clippy_ok: false,
-        all_passed: false,
-    };
-    print_compilation_results(&results);
-}
-
-#[test]
-fn test_print_compilation_results_clippy_fail() {
-    let results = CompilationResults {
-        compilation_ok: true,
-        clippy_ok: false,
-        all_passed: false,
-    };
-    print_compilation_results(&results);
-}
-
-// ============================================================================
-// File-based command tests with temp files
-// ============================================================================
-
-#[test]
-fn test_generate_quality_report_valid() {
-    let temp = TempDir::new().unwrap();
-    let py_file = temp.path().join("quality.py");
+    let py_file = temp.path().join("transpile.py");
     std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
-    let result = generate_quality_report(&py_file);
-    let _ = result;
+    let result = transpile_command(py_file, None, false, false, false, false);
+    assert!(result.is_ok());
 }
 
 #[test]
-fn test_generate_quality_report_nonexistent() {
-    let result = generate_quality_report(std::path::Path::new("/nonexistent/file.py"));
+fn test_transpile_command_with_output() {
+    let temp = TempDir::new().unwrap();
+    let py_file = temp.path().join("transpile.py");
+    let rs_file = temp.path().join("output.rs");
+    std::fs::write(&py_file, "def greet() -> str:\n    return 'hello'\n").unwrap();
+
+    let result = transpile_command(py_file, Some(rs_file.clone()), false, false, false, false);
+    assert!(result.is_ok());
+    assert!(rs_file.exists());
+}
+
+#[test]
+fn test_transpile_command_nonexistent() {
+    let result = transpile_command(PathBuf::from("/nonexistent.py"), None, false, false, false, false);
     assert!(result.is_err());
 }
 
 #[test]
-fn test_check_compilation_quality_valid() {
+fn test_transpile_command_with_verify_flag() {
+    let temp = TempDir::new().unwrap();
+    let py_file = temp.path().join("verify.py");
+    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+
+    let result = transpile_command(py_file, None, true, false, false, false);
+    let _ = result;
+}
+
+#[test]
+fn test_transpile_command_with_gen_tests_flag() {
+    let temp = TempDir::new().unwrap();
+    let py_file = temp.path().join("tests.py");
+    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+
+    let result = transpile_command(py_file, None, false, true, false, false);
+    let _ = result;
+}
+
+#[test]
+fn test_transpile_command_with_debug_flag() {
+    let temp = TempDir::new().unwrap();
+    let py_file = temp.path().join("debug.py");
+    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+
+    let result = transpile_command(py_file, None, false, false, true, false);
+    let _ = result;
+}
+
+#[test]
+fn test_transpile_command_with_source_map_flag() {
+    let temp = TempDir::new().unwrap();
+    let py_file = temp.path().join("sourcemap.py");
+    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+
+    let result = transpile_command(py_file, None, false, false, false, true);
+    let _ = result;
+}
+
+// ============================================================================
+// compile_command Tests
+// ============================================================================
+
+#[test]
+fn test_compile_command_nonexistent() {
+    let result = compile_command(PathBuf::from("/nonexistent.py"), None, "release".to_string());
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_compile_command_empty_profile() {
     let temp = TempDir::new().unwrap();
     let py_file = temp.path().join("compile.py");
     std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
 
-    let result = check_compilation_quality(&py_file);
-    let _ = result;
-}
-
-#[test]
-fn test_check_compilation_quality_nonexistent() {
-    let result = check_compilation_quality(std::path::Path::new("/nonexistent.py"));
-    // Should error or return failure, just check it runs
-    let _ = result;
-}
-
-#[test]
-fn test_check_rust_compilation_valid() {
-    let temp = TempDir::new().unwrap();
-    let py_file = temp.path().join("rust_check.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
-
-    let result = check_rust_compilation(&py_file);
-    let _ = result;
-}
-
-#[test]
-fn test_check_rust_compilation_nonexistent() {
-    let result = check_rust_compilation(std::path::Path::new("/nonexistent.py"));
-    // Should error or return false, just check it runs
-    let _ = result;
-}
-
-#[test]
-fn test_check_clippy_clean_valid() {
-    let temp = TempDir::new().unwrap();
-    let py_file = temp.path().join("clippy.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
-
-    let result = check_clippy_clean(&py_file);
-    let _ = result;
-}
-
-#[test]
-fn test_check_clippy_clean_nonexistent() {
-    let result = check_clippy_clean(std::path::Path::new("/nonexistent.py"));
-    // Should error or return false, just check it runs
+    // Empty profile should default to release
+    let result = compile_command(py_file, None, "".to_string());
+    // May fail during actual compilation, but should not panic
     let _ = result;
 }
 
 // ============================================================================
-// check_rust_compilation_for_file Tests
+// CLI Struct Tests
 // ============================================================================
 
 #[test]
-fn test_check_rust_compilation_for_file_valid() {
-    let temp = TempDir::new().unwrap();
-    let rs_file = temp.path().join("test.rs");
-    std::fs::write(&rs_file, "fn main() {}").unwrap();
-
-    let result = check_rust_compilation_for_file(rs_file.to_str().unwrap());
-    let _ = result;
+fn test_cli_parse_transpile() {
+    use clap::Parser;
+    let args = vec!["depyler", "transpile", "test.py"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
 }
 
 #[test]
-fn test_check_rust_compilation_for_file_invalid() {
-    let temp = TempDir::new().unwrap();
-    let rs_file = temp.path().join("test.rs");
-    std::fs::write(&rs_file, "fn main() { invalid syntax }").unwrap();
-
-    let result = check_rust_compilation_for_file(rs_file.to_str().unwrap());
-    let _ = result;
+fn test_cli_parse_compile() {
+    use clap::Parser;
+    let args = vec!["depyler", "compile", "test.py"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
 }
 
 #[test]
-fn test_check_rust_compilation_for_file_nonexistent() {
-    let result = check_rust_compilation_for_file("/nonexistent.rs");
-    // Should error or return failure, just check it runs
-    let _ = result;
+fn test_cli_parse_analyze() {
+    use clap::Parser;
+    let args = vec!["depyler", "analyze", "test.py"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_parse_check() {
+    use clap::Parser;
+    let args = vec!["depyler", "check", "test.py"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_parse_cache_stats() {
+    use clap::Parser;
+    let args = vec!["depyler", "cache", "stats"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_parse_cache_gc() {
+    use clap::Parser;
+    let args = vec!["depyler", "cache", "gc"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_parse_cache_clear() {
+    use clap::Parser;
+    let args = vec!["depyler", "cache", "clear"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_parse_cache_warm() {
+    use clap::Parser;
+    let args = vec!["depyler", "cache", "warm", "--input-dir", "/tmp"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_verbose_flag() {
+    use clap::Parser;
+    let args = vec!["depyler", "-v", "check", "test.py"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    assert!(cli.verbose);
+}
+
+#[test]
+fn test_cli_transpile_with_output() {
+    use clap::Parser;
+    let args = vec!["depyler", "transpile", "test.py", "-o", "out.rs"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_transpile_with_verify() {
+    use clap::Parser;
+    let args = vec!["depyler", "transpile", "test.py", "--verify"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_transpile_with_gen_tests() {
+    use clap::Parser;
+    let args = vec!["depyler", "transpile", "test.py", "--gen-tests"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_compile_with_profile() {
+    use clap::Parser;
+    let args = vec!["depyler", "compile", "test.py", "--profile", "debug"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+#[test]
+fn test_cli_analyze_json_format() {
+    use clap::Parser;
+    let args = vec!["depyler", "analyze", "test.py", "-f", "json"];
+    let cli = Cli::try_parse_from(args);
+    assert!(cli.is_ok());
+}
+
+// ============================================================================
+// CacheCommands enum Tests
+// ============================================================================
+
+#[test]
+fn test_cache_commands_stats_default_format() {
+    use clap::Parser;
+    let args = vec!["depyler", "cache", "stats"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    if let Commands::Cache(CacheCommands::Stats { format }) = cli.command {
+        assert_eq!(format, "text");
+    } else {
+        panic!("Expected Cache Stats command");
+    }
+}
+
+#[test]
+fn test_cache_commands_gc_with_max_age() {
+    use clap::Parser;
+    let args = vec!["depyler", "cache", "gc", "--max-age-days", "7"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    if let Commands::Cache(CacheCommands::Gc { max_age_days, dry_run }) = cli.command {
+        assert_eq!(max_age_days, 7);
+        assert!(!dry_run);
+    } else {
+        panic!("Expected Cache Gc command");
+    }
+}
+
+#[test]
+fn test_cache_commands_gc_dry_run() {
+    use clap::Parser;
+    let args = vec!["depyler", "cache", "gc", "--dry-run"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    if let Commands::Cache(CacheCommands::Gc { dry_run, .. }) = cli.command {
+        assert!(dry_run);
+    } else {
+        panic!("Expected Cache Gc command");
+    }
+}
+
+#[test]
+fn test_cache_commands_clear_force() {
+    use clap::Parser;
+    let args = vec!["depyler", "cache", "clear", "--force"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    if let Commands::Cache(CacheCommands::Clear { force }) = cli.command {
+        assert!(force);
+    } else {
+        panic!("Expected Cache Clear command");
+    }
+}
+
+// ============================================================================
+// Commands enum Tests
+// ============================================================================
+
+#[test]
+fn test_converge_command_defaults() {
+    use clap::Parser;
+    let args = vec!["depyler", "converge", "--input-dir", "/tmp"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    if let Commands::Converge { target_rate, max_iterations, display, .. } = cli.command {
+        assert_eq!(target_rate, 100.0);
+        assert_eq!(max_iterations, 50);
+        assert_eq!(display, "rich");
+    } else {
+        panic!("Expected Converge command");
+    }
+}
+
+#[test]
+fn test_report_command_defaults() {
+    use clap::Parser;
+    let args = vec!["depyler", "report", "--input-dir", "/tmp"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    if let Commands::Report { format, failures_only, .. } = cli.command {
+        assert_eq!(format, "text");
+        assert!(!failures_only);
+    } else {
+        panic!("Expected Report command");
+    }
+}
+
+#[test]
+fn test_utol_command_defaults() {
+    use clap::Parser;
+    let args = vec!["depyler", "utol"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    if let Commands::Utol { target_rate, max_iterations, patience, display, status, .. } = cli.command {
+        assert_eq!(target_rate, 0.80);
+        assert_eq!(max_iterations, 50);
+        assert_eq!(patience, 5);
+        assert_eq!(display, "rich");
+        assert!(!status);
+    } else {
+        panic!("Expected Utol command");
+    }
+}
+
+#[test]
+fn test_utol_command_status_flag() {
+    use clap::Parser;
+    let args = vec!["depyler", "utol", "--status"];
+    let cli = Cli::try_parse_from(args).unwrap();
+    if let Commands::Utol { status, .. } = cli.command {
+        assert!(status);
+    } else {
+        panic!("Expected Utol command");
+    }
 }

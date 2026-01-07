@@ -1,6 +1,5 @@
 use super::*;
 use crate::hir::{ExceptionScope, Type};
-use std::collections::HashSet;
 
 // ============================================================================
 // ErrorType enum tests
