@@ -5046,4 +5046,116 @@ def max_value(a: int, b: int) -> int:
         let result = inspect_command(input_path, "typed-hir".to_string(), "pretty".to_string(), None);
         assert!(result.is_ok());
     }
+
+    // Additional unique edge case tests for pure functions
+
+    #[test]
+    fn test_extract_error_code_bracket_format() {
+        let error = "error[E0308]: mismatched types at line 42";
+        let code = extract_error_code(error);
+        assert_eq!(code, Some("E0308".to_string()));
+    }
+
+    #[test]
+    fn test_extract_error_code_no_match() {
+        let error = "some random error without code";
+        let code = extract_error_code(error);
+        assert!(code.is_none());
+    }
+
+    #[test]
+    fn test_extract_error_code_short_code() {
+        // E followed by less than 4 digits should not match
+        let error = "E12 is not a valid code";
+        let code = extract_error_code(error);
+        assert!(code.is_none());
+    }
+
+    #[test]
+    fn test_extract_error_code_in_multiline() {
+        let error = "line1\nerror[E0001]: something\nline3";
+        let code = extract_error_code(error);
+        assert_eq!(code, Some("E0001".to_string()));
+    }
+
+    #[test]
+    fn test_extract_error_code_picks_first() {
+        // Should return first match
+        let error = "E0001 and E0002 are both errors";
+        let code = extract_error_code(error);
+        assert_eq!(code, Some("E0001".to_string()));
+    }
+
+    #[test]
+    fn test_extract_error_code_empty_input() {
+        let code = extract_error_code("");
+        assert!(code.is_none());
+    }
+
+    #[test]
+    fn test_complexity_rating_boundary_low() {
+        let rating = complexity_rating(5.0);
+        assert!(rating.to_string().contains("Good"));
+    }
+
+    #[test]
+    fn test_complexity_rating_boundary_medium() {
+        let rating = complexity_rating(10.0);
+        assert!(rating.to_string().contains("Acceptable"));
+    }
+
+    #[test]
+    fn test_complexity_rating_minimal_value() {
+        let rating = complexity_rating(0.0);
+        assert!(rating.to_string().contains("Good"));
+    }
+
+    #[test]
+    fn test_complexity_rating_extreme_value() {
+        let rating = complexity_rating(100.0);
+        assert!(rating.to_string().contains("High"));
+    }
+
+    #[test]
+    fn test_citl_result_success_case() {
+        let result = CitlResult {
+            success: true,
+            compilation_rate: 0.95,
+            files_processed: 10,
+            iterations_used: 3,
+            fixes_applied: 2,
+        };
+        assert!(result.success);
+        assert!((result.compilation_rate - 0.95).abs() < 0.001);
+        assert_eq!(result.files_processed, 10);
+        assert_eq!(result.iterations_used, 3);
+        assert_eq!(result.fixes_applied, 2);
+    }
+
+    #[test]
+    fn test_citl_result_failure_case() {
+        let result = CitlResult {
+            success: false,
+            compilation_rate: 0.50,
+            files_processed: 100,
+            iterations_used: 50,
+            fixes_applied: 10,
+        };
+        assert!(!result.success);
+        assert!((result.compilation_rate - 0.50).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_citl_result_clone_verify() {
+        let result = CitlResult {
+            success: true,
+            compilation_rate: 1.0,
+            files_processed: 5,
+            iterations_used: 1,
+            fixes_applied: 0,
+        };
+        let cloned = result.clone();
+        assert_eq!(result.success, cloned.success);
+        assert_eq!(result.files_processed, cloned.files_processed);
+    }
 }
