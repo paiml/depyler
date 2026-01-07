@@ -84,6 +84,7 @@ pub mod converge;
 pub mod debug_cmd;
 pub mod docs_cmd;
 pub mod interactive;
+pub mod lib_core;
 pub mod profile_cmd;
 pub mod report_cmd;
 pub mod report_shim;
@@ -4652,5 +4653,392 @@ def process(data: list) -> dict:
         );
         // Verification may succeed or fail based on the code
         let _ = result;
+    }
+
+    // Additional coverage tests for lib.rs
+
+    #[test]
+    fn test_transpile_nonexistent_file() {
+        let result = transpile_command(
+            PathBuf::from("/nonexistent/file.py"), None, false, false, false, false, false, false, false, None, false, false, false, 0.8, false, None, 3, false,
+        );
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_analyze_nonexistent_file() {
+        let result = analyze_command(PathBuf::from("/nonexistent/file.py"), "text".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_check_nonexistent_file() {
+        let result = check_command(PathBuf::from("/nonexistent/file.py"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_inspect_nonexistent_file() {
+        let result = inspect_command(PathBuf::from("/nonexistent/file.py"), "hir".to_string(), "pretty".to_string(), None);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_transpile_with_source_map() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
+        let result = transpile_command(
+            input_path, None, false, false, false,
+            true,   // source_map
+            false, false, false, None, false, false, false, 0.8, false, None, 3, false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_with_audit_trail() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
+        let result = transpile_command(
+            input_path, None, false, false, false, false, false, false,
+            true,   // audit_trail
+            None, false, false, false, 0.8, false, None, 3, false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_with_trace_output() {
+        let temp_dir = TempDir::new().unwrap();
+        let input_path = temp_dir.path().join("test.py");
+        let trace_output = temp_dir.path().join("trace.json");
+        fs::write(&input_path, "def hello() -> int: return 42").unwrap();
+
+        let result = transpile_command(
+            input_path, None, false, false, false, false,
+            true,   // trace
+            false, false,
+            Some(trace_output.clone()),  // trace_output
+            false, false, false, 0.8, false, None, 3, false,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_cli_transpile_parse() {
+        let cli = Cli::try_parse_from(["depyler", "transpile", "test.py"]);
+        assert!(cli.is_ok());
+    }
+
+    #[test]
+    fn test_cli_check_parse() {
+        let cli = Cli::try_parse_from(["depyler", "check", "test.py"]);
+        assert!(cli.is_ok());
+    }
+
+    #[test]
+    fn test_cli_inspect_parse() {
+        let cli = Cli::try_parse_from(["depyler", "inspect", "test.py", "--repr", "hir"]);
+        assert!(cli.is_ok());
+    }
+
+    #[test]
+    fn test_cli_compile_parse() {
+        let cli = Cli::try_parse_from(["depyler", "compile", "test.py"]);
+        assert!(cli.is_ok());
+    }
+
+    #[test]
+    fn test_cli_quality_check_parse() {
+        let cli = Cli::try_parse_from(["depyler", "quality-check", "test.py"]);
+        assert!(cli.is_ok());
+    }
+
+    #[test]
+    fn test_cli_verbose_flag() {
+        let cli = Cli::try_parse_from(["depyler", "--verbose", "analyze", "test.py"]);
+        assert!(cli.is_ok());
+        let parsed = cli.unwrap();
+        assert!(parsed.verbose);
+    }
+
+    #[test]
+    fn test_extract_error_code_e0277() {
+        assert_eq!(extract_error_code("error[E0277]: trait bound not satisfied"), Some("E0277".to_string()));
+    }
+
+    #[test]
+    fn test_extract_error_code_e0382() {
+        assert_eq!(extract_error_code("error[E0382]: use of moved value"), Some("E0382".to_string()));
+    }
+
+    #[test]
+    fn test_extract_error_code_e0425() {
+        assert_eq!(extract_error_code("error[E0425]: cannot find value `x`"), Some("E0425".to_string()));
+    }
+
+    #[test]
+    fn test_extract_error_code_e0599() {
+        assert_eq!(extract_error_code("error[E0599]: no method named `foo`"), Some("E0599".to_string()));
+    }
+
+    #[test]
+    fn test_extract_error_code_multiline() {
+        let msg = "error[E0308]: mismatched types\n  --> src/main.rs:5:5\n   |";
+        assert_eq!(extract_error_code(msg), Some("E0308".to_string()));
+    }
+
+    #[test]
+    fn test_extract_error_code_no_brackets() {
+        assert_eq!(extract_error_code("error: some generic error"), None);
+    }
+
+    #[test]
+    fn test_extract_error_code_empty() {
+        assert_eq!(extract_error_code(""), None);
+    }
+
+    #[test]
+    fn test_complexity_rating_zero() {
+        let result = complexity_rating(0.0);
+        assert!(result.to_string().contains("Good"));
+    }
+
+    #[test]
+    fn test_complexity_rating_negative() {
+        let result = complexity_rating(-1.0);
+        // Should handle gracefully
+        assert!(!result.to_string().is_empty());
+    }
+
+    #[test]
+    fn test_complexity_rating_extreme() {
+        let result = complexity_rating(100.0);
+        assert!(result.to_string().contains("High"));
+    }
+
+    #[test]
+    fn test_find_python_files_nested() {
+        let temp_dir = TempDir::new().unwrap();
+        let nested = temp_dir.path().join("nested");
+        fs::create_dir_all(&nested).unwrap();
+        fs::write(temp_dir.path().join("a.py"), "x = 1").unwrap();
+        fs::write(nested.join("b.py"), "y = 2").unwrap();
+
+        let result = find_python_files(temp_dir.path());
+        assert!(result.is_ok());
+        let files = result.unwrap();
+        assert_eq!(files.len(), 2);
+    }
+
+    #[test]
+    fn test_find_python_files_with_other_extensions() {
+        let temp_dir = TempDir::new().unwrap();
+        fs::write(temp_dir.path().join("a.py"), "x = 1").unwrap();
+        fs::write(temp_dir.path().join("b.rs"), "fn main() {}").unwrap();
+        fs::write(temp_dir.path().join("c.txt"), "text").unwrap();
+        fs::write(temp_dir.path().join("d.pyw"), "y = 2").unwrap();
+
+        let result = find_python_files(temp_dir.path());
+        assert!(result.is_ok());
+        let files = result.unwrap();
+        assert_eq!(files.len(), 1); // Only .py files
+    }
+
+    #[test]
+    fn test_quality_check_strict_thresholds() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
+        // Use strict thresholds that should fail
+        let result = quality_check_command(input_path, false, 0.0, 0.001, 1, 100);
+        // Should not panic even with strict thresholds
+        let _ = result;
+    }
+
+    #[test]
+    fn test_quality_check_loose_thresholds() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
+        let result = quality_check_command(input_path, false, 0.0, 100.0, 1000, 0);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_quality_report_with_class() {
+        let code = r#"
+class Calculator:
+    def add(self, a: int, b: int) -> int:
+        return a + b
+
+    def subtract(self, a: int, b: int) -> int:
+        return a - b
+"#;
+        let (_temp_dir, input_path) = create_test_python_file(code);
+        let result = generate_quality_report(&input_path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_quality_report_with_loops() {
+        let code = r#"
+def sum_list(items: list) -> int:
+    total = 0
+    for item in items:
+        total = total + item
+    return total
+"#;
+        let (_temp_dir, input_path) = create_test_python_file(code);
+        let result = generate_quality_report(&input_path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_generate_quality_report_with_conditionals() {
+        let code = r#"
+def max_value(a: int, b: int) -> int:
+    if a > b:
+        return a
+    else:
+        return b
+"#;
+        let (_temp_dir, input_path) = create_test_python_file(code);
+        let result = generate_quality_report(&input_path);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_compilation_results_all_false() {
+        let results = CompilationResults {
+            compilation_ok: false,
+            clippy_ok: false,
+            all_passed: false,
+        };
+        assert!(!results.all_passed);
+    }
+
+    #[test]
+    fn test_compilation_results_partial() {
+        let results = CompilationResults {
+            compilation_ok: true,
+            clippy_ok: false,
+            all_passed: false,
+        };
+        assert!(results.compilation_ok);
+        assert!(!results.clippy_ok);
+    }
+
+    #[test]
+    fn test_inspect_hir_invalid_format() {
+        let pipeline = DepylerPipeline::new();
+        let code = "def hello() -> int: return 42";
+        let hir = pipeline.parse_to_hir(code).unwrap();
+        let result = inspect_hir(&hir, "invalid_format");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_inspect_python_ast_with_imports() {
+        let code = "import os\nimport sys\n\ndef hello(): return 42";
+        let result = inspect_python_ast(code, "pretty");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_python_ast_with_decorators() {
+        let code = "@property\ndef hello(self) -> int:\n    return 42";
+        let result = inspect_python_ast(code, "pretty");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_inspect_python_ast_with_type_hints() {
+        let code = "def process(data: dict[str, int]) -> list[str]:\n    return list(data.keys())";
+        let result = inspect_python_ast(code, "pretty");
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_format_hir_pretty_empty_module() {
+        let pipeline = DepylerPipeline::new();
+        let code = "# just a comment";
+        let result = pipeline.parse_to_hir(code);
+        // May or may not succeed depending on parser
+        let _ = result;
+    }
+
+    #[test]
+    fn test_quality_validations_fields() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
+        let report = generate_quality_report(&input_path).unwrap();
+        let validations = QualityValidations {
+            tdg_ok: true,
+            complexity_ok: false,
+            coverage_ok: true,
+            all_passed: false,
+            report,
+            min_tdg: 0.5,
+            max_tdg: 1.5,
+            max_complexity: 5,
+            min_coverage: 90,
+        };
+        assert!(!validations.all_passed);
+        assert_eq!(validations.min_tdg, 0.5);
+        assert_eq!(validations.max_tdg, 1.5);
+    }
+
+    #[test]
+    fn test_oracle_classify_json_format() {
+        let result = oracle_classify_command(
+            "error[E0277]: the trait `Display` is not implemented".to_string(),
+            "json".to_string(),
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_oracle_classify_unknown_error() {
+        let result = oracle_classify_command(
+            "some random error message".to_string(),
+            "text".to_string(),
+        );
+        // Should handle gracefully even with unknown errors
+        let _ = result;
+    }
+
+    #[test]
+    fn test_transpile_with_all_options() {
+        let (_temp_dir, input_path) = create_test_python_file("def add(a: int, b: int) -> int:\n    return a + b");
+        let result = transpile_command(
+            input_path, None,
+            true,   // gen_tests
+            true,   // verify
+            true,   // debug
+            true,   // source_map
+            true,   // trace
+            true,   // explain
+            true,   // audit_trail
+            None,   // trace_output
+            false,  // auto_fix (skipped to avoid oracle)
+            false,  // async
+            false,  // suggest_fixes
+            0.9,    // fix_confidence
+            false,  // oracle
+            None,   // patterns
+            5,      // max_retries
+            false,  // llm_fallback
+        );
+        // May or may not succeed depending on verification
+        let _ = result;
+    }
+
+    #[test]
+    fn test_compile_command_debug_profile() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
+        let result = compile_command(input_path, None, "debug".to_string(), false);
+        // May succeed or fail based on rustc availability
+        let _ = result;
+    }
+
+    #[test]
+    fn test_inspect_typed_hir() {
+        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
+        let result = inspect_command(input_path, "typed-hir".to_string(), "pretty".to_string(), None);
+        assert!(result.is_ok());
     }
 }

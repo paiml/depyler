@@ -817,4 +817,404 @@ pub fn add(a: i32, b: i32) -> i32 {
             result.err()
         );
     }
+
+    // ============================================================================
+    // Additional tests for higher coverage
+    // ============================================================================
+
+    #[test]
+    fn test_truncate_filename_short() {
+        let result = truncate_filename("test.rs", 20);
+        assert!(result.len() >= 8);
+        assert!(result.starts_with("test.rs"));
+    }
+
+    #[test]
+    fn test_truncate_filename_exact() {
+        let result = truncate_filename("test.rs", 7);
+        assert_eq!(result.len(), 7);
+    }
+
+    #[test]
+    fn test_truncate_filename_long() {
+        let result = truncate_filename("very_long_filename_that_exceeds_limit.rs", 20);
+        assert!(result.starts_with("..."));
+        assert_eq!(result.len(), 20);
+    }
+
+    #[test]
+    fn test_truncate_filename_empty() {
+        let result = truncate_filename("", 10);
+        assert_eq!(result.len(), 10);
+    }
+
+    #[test]
+    fn test_with_display_mode() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"))
+            .with_display_mode(DisplayMode::Minimal);
+        assert!(matches!(compiler.display_mode, DisplayMode::Minimal));
+    }
+
+    #[test]
+    fn test_with_display_mode_json() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"))
+            .with_display_mode(DisplayMode::Json);
+        assert!(matches!(compiler.display_mode, DisplayMode::Json));
+    }
+
+    #[test]
+    fn test_with_display_mode_silent() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"))
+            .with_display_mode(DisplayMode::Silent);
+        assert!(matches!(compiler.display_mode, DisplayMode::Silent));
+    }
+
+    #[test]
+    fn test_with_display_mode_rich() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"))
+            .with_display_mode(DisplayMode::Rich);
+        assert!(matches!(compiler.display_mode, DisplayMode::Rich));
+    }
+
+    #[test]
+    fn test_with_parallel_jobs() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"))
+            .with_parallel_jobs(8);
+        assert_eq!(compiler.parallel_jobs, 8);
+    }
+
+    #[test]
+    fn test_with_parallel_jobs_single() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"))
+            .with_parallel_jobs(1);
+        assert_eq!(compiler.parallel_jobs, 1);
+    }
+
+    #[test]
+    fn test_with_parallel_jobs_large() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"))
+            .with_parallel_jobs(256);
+        assert_eq!(compiler.parallel_jobs, 256);
+    }
+
+    #[test]
+    fn test_cache_stats_without_cache() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"));
+        assert!(compiler.cache_stats().is_none());
+    }
+
+    #[test]
+    fn test_compilation_error_struct() {
+        let error = CompilationError {
+            code: "E0599".to_string(),
+            message: "no method found".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 10,
+            column: 5,
+        };
+        assert_eq!(error.code, "E0599");
+        assert_eq!(error.message, "no method found");
+        assert_eq!(error.file, PathBuf::from("test.rs"));
+        assert_eq!(error.line, 10);
+        assert_eq!(error.column, 5);
+    }
+
+    #[test]
+    fn test_compilation_error_clone() {
+        let error = CompilationError {
+            code: "E0308".to_string(),
+            message: "mismatched types".to_string(),
+            file: PathBuf::from("main.rs"),
+            line: 20,
+            column: 10,
+        };
+        let cloned = error.clone();
+        assert_eq!(error.code, cloned.code);
+        assert_eq!(error.message, cloned.message);
+        assert_eq!(error.file, cloned.file);
+    }
+
+    #[test]
+    fn test_compilation_error_debug() {
+        let error = CompilationError {
+            code: "E0599".to_string(),
+            message: "test".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 1,
+            column: 1,
+        };
+        let debug = format!("{:?}", error);
+        assert!(debug.contains("E0599"));
+        assert!(debug.contains("test.rs"));
+    }
+
+    #[test]
+    fn test_compilation_result_struct() {
+        let result = CompilationResult {
+            source_file: PathBuf::from("test.py"),
+            success: true,
+            errors: vec![],
+            rust_file: Some(PathBuf::from("test.rs")),
+        };
+        assert!(result.success);
+        assert!(result.errors.is_empty());
+        assert!(result.rust_file.is_some());
+    }
+
+    #[test]
+    fn test_compilation_result_failure() {
+        let result = CompilationResult {
+            source_file: PathBuf::from("test.py"),
+            success: false,
+            errors: vec![CompilationError {
+                code: "E0599".to_string(),
+                message: "error".to_string(),
+                file: PathBuf::from("test.rs"),
+                line: 1,
+                column: 1,
+            }],
+            rust_file: None,
+        };
+        assert!(!result.success);
+        assert_eq!(result.errors.len(), 1);
+        assert!(result.rust_file.is_none());
+    }
+
+    #[test]
+    fn test_compilation_result_clone() {
+        let result = CompilationResult {
+            source_file: PathBuf::from("test.py"),
+            success: true,
+            errors: vec![],
+            rust_file: Some(PathBuf::from("test.rs")),
+        };
+        let cloned = result.clone();
+        assert_eq!(result.source_file, cloned.source_file);
+        assert_eq!(result.success, cloned.success);
+    }
+
+    #[test]
+    fn test_parse_error_line_no_error() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"));
+        let line = "warning: unused variable";
+        let file = Path::new("test.rs");
+
+        let error = compiler.parse_error_line(line, file);
+        assert!(error.is_none());
+    }
+
+    #[test]
+    fn test_parse_error_line_various_codes() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"));
+        let file = Path::new("test.rs");
+
+        // Test various error codes
+        let test_cases = [
+            ("error[E0308]: mismatched types", "E0308"),
+            ("error[E0382]: use of moved value", "E0382"),
+            ("error[E0425]: cannot find value", "E0425"),
+            ("error[E0277]: trait not implemented", "E0277"),
+        ];
+
+        for (line, expected_code) in test_cases {
+            let error = compiler.parse_error_line(line, file);
+            assert!(error.is_some(), "Should parse: {}", line);
+            assert_eq!(error.unwrap().code, expected_code);
+        }
+    }
+
+    #[test]
+    fn test_parse_rustc_errors_empty() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"));
+        let file = Path::new("test.rs");
+        let errors = compiler.parse_rustc_errors("", file);
+        assert!(errors.is_empty());
+    }
+
+    #[test]
+    fn test_parse_rustc_errors_unparseable() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"));
+        let file = Path::new("test.rs");
+        let stderr = "Some random error message without error code";
+        let errors = compiler.parse_rustc_errors(stderr, file);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "UNKNOWN");
+    }
+
+    #[test]
+    fn test_parse_rustc_errors_multiple() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"));
+        let file = Path::new("test.rs");
+        let stderr = "error[E0599]: no method\nerror[E0308]: mismatched types";
+        let errors = compiler.parse_rustc_errors(stderr, file);
+        assert_eq!(errors.len(), 2);
+        assert_eq!(errors[0].code, "E0599");
+        assert_eq!(errors[1].code, "E0308");
+    }
+
+    #[tokio::test]
+    async fn test_find_python_files_nested() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create nested directory structure
+        let sub_dir = temp_dir.path().join("subdir");
+        std::fs::create_dir_all(&sub_dir).unwrap();
+
+        std::fs::write(temp_dir.path().join("test1.py"), "print('hello')").unwrap();
+        std::fs::write(sub_dir.join("test2.py"), "print('world')").unwrap();
+
+        let compiler = BatchCompiler::new(temp_dir.path());
+        let files = compiler.find_python_files().unwrap();
+
+        assert_eq!(files.len(), 2);
+    }
+
+    #[tokio::test]
+    async fn test_find_python_files_skip_pycache() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create __pycache__ directory
+        let pycache = temp_dir.path().join("__pycache__");
+        std::fs::create_dir_all(&pycache).unwrap();
+
+        std::fs::write(temp_dir.path().join("test.py"), "print('hello')").unwrap();
+        std::fs::write(pycache.join("cached.py"), "cached").unwrap();
+
+        let compiler = BatchCompiler::new(temp_dir.path());
+        let files = compiler.find_python_files().unwrap();
+
+        // Should only find test.py, not cached.py
+        assert_eq!(files.len(), 1);
+        assert!(files[0].file_name().unwrap().to_str().unwrap() == "test.py");
+    }
+
+    #[tokio::test]
+    async fn test_find_python_files_skip_hidden() {
+        let temp_dir = TempDir::new().unwrap();
+
+        // Create hidden directory
+        let hidden = temp_dir.path().join(".hidden");
+        std::fs::create_dir_all(&hidden).unwrap();
+
+        std::fs::write(temp_dir.path().join("test.py"), "print('hello')").unwrap();
+        std::fs::write(hidden.join("hidden.py"), "hidden").unwrap();
+
+        let compiler = BatchCompiler::new(temp_dir.path());
+        let files = compiler.find_python_files().unwrap();
+
+        // Should only find test.py
+        assert_eq!(files.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_find_python_files_single_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let py_file = temp_dir.path().join("single.py");
+        std::fs::write(&py_file, "print('single')").unwrap();
+
+        // Point directly to a single file
+        let compiler = BatchCompiler::new(&py_file);
+        let files = compiler.find_python_files().unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0], py_file);
+    }
+
+    #[tokio::test]
+    async fn test_find_python_files_non_python_file() {
+        let temp_dir = TempDir::new().unwrap();
+        let txt_file = temp_dir.path().join("test.txt");
+        std::fs::write(&txt_file, "not python").unwrap();
+
+        let compiler = BatchCompiler::new(&txt_file);
+        let files = compiler.find_python_files().unwrap();
+
+        assert!(files.is_empty());
+    }
+
+    #[test]
+    fn test_batch_compiler_default_parallel_jobs() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"));
+        assert!(compiler.parallel_jobs > 0);
+    }
+
+    #[test]
+    fn test_batch_compiler_chained_builders() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"))
+            .with_parallel_jobs(4)
+            .with_display_mode(DisplayMode::Minimal);
+
+        assert_eq!(compiler.parallel_jobs, 4);
+        assert!(matches!(compiler.display_mode, DisplayMode::Minimal));
+    }
+
+    #[test]
+    fn test_report_compile_progress_json_silent() {
+        // These modes should not produce output
+        let compiler_json = BatchCompiler::new(Path::new("/tmp"))
+            .with_display_mode(DisplayMode::Json);
+
+        let compiler_silent = BatchCompiler::new(Path::new("/tmp"))
+            .with_display_mode(DisplayMode::Silent);
+
+        let result = CompilationResult {
+            source_file: PathBuf::from("test.py"),
+            success: true,
+            errors: vec![],
+            rust_file: Some(PathBuf::from("test.rs")),
+        };
+
+        // Should not panic
+        compiler_json.report_compile_progress(1, 10, Path::new("test.py"), &result);
+        compiler_silent.report_compile_progress(1, 10, Path::new("test.py"), &result);
+    }
+
+    #[test]
+    fn test_report_compile_progress_minimal_milestones() {
+        let compiler = BatchCompiler::new(Path::new("/tmp"))
+            .with_display_mode(DisplayMode::Minimal);
+
+        let result = CompilationResult {
+            source_file: PathBuf::from("test.py"),
+            success: true,
+            errors: vec![],
+            rust_file: Some(PathBuf::from("test.rs")),
+        };
+
+        // Test at 10% milestone
+        compiler.report_compile_progress(1, 10, Path::new("test.py"), &result);
+        // Test at completion
+        compiler.report_compile_progress(10, 10, Path::new("test.py"), &result);
+    }
+
+    #[test]
+    fn test_compilation_error_serialization() {
+        let error = CompilationError {
+            code: "E0599".to_string(),
+            message: "no method found".to_string(),
+            file: PathBuf::from("test.rs"),
+            line: 10,
+            column: 5,
+        };
+
+        let json = serde_json::to_string(&error).unwrap();
+        assert!(json.contains("E0599"));
+        assert!(json.contains("no method found"));
+
+        let deserialized: CompilationError = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.code, error.code);
+        assert_eq!(deserialized.message, error.message);
+    }
+
+    #[test]
+    fn test_truncate_filename_unicode() {
+        let result = truncate_filename("файл.py", 20);
+        assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn test_truncate_filename_very_short_limit() {
+        let result = truncate_filename("verylongfilename.py", 5);
+        assert!(result.len() == 5);
+    }
 }
