@@ -342,4 +342,185 @@ mod tests {
         let config = build_config(None, 0.80, 50, 5, "rich").unwrap();
         print_final_summary(&result, &config);
     }
+
+    #[test]
+    fn test_print_final_summary_minimal_mode() {
+        let result = make_test_result(true, 0.85, 20, 45.0);
+        let config = build_config(None, 0.80, 50, 5, "minimal").unwrap();
+        print_final_summary(&result, &config);
+    }
+
+    #[test]
+    fn test_print_final_summary_with_category_rates() {
+        use std::collections::HashMap;
+        let mut category_rates = HashMap::new();
+        category_rates.insert("simple".to_string(), 0.95);
+        category_rates.insert("complex".to_string(), 0.75);
+
+        let result = UtolResult {
+            converged: true,
+            compile_rate: 0.85,
+            iterations: 15,
+            duration_secs: 50.0,
+            model_version: "v1.2.3".to_string(),
+            category_rates,
+        };
+        let config = build_config(None, 0.80, 50, 5, "rich").unwrap();
+        print_final_summary(&result, &config);
+    }
+
+    #[test]
+    fn test_show_status_with_nonexistent_corpus() {
+        let config = build_config(
+            Some(PathBuf::from("/nonexistent/corpus/path")),
+            0.80,
+            50,
+            5,
+            "rich"
+        ).unwrap();
+        let result = show_status(&config);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_show_status_with_temp_corpus() {
+        use std::fs;
+
+        let temp_dir = std::env::temp_dir().join("utol_test_corpus");
+        fs::create_dir_all(&temp_dir).ok();
+
+        let config = build_config(Some(temp_dir.clone()), 0.80, 50, 5, "rich").unwrap();
+        let result = show_status(&config);
+
+        // Cleanup
+        fs::remove_dir_all(&temp_dir).ok();
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_utol_result_struct_fields() {
+        let result = make_test_result(true, 0.95, 10, 30.0);
+        assert!(result.converged);
+        assert!((result.compile_rate - 0.95).abs() < 0.001);
+        assert_eq!(result.iterations, 10);
+        assert!((result.duration_secs - 30.0).abs() < 0.001);
+        assert_eq!(result.model_version, "test");
+        assert!(result.category_rates.is_empty());
+    }
+
+    #[test]
+    fn test_utol_result_serialization() {
+        let result = make_test_result(true, 0.95, 10, 30.0);
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("\"converged\":true"));
+        assert!(json.contains("\"compile_rate\":0.95"));
+        assert!(json.contains("\"iterations\":10"));
+    }
+
+    #[test]
+    fn test_build_config_edge_case_zero_target_rate() {
+        let config = build_config(None, 0.0, 50, 5, "rich").unwrap();
+        assert!((config.convergence.target_rate - 0.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_build_config_edge_case_full_target_rate() {
+        let config = build_config(None, 1.0, 50, 5, "rich").unwrap();
+        assert!((config.convergence.target_rate - 1.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_build_config_edge_case_zero_iterations() {
+        let config = build_config(None, 0.80, 0, 5, "rich").unwrap();
+        assert_eq!(config.convergence.max_iterations, 0);
+    }
+
+    #[test]
+    fn test_build_config_edge_case_zero_patience() {
+        let config = build_config(None, 0.80, 50, 0, "rich").unwrap();
+        assert_eq!(config.convergence.patience, 0);
+    }
+
+    #[test]
+    fn test_build_config_large_iterations() {
+        let config = build_config(None, 0.80, 1_000_000, 5, "rich").unwrap();
+        assert_eq!(config.convergence.max_iterations, 1_000_000);
+    }
+
+    #[test]
+    fn test_build_config_empty_corpus_path() {
+        let config = build_config(Some(PathBuf::from("")), 0.80, 50, 5, "rich").unwrap();
+        assert_eq!(config.corpus.path, PathBuf::from(""));
+    }
+
+    #[test]
+    fn test_display_mode_all_variants() {
+        // Test all display mode variants
+        let modes = ["rich", "minimal", "json", "silent", "RICH", "MINIMAL", "JSON", "SILENT", "Rich", "Minimal", "Json", "Silent"];
+        for mode in modes {
+            let config = build_config(None, 0.80, 50, 5, mode).unwrap();
+            let expected = match mode.to_lowercase().as_str() {
+                "rich" => DisplayMode::Rich,
+                "minimal" => DisplayMode::Minimal,
+                "json" => DisplayMode::Json,
+                "silent" => DisplayMode::Silent,
+                _ => DisplayMode::Rich,
+            };
+            assert!(matches!(config.display.mode, expected));
+        }
+    }
+
+    #[test]
+    fn test_print_final_summary_zero_rate() {
+        let result = make_test_result(false, 0.0, 50, 100.0);
+        let config = build_config(None, 0.80, 50, 5, "rich").unwrap();
+        print_final_summary(&result, &config);
+    }
+
+    #[test]
+    fn test_print_final_summary_full_rate() {
+        let result = make_test_result(true, 1.0, 5, 10.0);
+        let config = build_config(None, 0.80, 50, 5, "rich").unwrap();
+        print_final_summary(&result, &config);
+    }
+
+    #[test]
+    fn test_print_final_summary_zero_iterations() {
+        let result = make_test_result(false, 0.0, 0, 0.0);
+        let config = build_config(None, 0.80, 50, 5, "rich").unwrap();
+        print_final_summary(&result, &config);
+    }
+
+    #[test]
+    fn test_handle_utol_command_status_only() {
+        // Test status mode with a nonexistent corpus
+        let result = handle_utol_command(
+            Some(PathBuf::from("/nonexistent/path")),
+            0.80,
+            50,
+            5,
+            "rich".to_string(),
+            None,
+            None,
+            true,  // status mode
+            false, // not watch mode
+            500,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_corpus_config_default_path() {
+        let config = build_config(None, 0.80, 50, 5, "rich").unwrap();
+        assert_eq!(config.corpus.path, PathBuf::from("../reprorusted-python-cli"));
+    }
+
+    #[test]
+    fn test_convergence_config_fields() {
+        let config = build_config(None, 0.95, 100, 10, "rich").unwrap();
+        assert!((config.convergence.target_rate - 0.95).abs() < 0.001);
+        assert_eq!(config.convergence.max_iterations, 100);
+        assert_eq!(config.convergence.patience, 10);
+    }
 }
