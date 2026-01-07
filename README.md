@@ -25,6 +25,7 @@ Depyler translates annotated Python code into idiomatic Rust, preserving program
 - [Stdlib Module Support](#stdlib-module-support)
 - [Architecture](#architecture)
 - [Documentation](#documentation)
+- [Quality Metrics](#quality-metrics)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -193,6 +194,20 @@ Python AST → HIR → Type Inference → Rust AST → Code Generation
 - [Developer Prompts](docs/prompts/)
 - [Changelog](CHANGELOG.md)
 - [TDD Book](tdd-book/)
+
+## Quality Metrics
+
+| Metric | Value |
+|--------|-------|
+| **Line Coverage** | 87.85% |
+| **Function Coverage** | 92.85% |
+| **Total Tests** | 14,000+ |
+| **Mutation Kill Rate** | 75%+ |
+
+Run coverage locally:
+```bash
+cargo llvm-cov nextest --workspace --lib --summary-only
+```
 
 ## Contributing
 
