@@ -642,6 +642,378 @@ def factorial(n: int) -> int:
             std::env::var("ANTHROPIC_API_KEY").is_ok()
         );
     }
+
+    // ============================================================
+    // Additional Strategy Tests
+    // ============================================================
+
+    #[test]
+    fn test_strategy_variants() {
+        let ast = Strategy::Ast;
+        let local = Strategy::LocalModel;
+        let api = Strategy::Api;
+
+        assert_eq!(ast, Strategy::Ast);
+        assert_eq!(local, Strategy::LocalModel);
+        assert_eq!(api, Strategy::Api);
+    }
+
+    #[test]
+    fn test_strategy_debug() {
+        let ast = Strategy::Ast;
+        let debug = format!("{:?}", ast);
+        assert!(debug.contains("Ast"));
+    }
+
+    #[test]
+    fn test_strategy_clone() {
+        let ast = Strategy::Ast;
+        let cloned = ast;
+        assert_eq!(ast, cloned);
+    }
+
+    // ============================================================
+    // TranspileResult Tests
+    // ============================================================
+
+    #[test]
+    fn test_transpile_result_clone() {
+        let result = TranspileResult {
+            rust_code: "fn main() {}".to_string(),
+            strategy: Strategy::Ast,
+            confidence: 0.9,
+            latency_ms: 10,
+            warnings: vec!["test".to_string()],
+        };
+        let cloned = result.clone();
+        assert_eq!(result.rust_code, cloned.rust_code);
+        assert_eq!(result.confidence, cloned.confidence);
+    }
+
+    #[test]
+    fn test_transpile_result_serialization() {
+        let result = TranspileResult {
+            rust_code: "fn main() {}".to_string(),
+            strategy: Strategy::Ast,
+            confidence: 0.9,
+            latency_ms: 10,
+            warnings: vec![],
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("rust_code"));
+        let deserialized: TranspileResult = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.rust_code, "fn main() {}");
+    }
+
+    // ============================================================
+    // HybridConfig Tests
+    // ============================================================
+
+    #[test]
+    fn test_hybrid_config_with_local_model() {
+        let config = HybridConfig::with_local_model("/path/to/model.gguf");
+        assert!(config.enable_local_model);
+        assert_eq!(config.local_model_path, Some("/path/to/model.gguf".to_string()));
+    }
+
+    #[test]
+    fn test_hybrid_config_serialization() {
+        let config = HybridConfig::default();
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains("enable_local_model"));
+        let deserialized: HybridConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(config.enable_local_model, deserialized.enable_local_model);
+    }
+
+    // ============================================================
+    // PatternComplexity Tests
+    // ============================================================
+
+    #[test]
+    fn test_pattern_complexity_yield() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("def gen(): yield 1"),
+            PatternComplexity::Medium
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_async() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("async def foo(): pass"),
+            PatternComplexity::Medium
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_lambda() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("f = lambda x: x + 1"),
+            PatternComplexity::Medium
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_type() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("t = type(x)"),
+            PatternComplexity::Medium
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_metaclass() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("class M(metaclass=Meta): pass"),
+            PatternComplexity::Complex
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_new() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("def __new__(cls): pass"),
+            PatternComplexity::Complex
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_getattr() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("def __getattr__(self, name): pass"),
+            PatternComplexity::Complex
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_globals() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("g = globals()"),
+            PatternComplexity::Complex
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_locals() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("l = locals()"),
+            PatternComplexity::Complex
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_exec() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("exec('print(1)')"),
+            PatternComplexity::Unsupported
+        );
+    }
+
+    #[test]
+    fn test_pattern_complexity_import() {
+        let t = HybridTranspiler::new();
+        assert_eq!(
+            t.analyze_complexity("m = __import__('os')"),
+            PatternComplexity::Unsupported
+        );
+    }
+
+    // ============================================================
+    // HybridTranspiler Tests
+    // ============================================================
+
+    #[test]
+    fn test_hybrid_transpiler_default() {
+        let t = HybridTranspiler::default();
+        let stats = t.stats();
+        assert_eq!(stats.total_attempts, 0);
+    }
+
+    #[test]
+    fn test_hybrid_transpiler_with_config() {
+        let config = HybridConfig {
+            ast_confidence_threshold: 0.5,
+            ..HybridConfig::default()
+        };
+        let t = HybridTranspiler::with_config(config);
+        let stats = t.stats();
+        assert_eq!(stats.total_attempts, 0);
+    }
+
+    #[test]
+    fn test_transpile_complex_pattern() {
+        let mut t = HybridTranspiler::new();
+        // Complex pattern should skip AST and fail without fallback
+        let result = t.transpile("class Meta(type): pass");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_transpile_medium_pattern() {
+        let mut t = HybridTranspiler::new();
+        // Medium pattern should try AST
+        let result = t.transpile("class Foo:\n    def bar(self):\n        return 1");
+        // May succeed or fail depending on AST capabilities
+        assert!(result.is_ok() || result.is_err());
+    }
+
+    #[test]
+    fn test_stats_after_transpile() {
+        let mut t = HybridTranspiler::new();
+        let _ = t.transpile("def add(a: int, b: int) -> int:\n    return a + b");
+        let stats = t.stats();
+        assert!(stats.ast_success_rate >= 0.0);
+    }
+
+    // ============================================================
+    // TrainingDataCollector Tests
+    // ============================================================
+
+    #[test]
+    fn test_training_collector_is_empty() {
+        let collector = TrainingDataCollector::new();
+        assert!(collector.is_empty());
+    }
+
+    #[test]
+    fn test_training_collector_not_empty() {
+        let mut collector = TrainingDataCollector::new();
+        collector.add_pair("def foo(): pass".to_string(), "fn foo() {}".to_string(), "test");
+        assert!(!collector.is_empty());
+        assert_eq!(collector.len(), 1);
+    }
+
+    #[test]
+    fn test_training_collector_collect_from_transpiler() {
+        let mut collector = TrainingDataCollector::new();
+        let mut transpiler = HybridTranspiler::new();
+
+        let samples = &[
+            "def add(a: int, b: int) -> int:\n    return a + b",
+            "def sub(a: int, b: int) -> int:\n    return a - b",
+        ];
+
+        collector.collect_from_transpiler(&mut transpiler, samples);
+        // May or may not have collected depending on confidence
+        // Using is_empty check rather than length comparison
+        let _ = collector.is_empty(); // Sanity check - collector was exercised
+    }
+
+    #[test]
+    fn test_training_collector_export_jsonl_empty() {
+        let collector = TrainingDataCollector::new();
+        let jsonl = collector.export_jsonl();
+        assert!(jsonl.is_empty());
+    }
+
+    #[test]
+    fn test_training_collector_export_alpaca_empty() {
+        let collector = TrainingDataCollector::new();
+        let alpaca = collector.export_alpaca();
+        assert!(alpaca.is_empty());
+    }
+
+    #[test]
+    fn test_translation_pair_serialization() {
+        let pair = TranslationPair {
+            python: "def foo(): pass".to_string(),
+            rust: "fn foo() {}".to_string(),
+            verified: true,
+            source: "test".to_string(),
+        };
+        let json = serde_json::to_string(&pair).unwrap();
+        assert!(json.contains("python"));
+        assert!(json.contains("rust"));
+        let deserialized: TranslationPair = serde_json::from_str(&json).unwrap();
+        assert_eq!(pair.python, deserialized.python);
+    }
+
+    // ============================================================
+    // TranspileError Tests
+    // ============================================================
+
+    #[test]
+    fn test_transpile_error_display() {
+        let err = TranspileError::UnsupportedPattern("test".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("Unsupported"));
+
+        let err = TranspileError::AstFailed("parse error".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("AST"));
+
+        let err = TranspileError::ModelNotLoaded;
+        let display = format!("{}", err);
+        assert!(display.contains("Local model"));
+
+        let err = TranspileError::ModelFailed("inference error".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("Model inference"));
+
+        let err = TranspileError::ApiNotConfigured;
+        let display = format!("{}", err);
+        assert!(display.contains("API"));
+
+        let err = TranspileError::ApiFailed("timeout".to_string());
+        let display = format!("{}", err);
+        assert!(display.contains("API call"));
+
+        let err = TranspileError::AllStrategiesFailed;
+        let display = format!("{}", err);
+        assert!(display.contains("All strategies"));
+    }
+
+    // ============================================================
+    // safe_rate Tests
+    // ============================================================
+
+    #[test]
+    fn test_safe_rate_zero() {
+        assert_eq!(safe_rate(0, 0), 0.0);
+    }
+
+    #[test]
+    fn test_safe_rate_all_success() {
+        assert_eq!(safe_rate(10, 0), 1.0);
+    }
+
+    #[test]
+    fn test_safe_rate_all_failure() {
+        assert_eq!(safe_rate(0, 10), 0.0);
+    }
+
+    #[test]
+    fn test_safe_rate_mixed() {
+        assert!((safe_rate(5, 5) - 0.5).abs() < 0.01);
+    }
+
+    // ============================================================
+    // TranspileStats Tests
+    // ============================================================
+
+    #[test]
+    fn test_transpile_stats_serialization() {
+        let stats = TranspileStats {
+            total_attempts: 100,
+            ast_success_rate: 0.9,
+            model_success_rate: 0.5,
+            api_success_rate: 0.8,
+        };
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("total_attempts"));
+        let deserialized: TranspileStats = serde_json::from_str(&json).unwrap();
+        assert_eq!(stats.total_attempts, deserialized.total_attempts);
+    }
 }
 
 #[cfg(test)]

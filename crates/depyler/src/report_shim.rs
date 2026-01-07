@@ -609,4 +609,406 @@ mod tests {
         assert!(SemanticTag::Json.matches_content("import json\ndata = json.loads(s)"));
         assert!(SemanticTag::Regex.matches_content("import re\nre.match(r'\\d+', s)"));
     }
+
+    // =====================================================
+    // Additional CompileResult Tests
+    // =====================================================
+
+    #[test]
+    fn test_compile_result_debug() {
+        let result = CompileResult::success("test.py");
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("test.py"));
+    }
+
+    #[test]
+    fn test_compile_result_clone() {
+        let result = CompileResult::failure("a.py", "E0308", "error");
+        let cloned = result.clone();
+        assert_eq!(result.name, cloned.name);
+        assert_eq!(result.error_code, cloned.error_code);
+    }
+
+    #[test]
+    fn test_compile_result_chain() {
+        let result = CompileResult::failure("x.py", "E0001", "msg")
+            .with_source("def foo(): pass");
+        assert!(!result.success);
+        assert!(result.python_source.is_some());
+    }
+
+    // =====================================================
+    // Additional ErrorTaxonomy Tests
+    // =====================================================
+
+    #[test]
+    fn test_error_taxonomy_default() {
+        let taxonomy = ErrorTaxonomy::default();
+        assert_eq!(taxonomy.count, 0);
+        assert!(taxonomy.samples.is_empty());
+    }
+
+    #[test]
+    fn test_error_taxonomy_percentage_100() {
+        let mut taxonomy = ErrorTaxonomy::new();
+        taxonomy.count = 100;
+        assert!((taxonomy.percentage(100) - 100.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_error_taxonomy_single_sample() {
+        let mut taxonomy = ErrorTaxonomy::new();
+        taxonomy.add_sample("only_one.py");
+        assert_eq!(taxonomy.count, 1);
+        assert_eq!(taxonomy.samples.len(), 1);
+    }
+
+    // =====================================================
+    // Additional analyze_results Tests
+    // =====================================================
+
+    #[test]
+    fn test_analyze_results_all_success() {
+        let results = vec![
+            CompileResult::success("a.py"),
+            CompileResult::success("b.py"),
+        ];
+        let (pass, fail, taxonomy) = analyze_results(&results);
+        assert_eq!(pass, 2);
+        assert_eq!(fail, 0);
+        assert!(taxonomy.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_results_all_failure() {
+        let results = vec![
+            CompileResult::failure("a.py", "E0308", "e1"),
+            CompileResult::failure("b.py", "E0308", "e2"),
+        ];
+        let (pass, fail, taxonomy) = analyze_results(&results);
+        assert_eq!(pass, 0);
+        assert_eq!(fail, 2);
+        assert_eq!(taxonomy.get("E0308").unwrap().count, 2);
+    }
+
+    #[test]
+    fn test_analyze_results_empty() {
+        let results: Vec<CompileResult> = vec![];
+        let (pass, fail, taxonomy) = analyze_results(&results);
+        assert_eq!(pass, 0);
+        assert_eq!(fail, 0);
+        assert!(taxonomy.is_empty());
+    }
+
+    #[test]
+    fn test_analyze_results_unknown_error() {
+        let mut result = CompileResult::failure("a.py", "E0000", "unknown");
+        result.error_code = None;
+        let results = vec![result];
+        let (_, fail, taxonomy) = analyze_results(&results);
+        assert_eq!(fail, 1);
+        assert!(taxonomy.contains_key("unknown"));
+    }
+
+    // =====================================================
+    // Additional extract_error Tests
+    // =====================================================
+
+    #[test]
+    fn test_extract_error_simple_error() {
+        let stderr = "error: linking with `cc` failed";
+        let (code, message) = extract_error(stderr);
+        assert_eq!(code, "unknown");
+        assert!(message.contains("linking"));
+    }
+
+    #[test]
+    fn test_extract_error_multiple_errors() {
+        let stderr = r#"error[E0308]: mismatched types
+error[E0277]: trait bound not satisfied"#;
+        let (code, _) = extract_error(stderr);
+        assert!(code.contains("E0308"));
+    }
+
+    #[test]
+    fn test_extract_error_empty() {
+        let (code, message) = extract_error("");
+        assert_eq!(code, "unknown");
+        assert_eq!(message, "compilation error");
+    }
+
+    // =====================================================
+    // Additional FilterStats Tests
+    // =====================================================
+
+    #[test]
+    fn test_filter_stats_default() {
+        let stats = FilterStats::default();
+        assert_eq!(stats.total_files, 0);
+    }
+
+    #[test]
+    fn test_filter_stats_no_reduction() {
+        let stats = FilterStats::new(100);
+        assert_eq!(stats.final_count(), 100);
+        assert_eq!(stats.reduction_percent(), 0.0);
+    }
+
+    #[test]
+    fn test_filter_stats_full_reduction() {
+        let mut stats = FilterStats::new(100);
+        stats.files_after_sample = 0;
+        assert_eq!(stats.reduction_percent(), 100.0);
+    }
+
+    #[test]
+    fn test_filter_stats_clone() {
+        let stats = FilterStats::new(50);
+        let cloned = stats.clone();
+        assert_eq!(stats.total_files, cloned.total_files);
+    }
+
+    // =====================================================
+    // Additional BisectionState Tests
+    // =====================================================
+
+    #[test]
+    fn test_bisection_state_empty() {
+        let state = BisectionState::new(vec![]);
+        assert_eq!(state.remaining_space(), 0);
+        assert_eq!(state.progress_percent(), 100.0);
+    }
+
+    #[test]
+    fn test_bisection_state_single_file() {
+        let files = vec!["only.py".to_string()];
+        let mut state = BisectionState::new(files);
+        state.advance(true);
+        assert!(state.is_complete());
+    }
+
+    #[test]
+    fn test_bisection_state_advance_no_failure() {
+        let files: Vec<String> = (0..8).map(|i| format!("file{}.py", i)).collect();
+        let mut state = BisectionState::new(files);
+        state.advance(false); // No failure in first half
+        assert_eq!(state.low, 4);
+        assert_eq!(state.high, 8);
+    }
+
+    #[test]
+    fn test_bisection_state_current_test_set() {
+        let files: Vec<String> = (0..4).map(|i| format!("f{}.py", i)).collect();
+        let state = BisectionState::new(files);
+        let test_set = state.current_test_set();
+        assert_eq!(test_set.len(), 2);
+    }
+
+    #[test]
+    fn test_bisection_state_max_iterations() {
+        let files: Vec<String> = (0..16).map(|i| format!("f{}.py", i)).collect();
+        let state = BisectionState::new(files);
+        assert!(state.max_iterations > 4);
+    }
+
+    #[test]
+    fn test_bisection_state_clone() {
+        let files = vec!["a".to_string()];
+        let state = BisectionState::new(files);
+        let cloned = state.clone();
+        assert_eq!(state.low, cloned.low);
+    }
+
+    // =====================================================
+    // Additional ReportSummary Tests
+    // =====================================================
+
+    #[test]
+    fn test_report_summary_target_achieved() {
+        let results = vec![
+            CompileResult::success("a.py"),
+            CompileResult::success("b.py"),
+            CompileResult::success("c.py"),
+            CompileResult::success("d.py"),
+            CompileResult::failure("e.py", "E0001", "err"),
+        ];
+        let summary = ReportSummary::from_results(&results, 0.80);
+        assert!(summary.target_achieved);
+        assert_eq!(summary.improvement_needed(), 0.0);
+    }
+
+    #[test]
+    fn test_report_summary_empty_results() {
+        let results: Vec<CompileResult> = vec![];
+        let summary = ReportSummary::from_results(&results, 0.80);
+        assert_eq!(summary.total_files, 0);
+        assert_eq!(summary.pass_rate, 0.0);
+    }
+
+    #[test]
+    fn test_report_summary_top_errors_limit() {
+        let results: Vec<_> = (0..10)
+            .map(|i| CompileResult::failure(format!("f{}.py", i), format!("E{:04}", i), "err"))
+            .collect();
+        let summary = ReportSummary::from_results(&results, 0.80);
+        assert!(summary.top_errors.len() <= 5);
+    }
+
+    #[test]
+    fn test_report_summary_files_to_fix_achieved() {
+        let results: Vec<_> = (0..100)
+            .map(|i| CompileResult::success(format!("f{}.py", i)))
+            .collect();
+        let summary = ReportSummary::from_results(&results, 0.80);
+        assert_eq!(summary.files_to_fix(), 0);
+    }
+
+    #[test]
+    fn test_report_summary_clone() {
+        let results = vec![CompileResult::success("a.py")];
+        let summary = ReportSummary::from_results(&results, 0.80);
+        let cloned = summary.clone();
+        assert_eq!(summary.total_files, cloned.total_files);
+    }
+
+    // =====================================================
+    // Additional SemanticTag Tests
+    // =====================================================
+
+    #[test]
+    fn test_semantic_tag_tuple() {
+        assert_eq!(SemanticTag::from_str("tuple"), SemanticTag::Tuple);
+        assert!(SemanticTag::Tuple.matches_content("x: Tuple[int, str]"));
+    }
+
+    #[test]
+    fn test_semantic_tag_set() {
+        assert_eq!(SemanticTag::from_str("set"), SemanticTag::Set);
+        assert!(SemanticTag::Set.matches_content("items: Set[int] = set()"));
+    }
+
+    #[test]
+    fn test_semantic_tag_string() {
+        assert_eq!(SemanticTag::from_str("str"), SemanticTag::String);
+        assert!(SemanticTag::String.matches_content("x: str = ''"));
+    }
+
+    #[test]
+    fn test_semantic_tag_numeric() {
+        assert_eq!(SemanticTag::from_str("int"), SemanticTag::Numeric);
+        assert_eq!(SemanticTag::from_str("float"), SemanticTag::Numeric);
+        assert!(SemanticTag::Numeric.matches_content("x: int = 42"));
+    }
+
+    #[test]
+    fn test_semantic_tag_generic() {
+        assert_eq!(SemanticTag::from_str("typing"), SemanticTag::Generic);
+        assert!(SemanticTag::Generic.matches_content("T = TypeVar('T')"));
+    }
+
+    #[test]
+    fn test_semantic_tag_cli() {
+        assert_eq!(SemanticTag::from_str("cli"), SemanticTag::Argparse);
+        assert_eq!(SemanticTag::from_str("args"), SemanticTag::Argparse);
+    }
+
+    #[test]
+    fn test_semantic_tag_other_matches_nothing() {
+        let tag = SemanticTag::Other("custom".to_string());
+        assert!(!tag.matches_content("anything"));
+    }
+
+    #[test]
+    fn test_semantic_tag_dictionary() {
+        assert_eq!(SemanticTag::from_str("dictionary"), SemanticTag::Dict);
+    }
+
+    #[test]
+    fn test_semantic_tag_array() {
+        assert_eq!(SemanticTag::from_str("array"), SemanticTag::List);
+    }
+
+    #[test]
+    fn test_semantic_tag_file() {
+        assert_eq!(SemanticTag::from_str("file"), SemanticTag::IO);
+    }
+
+    #[test]
+    fn test_semantic_tag_await() {
+        assert_eq!(SemanticTag::from_str("await"), SemanticTag::Async);
+    }
+
+    #[test]
+    fn test_semantic_tag_oop() {
+        assert_eq!(SemanticTag::from_str("oop"), SemanticTag::Class);
+    }
+
+    #[test]
+    fn test_semantic_tag_re() {
+        assert_eq!(SemanticTag::from_str("re"), SemanticTag::Regex);
+    }
+
+    #[test]
+    fn test_semantic_tag_eq() {
+        assert_eq!(SemanticTag::Dict, SemanticTag::Dict);
+        assert_ne!(SemanticTag::Dict, SemanticTag::List);
+    }
+
+    #[test]
+    fn test_semantic_tag_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(SemanticTag::Dict);
+        set.insert(SemanticTag::List);
+        set.insert(SemanticTag::Dict);
+        assert_eq!(set.len(), 2);
+    }
+
+    #[test]
+    fn test_semantic_tag_debug() {
+        let tag = SemanticTag::Dict;
+        let debug = format!("{:?}", tag);
+        assert!(debug.contains("Dict"));
+    }
+
+    #[test]
+    fn test_semantic_tag_clone() {
+        let tag = SemanticTag::Async;
+        let cloned = tag.clone();
+        assert_eq!(tag, cloned);
+    }
+
+    // =====================================================
+    // Additional calculate_rate Tests
+    // =====================================================
+
+    #[test]
+    fn test_calculate_rate_50_percent() {
+        assert!((calculate_rate(50, 50) - 50.0).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_calculate_rate_large_numbers() {
+        assert!((calculate_rate(999999, 1) - 99.9999).abs() < 0.01);
+    }
+
+    // =====================================================
+    // target_achieved edge cases
+    // =====================================================
+
+    #[test]
+    fn test_target_achieved_exact() {
+        assert!(target_achieved(80, 20, 0.80));
+    }
+
+    #[test]
+    fn test_target_achieved_zero_target() {
+        assert!(target_achieved(0, 100, 0.0));
+    }
+
+    #[test]
+    fn test_target_achieved_100_target() {
+        assert!(target_achieved(100, 0, 1.0));
+        assert!(!target_achieved(99, 1, 1.0));
+    }
 }

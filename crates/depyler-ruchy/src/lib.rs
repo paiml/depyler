@@ -340,26 +340,26 @@ mod tests {
     #[test]
     fn test_validate_output_unmatched_parens() {
         let backend = RuchyBackend::new();
-        let result = backend.validate_output("func((x)");
+        let _result = backend.validate_output("func((x)");
         // Without interpreter feature, checks bracket matching
         #[cfg(not(feature = "interpreter"))]
-        assert!(result.is_err());
+        assert!(_result.is_err());
     }
 
     #[test]
     fn test_validate_output_unmatched_braces() {
         let backend = RuchyBackend::new();
-        let result = backend.validate_output("{ x }}}");
+        let _result = backend.validate_output("{ x }}}");
         #[cfg(not(feature = "interpreter"))]
-        assert!(result.is_err());
+        assert!(_result.is_err());
     }
 
     #[test]
     fn test_validate_output_unmatched_brackets() {
         let backend = RuchyBackend::new();
-        let result = backend.validate_output("[1, 2, 3]]");
+        let _result = backend.validate_output("[1, 2, 3]]");
         #[cfg(not(feature = "interpreter"))]
-        assert!(result.is_err());
+        assert!(_result.is_err());
     }
 
     #[test]
