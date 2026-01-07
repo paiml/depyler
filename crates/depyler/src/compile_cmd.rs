@@ -272,6 +272,20 @@ mod tests {
     }
 
     #[test]
+    fn test_create_cargo_project_pub_main() {
+        // Test pub fn main() detection
+        let rust_code = r#"pub fn main() { println!("public main"); }"#;
+        let temp = TempDir::new().unwrap();
+        let input = temp.path().join("pub_main.py");
+        fs::write(&input, "").unwrap();
+
+        let dependencies = vec![];
+        let (_, is_binary) = create_cargo_project(&input, rust_code, &dependencies).unwrap();
+
+        assert!(is_binary, "Code with pub fn main() should be detected as binary");
+    }
+
+    #[test]
     fn test_create_cargo_project_library() {
         // DEPYLER-0763: Test library detection (no main function)
         let rust_code = r#"pub fn greet(name: &str) -> String { format!("Hello, {}!", name) }"#;
@@ -294,10 +308,202 @@ mod tests {
     }
 
     #[test]
+    fn test_create_cargo_project_with_dependencies() {
+        use depyler_core::cargo_toml_gen::Dependency;
+
+        let rust_code = r#"fn main() { println!("test"); }"#;
+        let temp = TempDir::new().unwrap();
+        let input = temp.path().join("test_deps.py");
+        fs::write(&input, "").unwrap();
+
+        let dependencies = vec![
+            Dependency {
+                crate_name: "serde".to_string(),
+                version: "1.0".to_string(),
+                features: vec!["derive".to_string()],
+            },
+            Dependency {
+                crate_name: "regex".to_string(),
+                version: "1.0".to_string(),
+                features: vec![],
+            },
+        ];
+
+        let (project_dir, _) = create_cargo_project(&input, rust_code, &dependencies).unwrap();
+
+        let cargo_content = fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
+        assert!(cargo_content.contains("serde"));
+        assert!(cargo_content.contains("regex"));
+    }
+
+    #[test]
+    fn test_create_cargo_project_cleanup_existing() {
+        // Test that existing src directory is cleaned up
+        let rust_code = r#"fn main() { println!("new"); }"#;
+        let temp = TempDir::new().unwrap();
+        let input = temp.path().join("cleanup_test.py");
+        fs::write(&input, "").unwrap();
+
+        let dependencies = vec![];
+
+        // First call creates project with main.rs
+        let (project_dir, _) = create_cargo_project(&input, rust_code, &dependencies).unwrap();
+        assert!(project_dir.join("src/main.rs").exists());
+
+        // Create a stale file that should be cleaned up
+        fs::write(project_dir.join("src/stale.rs"), "stale content").unwrap();
+
+        // Second call should clean up stale files
+        let lib_code = r#"pub fn greet() -> &'static str { "hello" }"#;
+        let (project_dir2, _) = create_cargo_project(&input, lib_code, &dependencies).unwrap();
+
+        assert_eq!(project_dir, project_dir2);
+        assert!(!project_dir.join("src/stale.rs").exists(), "Stale files should be cleaned");
+        assert!(!project_dir.join("src/main.rs").exists(), "main.rs should be removed for library");
+        assert!(project_dir.join("src/lib.rs").exists(), "lib.rs should exist");
+    }
+
+    #[test]
     fn test_compile_nonexistent_file() {
         let result =
             compile_python_to_binary(Path::new("/nonexistent/file.py"), None, Some("release"));
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("not found"));
+    }
+
+    #[test]
+    fn test_build_cargo_project_release() {
+        // Create a simple valid Rust project
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path().to_path_buf();
+        let src_dir = project_dir.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+
+        // Write a simple main.rs
+        fs::write(src_dir.join("main.rs"), r#"fn main() { println!("test"); }"#).unwrap();
+
+        // Write Cargo.toml
+        let cargo_toml = r#"
+[package]
+name = "test_build"
+version = "0.1.0"
+edition = "2021"
+"#;
+        fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        // Build should succeed
+        let result = build_cargo_project(&project_dir, "release");
+        assert!(result.is_ok());
+
+        // Binary should exist
+        assert!(project_dir.join("target/release/test_build").exists());
+    }
+
+    #[test]
+    fn test_build_cargo_project_debug() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path().to_path_buf();
+        let src_dir = project_dir.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+
+        fs::write(src_dir.join("main.rs"), r#"fn main() { }"#).unwrap();
+
+        let cargo_toml = r#"
+[package]
+name = "test_debug"
+version = "0.1.0"
+edition = "2021"
+"#;
+        fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        // Debug build
+        let result = build_cargo_project(&project_dir, "debug");
+        assert!(result.is_ok());
+
+        // Debug binary should exist
+        assert!(project_dir.join("target/debug/test_debug").exists());
+    }
+
+    #[test]
+    fn test_build_cargo_project_invalid_code() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path().to_path_buf();
+        let src_dir = project_dir.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+
+        // Invalid Rust code
+        fs::write(src_dir.join("main.rs"), "this is not valid rust").unwrap();
+
+        let cargo_toml = r#"
+[package]
+name = "test_invalid"
+version = "0.1.0"
+edition = "2021"
+"#;
+        fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        let result = build_cargo_project(&project_dir, "release");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Cargo build failed"));
+    }
+
+    #[test]
+    fn test_finalize_binary_default_output() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path().join("project");
+        let target_release = project_dir.join("target/release");
+        fs::create_dir_all(&target_release).unwrap();
+
+        // Create fake binary
+        fs::write(target_release.join("test_final"), "binary content").unwrap();
+
+        let input = temp.path().join("test_final.py");
+        fs::write(&input, "").unwrap();
+
+        let result = finalize_binary(&project_dir, &input, None, "release");
+        assert!(result.is_ok());
+
+        let output_path = result.unwrap();
+        assert!(output_path.exists());
+        assert!(output_path.to_string_lossy().contains("test_final"));
+    }
+
+    #[test]
+    fn test_finalize_binary_custom_output() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path().join("project");
+        let target_release = project_dir.join("target/release");
+        fs::create_dir_all(&target_release).unwrap();
+
+        // Create fake binary
+        fs::write(target_release.join("custom_name"), "binary content").unwrap();
+
+        let input = temp.path().join("custom_name.py");
+        fs::write(&input, "").unwrap();
+
+        let custom_output = temp.path().join("my_custom_binary");
+        let result = finalize_binary(&project_dir, &input, Some(&custom_output), "release");
+        assert!(result.is_ok());
+
+        let output_path = result.unwrap();
+        assert_eq!(output_path, custom_output);
+        assert!(output_path.exists());
+    }
+
+    #[test]
+    fn test_finalize_binary_debug_profile() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path().join("project");
+        let target_debug = project_dir.join("target/debug");
+        fs::create_dir_all(&target_debug).unwrap();
+
+        // Create fake binary in debug folder
+        fs::write(target_debug.join("debug_test"), "binary content").unwrap();
+
+        let input = temp.path().join("debug_test.py");
+        fs::write(&input, "").unwrap();
+
+        let result = finalize_binary(&project_dir, &input, None, "debug");
+        assert!(result.is_ok());
     }
 }

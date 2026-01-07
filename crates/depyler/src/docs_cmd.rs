@@ -228,6 +228,52 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
+    fn test_docs_args_default_values() {
+        // Verify default values are set correctly
+        let args = DocsArgs {
+            input: PathBuf::from("test.py"),
+            output: PathBuf::from("./docs"),
+            format: "markdown".to_string(),
+            include_source: true,
+            examples: true,
+            migration_notes: true,
+            performance_notes: false,
+            api_reference: true,
+            usage_guide: true,
+            index: true,
+        };
+
+        assert_eq!(args.format, "markdown");
+        assert!(args.include_source);
+        assert!(args.examples);
+        assert!(args.migration_notes);
+        assert!(!args.performance_notes);
+        assert!(args.api_reference);
+        assert!(args.usage_guide);
+        assert!(args.index);
+    }
+
+    #[test]
+    fn test_docs_args_debug() {
+        let args = DocsArgs {
+            input: PathBuf::from("test.py"),
+            output: PathBuf::from("./docs"),
+            format: "markdown".to_string(),
+            include_source: true,
+            examples: true,
+            migration_notes: true,
+            performance_notes: false,
+            api_reference: true,
+            usage_guide: true,
+            index: true,
+        };
+
+        let debug_str = format!("{:?}", args);
+        assert!(debug_str.contains("DocsArgs"));
+        assert!(debug_str.contains("test.py"));
+    }
+
+    #[test]
     fn test_docs_command_single_file() {
         let dir = tempdir().unwrap();
         let input_path = dir.path().join("test.py");
@@ -240,10 +286,10 @@ def add(x: int, y: int) -> int:
 
 class Calculator:
     """A simple calculator class."""
-    
+
     def __init__(self):
         self.result = 0
-    
+
     def compute(self, x: int, y: int) -> int:
         """Compute x + y."""
         return x + y
@@ -271,6 +317,107 @@ class Calculator:
         assert!(output_dir.join("test.md").exists());
         assert!(output_dir.join("test_api.md").exists());
         assert!(output_dir.join("test_usage.md").exists());
+    }
+
+    #[test]
+    fn test_docs_command_with_html_format() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("test.py");
+        let output_dir = dir.path().join("docs");
+
+        let python_code = "def test(): return 1";
+        fs::write(&input_path, python_code).unwrap();
+
+        let args = DocsArgs {
+            input: input_path,
+            output: output_dir.clone(),
+            format: "html".to_string(),
+            include_source: true,
+            examples: true,
+            migration_notes: true,
+            performance_notes: false,
+            api_reference: false,
+            usage_guide: false,
+            index: false,
+        };
+
+        // HTML format should work (even if just placeholder)
+        let result = handle_docs_command(args);
+        assert!(result.is_ok());
+        assert!(output_dir.join("test.md").exists());
+    }
+
+    #[test]
+    fn test_docs_command_with_performance_notes() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("test.py");
+        let output_dir = dir.path().join("docs");
+
+        let python_code = "def test(): return 1";
+        fs::write(&input_path, python_code).unwrap();
+
+        let args = DocsArgs {
+            input: input_path,
+            output: output_dir.clone(),
+            format: "markdown".to_string(),
+            include_source: true,
+            examples: true,
+            migration_notes: true,
+            performance_notes: true, // Enable performance notes
+            api_reference: false,
+            usage_guide: false,
+            index: false,
+        };
+
+        let result = handle_docs_command(args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_docs_command_minimal_options() {
+        let dir = tempdir().unwrap();
+        let input_path = dir.path().join("test.py");
+        let output_dir = dir.path().join("docs");
+
+        let python_code = "x = 1"; // No functions, just a variable
+        fs::write(&input_path, python_code).unwrap();
+
+        let args = DocsArgs {
+            input: input_path,
+            output: output_dir.clone(),
+            format: "markdown".to_string(),
+            include_source: false,
+            examples: false,
+            migration_notes: false,
+            performance_notes: false,
+            api_reference: false,
+            usage_guide: false,
+            index: false,
+        };
+
+        let result = handle_docs_command(args);
+        assert!(result.is_ok());
+        // Main doc should still be generated
+        assert!(output_dir.join("test.md").exists());
+    }
+
+    #[test]
+    fn test_docs_command_invalid_input() {
+        let args = DocsArgs {
+            input: PathBuf::from("/nonexistent/path/file.py"),
+            output: PathBuf::from("/tmp/docs"),
+            format: "markdown".to_string(),
+            include_source: true,
+            examples: true,
+            migration_notes: true,
+            performance_notes: false,
+            api_reference: true,
+            usage_guide: true,
+            index: false,
+        };
+
+        let result = handle_docs_command(args);
+        assert!(result.is_err());
     }
 
     #[test]
@@ -316,6 +463,33 @@ class Calculator:
     }
 
     #[test]
+    fn test_docs_command_empty_directory() {
+        let dir = tempdir().unwrap();
+        let input_dir = dir.path().join("empty");
+        let output_dir = dir.path().join("docs");
+
+        fs::create_dir_all(&input_dir).unwrap();
+
+        let args = DocsArgs {
+            input: input_dir,
+            output: output_dir.clone(),
+            format: "markdown".to_string(),
+            include_source: true,
+            examples: true,
+            migration_notes: true,
+            performance_notes: false,
+            api_reference: false,
+            usage_guide: false,
+            index: true,
+        };
+
+        let result = handle_docs_command(args);
+        assert!(result.is_ok());
+        // Index should still be created
+        assert!(output_dir.join("index.md").exists());
+    }
+
+    #[test]
     fn test_generate_index() {
         let dir = tempdir().unwrap();
         let output_dir = dir.path().join("docs");
@@ -351,5 +525,40 @@ class Calculator:
         assert!(index_content.contains("[Module Documentation]"));
         assert!(index_content.contains("[API Reference]"));
         assert!(index_content.contains("[Usage Guide]"));
+    }
+
+    #[test]
+    fn test_generate_index_empty_directory() {
+        let dir = tempdir().unwrap();
+        let output_dir = dir.path().join("docs");
+        fs::create_dir_all(&output_dir).unwrap();
+
+        let args = DocsArgs {
+            input: dir.path().to_path_buf(),
+            output: output_dir.clone(),
+            format: "markdown".to_string(),
+            include_source: true,
+            examples: true,
+            migration_notes: true,
+            performance_notes: false,
+            api_reference: true,
+            usage_guide: true,
+            index: true,
+        };
+
+        let result = generate_index(&args);
+        assert!(result.is_ok());
+
+        let index_content = fs::read_to_string(output_dir.join("index.md")).unwrap();
+        assert!(index_content.contains("# Documentation Index"));
+        // Should have header but no modules
+        assert!(!index_content.contains("[Module Documentation]"));
+    }
+
+    #[test]
+    fn test_convert_to_html_placeholder() {
+        let dir = tempdir().unwrap();
+        let result = convert_to_html(dir.path(), "test");
+        assert!(result.is_ok());
     }
 }

@@ -1,99 +1,21 @@
 //! # Depyler - Python to Rust Transpiler
 //!
-//! Depyler is a transpiler that converts Python code with type annotations into idiomatic Rust.
-//! It performs semantic verification and memory safety analysis to ensure correctness.
-//!
-//! ## Usage
-//!
-//! ### As a Library
-//!
-//! ```rust,no_run
-//! use depyler_core::DepylerPipeline;
-//!
-//! let pipeline = DepylerPipeline::new();
-//! let python_code = r#"
-//! def add(a: int, b: int) -> int:
-//!     return a + b
-//! "#;
-//!
-//! match pipeline.transpile(python_code) {
-//!     Ok(rust_code) => println!("{}", rust_code),
-//!     Err(e) => eprintln!("Transpilation failed: {}", e),
-//! }
-//! ```
-//!
-//! ### As a CLI Tool
-//!
-//! ```bash
-//! # Transpile a Python file
-//! depyler transpile example.py
-//!
-//! # Transpile with verification
-//! depyler transpile example.py --verify
-//!
-//! # Analyze migration complexity
-//! depyler analyze example.py
-//! ```
-//!
-//! ## Architecture
-//!
-//! Depyler uses a multi-stage pipeline:
-//!
-//! 1. **Parsing**: Python code → AST (via RustPython)
-//! 2. **HIR**: AST → High-level Intermediate Representation
-//! 3. **Type Inference**: Infer ownership and borrowing
-//! 4. **Code Generation**: HIR → Rust code (via syn/quote)
-//! 5. **Verification**: Property-based testing for equivalence
-//!
-//! ## Features
-//!
-//! - Type-directed transpilation using Python annotations
-//! - Memory safety analysis and ownership inference
-//! - Semantic verification via property testing
-//! - MCP server for AI assistant integration
-//! - Quality analysis (TDG scoring, complexity metrics)
+//! Minimal CLI focused on transpilation and single-shot compilation.
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use colored::Colorize;
 use depyler_analyzer::Analyzer;
-use depyler_core::{
-    lambda_codegen::{LambdaCodeGenerator, LambdaProject},
-    lambda_inference::{AnalysisReport, LambdaTypeInferencer},
-    lambda_optimizer::LambdaOptimizer,
-    lambda_testing::LambdaTestHarness,
-    DepylerPipeline,
-};
-use depyler_oracle::{
-    CITLFixer, CITLFixerConfig, HybridTranspiler, Oracle, OracleQueryLoop, QueryLoopConfig,
-};
-use depyler_quality::QualityAnalyzer;
-use indicatif::{ProgressBar, ProgressStyle};
+use depyler_core::DepylerPipeline;
 use std::fs;
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::time::{Duration, Instant};
+use std::path::PathBuf;
 
-pub mod agent;
-pub mod analyze_shim;
-pub mod annotation_analyzer;
-pub mod compilation_trainer;
-pub mod compilation_trainer_shim;
+// Essential modules only
 pub mod cli_shim;
 pub mod compile_cmd;
 pub mod converge;
-pub mod debug_cmd;
-pub mod docs_cmd;
-pub mod explain_shim;
-pub mod interactive;
-pub mod lambda_shim;
-pub mod lib_core;
-pub mod oracle_shim;
-pub mod profile_cmd;
-pub mod quality_shim;
 pub mod report_cmd;
 pub mod report_shim;
-pub mod training_monitor;
 pub mod transpile_shim;
 pub mod utol_cmd;
 
@@ -134,61 +56,9 @@ pub enum Commands {
         /// Generate source map
         #[arg(long)]
         source_map: bool,
-
-        /// Show transpilation trace (AST → HIR → Rust phases)
-        #[arg(long)]
-        trace: bool,
-
-        /// Explain transformation decisions in detail
-        #[arg(long)]
-        explain: bool,
-
-        /// Enable tamper-evident audit trail with hash chain (Issue #214)
-        /// Uses HashChainCollector for cryptographic decision verification
-        #[arg(long)]
-        audit_trail: bool,
-
-        /// Output file for decision traces (Issue #214)
-        /// When --trace is enabled, writes traces to this file
-        #[arg(long)]
-        trace_output: Option<PathBuf>,
-
-        /// Auto-fix compile errors using ML oracle (Issue #105)
-        #[arg(long)]
-        auto_fix: bool,
-
-        /// Run auto-fix asynchronously (DEPYLER-0640)
-        /// Output fast path immediately, run Oracle in background
-        #[arg(long, requires = "auto_fix")]
-        r#async: bool,
-
-        /// Show suggested fixes without applying (Issue #105)
-        #[arg(long)]
-        suggest_fixes: bool,
-
-        /// Minimum confidence threshold for auto-fix (0.0-1.0)
-        #[arg(long, default_value = "0.80")]
-        fix_confidence: f64,
-
-        // Oracle Query Loop flags (Issue #172)
-        /// Enable oracle-based error suggestions from .apr patterns
-        #[arg(long)]
-        oracle: bool,
-
-        /// Path to .apr pattern file (default: ~/.depyler/patterns.apr)
-        #[arg(long)]
-        patterns: Option<PathBuf>,
-
-        /// Maximum fix attempts per error (default: 3)
-        #[arg(long, default_value = "3")]
-        max_retries: usize,
-
-        /// Fallback to LLM for low-confidence matches
-        #[arg(long)]
-        llm_fallback: bool,
     },
 
-    /// Compile Python to standalone binary (DEPYLER-0380)
+    /// Compile Python to standalone binary
     Compile {
         /// Input Python file
         input: PathBuf,
@@ -218,235 +88,18 @@ pub enum Commands {
         input: PathBuf,
     },
 
-    /// Run quality gates and analysis
-    QualityCheck {
-        /// Input Python file or directory
-        input: PathBuf,
-
-        /// Enforce quality gates (exit with error on failure)
-        #[arg(long)]
-        enforce: bool,
-
-        /// Minimum PMAT TDG score
-        #[arg(long, default_value = "1.0")]
-        min_tdg: f64,
-
-        /// Maximum PMAT TDG score
-        #[arg(long, default_value = "2.0")]
-        max_tdg: f64,
-
-        /// Maximum complexity
-        #[arg(long, default_value = "20")]
-        max_complexity: u32,
-
-        /// Minimum coverage percentage
-        #[arg(long, default_value = "80")]
-        min_coverage: u32,
-    },
-
-    /// Interactive transpilation with annotation suggestions
-    Interactive {
-        /// Input Python file
-        input: PathBuf,
-
-        /// Enable annotation mode
-        #[arg(long)]
-        annotate: bool,
-    },
-
-    /// Inspect intermediate representations (AST/HIR)
-    Inspect {
-        /// Input Python file
-        input: PathBuf,
-
-        /// What to inspect: python-ast, hir, typed-hir
-        #[arg(short, long, default_value = "hir")]
-        repr: String,
-
-        /// Output format: json, debug, pretty
-        #[arg(short, long, default_value = "pretty")]
-        format: String,
-
-        /// Output to file instead of stdout
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
-    /// Lambda-specific commands for AWS Lambda development
-    #[command(subcommand)]
-    Lambda(LambdaCommands),
-
-    /// Start Language Server Protocol (LSP) server for IDE integration
-    Lsp {
-        /// Port to listen on
-        #[arg(short, long, default_value = "2087")]
-        port: u16,
-
-        /// Enable verbose logging
-        #[arg(short, long)]
-        verbose: bool,
-    },
-
-    /// Debug-related commands
-    Debug {
-        /// Show debugging tips
-        #[arg(long)]
-        tips: bool,
-
-        /// Generate debugger script
-        #[arg(long)]
-        gen_script: Option<PathBuf>,
-
-        /// Debugger type (gdb, lldb, rust-gdb)
-        #[arg(long, default_value = "gdb")]
-        debugger: String,
-
-        /// Python source file
-        #[arg(long)]
-        source: Option<PathBuf>,
-
-        /// Output script path
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-
-        /// Use spydecy interactive debugger
-        #[arg(long)]
-        spydecy: Option<PathBuf>,
-
-        /// Enable visualization mode (spydecy only)
-        #[arg(long)]
-        visualize: bool,
-    },
-
-    /// Generate documentation from Python code
-    Docs {
-        /// Input Python file or directory
-        input: PathBuf,
-
-        /// Output directory for documentation
-        #[arg(short, long, default_value = "./docs")]
-        output: PathBuf,
-
-        /// Documentation format (markdown, html)
-        #[arg(short, long, default_value = "markdown")]
-        format: String,
-
-        /// Include Python source in documentation
-        #[arg(long, default_value = "true")]
-        include_source: bool,
-
-        /// Generate usage examples
-        #[arg(long, default_value = "true")]
-        examples: bool,
-
-        /// Include migration notes
-        #[arg(long, default_value = "true")]
-        migration_notes: bool,
-
-        /// Include performance notes
-        #[arg(long)]
-        performance_notes: bool,
-
-        /// Generate API reference
-        #[arg(long, default_value = "true")]
-        api_reference: bool,
-
-        /// Generate usage guide
-        #[arg(long, default_value = "true")]
-        usage_guide: bool,
-
-        /// Generate index file
-        #[arg(long, default_value = "true")]
-        index: bool,
-    },
-
-    /// Profile Python code for performance analysis
-    Profile {
-        /// Input Python file
-        file: PathBuf,
-
-        /// Enable instruction counting
-        #[arg(long, default_value = "true")]
-        count_instructions: bool,
-
-        /// Enable memory allocation tracking
-        #[arg(long, default_value = "true")]
-        track_allocations: bool,
-
-        /// Enable hot path detection
-        #[arg(long, default_value = "true")]
-        detect_hot_paths: bool,
-
-        /// Minimum samples for hot path detection
-        #[arg(long, default_value = "100")]
-        hot_path_threshold: usize,
-
-        /// Generate flame graph data
-        #[arg(long)]
-        flamegraph: bool,
-
-        /// Include performance hints
-        #[arg(long, default_value = "true")]
-        hints: bool,
-
-        /// Output flamegraph data to file
-        #[arg(long)]
-        flamegraph_output: Option<PathBuf>,
-
-        /// Output perf annotations to file
-        #[arg(long)]
-        perf_output: Option<PathBuf>,
-    },
-
-    /// Background agent mode with MCP integration
-    #[command(subcommand)]
-    Agent(AgentCommands),
-
-    /// Oracle ML model commands (optimization, training)
-    #[command(subcommand)]
-    Oracle(OracleCommands),
-
-    /// Compilation cache commands (DEPYLER-CACHE-001)
-    #[command(subcommand)]
-    Cache(CacheCommands),
-
-    /// Explain transpiler decisions and correlate with compilation errors (Issue #214)
-    ///
-    /// Parses Rust compilation errors and correlates them with transpiler decision
-    /// traces to explain why the transpiler made specific choices that led to errors.
-    Explain {
-        /// Transpiled Rust file to analyze
-        input: PathBuf,
-
-        /// Path to decision trace file (.trace.json) from --trace-output
-        #[arg(long)]
-        trace: Option<PathBuf>,
-
-        /// Specific error code to explain (e.g., E0277)
-        #[arg(long)]
-        error_code: Option<String>,
-
-        /// Show all decisions, not just error-related ones
-        #[arg(long)]
-        verbose: bool,
-
-        /// Output format (terminal, json)
-        #[arg(long, default_value = "terminal")]
-        format: String,
-    },
-
-    /// Automated convergence loop to achieve 100% compilation rate (GH-158)
+    /// Automated convergence loop to achieve target compilation rate
     Converge {
         /// Directory containing Python examples
-        #[arg(short, long, default_value = "./examples")]
+        #[arg(long)]
         input_dir: PathBuf,
 
         /// Target compilation rate (0-100)
-        #[arg(short, long, default_value = "100")]
+        #[arg(long, default_value = "100")]
         target_rate: f64,
 
         /// Maximum iterations before stopping
-        #[arg(short, long, default_value = "50")]
+        #[arg(long, default_value = "50")]
         max_iterations: usize,
 
         /// Automatically apply transpiler fixes
@@ -457,563 +110,141 @@ pub enum Commands {
         #[arg(long)]
         dry_run: bool,
 
-        /// Minimum confidence for auto-fix (0.0-1.0)
+        /// Minimum confidence for auto-fix
         #[arg(long, default_value = "0.8")]
         fix_confidence: f64,
 
-        /// Directory to save/resume checkpoints
+        /// Directory to save/resume state
         #[arg(long)]
-        checkpoint_dir: Option<PathBuf>,
+        checkpoint: Option<PathBuf>,
 
         /// Number of parallel compilation jobs
-        #[arg(short, long, default_value = "4")]
-        parallel_jobs: usize,
+        #[arg(long, default_value = "4")]
+        jobs: usize,
 
-        /// Display mode: rich (TUI), minimal (CI), json (automation), silent
+        /// Display mode (rich, minimal, json, silent)
         #[arg(long, default_value = "rich")]
         display: String,
 
-        /// Enable Oracle ML-based error classification (DEPYLER-CONVERGE-FULL)
+        /// Enable Oracle ML-based error classification
         #[arg(long)]
         oracle: bool,
 
-        /// Enable explainability traces for transpiler decisions (DEPYLER-CONVERGE-FULL)
+        /// Enable explainability traces
         #[arg(long)]
         explain: bool,
 
-        /// Enable O(1) compilation cache for unchanged files (DEPYLER-CONVERGE-FULL)
+        /// Enable O(1) compilation cache
         #[arg(long, default_value = "true")]
         cache: bool,
     },
 
-    /// Extract doctests from Python source files (GH-173, GH-174)
-    ///
-    /// Parses Python docstrings to extract `>>>` blocks for CITL training.
-    /// Optionally extracts pytest assertions from test_*.py files.
-    /// Outputs structured JSON format suitable for doctest transpilation.
-    ExtractDoctests {
-        /// Input directory containing Python files
-        input: PathBuf,
-
-        /// Output JSON file for extracted doctests
-        #[arg(short, long)]
-        output: PathBuf,
-
-        /// Module name prefix for output
-        #[arg(long, default_value = "")]
-        module_prefix: String,
-
-        /// Include doctests from class methods
-        #[arg(long, default_value = "true")]
-        include_classes: bool,
-
-        /// Also extract simple assertions from test_*.py files (GH-174)
-        #[arg(long)]
-        include_pytest: bool,
-    },
-
     /// Generate deterministic corpus analysis report
-    ///
-    /// Scientific analysis of transpilation quality using Toyota Way methodology.
-    /// Runs a 5-phase pipeline: Clean → Transpile → Compile → Analyze → Report.
-    /// Produces actionable error taxonomy with prioritized fix recommendations.
-    ///
-    /// DEPYLER-BISECT-001: Supports granular filtering and bisection.
     Report {
-        /// Path to corpus directory (defaults to reprorusted-python-cli)
-        #[arg(short, long)]
-        corpus: Option<PathBuf>,
+        /// Directory containing Python examples
+        #[arg(long)]
+        input_dir: PathBuf,
 
-        /// Output format (terminal, json, markdown, rich)
-        #[arg(short, long, default_value = "terminal")]
+        /// Output format (text, json, markdown)
+        #[arg(short, long, default_value = "text")]
         format: String,
 
-        /// Output directory for reports
+        /// Output file (defaults to stdout)
         #[arg(short, long)]
         output: Option<PathBuf>,
 
-        /// Skip artifact cleaning phase (5S)
+        /// Filter by error code (e.g., E0599)
         #[arg(long)]
-        skip_clean: bool,
+        filter_error: Option<String>,
 
-        /// Target single-shot compilation rate (0.0-1.0)
-        #[arg(long, default_value = "0.8")]
-        target_rate: f64,
-
-        // DEPYLER-BISECT-001: Granular filtering options
-        /// Filter files by regex/glob pattern (e.g., "argparse", "dict_*")
+        /// Filter by file pattern (glob)
         #[arg(long)]
-        filter: Option<String>,
+        filter_file: Option<String>,
 
-        /// Filter by semantic tag (Dict, List, argparse, async, class, etc.)
+        /// Only show failing files
         #[arg(long)]
-        tag: Option<String>,
+        failures_only: bool,
 
-        /// Limit number of files to process
+        /// Show detailed error messages
         #[arg(long)]
-        limit: Option<usize>,
-
-        /// Random sample of N files (for quick checks)
-        #[arg(long)]
-        sample: Option<usize>,
-
-        /// Enable bisection mode to find minimal failing set
-        #[arg(long)]
-        bisect: bool,
-
-        /// Stop on first failure
-        #[arg(long)]
-        fail_fast: bool,
+        verbose: bool,
     },
 
-    /// UTOL: Unified Training Oracle Loop (Toyota Way)
-    ///
-    /// Automated self-correcting compilation feedback system with rich visual feedback.
-    /// Replaces manual "Apex Hunt" prompt-driven cycles with deterministic convergence.
-    ///
-    /// Principles: Jidoka (自働化), Kaizen (改善), Andon (行灯), Heijunka (平準化)
+    /// UTOL: Unified Training Oracle Loop
     Utol {
-        /// Path to corpus directory
-        #[arg(short, long)]
+        /// Directory containing Python examples
+        #[arg(long)]
         corpus: Option<PathBuf>,
 
-        /// Target compilation success rate (0.0-1.0)
-        #[arg(short, long, default_value = "0.80")]
+        /// Target compilation rate (0.0-1.0)
+        #[arg(long, default_value = "0.80")]
         target_rate: f64,
 
-        /// Maximum iterations before stopping
-        #[arg(short, long, default_value = "50")]
+        /// Maximum iterations
+        #[arg(long, default_value = "50")]
         max_iterations: usize,
 
-        /// Patience: stop if no improvement for N iterations
+        /// Patience before early stopping
         #[arg(long, default_value = "5")]
         patience: usize,
 
-        /// Display mode: rich (TUI), minimal (CI), json (automation), silent
+        /// Display mode (rich, minimal, json, silent)
         #[arg(long, default_value = "rich")]
         display: String,
 
-        /// Output results to JSON file
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-
-        /// Path to YAML configuration file
-        #[arg(long)]
-        config: Option<PathBuf>,
-
-        /// Show status and exit (don't run loop)
+        /// Show corpus status only
         #[arg(long)]
         status: bool,
-
-        /// Watch mode: continuously monitor corpus and re-run on changes
-        #[arg(short, long)]
-        watch: bool,
-
-        /// Watch debounce interval in milliseconds
-        #[arg(long, default_value = "500")]
-        watch_debounce: u64,
     },
+
+    /// Compilation cache commands
+    #[command(subcommand)]
+    Cache(CacheCommands),
 }
 
-#[derive(Subcommand)]
-pub enum AgentCommands {
-    /// Start the background agent daemon
-    Start {
-        /// MCP server port
-        #[arg(long, default_value = "3000")]
-        port: u16,
-
-        /// Enable debug mode
-        #[arg(long)]
-        debug: bool,
-
-        /// Configuration file path
-        #[arg(long)]
-        config: Option<PathBuf>,
-
-        /// Run in foreground (don't daemonize)
-        #[arg(long)]
-        foreground: bool,
-    },
-
-    /// Stop the background agent daemon
-    Stop,
-
-    /// Check agent daemon status
-    Status,
-
-    /// Restart the background agent daemon
-    Restart {
-        /// MCP server port
-        #[arg(long, default_value = "3000")]
-        port: u16,
-
-        /// Enable debug mode
-        #[arg(long)]
-        debug: bool,
-
-        /// Configuration file path
-        #[arg(long)]
-        config: Option<PathBuf>,
-    },
-
-    /// Add project to monitoring
-    AddProject {
-        /// Project path to monitor
-        path: PathBuf,
-
-        /// Project identifier
-        #[arg(long)]
-        id: Option<String>,
-
-        /// File patterns to watch
-        #[arg(long, default_value = "**/*.py")]
-        patterns: Vec<String>,
-    },
-
-    /// Remove project from monitoring
-    RemoveProject {
-        /// Project identifier or path
-        project: String,
-    },
-
-    /// List monitored projects
-    ListProjects,
-
-    /// View agent logs
-    Logs {
-        /// Number of lines to show
-        #[arg(short, long, default_value = "50")]
-        lines: usize,
-
-        /// Follow log output
-        #[arg(short, long)]
-        follow: bool,
-    },
-}
-
-#[derive(Subcommand)]
-pub enum OracleCommands {
-    /// Optimize generation parameters using Differential Evolution
-    Optimize {
-        /// Number of stdlib functions to use in evaluation
-        #[arg(long, default_value = "5")]
-        stdlib_count: usize,
-
-        /// Samples per evaluation
-        #[arg(long, default_value = "50")]
-        eval_samples: usize,
-
-        /// Maximum evaluations
-        #[arg(long, default_value = "100")]
-        max_evaluations: usize,
-
-        /// Enable curriculum learning
-        #[arg(long)]
-        curriculum: bool,
-
-        /// Output path for optimized parameters (default: ~/.depyler/oracle_params.json)
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-    },
-
-    /// Show current optimized parameters
-    Show,
-
-    /// Train Oracle model from corpus
-    Train {
-        /// Minimum samples for training (default: 100)
-        #[arg(long, default_value = "100")]
-        min_samples: usize,
-
-        /// Enable synthetic data augmentation
-        #[arg(long)]
-        synthetic: bool,
-    },
-
-    /// DEPYLER-0585: Continuous improvement loop until 100% compilation
-    ///
-    /// Runs transpile→compile→train→fix loop until target compilation rate
-    /// or maximum iterations reached. Designed for enterprise use (Netflix, AWS, etc).
-    Improve {
-        /// Directory containing Python files to transpile
-        #[arg(short, long)]
-        input_dir: PathBuf,
-
-        /// Target compilation rate (0.0-1.0, default: 1.0 for 100%)
-        #[arg(long, default_value = "1.0")]
-        target_rate: f64,
-
-        /// Maximum iterations (default: 50)
-        #[arg(long, default_value = "50")]
-        max_iterations: usize,
-
-        /// Apply auto-fixes automatically
-        #[arg(long)]
-        auto_apply: bool,
-
-        /// Minimum confidence for auto-fix (default: 0.85)
-        #[arg(long, default_value = "0.85")]
-        min_confidence: f64,
-
-        /// Output directory for reports
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-
-        /// Export error corpus for external training
-        #[arg(long)]
-        export_corpus: Option<PathBuf>,
-
-        /// Continue from previous run state
-        #[arg(long)]
-        resume: bool,
-
-        /// Verbose progress output
-        #[arg(short, long)]
-        verbose: bool,
-
-        /// Enable real-time monitoring (writes metrics to monitor.json)
-        #[arg(long)]
-        monitor: bool,
-
-        // DEPYLER-0598: Diagnostic verbosity tier configuration
-        /// Diagnostic verbosity tier (1-4):
-        /// 1=baseline JSON+clippy, 2=+verbose, 3=+RUSTC_LOG traces, 4=+full debug
-        #[arg(long, default_value = "1")]
-        verbosity_tier: u8,
-
-        /// Clippy lint level (standard, pedantic, nursery, full)
-        #[arg(long, default_value = "nursery")]
-        clippy_level: String,
-
-        /// Enable adaptive verbosity escalation based on error types
-        #[arg(long)]
-        adaptive_verbosity: bool,
-
-        /// Sample reweight factor for curriculum learning (per Feldman 2020).
-        /// Values >1.0 emphasize rare error classes. Default: 1.0 (no reweighting)
-        #[arg(long, default_value = "1.0")]
-        reweight: f32,
-    },
-
-    /// Export CITL corpus for OIP training (GitHub #156)
-    ///
-    /// Exports the compilation training corpus in Parquet or JSONL format
-    /// for consumption by the Organizational Intelligence Plugin (OIP).
-    ExportOip {
-        /// Input directory containing Python files (uses cached corpus if available)
-        #[arg(short, long)]
-        input_dir: PathBuf,
-
-        /// Output file path (.parquet or .jsonl based on --format)
-        #[arg(short, long)]
-        output: PathBuf,
-
-        /// Export format: parquet (recommended) or jsonl
-        #[arg(long, default_value = "parquet")]
-        format: String,
-
-        /// Minimum confidence for including samples (0.0-1.0)
-        #[arg(long, default_value = "0.80")]
-        min_confidence: f64,
-
-        /// Include Clippy lint mappings in export
-        #[arg(long)]
-        include_clippy: bool,
-
-        /// Apply sample reweighting using Feldman long-tail weighting
-        #[arg(long, default_value = "1.0")]
-        reweight: f32,
-    },
-
-    /// Classify a Rust compiler error and suggest fixes
-    Classify {
-        /// Error message to classify (e.g., "error[E0308]: mismatched types")
-        error: String,
-
-        /// Output format: text (default) or json
-        #[arg(short, long, default_value = "text")]
-        format: String,
-    },
-}
-
-/// Cache commands for O(1) incremental compilation (DEPYLER-CACHE-001)
 #[derive(Subcommand)]
 pub enum CacheCommands {
     /// Show cache statistics
     Stats {
-        /// Cache directory path (default: ~/.depyler/cache)
-        #[arg(short, long)]
-        cache_dir: Option<PathBuf>,
-
         /// Output format (text, json)
         #[arg(short, long, default_value = "text")]
         format: String,
     },
 
-    /// Run garbage collection to reclaim space
+    /// Run garbage collection
     Gc {
-        /// Cache directory path (default: ~/.depyler/cache)
-        #[arg(short, long)]
-        cache_dir: Option<PathBuf>,
+        /// Maximum age in days for entries
+        #[arg(long, default_value = "30")]
+        max_age_days: u32,
 
-        /// Maximum cache size in MB (default: 1024)
-        #[arg(long, default_value = "1024")]
-        max_size_mb: u64,
-
-        /// Maximum entry age in hours (default: 168 = 1 week)
-        #[arg(long, default_value = "168")]
-        max_age_hours: u64,
-
-        /// Dry run - show what would be deleted without deleting
+        /// Dry run (show what would be deleted)
         #[arg(long)]
         dry_run: bool,
     },
 
     /// Clear the entire cache
     Clear {
-        /// Cache directory path (default: ~/.depyler/cache)
-        #[arg(short, long)]
-        cache_dir: Option<PathBuf>,
-
-        /// Skip confirmation prompt
-        #[arg(short, long)]
+        /// Skip confirmation
+        #[arg(long)]
         force: bool,
     },
 
     /// Warm cache by pre-transpiling files
     Warm {
-        /// Directory containing Python files to pre-transpile
-        #[arg(short, long)]
+        /// Directory containing Python files
+        #[arg(long)]
         input_dir: PathBuf,
 
-        /// Cache directory path (default: ~/.depyler/cache)
-        #[arg(short, long)]
-        cache_dir: Option<PathBuf>,
-
-        /// Number of parallel jobs (default: 4)
-        #[arg(short, long, default_value = "4")]
+        /// Number of parallel jobs
+        #[arg(long, default_value = "4")]
         jobs: usize,
     },
 }
 
-#[derive(Subcommand)]
-pub enum LambdaCommands {
-    /// Analyze Python Lambda function and infer event types
-    Analyze {
-        /// Input Python Lambda file
-        input: PathBuf,
+// ============================================================================
+// Core Commands
+// ============================================================================
 
-        /// Output format (json, text)
-        #[arg(short, long, default_value = "text")]
-        format: String,
-
-        /// Confidence threshold for event type inference
-        #[arg(long, default_value = "0.8")]
-        confidence: f64,
-    },
-
-    /// Convert Python Lambda to optimized Rust Lambda
-    Convert {
-        /// Input Python Lambda file
-        input: PathBuf,
-
-        /// Output directory for Rust Lambda project
-        #[arg(short, long)]
-        output: Option<PathBuf>,
-
-        /// Enable aggressive optimizations
-        #[arg(long)]
-        optimize: bool,
-
-        /// Generate test suite
-        #[arg(long)]
-        tests: bool,
-
-        /// Generate deployment templates (SAM/CDK)
-        #[arg(long)]
-        deploy: bool,
-    },
-
-    /// Test Lambda function locally
-    Test {
-        /// Lambda project directory
-        input: PathBuf,
-
-        /// Run specific test event
-        #[arg(short, long)]
-        event: Option<String>,
-
-        /// Enable performance benchmarks
-        #[arg(long)]
-        benchmark: bool,
-
-        /// Generate load test
-        #[arg(long)]
-        load_test: bool,
-    },
-
-    /// Build Lambda function with optimizations
-    Build {
-        /// Lambda project directory
-        input: PathBuf,
-
-        /// Target architecture (arm64, x86_64)
-        #[arg(long, default_value = "arm64")]
-        arch: String,
-
-        /// Enable size optimization
-        #[arg(long)]
-        optimize_size: bool,
-
-        /// Enable cold start optimization
-        #[arg(long)]
-        optimize_cold_start: bool,
-    },
-
-    /// Deploy Lambda function to AWS
-    Deploy {
-        /// Lambda project directory
-        input: PathBuf,
-
-        /// AWS region
-        #[arg(long)]
-        region: Option<String>,
-
-        /// Lambda function name
-        #[arg(long)]
-        function_name: Option<String>,
-
-        /// IAM role ARN
-        #[arg(long)]
-        role: Option<String>,
-
-        /// Dry run (don't actually deploy)
-        #[arg(long)]
-        dry_run: bool,
-    },
-}
-
-/// Handle compile command (DEPYLER-0380)
-/// Complexity: 3 (within ≤10 target)
-pub fn compile_command(
-    input: PathBuf,
-    output: Option<PathBuf>,
-    profile: String,
-    verbose: bool,
-) -> Result<()> {
-    if verbose {
-        println!("🔨 Compiling {} to native binary...", input.display());
-    }
-
-    let binary_path =
-        compile_cmd::compile_python_to_binary(&input, output.as_deref(), Some(&profile))?;
-
-    println!("✅ Binary created: {}", binary_path.display());
-    Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
 pub fn transpile_command(
     input: PathBuf,
     output: Option<PathBuf>,
@@ -1021,404 +252,61 @@ pub fn transpile_command(
     gen_tests: bool,
     debug: bool,
     source_map: bool,
-    trace: bool,
-    explain: bool,
-    audit_trail: bool,
-    trace_output: Option<PathBuf>,
-    auto_fix: bool,
-    async_mode: bool,
-    suggest_fixes: bool,
-    fix_confidence: f64,
-    oracle: bool,
-    patterns: Option<PathBuf>,
-    max_retries: usize,
-    llm_fallback: bool,
 ) -> Result<()> {
-    let start = Instant::now();
-
-    // Read input file
     let python_source = fs::read_to_string(&input)?;
-    let source_size = python_source.len();
+    let pipeline = DepylerPipeline::new();
 
-    // Create progress bar
-    let pb = ProgressBar::new(4);
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{bar:40.cyan/blue}] {msg}")
-            .unwrap()
-            .progress_chars("#>-"),
-    );
+    let rust_code = pipeline.transpile(&python_source)?;
 
-    // Initialize pipeline
-    pb.set_message("Initializing pipeline...");
-    let mut pipeline = DepylerPipeline::new();
-    if verify {
-        pipeline = pipeline.with_verification();
-    }
-    if debug || source_map {
-        let debug_config = depyler_core::debug::DebugConfig {
-            debug_level: if debug {
-                depyler_core::debug::DebugLevel::Full
-            } else {
-                depyler_core::debug::DebugLevel::Basic
-            },
-            generate_source_map: source_map,
-            preserve_symbols: true,
-            debug_prints: debug,
-            breakpoints: debug,
-        };
-        pipeline = pipeline.with_debug(debug_config);
-    }
-    pb.inc(1);
-
-    // Trace: Pipeline initialization
-    if trace {
-        eprintln!("\n=== TRANSPILATION TRACE ===");
-        eprintln!("Phase 1: Pipeline Initialization");
-        eprintln!(
-            "  - Verification: {}",
-            if verify { "enabled" } else { "disabled" }
-        );
-        eprintln!(
-            "  - Debug mode: {}",
-            if debug { "enabled" } else { "disabled" }
-        );
-        eprintln!(
-            "  - Source map: {}",
-            if source_map { "enabled" } else { "disabled" }
-        );
-        eprintln!(
-            "  - Audit trail: {}",
-            if audit_trail { "enabled (HashChainCollector)" } else { "disabled" }
-        );
-        if let Some(ref path) = trace_output {
-            eprintln!("  - Trace output: {}", path.display());
-        }
-        eprintln!();
-    }
-
-    // Issue #214: Audit trail and trace output placeholder
-    // TODO: Wire up HashChainCollector for cryptographic audit trails
-    let _ = audit_trail;
-    let _ = &trace_output;
-    // Parse Python
-    pb.set_message("Parsing Python source...");
-    let parse_start = Instant::now();
-
-    // Trace: AST parsing
-    if trace {
-        eprintln!("Phase 2: AST Parsing");
-        eprintln!("  - Input size: {} bytes", source_size);
-        eprintln!("  - Parsing Python source...");
-    }
-
-    // DEPYLER-0384: Use transpile_with_dependencies to get both code and dependencies
-    let (rust_code, dependencies) = pipeline.transpile_with_dependencies(&python_source)?;
-    let parse_time = parse_start.elapsed();
-
-    // Trace: Transpilation complete
-    if trace {
-        eprintln!("  - Parse time: {:.2}ms", parse_time.as_millis());
-        eprintln!("\nPhase 3: Code Generation");
-        eprintln!("  - Generated Rust code: {} bytes", rust_code.len());
-        eprintln!("  - Dependencies detected: {}", dependencies.len());
-        eprintln!("  - Generation complete");
-        eprintln!();
-    }
-
-    // Explain: Transformation decisions
-    if explain {
-        eprintln!("\n=== TRANSPILATION EXPLANATION ===");
-        eprintln!("Transformation Decisions:");
-        eprintln!("  1. Python AST -> HIR: Converted Python constructs to type-safe HIR");
-        eprintln!("  2. HIR -> Rust: Generated idiomatic Rust code with:");
-        eprintln!("     - Type inference for local variables");
-        eprintln!("     - Ownership and borrowing semantics");
-        eprintln!("     - Memory safety guarantees");
-        eprintln!("  3. Module mapping: Applied Python->Rust standard library mappings");
-        eprintln!();
-    }
-
-    pb.inc(1);
-
-    // Analyze if requested
-    if verify {
-        pb.set_message("Analyzing code...");
-        // Analysis would happen here
-        pb.inc(1);
-    }
-
-    // Oracle Query Loop initialization (Issue #172)
-    let mut query_loop = if oracle {
-        let pattern_path = patterns.unwrap_or_else(OracleQueryLoop::default_pattern_path);
-        let config = QueryLoopConfig {
-            threshold: fix_confidence,
-            max_retries,
-            llm_fallback,
-            ..QueryLoopConfig::default()
-        };
-        let mut loop_instance = OracleQueryLoop::with_config(config);
-
-        if pattern_path.exists() {
-            if let Err(e) = loop_instance.load(&pattern_path) {
-                eprintln!("⚠ Warning: Failed to load oracle patterns: {}", e);
-            } else if trace {
-                eprintln!("\n🔮 Oracle Query Loop enabled");
-                eprintln!("  - Pattern file: {}", pattern_path.display());
-                eprintln!("  - Threshold: {:.0}%", fix_confidence * 100.0);
-                eprintln!("  - Max retries: {}", max_retries);
-                eprintln!("  - LLM fallback: {}", if llm_fallback { "enabled" } else { "disabled" });
-            }
-        } else if trace {
-            eprintln!("\n⚠ Oracle enabled but no pattern file found at: {}", pattern_path.display());
-            eprintln!("  - Run 'depyler oracle train' to create patterns");
-        }
-        Some(loop_instance)
-    } else {
-        None
-    };
-
-    // Suppress unused variable warning until Phase 2 integration
-    let _ = &mut query_loop;
-
-    // DEPYLER-0640: Async mode for auto-fix
-    // When async_mode is enabled, output fast path immediately and run Oracle in background
-    let rust_code = if async_mode && auto_fix {
-        pb.set_message("Fast path (async Oracle pending)...");
-        println!("\n⚡ Async mode: Fast path output, Oracle running in background");
-
-        // Spawn background thread for ML Oracle analysis
-        let python_source_clone = python_source.clone();
-        let output_path_clone = output.clone().unwrap_or_else(|| {
-            let mut path = input.clone();
-            path.set_extension("rs");
-            path
-        });
-        let fix_confidence_clone = fix_confidence;
-
-        std::thread::spawn(move || {
-            let autofix_path = {
-                let mut p = output_path_clone.clone();
-                let stem = p.file_stem().unwrap_or_default().to_string_lossy();
-                p.set_file_name(format!("{}.autofix.rs", stem));
-                p
-            };
-
-            let mut hybrid = HybridTranspiler::new();
-            match hybrid.transpile(&python_source_clone) {
-                Ok(result) => {
-                    if result.confidence >= fix_confidence_clone as f32 {
-                        if let Err(e) = std::fs::write(&autofix_path, &result.rust_code) {
-                            eprintln!("⚠ Async auto-fix write failed: {}", e);
-                        } else {
-                            eprintln!(
-                                "\n✅ Async auto-fix complete: {} ({:.1}% confidence)",
-                                autofix_path.display(),
-                                result.confidence * 100.0
-                            );
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("⚠ Async auto-fix failed: {}", e);
-                }
-            }
-        });
-
-        rust_code // Return fast path immediately
-    } else if auto_fix || suggest_fixes {
-        // ML-powered auto-fix / suggest-fixes (Issue #105) - Synchronous mode
-        pb.set_message("Running ML oracle...");
-
-        // Try hybrid transpiler first (uses ML when AST fails)
-        let mut hybrid = HybridTranspiler::new();
-        match hybrid.transpile(&python_source) {
-            Ok(result) => {
-                if trace {
-                    eprintln!("\n=== ML Oracle Analysis ===");
-                    eprintln!("  Strategy: {:?}", result.strategy);
-                    eprintln!("  Confidence: {:.2}%", result.confidence * 100.0);
-                }
-
-                if result.confidence >= fix_confidence as f32 {
-                    if suggest_fixes {
-                        println!("\n🔮 ML Oracle Suggestions:");
-                        println!(
-                            "  ✓ High confidence ({:.2}%) - auto-fix would apply",
-                            result.confidence * 100.0
-                        );
-                    }
-                    if auto_fix {
-                        println!(
-                            "\n🔧 Auto-fix applied with {:.2}% confidence",
-                            result.confidence * 100.0
-                        );
-                    }
-                    result.rust_code
-                } else {
-                    if suggest_fixes {
-                        println!("\n🔮 ML Oracle Suggestions:");
-                        println!(
-                            "  ⚠ Low confidence ({:.2}%) - manual review recommended",
-                            result.confidence * 100.0
-                        );
-
-                        // Try to get fix suggestions from ngram predictor
-                        let oracle = Oracle::load_or_train().ok();
-                        if let Some(oracle) = oracle {
-                            let message = format!("transpilation: {:?}", result.strategy);
-                            if let Ok(classification) = oracle.classify_message(&message) {
-                                println!("  Category: {:?}", classification.category);
-                                if let Some(fix) = &classification.suggested_fix {
-                                    println!("  Suggested fix: {}", fix);
-                                }
-                            }
-                        }
-                    }
-                    rust_code // Use original if confidence too low
-                }
-            }
-            Err(e) => {
-                if suggest_fixes {
-                    println!("\n🔮 ML Oracle Suggestions:");
-                    println!("  ✗ Transpilation error: {}", e);
-                    println!("  → Check for unsupported Python patterns");
-                }
-                rust_code // Fallback to original
-            }
-        }
-    } else {
-        rust_code
-    };
-
-    // Generate output
-    pb.set_message("Writing output...");
-    let output_path = output.unwrap_or_else(|| {
-        let mut path = input.clone();
-        path.set_extension("rs");
-        path
-    });
-
+    let output_path = output.unwrap_or_else(|| input.with_extension("rs"));
     fs::write(&output_path, &rust_code)?;
 
-    // DEPYLER-0384: Generate and write Cargo.toml if dependencies exist
-    if !dependencies.is_empty() {
-        // Extract package name from output file stem (e.g., "example_stdlib" from "example_stdlib.rs")
-        let package_name = output_path
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("transpiled_package");
-
-        // Extract source file name for [[bin]] path (DEPYLER-0392)
-        let source_file_name = output_path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("main.rs");
-
-        // DEPYLER-0629: Use auto-select function that chooses [lib] for test files
-        let cargo_toml_content = depyler_core::cargo_toml_gen::generate_cargo_toml_auto(
-            package_name,
-            source_file_name,
-            &dependencies,
-        );
-
-        // Write Cargo.toml to the same directory as the output file
-        let mut cargo_toml_path = output_path.clone();
-        cargo_toml_path.set_file_name("Cargo.toml");
-
-        fs::write(&cargo_toml_path, &cargo_toml_content)?;
-
-        if trace {
-            eprintln!("  - Generated Cargo.toml: {}", cargo_toml_path.display());
-        }
-    }
-
-    pb.inc(1);
-
-    pb.finish_and_clear();
-
-    // Generate tests if requested
-    if gen_tests {
-        let test_path = output_path.with_extension("test.rs");
-        // Test generation would happen here
-        println!("✅ Generated tests: {}", test_path.display());
-    }
-
-    // Print summary
-    let total_time = start.elapsed();
-    let throughput = (source_size as f64 / 1024.0) / parse_time.as_secs_f64();
-
-    println!("📄 Source: {} ({} bytes)", input.display(), source_size);
-    println!(
-        "📝 Output: {} ({} bytes)",
-        output_path.display(),
-        rust_code.len()
-    );
-
-    // DEPYLER-0384: Show Cargo.toml generation
-    if !dependencies.is_empty() {
-        let mut cargo_toml_path = output_path.clone();
-        cargo_toml_path.set_file_name("Cargo.toml");
-        println!(
-            "📦 Cargo.toml: {} ({} dependencies)",
-            cargo_toml_path.display(),
-            dependencies.len()
-        );
-    }
-
-    println!("⏱️  Parse time: {:.2}ms", parse_time.as_millis());
-    println!("📊 Throughput: {throughput:.1} KB/s");
-    println!("⏱️  Total time: {:.2}ms", total_time.as_millis());
+    println!("{} {}", "✓".green(), output_path.display());
 
     if verify {
-        println!("✓ Properties Verified");
+        println!("Verification not yet implemented");
+    }
+
+    if gen_tests {
+        println!("Test generation not yet implemented");
+    }
+
+    if debug {
+        println!("Debug mode enabled");
+    }
+
+    if source_map {
+        println!("Source map generation not yet implemented");
     }
 
     Ok(())
 }
 
-pub fn analyze_command(input: PathBuf, format: String) -> Result<()> {
-    // Read and parse
-    let python_source = fs::read_to_string(&input)?;
-    let _pipeline = DepylerPipeline::new();
-
-    // Parse to HIR
-    let ast = {
-        use rustpython_parser::{parse, Mode};
-        parse(&python_source, Mode::Module, "<input>")?
+pub fn compile_command(
+    input: PathBuf,
+    output: Option<PathBuf>,
+    profile: String,
+) -> Result<()> {
+    let output_ref = output.as_deref();
+    let profile_ref = if profile.is_empty() {
+        None
+    } else {
+        Some(profile.as_str())
     };
-    let (hir, _type_env) = depyler_core::ast_bridge::python_to_hir(ast)?;
+    compile_cmd::compile_python_to_binary(&input, output_ref, profile_ref)?;
+    Ok(())
+}
 
-    // Analyze
+pub fn analyze_command(input: PathBuf, format: String) -> Result<()> {
+    let python_source = fs::read_to_string(&input)?;
+    let pipeline = DepylerPipeline::new();
+    let hir = pipeline.parse_to_hir(&python_source)?;
     let analyzer = Analyzer::new();
-    let analysis = analyzer.analyze(&hir)?;
+    let report = analyzer.analyze(&hir)?;
 
     match format.as_str() {
-        "json" => {
-            let json = serde_json::to_string_pretty(&analysis)?;
-            println!("{json}");
-        }
-        _ => {
-            // Text format
-            println!(
-                "Source: {} ({} KB)",
-                input.display(),
-                python_source.len() / 1024
-            );
-            println!("Functions: {}", analysis.module_metrics.total_functions);
-            println!(
-                "Avg Cyclomatic: {:.1}",
-                analysis.module_metrics.avg_cyclomatic_complexity
-            );
-            println!(
-                "Max Cognitive: {}",
-                analysis.module_metrics.max_cognitive_complexity
-            );
-            println!(
-                "Type Coverage: {:.0}%",
-                analysis.type_coverage.coverage_percentage
-            );
-        }
+        "json" => println!("{}", serde_json::to_string_pretty(&report)?),
+        _ => println!("{:#?}", report),
     }
 
     Ok(())
@@ -1428,3734 +316,288 @@ pub fn check_command(input: PathBuf) -> Result<()> {
     let python_source = fs::read_to_string(&input)?;
     let pipeline = DepylerPipeline::new();
 
-    // Try to transpile
     match pipeline.transpile(&python_source) {
         Ok(_) => {
-            println!("✓ {} can be transpiled directly", input.display());
+            println!("{} {} can be transpiled", "✓".green(), input.display());
             Ok(())
         }
         Err(e) => {
-            println!("✗ {} cannot be transpiled: {}", input.display(), e);
-            std::process::exit(1);
+            println!("{} {} cannot be transpiled: {}", "✗".red(), input.display(), e);
+            Err(e)
         }
     }
 }
+
+// ============================================================================
+// Helpers
+// ============================================================================
 
 pub fn complexity_rating(complexity: f64) -> colored::ColoredString {
-    if complexity <= 5.0 {
-        "(✓ Good)".green()
-    } else if complexity <= 10.0 {
-        "(✓ Acceptable)".yellow()
+    if complexity < 10.0 {
+        "Low".green()
+    } else if complexity < 20.0 {
+        "Medium".yellow()
     } else {
-        "(⚠ High)".red()
+        "High".red()
     }
-}
-
-pub fn quality_check_command(
-    input: PathBuf,
-    enforce: bool,
-    min_tdg: f64,
-    max_tdg: f64,
-    max_complexity: u32,
-    min_coverage: u32,
-) -> Result<()> {
-    let report = generate_quality_report(&input)?;
-    let quality_analyzer = QualityAnalyzer::new();
-    quality_analyzer.print_quality_report(&report);
-
-    let validations =
-        validate_quality_targets(&report, min_tdg, max_tdg, max_complexity, min_coverage);
-    print_validation_results(&validations);
-
-    let compilation_results = check_compilation_quality(&input)?;
-    print_compilation_results(&compilation_results);
-
-    let all_passed = validations.all_passed && compilation_results.all_passed;
-
-    if enforce && !all_passed {
-        std::process::exit(1);
-    }
-
-    Ok(())
-}
-
-pub struct QualityValidations {
-    pub tdg_ok: bool,
-    pub complexity_ok: bool,
-    pub coverage_ok: bool,
-    pub all_passed: bool,
-    pub report: depyler_quality::QualityReport,
-    pub min_tdg: f64,
-    pub max_tdg: f64,
-    pub max_complexity: u32,
-    pub min_coverage: u32,
-}
-
-pub struct CompilationResults {
-    pub compilation_ok: bool,
-    pub clippy_ok: bool,
-    pub all_passed: bool,
-}
-
-pub fn generate_quality_report(input: &std::path::Path) -> Result<depyler_quality::QualityReport> {
-    let python_source = fs::read_to_string(input)?;
-    let ast = {
-        use rustpython_parser::{parse, Mode};
-        parse(&python_source, Mode::Module, "<input>")?
-    };
-    let (hir, _type_env) = depyler_core::ast_bridge::python_to_hir(ast)?;
-    let quality_analyzer = QualityAnalyzer::new();
-    Ok(quality_analyzer.analyze_quality(&hir.functions)?)
-}
-
-pub fn validate_quality_targets(
-    report: &depyler_quality::QualityReport,
-    min_tdg: f64,
-    max_tdg: f64,
-    max_complexity: u32,
-    min_coverage: u32,
-) -> QualityValidations {
-    let tdg_ok = report.pmat_metrics.tdg >= min_tdg && report.pmat_metrics.tdg <= max_tdg;
-    let complexity_ok = report.complexity_metrics.cyclomatic_complexity <= max_complexity;
-    let coverage_ok = report.coverage_metrics.line_coverage >= (min_coverage as f64 / 100.0);
-    let all_passed = tdg_ok && complexity_ok && coverage_ok;
-
-    QualityValidations {
-        tdg_ok,
-        complexity_ok,
-        coverage_ok,
-        all_passed,
-        report: report.clone(),
-        min_tdg,
-        max_tdg,
-        max_complexity,
-        min_coverage,
-    }
-}
-
-pub fn print_validation_results(validations: &QualityValidations) {
-    println!("Target Verification:");
-    println!(
-        "  {} PMAT TDG: {:.2} (target: {:.1}-{:.1})",
-        if validations.tdg_ok { "✅" } else { "❌" },
-        validations.report.pmat_metrics.tdg,
-        validations.min_tdg,
-        validations.max_tdg
-    );
-    println!(
-        "  {} Complexity: {} (target: ≤{})",
-        if validations.complexity_ok {
-            "✅"
-        } else {
-            "❌"
-        },
-        validations.report.complexity_metrics.cyclomatic_complexity,
-        validations.max_complexity
-    );
-    println!(
-        "  {} Coverage: {:.1}% (target: ≥{}%)",
-        if validations.coverage_ok {
-            "✅"
-        } else {
-            "❌"
-        },
-        validations.report.coverage_metrics.line_coverage * 100.0,
-        validations.min_coverage
-    );
-}
-
-pub fn check_compilation_quality(input: &std::path::Path) -> Result<CompilationResults> {
-    let compilation_ok = check_rust_compilation(input)?;
-    let clippy_ok = check_clippy_clean(input)?;
-    let all_passed = compilation_ok && clippy_ok;
-
-    Ok(CompilationResults {
-        compilation_ok,
-        clippy_ok,
-        all_passed,
-    })
-}
-
-pub fn print_compilation_results(results: &CompilationResults) {
-    println!("Compilation Check:");
-    println!(
-        "  {} rustc compilation: {}",
-        if results.compilation_ok { "✅" } else { "❌" },
-        if results.compilation_ok {
-            "PASS"
-        } else {
-            "FAIL"
-        }
-    );
-    println!(
-        "  {} clippy: {}",
-        if results.clippy_ok { "✅" } else { "❌" },
-        if results.clippy_ok {
-            "CLEAN"
-        } else {
-            "WARNINGS"
-        }
-    );
-}
-
-pub fn interactive_command(input: PathBuf, annotate: bool) -> Result<()> {
-    interactive::run_interactive_session(&input.to_string_lossy(), annotate)
-}
-
-pub fn inspect_command(
-    input: PathBuf,
-    repr: String,
-    format: String,
-    output: Option<PathBuf>,
-) -> Result<()> {
-    let python_source = fs::read_to_string(&input)?;
-    let pipeline = DepylerPipeline::new();
-
-    let output_content = match repr.as_str() {
-        "python-ast" => inspect_python_ast(&python_source, &format)?,
-        "hir" => {
-            let hir = pipeline.parse_to_hir(&python_source)?;
-            inspect_hir(&hir, &format)?
-        }
-        "typed-hir" => {
-            let typed_hir = pipeline.analyze_to_typed_hir(&python_source)?;
-            inspect_hir(&typed_hir, &format)?
-        }
-        _ => {
-            return Err(anyhow::anyhow!("Unknown representation: {repr}"));
-        }
-    };
-
-    // Output results
-    match output {
-        Some(output_path) => {
-            fs::write(&output_path, &output_content)?;
-            println!("✅ Output written to: {}", output_path.display());
-        }
-        None => {
-            println!("{output_content}");
-        }
-    }
-
-    Ok(())
-}
-
-pub fn inspect_python_ast(python_source: &str, format: &str) -> Result<String> {
-    use rustpython_parser::{parse, Mode};
-
-    let ast = parse(python_source, Mode::Module, "<input>")?;
-
-    match format {
-        "json" => {
-            // rustpython_ast doesn't implement Serialize, so use debug format for JSON
-            Ok(format!("{ast:#?}"))
-        }
-        "debug" => Ok(format!("{ast:#?}")),
-        "pretty" => Ok(format_python_ast_pretty(&ast)),
-        _ => Err(anyhow::anyhow!("Unknown format: {}", format)),
-    }
-}
-
-pub fn inspect_hir(hir: &depyler_core::hir::HirModule, format: &str) -> Result<String> {
-    match format {
-        "json" => Ok(serde_json::to_string_pretty(hir)?),
-        "debug" => Ok(format!("{hir:#?}")),
-        "pretty" => Ok(format_hir_pretty(hir)),
-        _ => Err(anyhow::anyhow!("Unknown format: {}", format)),
-    }
-}
-
-pub fn format_python_ast_pretty(ast: &rustpython_ast::Mod) -> String {
-    let mut output = String::new();
-    output.push_str("🐍 Python AST Structure\n");
-    output.push_str("========================\n\n");
-
-    match ast {
-        rustpython_ast::Mod::Module(module) => {
-            output.push_str(&format!(
-                "Module with {} statements:\n\n",
-                module.body.len()
-            ));
-
-            for (i, stmt) in module.body.iter().enumerate() {
-                output.push_str(&format!("Statement {}: ", i + 1));
-                output.push_str(&format_stmt_summary(stmt));
-                output.push('\n');
-            }
-        }
-        _ => output.push_str("Non-module AST node\n"),
-    }
-
-    output
-}
-
-pub fn format_stmt_summary(stmt: &rustpython_ast::Stmt) -> String {
-    match stmt {
-        rustpython_ast::Stmt::FunctionDef(func) => {
-            format!(
-                "Function '{}' with {} parameters",
-                func.name,
-                func.args.args.len()
-            )
-        }
-        rustpython_ast::Stmt::Return(_) => "Return statement".to_string(),
-        rustpython_ast::Stmt::Assign(_) => "Assignment".to_string(),
-        rustpython_ast::Stmt::If(_) => "If statement".to_string(),
-        rustpython_ast::Stmt::While(_) => "While loop".to_string(),
-        rustpython_ast::Stmt::For(_) => "For loop".to_string(),
-        rustpython_ast::Stmt::Expr(_) => "Expression statement".to_string(),
-        _ => format!("{stmt:?}")
-            .split('(')
-            .next()
-            .unwrap_or("Unknown")
-            .to_string(),
-    }
-}
-
-pub fn format_hir_pretty(hir: &depyler_core::hir::HirModule) -> String {
-    let mut output = String::new();
-    output.push_str("🦀 Depyler HIR Structure\n");
-    output.push_str("=========================\n\n");
-
-    // Functions
-    output.push_str(&format!("🔧 Functions ({}):\n", hir.functions.len()));
-    for (i, func) in hir.functions.iter().enumerate() {
-        output.push_str(&format!("\n{}. Function: {}\n", i + 1, func.name));
-        output.push_str(&format!(
-            "   Parameters: {} -> {:?}\n",
-            func.params
-                .iter()
-                .map(|param| format!("{}: {:?}", param.name, param.ty))
-                .collect::<Vec<_>>()
-                .join(", "),
-            func.ret_type
-        ));
-        output.push_str(&format!("   Body: {} statements\n", func.body.len()));
-    }
-
-    output
-}
-
-pub fn check_rust_compilation(python_file: &std::path::Path) -> Result<bool> {
-    // Convert Python file to expected Rust file
-    let rust_file = python_file.with_extension("rs");
-    check_rust_compilation_for_file(rust_file.to_str().unwrap())
-}
-
-pub fn check_rust_compilation_for_file(rust_file: &str) -> Result<bool> {
-    if !std::path::Path::new(rust_file).exists() {
-        return Ok(false);
-    }
-
-    let output = Command::new("rustc")
-        .arg("--check-cfg")
-        .arg("cfg()")
-        .arg("--crate-type")
-        .arg("lib")
-        .arg(rust_file)
-        .arg("-o")
-        .arg("/dev/null")
-        .output()?;
-
-    Ok(output.status.success())
-}
-
-pub fn check_clippy_clean(python_file: &std::path::Path) -> Result<bool> {
-    let rust_file = python_file.with_extension("rs");
-
-    if !rust_file.exists() {
-        return Ok(false);
-    }
-
-    let output = Command::new("cargo")
-        .arg("clippy")
-        .arg("--")
-        .arg("-D")
-        .arg("warnings")
-        .arg("--check")
-        .arg(&rust_file)
-        .output()?;
-
-    Ok(output.status.success())
-}
-
-// Debug command implementation
-
-pub fn debug_command(
-    tips: bool,
-    gen_script: Option<PathBuf>,
-    debugger: String,
-    source: Option<PathBuf>,
-    output: Option<PathBuf>,
-    spydecy: Option<PathBuf>,
-    visualize: bool,
-) -> Result<()> {
-    if tips {
-        debug_cmd::print_debugging_tips();
-        return Ok(());
-    }
-
-    if let Some(source_file) = spydecy {
-        debug_cmd::launch_spydecy_debugger(&source_file, visualize)?;
-        return Ok(());
-    }
-
-    if let Some(rust_file) = gen_script {
-        let source_file = source
-            .ok_or_else(|| anyhow::anyhow!("--source is required when using --gen-script"))?;
-
-        debug_cmd::generate_debugger_script(
-            &source_file,
-            &rust_file,
-            &debugger,
-            output.as_deref(),
-        )?;
-    } else {
-        println!("Use --tips for debugging guide or --gen-script to generate debugger scripts");
-        println!("Use --spydecy <file> for interactive debugging");
-    }
-
-    Ok(())
-}
-
-// LSP command implementation
-
-pub fn lsp_command(port: u16, verbose: bool) -> Result<()> {
-    use depyler_core::lsp::LspServer;
-    use std::io::{self, BufRead, Write};
-
-    println!("🚀 Starting Depyler Language Server on port {}...", port);
-
-    // For now, implement a simple stdio-based LSP server
-    // In a full implementation, this would handle TCP connections
-
-    let _server = LspServer::new();
-    let stdin = io::stdin();
-    let mut stdout = io::stdout();
-
-    println!("📡 Language Server ready. Waiting for client connections...");
-    println!("   Use with your IDE's LSP client configuration:");
-    println!("   - Command: depyler lsp");
-    println!("   - Port: {}", port);
-    println!("   - Language: Python");
-
-    // Simple message loop (in practice, would use full JSON-RPC)
-    for line in stdin.lock().lines() {
-        let line = line?;
-
-        if verbose {
-            eprintln!("Received: {}", line);
-        }
-
-        // Handle shutdown
-        if line.contains("shutdown") {
-            println!("👋 Language Server shutting down...");
-            break;
-        }
-
-        // Echo back for now (real implementation would parse JSON-RPC)
-        writeln!(stdout, "{{\"jsonrpc\":\"2.0\",\"result\":null,\"id\":1}}")?;
-        stdout.flush()?;
-    }
-
-    Ok(())
-}
-
-// Lambda-specific command implementations
-
-pub fn lambda_analyze_command(input: PathBuf, format: String, confidence: f64) -> Result<()> {
-    let python_source = fs::read_to_string(&input)?;
-    let pipeline = DepylerPipeline::new();
-
-    // Parse to AST for inference
-    let ast = pipeline.parse_python(&python_source)?;
-
-    // Create and configure inferencer
-    let inferencer = LambdaTypeInferencer::new().with_confidence_threshold(confidence);
-
-    // Analyze the handler
-    let analysis_report = inferencer.analyze_handler(&ast)?;
-
-    match format.as_str() {
-        "json" => {
-            let json = serde_json::to_string_pretty(&analysis_report)?;
-            println!("{json}");
-        }
-        _ => {
-            println!("🔍 Lambda Event Type Analysis");
-            println!("==============================");
-            println!("📄 File: {}", input.display());
-            println!(
-                "🎯 Inferred Event Type: {:?}",
-                analysis_report.inferred_event_type
-            );
-            println!("📊 Confidence Scores:");
-            for (event_type, confidence) in &analysis_report.confidence_scores {
-                println!("   {event_type:?}: {confidence:.2}");
-            }
-            println!(
-                "🔍 Detected Patterns: {}",
-                analysis_report.detected_patterns.len()
-            );
-            for pattern in &analysis_report.detected_patterns {
-                println!(
-                    "   - {:?}: {:?}",
-                    pattern.pattern_type,
-                    pattern.access_chain.join(".")
-                );
-            }
-
-            if !analysis_report.recommendations.is_empty() {
-                println!("💡 Recommendations:");
-                for rec in &analysis_report.recommendations {
-                    println!("   - {rec}");
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-/// Maps EventType from depyler_core to LambdaEventType from depyler_annotations
-///
-/// This helper converts between the two enum types used in different crates.
-/// Complexity: 7 (one match with 7 arms)
-fn infer_and_map_event_type(
-    inferred_type: depyler_core::lambda_inference::EventType,
-) -> depyler_annotations::LambdaEventType {
-    match inferred_type {
-        depyler_core::lambda_inference::EventType::S3Event => {
-            depyler_annotations::LambdaEventType::S3Event
-        }
-        depyler_core::lambda_inference::EventType::ApiGatewayV2Http => {
-            depyler_annotations::LambdaEventType::ApiGatewayV2HttpRequest
-        }
-        depyler_core::lambda_inference::EventType::SnsEvent => {
-            depyler_annotations::LambdaEventType::SnsEvent
-        }
-        depyler_core::lambda_inference::EventType::SqsEvent => {
-            depyler_annotations::LambdaEventType::SqsEvent
-        }
-        depyler_core::lambda_inference::EventType::DynamodbEvent => {
-            depyler_annotations::LambdaEventType::DynamodbEvent
-        }
-        depyler_core::lambda_inference::EventType::EventBridge => {
-            depyler_annotations::LambdaEventType::EventBridgeEvent(None)
-        }
-        _ => depyler_annotations::LambdaEventType::Auto,
-    }
-}
-
-/// Creates a LambdaGenerationContext from annotations and transpiled Rust code
-///
-/// This helper builds the context structure needed for Lambda code generation.
-/// Complexity: 1 (simple struct construction)
-fn create_lambda_generation_context(
-    lambda_annotations: &depyler_annotations::LambdaAnnotations,
-    rust_code: String,
-    input: &Path,
-) -> depyler_core::lambda_codegen::LambdaGenerationContext {
-    depyler_core::lambda_codegen::LambdaGenerationContext {
-        event_type: lambda_annotations.event_type.clone(),
-        response_type: "serde_json::Value".to_string(), // Could be inferred better
-        handler_body: rust_code,
-        imports: vec![],
-        dependencies: vec![],
-        annotations: lambda_annotations.clone(),
-        function_name: "handler".to_string(),
-        module_name: input.file_stem().unwrap().to_string_lossy().to_string(),
-    }
-}
-
-/// Configures LambdaCodeGenerator with optimization profile if requested
-///
-/// Complexity: 3 (optimize check + nested if + optimization setup)
-fn setup_lambda_generator(
-    optimize: bool,
-    lambda_annotations: &depyler_annotations::LambdaAnnotations,
-) -> Result<LambdaCodeGenerator> {
-    let mut generator = LambdaCodeGenerator::new();
-    if optimize {
-        let optimizer = LambdaOptimizer::new().enable_aggressive_mode();
-        let _optimization_plan = optimizer.generate_optimization_plan(lambda_annotations)?;
-        let optimized_profile = depyler_core::lambda_codegen::OptimizationProfile {
-            lto: true,
-            panic_abort: true,
-            codegen_units: 1,
-            opt_level: "z".to_string(),
-            strip: true,
-            mimalloc: true,
-        };
-        generator = generator.with_optimization_profile(optimized_profile);
-    }
-    Ok(generator)
-}
-
-/// Writes core Lambda project files (main.rs, Cargo.toml, build.sh, README.md)
-///
-/// Complexity: 2 (Unix permission check)
-fn write_lambda_project_files(output_dir: &Path, project: &LambdaProject) -> Result<()> {
-    fs::create_dir_all(output_dir)?;
-    fs::create_dir_all(output_dir.join("src"))?;
-
-    // Write main files
-    fs::write(output_dir.join("src/main.rs"), &project.handler_code)?;
-    fs::write(output_dir.join("Cargo.toml"), &project.cargo_toml)?;
-    fs::write(output_dir.join("build.sh"), &project.build_script)?;
-    fs::write(output_dir.join("README.md"), &project.readme)?;
-
-    // Make build script executable
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = fs::metadata(output_dir.join("build.sh"))?.permissions();
-        perms.set_mode(0o755);
-        fs::set_permissions(output_dir.join("build.sh"), perms)?;
-    }
-
-    Ok(())
-}
-
-/// Writes deployment templates (SAM/CDK) if deploy flag is set
-///
-/// Complexity: 3 (deploy check + 2 optional template writes)
-fn write_deployment_templates(
-    output_dir: &Path,
-    project: &LambdaProject,
-    deploy: bool,
-) -> Result<()> {
-    if deploy {
-        if let Some(ref sam_template) = project.sam_template {
-            fs::write(output_dir.join("template.yaml"), sam_template)?;
-        }
-        if let Some(ref cdk_construct) = project.cdk_construct {
-            fs::write(output_dir.join("lambda-construct.ts"), cdk_construct)?;
-        }
-    }
-    Ok(())
-}
-
-/// Generates and writes test suite files if tests flag is set
-///
-/// Complexity: 3 (tests check + Unix permission check)
-fn generate_and_write_tests(
-    output_dir: &Path,
-    lambda_annotations: &depyler_annotations::LambdaAnnotations,
-    tests: bool,
-) -> Result<()> {
-    if tests {
-        let test_harness = LambdaTestHarness::new();
-        let test_suite = test_harness.generate_test_suite(lambda_annotations)?;
-        fs::write(output_dir.join("src/lib.rs"), &test_suite)?;
-
-        let test_script = test_harness.generate_cargo_lambda_test_script(lambda_annotations)?;
-        fs::write(output_dir.join("test.sh"), &test_script)?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata(output_dir.join("test.sh"))?.permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions(output_dir.join("test.sh"), perms)?;
-        }
-    }
-    Ok(())
-}
-
-/// Prints completion summary and next steps
-///
-/// Complexity: 3 (optimize/tests/deploy conditionals in output)
-#[allow(clippy::too_many_arguments)]
-fn print_lambda_summary(
-    input: &Path,
-    output_dir: &Path,
-    analysis: &AnalysisReport,
-    optimize: bool,
-    tests: bool,
-    deploy: bool,
-    total_time: Duration,
-) {
-    println!("🎉 Lambda conversion completed!");
-    println!("📄 Input: {}", input.display());
-    println!("📁 Output: {}", output_dir.display());
-    println!("🎯 Event Type: {:?}", analysis.inferred_event_type);
-    println!(
-        "⚡ Optimizations: {}",
-        if optimize { "Enabled" } else { "Standard" }
-    );
-    println!("🧪 Tests: {}", if tests { "Generated" } else { "Skipped" });
-    println!(
-        "🚀 Deploy Templates: {}",
-        if deploy { "Generated" } else { "Skipped" }
-    );
-    println!("⏱️  Total Time: {:.2}ms", total_time.as_millis());
-
-    println!("\n📋 Next Steps:");
-    println!("   cd {}", output_dir.display());
-    println!("   ./build.sh                    # Build the Lambda");
-    if tests {
-        println!("   ./test.sh                     # Run tests");
-    }
-    println!("   cargo lambda deploy           # Deploy to AWS");
-}
-
-pub fn lambda_convert_command(
-    input: PathBuf,
-    output: Option<PathBuf>,
-    optimize: bool,
-    tests: bool,
-    deploy: bool,
-) -> Result<()> {
-    let start = Instant::now();
-    let python_source = fs::read_to_string(&input)?;
-
-    // Create progress bar
-    let pb = ProgressBar::new(6);
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{bar:40.cyan/blue}] {msg}")
-            .unwrap()
-            .progress_chars("#>-"),
-    );
-
-    // Step 1: Parse and analyze
-    pb.set_message("🔍 Analyzing Lambda function...");
-    let pipeline = DepylerPipeline::new();
-    let ast = pipeline.parse_python(&python_source)?;
-
-    // Infer event type
-    let inferencer = LambdaTypeInferencer::new();
-    let analysis = inferencer.analyze_handler(&ast)?;
-    pb.inc(1);
-
-    // Step 2: Extract annotations and generate context
-    pb.set_message("📋 Processing annotations...");
-    let annotations = depyler_annotations::AnnotationParser::new()
-        .parse_annotations(&python_source)
-        .unwrap_or_default();
-
-    let lambda_annotations =
-        annotations
-            .lambda_annotations
-            .unwrap_or_else(|| depyler_annotations::LambdaAnnotations {
-                event_type: Some(infer_and_map_event_type(
-                    analysis.inferred_event_type.clone(),
-                )),
-                ..Default::default()
-            });
-    pb.inc(1);
-
-    // Step 3: Transpile to Rust
-    pb.set_message("🦀 Transpiling to Rust...");
-    let rust_code = pipeline.transpile(&python_source)?;
-
-    let generation_context =
-        create_lambda_generation_context(&lambda_annotations, rust_code, &input);
-    pb.inc(1);
-
-    // Step 4: Generate optimized Lambda project
-    pb.set_message("⚡ Generating optimized project...");
-    let generator = setup_lambda_generator(optimize, &lambda_annotations)?;
-    let project = generator.generate_lambda_project(&generation_context)?;
-    pb.inc(1);
-
-    // Step 5: Write output
-    pb.set_message("📁 Writing project files...");
-    let output_dir = output.unwrap_or_else(|| {
-        input.parent().unwrap().join(format!(
-            "{}_lambda",
-            input.file_stem().unwrap().to_string_lossy()
-        ))
-    });
-
-    write_lambda_project_files(&output_dir, &project)?;
-    write_deployment_templates(&output_dir, &project, deploy)?;
-    pb.inc(1);
-
-    // Step 6: Generate tests if requested
-    pb.set_message("🧪 Generating test suite...");
-    generate_and_write_tests(&output_dir, &lambda_annotations, tests)?;
-    pb.inc(1);
-
-    pb.finish_and_clear();
-
-    // Print summary
-    let total_time = start.elapsed();
-    print_lambda_summary(
-        &input,
-        &output_dir,
-        &analysis,
-        optimize,
-        tests,
-        deploy,
-        total_time,
-    );
-
-    Ok(())
-}
-
-pub fn lambda_test_command(
-    input: PathBuf,
-    event: Option<String>,
-    benchmark: bool,
-    load_test: bool,
-) -> Result<()> {
-    if !input.join("Cargo.toml").exists() {
-        return Err(anyhow::anyhow!("Not a valid Lambda project directory"));
-    }
-
-    let current_dir = std::env::current_dir()?;
-    std::env::set_current_dir(&input)?;
-
-    if let Some(event_name) = event {
-        println!("🧪 Running specific test event: {event_name}");
-        let output = Command::new("cargo")
-            .args(["test", &format!("test_{event_name}")])
-            .output()?;
-
-        if output.status.success() {
-            println!("✅ Test passed");
-        } else {
-            println!("❌ Test failed");
-            println!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-    } else {
-        println!("🧪 Running all tests...");
-        let output = Command::new("cargo").arg("test").output()?;
-
-        if output.status.success() {
-            println!("✅ All tests passed");
-        } else {
-            println!("❌ Some tests failed");
-            println!("{}", String::from_utf8_lossy(&output.stderr));
-        }
-    }
-
-    if benchmark {
-        println!("📊 Running performance benchmarks...");
-        if input.join("test.sh").exists() {
-            let output = Command::new("./test.sh").output()?;
-            println!("{}", String::from_utf8_lossy(&output.stdout));
-        } else {
-            println!("⚠️ No test.sh script found for benchmarking");
-        }
-    }
-
-    if load_test {
-        println!("🔥 Generating load test script...");
-        let harness = LambdaTestHarness::new();
-        let annotations = depyler_annotations::LambdaAnnotations::default(); // Could read from project
-        let load_script = harness.generate_load_test_script(&annotations)?;
-        fs::write("load_test.sh", &load_script)?;
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let mut perms = fs::metadata("load_test.sh")?.permissions();
-            perms.set_mode(0o755);
-            fs::set_permissions("load_test.sh", perms)?;
-        }
-
-        println!("✅ Load test script generated: load_test.sh");
-    }
-
-    std::env::set_current_dir(current_dir)?;
-    Ok(())
-}
-
-pub fn lambda_build_command(
-    input: PathBuf,
-    arch: String,
-    optimize_size: bool,
-    optimize_cold_start: bool,
-) -> Result<()> {
-    if !input.join("Cargo.toml").exists() {
-        return Err(anyhow::anyhow!("Not a valid Lambda project directory"));
-    }
-
-    let current_dir = std::env::current_dir()?;
-    std::env::set_current_dir(&input)?;
-
-    println!("🏗️ Building Lambda function...");
-
-    let arch_flag = match arch.as_str() {
-        "arm64" | "aarch64" => "--arm64",
-        "x86_64" | "x64" => "--x86-64",
-        _ => return Err(anyhow::anyhow!("Unsupported architecture: {}", arch)),
-    };
-
-    let mut build_cmd = Command::new("cargo");
-    build_cmd.args(["lambda", "build", "--release", arch_flag]);
-
-    if optimize_size || optimize_cold_start {
-        build_cmd.arg("--profile").arg("lambda");
-    }
-
-    println!("Running: cargo lambda build --release {arch_flag}");
-    let output = build_cmd.output()?;
-
-    if output.status.success() {
-        println!("✅ Build successful");
-
-        // Show binary size if available
-        if let Ok(entries) = fs::read_dir("target/lambda") {
-            for entry in entries.flatten() {
-                let bootstrap_path = entry.path().join("bootstrap");
-                if bootstrap_path.exists() {
-                    if let Ok(metadata) = fs::metadata(&bootstrap_path) {
-                        let size_kb = metadata.len() / 1024;
-                        println!("📦 Binary size: {size_kb}KB");
-
-                        if optimize_size && size_kb > 2048 {
-                            println!("⚠️ Binary size is larger than 2MB, consider additional optimizations");
-                        }
-                    }
-                }
-            }
-        }
-    } else {
-        println!("❌ Build failed");
-        println!("{}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    std::env::set_current_dir(current_dir)?;
-    Ok(())
-}
-
-pub fn lambda_deploy_command(
-    input: PathBuf,
-    region: Option<String>,
-    function_name: Option<String>,
-    role: Option<String>,
-    dry_run: bool,
-) -> Result<()> {
-    if !input.join("Cargo.toml").exists() {
-        return Err(anyhow::anyhow!("Not a valid Lambda project directory"));
-    }
-
-    let current_dir = std::env::current_dir()?;
-    std::env::set_current_dir(&input)?;
-
-    let func_name =
-        function_name.unwrap_or_else(|| input.file_name().unwrap().to_string_lossy().to_string());
-
-    if dry_run {
-        println!("🔍 Dry run deployment for function: {func_name}");
-        if let Some(ref region) = region {
-            println!("📍 Region: {region}");
-        }
-        if let Some(ref role) = role {
-            println!("🔑 IAM Role: {role}");
-        }
-        println!("✅ Dry run completed - no actual deployment");
-        std::env::set_current_dir(current_dir)?;
-        return Ok(());
-    }
-
-    println!("🚀 Deploying Lambda function: {func_name}");
-
-    let mut deploy_cmd = Command::new("cargo");
-    deploy_cmd.args(["lambda", "deploy", &func_name]);
-
-    if let Some(ref region) = region {
-        deploy_cmd.args(["--region", region]);
-    }
-
-    if let Some(ref role) = role {
-        deploy_cmd.args(["--iam-role", role]);
-    }
-
-    let output = deploy_cmd.output()?;
-
-    if output.status.success() {
-        println!("✅ Deployment successful");
-        println!("{}", String::from_utf8_lossy(&output.stdout));
-    } else {
-        println!("❌ Deployment failed");
-        println!("{}", String::from_utf8_lossy(&output.stderr));
-    }
-
-    std::env::set_current_dir(current_dir)?;
-    Ok(())
-}
-
-pub async fn agent_start_command(
-    port: u16,
-    debug: bool,
-    config: Option<PathBuf>,
-    foreground: bool,
-) -> Result<()> {
-    use crate::agent::daemon::{AgentDaemon, DaemonConfig};
-
-    let config = if let Some(config_path) = config {
-        DaemonConfig::from_file(&config_path)?
-    } else {
-        DaemonConfig::default()
-    };
-
-    let mut config = config;
-    config.mcp_port = port;
-    config.debug = debug;
-
-    let mut daemon = AgentDaemon::new(config);
-
-    if foreground {
-        println!("🚀 Starting Depyler agent in foreground mode on port {port}...");
-        daemon.run().await
-    } else {
-        println!("🚀 Starting Depyler agent daemon on port {port}...");
-        daemon.start_daemon().await
-    }
-}
-
-pub fn agent_stop_command() -> Result<()> {
-    use crate::agent::daemon::AgentDaemon;
-
-    println!("🛑 Stopping Depyler agent daemon...");
-    AgentDaemon::stop_daemon()
-}
-
-pub fn agent_status_command() -> Result<()> {
-    use crate::agent::daemon::AgentDaemon;
-
-    match AgentDaemon::daemon_status()? {
-        Some(pid) => {
-            println!("✅ Depyler agent daemon is running (PID: {pid})");
-        }
-        None => {
-            println!("❌ Depyler agent daemon is not running");
-        }
-    }
-
-    Ok(())
-}
-
-pub async fn agent_restart_command(port: u16, debug: bool, config: Option<PathBuf>) -> Result<()> {
-    println!("🔄 Restarting Depyler agent daemon...");
-
-    let _ = agent_stop_command();
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-    agent_start_command(port, debug, config, false).await
-}
-
-pub fn agent_logs_command(lines: usize, follow: bool) -> Result<()> {
-    use crate::agent::daemon::AgentDaemon;
-
-    if follow {
-        println!("📜 Following Depyler agent logs (Ctrl+C to stop)...");
-        AgentDaemon::tail_logs()
-    } else {
-        println!("📜 Last {lines} lines of Depyler agent logs:");
-        AgentDaemon::show_logs(lines)
-    }
-}
-
-// Note: parse_python method is now available in DepylerPipeline
-
-// ============================================================================
-// Oracle Commands
-// ============================================================================
-
-/// Run Differential Evolution to optimize generation parameters.
-///
-/// This command uses the Metaheuristic Optimizer to find optimal parameters
-/// for corpus generation, maximizing Oracle classification accuracy.
-///
-/// # Errors
-///
-/// Returns error if optimization fails or file saving fails.
-pub fn oracle_optimize_command(
-    stdlib_count: usize,
-    eval_samples: usize,
-    max_evaluations: usize,
-    curriculum: bool,
-    output: Option<PathBuf>,
-) -> Result<()> {
-    use depyler_oracle::self_supervised::{run_optimization, OptimizationRunConfig};
-    use depyler_oracle::{save_params, OptimizedParams};
-
-    println!("🧬 Depyler Oracle Parameter Optimizer");
-    println!("=====================================\n");
-
-    // Create sample stdlib functions for optimization
-    let stdlib_funcs = create_sample_stdlib_functions();
-    println!("📚 Using {} stdlib functions for evaluation", stdlib_funcs.len().min(stdlib_count));
-
-    // Configure optimization
-    let config = OptimizationRunConfig {
-        eval_stdlib_count: stdlib_count,
-        eval_samples,
-        max_evaluations,
-        use_curriculum: curriculum,
-    };
-
-    println!("⚙️  Configuration:");
-    println!("    Max evaluations: {}", max_evaluations);
-    println!("    Samples per eval: {}", eval_samples);
-    println!("    Curriculum learning: {}", if curriculum { "enabled" } else { "disabled" });
-    println!();
-
-    // Create progress bar
-    let pb = ProgressBar::new(max_evaluations as u64);
-    pb.set_style(
-        ProgressStyle::default_bar()
-            .template("{spinner:.green} [{bar:40.cyan/blue}] {pos}/{len} evaluations ({msg})")
-            .unwrap()
-            .progress_chars("#>-"),
-    );
-
-    // Run optimization
-    pb.set_message("optimizing...");
-    let result = run_optimization(&stdlib_funcs, &config);
-
-    pb.finish_with_message(format!("fitness: {:.4}", result.fitness));
-    println!();
-
-    // Display results
-    println!("✅ Optimization Complete!");
-    println!("📊 Results:");
-    println!("    Best fitness: {:.4}", result.fitness);
-    println!("    Evaluations: {}", result.evaluations);
-    println!();
-
-    println!("🎯 Optimized Parameters:");
-    println!("    weight_docstring: {:.3}", result.params.weight_docstring);
-    println!("    weight_type_enum: {:.3}", result.params.weight_type_enum);
-    println!("    weight_edge_cases: {:.3}", result.params.weight_edge_cases);
-    println!("    weight_error_induction: {:.3}", result.params.weight_error_induction);
-    println!("    weight_composition: {:.3}", result.params.weight_composition);
-    println!("    quality_threshold: {:.3}", result.params.quality_threshold);
-    println!("    min_diversity: {:.3}", result.params.min_diversity);
-    println!("    augmentation_ratio: {:.3}", result.params.augmentation_ratio);
-    println!();
-
-    // Save parameters
-    let optimized = OptimizedParams::new(
-        result.params,
-        result.fitness,
-        result.evaluations,
-        curriculum,
-    );
-
-    let saved_path = save_params(&optimized, output.as_ref())?;
-    println!("💾 Parameters saved to: {}", saved_path.display());
-
-    Ok(())
-}
-
-/// Create sample stdlib functions for optimization evaluation.
-fn create_sample_stdlib_functions() -> Vec<depyler_oracle::self_supervised::StdlibFunction> {
-    use depyler_oracle::self_supervised::{PyType, StdlibFunction};
-
-    vec![
-        StdlibFunction {
-            module: "os.path".to_string(),
-            name: "join".to_string(),
-            signature: "(path, *paths) -> str".to_string(),
-            arg_types: vec![PyType::Str, PyType::Str],
-            return_type: Some(PyType::Str),
-            docstring_examples: vec!["os.path.join('/home', 'user')".to_string()],
-        },
-        StdlibFunction {
-            module: "os.path".to_string(),
-            name: "exists".to_string(),
-            signature: "(path) -> bool".to_string(),
-            arg_types: vec![PyType::Str],
-            return_type: Some(PyType::Bool),
-            docstring_examples: vec!["os.path.exists('/tmp')".to_string()],
-        },
-        StdlibFunction {
-            module: "json".to_string(),
-            name: "loads".to_string(),
-            signature: "(s) -> Any".to_string(),
-            arg_types: vec![PyType::Str],
-            return_type: Some(PyType::Any),
-            docstring_examples: vec!["json.loads('{\"key\": \"value\"}')".to_string()],
-        },
-        StdlibFunction {
-            module: "os".to_string(),
-            name: "listdir".to_string(),
-            signature: "(path) -> list".to_string(),
-            arg_types: vec![PyType::Str],
-            return_type: Some(PyType::List(Box::new(PyType::Str))),
-            docstring_examples: vec!["os.listdir('.')".to_string()],
-        },
-        StdlibFunction {
-            module: "datetime".to_string(),
-            name: "now".to_string(),
-            signature: "() -> datetime".to_string(),
-            arg_types: vec![],
-            return_type: Some(PyType::Any),
-            docstring_examples: vec!["datetime.datetime.now()".to_string()],
-        },
-    ]
-}
-
-/// Show current optimized parameters.
-pub fn oracle_show_command() -> Result<()> {
-    use depyler_oracle::{load_params, params_exist, default_params_path};
-
-    let path = default_params_path();
-
-    if !params_exist(None) {
-        println!("❌ No optimized parameters found at: {}", path.display());
-        println!("   Run 'depyler oracle optimize' to generate parameters.");
-        return Ok(());
-    }
-
-    let params = load_params(None)?;
-
-    println!("📊 Optimized Oracle Parameters");
-    println!("==============================\n");
-    println!("📁 Path: {}", path.display());
-    println!("📅 Timestamp: {}", params.timestamp);
-    println!("📦 Version: {}", params.version);
-    println!("🎯 Fitness: {:.4}", params.fitness);
-    println!("🔄 Evaluations: {}", params.evaluations);
-    println!("📚 Curriculum: {}", if params.curriculum { "yes" } else { "no" });
-    println!();
-    println!("⚙️  Generation Parameters:");
-    println!("    weight_docstring: {:.3}", params.params.weight_docstring);
-    println!("    weight_type_enum: {:.3}", params.params.weight_type_enum);
-    println!("    weight_edge_cases: {:.3}", params.params.weight_edge_cases);
-    println!("    weight_error_induction: {:.3}", params.params.weight_error_induction);
-    println!("    weight_composition: {:.3}", params.params.weight_composition);
-    println!("    quality_threshold: {:.3}", params.params.quality_threshold);
-    println!("    min_diversity: {:.3}", params.params.min_diversity);
-    println!("    augmentation_ratio: {:.3}", params.params.augmentation_ratio);
-
-    Ok(())
-}
-
-/// Train Oracle model from corpus.
-pub fn oracle_train_command(min_samples: usize, synthetic: bool) -> Result<()> {
-    use depyler_oracle::Oracle;
-
-    println!("🧠 Training Depyler Oracle Model");
-    println!("================================\n");
-
-    println!("⚙️  Configuration:");
-    println!("    Min samples: {}", min_samples);
-    println!("    Synthetic augmentation: {}", if synthetic { "enabled" } else { "disabled" });
-    println!();
-
-    // Create progress bar
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")
-            .unwrap(),
-    );
-    pb.set_message("Loading and training model...");
-
-    // Train model (uses load_or_train internally which handles everything)
-    let _oracle = Oracle::load_or_train()?;
-
-    pb.finish_with_message("Training complete!");
-    println!();
-
-    let model_path = Oracle::default_model_path();
-    println!("✅ Oracle model trained successfully!");
-    println!("💾 Model saved to: {}", model_path.display());
-
-    Ok(())
-}
-
-/// DEPYLER-0585: Oracle-driven continuous improvement loop.
-///
-/// Runs transpile→compile→train→fix loop until target compilation rate
-/// or maximum iterations reached. Designed for enterprise use.
-///
-/// DEPYLER-0596: Refactored to use CompilationTrainer abstraction
-/// which mirrors entrenar's Trainer API for compilation loops.
-#[allow(clippy::too_many_arguments)]
-pub fn oracle_improve_command(
-    input_dir: PathBuf,
-    target_rate: f64,
-    max_iterations: usize,
-    auto_apply: bool,
-    min_confidence: f64,
-    output: Option<PathBuf>,
-    export_corpus: Option<PathBuf>,
-    resume: bool,
-    verbose: bool,
-    monitor: bool,
-    verbosity_tier: u8,
-    clippy_level: String,
-    adaptive_verbosity: bool,
-    reweight: f32,
-) -> Result<()> {
-    use crate::compilation_trainer::{CompilationConfig, CompilationTrainer, DiagnosticTier, ClippyLevel};
-
-    // Oracle used for future auto-fix capability
-    let _ = (auto_apply, min_confidence, resume); // Mark as used
-
-    println!("🔄 Depyler Oracle Continuous Improvement Loop");
-    println!("=============================================\n");
-
-    // Validate input directory
-    if !input_dir.is_dir() {
-        return Err(anyhow::anyhow!("Input path must be a directory: {}", input_dir.display()));
-    }
-
-    println!("📁 Input directory: {}", input_dir.display());
-    println!("🎯 Target compilation rate: {:.1}%", target_rate * 100.0);
-    println!("🔄 Max iterations: {}", max_iterations);
-    println!("🔧 Auto-apply fixes: {}", if auto_apply { "enabled" } else { "disabled" });
-    println!("📊 Min confidence: {:.1}%", min_confidence * 100.0);
-
-    // DEPYLER-0598: Display diagnostic verbosity settings
-    let tier = DiagnosticTier::from_level(verbosity_tier);
-    let clippy = ClippyLevel::from_cli_arg(&clippy_level);
-    println!("🔍 Diagnostic tier: {} ({})", verbosity_tier, match tier {
-        DiagnosticTier::Tier1 => "baseline JSON+clippy",
-        DiagnosticTier::Tier2 => "+verbose build",
-        DiagnosticTier::Tier3 => "+RUSTC_LOG traces",
-        DiagnosticTier::Tier4 => "+full debug",
-    });
-    println!("📋 Clippy level: {} ({})", clippy_level, match clippy {
-        ClippyLevel::Standard => "~500 lints",
-        ClippyLevel::Pedantic => "~600 lints",
-        ClippyLevel::Nursery => "~650 lints",
-        ClippyLevel::Full => "~730 lints",
-    });
-    println!("🎚️ Adaptive verbosity: {}", if adaptive_verbosity { "enabled" } else { "disabled" });
-    if (reweight - 1.0).abs() > 0.001 {
-        println!("⚖️  Sample reweight: {:.2}× (Feldman long-tail weighting)", reweight);
-    }
-    println!();
-
-    // Find all Python files (excluding test files)
-    let python_files = find_python_files(&input_dir)?;
-    let total_files = python_files.len();
-
-    if total_files == 0 {
-        println!("⚠️  No Python files found in {}", input_dir.display());
-        return Ok(());
-    }
-
-    println!("📄 Found {} Python files to process", total_files);
-
-    // Create output directory for reports
-    let report_dir = output.unwrap_or_else(|| input_dir.join(".depyler-improve"));
-
-    // Configure the trainer with verbosity settings (DEPYLER-0598)
-    let mut config = CompilationConfig::new()
-        .with_target_rate(target_rate)
-        .with_max_epochs(max_iterations)
-        .with_patience(3) // Early stopping patience
-        .with_verbose(verbose)
-        .with_monitor(monitor)
-        .with_report_dir(report_dir)
-        .with_verbosity_tier(verbosity_tier)
-        .with_clippy_level(&clippy_level)
-        .with_adaptive_verbosity(adaptive_verbosity)
-        .with_reweight(reweight);
-
-    if let Some(corpus_path) = export_corpus {
-        config = config.with_export_corpus(corpus_path);
-    }
-
-    // Create and run trainer - mirrors entrenar Trainer API
-    let mut trainer = CompilationTrainer::new(python_files, config);
-
-    // Training started message
-    println!("\n🧠 Training started | {} files | target: {:.0}%\n", total_files, target_rate * 100.0);
-
-    // Run training loop - replaces ~200 lines of manual loop code
-    let result = trainer.train()?;
-
-    // Display result summary using TrainResult-like struct
-    println!("\n📊 Training Summary:");
-    println!("  Epochs: {}", result.final_epoch);
-    println!("  Final Rate: {:.1}%", result.final_rate * 100.0);
-    println!("  Best Rate: {:.1}%", result.best_rate * 100.0);
-    println!("  Elapsed: {:.1}s", result.elapsed_secs);
-    println!("  Stopped Early: {}", result.stopped_early);
-    println!("  Target Achieved: {}", if result.target_achieved { "✅ YES" } else { "❌ NO" });
-
-    Ok(())
-}
-
-/// GitHub #156: Export CITL corpus for OIP training.
-///
-/// Exports the compilation training corpus in Parquet or JSONL format
-/// for consumption by the Organizational Intelligence Plugin (OIP).
-///
-/// This command:
-/// 1. Loads cached corpus from previous `oracle improve` runs
-/// 2. Maps Rust error codes to OIP DefectCategory taxonomy
-/// 3. Applies Feldman long-tail reweighting for rare error classes
-/// 4. Exports via alimentar's Arrow-based serialization
-///
-/// References:
-/// - Spec: verbose-compiler-diagnostics-citl-spec.md §11.6
-/// - OIP NLP-014: Error classification training pipeline
-/// - alimentar (#26): Arrow/Parquet data loading
-pub fn oracle_export_oip_command(
-    input_dir: PathBuf,
-    output: PathBuf,
-    format: String,
-    min_confidence: f64,
-    include_clippy: bool,
-    reweight: f32,
-) -> Result<()> {
-    use crate::compilation_trainer::{export_oip_corpus, OipExportFormat, load_corpus_cache};
-
-    println!("📤 Depyler OIP Export (GitHub #156)");
-    println!("===================================\n");
-
-    // Validate input directory
-    if !input_dir.is_dir() {
-        return Err(anyhow::anyhow!("Input path must be a directory: {}", input_dir.display()));
-    }
-
-    // Parse export format
-    let export_format = OipExportFormat::parse(&format);
-
-    println!("📁 Input directory: {}", input_dir.display());
-    println!("📄 Output file: {}", output.display());
-    println!("📦 Format: {:?}", export_format);
-    println!("📊 Min confidence: {:.1}%", min_confidence * 100.0);
-    println!("🔧 Include Clippy: {}", if include_clippy { "yes" } else { "no" });
-    if (reweight - 1.0).abs() > 0.001 {
-        println!("⚖️  Reweight factor: {:.2}×", reweight);
-    }
-    println!();
-
-    // Create progress bar
-    let pb = ProgressBar::new_spinner();
-    pb.set_style(
-        ProgressStyle::default_spinner()
-            .template("{spinner:.green} {msg}")
-            .unwrap(),
-    );
-
-    // Try to load cached corpus from previous improve runs
-    pb.set_message("Loading corpus cache...");
-    let cache_path = input_dir.join(".depyler-improve").join("corpus_cache.jsonl");
-
-    let corpus = if cache_path.exists() {
-        load_corpus_cache(&cache_path)?
-    } else {
-        // No cache - need to generate corpus from scratch
-        pb.set_message("No cache found, running transpilation...");
-
-        let python_files = find_python_files(&input_dir)?;
-        if python_files.is_empty() {
-            return Err(anyhow::anyhow!("No Python files found in {}", input_dir.display()));
-        }
-
-        // Run compilation to generate corpus
-        let mut corpus = Vec::new();
-        let temp_base = std::env::temp_dir().join("depyler-oip-export");
-        fs::create_dir_all(&temp_base)?;
-
-        for (idx, py_file) in python_files.iter().enumerate() {
-            if let Ok(py_source) = fs::read_to_string(py_file) {
-                let pipeline = DepylerPipeline::new();
-                if let Ok(rust_code) = pipeline.transpile(&py_source) {
-                    // Try to compile to get error diagnostics
-                    let rs_file = temp_base.join(format!("lib_{}.rs", idx));
-                    fs::write(&rs_file, &rust_code)?;
-
-                    // Get compilation diagnostics (errors become training data)
-                    let output = std::process::Command::new("rustc")
-                        .args(["--crate-type", "lib", "--error-format=json"])
-                        .arg(&rs_file)
-                        .output();
-
-                    if let Ok(output) = output {
-                        let diagnostics = String::from_utf8_lossy(&output.stderr).to_string();
-                        corpus.push((
-                            py_file.display().to_string(),
-                            rust_code,
-                            diagnostics,
-                        ));
-                    }
-
-                    // Clean up temp file
-                    let _ = fs::remove_file(&rs_file);
-                }
-            }
-        }
-
-        // Clean up temp directory
-        let _ = fs::remove_dir(&temp_base);
-
-        corpus
-    };
-
-    pb.set_message(format!("Exporting {} samples...", corpus.len()));
-
-    // Export corpus
-    let stats = export_oip_corpus(
-        &corpus,
-        &output,
-        export_format,
-        min_confidence,
-        include_clippy,
-        reweight,
-    )?;
-
-    pb.finish_with_message("Export complete!");
-    println!();
-
-    // Display export statistics
-    println!("✅ OIP Export Complete!");
-    println!("📊 Statistics:");
-    println!("    Total samples: {}", stats.total_samples);
-    println!("    Exported: {}", stats.exported_samples);
-    println!("    Filtered (low confidence): {}", stats.filtered_low_confidence);
-    println!("    Unique error codes: {}", stats.unique_error_codes);
-    println!("    Unique OIP categories: {}", stats.unique_oip_categories);
-    println!();
-
-    println!("📦 Category Distribution:");
-    for (category, count) in &stats.category_distribution {
-        let pct = (*count as f64 / stats.exported_samples as f64) * 100.0;
-        println!("    {}: {} ({:.1}%)", category, count, pct);
-    }
-    println!();
-
-    println!("💾 Output: {}", output.display());
-    println!();
-    println!("🔗 Next steps:");
-    println!("    1. Run OIP: oip train --input {}", output.display());
-    println!("    2. Validate: oip validate --model ./oip_model");
-
-    Ok(())
-}
-
-/// Classify a Rust compiler error and suggest fixes
-pub fn oracle_classify_command(error: String, format: String) -> Result<()> {
-    use depyler_oracle::{classify_with_moe, ErrorClassifier};
-
-    println!("🔮 Depyler Oracle Classification");
-    println!("================================\n");
-
-    // Extract error code from the error message (e.g., E0308 from "error[E0308]")
-    let error_code = extract_error_code(&error).unwrap_or_default();
-
-    // Use MoE oracle for classification (more robust than RandomForest)
-    let moe_result = classify_with_moe(&error_code, &error);
-
-    // Also get keyword-based classification as backup
-    let keyword_classifier = ErrorClassifier::new();
-    let keyword_category = keyword_classifier.classify_by_keywords(&error);
-
-    // Combine results: prefer MoE if confident, else use keyword classifier
-    let (category, confidence) = if moe_result.confidence > 0.5 {
-        (moe_result.category, moe_result.confidence)
-    } else {
-        (keyword_category, 0.7) // Keyword classifier has decent accuracy
-    };
-
-    if format == "json" {
-        let json_result = serde_json::json!({
-            "category": format!("{:?}", category),
-            "confidence": confidence,
-            "suggested_fix": moe_result.suggested_fix,
-            "expert_used": format!("{:?}", moe_result.primary_expert),
-        });
-        println!("{}", serde_json::to_string_pretty(&json_result)?);
-    } else {
-        println!("📝 Error: {}", error);
-        println!();
-        println!("🏷️  Category: {:?}", category);
-        println!("📊 Confidence: {:.1}%", confidence * 100.0);
-        println!("🧠 Expert: {:?}", moe_result.primary_expert);
-        println!();
-
-        if let Some(fix) = &moe_result.suggested_fix {
-            println!("💡 Suggested Fix:");
-            println!("   {}", fix);
-        }
-    }
-
-    Ok(())
-}
-
-/// Extract error code from a Rust compiler error message (e.g., "E0308" from "error[E0308]")
-fn extract_error_code(error: &str) -> Option<String> {
-    // Simple string-based extraction: find "E" followed by 4 digits
-    error
-        .char_indices()
-        .find_map(|(i, c)| {
-            if c == 'E' && error.len() >= i + 5 {
-                let candidate = &error[i..i + 5];
-                if candidate.chars().skip(1).all(|d| d.is_ascii_digit()) {
-                    return Some(candidate.to_string());
-                }
-            }
-            None
-        })
-}
-
-/// DEPYLER-0595: Result of CITL (Compiler-in-the-Loop) execution
-#[derive(Debug, Clone)]
-pub struct CitlResult {
-    /// Whether all files compiled successfully
-    pub success: bool,
-    /// Final compilation rate (0.0-1.0)
-    pub compilation_rate: f64,
-    /// Number of files processed
-    pub files_processed: usize,
-    /// Number of iterations used
-    pub iterations_used: usize,
-    /// Fixes applied
-    pub fixes_applied: usize,
-}
-
-/// Result of explaining transpiler decisions
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ExplainResult {
-    /// Rust file analyzed
-    pub rust_file: PathBuf,
-    /// Compilation errors found
-    pub errors: Vec<CompilationError>,
-    /// Correlated decisions
-    pub correlated_decisions: Vec<CorrelatedDecision>,
-}
-
-/// A parsed Rust compilation error
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct CompilationError {
-    /// Error code (e.g., E0277)
-    pub code: String,
-    /// Error message
-    pub message: String,
-    /// Line number in Rust file
-    pub line: usize,
-    /// Column number
-    pub column: usize,
-}
-
-/// A transpiler decision correlated with an error
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct CorrelatedDecision {
-    /// The error this decision relates to
-    pub error_code: String,
-    /// Decision category
-    pub category: String,
-    /// Decision name/description
-    pub name: String,
-    /// What path was chosen
-    pub chosen_path: String,
-    /// Alternatives that were considered
-    pub alternatives: Vec<String>,
-    /// Confidence level (0.0-1.0)
-    pub confidence: f64,
-    /// Explanation of why this decision may have caused the error
-    pub explanation: String,
-}
-
-/// Issue #214: Explain transpiler decisions and correlate with compilation errors
-///
-/// This command parses Rust compilation errors and correlates them with transpiler
-/// decision traces to explain why the transpiler made specific choices that led to errors.
-/// Complexity: 8 (within ≤10 target)
-pub fn explain_command(
-    input: PathBuf,
-    trace_path: Option<PathBuf>,
-    error_code: Option<String>,
-    verbose: bool,
-    format: String,
-) -> Result<()> {
-    use anyhow::Context;
-    use std::process::Command;
-
-    let json_mode = format == "json";
-
-    if !json_mode {
-        println!("🔍 Depyler Explain (Issue #214)");
-        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        println!("📄 Analyzing: {}", input.display());
-    }
-
-    // Step 1: Compile the Rust file and capture errors
-    let output = Command::new("rustc")
-        .args(["--edition", "2021", "--crate-type", "lib", "--emit", "metadata"])
-        .arg("-o")
-        .arg("/tmp/explain_test.rmeta")
-        .arg(&input)
-        .output()
-        .context("Failed to run rustc")?;
-
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    let errors = parse_rust_errors(&stderr);
-
-    if errors.is_empty() {
-        if json_mode {
-            let result = ExplainResult {
-                rust_file: input.clone(),
-                errors: vec![],
-                correlated_decisions: vec![],
-            };
-            println!("{}", serde_json::to_string_pretty(&result)?);
-        } else {
-            println!("\n✅ No compilation errors found!");
-        }
-        return Ok(());
-    }
-
-    if !json_mode {
-        println!("\n❌ Found {} compilation error(s):\n", errors.len());
-    }
-
-    // Filter by error code if specified
-    let filtered_errors: Vec<_> = match &error_code {
-        Some(code) => errors.iter().filter(|e| e.code == *code).collect(),
-        None => errors.iter().collect(),
-    };
-
-    // Step 2: Load trace file if provided
-    let decisions: Vec<depyler_core::decision_trace::DepylerDecision> = match &trace_path {
-        Some(path) => {
-            if path.exists() {
-                let trace_content = std::fs::read_to_string(path)
-                    .context("Failed to read trace file")?;
-                serde_json::from_str(&trace_content)
-                    .context("Failed to parse trace file")?
-            } else {
-                if !json_mode {
-                    println!("⚠️  Trace file not found: {}", path.display());
-                    println!("   Run transpilation with --trace-output to generate a trace file.\n");
-                }
-                vec![]
-            }
-        }
-        None => {
-            // Try to find trace file automatically
-            let auto_trace = input.with_extension("trace.json");
-            if auto_trace.exists() {
-                let trace_content = std::fs::read_to_string(&auto_trace)
-                    .context("Failed to read auto-discovered trace file")?;
-                serde_json::from_str(&trace_content).unwrap_or_default()
-            } else {
-                vec![]
-            }
-        }
-    };
-
-    // Step 3: Correlate errors with decisions
-    let mut correlated = Vec::new();
-
-    for error in &filtered_errors {
-        // Find relevant decisions based on error type
-        let related_decisions = correlate_error_with_decisions(error, &decisions);
-
-        if !json_mode {
-            println!("┌─ Error [{}] at line {}:{}", error.code, error.line, error.column);
-            println!("│  {}", error.message);
-
-            if related_decisions.is_empty() {
-                println!("│");
-                println!("│  💡 No decision trace available for this error.");
-                println!("│     Tip: Re-transpile with --trace-output to capture decisions.");
-            } else {
-                println!("│");
-                println!("│  🔗 Related Transpiler Decisions:");
-                for decision in &related_decisions {
-                    println!("│     ├─ Category: {}", decision.category);
-                    println!("│     ├─ Decision: {}", decision.name);
-                    println!("│     ├─ Chosen: {}", decision.chosen_path);
-                    if !decision.alternatives.is_empty() {
-                        println!("│     ├─ Alternatives: {}", decision.alternatives.join(", "));
-                    }
-                    println!("│     ├─ Confidence: {:.1}%", decision.confidence * 100.0);
-                    println!("│     └─ {}", decision.explanation);
-                }
-            }
-            println!("└─────────────────────────────────────────────────");
-            println!();
-        }
-
-        // Always collect correlated decisions for JSON output
-        for decision in related_decisions {
-            correlated.push(decision);
-        }
-    }
-
-    // Verbose mode: show all decisions (terminal only)
-    if !json_mode && verbose && !decisions.is_empty() {
-        println!("\n📋 All Transpiler Decisions ({} total):", decisions.len());
-        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-        for (i, decision) in decisions.iter().enumerate().take(20) {
-            println!(
-                "  {}. [{}] {} → {}",
-                i + 1,
-                decision.category,
-                decision.name,
-                decision.chosen_path
-            );
-        }
-        if decisions.len() > 20 {
-            println!("  ... and {} more decisions", decisions.len() - 20);
-        }
-    }
-
-    // JSON output
-    if json_mode {
-        let result = ExplainResult {
-            rust_file: input.clone(),
-            errors: filtered_errors.into_iter().cloned().collect(),
-            correlated_decisions: correlated,
-        };
-        println!("{}", serde_json::to_string_pretty(&result)?);
-    } else {
-        // Summary (terminal only)
-        let correlated_count = correlated.len();
-        println!("\n📊 Summary:");
-        println!("   Total errors: {}", errors.len());
-        println!("   Decisions loaded: {}", decisions.len());
-        println!("   Correlated: {}", correlated_count);
-
-        if trace_path.is_none() && decisions.is_empty() {
-            println!("\n💡 Tip: Run `depyler transpile --trace-output <file>.trace.json` to capture");
-            println!("   decision traces, then re-run explain for detailed correlation.");
-        }
-    }
-
-    Ok(())
-}
-
-/// Parse Rust compilation errors from stderr
-fn parse_rust_errors(stderr: &str) -> Vec<CompilationError> {
-    let mut errors = Vec::new();
-    let error_re = regex::Regex::new(r"error\[([E\d]+)\]: (.+?)(?:\n|$)").unwrap();
-    let location_re = regex::Regex::new(r"--> .+?:(\d+):(\d+)").unwrap();
-
-    let mut current_code = String::new();
-    let mut current_message = String::new();
-
-    for line in stderr.lines() {
-        if let Some(caps) = error_re.captures(line) {
-            current_code = caps.get(1).map(|m| m.as_str().to_string()).unwrap_or_default();
-            current_message = caps.get(2).map(|m| m.as_str().to_string()).unwrap_or_default();
-        } else if let Some(caps) = location_re.captures(line) {
-            if !current_code.is_empty() {
-                let line_num: usize = caps.get(1).map(|m| m.as_str().parse().unwrap_or(0)).unwrap_or(0);
-                let col_num: usize = caps.get(2).map(|m| m.as_str().parse().unwrap_or(0)).unwrap_or(0);
-                errors.push(CompilationError {
-                    code: current_code.clone(),
-                    message: current_message.clone(),
-                    line: line_num,
-                    column: col_num,
-                });
-                current_code.clear();
-                current_message.clear();
-            }
-        }
-    }
-
-    errors
-}
-
-/// Correlate an error with transpiler decisions
-fn correlate_error_with_decisions(
-    error: &CompilationError,
-    decisions: &[depyler_core::decision_trace::DepylerDecision],
-) -> Vec<CorrelatedDecision> {
-    let mut correlated = Vec::new();
-
-    // Map error codes to likely decision categories
-    let relevant_categories = match error.code.as_str() {
-        "E0277" => vec!["TypeMapping", "BorrowStrategy", "Ownership"], // trait not implemented
-        "E0308" => vec!["TypeMapping"], // mismatched types
-        "E0382" => vec!["Ownership", "BorrowStrategy"], // use of moved value
-        "E0502" | "E0503" => vec!["BorrowStrategy", "LifetimeInfer"], // cannot borrow
-        "E0106" => vec!["LifetimeInfer"], // missing lifetime specifier
-        "E0412" | "E0433" => vec!["ImportResolve", "TypeMapping"], // cannot find type/module
-        "E0599" => vec!["MethodDispatch", "TypeMapping"], // no method named
-        _ => vec![], // Unknown error, no correlation
-    };
-
-    for decision in decisions {
-        let category_str = format!("{}", decision.category);
-        if relevant_categories.iter().any(|c| category_str.contains(c)) {
-            // Check if the decision is near the error line (within 10 lines)
-            // This is a heuristic - trace files include rs_span for better correlation
-            let explanation = generate_error_explanation(&error.code, &category_str, &decision.chosen_path);
-
-            correlated.push(CorrelatedDecision {
-                error_code: error.code.clone(),
-                category: category_str,
-                name: decision.name.clone(),
-                chosen_path: decision.chosen_path.clone(),
-                alternatives: decision.alternatives.clone(),
-                confidence: decision.confidence as f64,
-                explanation,
-            });
-        }
-    }
-
-    // Limit to most relevant (first 3)
-    correlated.truncate(3);
-    correlated
-}
-
-/// Generate human-readable explanation for error-decision correlation
-fn generate_error_explanation(error_code: &str, category: &str, chosen_path: &str) -> String {
-    match (error_code, category) {
-        ("E0277", "TypeMapping") => format!(
-            "Type '{}' may not implement required trait. Consider explicit trait bounds.",
-            chosen_path
-        ),
-        ("E0277", "BorrowStrategy") => format!(
-            "Borrow strategy '{}' may conflict with trait requirements.",
-            chosen_path
-        ),
-        ("E0308", "TypeMapping") => format!(
-            "Type mapping chose '{}' but context expects different type.",
-            chosen_path
-        ),
-        ("E0382", "Ownership") => format!(
-            "Ownership decision '{}' caused value to be moved. Consider cloning.",
-            chosen_path
-        ),
-        ("E0502", "BorrowStrategy") | ("E0503", "BorrowStrategy") => format!(
-            "Borrow strategy '{}' conflicts with existing borrow.",
-            chosen_path
-        ),
-        ("E0106", "LifetimeInfer") => format!(
-            "Lifetime inference chose '{}' but explicit annotation needed.",
-            chosen_path
-        ),
-        ("E0412", "ImportResolve") | ("E0433", "ImportResolve") => format!(
-            "Import resolution '{}' - type/module not in scope.",
-            chosen_path
-        ),
-        ("E0599", "MethodDispatch") => format!(
-            "Method dispatch '{}' - method not found on this type.",
-            chosen_path
-        ),
-        _ => format!("Decision '{}' in category '{}' may relate to this error.", chosen_path, category),
-    }
-}
-
-/// DEPYLER-0595: CITL command - Compiler-in-the-Loop iterative fix loop
-///
-/// Uses aprender's CITL module to iteratively transpile, compile, and fix
-/// until all files compile successfully or max iterations reached.
-pub fn citl_command(
-    input_dir: PathBuf,
-    max_iterations: usize,
-    confidence_threshold: f64,
-    verbose: bool,
-) -> Result<CitlResult> {
-    if verbose {
-        println!("🔄 CITL (Compiler-in-the-Loop) Mode");
-        println!("===================================\n");
-    }
-
-    // Validate input directory
-    if !input_dir.is_dir() {
-        return Err(anyhow::anyhow!("Input path must be a directory: {}", input_dir.display()));
-    }
-
-    // Find all Python files
-    let python_files = find_python_files(&input_dir)?;
-    let total_files = python_files.len();
-
-    if total_files == 0 {
-        return Ok(CitlResult {
-            success: true,
-            compilation_rate: 1.0,
-            files_processed: 0,
-            iterations_used: 0,
-            fixes_applied: 0,
-        });
-    }
-
-    if verbose {
-        println!("📁 Input directory: {}", input_dir.display());
-        println!("📄 Found {} Python files", total_files);
-        println!("🎯 Target: 100% compilation");
-        println!("🔄 Max iterations: {}", max_iterations);
-        println!("📊 Confidence threshold: {:.1}%\n", confidence_threshold * 100.0);
-    }
-
-    // Configure CITL fixer
-    let config = CITLFixerConfig {
-        max_iterations,
-        confidence_threshold: confidence_threshold as f32,
-        ..CITLFixerConfig::default()
-    };
-
-    let mut fixer = CITLFixer::with_config(config)
-        .map_err(|e| anyhow::anyhow!("Failed to initialize CITL fixer: {}", e))?;
-    let mut total_fixes = 0;
-    let mut compiled_count = 0;
-
-    // Process each file with CITL
-    for (idx, python_file) in python_files.iter().enumerate() {
-        if verbose {
-            println!("[{}/{}] Processing: {}", idx + 1, total_files, python_file.display());
-        }
-
-        // Read Python source
-        let python_source = match fs::read_to_string(python_file) {
-            Ok(s) => s,
-            Err(e) => {
-                if verbose {
-                    println!("  ⚠️  Failed to read {}: {}", python_file.display(), e);
-                }
-                continue;
-            }
-        };
-
-        // Transpile first
-        let rust_file = python_file.with_extension("rs");
-        let pipeline = DepylerPipeline::new();
-        let result = pipeline.transpile(&python_source);
-
-        match result {
-            Ok(rust_code) => {
-                // Write the Rust file
-                if let Err(e) = fs::write(&rust_file, &rust_code) {
-                    if verbose {
-                        println!("  ⚠️  Failed to write {}: {}", rust_file.display(), e);
-                    }
-                    continue;
-                }
-
-                // Try to compile, apply fixes if needed
-                let fix_result = fixer.fix_all(&rust_code);
-
-                if fix_result.success {
-                    compiled_count += 1;
-                    total_fixes += fix_result.fixes_applied.len();
-                    if verbose && !fix_result.fixes_applied.is_empty() {
-                        println!("  ✅ Compiled after {} fixes", fix_result.fixes_applied.len());
-                    } else if verbose {
-                        println!("  ✅ Compiled");
-                    }
-
-                    // Write fixed code if any fixes were applied
-                    if !fix_result.fixes_applied.is_empty() {
-                        if let Err(e) = fs::write(&rust_file, &fix_result.fixed_source) {
-                            if verbose {
-                                println!("  ⚠️  Failed to write fixed code: {}", e);
-                            }
-                        }
-                    }
-                } else if verbose {
-                    println!("  ❌ Failed after {} iterations", fix_result.iterations);
-                }
-            }
-            Err(e) => {
-                if verbose {
-                    println!("  ⚠️  Transpilation failed: {}", e);
-                }
-            }
-        }
-    }
-
-    let compilation_rate = compiled_count as f64 / total_files as f64;
-    let success = compilation_rate >= 1.0;
-
-    if verbose {
-        println!("\n📊 CITL Results");
-        println!("===============");
-        println!("Files processed: {}", total_files);
-        println!("Files compiled:  {} ({:.1}%)", compiled_count, compilation_rate * 100.0);
-        println!("Fixes applied:   {}", total_fixes);
-        println!("Status: {}", if success { "✅ SUCCESS" } else { "❌ INCOMPLETE" });
-    }
-
-    Ok(CitlResult {
-        success,
-        compilation_rate,
-        files_processed: total_files,
-        iterations_used: max_iterations, // Approximation
-        fixes_applied: total_fixes,
-    })
-}
-
-/// Find all Python files in a directory (excluding test files).
-fn find_python_files(dir: &Path) -> Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-
-    fn visit_dir(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            if path.is_dir() {
-                // Skip __pycache__, .git, venv, etc.
-                let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
-                if !dir_name.starts_with('.') && dir_name != "__pycache__" && dir_name != "venv" {
-                    visit_dir(&path, files)?;
-                }
-            } else if path.extension().is_some_and(|e| e == "py") {
-                let file_name = path.file_name().unwrap_or_default().to_string_lossy();
-                // Skip test files
-                if !file_name.starts_with("test_") && !file_name.ends_with("_test.py") {
-                    files.push(path);
-                }
-            }
-        }
-        Ok(())
-    }
-
-    visit_dir(dir, &mut files)?;
-    files.sort();
-    Ok(files)
-}
-
-/// Find all Python files in a directory (including test files).
-fn find_all_python_files(dir: &Path) -> Result<Vec<PathBuf>> {
-    let mut files = Vec::new();
-
-    fn visit_dir(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
-        for entry in fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
-
-            if path.is_dir() {
-                // Skip __pycache__, .git, venv, etc.
-                let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
-                if !dir_name.starts_with('.') && dir_name != "__pycache__" && dir_name != "venv" {
-                    visit_dir(&path, files)?;
-                }
-            } else if path.extension().is_some_and(|e| e == "py") {
-                // Include all Python files (including test files)
-                files.push(path);
-            }
-        }
-        Ok(())
-    }
-
-    visit_dir(dir, &mut files)?;
-    files.sort();
-    Ok(files)
-}
-
-// ============================================================================
-// Doctest Extraction Command (GH-173)
-// ============================================================================
-
-/// Extract doctests from Python source files
-///
-/// Parses Python docstrings to extract `>>>` blocks for CITL training.
-/// Outputs structured JSON format suitable for doctest transpilation.
-///
-/// # Arguments
-///
-/// * `input` - Directory containing Python files
-/// * `output` - Output JSON file path
-/// * `module_prefix` - Optional prefix for module names
-/// * `include_classes` - Whether to include class method doctests
-/// * `include_pytest` - Whether to extract assertions from test_*.py files (GH-174)
-///
-/// # Errors
-///
-/// Returns error if directory reading or JSON serialization fails.
-pub fn extract_doctests_command(
-    input: PathBuf,
-    output: PathBuf,
-    module_prefix: String,
-    _include_classes: bool,
-    include_pytest: bool,
-) -> Result<()> {
-    use depyler_core::doctest_extractor::{Doctest, DoctestExtractor, DoctestResult, FunctionDoctests};
-    use depyler_core::pytest_extractor::PytestExtractor;
-
-    println!("📝 Extracting doctests from {}", input.display());
-    if include_pytest {
-        println!("   (including pytest assertions from test_*.py files)");
-    }
-
-    let doctest_extractor = DoctestExtractor::new();
-    let pytest_extractor = PytestExtractor::new();
-    let mut all_results: Vec<DoctestResult> = Vec::new();
-    let mut total_doctests = 0;
-    let mut total_pytest = 0;
-    let mut total_functions = 0;
-    let mut total_files = 0;
-
-    // Find all Python files (including test files if include_pytest is set)
-    let python_files = if include_pytest {
-        find_all_python_files(&input)?
-    } else {
-        find_python_files(&input)?
-    };
-
-    for py_file in &python_files {
-        let relative_path = py_file.strip_prefix(&input).unwrap_or(py_file);
-        let file_name = py_file.file_name().unwrap_or_default().to_string_lossy();
-        let is_test_file = file_name.starts_with("test_") || file_name.ends_with("_test.py");
-
-        let module_name = if module_prefix.is_empty() {
-            relative_path
-                .with_extension("")
-                .to_string_lossy()
-                .replace(std::path::MAIN_SEPARATOR, ".")
-        } else {
-            format!(
-                "{}.{}",
-                module_prefix,
-                relative_path
-                    .with_extension("")
-                    .to_string_lossy()
-                    .replace(std::path::MAIN_SEPARATOR, ".")
-            )
-        };
-
-        let source = match fs::read_to_string(py_file) {
-            Ok(s) => s,
-            Err(e) => {
-                eprintln!("  ⚠️  Skipping {}: {}", py_file.display(), e);
-                continue;
-            }
-        };
-
-        // Extract doctests from non-test files
-        if !is_test_file {
-            match doctest_extractor.extract_to_result(&source, &module_name) {
-                Ok(result) => {
-                    if !result.doctests.is_empty() {
-                        let doctest_count: usize =
-                            result.doctests.iter().map(|f| f.examples.len()).sum();
-                        if doctest_count > 0 {
-                            println!(
-                                "  ✓ {}: {} functions, {} doctests",
-                                module_name,
-                                result.doctests.len(),
-                                doctest_count
-                            );
-                            total_doctests += doctest_count;
-                            total_functions += result.doctests.len();
-                            total_files += 1;
-                            all_results.push(result);
-                        }
-                    }
-                }
-                Err(e) => {
-                    eprintln!("  ⚠️  Error parsing {}: {}", py_file.display(), e);
-                }
-            }
-        }
-
-        // Extract pytest assertions from test files
-        if include_pytest && is_test_file {
-            match pytest_extractor.extract(&source) {
-                Ok(assertions) => {
-                    if !assertions.is_empty() {
-                        println!(
-                            "  ✓ {}: {} pytest assertions",
-                            module_name,
-                            assertions.len()
-                        );
-                        total_pytest += assertions.len();
-                        total_files += 1;
-
-                        // Group assertions by function
-                        let mut by_function: std::collections::HashMap<String, Vec<Doctest>> =
-                            std::collections::HashMap::new();
-                        for a in assertions {
-                            by_function.entry(a.function.clone()).or_default().push(a);
-                        }
-
-                        let function_doctests: Vec<FunctionDoctests> = by_function
-                            .into_iter()
-                            .map(|(function, examples)| FunctionDoctests {
-                                function,
-                                signature: None,
-                                docstring: None,
-                                examples,
-                            })
-                            .collect();
-
-                        total_functions += function_doctests.len();
-                        all_results.push(DoctestResult {
-                            source: module_name.clone(),
-                            module: module_name,
-                            doctests: function_doctests,
-                        });
-                    }
-                }
-                Err(e) => {
-                    eprintln!("  ⚠️  Error parsing pytest {}: {}", py_file.display(), e);
-                }
-            }
-        }
-    }
-
-    // Merge all results into a single output
-    let merged_doctests: Vec<FunctionDoctests> =
-        all_results.into_iter().flat_map(|r| r.doctests).collect();
-
-    let final_result = DoctestResult {
-        source: input.to_string_lossy().to_string(),
-        module: module_prefix.clone(),
-        doctests: merged_doctests,
-    };
-
-    // Write JSON output
-    let json = serde_json::to_string_pretty(&final_result)?;
-    fs::write(&output, &json)?;
-
-    println!();
-    println!("📊 Extraction Summary:");
-    println!("   Files processed: {}", python_files.len());
-    println!("   Files with examples: {}", total_files);
-    println!("   Functions with examples: {}", total_functions);
-    println!("   Doctests extracted: {}", total_doctests);
-    if include_pytest {
-        println!("   Pytest assertions extracted: {}", total_pytest);
-    }
-    println!("   Total examples: {}", total_doctests + total_pytest);
-    println!();
-    println!("✅ Output written to: {}", output.display());
-
-    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
     use tempfile::TempDir;
 
-    fn create_test_python_file(content: &str) -> (TempDir, PathBuf) {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.py");
-        fs::write(&file_path, content).unwrap();
-        (temp_dir, file_path)
+    #[test]
+    fn test_complexity_rating_low() {
+        let rating = complexity_rating(5.0);
+        assert!(!rating.to_string().is_empty());
     }
 
     #[test]
-    fn test_transpile_command_basic() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-
-        let result = transpile_command(
-            input_path, None, false, false, false, false, false, false, false, None, false, false, false, 0.8,
-            false, None, 3, false,  // oracle, patterns, max_retries, llm_fallback
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_command_with_output() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let output_path = input_path.with_extension("rs");
-
-        let result = transpile_command(
-            input_path,
-            Some(output_path.clone()),
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,
-            false,  // audit_trail
-            None,   // trace_output
-            false,  // auto_fix
-            false,  // async_mode
-            false,  // suggest_fixes
-            0.8,    // fix_confidence
-            false,  // oracle
-            None,   // patterns
-            3,      // max_retries
-            false,  // llm_fallback
-        );
-        assert!(result.is_ok());
-        assert!(output_path.exists());
-    }
-
-    #[test]
-    fn test_analyze_command_text_format() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-
-        let result = analyze_command(input_path, "text".to_string());
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_analyze_command_json_format() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-
-        let result = analyze_command(input_path, "json".to_string());
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_check_command_valid() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-
-        let result = check_command(input_path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_command_hir() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-
-        let result = inspect_command(input_path, "hir".to_string(), "pretty".to_string(), None);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_command_python_ast() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-
-        let result = inspect_command(
-            input_path,
-            "python-ast".to_string(),
-            "debug".to_string(),
-            None,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_quality_check_command() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-
-        let result = quality_check_command(input_path, false, 1.0, 2.0, 20, 80);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_generate_quality_report() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-
-        let result = generate_quality_report(&input_path);
-        assert!(result.is_ok());
-
-        let report = result.unwrap();
-        assert!(report.pmat_metrics.tdg >= 0.0);
-    }
-
-    #[test]
-    fn test_validate_quality_targets() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let report = generate_quality_report(&input_path).unwrap();
-
-        let validations = validate_quality_targets(&report, 1.0, 2.0, 20, 80);
-        assert!(validations.tdg_ok);
-        assert!(validations.complexity_ok);
-    }
-
-    #[test]
-    fn test_format_python_ast_pretty() {
-        let python_source = "def hello(): return 42";
-        let result = inspect_python_ast(python_source, "pretty");
-        assert!(result.is_ok());
-        assert!(result.unwrap().contains("Python AST Structure"));
-    }
-
-    #[test]
-    fn test_inspect_python_ast_formats() {
-        let python_source = "def hello(): return 42";
-
-        // Test all formats
-        assert!(inspect_python_ast(python_source, "pretty").is_ok());
-        assert!(inspect_python_ast(python_source, "debug").is_ok());
-        assert!(inspect_python_ast(python_source, "json").is_ok());
-
-        // Test invalid format
-        assert!(inspect_python_ast(python_source, "invalid").is_err());
-    }
-
-    #[test]
-    fn test_complexity_rating() {
-        assert!(complexity_rating(3.0).to_string().contains("Good"));
-        assert!(complexity_rating(7.0).to_string().contains("Acceptable"));
-        assert!(complexity_rating(15.0).to_string().contains("High"));
-    }
-
-    /// DEPYLER-0595: [RED] Test for CITL CLI command
-    /// Compiler-in-the-Loop iterative fix loop until compilation succeeds
-    #[test]
-    fn test_citl_command_basic() {
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.py");
-        fs::write(&file_path, "def hello() -> int: return 42").unwrap();
-
-        // CITL should transpile, compile, and fix until success
-        let result = citl_command(
-            temp_dir.path().to_path_buf(),
-            10,   // max_iterations
-            0.85, // confidence_threshold
-            false, // verbose
-        );
-        assert!(result.is_ok());
-
-        let citl_result = result.unwrap();
-        assert!(citl_result.success);
-        assert!(citl_result.compilation_rate >= 1.0);
-    }
-
-    /// DEPYLER-0595: [RED] Test CITL with multiple files
-    #[test]
-    fn test_citl_command_multiple_files() {
-        let temp_dir = TempDir::new().unwrap();
-
-        // Create multiple Python files
-        fs::write(temp_dir.path().join("a.py"), "def foo() -> int: return 1").unwrap();
-        fs::write(temp_dir.path().join("b.py"), "def bar() -> str: return 'hello'").unwrap();
-
-        let result = citl_command(
-            temp_dir.path().to_path_buf(),
-            10,
-            0.85,
-            false,
-        );
-        assert!(result.is_ok());
-
-        let citl_result = result.unwrap();
-        assert_eq!(citl_result.files_processed, 2);
-    }
-
-    #[test]
-    fn test_format_python_ast_pretty_simple() {
-        let python_source = "def add(a: int, b: int) -> int:\n    return a + b";
-        let result = inspect_python_ast(python_source, "pretty");
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        assert!(output.contains("Python AST Structure"));
-    }
-
-    #[test]
-    fn test_format_python_ast_debug() {
-        let python_source = "x = 42";
-        let result = inspect_python_ast(python_source, "debug");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_format_python_ast_json() {
-        let python_source = "x = 42";
-        let result = inspect_python_ast(python_source, "json");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_hir_formats() {
-        let pipeline = DepylerPipeline::new();
-        let python_source = "def hello() -> int: return 42";
-        let hir = pipeline.parse_to_hir(python_source).unwrap();
-
-        // Test pretty format
-        let result = inspect_hir(&hir, "pretty");
-        assert!(result.is_ok());
-
-        // Test debug format
-        let result = inspect_hir(&hir, "debug");
-        assert!(result.is_ok());
-
-        // Test json format
-        let result = inspect_hir(&hir, "json");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_format_hir_pretty_content() {
-        let pipeline = DepylerPipeline::new();
-        let python_source = "def hello() -> int: return 42";
-        let hir = pipeline.parse_to_hir(python_source).unwrap();
-
-        let output = format_hir_pretty(&hir);
-        assert!(output.contains("HIR Structure"));
-        assert!(output.contains("hello"));
-    }
-
-    #[test]
-    fn test_compile_command() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = compile_command(input_path, None, "release".to_string(), false);
-        // May succeed or fail based on rustc availability
-        let _ = result;
-    }
-
-    #[test]
-    fn test_check_rust_compilation_for_file() {
-        let rust_code = "fn main() { let x: i32 = 42; }";
-        let result = check_rust_compilation_for_file(rust_code);
-        // Result depends on rustc availability
-        let _ = result;
-    }
-
-    #[test]
-    fn test_print_validation_results() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let report = generate_quality_report(&input_path).unwrap();
-        let validations = QualityValidations {
-            tdg_ok: true,
-            complexity_ok: true,
-            coverage_ok: true,
-            all_passed: true,
-            report,
-            min_tdg: 0.0,
-            max_tdg: 2.0,
-            max_complexity: 10,
-            min_coverage: 80,
-        };
-        // Just verify it doesn't panic
-        print_validation_results(&validations);
-    }
-
-    #[test]
-    fn test_print_validation_results_failures() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let report = generate_quality_report(&input_path).unwrap();
-        let validations = QualityValidations {
-            tdg_ok: false,
-            complexity_ok: false,
-            coverage_ok: false,
-            all_passed: false,
-            report,
-            min_tdg: 0.0,
-            max_tdg: 0.001,
-            max_complexity: 1,
-            min_coverage: 99,
-        };
-        print_validation_results(&validations);
-    }
-
-    #[test]
-    fn test_check_compilation_quality() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = check_compilation_quality(&input_path);
-        // Just verify it returns something
-        let _ = result;
-    }
-
-    #[test]
-    fn test_print_compilation_results() {
-        let results = CompilationResults {
-            compilation_ok: true,
-            clippy_ok: true,
-            all_passed: true,
-        };
-        print_compilation_results(&results);
-    }
-
-    #[test]
-    fn test_print_compilation_results_with_errors() {
-        let results = CompilationResults {
-            compilation_ok: false,
-            clippy_ok: false,
-            all_passed: false,
-        };
-        print_compilation_results(&results);
-    }
-
-    #[test]
-    fn test_complexity_rating_levels() {
-        // Good (<=5)
-        let good = complexity_rating(3.0);
-        assert!(good.to_string().contains("Good"));
-
-        // Acceptable (<=10)
-        let acceptable = complexity_rating(7.0);
-        assert!(acceptable.to_string().contains("Acceptable"));
-
-        // High (>10)
-        let high = complexity_rating(15.0);
-        assert!(high.to_string().contains("High"));
-    }
-
-    #[test]
-    fn test_format_stmt_summary_function() {
-        // Use rustpython_ast types if needed for more specific tests
-
-        // This tests the format_stmt_summary function indirectly
-        let python_source = "def hello(): pass";
-        let result = inspect_python_ast(python_source, "pretty");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_extract_error_code() {
-        // Test E-codes
-        assert_eq!(extract_error_code("error[E0308]: mismatched types"), Some("E0308".to_string()));
-        assert_eq!(extract_error_code("error[E0277]: trait bound not satisfied"), Some("E0277".to_string()));
-
-        // No error code
-        assert_eq!(extract_error_code("some random error"), None);
-    }
-
-    #[test]
-    fn test_find_python_files() {
-        let temp_dir = TempDir::new().unwrap();
-        fs::write(temp_dir.path().join("a.py"), "x = 1").unwrap();
-        fs::write(temp_dir.path().join("b.py"), "y = 2").unwrap();
-        fs::write(temp_dir.path().join("c.txt"), "not python").unwrap();
-
-        let result = find_python_files(temp_dir.path());
-        assert!(result.is_ok());
-        let files = result.unwrap();
-        assert_eq!(files.len(), 2);
-    }
-
-    #[test]
-    fn test_find_python_files_empty_dir() {
-        let temp_dir = TempDir::new().unwrap();
-        let result = find_python_files(temp_dir.path());
-        assert!(result.is_ok());
-        assert!(result.unwrap().is_empty());
-    }
-
-    #[test]
-    fn test_compilation_results_struct() {
-        let results = CompilationResults {
-            compilation_ok: true,
-            clippy_ok: true,
-            all_passed: true,
-        };
-        assert!(results.compilation_ok);
-        assert!(results.clippy_ok);
-        assert!(results.all_passed);
-    }
-
-    #[test]
-    fn test_quality_validations_struct() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let report = generate_quality_report(&input_path).unwrap();
-        let validations = QualityValidations {
-            tdg_ok: true,
-            complexity_ok: true,
-            coverage_ok: true,
-            all_passed: true,
-            report,
-            min_tdg: 0.0,
-            max_tdg: 2.0,
-            max_complexity: 10,
-            min_coverage: 80,
-        };
-        assert!(validations.tdg_ok);
-        assert!(validations.all_passed);
-    }
-
-    #[test]
-    fn test_cli_struct() {
-        // Test CLI parsing
-        let cli = Cli::try_parse_from(["depyler", "analyze", "test.py"]);
-        assert!(cli.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_with_trace() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = transpile_command(
-            input_path, None, false, false, false, false,
-            true,   // trace enabled
-            false, false, None, false, false, false, 0.8, false, None, 3, false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_with_explain() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = transpile_command(
-            input_path, None, false, false, false, false,
-            false,
-            true,   // explain enabled
-            false, None, false, false, false, 0.8, false, None, 3, false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_with_debug() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = transpile_command(
-            input_path, None, false, false,
-            true,   // debug enabled
-            false, false, false, false, None, false, false, false, 0.8, false, None, 3, false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_lambda_analyze_basic() {
-        let (_temp_dir, input_path) = create_test_python_file("def handler(event: dict, context: dict) -> dict:\n    return {'statusCode': 200}");
-        let result = lambda_analyze_command(input_path, "json".to_string(), 0.7);
-        // Lambda analysis may or may not succeed depending on content
-        let _ = result;
-    }
-
-    #[test]
-    fn test_oracle_show_command() {
-        // Just verify it doesn't panic
-        let _ = oracle_show_command();
-    }
-
-    #[test]
-    fn test_oracle_classify_error() {
-        let result = oracle_classify_command(
-            "error[E0308]: mismatched types".to_string(),
-            "text".to_string(),
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_oracle_classify_json() {
-        let result = oracle_classify_command(
-            "error[E0308]: mismatched types".to_string(),
-            "json".to_string(),
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_debug_command_tips() {
-        // Test debug command with tips enabled
-        let result = debug_command(
-            true,   // tips
-            None,   // gen_script
-            "gdb".to_string(),   // debugger
-            None,   // source
-            None,   // output
-            None,   // spydecy
-            false,  // visualize
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_invalid_stage() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = inspect_command(input_path, "invalid-stage".to_string(), "pretty".to_string(), None);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_quality_check_with_verbose() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        // enforce=false to prevent process::exit() on check failures
-        let result = quality_check_command(input_path, false, 1.0, 2.0, 20, 80);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_validate_quality_targets_failures() {
-        // Create a report that will fail validation
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let report = generate_quality_report(&input_path).unwrap();
-
-        // Use very strict thresholds to force failures
-        let validations = validate_quality_targets(&report, 0.001, 0.001, 1, 99);
-        // Will likely fail some validations with strict thresholds
-        let _ = validations;
-    }
-
-    // ============================================================================
-    // DEPYLER-COVERAGE-95: Pure function tests for explosion technique
-    // ============================================================================
-
-    #[test]
-    fn test_complexity_rating_good() {
-        let result = complexity_rating(2.5);
-        assert!(result.to_string().contains("Good"));
-    }
-
-    #[test]
-    fn test_complexity_rating_acceptable() {
-        let result = complexity_rating(7.5);
-        assert!(result.to_string().contains("Acceptable"));
+    fn test_complexity_rating_medium() {
+        let rating = complexity_rating(15.0);
+        assert!(!rating.to_string().is_empty());
     }
 
     #[test]
     fn test_complexity_rating_high() {
-        let result = complexity_rating(15.0);
-        assert!(result.to_string().contains("High"));
-    }
-
-    #[test]
-    fn test_complexity_rating_boundary_good() {
-        let result = complexity_rating(5.0);
-        assert!(result.to_string().contains("Good"));
-    }
-
-    #[test]
-    fn test_complexity_rating_boundary_acceptable() {
-        let result = complexity_rating(10.0);
-        assert!(result.to_string().contains("Acceptable"));
-    }
-
-    #[test]
-    fn test_inspect_python_ast_pretty() {
-        let code = "def hello() -> int:\n    return 42";
-        let result = inspect_python_ast(code, "pretty");
-        assert!(result.is_ok());
-        let output = result.unwrap();
-        assert!(!output.is_empty());
-    }
-
-    #[test]
-    fn test_inspect_python_ast_debug() {
-        let code = "def hello() -> int:\n    return 42";
-        let result = inspect_python_ast(code, "debug");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_python_ast_json() {
-        let code = "def hello() -> int:\n    return 42";
-        let result = inspect_python_ast(code, "json");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_python_ast_invalid_syntax() {
-        let code = "def broken(";
-        let result = inspect_python_ast(code, "pretty");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_inspect_hir_pretty() {
-        let pipeline = DepylerPipeline::new();
-        let code = "def hello() -> int:\n    return 42";
-        let hir = pipeline.parse_to_hir(code).unwrap();
-        let result = inspect_hir(&hir, "pretty");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_hir_debug() {
-        let pipeline = DepylerPipeline::new();
-        let code = "def hello() -> int:\n    return 42";
-        let hir = pipeline.parse_to_hir(code).unwrap();
-        let result = inspect_hir(&hir, "debug");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_hir_json() {
-        let pipeline = DepylerPipeline::new();
-        let code = "def hello() -> int:\n    return 42";
-        let hir = pipeline.parse_to_hir(code).unwrap();
-        let result = inspect_hir(&hir, "json");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_format_python_ast_pretty_function() {
-        use rustpython_parser::{parse, Mode};
-        let code = "def hello() -> int:\n    return 42";
-        let ast = parse(code, Mode::Module, "<test>").unwrap();
-        let result = format_python_ast_pretty(&ast);
-        assert!(result.contains("hello"));
-    }
-
-    #[test]
-    fn test_format_python_ast_pretty_class() {
-        use rustpython_parser::{parse, Mode};
-        let code = "class MyClass:\n    pass";
-        let ast = parse(code, Mode::Module, "<test>").unwrap();
-        let result = format_python_ast_pretty(&ast);
-        // ClassDef falls through to debug format which contains "ClassDef"
-        assert!(result.contains("ClassDef") || result.contains("Statement"));
-    }
-
-    #[test]
-    fn test_format_python_ast_pretty_import() {
-        use rustpython_parser::{parse, Mode};
-        let code = "import os";
-        let ast = parse(code, Mode::Module, "<test>").unwrap();
-        let result = format_python_ast_pretty(&ast);
-        // Import falls through to debug format which contains "Import"
-        assert!(result.contains("Import") || result.contains("Statement"));
-    }
-
-    #[test]
-    fn test_format_hir_pretty_function() {
-        let pipeline = DepylerPipeline::new();
-        let code = "def add(a: int, b: int) -> int:\n    return a + b";
-        let hir = pipeline.parse_to_hir(code).unwrap();
-        let result = format_hir_pretty(&hir);
-        assert!(result.contains("add"));
-    }
-
-    #[test]
-    fn test_format_hir_pretty_multiple_functions() {
-        let pipeline = DepylerPipeline::new();
-        let code = "def foo() -> int:\n    return 1\n\ndef bar() -> int:\n    return 2";
-        let hir = pipeline.parse_to_hir(code).unwrap();
-        let result = format_hir_pretty(&hir);
-        assert!(result.contains("foo"));
-        assert!(result.contains("bar"));
-    }
-
-    #[test]
-    fn test_check_rust_compilation_for_file_valid() {
-        let code = "fn main() { println!(\"hello\"); }";
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.rs");
-        fs::write(&file_path, code).unwrap();
-        let result = check_rust_compilation_for_file(file_path.to_str().unwrap());
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_check_rust_compilation_for_file_invalid() {
-        let code = "fn main() { let x: i32 = \"not an int\"; }";
-        let temp_dir = TempDir::new().unwrap();
-        let file_path = temp_dir.path().join("test.rs");
-        fs::write(&file_path, code).unwrap();
-        let result = check_rust_compilation_for_file(file_path.to_str().unwrap());
-        // Invalid code should return Ok(false)
-        assert!(result.is_ok());
-        assert!(!result.unwrap());
-    }
-
-    #[test]
-    fn test_print_validation_results_all_pass() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
-        let report = generate_quality_report(&input_path).unwrap();
-        let validations = QualityValidations {
-            tdg_ok: true,
-            complexity_ok: true,
-            coverage_ok: true,
-            all_passed: true,
-            report,
-            min_tdg: 0.0,
-            max_tdg: 5.0,
-            max_complexity: 100,
-            min_coverage: 0,
-        };
-        // This just tests that it doesn't panic
-        print_validation_results(&validations);
-    }
-
-    #[test]
-    fn test_print_validation_results_some_fail() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
-        let report = generate_quality_report(&input_path).unwrap();
-        let validations = QualityValidations {
-            tdg_ok: false,
-            complexity_ok: true,
-            coverage_ok: false,
-            all_passed: false,
-            report,
-            min_tdg: 0.0,
-            max_tdg: 0.001,
-            max_complexity: 1,
-            min_coverage: 100,
-        };
-        print_validation_results(&validations);
-    }
-
-    #[test]
-    fn test_print_compilation_results_success() {
-        let results = CompilationResults {
-            compilation_ok: true,
-            clippy_ok: true,
-            all_passed: true,
-        };
-        print_compilation_results(&results);
-    }
-
-    #[test]
-    fn test_print_compilation_results_failure() {
-        let results = CompilationResults {
-            compilation_ok: false,
-            clippy_ok: false,
-            all_passed: false,
-        };
-        print_compilation_results(&results);
-    }
-
-    #[test]
-    fn test_generate_quality_report_simple() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
-        let result = generate_quality_report(&input_path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_generate_quality_report_complex() {
-        let code = r#"
-def process(data: list) -> dict:
-    result = {}
-    for item in data:
-        if item > 0:
-            result[item] = item * 2
-    return result
-"#;
-        let (_temp_dir, input_path) = create_test_python_file(code);
-        let result = generate_quality_report(&input_path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_lambda_analyze_invalid_file() {
-        let result = lambda_analyze_command(PathBuf::from("/nonexistent/file.py"), "json".to_string(), 0.7);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_transpile_with_oracle_disabled() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = transpile_command(
-            input_path, None, false, false, false, false, false, false, false, None, false, false, false, 0.8,
-            false,  // oracle disabled
-            None, 3, false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_with_async_mode() {
-        let (_temp_dir, input_path) = create_test_python_file("async def hello() -> int: return 42");
-        let result = transpile_command(
-            input_path, None, false, false, false, false, false, false, false, None, false,
-            true,   // async_mode
-            false, 0.8, false, None, 3, false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_suggest_fixes() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello(): return 42");
-        let result = transpile_command(
-            input_path, None, false, false, false, false, false, false, false, None, false, false,
-            true,   // suggest_fixes
-            0.8, false, None, 3, false,
-        );
-        // May or may not succeed depending on whether fixes are needed
-        let _ = result;
-    }
-
-    #[test]
-    fn test_check_compilation_quality_valid() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
-        let result = check_compilation_quality(&input_path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_validate_quality_all_pass() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
-        let report = generate_quality_report(&input_path).unwrap();
-        // Use very loose thresholds to ensure passing
-        // min_tdg=0.0, max_tdg=100.0 means TDG between 0 and 100 (always passes)
-        let validations = validate_quality_targets(&report, 0.0, 100.0, 1000, 0);
-        assert!(validations.tdg_ok);
-        assert!(validations.complexity_ok);
-    }
-
-    #[test]
-    fn test_format_stmt_summary_function_def() {
-        use rustpython_parser::{parse, Mode};
-        let code = "def hello() -> int:\n    return 42";
-        let ast = parse(code, Mode::Module, "<test>").unwrap();
-        if let rustpython_ast::Mod::Module(module) = ast {
-            for stmt in &module.body {
-                let summary = format_stmt_summary(stmt);
-                // format_stmt_summary returns "Function '...' with N parameters"
-                assert!(summary.contains("Function"));
-            }
-        }
-    }
-
-    #[test]
-    fn test_format_stmt_summary_class_def() {
-        use rustpython_parser::{parse, Mode};
-        let code = "class MyClass:\n    pass";
-        let ast = parse(code, Mode::Module, "<test>").unwrap();
-        if let rustpython_ast::Mod::Module(module) = ast {
-            for stmt in &module.body {
-                let summary = format_stmt_summary(stmt);
-                // ClassDef falls through to debug format which returns "ClassDef"
-                assert!(summary.contains("ClassDef"));
-            }
-        }
-    }
-
-    #[test]
-    fn test_format_stmt_summary_assign() {
-        use rustpython_parser::{parse, Mode};
-        let code = "x = 42";
-        let ast = parse(code, Mode::Module, "<test>").unwrap();
-        if let rustpython_ast::Mod::Module(module) = ast {
-            for stmt in &module.body {
-                let summary = format_stmt_summary(stmt);
-                assert!(!summary.is_empty());
-            }
-        }
-    }
-
-    #[test]
-    fn test_inspect_command_with_output() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int:\n    return 42");
-        let output_path = input_path.with_extension("hir");
-        let result = inspect_command(
-            input_path,
-            "hir".to_string(),
-            "pretty".to_string(),
-            Some(output_path.clone()),
-        );
-        assert!(result.is_ok());
-        assert!(output_path.exists());
-    }
-
-    #[test]
-    fn test_debug_command_gen_script() {
-        let temp_dir = TempDir::new().unwrap();
-        let rust_file = temp_dir.path().join("test.rs");
-        let script_path = temp_dir.path().join("test.gdb");
-        // Create a source file since --source is required when using --gen-script
-        let source_path = temp_dir.path().join("test.py");
-        fs::write(&source_path, "def hello() -> int:\n    return 42").unwrap();
-        let result = debug_command(
-            false,
-            Some(rust_file),    // gen_script param (becomes rust_file in debug_cmd)
-            "gdb".to_string(),
-            Some(source_path),  // --source is required
-            Some(script_path.clone()),  // explicit output path
-            None,
-            false,
-        );
-        assert!(result.is_ok());
-        assert!(script_path.exists());
-    }
-
-    #[test]
-    fn test_debug_command_lldb_debugger() {
-        let result = debug_command(
-            true,
-            None,
-            "lldb".to_string(),
-            None,
-            None,
-            None,
-            false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_with_gen_tests() {
-        let (_temp_dir, input_path) = create_test_python_file("def add(a: int, b: int) -> int:\n    return a + b");
-        let result = transpile_command(
-            input_path, None,
-            true,   // gen_tests
-            false, false, false, false, false, false, None, false, false, false, 0.8, false, None, 3, false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_with_verify() {
-        let (_temp_dir, input_path) = create_test_python_file("def double(x: int) -> int:\n    return x * 2");
-        let result = transpile_command(
-            input_path, None, false,
-            true,   // verify
-            false, false, false, false, false, None, false, false, false, 0.8, false, None, 3, false,
-        );
-        // Verification may succeed or fail based on the code
-        let _ = result;
-    }
-
-    // Additional coverage tests for lib.rs
-
-    #[test]
-    fn test_transpile_nonexistent_file() {
-        let result = transpile_command(
-            PathBuf::from("/nonexistent/file.py"), None, false, false, false, false, false, false, false, None, false, false, false, 0.8, false, None, 3, false,
-        );
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_analyze_nonexistent_file() {
-        let result = analyze_command(PathBuf::from("/nonexistent/file.py"), "text".to_string());
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_check_nonexistent_file() {
-        let result = check_command(PathBuf::from("/nonexistent/file.py"));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_inspect_nonexistent_file() {
-        let result = inspect_command(PathBuf::from("/nonexistent/file.py"), "hir".to_string(), "pretty".to_string(), None);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_transpile_with_source_map() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = transpile_command(
-            input_path, None, false, false, false,
-            true,   // source_map
-            false, false, false, None, false, false, false, 0.8, false, None, 3, false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_with_audit_trail() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = transpile_command(
-            input_path, None, false, false, false, false, false, false,
-            true,   // audit_trail
-            None, false, false, false, 0.8, false, None, 3, false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_transpile_with_trace_output() {
-        let temp_dir = TempDir::new().unwrap();
-        let input_path = temp_dir.path().join("test.py");
-        let trace_output = temp_dir.path().join("trace.json");
-        fs::write(&input_path, "def hello() -> int: return 42").unwrap();
-
-        let result = transpile_command(
-            input_path, None, false, false, false, false,
-            true,   // trace
-            false, false,
-            Some(trace_output.clone()),  // trace_output
-            false, false, false, 0.8, false, None, 3, false,
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_cli_transpile_parse() {
-        let cli = Cli::try_parse_from(["depyler", "transpile", "test.py"]);
-        assert!(cli.is_ok());
-    }
-
-    #[test]
-    fn test_cli_check_parse() {
-        let cli = Cli::try_parse_from(["depyler", "check", "test.py"]);
-        assert!(cli.is_ok());
-    }
-
-    #[test]
-    fn test_cli_inspect_parse() {
-        let cli = Cli::try_parse_from(["depyler", "inspect", "test.py", "--repr", "hir"]);
-        assert!(cli.is_ok());
-    }
-
-    #[test]
-    fn test_cli_compile_parse() {
-        let cli = Cli::try_parse_from(["depyler", "compile", "test.py"]);
-        assert!(cli.is_ok());
-    }
-
-    #[test]
-    fn test_cli_quality_check_parse() {
-        let cli = Cli::try_parse_from(["depyler", "quality-check", "test.py"]);
-        assert!(cli.is_ok());
-    }
-
-    #[test]
-    fn test_cli_verbose_flag() {
-        let cli = Cli::try_parse_from(["depyler", "--verbose", "analyze", "test.py"]);
-        assert!(cli.is_ok());
-        let parsed = cli.unwrap();
-        assert!(parsed.verbose);
-    }
-
-    #[test]
-    fn test_extract_error_code_e0277() {
-        assert_eq!(extract_error_code("error[E0277]: trait bound not satisfied"), Some("E0277".to_string()));
-    }
-
-    #[test]
-    fn test_extract_error_code_e0382() {
-        assert_eq!(extract_error_code("error[E0382]: use of moved value"), Some("E0382".to_string()));
-    }
-
-    #[test]
-    fn test_extract_error_code_e0425() {
-        assert_eq!(extract_error_code("error[E0425]: cannot find value `x`"), Some("E0425".to_string()));
-    }
-
-    #[test]
-    fn test_extract_error_code_e0599() {
-        assert_eq!(extract_error_code("error[E0599]: no method named `foo`"), Some("E0599".to_string()));
-    }
-
-    #[test]
-    fn test_extract_error_code_multiline() {
-        let msg = "error[E0308]: mismatched types\n  --> src/main.rs:5:5\n   |";
-        assert_eq!(extract_error_code(msg), Some("E0308".to_string()));
-    }
-
-    #[test]
-    fn test_extract_error_code_no_brackets() {
-        assert_eq!(extract_error_code("error: some generic error"), None);
-    }
-
-    #[test]
-    fn test_extract_error_code_empty() {
-        assert_eq!(extract_error_code(""), None);
-    }
-
-    #[test]
-    fn test_complexity_rating_zero() {
-        let result = complexity_rating(0.0);
-        assert!(result.to_string().contains("Good"));
-    }
-
-    #[test]
-    fn test_complexity_rating_negative() {
-        let result = complexity_rating(-1.0);
-        // Should handle gracefully
-        assert!(!result.to_string().is_empty());
-    }
-
-    #[test]
-    fn test_complexity_rating_extreme() {
-        let result = complexity_rating(100.0);
-        assert!(result.to_string().contains("High"));
-    }
-
-    #[test]
-    fn test_find_python_files_nested() {
-        let temp_dir = TempDir::new().unwrap();
-        let nested = temp_dir.path().join("nested");
-        fs::create_dir_all(&nested).unwrap();
-        fs::write(temp_dir.path().join("a.py"), "x = 1").unwrap();
-        fs::write(nested.join("b.py"), "y = 2").unwrap();
-
-        let result = find_python_files(temp_dir.path());
-        assert!(result.is_ok());
-        let files = result.unwrap();
-        assert_eq!(files.len(), 2);
-    }
-
-    #[test]
-    fn test_find_python_files_with_other_extensions() {
-        let temp_dir = TempDir::new().unwrap();
-        fs::write(temp_dir.path().join("a.py"), "x = 1").unwrap();
-        fs::write(temp_dir.path().join("b.rs"), "fn main() {}").unwrap();
-        fs::write(temp_dir.path().join("c.txt"), "text").unwrap();
-        fs::write(temp_dir.path().join("d.pyw"), "y = 2").unwrap();
-
-        let result = find_python_files(temp_dir.path());
-        assert!(result.is_ok());
-        let files = result.unwrap();
-        assert_eq!(files.len(), 1); // Only .py files
-    }
-
-    #[test]
-    fn test_quality_check_strict_thresholds() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        // Use strict thresholds that should fail
-        let result = quality_check_command(input_path, false, 0.0, 0.001, 1, 100);
-        // Should not panic even with strict thresholds
-        let _ = result;
-    }
-
-    #[test]
-    fn test_quality_check_loose_thresholds() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = quality_check_command(input_path, false, 0.0, 100.0, 1000, 0);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_generate_quality_report_with_class() {
-        let code = r#"
-class Calculator:
-    def add(self, a: int, b: int) -> int:
-        return a + b
-
-    def subtract(self, a: int, b: int) -> int:
-        return a - b
-"#;
-        let (_temp_dir, input_path) = create_test_python_file(code);
-        let result = generate_quality_report(&input_path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_generate_quality_report_with_loops() {
-        let code = r#"
-def sum_list(items: list) -> int:
-    total = 0
-    for item in items:
-        total = total + item
-    return total
-"#;
-        let (_temp_dir, input_path) = create_test_python_file(code);
-        let result = generate_quality_report(&input_path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_generate_quality_report_with_conditionals() {
-        let code = r#"
-def max_value(a: int, b: int) -> int:
-    if a > b:
-        return a
-    else:
-        return b
-"#;
-        let (_temp_dir, input_path) = create_test_python_file(code);
-        let result = generate_quality_report(&input_path);
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_compilation_results_all_false() {
-        let results = CompilationResults {
-            compilation_ok: false,
-            clippy_ok: false,
-            all_passed: false,
-        };
-        assert!(!results.all_passed);
-    }
-
-    #[test]
-    fn test_compilation_results_partial() {
-        let results = CompilationResults {
-            compilation_ok: true,
-            clippy_ok: false,
-            all_passed: false,
-        };
-        assert!(results.compilation_ok);
-        assert!(!results.clippy_ok);
-    }
-
-    #[test]
-    fn test_inspect_hir_invalid_format() {
-        let pipeline = DepylerPipeline::new();
-        let code = "def hello() -> int: return 42";
-        let hir = pipeline.parse_to_hir(code).unwrap();
-        let result = inspect_hir(&hir, "invalid_format");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_inspect_python_ast_with_imports() {
-        let code = "import os\nimport sys\n\ndef hello(): return 42";
-        let result = inspect_python_ast(code, "pretty");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_python_ast_with_decorators() {
-        let code = "@property\ndef hello(self) -> int:\n    return 42";
-        let result = inspect_python_ast(code, "pretty");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_inspect_python_ast_with_type_hints() {
-        let code = "def process(data: dict[str, int]) -> list[str]:\n    return list(data.keys())";
-        let result = inspect_python_ast(code, "pretty");
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_format_hir_pretty_empty_module() {
-        let pipeline = DepylerPipeline::new();
-        let code = "# just a comment";
-        let result = pipeline.parse_to_hir(code);
-        // May or may not succeed depending on parser
-        let _ = result;
-    }
-
-    #[test]
-    fn test_quality_validations_fields() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let report = generate_quality_report(&input_path).unwrap();
-        let validations = QualityValidations {
-            tdg_ok: true,
-            complexity_ok: false,
-            coverage_ok: true,
-            all_passed: false,
-            report,
-            min_tdg: 0.5,
-            max_tdg: 1.5,
-            max_complexity: 5,
-            min_coverage: 90,
-        };
-        assert!(!validations.all_passed);
-        assert_eq!(validations.min_tdg, 0.5);
-        assert_eq!(validations.max_tdg, 1.5);
-    }
-
-    #[test]
-    fn test_oracle_classify_json_format() {
-        let result = oracle_classify_command(
-            "error[E0277]: the trait `Display` is not implemented".to_string(),
-            "json".to_string(),
-        );
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_oracle_classify_unknown_error() {
-        let result = oracle_classify_command(
-            "some random error message".to_string(),
-            "text".to_string(),
-        );
-        // Should handle gracefully even with unknown errors
-        let _ = result;
-    }
-
-    #[test]
-    fn test_transpile_with_all_options() {
-        let (_temp_dir, input_path) = create_test_python_file("def add(a: int, b: int) -> int:\n    return a + b");
-        let result = transpile_command(
-            input_path, None,
-            true,   // gen_tests
-            true,   // verify
-            true,   // debug
-            true,   // source_map
-            true,   // trace
-            true,   // explain
-            true,   // audit_trail
-            None,   // trace_output
-            false,  // auto_fix (skipped to avoid oracle)
-            false,  // async
-            false,  // suggest_fixes
-            0.9,    // fix_confidence
-            false,  // oracle
-            None,   // patterns
-            5,      // max_retries
-            false,  // llm_fallback
-        );
-        // May or may not succeed depending on verification
-        let _ = result;
-    }
-
-    #[test]
-    fn test_compile_command_debug_profile() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = compile_command(input_path, None, "debug".to_string(), false);
-        // May succeed or fail based on rustc availability
-        let _ = result;
-    }
-
-    #[test]
-    fn test_inspect_typed_hir() {
-        let (_temp_dir, input_path) = create_test_python_file("def hello() -> int: return 42");
-        let result = inspect_command(input_path, "typed-hir".to_string(), "pretty".to_string(), None);
-        assert!(result.is_ok());
-    }
-
-    // Additional unique edge case tests for pure functions
-
-    #[test]
-    fn test_extract_error_code_bracket_format() {
-        let error = "error[E0308]: mismatched types at line 42";
-        let code = extract_error_code(error);
-        assert_eq!(code, Some("E0308".to_string()));
-    }
-
-    #[test]
-    fn test_extract_error_code_no_match() {
-        let error = "some random error without code";
-        let code = extract_error_code(error);
-        assert!(code.is_none());
-    }
-
-    #[test]
-    fn test_extract_error_code_short_code() {
-        // E followed by less than 4 digits should not match
-        let error = "E12 is not a valid code";
-        let code = extract_error_code(error);
-        assert!(code.is_none());
-    }
-
-    #[test]
-    fn test_extract_error_code_in_multiline() {
-        let error = "line1\nerror[E0001]: something\nline3";
-        let code = extract_error_code(error);
-        assert_eq!(code, Some("E0001".to_string()));
-    }
-
-    #[test]
-    fn test_extract_error_code_picks_first() {
-        // Should return first match
-        let error = "E0001 and E0002 are both errors";
-        let code = extract_error_code(error);
-        assert_eq!(code, Some("E0001".to_string()));
-    }
-
-    #[test]
-    fn test_extract_error_code_empty_input() {
-        let code = extract_error_code("");
-        assert!(code.is_none());
+        let rating = complexity_rating(25.0);
+        assert!(!rating.to_string().is_empty());
     }
 
     #[test]
     fn test_complexity_rating_boundary_low() {
-        let rating = complexity_rating(5.0);
-        assert!(rating.to_string().contains("Good"));
+        let rating = complexity_rating(9.99);
+        assert!(rating.to_string().contains("Low"));
     }
 
     #[test]
     fn test_complexity_rating_boundary_medium() {
         let rating = complexity_rating(10.0);
-        assert!(rating.to_string().contains("Acceptable"));
+        assert!(rating.to_string().contains("Medium"));
     }
 
     #[test]
-    fn test_complexity_rating_minimal_value() {
-        let rating = complexity_rating(0.0);
-        assert!(rating.to_string().contains("Good"));
-    }
-
-    #[test]
-    fn test_complexity_rating_extreme_value() {
-        let rating = complexity_rating(100.0);
+    fn test_complexity_rating_boundary_high() {
+        let rating = complexity_rating(20.0);
         assert!(rating.to_string().contains("High"));
     }
 
     #[test]
-    fn test_citl_result_success_case() {
-        let result = CitlResult {
-            success: true,
-            compilation_rate: 0.95,
-            files_processed: 10,
-            iterations_used: 3,
-            fixes_applied: 2,
-        };
-        assert!(result.success);
-        assert!((result.compilation_rate - 0.95).abs() < 0.001);
-        assert_eq!(result.files_processed, 10);
-        assert_eq!(result.iterations_used, 3);
-        assert_eq!(result.fixes_applied, 2);
+    fn test_complexity_rating_zero() {
+        let rating = complexity_rating(0.0);
+        assert!(rating.to_string().contains("Low"));
     }
 
     #[test]
-    fn test_citl_result_failure_case() {
-        let result = CitlResult {
-            success: false,
-            compilation_rate: 0.50,
-            files_processed: 100,
-            iterations_used: 50,
-            fixes_applied: 10,
-        };
-        assert!(!result.success);
-        assert!((result.compilation_rate - 0.50).abs() < 0.001);
+    fn test_complexity_rating_negative() {
+        let rating = complexity_rating(-5.0);
+        assert!(rating.to_string().contains("Low"));
     }
 
     #[test]
-    fn test_citl_result_clone_verify() {
-        let result = CitlResult {
-            success: true,
-            compilation_rate: 1.0,
-            files_processed: 5,
-            iterations_used: 1,
-            fixes_applied: 0,
-        };
-        let cloned = result.clone();
-        assert_eq!(result.success, cloned.success);
-        assert_eq!(result.files_processed, cloned.files_processed);
+    fn test_transpile_command_valid() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("test.py");
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+
+        let result = transpile_command(py_file.clone(), None, false, false, false, false);
+        assert!(result.is_ok());
+
+        let rs_file = py_file.with_extension("rs");
+        assert!(rs_file.exists());
+    }
+
+    #[test]
+    fn test_transpile_command_with_output() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("test.py");
+        let rs_file = temp.path().join("custom_output.rs");
+        fs::write(&py_file, "def greet() -> str:\n    return 'hello'\n").unwrap();
+
+        let result = transpile_command(py_file, Some(rs_file.clone()), false, false, false, false);
+        assert!(result.is_ok());
+        assert!(rs_file.exists());
+    }
+
+    #[test]
+    fn test_transpile_command_nonexistent() {
+        let result = transpile_command(PathBuf::from("/nonexistent.py"), None, false, false, false, false);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_transpile_command_with_verify() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("test.py");
+        fs::write(&py_file, "x = 1\n").unwrap();
+
+        let result = transpile_command(py_file, None, true, false, false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_command_with_gen_tests() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("test.py");
+        fs::write(&py_file, "x = 1\n").unwrap();
+
+        let result = transpile_command(py_file, None, false, true, false, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_command_with_debug() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("test.py");
+        fs::write(&py_file, "x = 1\n").unwrap();
+
+        let result = transpile_command(py_file, None, false, false, true, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_command_with_source_map() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("test.py");
+        fs::write(&py_file, "x = 1\n").unwrap();
+
+        let result = transpile_command(py_file, None, false, false, false, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_transpile_command_all_flags() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("test.py");
+        fs::write(&py_file, "def foo(): pass\n").unwrap();
+
+        let result = transpile_command(py_file, None, true, true, true, true);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_analyze_command_text_format() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("analyze.py");
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+
+        let result = analyze_command(py_file, "text".to_string());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_analyze_command_json_format() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("analyze.py");
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+
+        let result = analyze_command(py_file, "json".to_string());
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_analyze_command_nonexistent() {
+        let result = analyze_command(PathBuf::from("/nonexistent.py"), "text".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_check_command_valid() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("check.py");
+        fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+
+        let result = check_command(py_file);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_check_command_nonexistent() {
+        let result = check_command(PathBuf::from("/nonexistent.py"));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_compile_command_nonexistent() {
+        let result = compile_command(PathBuf::from("/nonexistent.py"), None, "release".to_string());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_compile_command_empty_profile() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("compile.py");
+        fs::write(&py_file, "def foo(): pass\n").unwrap();
+
+        // Empty profile - should use None internally
+        let result = compile_command(py_file, None, "".to_string());
+        // May fail during actual compilation, but should not panic
+        let _ = result;
+    }
+
+    #[test]
+    fn test_compile_command_with_profile() {
+        let temp = TempDir::new().unwrap();
+        let py_file = temp.path().join("compile.py");
+        fs::write(&py_file, "def foo(): pass\n").unwrap();
+
+        let result = compile_command(py_file, None, "debug".to_string());
+        // May fail during actual compilation, but should not panic
+        let _ = result;
+    }
+
+    // CLI struct tests
+    #[test]
+    fn test_cli_verbose_default() {
+        use clap::Parser;
+        let cli = Cli::try_parse_from(["depyler", "check", "test.py"]).unwrap();
+        assert!(!cli.verbose);
+    }
+
+    #[test]
+    fn test_cache_commands_stats() {
+        use clap::Parser;
+        let cli = Cli::try_parse_from(["depyler", "cache", "stats"]).unwrap();
+        if let Commands::Cache(CacheCommands::Stats { format }) = cli.command {
+            assert_eq!(format, "text");
+        } else {
+            panic!("Expected Cache Stats");
+        }
+    }
+
+    #[test]
+    fn test_cache_commands_gc() {
+        use clap::Parser;
+        let cli = Cli::try_parse_from(["depyler", "cache", "gc"]).unwrap();
+        if let Commands::Cache(CacheCommands::Gc { max_age_days, dry_run }) = cli.command {
+            assert_eq!(max_age_days, 30);
+            assert!(!dry_run);
+        } else {
+            panic!("Expected Cache Gc");
+        }
+    }
+
+    #[test]
+    fn test_cache_commands_clear() {
+        use clap::Parser;
+        let cli = Cli::try_parse_from(["depyler", "cache", "clear"]).unwrap();
+        if let Commands::Cache(CacheCommands::Clear { force }) = cli.command {
+            assert!(!force);
+        } else {
+            panic!("Expected Cache Clear");
+        }
+    }
+
+    #[test]
+    fn test_cache_commands_warm() {
+        use clap::Parser;
+        let cli = Cli::try_parse_from(["depyler", "cache", "warm", "--input-dir", "/tmp"]).unwrap();
+        if let Commands::Cache(CacheCommands::Warm { input_dir, jobs }) = cli.command {
+            assert_eq!(input_dir, PathBuf::from("/tmp"));
+            assert_eq!(jobs, 4);
+        } else {
+            panic!("Expected Cache Warm");
+        }
     }
 }

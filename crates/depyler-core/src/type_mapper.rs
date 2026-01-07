@@ -1277,4 +1277,599 @@ mod tests {
         };
         assert_eq!(array.to_rust_string(), "[f64; N]");
     }
+
+    // ============ Callable with parameters (DEPYLER-0734) ============
+
+    #[test]
+    fn test_callable_with_single_param() {
+        let mapper = TypeMapper::new();
+
+        // Callable[[int], str] -> impl Fn(i32) -> String
+        let callable = PythonType::Generic {
+            base: "Callable".to_string(),
+            params: vec![
+                PythonType::List(Box::new(PythonType::Int)),
+                PythonType::String,
+            ],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&callable) {
+            assert!(name.contains("impl Fn"));
+            assert!(name.contains("i32"));
+            assert!(name.contains("String"));
+        } else {
+            panic!("Expected Custom type for Callable with params");
+        }
+    }
+
+    #[test]
+    fn test_callable_with_tuple_params() {
+        let mapper = TypeMapper::new();
+
+        // Callable[[int, str], bool] -> impl Fn(i32, String) -> bool
+        let callable = PythonType::Generic {
+            base: "Callable".to_string(),
+            params: vec![
+                PythonType::Tuple(vec![PythonType::Int, PythonType::String]),
+                PythonType::Bool,
+            ],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&callable) {
+            assert!(name.contains("impl Fn"));
+            assert!(name.contains("i32"));
+            assert!(name.contains("String"));
+            assert!(name.contains("bool"));
+        } else {
+            panic!("Expected Custom type for Callable with tuple params");
+        }
+    }
+
+    #[test]
+    fn test_callable_with_no_return() {
+        let mapper = TypeMapper::new();
+
+        // Callable[[int], None] -> impl Fn(i32)
+        let callable = PythonType::Generic {
+            base: "Callable".to_string(),
+            params: vec![
+                PythonType::Tuple(vec![PythonType::Int]),
+                PythonType::None,
+            ],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&callable) {
+            assert!(name.contains("impl Fn"));
+            assert!(!name.contains("->"));
+        } else {
+            panic!("Expected Custom type for Callable with None return");
+        }
+    }
+
+    #[test]
+    fn test_callable_empty_params() {
+        let mapper = TypeMapper::new();
+
+        // Callable[[], int] -> impl Fn() -> i32
+        let callable = PythonType::Generic {
+            base: "Callable".to_string(),
+            params: vec![
+                PythonType::None, // Empty param list
+                PythonType::Int,
+            ],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&callable) {
+            assert!(name.contains("impl Fn()"));
+            assert!(name.contains("i32"));
+        } else {
+            panic!("Expected Custom type for Callable with empty params");
+        }
+    }
+
+    #[test]
+    fn test_callable_unknown_params() {
+        let mapper = TypeMapper::new();
+
+        // Callable with Unknown params list
+        let callable = PythonType::Generic {
+            base: "Callable".to_string(),
+            params: vec![
+                PythonType::Unknown,
+                PythonType::Int,
+            ],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&callable) {
+            assert!(name.contains("impl Fn()"));
+        } else {
+            panic!("Expected Custom type for Callable with unknown params");
+        }
+    }
+
+    #[test]
+    fn test_bare_callable_generic() {
+        let mapper = TypeMapper::new();
+
+        // Bare Callable without params
+        let callable = PythonType::Generic {
+            base: "Callable".to_string(),
+            params: vec![],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&callable) {
+            assert_eq!(name, "impl Fn()");
+        } else {
+            panic!("Expected Custom type for bare Callable");
+        }
+    }
+
+    // ============ Generator/Iterator type mappings (DEPYLER-0188) ============
+
+    #[test]
+    fn test_generator_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        // Generator[int, None, None] -> impl Iterator<Item=i32>
+        let gen = PythonType::Generic {
+            base: "Generator".to_string(),
+            params: vec![PythonType::Int, PythonType::None, PythonType::None],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&gen) {
+            assert!(name.contains("impl Iterator"));
+            assert!(name.contains("Item=i32"));
+        } else {
+            panic!("Expected Custom type for Generator");
+        }
+    }
+
+    #[test]
+    fn test_iterator_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        // Iterator[str] -> impl Iterator<Item=String>
+        let iter = PythonType::Generic {
+            base: "Iterator".to_string(),
+            params: vec![PythonType::String],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&iter) {
+            assert!(name.contains("impl Iterator"));
+            assert!(name.contains("Item=String"));
+        } else {
+            panic!("Expected Custom type for Iterator");
+        }
+    }
+
+    #[test]
+    fn test_iterable_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        // Iterable[int] -> impl IntoIterator<Item=i32>
+        let iterable = PythonType::Generic {
+            base: "Iterable".to_string(),
+            params: vec![PythonType::Int],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&iterable) {
+            assert!(name.contains("impl IntoIterator"));
+            assert!(name.contains("Item=i32"));
+        } else {
+            panic!("Expected Custom type for Iterable");
+        }
+    }
+
+    // ============ Deque type mappings (DEPYLER-0742) ============
+
+    #[test]
+    fn test_deque_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        // deque[int] -> VecDeque<i32>
+        let deque = PythonType::Generic {
+            base: "deque".to_string(),
+            params: vec![PythonType::Int],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&deque) {
+            assert!(name.contains("VecDeque"));
+            assert!(name.contains("i32"));
+        } else {
+            panic!("Expected Custom type for deque");
+        }
+    }
+
+    #[test]
+    fn test_bare_deque_mapping() {
+        let mapper = TypeMapper::new();
+
+        let deque = PythonType::Custom("deque".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&deque) {
+            assert!(name.contains("VecDeque"));
+        } else {
+            panic!("Expected Custom type for bare deque");
+        }
+    }
+
+    #[test]
+    fn test_counter_mapping() {
+        let mapper = TypeMapper::new();
+
+        let counter = PythonType::Custom("Counter".to_string());
+        if let RustType::HashMap(k, v) = mapper.map_type(&counter) {
+            assert_eq!(*k, RustType::String);
+            assert_eq!(*v, RustType::Primitive(PrimitiveType::I32));
+        } else {
+            panic!("Expected HashMap for Counter");
+        }
+    }
+
+    // ============ type[T] mappings (DEPYLER-0845) ============
+
+    #[test]
+    fn test_type_param_mapping() {
+        let mapper = TypeMapper::new();
+
+        // type[MyClass] -> PhantomData<MyClass>
+        let type_t = PythonType::Generic {
+            base: "type".to_string(),
+            params: vec![PythonType::Custom("MyClass".to_string())],
+        };
+        if let RustType::Custom(name) = mapper.map_type(&type_t) {
+            assert!(name.contains("PhantomData"));
+            assert!(name.contains("MyClass"));
+        } else {
+            panic!("Expected Custom type for type[T]");
+        }
+    }
+
+    // ============ Union type mappings ============
+
+    #[test]
+    fn test_union_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        // Union[int, str] -> Enum with variants
+        let union = PythonType::Union(vec![PythonType::Int, PythonType::String]);
+        if let RustType::Enum { name: _, variants } = mapper.map_type(&union) {
+            assert_eq!(variants.len(), 2);
+        } else {
+            panic!("Expected Enum for Union");
+        }
+    }
+
+    #[test]
+    fn test_union_with_none_is_optional() {
+        let mapper = TypeMapper::new();
+
+        // Union[int, None] -> Option<int>
+        let union = PythonType::Union(vec![PythonType::Int, PythonType::None]);
+        if let RustType::Option(inner) = mapper.map_type(&union) {
+            assert_eq!(*inner, RustType::Primitive(PrimitiveType::I32));
+        } else {
+            panic!("Expected Option for Union[T, None]");
+        }
+
+        // Union[None, str] -> Option<str> (None first)
+        let union2 = PythonType::Union(vec![PythonType::None, PythonType::String]);
+        if let RustType::Option(inner) = mapper.map_type(&union2) {
+            assert_eq!(*inner, RustType::String);
+        } else {
+            panic!("Expected Option for Union[None, T]");
+        }
+    }
+
+    // ============ Exception type mappings (DEPYLER-0597) ============
+
+    #[test]
+    fn test_os_error_mapping() {
+        let mapper = TypeMapper::new();
+
+        for err in ["OSError", "IOError", "FileNotFoundError", "PermissionError"] {
+            let error = PythonType::Custom(err.to_string());
+            if let RustType::Custom(name) = mapper.map_type(&error) {
+                assert_eq!(name, "std::io::Error");
+            } else {
+                panic!("Expected std::io::Error for {}", err);
+            }
+        }
+    }
+
+    #[test]
+    fn test_general_exception_mapping() {
+        let mapper = TypeMapper::new();
+
+        for exc in ["ValueError", "TypeError", "KeyError", "IndexError", "RuntimeError"] {
+            let error = PythonType::Custom(exc.to_string());
+            if let RustType::Custom(name) = mapper.map_type(&error) {
+                assert_eq!(name, "Box<dyn std::error::Error>");
+            } else {
+                panic!("Expected Box<dyn Error> for {}", exc);
+            }
+        }
+    }
+
+    // ============ Object type mapping (DEPYLER-0628) ============
+
+    #[test]
+    fn test_object_builtins_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let obj = PythonType::Custom("builtins.object".to_string());
+        if let RustType::Custom(name) = mapper.map_type(&obj) {
+            assert_eq!(name, "serde_json::Value");
+        } else {
+            panic!("Expected serde_json::Value for builtins.object");
+        }
+    }
+
+    // ============ Additional RustType tests ============
+
+    #[test]
+    fn test_str_type_to_string() {
+        let str_type = RustType::Str { lifetime: Some("'a".to_string()) };
+        assert_eq!(str_type.to_rust_string(), "&'a str");
+
+        let str_no_lt = RustType::Str { lifetime: None };
+        assert_eq!(str_no_lt.to_rust_string(), "&str");
+    }
+
+    #[test]
+    fn test_cow_type_to_string() {
+        let cow = RustType::Cow { lifetime: "'static".to_string() };
+        assert_eq!(cow.to_rust_string(), "Cow<'static, str>");
+    }
+
+    #[test]
+    fn test_reference_type_to_string() {
+        let ref_type = RustType::Reference {
+            lifetime: Some("'a".to_string()),
+            mutable: false,
+            inner: Box::new(RustType::String),
+        };
+        assert_eq!(ref_type.to_rust_string(), "&'a String");
+
+        let mut_ref = RustType::Reference {
+            lifetime: None,
+            mutable: true,
+            inner: Box::new(RustType::Primitive(PrimitiveType::I32)),
+        };
+        assert_eq!(mut_ref.to_rust_string(), "&mut i32");
+    }
+
+    #[test]
+    fn test_result_type_to_string() {
+        let result = RustType::Result(
+            Box::new(RustType::String),
+            Box::new(RustType::Custom("Error".to_string())),
+        );
+        assert_eq!(result.to_rust_string(), "Result<String, Error>");
+    }
+
+    #[test]
+    fn test_generic_type_to_string() {
+        let generic = RustType::Generic {
+            base: "MyType".to_string(),
+            params: vec![RustType::Primitive(PrimitiveType::I32), RustType::String],
+        };
+        assert_eq!(generic.to_rust_string(), "MyType<i32, String>");
+    }
+
+    #[test]
+    fn test_enum_type_to_string() {
+        let enum_type = RustType::Enum {
+            name: "MyUnion".to_string(),
+            variants: vec![
+                ("Int".to_string(), RustType::Primitive(PrimitiveType::I32)),
+                ("Str".to_string(), RustType::String),
+            ],
+        };
+        // Enum just returns its name
+        assert_eq!(enum_type.to_rust_string(), "MyUnion");
+    }
+
+    #[test]
+    fn test_unsupported_type_to_string() {
+        let unsup = RustType::Unsupported("SomeType".to_string());
+        assert_eq!(unsup.to_rust_string(), "/* unsupported: SomeType */");
+    }
+
+    #[test]
+    fn test_type_param_to_string() {
+        let param = RustType::TypeParam("T".to_string());
+        assert_eq!(param.to_rust_string(), "T");
+    }
+
+    // ============ PrimitiveType tests ============
+
+    #[test]
+    fn test_all_primitive_types() {
+        let primitives = [
+            (PrimitiveType::Bool, "bool"),
+            (PrimitiveType::I8, "i8"),
+            (PrimitiveType::I16, "i16"),
+            (PrimitiveType::I32, "i32"),
+            (PrimitiveType::I64, "i64"),
+            (PrimitiveType::I128, "i128"),
+            (PrimitiveType::ISize, "isize"),
+            (PrimitiveType::U8, "u8"),
+            (PrimitiveType::U16, "u16"),
+            (PrimitiveType::U32, "u32"),
+            (PrimitiveType::U64, "u64"),
+            (PrimitiveType::U128, "u128"),
+            (PrimitiveType::USize, "usize"),
+            (PrimitiveType::F32, "f32"),
+            (PrimitiveType::F64, "f64"),
+        ];
+
+        for (prim, expected) in primitives {
+            let rust_type = RustType::Primitive(prim);
+            assert_eq!(rust_type.to_rust_string(), expected);
+        }
+    }
+
+    // ============ TypeVar and GenericList tests ============
+
+    #[test]
+    fn test_type_var_mapping() {
+        let mapper = TypeMapper::new();
+
+        let type_var = PythonType::TypeVar("T".to_string());
+        assert_eq!(mapper.map_type(&type_var), RustType::TypeParam("T".to_string()));
+    }
+
+    #[test]
+    fn test_generic_list_mapping() {
+        let mapper = TypeMapper::new();
+
+        let list = PythonType::Generic {
+            base: "List".to_string(),
+            params: vec![PythonType::String],
+        };
+        assert_eq!(
+            mapper.map_type(&list),
+            RustType::Vec(Box::new(RustType::String))
+        );
+    }
+
+    #[test]
+    fn test_generic_dict_mapping() {
+        let mapper = TypeMapper::new();
+
+        let dict = PythonType::Generic {
+            base: "Dict".to_string(),
+            params: vec![PythonType::String, PythonType::Int],
+        };
+        assert_eq!(
+            mapper.map_type(&dict),
+            RustType::HashMap(
+                Box::new(RustType::String),
+                Box::new(RustType::Primitive(PrimitiveType::I32))
+            )
+        );
+    }
+
+    // ============ Array type mapping with ConstGeneric ============
+
+    #[test]
+    fn test_array_type_mapping() {
+        let mapper = TypeMapper::new();
+
+        let array = PythonType::Array {
+            element_type: Box::new(PythonType::Int),
+            size: ConstGeneric::Literal(10),
+        };
+        if let RustType::Array { element_type, size } = mapper.map_type(&array) {
+            assert_eq!(*element_type, RustType::Primitive(PrimitiveType::I32));
+            assert_eq!(size, RustConstGeneric::Literal(10));
+        } else {
+            panic!("Expected Array type");
+        }
+    }
+
+    #[test]
+    fn test_array_with_const_param() {
+        let mapper = TypeMapper::new();
+
+        let array = PythonType::Array {
+            element_type: Box::new(PythonType::Float),
+            size: ConstGeneric::Parameter("N".to_string()),
+        };
+        if let RustType::Array { element_type, size } = mapper.map_type(&array) {
+            assert_eq!(*element_type, RustType::Primitive(PrimitiveType::F64));
+            assert_eq!(size, RustConstGeneric::Parameter("N".to_string()));
+        } else {
+            panic!("Expected Array type");
+        }
+    }
+
+    #[test]
+    fn test_array_with_expression() {
+        let mapper = TypeMapper::new();
+
+        let array = PythonType::Array {
+            element_type: Box::new(PythonType::Bool),
+            size: ConstGeneric::Expression("N + 1".to_string()),
+        };
+        if let RustType::Array { element_type, size } = mapper.map_type(&array) {
+            assert_eq!(*element_type, RustType::Primitive(PrimitiveType::Bool));
+            assert_eq!(size, RustConstGeneric::Expression("N + 1".to_string()));
+        } else {
+            panic!("Expected Array type");
+        }
+    }
+
+    // ============ needs_reference edge cases ============
+
+    #[test]
+    fn test_needs_reference_option() {
+        let mapper = TypeMapper::new();
+
+        // Option doesn't need reference (falls through to default false)
+        assert!(!mapper.needs_reference(&RustType::Option(Box::new(RustType::Primitive(PrimitiveType::I32)))));
+    }
+
+    #[test]
+    fn test_needs_reference_result() {
+        let mapper = TypeMapper::new();
+
+        // Result doesn't need reference (falls through to default false)
+        let result = RustType::Result(
+            Box::new(RustType::String),
+            Box::new(RustType::Custom("Error".to_string())),
+        );
+        assert!(!mapper.needs_reference(&result));
+    }
+
+    #[test]
+    fn test_needs_reference_array() {
+        let mapper = TypeMapper::new();
+
+        // Arrays need references
+        let array = RustType::Array {
+            element_type: Box::new(RustType::Primitive(PrimitiveType::I32)),
+            size: RustConstGeneric::Literal(100),
+        };
+        assert!(mapper.needs_reference(&array));
+    }
+
+    // ============ can_copy edge cases ============
+
+    #[test]
+    fn test_can_copy_option_not_copy() {
+        let mapper = TypeMapper::new();
+
+        // Option is NOT Copy in this implementation
+        assert!(!mapper.can_copy(&RustType::Option(Box::new(RustType::Primitive(PrimitiveType::I32)))));
+    }
+
+    #[test]
+    fn test_can_copy_reference_not_copy() {
+        let mapper = TypeMapper::new();
+
+        // References are NOT Copy in this implementation
+        let ref_type = RustType::Reference {
+            lifetime: None,
+            mutable: false,
+            inner: Box::new(RustType::String),
+        };
+        assert!(!mapper.can_copy(&ref_type));
+    }
+
+    #[test]
+    fn test_can_copy_small_array() {
+        let mapper = TypeMapper::new();
+
+        // Small array of Copy elements is Copy
+        let small_array = RustType::Array {
+            element_type: Box::new(RustType::Primitive(PrimitiveType::I32)),
+            size: RustConstGeneric::Literal(16),
+        };
+        assert!(mapper.can_copy(&small_array));
+
+        // Large array is NOT Copy
+        let large_array = RustType::Array {
+            element_type: Box::new(RustType::Primitive(PrimitiveType::I32)),
+            size: RustConstGeneric::Literal(100),
+        };
+        assert!(!mapper.can_copy(&large_array));
+
+        // Array with parameter size is NOT Copy
+        let param_array = RustType::Array {
+            element_type: Box::new(RustType::Primitive(PrimitiveType::I32)),
+            size: RustConstGeneric::Parameter("N".to_string()),
+        };
+        assert!(!mapper.can_copy(&param_array));
+    }
 }

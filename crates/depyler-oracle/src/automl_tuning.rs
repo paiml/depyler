@@ -240,6 +240,45 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_oracle_param_names() {
+        assert_eq!(OracleParam::MinSimilarity.name(), "min_similarity");
+        assert_eq!(OracleParam::NgramMin.name(), "ngram_min");
+        assert_eq!(OracleParam::NgramMax.name(), "ngram_max");
+        assert_eq!(OracleParam::ErrorCodeWeight.name(), "error_code_weight");
+    }
+
+    #[test]
+    fn test_oracle_param_eq() {
+        assert_eq!(OracleParam::MinSimilarity, OracleParam::MinSimilarity);
+        assert_ne!(OracleParam::MinSimilarity, OracleParam::NgramMin);
+    }
+
+    #[test]
+    fn test_oracle_param_debug() {
+        let param = OracleParam::MinSimilarity;
+        let debug = format!("{:?}", param);
+        assert!(debug.contains("MinSimilarity"));
+    }
+
+    #[test]
+    fn test_oracle_param_clone() {
+        let param = OracleParam::NgramMax;
+        let cloned = param;
+        assert_eq!(param, cloned);
+    }
+
+    #[test]
+    fn test_oracle_param_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(OracleParam::MinSimilarity);
+        set.insert(OracleParam::NgramMin);
+        assert!(set.contains(&OracleParam::MinSimilarity));
+        assert!(set.contains(&OracleParam::NgramMin));
+        assert!(!set.contains(&OracleParam::NgramMax));
+    }
+
+    #[test]
     fn test_build_search_space() {
         let space = build_oracle_search_space();
         assert_eq!(space.len(), 4);
@@ -257,6 +296,123 @@ mod tests {
         assert!((config.min_similarity - 0.15).abs() < 0.01);
         assert_eq!(config.ngram_range, (2, 4));
         assert!((config.error_code_weight - 3.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_automl_config_from_empty_params() {
+        let params = HashMap::new();
+        let config = AutoMLConfig::from_params(&params);
+        assert!((config.min_similarity - 0.1).abs() < 0.01);
+        assert_eq!(config.ngram_range, (1, 3));
+        assert!((config.error_code_weight - 2.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_automl_config_ngram_max_min_check() {
+        let mut params = HashMap::new();
+        params.insert(OracleParam::NgramMin, ParamValue::Int(5));
+        params.insert(OracleParam::NgramMax, ParamValue::Int(3));
+
+        let config = AutoMLConfig::from_params(&params);
+        // ngram_max should be max(ngram_max, ngram_min)
+        assert_eq!(config.ngram_range, (5, 5));
+    }
+
+    #[test]
+    fn test_automl_config_clone() {
+        let config = AutoMLConfig {
+            min_similarity: 0.2,
+            ngram_range: (1, 4),
+            error_code_weight: 2.5,
+        };
+        let cloned = config.clone();
+        assert!((config.min_similarity - cloned.min_similarity).abs() < f32::EPSILON);
+        assert_eq!(config.ngram_range, cloned.ngram_range);
+    }
+
+    #[test]
+    fn test_automl_config_debug() {
+        let config = AutoMLConfig {
+            min_similarity: 0.1,
+            ngram_range: (1, 3),
+            error_code_weight: 2.0,
+        };
+        let debug = format!("{:?}", config);
+        assert!(debug.contains("AutoMLConfig"));
+    }
+
+    #[test]
+    fn test_weight_error_codes_with_code() {
+        let msg = "error[E0308]: mismatched types";
+        let weighted = weight_error_codes(msg, 2.0);
+        assert!(weighted.contains("error[E0308]"));
+        assert!(weighted.contains("mismatched types"));
+    }
+
+    #[test]
+    fn test_weight_error_codes_without_code() {
+        let msg = "some generic error";
+        let weighted = weight_error_codes(msg, 2.0);
+        assert_eq!(weighted, msg);
+    }
+
+    #[test]
+    fn test_weight_error_codes_higher_weight() {
+        let msg = "error[E0599]: no method named `foo` found";
+        let weighted = weight_error_codes(msg, 3.0);
+        // Should contain the error code multiple times
+        let count = weighted.matches("error[E0599]").count();
+        assert!(count >= 3);
+    }
+
+    #[test]
+    fn test_automl_result_debug() {
+        let result = AutoMLResult {
+            config: AutoMLConfig {
+                min_similarity: 0.1,
+                ngram_range: (1, 3),
+                error_code_weight: 2.0,
+            },
+            accuracy: 0.85,
+            trials: 10,
+            history: vec![],
+        };
+        let debug = format!("{:?}", result);
+        assert!(debug.contains("AutoMLResult"));
+    }
+
+    #[test]
+    fn test_automl_result_clone() {
+        let result = AutoMLResult {
+            config: AutoMLConfig {
+                min_similarity: 0.15,
+                ngram_range: (2, 4),
+                error_code_weight: 2.5,
+            },
+            accuracy: 0.9,
+            trials: 20,
+            history: vec![],
+        };
+        let cloned = result.clone();
+        assert!((result.accuracy - cloned.accuracy).abs() < f64::EPSILON);
+        assert_eq!(result.trials, cloned.trials);
+    }
+
+    #[test]
+    fn test_automl_result_to_tuning_result() {
+        let result = AutoMLResult {
+            config: AutoMLConfig {
+                min_similarity: 0.1,
+                ngram_range: (1, 3),
+                error_code_weight: 2.0,
+            },
+            accuracy: 0.8,
+            trials: 50,
+            history: vec![],
+        };
+        let tuning: TuningResult = result.into();
+        assert!((tuning.accuracy - 0.8).abs() < 0.01);
+        assert_eq!(tuning.total, 27);
     }
 
     #[test]

@@ -1,64 +1,17 @@
+//! Depyler CLI - Minimal Python-to-Rust transpiler
+//!
+//! Focused on transpilation and single-shot compilation.
+
 use anyhow::Result;
 use clap::Parser;
 use depyler::{
-    agent_logs_command, agent_restart_command, agent_start_command, agent_status_command,
-    agent_stop_command, analyze_command, check_command, compile_command, converge, debug_command,
-    docs_cmd::handle_docs_command, explain_command, extract_doctests_command, inspect_command,
-    interactive_command, lambda_analyze_command, lambda_build_command, lambda_convert_command,
-    lambda_deploy_command, lambda_test_command, lsp_command, oracle_classify_command,
-    oracle_export_oip_command, oracle_improve_command, oracle_optimize_command, oracle_show_command,
-    oracle_train_command, profile_cmd::handle_profile_command, quality_check_command,
+    analyze_command, check_command, compile_command, converge,
     report_cmd::{handle_report_command, ReportArgs},
-    transpile_command, utol_cmd::handle_utol_command, AgentCommands, CacheCommands, Cli, Commands,
-    LambdaCommands, OracleCommands,
+    transpile_command, utol_cmd::handle_utol_command, CacheCommands, Cli, Commands,
 };
 use std::path::PathBuf;
 
-/// Handle agent add-project command
-/// Complexity: 2 (within ≤10 target)
-fn agent_add_project_command(
-    path: PathBuf,
-    id: Option<String>,
-    patterns: Vec<String>,
-) -> Result<()> {
-    println!("📁 Adding project to monitoring...");
-    let project_id = id.unwrap_or_else(|| {
-        path.file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string()
-    });
-    println!(
-        "✅ Project '{}' added (path: {})",
-        project_id,
-        path.display()
-    );
-    println!("📋 Patterns: {}", patterns.join(", "));
-    println!("💡 Use 'depyler agent restart' to apply changes");
-    Ok(())
-}
-
-/// Handle agent remove-project command
-/// Complexity: 1 (within ≤10 target)
-fn agent_remove_project_command(project: String) -> Result<()> {
-    println!("🗑️ Removing project '{}' from monitoring...", project);
-    println!("✅ Project removed");
-    println!("💡 Use 'depyler agent restart' to apply changes");
-    Ok(())
-}
-
-/// Handle agent list-projects command
-/// Complexity: 1 (within ≤10 target)
-fn agent_list_projects_command() -> Result<()> {
-    println!("📋 Monitored Projects:");
-    println!("(This would list active projects from daemon state)");
-    Ok(())
-}
-
-/// Handle converge command (GH-158, DEPYLER-CONVERGE-RICH, DEPYLER-CONVERGE-FULL)
-/// Runs the convergence loop to achieve target compilation rate
-/// Complexity: 3 (within ≤10 target)
-#[allow(clippy::too_many_arguments)]
+/// Handle converge command
 async fn handle_converge_command(
     input_dir: PathBuf,
     target_rate: f64,
@@ -91,16 +44,13 @@ async fn handle_converge_command(
         use_cache,
     };
 
-    // Validate configuration
     config.validate()?;
 
-    // Run the convergence loop
     let state = converge::run_convergence_loop(config).await?;
 
-    // Return success if target was reached
     if state.compilation_rate >= state.config.target_rate {
         if !matches!(state.config.display_mode, converge::DisplayMode::Silent | converge::DisplayMode::Json) {
-            println!("✅ Target rate reached: {:.1}%", state.compilation_rate);
+            println!("Target rate reached: {:.1}%", state.compilation_rate);
         }
         Ok(())
     } else {
@@ -112,116 +62,20 @@ async fn handle_converge_command(
     }
 }
 
-/// Handle Agent subcommands
-/// Complexity: 8 (one per agent subcommand, within ≤10 target)
-async fn handle_agent_command(agent_cmd: AgentCommands) -> Result<()> {
-    match agent_cmd {
-        AgentCommands::Start {
-            port,
-            debug,
-            config,
-            foreground,
-        } => agent_start_command(port, debug, config, foreground).await,
-        AgentCommands::Stop => agent_stop_command(),
-        AgentCommands::Status => agent_status_command(),
-        AgentCommands::Restart {
-            port,
-            debug,
-            config,
-        } => agent_restart_command(port, debug, config).await,
-        AgentCommands::AddProject { path, id, patterns } => {
-            agent_add_project_command(path, id, patterns)
-        }
-        AgentCommands::RemoveProject { project } => agent_remove_project_command(project),
-        AgentCommands::ListProjects => agent_list_projects_command(),
-        AgentCommands::Logs { lines, follow } => agent_logs_command(lines, follow),
-    }
-}
-
-/// Handle Oracle subcommands
-/// Complexity: 4 (one per oracle subcommand, within ≤10 target)
-fn handle_oracle_command(oracle_cmd: OracleCommands) -> Result<()> {
-    match oracle_cmd {
-        OracleCommands::Optimize {
-            stdlib_count,
-            eval_samples,
-            max_evaluations,
-            curriculum,
-            output,
-        } => oracle_optimize_command(stdlib_count, eval_samples, max_evaluations, curriculum, output),
-        OracleCommands::Show => oracle_show_command(),
-        OracleCommands::Train {
-            min_samples,
-            synthetic,
-        } => oracle_train_command(min_samples, synthetic),
-        OracleCommands::Improve {
-            input_dir,
-            target_rate,
-            max_iterations,
-            auto_apply,
-            min_confidence,
-            output,
-            export_corpus,
-            resume,
-            verbose,
-            monitor,
-            verbosity_tier,
-            clippy_level,
-            adaptive_verbosity,
-            reweight,
-        } => oracle_improve_command(
-            input_dir,
-            target_rate,
-            max_iterations,
-            auto_apply,
-            min_confidence,
-            output,
-            export_corpus,
-            resume,
-            verbose,
-            monitor,
-            verbosity_tier,
-            clippy_level,
-            adaptive_verbosity,
-            reweight,
-        ),
-        OracleCommands::ExportOip {
-            input_dir,
-            output,
-            format,
-            min_confidence,
-            include_clippy,
-            reweight,
-        } => oracle_export_oip_command(
-            input_dir,
-            output,
-            format,
-            min_confidence,
-            include_clippy,
-            reweight,
-        ),
-        OracleCommands::Classify { error, format } => oracle_classify_command(error, format),
-    }
-}
-
-/// Handle Cache subcommands (DEPYLER-CACHE-001)
-/// Complexity: 4 (one per cache subcommand, within ≤10 target)
+/// Handle Cache subcommands
 fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
     use depyler::converge::{CacheConfig, SqliteCache};
 
-    // Determine cache directory
-    let get_cache_dir = |dir: Option<PathBuf>| -> PathBuf {
-        dir.unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join(".depyler")
-                .join("cache")
-        })
+    let get_cache_dir = || -> PathBuf {
+        dirs::home_dir()
+            .unwrap_or_else(|| PathBuf::from("."))
+            .join(".depyler")
+            .join("cache")
     };
 
     match cache_cmd {
-        CacheCommands::Stats { cache_dir, format } => {
-            let cache_path = get_cache_dir(cache_dir);
+        CacheCommands::Stats { format } => {
+            let cache_path = get_cache_dir();
             let config = CacheConfig {
                 cache_dir: cache_path.clone(),
                 ..Default::default()
@@ -243,17 +97,17 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
                             }))?
                         );
                     } else {
-                        println!("📊 Cache Statistics (DEPYLER-CACHE-001)");
-                        println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                        println!("📁 Cache directory: {}", cache_path.display());
-                        println!("📦 Entries: {}", stats.total_entries);
+                        println!("Cache Statistics");
+                        println!("================");
+                        println!("Cache directory: {}", cache_path.display());
+                        println!("Entries: {}", stats.total_entries);
                         println!(
-                            "💾 Total size: {:.2} MB",
+                            "Total size: {:.2} MB",
                             stats.total_size_bytes as f64 / (1024.0 * 1024.0)
                         );
-                        println!("✅ Cache hits: {}", stats.hit_count);
-                        println!("❌ Cache misses: {}", stats.miss_count);
-                        println!("📈 Hit rate: {:.1}%", stats.hit_rate() * 100.0);
+                        println!("Cache hits: {}", stats.hit_count);
+                        println!("Cache misses: {}", stats.miss_count);
+                        println!("Hit rate: {:.1}%", stats.hit_rate() * 100.0);
                     }
                     Ok(())
                 }
@@ -267,39 +121,33 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
                             }))?
                         );
                     } else {
-                        println!("⚠️  No cache found at {}", cache_path.display());
-                        println!("   Run `depyler transpile` to populate the cache.");
+                        println!("No cache found at {}", cache_path.display());
+                        println!("Run `depyler transpile` to populate the cache.");
                     }
                     Ok(())
                 }
             }
         }
-        CacheCommands::Gc {
-            cache_dir,
-            max_size_mb,
-            max_age_hours,
-            dry_run,
-        } => {
-            let cache_path = get_cache_dir(cache_dir);
+        CacheCommands::Gc { max_age_days, dry_run } => {
+            let cache_path = get_cache_dir();
             let config = CacheConfig {
                 cache_dir: cache_path.clone(),
-                max_size_bytes: max_size_mb * 1024 * 1024,
-                max_age_secs: max_age_hours * 3600,
+                max_age_secs: (max_age_days as u64) * 24 * 3600,
                 ..Default::default()
             };
 
             if dry_run {
-                println!("🔍 Dry run - no files will be deleted");
+                println!("Dry run - no files will be deleted");
             }
 
             match SqliteCache::open(config) {
                 Ok(cache) => {
                     let result = cache.gc()?;
-                    println!("🧹 Garbage Collection Results");
-                    println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-                    println!("🗑️  Entries removed: {}", result.evicted);
+                    println!("Garbage Collection Results");
+                    println!("==========================");
+                    println!("Entries removed: {}", result.evicted);
                     println!(
-                        "💾 Space reclaimed: {:.2} MB",
+                        "Space reclaimed: {:.2} MB",
                         result.freed_bytes as f64 / (1024.0 * 1024.0)
                     );
                     Ok(())
@@ -309,41 +157,37 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
                 }
             }
         }
-        CacheCommands::Clear { cache_dir, force } => {
-            let cache_path = get_cache_dir(cache_dir);
+        CacheCommands::Clear { force } => {
+            let cache_path = get_cache_dir();
 
             if !force {
-                println!("⚠️  This will delete all cached transpilation results.");
-                println!("   Path: {}", cache_path.display());
-                print!("   Continue? [y/N] ");
+                println!("This will delete all cached transpilation results.");
+                println!("Path: {}", cache_path.display());
+                print!("Continue? [y/N] ");
                 use std::io::{self, Write};
                 io::stdout().flush()?;
                 let mut input = String::new();
                 io::stdin().read_line(&mut input)?;
                 if !input.trim().eq_ignore_ascii_case("y") {
-                    println!("❌ Cancelled");
+                    println!("Cancelled");
                     return Ok(());
                 }
             }
 
             if cache_path.exists() {
                 std::fs::remove_dir_all(&cache_path)?;
-                println!("✅ Cache cleared: {}", cache_path.display());
+                println!("Cache cleared: {}", cache_path.display());
             } else {
-                println!("ℹ️  Cache directory does not exist: {}", cache_path.display());
+                println!("Cache directory does not exist: {}", cache_path.display());
             }
             Ok(())
         }
-        CacheCommands::Warm {
-            input_dir,
-            cache_dir,
-            jobs: _jobs,
-        } => {
+        CacheCommands::Warm { input_dir, jobs: _jobs } => {
             use depyler::converge::cache_warmer::CacheWarmer;
 
-            let cache_path = get_cache_dir(cache_dir);
-            println!("🔥 Warming cache from {}", input_dir.display());
-            println!("   Cache directory: {}", cache_path.display());
+            let cache_path = get_cache_dir();
+            println!("Warming cache from {}", input_dir.display());
+            println!("Cache directory: {}", cache_path.display());
 
             let config = CacheConfig {
                 cache_dir: cache_path,
@@ -353,57 +197,18 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
             let warmer = CacheWarmer::new(config);
             let stats = warmer.warm_directory(&input_dir)?;
 
-            println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-            println!("✅ Compiled & cached: {}", stats.compiled);
-            println!("📦 Already cached: {}", stats.cached);
-            println!("⚠️  Transpile failed: {}", stats.transpile_failed);
-            println!("❌ Compile failed: {}", stats.compile_failed);
-            println!("📊 Single-shot compile rate: {:.1}%", stats.compile_rate());
+            println!("==============================");
+            println!("Compiled & cached: {}", stats.compiled);
+            println!("Already cached: {}", stats.cached);
+            println!("Transpile failed: {}", stats.transpile_failed);
+            println!("Compile failed: {}", stats.compile_failed);
+            println!("Single-shot compile rate: {:.1}%", stats.compile_rate());
             Ok(())
         }
     }
 }
 
-/// Handle Lambda subcommands
-/// Complexity: 5 (one per lambda subcommand, within ≤10 target)
-fn handle_lambda_command(lambda_cmd: LambdaCommands) -> Result<()> {
-    match lambda_cmd {
-        LambdaCommands::Analyze {
-            input,
-            format,
-            confidence,
-        } => lambda_analyze_command(input, format, confidence),
-        LambdaCommands::Convert {
-            input,
-            output,
-            optimize,
-            tests,
-            deploy,
-        } => lambda_convert_command(input, output, optimize, tests, deploy),
-        LambdaCommands::Test {
-            input,
-            event,
-            benchmark,
-            load_test,
-        } => lambda_test_command(input, event, benchmark, load_test),
-        LambdaCommands::Build {
-            input,
-            arch,
-            optimize_size,
-            optimize_cold_start,
-        } => lambda_build_command(input, arch, optimize_size, optimize_cold_start),
-        LambdaCommands::Deploy {
-            input,
-            region,
-            function_name,
-            role,
-            dry_run,
-        } => lambda_deploy_command(input, region, function_name, role, dry_run),
-    }
-}
-
 /// Handle top-level command dispatch
-/// Complexity: ~12 (one per top-level command, slightly over but acceptable)
 async fn handle_command(command: Commands) -> Result<()> {
     match command {
         Commands::Transpile {
@@ -413,135 +218,14 @@ async fn handle_command(command: Commands) -> Result<()> {
             gen_tests,
             debug,
             source_map,
-            trace,
-            explain,
-            audit_trail,
-            trace_output,
-            auto_fix,
-            r#async,
-            suggest_fixes,
-            fix_confidence,
-            oracle,
-            patterns,
-            max_retries,
-            llm_fallback,
-        } => transpile_command(
-            input,
-            output,
-            verify,
-            gen_tests,
-            debug,
-            source_map,
-            trace,
-            explain,
-            audit_trail,
-            trace_output,
-            auto_fix,
-            r#async,
-            suggest_fixes,
-            fix_confidence,
-            oracle,
-            patterns,
-            max_retries,
-            llm_fallback,
-        ),
+        } => transpile_command(input, output, verify, gen_tests, debug, source_map),
         Commands::Compile {
             input,
             output,
             profile,
-        } => {
-            let cli = Cli::parse();
-            compile_command(input, output, profile, cli.verbose)
-        }
+        } => compile_command(input, output, profile),
         Commands::Analyze { input, format } => analyze_command(input, format),
         Commands::Check { input } => check_command(input),
-        Commands::QualityCheck {
-            input,
-            enforce,
-            min_tdg,
-            max_tdg,
-            max_complexity,
-            min_coverage,
-        } => quality_check_command(
-            input,
-            enforce,
-            min_tdg,
-            max_tdg,
-            max_complexity,
-            min_coverage,
-        ),
-        Commands::Interactive { input, annotate } => interactive_command(input, annotate),
-        Commands::Inspect {
-            input,
-            repr,
-            format,
-            output,
-        } => inspect_command(input, repr, format, output),
-        Commands::Lambda(lambda_cmd) => handle_lambda_command(lambda_cmd),
-        Commands::Lsp { port, verbose } => lsp_command(port, verbose),
-        Commands::Debug {
-            tips,
-            gen_script,
-            debugger,
-            source,
-            output,
-            spydecy,
-            visualize,
-        } => debug_command(
-            tips, gen_script, debugger, source, output, spydecy, visualize,
-        ),
-        Commands::Docs {
-            input,
-            output,
-            format,
-            include_source,
-            examples,
-            migration_notes,
-            performance_notes,
-            api_reference,
-            usage_guide,
-            index,
-        } => {
-            let args = depyler::docs_cmd::DocsArgs {
-                input,
-                output,
-                format,
-                include_source,
-                examples,
-                migration_notes,
-                performance_notes,
-                api_reference,
-                usage_guide,
-                index,
-            };
-            handle_docs_command(args)
-        }
-        Commands::Profile {
-            file,
-            count_instructions,
-            track_allocations,
-            detect_hot_paths,
-            hot_path_threshold,
-            flamegraph,
-            hints,
-            flamegraph_output,
-            perf_output,
-        } => {
-            let args = depyler::profile_cmd::ProfileArgs {
-                file,
-                count_instructions,
-                track_allocations,
-                detect_hot_paths,
-                hot_path_threshold,
-                flamegraph,
-                hints,
-                flamegraph_output,
-                perf_output,
-            };
-            handle_profile_command(args)
-        }
-        Commands::Agent(agent_cmd) => handle_agent_command(agent_cmd).await,
-        Commands::Oracle(oracle_cmd) => handle_oracle_command(oracle_cmd),
         Commands::Cache(cache_cmd) => handle_cache_command(cache_cmd),
         Commands::Converge {
             input_dir,
@@ -550,8 +234,8 @@ async fn handle_command(command: Commands) -> Result<()> {
             auto_fix,
             dry_run,
             fix_confidence,
-            checkpoint_dir,
-            parallel_jobs,
+            checkpoint,
+            jobs,
             display,
             oracle,
             explain,
@@ -564,8 +248,8 @@ async fn handle_command(command: Commands) -> Result<()> {
                 auto_fix,
                 dry_run,
                 fix_confidence,
-                checkpoint_dir,
-                parallel_jobs,
+                checkpoint,
+                jobs,
                 display,
                 oracle,
                 explain,
@@ -573,38 +257,27 @@ async fn handle_command(command: Commands) -> Result<()> {
             )
             .await
         }
-        Commands::ExtractDoctests {
-            input,
-            output,
-            module_prefix,
-            include_classes,
-            include_pytest,
-        } => extract_doctests_command(input, output, module_prefix, include_classes, include_pytest),
         Commands::Report {
-            corpus,
+            input_dir,
             format,
             output,
-            skip_clean,
-            target_rate,
-            filter,
-            tag,
-            limit,
-            sample,
-            bisect,
-            fail_fast,
+            filter_error,
+            filter_file,
+            failures_only,
+            verbose,
         } => {
             let args = ReportArgs {
-                corpus,
+                corpus: Some(input_dir),
                 format,
                 output,
-                skip_clean,
-                target_rate,
-                filter,
-                tag,
-                limit,
-                sample,
-                bisect,
-                fail_fast,
+                skip_clean: false,
+                target_rate: 80.0,
+                filter: filter_error,
+                tag: filter_file,
+                limit: None,
+                sample: None,
+                bisect: false,
+                fail_fast: failures_only || verbose,
             };
             handle_report_command(args)
         }
@@ -614,30 +287,19 @@ async fn handle_command(command: Commands) -> Result<()> {
             max_iterations,
             patience,
             display,
-            output,
-            config,
             status,
-            watch,
-            watch_debounce,
         } => handle_utol_command(
             corpus,
             target_rate,
             max_iterations,
             patience,
             display,
-            output,
-            config,
+            None,    // output
+            None,    // config
             status,
-            watch,
-            watch_debounce,
+            false,   // watch
+            500,     // watch_debounce
         ),
-        Commands::Explain {
-            input,
-            trace,
-            error_code,
-            verbose,
-            format,
-        } => explain_command(input, trace, error_code, verbose, format),
     }
 }
 
@@ -645,10 +307,8 @@ async fn handle_command(command: Commands) -> Result<()> {
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Initialize tracing
     let level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt().with_env_filter(level).init();
 
-    // Dispatch to command handler
     handle_command(cli.command).await
 }

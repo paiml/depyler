@@ -503,6 +503,55 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_synthetic_config_default() {
+        let config = SyntheticConfig::default();
+        assert_eq!(config.samples_per_category, 2000);
+        assert_eq!(config.seed, 42);
+    }
+
+    #[test]
+    fn test_synthetic_config_clone() {
+        let config = SyntheticConfig {
+            samples_per_category: 100,
+            seed: 123,
+        };
+        let cloned = config.clone();
+        assert_eq!(cloned.samples_per_category, 100);
+        assert_eq!(cloned.seed, 123);
+    }
+
+    #[test]
+    fn test_synthetic_config_debug() {
+        let config = SyntheticConfig::default();
+        let debug_str = format!("{:?}", config);
+        assert!(debug_str.contains("SyntheticConfig"));
+        assert!(debug_str.contains("2000"));
+    }
+
+    #[test]
+    fn test_synthetic_generator_new() {
+        let gen = SyntheticGenerator::new();
+        assert_eq!(gen.config.samples_per_category, 2000);
+    }
+
+    #[test]
+    fn test_synthetic_generator_default() {
+        let gen = SyntheticGenerator::default();
+        assert_eq!(gen.config.samples_per_category, 2000);
+    }
+
+    #[test]
+    fn test_synthetic_generator_with_config() {
+        let config = SyntheticConfig {
+            samples_per_category: 50,
+            seed: 99,
+        };
+        let gen = SyntheticGenerator::with_config(config);
+        assert_eq!(gen.config.samples_per_category, 50);
+        assert_eq!(gen.config.seed, 99);
+    }
+
+    #[test]
     fn test_default_generator() {
         let dataset = generate_synthetic_corpus();
         // 2000 per category * 6 categories = 12000
@@ -514,6 +563,13 @@ mod tests {
         let dataset = generate_synthetic_corpus_sized(100);
         // 100 per category * 6 categories = 600
         assert!(dataset.len() >= 600, "Got {} samples", dataset.len());
+    }
+
+    #[test]
+    fn test_sized_generator_small() {
+        let dataset = generate_synthetic_corpus_sized(10);
+        // 10 per category * 6 categories = 60
+        assert!(dataset.len() >= 60, "Got {} samples", dataset.len());
     }
 
     #[test]
@@ -537,6 +593,37 @@ mod tests {
     }
 
     #[test]
+    fn test_all_categories_present() {
+        let dataset = generate_synthetic_corpus_sized(50);
+
+        let type_count = dataset
+            .samples_for_category(ErrorCategory::TypeMismatch)
+            .len();
+        let borrow_count = dataset
+            .samples_for_category(ErrorCategory::BorrowChecker)
+            .len();
+        let lifetime_count = dataset
+            .samples_for_category(ErrorCategory::LifetimeError)
+            .len();
+        let trait_count = dataset
+            .samples_for_category(ErrorCategory::TraitBound)
+            .len();
+        let import_count = dataset
+            .samples_for_category(ErrorCategory::MissingImport)
+            .len();
+        let syntax_count = dataset
+            .samples_for_category(ErrorCategory::SyntaxError)
+            .len();
+
+        assert!(type_count > 0, "No TypeMismatch samples");
+        assert!(borrow_count > 0, "No BorrowChecker samples");
+        assert!(lifetime_count > 0, "No LifetimeError samples");
+        assert!(trait_count > 0, "No TraitBound samples");
+        assert!(import_count > 0, "No MissingImport samples");
+        assert!(syntax_count > 0, "No SyntaxError samples");
+    }
+
+    #[test]
     fn test_all_samples_have_fixes() {
         let dataset = generate_synthetic_corpus_sized(10);
 
@@ -544,6 +631,63 @@ mod tests {
             assert!(
                 sample.fix.is_some(),
                 "Sample missing fix: {}",
+                sample.message
+            );
+        }
+    }
+
+    #[test]
+    fn test_all_samples_have_non_empty_messages() {
+        let dataset = generate_synthetic_corpus_sized(10);
+
+        for sample in dataset.samples() {
+            assert!(!sample.message.is_empty(), "Sample has empty message");
+        }
+    }
+
+    #[test]
+    fn test_all_samples_have_non_empty_fixes() {
+        let dataset = generate_synthetic_corpus_sized(10);
+
+        for sample in dataset.samples() {
+            if let Some(fix) = &sample.fix {
+                assert!(!fix.is_empty(), "Sample has empty fix");
+            }
+        }
+    }
+
+    #[test]
+    fn test_type_mismatch_samples_contain_error_codes() {
+        let dataset = generate_synthetic_corpus_sized(50);
+        let type_samples = dataset.samples_for_category(ErrorCategory::TypeMismatch);
+
+        for sample in type_samples {
+            // Type mismatch samples should contain error codes
+            assert!(
+                sample.message.contains("E0308")
+                    || sample.message.contains("E0277")
+                    || sample.message.contains("E0369")
+                    || sample.message.contains("E0271"),
+                "Type mismatch sample missing error code: {}",
+                sample.message
+            );
+        }
+    }
+
+    #[test]
+    fn test_borrow_checker_samples_contain_error_codes() {
+        let dataset = generate_synthetic_corpus_sized(50);
+        let borrow_samples = dataset.samples_for_category(ErrorCategory::BorrowChecker);
+
+        for sample in borrow_samples {
+            assert!(
+                sample.message.contains("E0502")
+                    || sample.message.contains("E0499")
+                    || sample.message.contains("E0507")
+                    || sample.message.contains("E0382")
+                    || sample.message.contains("E0596")
+                    || sample.message.contains("E0505"), // use of moved value
+                "Borrow checker sample missing error code: {}",
                 sample.message
             );
         }
@@ -562,6 +706,33 @@ mod tests {
             messages.len(),
             dataset.len()
         );
+    }
+
+    #[test]
+    fn test_generate_returns_dataset() {
+        let gen = SyntheticGenerator::with_config(SyntheticConfig {
+            samples_per_category: 5,
+            seed: 1,
+        });
+        let dataset = gen.generate();
+        // 5 * 6 categories = 30
+        assert_eq!(dataset.len(), 30);
+    }
+
+    #[test]
+    fn test_deterministic_generation() {
+        // Same seed should produce same results
+        let dataset1 = generate_synthetic_corpus_sized(10);
+        let dataset2 = generate_synthetic_corpus_sized(10);
+
+        assert_eq!(dataset1.len(), dataset2.len());
+
+        // First samples should be identical (deterministic)
+        let samples1 = dataset1.samples();
+        let samples2 = dataset2.samples();
+
+        assert_eq!(samples1[0].message, samples2[0].message);
+        assert_eq!(samples1[0].category, samples2[0].category);
     }
 
     #[test]
