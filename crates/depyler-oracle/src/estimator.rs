@@ -276,6 +276,71 @@ mod tests {
     }
 
     #[test]
+    fn test_oracle_estimator_default() {
+        let estimator = OracleEstimator::default();
+        assert!(estimator.samples.is_empty());
+        assert_eq!(estimator.n_features, 0);
+    }
+
+    #[test]
+    fn test_oracle_estimator_clone() {
+        let mut estimator = OracleEstimator::new();
+        estimator.add_samples(vec![TrainingSample::with_fix(
+            "test error",
+            ErrorCategory::TypeMismatch,
+            "test fix",
+        )]);
+        estimator.n_features = 73;
+
+        let cloned = estimator.clone();
+        assert_eq!(cloned.samples.len(), 1);
+        assert_eq!(cloned.n_features, 73);
+    }
+
+    #[test]
+    fn test_oracle_estimator_with_min_similarity() {
+        let estimator = OracleEstimator::new().with_min_similarity(0.8);
+        // Just verify it doesn't panic and returns self
+        assert!(estimator.samples.is_empty());
+    }
+
+    #[test]
+    fn test_oracle_estimator_add_samples() {
+        let mut estimator = OracleEstimator::new();
+        assert!(estimator.samples.is_empty());
+
+        let samples = vec![
+            TrainingSample::with_fix("error1", ErrorCategory::TypeMismatch, "fix1"),
+            TrainingSample::with_fix("error2", ErrorCategory::MissingImport, "fix2"),
+        ];
+        estimator.add_samples(samples);
+        assert_eq!(estimator.samples.len(), 2);
+
+        // Add more samples
+        estimator.add_samples(vec![TrainingSample::with_fix(
+            "error3",
+            ErrorCategory::BorrowChecker,
+            "fix3",
+        )]);
+        assert_eq!(estimator.samples.len(), 3);
+    }
+
+    #[test]
+    fn test_oracle_estimator_predictor() {
+        let estimator = OracleEstimator::new();
+        let predictor = estimator.predictor();
+        // Just verify we can access the predictor
+        assert!(predictor.pattern_count() == 0);
+    }
+
+    #[test]
+    fn test_oracle_estimator_predict_category_no_patterns() {
+        let estimator = OracleEstimator::new();
+        let result = estimator.predict_category("error[E0308]: mismatched types");
+        assert!(result.is_none());
+    }
+
+    #[test]
     fn test_samples_to_features() {
         let samples = vec![
             TrainingSample::with_fix(
@@ -296,6 +361,128 @@ mod tests {
     }
 
     #[test]
+    fn test_samples_to_features_feature_dimensions() {
+        let samples = vec![TrainingSample::with_fix(
+            "error[E0308]: expected type i32",
+            ErrorCategory::TypeMismatch,
+            "Change type",
+        )];
+
+        let (x, y) = samples_to_features(&samples);
+        assert_eq!(x.n_rows(), 1);
+        assert_eq!(x.n_cols(), feature_config::TOTAL_FEATURES);
+        assert_eq!(y.len(), 1);
+    }
+
+    #[test]
+    fn test_samples_to_features_error_code_one_hot() {
+        let samples = vec![TrainingSample::with_fix(
+            "error[E0308]: mismatched types",
+            ErrorCategory::TypeMismatch,
+            "Fix",
+        )];
+
+        let (x, _) = samples_to_features(&samples);
+        // E0308 should be encoded
+        let row = x.row(0);
+        // Find index of E0308 in ERROR_CODES
+        let idx = feature_config::ERROR_CODES
+            .iter()
+            .position(|&c| c == "E0308")
+            .unwrap();
+        assert_eq!(row[idx], 1.0);
+    }
+
+    #[test]
+    fn test_samples_to_features_keyword_counts() {
+        let samples = vec![TrainingSample::with_fix(
+            "expected type type type",
+            ErrorCategory::TypeMismatch,
+            "Fix",
+        )];
+
+        let (x, _) = samples_to_features(&samples);
+        let row = x.row(0);
+        // "type" should appear 3 times
+        let n_error_codes = feature_config::ERROR_CODES.len();
+        let type_idx = feature_config::KEYWORDS
+            .iter()
+            .position(|&k| k == "type")
+            .unwrap();
+        assert_eq!(row[n_error_codes + type_idx], 3.0);
+    }
+
+    #[test]
+    fn test_samples_to_features_empty() {
+        let samples: Vec<TrainingSample> = vec![];
+        let (x, y) = samples_to_features(&samples);
+        assert_eq!(x.n_rows(), 0);
+        assert_eq!(y.len(), 0);
+    }
+
+    #[test]
+    fn test_message_to_features() {
+        let msg = "error[E0308]: mismatched types expected i32";
+        let features = message_to_features(msg);
+        assert_eq!(features.n_rows(), 1);
+        assert_eq!(features.n_cols(), feature_config::TOTAL_FEATURES);
+    }
+
+    #[test]
+    fn test_message_to_features_error_code_encoding() {
+        let msg = "error[E0277]: trait bound not satisfied";
+        let features = message_to_features(msg);
+        let row = features.row(0);
+
+        let idx = feature_config::ERROR_CODES
+            .iter()
+            .position(|&c| c == "E0277")
+            .unwrap();
+        assert_eq!(row[idx], 1.0);
+    }
+
+    #[test]
+    fn test_message_to_features_keyword_encoding() {
+        let msg = "borrow borrowed mutable reference";
+        let features = message_to_features(msg);
+        let row = features.row(0);
+
+        let n_error_codes = feature_config::ERROR_CODES.len();
+        let borrow_idx = feature_config::KEYWORDS
+            .iter()
+            .position(|&k| k == "borrow")
+            .unwrap();
+        assert!(row[n_error_codes + borrow_idx] >= 1.0);
+    }
+
+    #[test]
+    fn test_feature_config_constants() {
+        assert!(!feature_config::ERROR_CODES.is_empty());
+        assert!(!feature_config::KEYWORDS.is_empty());
+        assert!(feature_config::TOTAL_FEATURES > 0);
+        // Verify total features calculation
+        let expected = feature_config::ERROR_CODES.len()
+            + feature_config::KEYWORDS.len()
+            + ErrorFeatures::DIM;
+        assert_eq!(feature_config::TOTAL_FEATURES, expected);
+    }
+
+    #[test]
+    fn test_feature_config_error_codes_valid() {
+        for code in feature_config::ERROR_CODES {
+            assert!(code.starts_with('E'));
+            assert!(code.len() == 5);
+        }
+    }
+
+    #[test]
+    fn test_feature_config_keywords_non_empty() {
+        for kw in feature_config::KEYWORDS {
+            assert!(!kw.is_empty());
+        }
+    }
+
+    #[test]
     fn test_estimator_fit() {
         let corpus = build_combined_corpus();
         let samples: Vec<_> = corpus.samples().to_vec();
@@ -306,5 +493,105 @@ mod tests {
 
         let result = estimator.fit(&x, &y);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_estimator_predict() {
+        let mut estimator = OracleEstimator::new();
+        let samples = vec![
+            TrainingSample::with_fix("error[E0308]: type", ErrorCategory::TypeMismatch, "fix"),
+            TrainingSample::with_fix("error[E0432]: import", ErrorCategory::MissingImport, "fix"),
+        ];
+        estimator.add_samples(samples.clone());
+
+        let (x, y) = samples_to_features(&samples);
+        let _ = estimator.fit(&x, &y);
+
+        let predictions = estimator.predict(&x);
+        assert_eq!(predictions.len(), x.n_rows());
+    }
+
+    #[test]
+    fn test_estimator_score() {
+        let mut estimator = OracleEstimator::new();
+        let samples = vec![
+            TrainingSample::with_fix("error[E0308]: type", ErrorCategory::TypeMismatch, "fix"),
+            TrainingSample::with_fix("error[E0432]: import", ErrorCategory::MissingImport, "fix"),
+        ];
+        estimator.add_samples(samples.clone());
+
+        let (x, y) = samples_to_features(&samples);
+        let _ = estimator.fit(&x, &y);
+
+        let score = estimator.score(&x, &y);
+        // Score should be between 0 and 1
+        assert!(score >= 0.0);
+        assert!(score <= 1.0);
+    }
+
+    #[test]
+    fn test_estimator_score_empty_labels() {
+        let estimator = OracleEstimator::new();
+        let x = Matrix::zeros(0, feature_config::TOTAL_FEATURES);
+        let y = Vector::from_vec(vec![]);
+        let score = estimator.score(&x, &y);
+        // Empty labels should return 0 or 1 (handled by max(1))
+        assert!(score >= 0.0);
+    }
+
+    #[test]
+    fn test_labels_map_to_category_index() {
+        // Verify samples_to_features correctly maps categories to indices
+        let samples = vec![
+            TrainingSample::with_fix("e1", ErrorCategory::TypeMismatch, "f1"),
+            TrainingSample::with_fix("e2", ErrorCategory::MissingImport, "f2"),
+            TrainingSample::with_fix("e3", ErrorCategory::BorrowChecker, "f3"),
+            TrainingSample::with_fix("e4", ErrorCategory::TraitBound, "f4"),
+        ];
+
+        let (_, y) = samples_to_features(&samples);
+        assert_eq!(y.len(), 4);
+
+        // Each label should be the category index
+        assert_eq!(y.as_slice()[0], ErrorCategory::TypeMismatch.index() as f32);
+        assert_eq!(y.as_slice()[1], ErrorCategory::MissingImport.index() as f32);
+        assert_eq!(y.as_slice()[2], ErrorCategory::BorrowChecker.index() as f32);
+        assert_eq!(y.as_slice()[3], ErrorCategory::TraitBound.index() as f32);
+    }
+
+    #[test]
+    fn test_samples_without_fix() {
+        // TrainingSample without fix should use default hint
+        let mut estimator = OracleEstimator::new();
+        let samples = vec![TrainingSample::new(
+            "error message",
+            ErrorCategory::TypeMismatch,
+        )];
+        estimator.add_samples(samples.clone());
+
+        let (x, y) = samples_to_features(&samples);
+        // Should not panic when fit with samples that have None fix
+        let result = estimator.fit(&x, &y);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_multiple_error_codes_in_message() {
+        let msg = "error[E0308]: mismatched types\nerror[E0277]: trait bound";
+        let features = message_to_features(msg);
+        let row = features.row(0);
+
+        // Both E0308 and E0277 should be encoded
+        let idx_308 = feature_config::ERROR_CODES
+            .iter()
+            .position(|&c| c == "E0308")
+            .unwrap();
+        let idx_277 = feature_config::ERROR_CODES
+            .iter()
+            .position(|&c| c == "E0277")
+            .unwrap();
+
+        assert_eq!(row[idx_308], 1.0);
+        assert_eq!(row[idx_277], 1.0);
     }
 }

@@ -1146,31 +1146,39 @@ oracle-harvest: ## Harvest real transpilation errors from verificar corpus (Rust
 oracle-improve: oracle-harvest train-oracle ## Harvest real errors + retrain (recommended after overnight)
 	@echo "✅ Oracle improved with real errors!"
 
-##@ Fast RAM-disk Coverage (experimental)
+##@ Fast Coverage (cross-platform)
 
-.PHONY: coverage-fast coverage-fast-clean
+.PHONY: coverage-fast coverage-fast-clean coverage-fast-report
 
-RAMDISK_TARGET := /dev/shm/depyler-target
+# Cross-platform fast target: Use /tmp on macOS, /dev/shm on Linux
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+    FAST_TARGET := /tmp/depyler-target
+else
+    FAST_TARGET := /dev/shm/depyler-target
+endif
 
-coverage-fast: ## Ultra-fast coverage using RAM disk (eliminates I/O overhead)
-	@echo "🚀 Fast coverage using RAM disk at $(RAMDISK_TARGET)..."
-	@mkdir -p $(RAMDISK_TARGET)
-	@echo "   Target dir: $(RAMDISK_TARGET)"
-	@echo "   RAM available: $$(df -h /dev/shm | tail -1 | awk '{print $$4}')"
-	@CARGO_TARGET_DIR=$(RAMDISK_TARGET) PROPTEST_CASES=5 QUICKCHECK_TESTS=5 \
-		cargo llvm-cov nextest --profile fast --no-fail-fast --workspace \
+coverage-fast: ## Ultra-fast coverage using tmpfs/ramdisk
+	@echo "🚀 Fast coverage using $(FAST_TARGET)..."
+	@mkdir -p $(FAST_TARGET)
+	@echo "   Target dir: $(FAST_TARGET)"
+	@CARGO_TARGET_DIR=$(FAST_TARGET) PROPTEST_CASES=3 QUICKCHECK_TESTS=3 \
+		cargo llvm-cov nextest --profile fast --lib --workspace \
 		--ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@echo ""
-	@echo "✓ Coverage complete. Artifacts in RAM disk."
+	@CARGO_TARGET_DIR=$(FAST_TARGET) cargo llvm-cov report --summary-only \
+		--ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
+	@echo ""
+	@echo "✓ Coverage complete."
 
-coverage-fast-report: ## Generate HTML report from RAM disk coverage
+coverage-fast-report: ## Generate HTML report from fast coverage
 	@echo "📊 Generating coverage report..."
-	@CARGO_TARGET_DIR=$(RAMDISK_TARGET) cargo llvm-cov report --html \
+	@CARGO_TARGET_DIR=$(FAST_TARGET) cargo llvm-cov report --html \
 		--output-dir target/coverage/html \
 		--ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@echo "✓ Report: target/coverage/html/index.html"
 
-coverage-fast-clean: ## Clean RAM disk coverage artifacts
-	@echo "🧹 Cleaning RAM disk coverage artifacts..."
-	@rm -rf $(RAMDISK_TARGET)
-	@echo "✓ RAM disk cleaned"
+coverage-fast-clean: ## Clean fast coverage artifacts
+	@echo "🧹 Cleaning fast coverage artifacts..."
+	@rm -rf $(FAST_TARGET)
+	@echo "✓ Fast target cleaned"

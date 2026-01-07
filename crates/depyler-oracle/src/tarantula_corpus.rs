@@ -602,4 +602,410 @@ mod tests {
         let report = analyzer.analyze();
         assert!(report.reached_target());
     }
+
+    // ============================================================
+    // Additional TranspilationResult Tests
+    // ============================================================
+
+    #[test]
+    fn test_transpilation_result_transpile_failure() {
+        let result = TranspilationResult::transpile_failure("broken.py");
+        assert!(!result.transpiled);
+        assert!(!result.compiled);
+        assert!(result.error_codes.is_empty());
+        assert!(result.decisions.is_empty());
+    }
+
+    #[test]
+    fn test_transpilation_result_with_decisions() {
+        let decisions = vec![
+            TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "i32"),
+            TranspilerDecisionRecord::new(TranspilerDecision::ModuleMapping, "std::collections"),
+        ];
+        let result = TranspilationResult::success("test.py", decisions.clone());
+        assert_eq!(result.decisions.len(), 2);
+        assert_eq!(result.decisions[0].decision_type, TranspilerDecision::TypeInference);
+    }
+
+    // ============================================================
+    // CorpusAnalyzer Tests
+    // ============================================================
+
+    #[test]
+    fn test_corpus_analyzer_add_transpile_failure() {
+        let mut analyzer = CorpusAnalyzer::new().unwrap();
+        let result = TranspilationResult::transpile_failure("broken.py");
+        analyzer.add_result(result).unwrap();
+        assert_eq!(analyzer.results.len(), 1);
+
+        // Analyze should work even with transpile failures
+        let report = analyzer.analyze();
+        assert_eq!(report.total_files, 1);
+        assert_eq!(report.transpile_success, 0);
+    }
+
+    #[test]
+    fn test_corpus_analyzer_add_results() {
+        let mut analyzer = CorpusAnalyzer::new().unwrap();
+        let results = vec![
+            TranspilationResult::success("a.py", vec![]),
+            TranspilationResult::success("b.py", vec![]),
+            TranspilationResult::compile_failure("c.py", vec![], vec!["E0001".to_string()], vec![]),
+        ];
+        analyzer.add_results(results).unwrap();
+        assert_eq!(analyzer.results.len(), 3);
+    }
+
+    #[test]
+    fn test_corpus_analyzer_clear() {
+        let mut analyzer = CorpusAnalyzer::new().unwrap();
+        analyzer.add_result(TranspilationResult::success("test.py", vec![])).unwrap();
+        assert_eq!(analyzer.results.len(), 1);
+
+        analyzer.clear().unwrap();
+        assert_eq!(analyzer.results.len(), 0);
+    }
+
+    #[test]
+    fn test_corpus_analyzer_top_suspicious() {
+        let mut analyzer = CorpusAnalyzer::new().unwrap();
+        for i in 0..5 {
+            analyzer.add_result(TranspilationResult::compile_failure(
+                format!("fail_{}.py", i),
+                vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "bad")],
+                vec!["E0308".to_string()],
+                vec![],
+            )).unwrap();
+        }
+
+        let suspicious = analyzer.top_suspicious(3);
+        assert!(suspicious.len() <= 3);
+    }
+
+    #[test]
+    fn test_corpus_analyzer_debug() {
+        let analyzer = CorpusAnalyzer::new().unwrap();
+        let debug_str = format!("{:?}", analyzer);
+        assert!(debug_str.contains("CorpusAnalyzer"));
+        assert!(debug_str.contains("results"));
+    }
+
+    // ============================================================
+    // CorpusAnalysisReport Tests
+    // ============================================================
+
+    #[test]
+    fn test_report_top_suspicious() {
+        let mut analyzer = CorpusAnalyzer::new().unwrap();
+        analyzer.add_result(TranspilationResult::compile_failure(
+            "test.py",
+            vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "bad")],
+            vec!["E0308".to_string()],
+            vec![],
+        )).unwrap();
+
+        let report = analyzer.analyze();
+        let top = report.top_suspicious(5);
+        assert!(top.len() <= 5);
+    }
+
+    #[test]
+    fn test_report_top_errors() {
+        let mut analyzer = CorpusAnalyzer::new().unwrap();
+        for _ in 0..3 {
+            analyzer.add_result(TranspilationResult::compile_failure(
+                "test.py",
+                vec![],
+                vec!["E0308".to_string()],
+                vec![],
+            )).unwrap();
+        }
+        analyzer.add_result(TranspilationResult::compile_failure(
+            "test2.py",
+            vec![],
+            vec!["E0433".to_string()],
+            vec![],
+        )).unwrap();
+
+        let report = analyzer.analyze();
+        let top_errors = report.top_errors(2);
+        assert!(!top_errors.is_empty());
+        // E0308 should be first with 3 occurrences
+        assert_eq!(*top_errors[0].0, "E0308");
+    }
+
+    #[test]
+    fn test_report_not_reached_target() {
+        let mut analyzer = CorpusAnalyzer::new().unwrap();
+        for i in 0..10 {
+            analyzer.add_result(TranspilationResult::compile_failure(
+                format!("fail_{}.py", i),
+                vec![],
+                vec!["E0001".to_string()],
+                vec![],
+            )).unwrap();
+        }
+
+        let report = analyzer.analyze();
+        assert!(!report.reached_target());
+    }
+
+    #[test]
+    fn test_report_empty_corpus() {
+        let analyzer = CorpusAnalyzer::new().unwrap();
+        let report = analyzer.analyze();
+        assert_eq!(report.total_files, 0);
+        assert_eq!(report.transpile_rate, 0.0);
+        assert_eq!(report.single_shot_rate, 0.0);
+    }
+
+    #[test]
+    fn test_report_markdown_with_errors() {
+        let mut analyzer = CorpusAnalyzer::new().unwrap();
+        analyzer.add_result(TranspilationResult::compile_failure(
+            "test.py",
+            vec![TranspilerDecisionRecord::new(TranspilerDecision::ModuleMapping, "missing")],
+            vec!["E0433".to_string()],
+            vec!["unresolved import".to_string()],
+        )).unwrap();
+
+        let report = analyzer.analyze();
+        let md = report.to_markdown();
+        assert!(md.contains("E0433"));
+        assert!(md.contains("Top Error Codes"));
+    }
+
+    // ============================================================
+    // simulate_decisions_from_errors Tests
+    // ============================================================
+
+    #[test]
+    fn test_simulate_decisions_e0308() {
+        let decisions = simulate_decisions_from_errors(&["E0308".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
+    }
+
+    #[test]
+    fn test_simulate_decisions_e0433() {
+        let decisions = simulate_decisions_from_errors(&["E0433".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
+    }
+
+    #[test]
+    fn test_simulate_decisions_e0599() {
+        let decisions = simulate_decisions_from_errors(&["E0599".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::MethodTranslation));
+    }
+
+    #[test]
+    fn test_simulate_decisions_e0277() {
+        let decisions = simulate_decisions_from_errors(&["E0277".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
+    }
+
+    #[test]
+    fn test_simulate_decisions_e0425() {
+        let decisions = simulate_decisions_from_errors(&["E0425".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
+    }
+
+    #[test]
+    fn test_simulate_decisions_borrow_checker() {
+        let decisions = simulate_decisions_from_errors(&["E0382".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::OwnershipInference));
+
+        let decisions = simulate_decisions_from_errors(&["E0505".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::OwnershipInference));
+
+        let decisions = simulate_decisions_from_errors(&["E0507".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::OwnershipInference));
+    }
+
+    #[test]
+    fn test_simulate_decisions_e0106() {
+        let decisions = simulate_decisions_from_errors(&["E0106".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::LifetimeInference));
+    }
+
+    #[test]
+    fn test_simulate_decisions_unknown() {
+        let decisions = simulate_decisions_from_errors(&["E9999".to_string()], &[]);
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
+    }
+
+    #[test]
+    fn test_simulate_decisions_message_subprocess() {
+        let decisions = simulate_decisions_from_errors(
+            &[],
+            &["subprocess module not found".to_string()],
+        );
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+    }
+
+    #[test]
+    fn test_simulate_decisions_message_datetime() {
+        let decisions = simulate_decisions_from_errors(
+            &[],
+            &["datetime import failed".to_string()],
+        );
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+    }
+
+    #[test]
+    fn test_simulate_decisions_message_os() {
+        let decisions = simulate_decisions_from_errors(
+            &[],
+            &["os.path not found".to_string()],
+        );
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+    }
+
+    #[test]
+    fn test_simulate_decisions_message_time() {
+        let decisions = simulate_decisions_from_errors(
+            &[],
+            &["time module issue".to_string()],
+        );
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+    }
+
+    #[test]
+    fn test_simulate_decisions_message_command() {
+        let decisions = simulate_decisions_from_errors(
+            &[],
+            &["Command not found".to_string()],
+        );
+        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+    }
+
+    // ============================================================
+    // recommend_action Tests
+    // ============================================================
+
+    #[test]
+    fn test_recommend_action_type_inference() {
+        let decision = SuspiciousTranspilerDecision {
+            decision_type: TranspilerDecision::TypeInference,
+            suspiciousness: 0.8,
+            fail_count: 10,
+            success_count: 2,
+            associated_errors: vec![],
+            priority: FixPriority::Critical,
+        };
+        let action = recommend_action(&decision);
+        assert!(action.contains("type inference"));
+    }
+
+    #[test]
+    fn test_recommend_action_module_mapping() {
+        let decision = SuspiciousTranspilerDecision {
+            decision_type: TranspilerDecision::ModuleMapping,
+            suspiciousness: 0.7,
+            fail_count: 8,
+            success_count: 2,
+            associated_errors: vec![],
+            priority: FixPriority::High,
+        };
+        let action = recommend_action(&decision);
+        assert!(action.contains("module mapping"));
+    }
+
+    #[test]
+    fn test_recommend_action_method_translation() {
+        let decision = SuspiciousTranspilerDecision {
+            decision_type: TranspilerDecision::MethodTranslation,
+            suspiciousness: 0.6,
+            fail_count: 6,
+            success_count: 3,
+            associated_errors: vec![],
+            priority: FixPriority::Medium,
+        };
+        let action = recommend_action(&decision);
+        assert!(action.contains("method"));
+    }
+
+    #[test]
+    fn test_recommend_action_ownership() {
+        let decision = SuspiciousTranspilerDecision {
+            decision_type: TranspilerDecision::OwnershipInference,
+            suspiciousness: 0.5,
+            fail_count: 5,
+            success_count: 5,
+            associated_errors: vec![],
+            priority: FixPriority::Medium,
+        };
+        let action = recommend_action(&decision);
+        assert!(action.contains("borrow"));
+    }
+
+    #[test]
+    fn test_recommend_action_return_type() {
+        let decision = SuspiciousTranspilerDecision {
+            decision_type: TranspilerDecision::ReturnTypeInference,
+            suspiciousness: 0.4,
+            fail_count: 4,
+            success_count: 6,
+            associated_errors: vec![],
+            priority: FixPriority::Low,
+        };
+        let action = recommend_action(&decision);
+        assert!(action.contains("return type"));
+    }
+
+    #[test]
+    fn test_recommend_action_error_handling() {
+        let decision = SuspiciousTranspilerDecision {
+            decision_type: TranspilerDecision::ErrorHandling,
+            suspiciousness: 0.4,
+            fail_count: 4,
+            success_count: 6,
+            associated_errors: vec![],
+            priority: FixPriority::Low,
+        };
+        let action = recommend_action(&decision);
+        assert!(action.contains("Result") || action.contains("Option"));
+    }
+
+    #[test]
+    fn test_recommend_action_container() {
+        let decision = SuspiciousTranspilerDecision {
+            decision_type: TranspilerDecision::ContainerMapping,
+            suspiciousness: 0.4,
+            fail_count: 4,
+            success_count: 6,
+            associated_errors: vec![],
+            priority: FixPriority::Low,
+        };
+        let action = recommend_action(&decision);
+        assert!(action.contains("container"));
+    }
+
+    #[test]
+    fn test_recommend_action_import() {
+        let decision = SuspiciousTranspilerDecision {
+            decision_type: TranspilerDecision::ImportGeneration,
+            suspiciousness: 0.4,
+            fail_count: 4,
+            success_count: 6,
+            associated_errors: vec![],
+            priority: FixPriority::Low,
+        };
+        let action = recommend_action(&decision);
+        assert!(action.contains("use statement"));
+    }
+
+    #[test]
+    fn test_recommend_action_other() {
+        let decision = SuspiciousTranspilerDecision {
+            decision_type: TranspilerDecision::LifetimeInference,
+            suspiciousness: 0.4,
+            fail_count: 4,
+            success_count: 6,
+            associated_errors: vec![],
+            priority: FixPriority::Low,
+        };
+        let action = recommend_action(&decision);
+        assert!(action.contains("Review"));
+    }
 }

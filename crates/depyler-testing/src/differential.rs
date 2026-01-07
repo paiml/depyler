@@ -431,6 +431,198 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_program_output_clone() {
+        let output = ProgramOutput {
+            stdout: "hello".to_string(),
+            stderr: "".to_string(),
+            exit_code: 0,
+            runtime_ms: 100,
+        };
+        let cloned = output.clone();
+        assert_eq!(output.stdout, cloned.stdout);
+        assert_eq!(output.exit_code, cloned.exit_code);
+    }
+
+    #[test]
+    fn test_program_output_eq() {
+        let output1 = ProgramOutput {
+            stdout: "output".to_string(),
+            stderr: "".to_string(),
+            exit_code: 0,
+            runtime_ms: 50,
+        };
+        let output2 = ProgramOutput {
+            stdout: "output".to_string(),
+            stderr: "".to_string(),
+            exit_code: 0,
+            runtime_ms: 50,
+        };
+        assert_eq!(output1, output2);
+    }
+
+    #[test]
+    fn test_program_output_debug() {
+        let output = ProgramOutput {
+            stdout: "test".to_string(),
+            stderr: "".to_string(),
+            exit_code: 0,
+            runtime_ms: 10,
+        };
+        let debug = format!("{:?}", output);
+        assert!(debug.contains("ProgramOutput"));
+    }
+
+    #[test]
+    fn test_program_output_serialize() {
+        let output = ProgramOutput {
+            stdout: "output".to_string(),
+            stderr: "error".to_string(),
+            exit_code: 1,
+            runtime_ms: 200,
+        };
+        let json = serde_json::to_string(&output).unwrap();
+        assert!(json.contains("output"));
+        assert!(json.contains("error"));
+    }
+
+    #[test]
+    fn test_program_output_deserialize() {
+        let json = r#"{"stdout":"out","stderr":"err","exit_code":0,"runtime_ms":100}"#;
+        let output: ProgramOutput = serde_json::from_str(json).unwrap();
+        assert_eq!(output.stdout, "out");
+        assert_eq!(output.stderr, "err");
+    }
+
+    #[test]
+    fn test_mismatch_stdout_difference() {
+        let mismatch = Mismatch::StdoutDifference {
+            python: "hello".to_string(),
+            rust: "Hello".to_string(),
+            diff: "case mismatch".to_string(),
+        };
+        let debug = format!("{:?}", mismatch);
+        assert!(debug.contains("StdoutDifference"));
+    }
+
+    #[test]
+    fn test_mismatch_stderr_difference() {
+        let mismatch = Mismatch::StderrDifference {
+            python: "error: foo".to_string(),
+            rust: "error: bar".to_string(),
+        };
+        let cloned = mismatch.clone();
+        assert_eq!(mismatch, cloned);
+    }
+
+    #[test]
+    fn test_mismatch_exit_code_difference() {
+        let mismatch = Mismatch::ExitCodeDifference {
+            python: 0,
+            rust: 1,
+        };
+        let json = serde_json::to_string(&mismatch).unwrap();
+        assert!(json.contains("ExitCodeDifference"));
+    }
+
+    #[test]
+    fn test_differential_test_result_passed() {
+        let result = DifferentialTestResult {
+            test_name: "test".to_string(),
+            passed: true,
+            python_output: ProgramOutput {
+                stdout: "OK".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 10,
+            },
+            rust_output: ProgramOutput {
+                stdout: "OK".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 5,
+            },
+            mismatches: vec![],
+        };
+        assert!(result.passed);
+        assert!(result.mismatches.is_empty());
+    }
+
+    #[test]
+    fn test_differential_test_result_failed() {
+        let result = DifferentialTestResult {
+            test_name: "failing_test".to_string(),
+            passed: false,
+            python_output: ProgramOutput {
+                stdout: "42".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 20,
+            },
+            rust_output: ProgramOutput {
+                stdout: "43".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 10,
+            },
+            mismatches: vec![Mismatch::StdoutDifference {
+                python: "42".to_string(),
+                rust: "43".to_string(),
+                diff: "off by one".to_string(),
+            }],
+        };
+        assert!(!result.passed);
+        assert_eq!(result.mismatches.len(), 1);
+    }
+
+    #[test]
+    fn test_differential_test_result_serialize() {
+        let result = DifferentialTestResult {
+            test_name: "serialize_test".to_string(),
+            passed: true,
+            python_output: ProgramOutput {
+                stdout: "".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 0,
+            },
+            rust_output: ProgramOutput {
+                stdout: "".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 0,
+            },
+            mismatches: vec![],
+        };
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("serialize_test"));
+    }
+
+    #[test]
+    fn test_differential_test_result_clone() {
+        let result = DifferentialTestResult {
+            test_name: "clone_test".to_string(),
+            passed: true,
+            python_output: ProgramOutput {
+                stdout: "out".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 1,
+            },
+            rust_output: ProgramOutput {
+                stdout: "out".to_string(),
+                stderr: "".to_string(),
+                exit_code: 0,
+                runtime_ms: 1,
+            },
+            mismatches: vec![],
+        };
+        let cloned = result.clone();
+        assert_eq!(result.test_name, cloned.test_name);
+        assert_eq!(result.passed, cloned.passed);
+    }
+
+    #[test]
+    #[ignore] // Requires external tools
     fn test_normalize_output() {
         let tester = DifferentialTester::new().unwrap();
 
@@ -441,6 +633,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // Requires external tools
     fn test_differential_simple() {
         // Create a simple Python script
         let temp_dir = tempfile::tempdir().unwrap();

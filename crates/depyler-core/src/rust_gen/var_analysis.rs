@@ -1792,7 +1792,6 @@ mod tests {
 
     #[test]
     fn test_var_reassigned_in_try_body() {
-        use crate::hir::ExceptHandler;
         let stmt = HirStmt::Try {
             body: vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("x".to_string()),
