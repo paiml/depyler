@@ -1110,7 +1110,7 @@ mod tests {
     #[test]
     fn test_extract_error_depyler() {
         let stderr = "Error: Something went wrong";
-        let (code, msg) = extract_error(stderr);
+        let (code, _msg) = extract_error(stderr);
         assert_eq!(code, "DEPYLER");
     }
 
@@ -1439,7 +1439,7 @@ mod tests {
     #[test]
     fn test_extract_error_with_help() {
         let stderr = "error[E0425]: cannot find value `x`\n  |\nhelp: consider adding a binding";
-        let (code, msg) = extract_error(stderr);
+        let (code, _msg) = extract_error(stderr);
         assert_eq!(code, "E0425");
     }
 

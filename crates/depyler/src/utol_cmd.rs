@@ -460,14 +460,14 @@ mod tests {
         let modes = ["rich", "minimal", "json", "silent", "RICH", "MINIMAL", "JSON", "SILENT", "Rich", "Minimal", "Json", "Silent"];
         for mode in modes {
             let config = build_config(None, 0.80, 50, 5, mode).unwrap();
-            let expected = match mode.to_lowercase().as_str() {
+            let _expected = match mode.to_lowercase().as_str() {
                 "rich" => DisplayMode::Rich,
                 "minimal" => DisplayMode::Minimal,
                 "json" => DisplayMode::Json,
                 "silent" => DisplayMode::Silent,
                 _ => DisplayMode::Rich,
             };
-            assert!(matches!(config.display.mode, expected));
+            assert!(matches!(config.display.mode, _expected));
         }
     }
 
