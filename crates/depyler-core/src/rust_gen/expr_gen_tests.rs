@@ -6208,7 +6208,6 @@ fn test_batch_hasattr() {
 }
 
 #[test]
-#[test]
 fn test_batch_getattr_skip() {
     // getattr not fully supported - skip
 }
