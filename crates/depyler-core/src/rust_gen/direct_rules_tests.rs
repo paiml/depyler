@@ -958,7 +958,6 @@ fn test_keyword_match_as_var() {
     assert!(code.contains("fn") || code.contains("r#match") || code.contains("match_"));
 }
 
-#[test]
 // fn test_keyword_async_as_field_x() {
 //     let code = transpile(r#"class Task:
 //     def __init__(self):
@@ -1044,7 +1043,7 @@ def get() -> MaybeInt:
 // PROTOCOL TO TRAIT CONVERSION
 // ============================================================================
 
-#[test]
+// #[test]
 // fn test_protocol_simple_x() {
 //     let code = transpile(r#"from typing import Protocol
 // class Drawable(Protocol):
@@ -1063,7 +1062,6 @@ class Container(Protocol[T]):
     assert!(code.contains("trait") || code.contains("fn get") || code.contains("struct"));
 }
 
-#[test]
 // fn test_protocol_runtime_checkable_x() {
 //     let code = transpile(r#"from typing import Protocol, runtime_checkable
 // @runtime_checkable
@@ -1073,7 +1071,6 @@ class Container(Protocol[T]):
 //     assert!(code.contains("trait") || code.contains("struct") || code.contains("fn"));
 // }
 
-#[test]
 // fn test_protocol_multiple_methods_x() {
 //     let code = transpile(r#"from typing import Protocol
 // class Iterator(Protocol):
@@ -1479,7 +1476,7 @@ fn test_tuple_pattern_simple() {
     assert!(code.contains("fn process") || code.contains("let"));
 }
 
-#[test]
+// #[test]
 // fn test_tuple_pattern_nested_x() {
 //     let code = transpile(r#"def process():
 //     ((a, b), c) = ((1, 2), 3)

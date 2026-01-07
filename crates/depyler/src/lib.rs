@@ -79,6 +79,7 @@ pub mod analyze_shim;
 pub mod annotation_analyzer;
 pub mod compilation_trainer;
 pub mod compilation_trainer_shim;
+pub mod cli_shim;
 pub mod compile_cmd;
 pub mod converge;
 pub mod debug_cmd;
