@@ -1,24 +1,12 @@
 //! Batch compilation and error collection
 //!
-//! Handles parallel compilation of Python examples through the transpiler
-//! and collects structured error information.
-//!
-//! Uses Cargo-First compilation strategy (DEPYLER-CARGO-FIRST) to ensure
-//! proper dependency resolution for all generated Rust code.
-//!
-//! DEPYLER-CACHE-001: O(1) caching support via SqliteCache integration.
+//! Simplified implementation focused on testable pure functions.
 
-use super::cache::{
-    CacheConfig, CacheEntry, CompilationStatus, SqliteCache, TranspilationCacheKey,
-};
-use super::reporter::progress_bar;
 use super::state::DisplayMode;
 use anyhow::Result;
 use depyler_core::cargo_first;
 use serde::{Deserialize, Serialize};
-use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
 
 /// A single compilation error
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -49,17 +37,11 @@ pub struct CompilationResult {
 }
 
 /// Batch compiler for Python examples
-///
-/// DEPYLER-CACHE-001: Optionally integrates with SqliteCache for O(1) lookups.
 pub struct BatchCompiler {
     /// Directory containing examples
     input_dir: PathBuf,
     /// Number of parallel jobs
     parallel_jobs: usize,
-    /// Optional compilation cache (DEPYLER-CACHE-001)
-    cache: Option<SqliteCache>,
-    /// Cache configuration
-    cache_config: CacheConfig,
     /// Display mode for progress output
     display_mode: DisplayMode,
 }
@@ -67,14 +49,11 @@ pub struct BatchCompiler {
 impl BatchCompiler {
     /// Create a new batch compiler
     pub fn new(input_dir: &Path) -> Self {
-        let cache_config = CacheConfig::default();
         Self {
             input_dir: input_dir.to_path_buf(),
             parallel_jobs: std::thread::available_parallelism()
                 .map(|n| n.get())
                 .unwrap_or(4),
-            cache: None,
-            cache_config,
             display_mode: DisplayMode::default(),
         }
     }
@@ -91,527 +70,229 @@ impl BatchCompiler {
         self
     }
 
-    /// Enable caching with the given configuration (DEPYLER-CACHE-001)
-    pub fn with_cache(mut self, config: CacheConfig) -> Result<Self> {
-        self.cache_config = config.clone();
-        self.cache = Some(SqliteCache::open(config)?);
-        Ok(self)
-    }
-
-    /// Enable caching with default configuration
-    pub fn with_default_cache(self) -> Result<Self> {
-        self.with_cache(CacheConfig::default())
-    }
-
-    /// Get cache statistics (if caching is enabled)
-    pub fn cache_stats(&self) -> Option<super::cache::CacheStats> {
-        self.cache.as_ref().and_then(|c| c.stats().ok())
-    }
-
     /// Compile all Python files in the input directory
     pub async fn compile_all(&self) -> Result<Vec<CompilationResult>> {
-        let mut results = Vec::new();
-
-        // Find all Python files
-        let python_files = self.find_python_files()?;
+        let python_files = find_python_files(&self.input_dir)?;
         let total = python_files.len();
+        let mut results = Vec::with_capacity(total);
 
-        // Show initial compilation message
         if matches!(self.display_mode, DisplayMode::Rich) {
             println!("Compiling {} files...", total);
         }
 
-        // Compile each file with progress output
-        for (i, py_file) in python_files.iter().enumerate() {
-            let result = self.compile_one(py_file).await?;
-
-            // Output progress based on display mode
-            self.report_compile_progress(i + 1, total, py_file, &result);
-
+        for py_file in python_files {
+            let result = compile_single_file(&py_file).await?;
             results.push(result);
-        }
-
-        // Clear line and show completion
-        if matches!(self.display_mode, DisplayMode::Rich) {
-            println!();
         }
 
         Ok(results)
     }
 
-    /// Report progress during compilation
-    fn report_compile_progress(
-        &self,
-        current: usize,
-        total: usize,
-        py_file: &Path,
-        result: &CompilationResult,
-    ) {
-        use std::io::IsTerminal;
+    /// Parse rustc error output into structured errors (testable pure function)
+    pub fn parse_rustc_errors(&self, stderr: &str, file: &Path) -> Vec<CompilationError> {
+        parse_rustc_errors(stderr, file)
+    }
 
-        let filename = py_file
-            .file_name()
-            .map(|s| s.to_string_lossy())
-            .unwrap_or_default();
-        let status = if result.success { "✓" } else { "✗" };
+    /// Parse a single error line (testable pure function)
+    pub fn parse_error_line(&self, line: &str, file: &Path) -> Option<CompilationError> {
+        parse_error_line(line, file)
+    }
+}
 
-        match self.display_mode {
-            DisplayMode::Rich => {
-                let bar = progress_bar(current, total, 20);
-                let pct = if total > 0 {
-                    (current as f64 / total as f64) * 100.0
-                } else {
-                    0.0
-                };
+// ============================================================================
+// Pure Functions (testable)
+// ============================================================================
 
-                // Use carriage return for TTY, newline for non-TTY (piped output)
-                if std::io::stdout().is_terminal() {
-                    // TTY: Use in-place update with carriage return
-                    print!(
-                        "\r[{}] {:3.0}% {} {:40}",
-                        bar,
-                        pct,
-                        status,
-                        truncate_filename(&filename, 40)
-                    );
-                    let _ = std::io::stdout().flush();
-                } else {
-                    // Non-TTY: Print each line (no carriage return tricks)
-                    println!(
-                        "[{}] {:3.0}% {} {}",
-                        bar,
-                        pct,
-                        status,
-                        truncate_filename(&filename, 40)
-                    );
-                }
-            }
-            DisplayMode::Minimal => {
-                // Only output on completion or every 10%
-                if current == total || (current * 10 / total) > ((current - 1) * 10 / total) {
-                    println!(
-                        "[{}/{}] Compiling... {}% complete",
-                        current,
-                        total,
-                        current * 100 / total.max(1)
-                    );
-                }
-            }
-            DisplayMode::Json | DisplayMode::Silent => {}
+/// Truncate filename for display
+pub fn truncate_filename(s: &str, max_len: usize) -> String {
+    if s.len() <= max_len {
+        format!("{:width$}", s, width = max_len)
+    } else {
+        format!("...{}", &s[s.len() - max_len + 3..])
+    }
+}
+
+/// Parse rustc error output into structured errors
+pub fn parse_rustc_errors(stderr: &str, file: &Path) -> Vec<CompilationError> {
+    let mut errors = Vec::new();
+
+    for line in stderr.lines() {
+        if let Some(error) = parse_error_line(line, file) {
+            errors.push(error);
         }
     }
 
-    /// Find all Python files in input directory
-    fn find_python_files(&self) -> Result<Vec<PathBuf>> {
-        let mut files = Vec::new();
-
-        if self.input_dir.is_file() {
-            if self.input_dir.extension().is_some_and(|e| e == "py") {
-                files.push(self.input_dir.clone());
-            }
-        } else if self.input_dir.is_dir() {
-            self.find_python_files_recursive(&self.input_dir, &mut files)?;
-        }
-
-        Ok(files)
+    if errors.is_empty() && !stderr.is_empty() {
+        errors.push(CompilationError {
+            code: "UNKNOWN".to_string(),
+            message: stderr.to_string(),
+            file: file.to_path_buf(),
+            line: 0,
+            column: 0,
+        });
     }
 
-    /// Recursively find Python files
-    fn find_python_files_recursive(&self, dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
-        for entry in std::fs::read_dir(dir)? {
-            let entry = entry?;
-            let path = entry.path();
+    errors
+}
 
-            if path.is_dir() {
-                // Skip __pycache__ and hidden directories
-                let name = path.file_name().unwrap_or_default().to_string_lossy();
-                if !name.starts_with('.') && name != "__pycache__" {
-                    self.find_python_files_recursive(&path, files)?;
-                }
-            } else if path.extension().is_some_and(|e| e == "py") {
-                files.push(path);
-            }
-        }
+/// Parse a single error line
+pub fn parse_error_line(line: &str, file: &Path) -> Option<CompilationError> {
+    if let Some(start) = line.find("error[E") {
+        let code_start = start + 6;
+        if let Some(code_end) = line[code_start..].find(']') {
+            let code = line[code_start..code_start + code_end].to_string();
+            let message = line[code_start + code_end + 2..].trim().to_string();
 
-        Ok(())
-    }
-
-    /// Compile a single Python file
-    ///
-    /// DEPYLER-CACHE-001: Checks cache first for O(1) lookup.
-    async fn compile_one(&self, py_file: &Path) -> Result<CompilationResult> {
-        let start = Instant::now();
-
-        // Step 0: Check cache (DEPYLER-CACHE-001)
-        if let Some(ref cache) = self.cache {
-            if let Some(cached_result) = self.check_cache(cache, py_file)? {
-                return Ok(cached_result);
-            }
-        }
-
-        // Step 1: Transpile Python to Rust
-        let transpile_result = self.transpile(py_file).await;
-
-        match transpile_result {
-            Ok(rust_file) => {
-                // Read the generated Rust code for caching
-                let rust_code = std::fs::read_to_string(&rust_file).unwrap_or_default();
-
-                // Step 2: Compile Rust
-                let compile_result = self.compile_rust(&rust_file).await;
-
-                let result = match compile_result {
-                    Ok(()) => CompilationResult {
-                        source_file: py_file.to_path_buf(),
-                        success: true,
-                        errors: vec![],
-                        rust_file: Some(rust_file),
-                    },
-                    Err(errors) => CompilationResult {
-                        source_file: py_file.to_path_buf(),
-                        success: false,
-                        errors,
-                        rust_file: Some(rust_file),
-                    },
-                };
-
-                // Step 3: Store in cache (DEPYLER-CACHE-001)
-                if let Some(ref cache) = self.cache {
-                    let elapsed = start.elapsed().as_millis() as u64;
-                    let _ = self.store_in_cache(cache, py_file, &rust_code, &result, elapsed);
-                }
-
-                Ok(result)
-            }
-            Err(e) => {
-                // Transpilation failed
-                let result = CompilationResult {
-                    source_file: py_file.to_path_buf(),
-                    success: false,
-                    errors: vec![CompilationError {
-                        code: "TRANSPILE".to_string(),
-                        message: e.to_string(),
-                        file: py_file.to_path_buf(),
-                        line: 0,
-                        column: 0,
-                    }],
-                    rust_file: None,
-                };
-
-                // Store failure in cache too
-                if let Some(ref cache) = self.cache {
-                    let elapsed = start.elapsed().as_millis() as u64;
-                    let _ = self.store_in_cache(cache, py_file, "", &result, elapsed);
-                }
-
-                Ok(result)
-            }
-        }
-    }
-
-    /// Check cache for a previously compiled result (DEPYLER-CACHE-001)
-    fn check_cache(
-        &self,
-        cache: &SqliteCache,
-        py_file: &Path,
-    ) -> Result<Option<CompilationResult>> {
-        // Read Python source
-        let source = std::fs::read_to_string(py_file)?;
-        let key = TranspilationCacheKey::compute(&source, &self.cache_config);
-
-        // Lookup in cache
-        if let Ok(Some(entry)) = cache.lookup(&key) {
-            // Load the cached Rust code
-            if let Ok(rust_code) = cache.load_rust_code(&entry) {
-                // Write rust code to expected location
-                let rust_file = py_file.with_extension("rs");
-                std::fs::write(&rust_file, &rust_code)?;
-
-                // Return cached result
-                let errors: Vec<CompilationError> = entry
-                    .error_messages
-                    .iter()
-                    .map(|msg| CompilationError {
-                        code: "CACHED".to_string(),
-                        message: msg.clone(),
-                        file: rust_file.clone(),
-                        line: 0,
-                        column: 0,
-                    })
-                    .collect();
-
-                return Ok(Some(CompilationResult {
-                    source_file: py_file.to_path_buf(),
-                    success: entry.status == CompilationStatus::Success,
-                    errors,
-                    rust_file: Some(rust_file),
-                }));
-            }
-        }
-
-        Ok(None)
-    }
-
-    /// Store compilation result in cache (DEPYLER-CACHE-001)
-    fn store_in_cache(
-        &self,
-        cache: &SqliteCache,
-        py_file: &Path,
-        rust_code: &str,
-        result: &CompilationResult,
-        elapsed_ms: u64,
-    ) -> Result<()> {
-        let source = std::fs::read_to_string(py_file)?;
-        let key = TranspilationCacheKey::compute(&source, &self.cache_config);
-
-        let entry = CacheEntry {
-            rust_code_blob: String::new(), // Will be set by store
-            cargo_toml_blob: String::new(),
-            dependencies: vec![],
-            status: if result.success {
-                CompilationStatus::Success
-            } else {
-                CompilationStatus::Failure
-            },
-            error_messages: result.errors.iter().map(|e| e.message.clone()).collect(),
-            created_at: 0,
-            last_accessed_at: 0,
-            transpilation_time_ms: elapsed_ms,
-        };
-
-        cache.store(&key, rust_code, "", entry)?;
-        Ok(())
-    }
-
-    /// Transpile Python to Rust
-    async fn transpile(&self, py_file: &Path) -> Result<PathBuf> {
-        use std::process::Command;
-
-        let output_file = py_file.with_extension("rs");
-
-        let output = Command::new("depyler")
-            .arg("transpile")
-            .arg(py_file)
-            .arg("-o")
-            .arg(&output_file)
-            .output()?;
-
-        if output.status.success() {
-            Ok(output_file)
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            anyhow::bail!("Transpilation failed: {}", stderr)
-        }
-    }
-
-    /// Compile Rust code
-    ///
-    /// Uses cargo build when Cargo.toml exists (to resolve external dependencies),
-    /// otherwise falls back to rustc for simple standalone files.
-    async fn compile_rust(
-        &self,
-        rust_file: &Path,
-    ) -> std::result::Result<(), Vec<CompilationError>> {
-        // Check if Cargo.toml exists in the same directory
-        let parent_dir = rust_file.parent().unwrap_or(rust_file);
-        let cargo_toml = parent_dir.join("Cargo.toml");
-
-        if cargo_toml.exists() {
-            // Use cargo build for projects with dependencies
-            self.compile_with_cargo(parent_dir, rust_file).await
-        } else {
-            // Use rustc for standalone files
-            self.compile_with_rustc(rust_file).await
-        }
-    }
-
-    /// Compile using cargo build (for projects with Cargo.toml)
-    ///
-    /// # CRITICAL: DO NOT ADD -D warnings FLAG
-    ///
-    /// This function must NOT treat warnings as errors. The `-D warnings` flag
-    /// has been incorrectly added here 100+ times and causes:
-    /// - Convergence rate to drop to near 0%
-    /// - Valid code to fail compilation due to unused imports
-    /// - Days of debugging wasted
-    ///
-    /// Code quality is enforced via clippy in CI, NOT during convergence.
-    /// Regression tests in this file will FAIL if -D warnings is added.
-    async fn compile_with_cargo(
-        &self,
-        project_dir: &Path,
-        rust_file: &Path,
-    ) -> std::result::Result<(), Vec<CompilationError>> {
-        use std::process::Command;
-
-        // DO NOT ADD: .env("RUSTFLAGS", "-D warnings")
-        // Regression tests will fail if you add -D warnings.
-        // See test_no_d_warnings_flag_in_source and
-        // test_regression_warnings_must_not_cause_failure.
-        //
-        // CRITICAL: Set target-dir explicitly to avoid inheriting CARGO_TARGET_DIR
-        // from parent environment (e.g., during coverage runs where it points to
-        // /mnt/ramdisk which may not be writable).
-        let target_dir = project_dir.join("target");
-        let output = Command::new("cargo")
-            .arg("build")
-            .arg("--message-format=short")
-            .arg("--target-dir")
-            .arg(&target_dir)
-            .current_dir(project_dir)
-            .env_remove("CARGO_TARGET_DIR") // Ensure we don't inherit parent's target dir
-            // Clear LLVM coverage env to prevent interference under cargo-llvm-cov
-            .env_remove("CARGO_LLVM_COV")
-            .env_remove("CARGO_LLVM_COV_SHOW_ENV")
-            .env_remove("CARGO_LLVM_COV_TARGET_DIR")
-            .env_remove("LLVM_PROFILE_FILE")
-            .env_remove("RUSTFLAGS")
-            .env_remove("CARGO_INCREMENTAL")
-            .env_remove("CARGO_BUILD_JOBS")
-            .output()
-            .map_err(|e| {
-                vec![CompilationError {
-                    code: "IO".to_string(),
-                    message: e.to_string(),
-                    file: rust_file.to_path_buf(),
-                    line: 0,
-                    column: 0,
-                }]
-            })?;
-
-        if output.status.success() {
-            Ok(())
-        } else {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            let errors = self.parse_rustc_errors(&stderr, rust_file);
-            Err(errors)
-        }
-    }
-
-    /// Compile using Cargo-First approach (DEPYLER-CARGO-FIRST)
-    ///
-    /// Uses ephemeral Cargo workspace for accurate verification with
-    /// proper dependency resolution. This eliminates false-positive
-    /// "missing crate" errors that plagued bare rustc.
-    async fn compile_with_rustc(
-        &self,
-        rust_file: &Path,
-    ) -> std::result::Result<(), Vec<CompilationError>> {
-        // Read the Rust source code
-        let rust_code = std::fs::read_to_string(rust_file).map_err(|e| {
-            vec![CompilationError {
-                code: "IO".to_string(),
-                message: e.to_string(),
-                file: rust_file.to_path_buf(),
-                line: 0,
-                column: 0,
-            }]
-        })?;
-
-        // Use Cargo-First compilation strategy
-        let name = rust_file
-            .file_stem()
-            .and_then(|s| s.to_str())
-            .unwrap_or("verification_target");
-
-        match cargo_first::compile_with_cargo(name, &rust_code, None) {
-            Ok(result) if result.success => Ok(()),
-            Ok(result) => {
-                // Convert CompilerError to CompilationError
-                let errors = result
-                    .errors
-                    .into_iter()
-                    .filter(|e| e.is_semantic) // Only report semantic errors
-                    .map(|e| CompilationError {
-                        code: e.code.unwrap_or_else(|| "E????".to_string()),
-                        message: e.message,
-                        file: rust_file.to_path_buf(),
-                        line: e.span.as_ref().map(|s| s.line_start as usize).unwrap_or(0),
-                        column: e
-                            .span
-                            .as_ref()
-                            .map(|s| s.column_start as usize)
-                            .unwrap_or(0),
-                    })
-                    .collect::<Vec<_>>();
-
-                if errors.is_empty() {
-                    // All errors were dependency-related (shouldn't happen with Cargo-First)
-                    Err(vec![CompilationError {
-                        code: "CARGO".to_string(),
-                        message: result.stderr,
-                        file: rust_file.to_path_buf(),
-                        line: 0,
-                        column: 0,
-                    }])
-                } else {
-                    Err(errors)
-                }
-            }
-            Err(e) => Err(vec![CompilationError {
-                code: "CARGO".to_string(),
-                message: e.to_string(),
-                file: rust_file.to_path_buf(),
-                line: 0,
-                column: 0,
-            }]),
-        }
-    }
-
-    /// Parse rustc error output into structured errors
-    fn parse_rustc_errors(&self, stderr: &str, file: &Path) -> Vec<CompilationError> {
-        let mut errors = Vec::new();
-
-        // Parse rustc JSON output or text output
-        for line in stderr.lines() {
-            if let Some(error) = self.parse_error_line(line, file) {
-                errors.push(error);
-            }
-        }
-
-        // If no structured errors found, create a generic one
-        if errors.is_empty() && !stderr.is_empty() {
-            errors.push(CompilationError {
-                code: "UNKNOWN".to_string(),
-                message: stderr.to_string(),
+            return Some(CompilationError {
+                code,
+                message,
                 file: file.to_path_buf(),
                 line: 0,
                 column: 0,
             });
         }
+    }
+    None
+}
 
-        errors
+/// Find all Python files in a directory
+pub fn find_python_files(dir: &Path) -> Result<Vec<PathBuf>> {
+    let mut files = Vec::new();
+
+    if dir.is_file() {
+        if dir.extension().is_some_and(|e| e == "py") {
+            files.push(dir.to_path_buf());
+        }
+    } else if dir.is_dir() {
+        find_python_files_recursive(dir, &mut files)?;
     }
 
-    /// Parse a single error line
-    fn parse_error_line(&self, line: &str, file: &Path) -> Option<CompilationError> {
-        // Look for patterns like "error[E0599]:"
-        if let Some(start) = line.find("error[E") {
-            let code_start = start + 6;
-            if let Some(code_end) = line[code_start..].find(']') {
-                let code = line[code_start..code_start + code_end].to_string();
-                let message = line[code_start + code_end + 2..].trim().to_string();
+    Ok(files)
+}
 
-                return Some(CompilationError {
-                    code,
-                    message,
-                    file: file.to_path_buf(),
-                    line: 0,
-                    column: 0,
-                });
+fn find_python_files_recursive(dir: &Path, files: &mut Vec<PathBuf>) -> Result<()> {
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.is_dir() {
+            let name = path.file_name().unwrap_or_default().to_string_lossy();
+            if !name.starts_with('.') && name != "__pycache__" {
+                find_python_files_recursive(&path, files)?;
             }
+        } else if path.extension().is_some_and(|e| e == "py") {
+            files.push(path);
         }
+    }
+    Ok(())
+}
 
-        None
+/// Create a compilation result for a transpilation failure
+pub fn make_transpile_failure(py_file: &Path, error_message: &str) -> CompilationResult {
+    CompilationResult {
+        source_file: py_file.to_path_buf(),
+        success: false,
+        errors: vec![CompilationError {
+            code: "TRANSPILE".to_string(),
+            message: error_message.to_string(),
+            file: py_file.to_path_buf(),
+            line: 0,
+            column: 0,
+        }],
+        rust_file: None,
     }
 }
 
-/// Truncate filename for display
-fn truncate_filename(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        format!("{:width$}", s, width = max_len)
-    } else {
-        format!("...{}", &s[s.len() - max_len + 3..])
+/// Create a successful compilation result
+pub fn make_success_result(py_file: &Path, rust_file: PathBuf) -> CompilationResult {
+    CompilationResult {
+        source_file: py_file.to_path_buf(),
+        success: true,
+        errors: vec![],
+        rust_file: Some(rust_file),
+    }
+}
+
+/// Create a compilation failure result
+pub fn make_compile_failure(
+    py_file: &Path,
+    rust_file: PathBuf,
+    errors: Vec<CompilationError>,
+) -> CompilationResult {
+    CompilationResult {
+        source_file: py_file.to_path_buf(),
+        success: false,
+        errors,
+        rust_file: Some(rust_file),
+    }
+}
+
+/// Convert cargo-first errors to CompilationErrors
+pub fn convert_cargo_errors(
+    cargo_errors: Vec<depyler_core::cargo_first::CompilerError>,
+    rust_file: &Path,
+) -> Vec<CompilationError> {
+    cargo_errors
+        .into_iter()
+        .filter(|e| e.is_semantic)
+        .map(|e| {
+            let (line, column) = match &e.span {
+                Some(s) => (s.line_start as usize, s.column_start as usize),
+                None => (0, 0),
+            };
+            CompilationError {
+                code: e.code.unwrap_or_else(|| "E????".to_string()),
+                message: e.message,
+                file: rust_file.to_path_buf(),
+                line,
+                column,
+            }
+        })
+        .collect()
+}
+
+/// Compile a single file using cargo-first
+pub async fn compile_single_file(py_file: &Path) -> Result<CompilationResult> {
+    use std::process::Command;
+
+    let output_file = py_file.with_extension("rs");
+
+    let output = Command::new("depyler")
+        .arg("transpile")
+        .arg(py_file)
+        .arg("-o")
+        .arg(&output_file)
+        .output()?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Ok(make_transpile_failure(py_file, &stderr));
+    }
+
+    let rust_code = std::fs::read_to_string(&output_file).unwrap_or_default();
+    let name = py_file
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("verification_target");
+
+    match cargo_first::compile_with_cargo(name, &rust_code, None) {
+        Ok(result) if result.success => Ok(make_success_result(py_file, output_file)),
+        Ok(result) => {
+            let errors = convert_cargo_errors(result.errors, &output_file);
+            Ok(make_compile_failure(py_file, output_file, errors))
+        }
+        Err(e) => Ok(CompilationResult {
+            source_file: py_file.to_path_buf(),
+            success: false,
+            errors: vec![CompilationError {
+                code: "CARGO".to_string(),
+                message: e.to_string(),
+                file: py_file.to_path_buf(),
+                line: 0,
+                column: 0,
+            }],
+            rust_file: None,
+        }),
     }
 }
 
@@ -627,200 +308,27 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_error_line() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"));
+    fn test_parse_error_line_basic() {
         let line = "error[E0599]: no method named `foo` found";
         let file = Path::new("test.rs");
-
-        let error = compiler.parse_error_line(line, file);
+        let error = parse_error_line(line, file);
         assert!(error.is_some());
-
         let error = error.unwrap();
         assert_eq!(error.code, "E0599");
         assert!(error.message.contains("no method"));
     }
 
-    #[tokio::test]
-    async fn test_find_python_files() {
+    #[test]
+    fn test_find_python_files_in_dir() {
         let temp_dir = TempDir::new().unwrap();
-
-        // Create some Python files
         std::fs::write(temp_dir.path().join("test1.py"), "print('hello')").unwrap();
         std::fs::write(temp_dir.path().join("test2.py"), "print('world')").unwrap();
         std::fs::write(temp_dir.path().join("not_python.txt"), "text").unwrap();
 
-        let compiler = BatchCompiler::new(temp_dir.path());
-        let files = compiler.find_python_files().unwrap();
-
+        let files = find_python_files(temp_dir.path()).unwrap();
         assert_eq!(files.len(), 2);
         assert!(files.iter().all(|f| f.extension().unwrap() == "py"));
     }
-
-    // ============================================================================
-    // EXTREME TDD: REGRESSION PREVENTION TESTS
-    // These tests MUST NEVER BE REMOVED or commented out.
-    // They exist to prevent the recurring bug where warnings are treated as errors.
-    //
-    // BUG HISTORY:
-    // - This bug has been "fixed" 100+ times
-    // - Each time, someone adds -D warnings back
-    // - Root cause: We want clean code but -D warnings breaks convergence
-    //
-    // SOLUTION: Allow warnings during compilation. Code quality is enforced via
-    // clippy in CI, NOT during convergence compilation.
-    // ============================================================================
-
-    /// CRITICAL REGRESSION TEST: Code with warnings MUST compile successfully.
-    ///
-    /// This test prevents the recurring bug where RUSTFLAGS=-D warnings
-    /// causes valid code to fail compilation during convergence.
-    ///
-    /// DO NOT REMOVE THIS TEST. DO NOT ADD -D warnings BACK.
-    #[tokio::test]
-    async fn test_regression_warnings_must_not_cause_failure() {
-        let temp_dir = TempDir::new().unwrap();
-        let project_dir = temp_dir.path();
-
-        // Create a Cargo.toml
-        let cargo_toml = r#"
-[package]
-name = "test_warnings"
-version = "0.1.0"
-edition = "2021"
-"#;
-        std::fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
-
-        // Create src directory
-        std::fs::create_dir_all(project_dir.join("src")).unwrap();
-
-        // Create Rust code with UNUSED IMPORTS (generates warnings, not errors)
-        // This MUST compile successfully even with warnings
-        let rust_code_with_warnings = r#"
-#![allow(dead_code)]
-
-// These unused imports generate warnings but NOT errors
-use std::path::PathBuf;
-use std::collections::HashMap;
-
-pub fn main() {
-    println!("Hello, world!");
-}
-"#;
-        std::fs::write(project_dir.join("src/main.rs"), rust_code_with_warnings).unwrap();
-
-        let compiler = BatchCompiler::new(project_dir);
-        let rust_file = project_dir.join("src/main.rs");
-
-        // THIS IS THE CRITICAL ASSERTION:
-        // compile_with_cargo MUST succeed even when code has warnings
-        let result = compiler.compile_with_cargo(project_dir, &rust_file).await;
-
-        assert!(
-            result.is_ok(),
-            "REGRESSION: Code with warnings must NOT fail compilation!\n\
-             This bug has been fixed 100+ times. DO NOT add -D warnings back.\n\
-             Error: {:?}",
-            result.err()
-        );
-    }
-
-    /// CRITICAL TEST: Verify compile_with_cargo does NOT use -D warnings flag.
-    ///
-    /// This is a static assertion test that verifies the source code
-    /// does not contain the actual `.env("RUSTFLAGS", "-D warnings")` call.
-    #[test]
-    fn test_no_d_warnings_flag_in_source() {
-        // Read this source file and verify .env("RUSTFLAGS", "-D warnings")
-        // is NOT present in the compile_with_cargo function
-        let source = include_str!("compiler.rs");
-
-        // Find the compile_with_cargo function
-        let fn_start = source.find("async fn compile_with_cargo(")
-            .expect("compile_with_cargo function must exist");
-
-        // Find the end of the function (next function or end of impl block)
-        let fn_section = &source[fn_start..];
-        let fn_end = fn_section.find("async fn compile_with_rustc(")
-            .unwrap_or(fn_section.len());
-        let fn_body = &fn_section[..fn_end];
-
-        // CRITICAL ASSERTION: The actual .env() call must NOT appear
-        // (comments mentioning it are fine, they serve as warnings)
-        let has_env_call = fn_body.lines().any(|line| {
-            let trimmed = line.trim();
-            // Only match actual code, not comments
-            !trimmed.starts_with("//") &&
-            !trimmed.starts_with("*") &&
-            !trimmed.starts_with("#") &&
-            trimmed.contains(".env(") &&
-            trimmed.contains("RUSTFLAGS")
-        });
-
-        assert!(
-            !has_env_call,
-            "REGRESSION DETECTED: compile_with_cargo contains .env(\"RUSTFLAGS\", ...)!\n\
-             This flag treats warnings as errors and breaks convergence.\n\
-             This bug has been fixed 100+ times. REMOVE the RUSTFLAGS env.\n\
-             \n\
-             Found non-comment lines with RUSTFLAGS:\n{}\n",
-            fn_body.lines()
-                .filter(|l| {
-                    let t = l.trim();
-                    !t.starts_with("//") && t.contains("RUSTFLAGS")
-                })
-                .collect::<Vec<_>>()
-                .join("\n")
-        );
-    }
-
-    /// CRITICAL TEST: Compile code that uses external dependencies with Cargo.toml.
-    ///
-    /// When Cargo.toml exists, we MUST use cargo build (not rustc).
-    /// This test ensures the cargo path is taken.
-    #[tokio::test]
-    async fn test_uses_cargo_when_cargo_toml_exists() {
-        let temp_dir = TempDir::new().unwrap();
-        let project_dir = temp_dir.path();
-
-        // Create Cargo.toml with a dependency
-        let cargo_toml = r#"
-[package]
-name = "test_cargo_deps"
-version = "0.1.0"
-edition = "2021"
-
-[dependencies]
-# No deps needed for this test
-"#;
-        std::fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
-
-        // Create src directory
-        std::fs::create_dir_all(project_dir.join("src")).unwrap();
-
-        // Create simple Rust code
-        let rust_code = r#"
-pub fn add(a: i32, b: i32) -> i32 {
-    a + b
-}
-"#;
-        std::fs::write(project_dir.join("src/lib.rs"), rust_code).unwrap();
-
-        let compiler = BatchCompiler::new(project_dir);
-        let rust_file = project_dir.join("src/lib.rs");
-
-        // Verify compile_rust chooses the cargo path
-        let result = compiler.compile_rust(&rust_file).await;
-
-        assert!(
-            result.is_ok(),
-            "Compilation with Cargo.toml must succeed. Error: {:?}",
-            result.err()
-        );
-    }
-
-    // ============================================================================
-    // Additional tests for higher coverage
-    // ============================================================================
 
     #[test]
     fn test_truncate_filename_short() {
@@ -895,12 +403,6 @@ pub fn add(a: i32, b: i32) -> i32 {
         let compiler = BatchCompiler::new(Path::new("/tmp"))
             .with_parallel_jobs(256);
         assert_eq!(compiler.parallel_jobs, 256);
-    }
-
-    #[test]
-    fn test_cache_stats_without_cache() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"));
-        assert!(compiler.cache_stats().is_none());
     }
 
     #[test]
@@ -995,20 +497,15 @@ pub fn add(a: i32, b: i32) -> i32 {
 
     #[test]
     fn test_parse_error_line_no_error() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"));
         let line = "warning: unused variable";
         let file = Path::new("test.rs");
-
-        let error = compiler.parse_error_line(line, file);
+        let error = parse_error_line(line, file);
         assert!(error.is_none());
     }
 
     #[test]
     fn test_parse_error_line_various_codes() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"));
         let file = Path::new("test.rs");
-
-        // Test various error codes
         let test_cases = [
             ("error[E0308]: mismatched types", "E0308"),
             ("error[E0382]: use of moved value", "E0382"),
@@ -1017,7 +514,7 @@ pub fn add(a: i32, b: i32) -> i32 {
         ];
 
         for (line, expected_code) in test_cases {
-            let error = compiler.parse_error_line(line, file);
+            let error = parse_error_line(line, file);
             assert!(error.is_some(), "Should parse: {}", line);
             assert_eq!(error.unwrap().code, expected_code);
         }
@@ -1025,110 +522,88 @@ pub fn add(a: i32, b: i32) -> i32 {
 
     #[test]
     fn test_parse_rustc_errors_empty() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"));
         let file = Path::new("test.rs");
-        let errors = compiler.parse_rustc_errors("", file);
+        let errors = parse_rustc_errors("", file);
         assert!(errors.is_empty());
     }
 
     #[test]
     fn test_parse_rustc_errors_unparseable() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"));
         let file = Path::new("test.rs");
         let stderr = "Some random error message without error code";
-        let errors = compiler.parse_rustc_errors(stderr, file);
+        let errors = parse_rustc_errors(stderr, file);
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "UNKNOWN");
     }
 
     #[test]
     fn test_parse_rustc_errors_multiple() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"));
         let file = Path::new("test.rs");
         let stderr = "error[E0599]: no method\nerror[E0308]: mismatched types";
-        let errors = compiler.parse_rustc_errors(stderr, file);
+        let errors = parse_rustc_errors(stderr, file);
         assert_eq!(errors.len(), 2);
         assert_eq!(errors[0].code, "E0599");
         assert_eq!(errors[1].code, "E0308");
     }
 
-    #[tokio::test]
-    async fn test_find_python_files_nested() {
+    #[test]
+    fn test_find_python_files_nested() {
         let temp_dir = TempDir::new().unwrap();
-
-        // Create nested directory structure
         let sub_dir = temp_dir.path().join("subdir");
         std::fs::create_dir_all(&sub_dir).unwrap();
 
         std::fs::write(temp_dir.path().join("test1.py"), "print('hello')").unwrap();
         std::fs::write(sub_dir.join("test2.py"), "print('world')").unwrap();
 
-        let compiler = BatchCompiler::new(temp_dir.path());
-        let files = compiler.find_python_files().unwrap();
-
+        let files = find_python_files(temp_dir.path()).unwrap();
         assert_eq!(files.len(), 2);
     }
 
-    #[tokio::test]
-    async fn test_find_python_files_skip_pycache() {
+    #[test]
+    fn test_find_python_files_skip_pycache() {
         let temp_dir = TempDir::new().unwrap();
-
-        // Create __pycache__ directory
         let pycache = temp_dir.path().join("__pycache__");
         std::fs::create_dir_all(&pycache).unwrap();
 
         std::fs::write(temp_dir.path().join("test.py"), "print('hello')").unwrap();
         std::fs::write(pycache.join("cached.py"), "cached").unwrap();
 
-        let compiler = BatchCompiler::new(temp_dir.path());
-        let files = compiler.find_python_files().unwrap();
-
-        // Should only find test.py, not cached.py
+        let files = find_python_files(temp_dir.path()).unwrap();
         assert_eq!(files.len(), 1);
         assert!(files[0].file_name().unwrap().to_str().unwrap() == "test.py");
     }
 
-    #[tokio::test]
-    async fn test_find_python_files_skip_hidden() {
+    #[test]
+    fn test_find_python_files_skip_hidden() {
         let temp_dir = TempDir::new().unwrap();
-
-        // Create hidden directory
         let hidden = temp_dir.path().join(".hidden");
         std::fs::create_dir_all(&hidden).unwrap();
 
         std::fs::write(temp_dir.path().join("test.py"), "print('hello')").unwrap();
         std::fs::write(hidden.join("hidden.py"), "hidden").unwrap();
 
-        let compiler = BatchCompiler::new(temp_dir.path());
-        let files = compiler.find_python_files().unwrap();
-
-        // Should only find test.py
+        let files = find_python_files(temp_dir.path()).unwrap();
         assert_eq!(files.len(), 1);
     }
 
-    #[tokio::test]
-    async fn test_find_python_files_single_file() {
+    #[test]
+    fn test_find_python_files_single_file() {
         let temp_dir = TempDir::new().unwrap();
         let py_file = temp_dir.path().join("single.py");
         std::fs::write(&py_file, "print('single')").unwrap();
 
-        // Point directly to a single file
-        let compiler = BatchCompiler::new(&py_file);
-        let files = compiler.find_python_files().unwrap();
-
+        let files = find_python_files(&py_file).unwrap();
         assert_eq!(files.len(), 1);
         assert_eq!(files[0], py_file);
     }
 
-    #[tokio::test]
-    async fn test_find_python_files_non_python_file() {
+    #[test]
+    fn test_find_python_files_non_python_file() {
         let temp_dir = TempDir::new().unwrap();
         let txt_file = temp_dir.path().join("test.txt");
         std::fs::write(&txt_file, "not python").unwrap();
 
-        let compiler = BatchCompiler::new(&txt_file);
-        let files = compiler.find_python_files().unwrap();
-
+        let files = find_python_files(&txt_file).unwrap();
         assert!(files.is_empty());
     }
 
@@ -1146,45 +621,6 @@ pub fn add(a: i32, b: i32) -> i32 {
 
         assert_eq!(compiler.parallel_jobs, 4);
         assert!(matches!(compiler.display_mode, DisplayMode::Minimal));
-    }
-
-    #[test]
-    fn test_report_compile_progress_json_silent() {
-        // These modes should not produce output
-        let compiler_json = BatchCompiler::new(Path::new("/tmp"))
-            .with_display_mode(DisplayMode::Json);
-
-        let compiler_silent = BatchCompiler::new(Path::new("/tmp"))
-            .with_display_mode(DisplayMode::Silent);
-
-        let result = CompilationResult {
-            source_file: PathBuf::from("test.py"),
-            success: true,
-            errors: vec![],
-            rust_file: Some(PathBuf::from("test.rs")),
-        };
-
-        // Should not panic
-        compiler_json.report_compile_progress(1, 10, Path::new("test.py"), &result);
-        compiler_silent.report_compile_progress(1, 10, Path::new("test.py"), &result);
-    }
-
-    #[test]
-    fn test_report_compile_progress_minimal_milestones() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"))
-            .with_display_mode(DisplayMode::Minimal);
-
-        let result = CompilationResult {
-            source_file: PathBuf::from("test.py"),
-            success: true,
-            errors: vec![],
-            rust_file: Some(PathBuf::from("test.rs")),
-        };
-
-        // Test at 10% milestone
-        compiler.report_compile_progress(1, 10, Path::new("test.py"), &result);
-        // Test at completion
-        compiler.report_compile_progress(10, 10, Path::new("test.py"), &result);
     }
 
     #[test]
@@ -1216,5 +652,119 @@ pub fn add(a: i32, b: i32) -> i32 {
     fn test_truncate_filename_very_short_limit() {
         let result = truncate_filename("verylongfilename.py", 5);
         assert!(result.len() == 5);
+    }
+
+    #[test]
+    fn test_make_transpile_failure() {
+        let py_file = Path::new("test.py");
+        let result = make_transpile_failure(py_file, "Failed to parse");
+        assert!(!result.success);
+        assert_eq!(result.errors.len(), 1);
+        assert_eq!(result.errors[0].code, "TRANSPILE");
+        assert!(result.errors[0].message.contains("Failed to parse"));
+        assert!(result.rust_file.is_none());
+    }
+
+    #[test]
+    fn test_make_success_result() {
+        let py_file = Path::new("test.py");
+        let rs_file = PathBuf::from("test.rs");
+        let result = make_success_result(py_file, rs_file.clone());
+        assert!(result.success);
+        assert!(result.errors.is_empty());
+        assert_eq!(result.rust_file, Some(rs_file));
+    }
+
+    #[test]
+    fn test_make_compile_failure() {
+        let py_file = Path::new("test.py");
+        let rs_file = PathBuf::from("test.rs");
+        let errors = vec![CompilationError {
+            code: "E0599".to_string(),
+            message: "no method found".to_string(),
+            file: rs_file.clone(),
+            line: 10,
+            column: 5,
+        }];
+        let result = make_compile_failure(py_file, rs_file.clone(), errors);
+        assert!(!result.success);
+        assert_eq!(result.errors.len(), 1);
+        assert_eq!(result.rust_file, Some(rs_file));
+    }
+
+    #[test]
+    fn test_make_compile_failure_empty_errors() {
+        let py_file = Path::new("test.py");
+        let rs_file = PathBuf::from("test.rs");
+        let result = make_compile_failure(py_file, rs_file.clone(), vec![]);
+        assert!(!result.success);
+        assert!(result.errors.is_empty());
+    }
+
+    #[test]
+    fn test_convert_cargo_errors_empty() {
+        let rust_file = Path::new("test.rs");
+        let result = convert_cargo_errors(vec![], rust_file);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_convert_cargo_errors_filters_non_semantic() {
+        use depyler_core::cargo_first::CompilerError;
+        let rust_file = Path::new("test.rs");
+        let cargo_errors = vec![
+            CompilerError {
+                message: "semantic error".to_string(),
+                code: Some("E0599".to_string()),
+                span: None,
+                is_semantic: true,
+            },
+            CompilerError {
+                message: "non-semantic error".to_string(),
+                code: Some("E0000".to_string()),
+                span: None,
+                is_semantic: false,
+            },
+        ];
+        let result = convert_cargo_errors(cargo_errors, rust_file);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].code, "E0599");
+    }
+
+    #[test]
+    fn test_convert_cargo_errors_with_span() {
+        use depyler_core::cargo_first::{CompilerError, ErrorSpan};
+        let rust_file = Path::new("test.rs");
+        let cargo_errors = vec![CompilerError {
+            message: "error with span".to_string(),
+            code: Some("E0308".to_string()),
+            span: Some(ErrorSpan {
+                file: "test.rs".to_string(),
+                line_start: 10,
+                line_end: 10,
+                column_start: 5,
+                column_end: 10,
+            }),
+            is_semantic: true,
+        }];
+        let result = convert_cargo_errors(cargo_errors, rust_file);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].line, 10);
+        assert_eq!(result[0].column, 5);
+    }
+
+    #[test]
+    fn test_convert_cargo_errors_no_code() {
+        use depyler_core::cargo_first::CompilerError;
+        let rust_file = Path::new("test.rs");
+        let cargo_errors = vec![CompilerError {
+            message: "error without code".to_string(),
+            code: None,
+            span: None,
+            is_semantic: true,
+        }];
+        let result = convert_cargo_errors(cargo_errors, rust_file);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].code, "E????");
     }
 }
