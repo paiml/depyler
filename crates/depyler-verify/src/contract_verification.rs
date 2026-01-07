@@ -1456,4 +1456,377 @@ mod tests {
         let yices = SmtSolverType::Yices2;
         assert!(matches!(yices, SmtSolverType::Yices2));
     }
+
+    #[test]
+    fn test_postcondition_generate_checks() {
+        let verifier = PostconditionVerifier::new();
+
+        let contract = Contract {
+            preconditions: vec![],
+            postconditions: vec![
+                Condition {
+                    name: "result_positive".to_string(),
+                    expression: "result > 0".to_string(),
+                    description: "Result must be positive".to_string(),
+                },
+                Condition {
+                    name: "result_bounded".to_string(),
+                    expression: "result < 100".to_string(),
+                    description: "Result must be less than 100".to_string(),
+                },
+            ],
+            invariants: vec![],
+        };
+
+        let checks = verifier.generate_postcondition_checks(&contract);
+        assert!(checks.contains("result > 0"));
+        assert!(checks.contains("result < 100"));
+        assert!(checks.contains("debug_assert!"));
+    }
+
+    #[test]
+    fn test_invariant_checker_generate_checks() {
+        let mut checker = InvariantChecker::new();
+
+        checker.add_invariant(Invariant {
+            name: "balance_non_negative".to_string(),
+            predicate: Predicate::Compare {
+                var: "balance".to_string(),
+                op: CompareOp::Ge,
+                value: Value::Int(0),
+            },
+            scope: InvariantScope::Class("Account".to_string()),
+            description: "Balance must never be negative".to_string(),
+        });
+
+        let checks = checker.generate_invariant_checks();
+        assert!(checks.contains("Invariant"));
+        assert!(checks.contains("Balance must never be negative"));
+    }
+
+    #[test]
+    fn test_precondition_generate_runtime_assertions() {
+        let mut checker = PreconditionChecker::new();
+
+        checker.add_rule(PreconditionRule {
+            name: "x_positive".to_string(),
+            predicate: Predicate::Compare {
+                var: "x".to_string(),
+                op: CompareOp::Gt,
+                value: Value::Int(0),
+            },
+            params: vec!["x".to_string()],
+            description: "x must be positive".to_string(),
+        });
+
+        let contract = Contract {
+            preconditions: vec![
+                Condition {
+                    name: "x_positive".to_string(),
+                    expression: "x > 0".to_string(),
+                    description: "x must be positive".to_string(),
+                },
+            ],
+            postconditions: vec![],
+            invariants: vec![],
+        };
+
+        let assertions = checker.generate_runtime_assertions(&contract);
+        assert!(assertions.contains("assert!"));
+        assert!(assertions.contains("x > 0"));
+    }
+
+    #[test]
+    fn test_precondition_suggest_fix_in_bounds() {
+        let checker = PreconditionChecker::new();
+
+        let pred = Predicate::InBounds {
+            array: "items".to_string(),
+            index: "idx".to_string(),
+        };
+
+        let suggestion = checker.suggest_fix(&pred);
+        assert!(suggestion.contains("bounds check"));
+        assert!(suggestion.contains("items"));
+        assert!(suggestion.contains("idx"));
+    }
+
+    #[test]
+    fn test_precondition_suggest_fix_not_null() {
+        let checker = PreconditionChecker::new();
+
+        let pred = Predicate::NotNull("data".to_string());
+
+        let suggestion = checker.suggest_fix(&pred);
+        assert!(suggestion.contains("null check"));
+        assert!(suggestion.contains("data"));
+    }
+
+    #[test]
+    fn test_precondition_suggest_fix_compare() {
+        let checker = PreconditionChecker::new();
+
+        let pred = Predicate::Compare {
+            var: "count".to_string(),
+            op: CompareOp::Ge,
+            value: Value::Int(0),
+        };
+
+        let suggestion = checker.suggest_fix(&pred);
+        assert!(suggestion.contains("validation"));
+        assert!(suggestion.contains("count"));
+    }
+
+    #[test]
+    fn test_precondition_suggest_fix_default() {
+        let checker = PreconditionChecker::new();
+
+        let pred = Predicate::Custom {
+            name: "is_valid".to_string(),
+            args: vec!["x".to_string()],
+        };
+
+        let suggestion = checker.suggest_fix(&pred);
+        assert!(suggestion.contains("appropriate validation"));
+    }
+
+    #[test]
+    fn test_contract_inheritance_get_nonexistent() {
+        let inheritance = ContractInheritance::new();
+        let contract = inheritance.get_inherited_contract("nonexistent");
+        assert!(contract.is_none());
+    }
+
+    #[test]
+    fn test_contract_inheritance_lsp_missing_base() {
+        let inheritance = ContractInheritance::new();
+        let result = inheritance.verify_lsp("derived", "base");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("Base contract"));
+    }
+
+    #[test]
+    fn test_postcondition_parse_result_predicate() {
+        let mut verifier = PostconditionVerifier::new();
+
+        let preds = verifier.parse_ensures_annotations("@ensures result >= 0");
+        assert_eq!(preds.len(), 1);
+
+        if let Some(Predicate::Compare { var, op, value }) = preds.first() {
+            assert_eq!(var, "result");
+            assert!(matches!(op, CompareOp::Ge));
+            assert!(matches!(value, Value::Int(0)));
+        }
+    }
+
+    #[test]
+    fn test_postcondition_side_effect_tracking() {
+        let mut verifier = PostconditionVerifier::new();
+
+        verifier.track_side_effect(SideEffect::StateChange {
+            var: "x".to_string(),
+            old_value: Value::Int(0),
+            new_value: Value::Int(1),
+        });
+        assert_eq!(verifier.side_effects.len(), 1);
+
+        verifier.track_side_effect(SideEffect::ArrayModification {
+            array: "arr".to_string(),
+            index: "0".to_string(),
+        });
+        assert_eq!(verifier.side_effects.len(), 2);
+
+        verifier.track_side_effect(SideEffect::ExternalCall {
+            func: "print".to_string(),
+            args: vec!["hello".to_string()],
+        });
+        assert_eq!(verifier.side_effects.len(), 3);
+    }
+
+    #[test]
+    fn test_side_effect_debug() {
+        let effect = SideEffect::StateChange {
+            var: "x".to_string(),
+            old_value: Value::Int(0),
+            new_value: Value::Int(1),
+        };
+        let debug = format!("{:?}", effect);
+        assert!(debug.contains("StateChange"));
+
+        let array_mod = SideEffect::ArrayModification {
+            array: "arr".to_string(),
+            index: "0".to_string(),
+        };
+        let debug2 = format!("{:?}", array_mod);
+        assert!(debug2.contains("ArrayModification"));
+
+        let ext_call = SideEffect::ExternalCall {
+            func: "print".to_string(),
+            args: vec!["hello".to_string()],
+        };
+        let debug3 = format!("{:?}", ext_call);
+        assert!(debug3.contains("ExternalCall"));
+    }
+
+    #[test]
+    fn test_predicate_serialization() {
+        let pred = Predicate::Compare {
+            var: "x".to_string(),
+            op: CompareOp::Gt,
+            value: Value::Int(0),
+        };
+
+        let json = serde_json::to_string(&pred).unwrap();
+        assert!(json.contains("Compare"));
+
+        let deserialized: Predicate = serde_json::from_str(&json).unwrap();
+        if let Predicate::Compare { var, .. } = deserialized {
+            assert_eq!(var, "x");
+        }
+    }
+
+    #[test]
+    fn test_compare_op_serialization() {
+        let op = CompareOp::Gt;
+        let json = serde_json::to_string(&op).unwrap();
+        assert!(json.contains("Gt"));
+    }
+
+    #[test]
+    fn test_value_serialization() {
+        let value = Value::Int(42);
+        let json = serde_json::to_string(&value).unwrap();
+        let deserialized: Value = serde_json::from_str(&json).unwrap();
+        assert!(matches!(deserialized, Value::Int(42)));
+    }
+
+    #[test]
+    fn test_verification_result_serialization() {
+        let result = VerificationResult {
+            success: true,
+            violations: vec![],
+            warnings: vec!["test".to_string()],
+            proven_conditions: vec!["x > 0".to_string()],
+            unproven_conditions: vec![],
+        };
+
+        let json = serde_json::to_string(&result).unwrap();
+        assert!(json.contains("success"));
+        assert!(json.contains("true"));
+    }
+
+    #[test]
+    fn test_contract_violation_serialization() {
+        let violation = ContractViolation {
+            kind: ViolationKind::PreconditionFailed,
+            condition: "x > 0".to_string(),
+            location: "param x".to_string(),
+            counterexample: None,
+            suggestion: "Add check".to_string(),
+        };
+
+        let json = serde_json::to_string(&violation).unwrap();
+        assert!(json.contains("PreconditionFailed"));
+    }
+
+    #[test]
+    fn test_side_effect_clone() {
+        let effect = SideEffect::StateChange {
+            var: "x".to_string(),
+            old_value: Value::Int(0),
+            new_value: Value::Int(1),
+        };
+        let cloned = effect.clone();
+        assert!(format!("{:?}", cloned).contains("StateChange"));
+    }
+
+    #[test]
+    fn test_contract_violation_clone() {
+        let violation = ContractViolation {
+            kind: ViolationKind::PostconditionFailed,
+            condition: "result > 0".to_string(),
+            location: "return".to_string(),
+            counterexample: None,
+            suggestion: "Fix".to_string(),
+        };
+        let cloned = violation.clone();
+        assert_eq!(violation.condition, cloned.condition);
+    }
+
+    #[test]
+    fn test_precondition_rule_clone() {
+        let rule = PreconditionRule {
+            name: "test".to_string(),
+            predicate: Predicate::NotNull("x".to_string()),
+            params: vec!["x".to_string()],
+            description: "Test rule".to_string(),
+        };
+        let cloned = rule.clone();
+        assert_eq!(rule.name, cloned.name);
+    }
+
+    #[test]
+    fn test_invariant_clone() {
+        let inv = Invariant {
+            name: "test".to_string(),
+            predicate: Predicate::NotNull("x".to_string()),
+            scope: InvariantScope::Global,
+            description: "Test".to_string(),
+        };
+        let cloned = inv.clone();
+        assert_eq!(inv.name, cloned.name);
+    }
+
+    #[test]
+    fn test_var_state_clone() {
+        let state = VarState {
+            name: "x".to_string(),
+            ty: Type::Int,
+            constraints: vec![],
+            is_initialized: true,
+            is_mutable: false,
+        };
+        let cloned = state.clone();
+        assert_eq!(state.name, cloned.name);
+    }
+
+    #[test]
+    fn test_contract_refinement_clone() {
+        let refinement = ContractRefinement {
+            weakened_preconditions: vec![],
+            strengthened_postconditions: vec![],
+            additional_invariants: vec![],
+        };
+        let cloned = refinement.clone();
+        assert!(cloned.weakened_preconditions.is_empty());
+    }
+
+    #[test]
+    fn test_invariant_scope_clone() {
+        let scope = InvariantScope::Function("test".to_string());
+        let cloned = scope.clone();
+        if let InvariantScope::Function(name) = cloned {
+            assert_eq!(name, "test");
+        }
+    }
+
+    #[test]
+    fn test_predicate_not_in() {
+        let op = parse_compare_op("not in");
+        assert!(op.is_none()); // "not in" not supported as single token
+    }
+
+    #[test]
+    fn test_parse_value_negative() {
+        let val = parse_value("-42");
+        assert!(matches!(val, Some(Value::Int(-42))));
+    }
+
+    #[test]
+    fn test_parse_value_float_negative() {
+        let val = parse_value("-3.14");
+        if let Some(Value::Float(f)) = val {
+            assert!((f - (-3.14)).abs() < 0.001);
+        }
+    }
 }

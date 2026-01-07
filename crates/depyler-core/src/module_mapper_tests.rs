@@ -395,3 +395,359 @@ fn test_collections_deque_import_path() {
     assert_eq!(rust_imports[0].path, "std::collections::VecDeque");
     assert!(!rust_imports[0].is_external);
 }
+
+// ============================================================================
+// EXTREME TDD: Comprehensive module coverage tests
+// ============================================================================
+
+use crate::module_mapper::ConstructorPattern;
+
+#[test]
+fn test_numpy_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("numpy").unwrap();
+    assert_eq!(mapping.rust_path, "trueno");
+    assert!(mapping.is_external);
+    assert_eq!(mapping.item_map.get("array").unwrap(), "Vector::from_slice");
+    assert_eq!(mapping.item_map.get("zeros").unwrap(), "Vector::zeros");
+    assert_eq!(mapping.item_map.get("dot").unwrap(), "Vector::dot");
+    assert_eq!(mapping.item_map.get("sum").unwrap(), "Vector::sum");
+}
+
+#[test]
+fn test_numpy_linalg_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("numpy.linalg").unwrap();
+    assert_eq!(mapping.rust_path, "trueno::linalg");
+    assert!(mapping.is_external);
+    assert_eq!(mapping.item_map.get("norm").unwrap(), "norm");
+    assert_eq!(mapping.item_map.get("inv").unwrap(), "inv");
+}
+
+#[test]
+fn test_sklearn_linear_model_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("sklearn.linear_model").unwrap();
+    assert_eq!(mapping.rust_path, "aprender::linear");
+    assert!(mapping.is_external);
+    assert_eq!(mapping.item_map.get("LinearRegression").unwrap(), "LinearRegression");
+    assert_eq!(mapping.constructor_patterns.get("LinearRegression"), Some(&ConstructorPattern::New));
+}
+
+#[test]
+fn test_sklearn_cluster_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("sklearn.cluster").unwrap();
+    assert_eq!(mapping.rust_path, "aprender::cluster");
+    assert_eq!(mapping.item_map.get("KMeans").unwrap(), "KMeans");
+}
+
+#[test]
+fn test_sklearn_tree_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("sklearn.tree").unwrap();
+    assert_eq!(mapping.rust_path, "aprender::tree");
+    assert_eq!(mapping.item_map.get("DecisionTreeClassifier").unwrap(), "DecisionTree");
+}
+
+#[test]
+fn test_sklearn_ensemble_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("sklearn.ensemble").unwrap();
+    assert_eq!(mapping.rust_path, "aprender::ensemble");
+    assert_eq!(mapping.item_map.get("RandomForestClassifier").unwrap(), "RandomForest");
+}
+
+#[test]
+fn test_sklearn_preprocessing_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("sklearn.preprocessing").unwrap();
+    assert_eq!(mapping.rust_path, "aprender::preprocessing");
+    assert_eq!(mapping.item_map.get("StandardScaler").unwrap(), "StandardScaler");
+}
+
+#[test]
+fn test_sklearn_decomposition_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("sklearn.decomposition").unwrap();
+    assert_eq!(mapping.item_map.get("PCA").unwrap(), "PCA");
+}
+
+#[test]
+fn test_sklearn_model_selection_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("sklearn.model_selection").unwrap();
+    assert_eq!(mapping.item_map.get("train_test_split").unwrap(), "train_test_split");
+    assert_eq!(mapping.item_map.get("KFold").unwrap(), "KFold");
+}
+
+#[test]
+fn test_sklearn_metrics_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("sklearn.metrics").unwrap();
+    assert_eq!(mapping.item_map.get("accuracy_score").unwrap(), "accuracy");
+    assert_eq!(mapping.item_map.get("f1_score").unwrap(), "f1");
+}
+
+#[test]
+fn test_subprocess_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("subprocess").unwrap();
+    assert_eq!(mapping.rust_path, "std::process");
+    assert!(!mapping.is_external);
+    assert_eq!(mapping.item_map.get("run").unwrap(), "Command");
+    assert_eq!(mapping.item_map.get("PIPE").unwrap(), "Stdio::piped");
+    assert_eq!(mapping.constructor_patterns.get("Command"), Some(&ConstructorPattern::Method("new".to_string())));
+}
+
+#[test]
+fn test_argparse_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("argparse").unwrap();
+    assert_eq!(mapping.rust_path, "clap");
+    assert!(mapping.is_external);
+    assert_eq!(mapping.item_map.get("ArgumentParser").unwrap(), "Parser");
+}
+
+#[test]
+fn test_threading_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("threading").unwrap();
+    assert_eq!(mapping.rust_path, "std::thread");
+    assert!(!mapping.is_external);
+    assert_eq!(mapping.item_map.get("Thread").unwrap(), "spawn");
+    assert_eq!(mapping.item_map.get("Lock").unwrap(), "Mutex");
+}
+
+#[test]
+fn test_asyncio_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("asyncio").unwrap();
+    assert_eq!(mapping.rust_path, "tokio");
+    assert!(mapping.is_external);
+    assert_eq!(mapping.item_map.get("sleep").unwrap(), "time::sleep");
+    assert_eq!(mapping.item_map.get("gather").unwrap(), "join!");
+}
+
+#[test]
+fn test_struct_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("struct").unwrap();
+    assert_eq!(mapping.rust_path, "byteorder");
+    assert!(mapping.is_external);
+    assert_eq!(mapping.item_map.get("pack").unwrap(), "WriteBytesExt");
+    assert_eq!(mapping.item_map.get("unpack").unwrap(), "ReadBytesExt");
+}
+
+#[test]
+fn test_statistics_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("statistics").unwrap();
+    assert_eq!(mapping.rust_path, "statrs");
+    assert!(mapping.is_external);
+    assert_eq!(mapping.item_map.get("mean").unwrap(), "statistics::Statistics::mean");
+}
+
+#[test]
+fn test_io_module_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("io").unwrap();
+    assert_eq!(mapping.rust_path, "std::io");
+    assert!(!mapping.is_external);
+    assert_eq!(mapping.item_map.get("BufferedReader").unwrap(), "BufReader");
+    assert_eq!(mapping.constructor_patterns.get("BufReader"), Some(&ConstructorPattern::New));
+}
+
+#[test]
+fn test_functools_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("functools").unwrap();
+    assert_eq!(mapping.rust_path, "std");
+    assert_eq!(mapping.item_map.get("reduce").unwrap(), "iter::Iterator::fold");
+}
+
+#[test]
+fn test_random_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("random").unwrap();
+    assert_eq!(mapping.rust_path, "rand");
+    assert!(mapping.is_external);
+    assert_eq!(mapping.item_map.get("random").unwrap(), "random");
+    assert_eq!(mapping.item_map.get("randint").unwrap(), "gen_range");
+}
+
+#[test]
+fn test_csv_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("csv").unwrap();
+    assert_eq!(mapping.rust_path, "csv");
+    assert!(mapping.is_external);
+    assert_eq!(mapping.item_map.get("reader").unwrap(), "Reader");
+}
+
+#[test]
+fn test_pathlib_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("pathlib").unwrap();
+    assert_eq!(mapping.rust_path, "std::path");
+    assert!(!mapping.is_external);
+    assert_eq!(mapping.item_map.get("Path").unwrap(), "PathBuf");
+}
+
+#[test]
+fn test_os_path_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("os.path").unwrap();
+    assert_eq!(mapping.rust_path, "std::path");
+    assert_eq!(mapping.item_map.get("join").unwrap(), "Path::join");
+    assert_eq!(mapping.item_map.get("exists").unwrap(), "Path::exists");
+    assert_eq!(mapping.item_map.get("isfile").unwrap(), "Path::is_file");
+}
+
+#[test]
+fn test_re_flags_mapping() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("re").unwrap();
+    assert_eq!(mapping.item_map.get("IGNORECASE").unwrap(), "(?i)");
+    assert_eq!(mapping.item_map.get("I").unwrap(), "(?i)");
+    assert_eq!(mapping.item_map.get("MULTILINE").unwrap(), "(?m)");
+    assert_eq!(mapping.item_map.get("DOTALL").unwrap(), "(?s)");
+}
+
+#[test]
+fn test_constructor_pattern_debug() {
+    let patterns = vec![
+        ConstructorPattern::New,
+        ConstructorPattern::Function,
+        ConstructorPattern::Method("open".to_string()),
+    ];
+    for p in patterns {
+        let debug_str = format!("{:?}", p);
+        assert!(!debug_str.is_empty());
+    }
+}
+
+#[test]
+fn test_constructor_pattern_clone() {
+    let p1 = ConstructorPattern::New;
+    let p2 = p1.clone();
+    assert_eq!(p1, p2);
+
+    let p3 = ConstructorPattern::Method("test".to_string());
+    let p4 = p3.clone();
+    assert_eq!(p3, p4);
+}
+
+#[test]
+fn test_constructor_pattern_eq() {
+    assert_eq!(ConstructorPattern::New, ConstructorPattern::New);
+    assert_eq!(ConstructorPattern::Function, ConstructorPattern::Function);
+    assert_eq!(ConstructorPattern::Method("x".to_string()), ConstructorPattern::Method("x".to_string()));
+    assert_ne!(ConstructorPattern::New, ConstructorPattern::Function);
+    assert_ne!(ConstructorPattern::Method("x".to_string()), ConstructorPattern::Method("y".to_string()));
+}
+
+#[test]
+fn test_map_argparse_import_whole_module() {
+    let mapper = ModuleMapper::new();
+    let import = Import {
+        module: "argparse".to_string(),
+        items: vec![],
+    };
+    let rust_imports = mapper.map_import(&import);
+    assert_eq!(rust_imports.len(), 1);
+    assert_eq!(rust_imports[0].path, "clap::Parser");
+    assert!(rust_imports[0].is_external);
+}
+
+#[test]
+fn test_map_typing_whole_module() {
+    let mapper = ModuleMapper::new();
+    let import = Import {
+        module: "typing".to_string(),
+        items: vec![],
+    };
+    let rust_imports = mapper.map_import(&import);
+    // typing has empty rust_path, should generate comment
+    assert!(rust_imports[0].path.contains("no Rust equivalent"));
+}
+
+#[test]
+fn test_tempfile_constructor_patterns() {
+    let mapper = ModuleMapper::new();
+    let mapping = mapper.get_mapping("tempfile").unwrap();
+    assert_eq!(mapping.constructor_patterns.get("NamedTempFile"), Some(&ConstructorPattern::New));
+    assert_eq!(mapping.constructor_patterns.get("TempDir"), Some(&ConstructorPattern::New));
+    assert_eq!(mapping.constructor_patterns.get("tempfile"), Some(&ConstructorPattern::Function));
+    assert_eq!(mapping.constructor_patterns.get("tempdir"), Some(&ConstructorPattern::Function));
+}
+
+#[test]
+fn test_module_mapping_debug() {
+    let mapping = ModuleMapping {
+        rust_path: "test".to_string(),
+        is_external: false,
+        version: None,
+        item_map: HashMap::new(),
+        constructor_patterns: HashMap::new(),
+    };
+    let debug_str = format!("{:?}", mapping);
+    assert!(debug_str.contains("ModuleMapping"));
+}
+
+#[test]
+fn test_rust_import_clone() {
+    let import = RustImport {
+        path: "test::path".to_string(),
+        alias: Some("alias".to_string()),
+        is_external: true,
+    };
+    let cloned = import.clone();
+    assert_eq!(import.path, cloned.path);
+    assert_eq!(import.alias, cloned.alias);
+    assert_eq!(import.is_external, cloned.is_external);
+}
+
+#[test]
+fn test_multiple_sklearn_imports_dependencies() {
+    let mapper = ModuleMapper::new();
+    let imports = vec![
+        Import {
+            module: "sklearn.linear_model".to_string(),
+            items: vec![ImportItem::Named("LinearRegression".to_string())],
+        },
+        Import {
+            module: "sklearn.cluster".to_string(),
+            items: vec![ImportItem::Named("KMeans".to_string())],
+        },
+        Import {
+            module: "sklearn.metrics".to_string(),
+            items: vec![ImportItem::Named("accuracy_score".to_string())],
+        },
+    ];
+    let deps = mapper.get_dependencies(&imports);
+    // Each sklearn submodule maps to different aprender submodules
+    assert_eq!(deps.len(), 3);
+    assert!(deps.contains(&("aprender::linear".to_string(), "0.14".to_string())));
+    assert!(deps.contains(&("aprender::cluster".to_string(), "0.14".to_string())));
+    assert!(deps.contains(&("aprender::metrics".to_string(), "0.14".to_string())));
+}
+
+#[test]
+fn test_all_mapped_modules_have_valid_data() {
+    let mapper = ModuleMapper::new();
+    let modules = vec![
+        "os", "os.path", "sys", "io", "json", "re", "datetime", "typing",
+        "collections", "math", "random", "itertools", "functools", "hashlib",
+        "base64", "urllib.parse", "pathlib", "tempfile", "csv", "numpy",
+        "numpy.linalg", "sklearn.linear_model", "sklearn.cluster", "sklearn.tree",
+        "sklearn.ensemble", "sklearn.preprocessing", "sklearn.decomposition",
+        "sklearn.model_selection", "sklearn.metrics", "subprocess", "argparse",
+        "threading", "asyncio", "struct", "statistics",
+    ];
+
+    for module in modules {
+        let mapping = mapper.get_mapping(module);
+        assert!(mapping.is_some(), "Module {} should have mapping", module);
+    }
+}

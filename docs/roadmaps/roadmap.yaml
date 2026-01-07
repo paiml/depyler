@@ -38,7 +38,7 @@ roadmap:
   - refactor
   - code-organization
   - DEPYLER-COVERAGE-95
-  notes: 'Extracted ~15k lines into 4 focused modules to improve testability and reduce file complexity'
+  notes: Extracted ~15k lines into 4 focused modules to improve testability and reduce file complexity
 - id: DEPYLER-0496
   github_issue: null
   item_type: bug
@@ -2825,7 +2825,7 @@ roadmap:
   priority: medium
   assigned_to: null
   created: 2025-12-12T12:06:56.478796900+00:00
-  updated: 2026-01-05T23:23:51.817155156+00:00
+  updated: 2026-01-06T17:05:45.964548+00:00
   spec: null
   acceptance_criteria: []
   phases: []

@@ -1176,4 +1176,340 @@ mod tests {
         assert!(generated.contains("Contract precondition validation"));
         assert!(generated.contains("Precondition violated"));
     }
+
+    // ============================================================
+    // Type Conversion Tests
+    // ============================================================
+
+    #[test]
+    fn test_type_to_rust_string_simple_types() {
+        assert_eq!(type_to_rust_string(&Type::Int), "i32");
+        assert_eq!(type_to_rust_string(&Type::Float), "f64");
+        assert_eq!(type_to_rust_string(&Type::String), "String");
+        assert_eq!(type_to_rust_string(&Type::Bool), "bool");
+        assert_eq!(type_to_rust_string(&Type::None), "()");
+        assert_eq!(type_to_rust_string(&Type::Unknown), "_");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_custom_types() {
+        assert_eq!(type_to_rust_string(&Type::Custom("MyType".to_string())), "MyType");
+        assert_eq!(type_to_rust_string(&Type::TypeVar("T".to_string())), "T");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_list() {
+        let list_type = Type::List(Box::new(Type::Int));
+        assert_eq!(type_to_rust_string(&list_type), "Vec<i32>");
+
+        let nested_list = Type::List(Box::new(Type::List(Box::new(Type::String))));
+        assert_eq!(type_to_rust_string(&nested_list), "Vec<Vec<String>>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_set() {
+        let set_type = Type::Set(Box::new(Type::String));
+        assert_eq!(type_to_rust_string(&set_type), "HashSet<String>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_optional() {
+        let opt_type = Type::Optional(Box::new(Type::Int));
+        assert_eq!(type_to_rust_string(&opt_type), "Option<i32>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_dict() {
+        let dict_type = Type::Dict(Box::new(Type::String), Box::new(Type::Int));
+        assert_eq!(type_to_rust_string(&dict_type), "HashMap<String, i32>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_tuple() {
+        let tuple_type = Type::Tuple(vec![Type::Int, Type::String, Type::Bool]);
+        assert_eq!(type_to_rust_string(&tuple_type), "(i32, String, bool)");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_function() {
+        let func_type = Type::Function {
+            params: vec![Type::Int, Type::String],
+            ret: Box::new(Type::Bool),
+        };
+        assert_eq!(type_to_rust_string(&func_type), "fn(i32, String) -> bool");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_generic() {
+        let generic_type = Type::Generic {
+            base: "Result".to_string(),
+            params: vec![Type::String, Type::Custom("Error".to_string())],
+        };
+        assert_eq!(type_to_rust_string(&generic_type), "Result<String, Error>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_union() {
+        let union_type = Type::Union(vec![Type::Int, Type::String]);
+        assert_eq!(type_to_rust_string(&union_type), "Union<i32, String>");
+    }
+
+    #[test]
+    fn test_type_to_rust_string_array() {
+        let array_type = Type::Array {
+            element_type: Box::new(Type::Int),
+            size: depyler_core::hir::ConstGeneric::Literal(10),
+        };
+        assert_eq!(type_to_rust_string(&array_type), "[i32; 10]");
+
+        let array_param = Type::Array {
+            element_type: Box::new(Type::Float),
+            size: depyler_core::hir::ConstGeneric::Parameter("N".to_string()),
+        };
+        assert_eq!(type_to_rust_string(&array_param), "[f64; N]");
+
+        let array_expr = Type::Array {
+            element_type: Box::new(Type::Bool),
+            size: depyler_core::hir::ConstGeneric::Expression("M + N".to_string()),
+        };
+        assert_eq!(type_to_rust_string(&array_expr), "[bool; M + N]");
+    }
+
+    // ============================================================
+    // Contract Check Helper Tests
+    // ============================================================
+
+    #[test]
+    fn test_check_stmt_contracts_while() {
+        let violations = check_while_contracts(
+            &HirExpr::Literal(Literal::Bool(true)),
+            &[HirStmt::Assign {
+                target: depyler_core::hir::AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Index {
+                    base: Box::new(HirExpr::Var("arr".to_string())),
+                    index: Box::new(HirExpr::Literal(Literal::Int(0))),
+                },
+                type_annotation: None,
+            }],
+        );
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_check_stmt_contracts_for() {
+        let violations = check_for_contracts(
+            &HirExpr::Var("items".to_string()),
+            &[HirStmt::Expr(HirExpr::Index {
+                base: Box::new(HirExpr::Var("data".to_string())),
+                index: Box::new(HirExpr::Var("i".to_string())),
+            })],
+        );
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_check_expr_contracts_call() {
+        let violations = check_expr_contracts(&HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![
+                HirExpr::Index {
+                    base: Box::new(HirExpr::Var("arr".to_string())),
+                    index: Box::new(HirExpr::Literal(Literal::Int(0))),
+                },
+            ],
+            kwargs: vec![],
+        });
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_check_expr_contracts_attribute() {
+        let violations = check_expr_contracts(&HirExpr::Attribute {
+            value: Box::new(HirExpr::Index {
+                base: Box::new(HirExpr::Var("obj".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::Int(0))),
+            }),
+            attr: "field".to_string(),
+        });
+        assert_eq!(violations.len(), 1);
+    }
+
+    #[test]
+    fn test_check_if_contracts_with_else() {
+        let violations = check_if_contracts(
+            &HirExpr::Literal(Literal::Bool(true)),
+            &[HirStmt::Pass],
+            &Some(vec![HirStmt::Expr(HirExpr::Index {
+                base: Box::new(HirExpr::Var("arr".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::Int(0))),
+            })]),
+        );
+        assert_eq!(violations.len(), 1);
+    }
+
+    // ============================================================
+    // Condition and Contract Additional Tests
+    // ============================================================
+
+    #[test]
+    fn test_condition_clone() {
+        let cond = Condition {
+            name: "test".to_string(),
+            expression: "x > 0".to_string(),
+            description: "Test".to_string(),
+        };
+        let cloned = cond.clone();
+        assert_eq!(cond.name, cloned.name);
+    }
+
+    #[test]
+    fn test_contract_clone() {
+        let contract = Contract {
+            preconditions: vec![Condition {
+                name: "pre".to_string(),
+                expression: "x > 0".to_string(),
+                description: "Pre".to_string(),
+            }],
+            postconditions: vec![],
+            invariants: vec![],
+        };
+        let cloned = contract.clone();
+        assert_eq!(contract.preconditions.len(), cloned.preconditions.len());
+    }
+
+    #[test]
+    fn test_precondition_check_not_none() {
+        let condition = Condition {
+            name: "not_null".to_string(),
+            expression: "items is not None".to_string(),
+            description: "Items must not be null".to_string(),
+        };
+        let check = ContractChecker::generate_precondition_check(&condition);
+        assert!(check.contains("items.is_none()"));
+    }
+
+    #[test]
+    fn test_precondition_check_self_replacement() {
+        let condition = Condition {
+            name: "self_valid".to_string(),
+            expression: "self.value > 0".to_string(),
+            description: "Self value must be positive".to_string(),
+        };
+        let check = ContractChecker::generate_precondition_check(&condition);
+        assert!(check.contains("value > 0"));
+        assert!(!check.contains("self."));
+    }
+
+    #[test]
+    fn test_postcondition_check_result() {
+        let condition = Condition {
+            name: "result_valid".to_string(),
+            expression: "result > 0".to_string(),
+            description: "Result must be positive".to_string(),
+        };
+        let check = ContractChecker::generate_postcondition_check(&condition);
+        assert!(check.contains("if !(result > 0)"));
+    }
+
+    #[test]
+    fn test_postcondition_check_no_result() {
+        let condition = Condition {
+            name: "state_valid".to_string(),
+            expression: "state.is_valid()".to_string(),
+            description: "State must be valid".to_string(),
+        };
+        let check = ContractChecker::generate_postcondition_check(&condition);
+        assert!(check.contains("debug_assert!"));
+    }
+
+    // ============================================================
+    // Empty Docstring Parsing Tests
+    // ============================================================
+
+    #[test]
+    fn test_parse_docstring_empty() {
+        let contract = ContractChecker::extract_docstring_contracts("");
+        assert!(contract.preconditions.is_empty());
+        assert!(contract.postconditions.is_empty());
+        assert!(contract.invariants.is_empty());
+    }
+
+    #[test]
+    fn test_parse_docstring_no_annotations() {
+        let docstring = "This is a simple function.\nIt does things.";
+        let contract = ContractChecker::extract_docstring_contracts(docstring);
+        assert!(contract.preconditions.is_empty());
+        assert!(contract.postconditions.is_empty());
+        assert!(contract.invariants.is_empty());
+    }
+
+    #[test]
+    fn test_parse_docstring_empty_annotation() {
+        let docstring = "@requires\n@ensures\n@invariant";
+        let contract = ContractChecker::extract_docstring_contracts(docstring);
+        // Empty annotations should not be added
+        assert!(contract.preconditions.is_empty());
+        assert!(contract.postconditions.is_empty());
+        assert!(contract.invariants.is_empty());
+    }
+
+    // ============================================================
+    // Generate Function Tests
+    // ============================================================
+
+    #[test]
+    fn test_generate_function_with_empty_contract() {
+        let func = create_test_function(
+            "simple",
+            vec![],
+            Type::None,
+            vec![],
+            FunctionProperties::default(),
+        );
+
+        let body_code = "    // do nothing\n";
+        let generated = ContractChecker::generate_function_with_contracts(&func, body_code, true);
+
+        assert!(generated.contains("pub fn simple()"));
+        assert!(generated.contains("// do nothing"));
+        // No return type for None
+        assert!(!generated.contains("->"));
+    }
+
+    #[test]
+    fn test_generate_function_without_runtime_checks() {
+        let mut func = create_test_function(
+            "unchecked",
+            vec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)],
+            Type::Int,
+            vec![],
+            FunctionProperties::default(),
+        );
+        func.docstring = Some("@requires x > 0".to_string());
+
+        let body_code = "    x * 2\n";
+        let generated = ContractChecker::generate_function_with_contracts(&func, body_code, false);
+
+        // Should have signature and body but no checks
+        assert!(generated.contains("pub fn unchecked"));
+        assert!(generated.contains("x * 2"));
+        assert!(!generated.contains("Contract precondition validation"));
+    }
+
+    #[test]
+    fn test_generate_function_with_old_values() {
+        let mut func = create_test_function(
+            "increment",
+            vec![depyler_core::hir::HirParam::new("x".to_string(), Type::Int)],
+            Type::Int,
+            vec![],
+            FunctionProperties::default(),
+        );
+        func.docstring = Some("@ensures result == old(x) + 1".to_string());
+
+        let body_code = "    x + 1\n";
+        let generated = ContractChecker::generate_function_with_contracts(&func, body_code, true);
+
+        assert!(generated.contains("Store old values"));
+    }
 }

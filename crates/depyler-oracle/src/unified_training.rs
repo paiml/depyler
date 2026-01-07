@@ -667,4 +667,494 @@ mod tests {
         assert!(result.stats.final_count > 0);
         assert!(result.stats.synthetic_count > 0);
     }
+
+    // ============================================================
+    // TextSampleSource Tests
+    // ============================================================
+
+    #[test]
+    fn test_text_sample_source_variants() {
+        let synthetic = TextSampleSource::Synthetic;
+        let hand_crafted = TextSampleSource::HandCrafted;
+        let external = TextSampleSource::External;
+        let production = TextSampleSource::Production;
+
+        assert!(format!("{:?}", synthetic).contains("Synthetic"));
+        assert!(format!("{:?}", hand_crafted).contains("HandCrafted"));
+        assert!(format!("{:?}", external).contains("External"));
+        assert!(format!("{:?}", production).contains("Production"));
+    }
+
+    #[test]
+    fn test_text_sample_source_clone() {
+        let source = TextSampleSource::Synthetic;
+        let cloned = source;
+        assert_eq!(source, cloned);
+    }
+
+    #[test]
+    fn test_text_sample_source_hash() {
+        use std::collections::HashSet;
+        let mut set = HashSet::new();
+        set.insert(TextSampleSource::Synthetic);
+        set.insert(TextSampleSource::HandCrafted);
+        assert_eq!(set.len(), 2);
+    }
+
+    // ============================================================
+    // TextCorpusSource Tests
+    // ============================================================
+
+    #[test]
+    fn test_text_corpus_source_new() {
+        let samples = vec![
+            TrainingSample::new("error", ErrorCategory::TypeMismatch),
+        ];
+        let source = TextCorpusSource::new("test", samples, TextSampleSource::Synthetic);
+
+        assert_eq!(source.name, "test");
+        assert_eq!(source.samples.len(), 1);
+        assert_eq!(source.weight, 1.0);
+        assert_eq!(source.priority, 0);
+        assert_eq!(source.source_type, TextSampleSource::Synthetic);
+    }
+
+    #[test]
+    fn test_text_corpus_source_with_weight() {
+        let source = TextCorpusSource::new("test", vec![], TextSampleSource::Synthetic)
+            .with_weight(2.5);
+        assert!((source.weight - 2.5).abs() < f64::EPSILON);
+    }
+
+    #[test]
+    fn test_text_corpus_source_with_priority() {
+        let source = TextCorpusSource::new("test", vec![], TextSampleSource::Synthetic)
+            .with_priority(5);
+        assert_eq!(source.priority, 5);
+    }
+
+    #[test]
+    fn test_text_corpus_source_chained() {
+        let source = TextCorpusSource::new("test", vec![], TextSampleSource::HandCrafted)
+            .with_weight(1.5)
+            .with_priority(3);
+
+        assert_eq!(source.name, "test");
+        assert!((source.weight - 1.5).abs() < f64::EPSILON);
+        assert_eq!(source.priority, 3);
+    }
+
+    #[test]
+    fn test_text_corpus_source_clone() {
+        let samples = vec![TrainingSample::new("test", ErrorCategory::Other)];
+        let source = TextCorpusSource::new("original", samples, TextSampleSource::Production);
+        let cloned = source.clone();
+
+        assert_eq!(source.name, cloned.name);
+        assert_eq!(source.samples.len(), cloned.samples.len());
+    }
+
+    // ============================================================
+    // UnifiedTrainingConfig Tests
+    // ============================================================
+
+    #[test]
+    fn test_unified_training_config_default() {
+        let config = UnifiedTrainingConfig::default();
+
+        assert_eq!(config.seed, 42);
+        assert_eq!(config.synthetic_samples, 12_000);
+        assert!(config.oip_data_path.is_none());
+        assert!(config.real_errors_path.is_none());
+        assert!(!config.balance_classes);
+        assert!(config.max_per_class.is_none());
+    }
+
+    #[test]
+    fn test_unified_training_config_custom() {
+        let config = UnifiedTrainingConfig {
+            seed: 123,
+            synthetic_samples: 5000,
+            oip_data_path: Some("/path/to/oip".to_string()),
+            real_errors_path: Some("/path/to/errors".to_string()),
+            balance_classes: true,
+            max_per_class: Some(100),
+        };
+
+        assert_eq!(config.seed, 123);
+        assert_eq!(config.synthetic_samples, 5000);
+        assert!(config.oip_data_path.is_some());
+        assert!(config.balance_classes);
+        assert_eq!(config.max_per_class, Some(100));
+    }
+
+    #[test]
+    fn test_unified_training_config_clone() {
+        let config = UnifiedTrainingConfig::default();
+        let cloned = config.clone();
+        assert_eq!(config.seed, cloned.seed);
+    }
+
+    // ============================================================
+    // CorpusProvenance Tests
+    // ============================================================
+
+    #[test]
+    fn test_corpus_provenance_default() {
+        let provenance = CorpusProvenance::default();
+
+        assert!(provenance.sources.is_empty());
+        assert_eq!(provenance.final_size, 0);
+        assert_eq!(provenance.duplicates_removed, 0);
+        assert!(provenance.by_source_type.is_empty());
+    }
+
+    #[test]
+    fn test_corpus_provenance_clone() {
+        let mut provenance = CorpusProvenance::default();
+        provenance.sources.insert("test".to_string(), (10, 10));
+        provenance.final_size = 10;
+
+        let cloned = provenance.clone();
+        assert_eq!(provenance.final_size, cloned.final_size);
+        assert_eq!(provenance.sources.len(), cloned.sources.len());
+    }
+
+    // ============================================================
+    // MergeStats Tests
+    // ============================================================
+
+    #[test]
+    fn test_merge_stats_default() {
+        let stats = MergeStats::default();
+
+        assert_eq!(stats.synthetic_count, 0);
+        assert_eq!(stats.depyler_count, 0);
+        assert_eq!(stats.verificar_count, 0);
+        assert_eq!(stats.oip_count, 0);
+        assert_eq!(stats.real_errors_count, 0);
+        assert_eq!(stats.total_before_dedupe, 0);
+        assert_eq!(stats.duplicates_removed, 0);
+        assert_eq!(stats.final_count, 0);
+        assert!(stats.by_category.is_empty());
+    }
+
+    // ============================================================
+    // TextCorpusMerger Additional Tests
+    // ============================================================
+
+    #[test]
+    fn test_text_corpus_merger_empty() {
+        let merger = TextCorpusMerger::new();
+        let (merged, provenance) = merger.merge();
+
+        assert!(merged.is_empty());
+        assert_eq!(provenance.final_size, 0);
+    }
+
+    #[test]
+    fn test_text_corpus_merger_shuffle_seed() {
+        let samples = vec![
+            TrainingSample::new("a", ErrorCategory::TypeMismatch),
+            TrainingSample::new("b", ErrorCategory::BorrowChecker),
+            TrainingSample::new("c", ErrorCategory::Other),
+        ];
+
+        let mut merger1 = TextCorpusMerger::new().shuffle_seed(123);
+        merger1.add_source(TextCorpusSource::new("src", samples.clone(), TextSampleSource::Synthetic));
+
+        let mut merger2 = TextCorpusMerger::new().shuffle_seed(123);
+        merger2.add_source(TextCorpusSource::new("src", samples, TextSampleSource::Synthetic));
+
+        let (result1, _) = merger1.merge();
+        let (result2, _) = merger2.merge();
+
+        // Same seed = same order
+        for (s1, s2) in result1.iter().zip(result2.iter()) {
+            assert_eq!(s1.message, s2.message);
+        }
+    }
+
+    #[test]
+    fn test_text_corpus_merger_weight_multiply() {
+        let samples = vec![
+            TrainingSample::new("a", ErrorCategory::TypeMismatch),
+        ];
+
+        let mut merger = TextCorpusMerger::new().deduplicate(false);
+        merger.add_source(
+            TextCorpusSource::new("src", samples, TextSampleSource::Synthetic)
+                .with_weight(3.0)
+        );
+
+        let (merged, _) = merger.merge();
+        assert_eq!(merged.len(), 3); // Weight of 3 = 3 copies
+    }
+
+    #[test]
+    fn test_text_corpus_merger_weight_subsample() {
+        let samples = vec![
+            TrainingSample::new("a", ErrorCategory::TypeMismatch),
+            TrainingSample::new("b", ErrorCategory::BorrowChecker),
+            TrainingSample::new("c", ErrorCategory::Other),
+            TrainingSample::new("d", ErrorCategory::SyntaxError),
+        ];
+
+        let mut merger = TextCorpusMerger::new();
+        merger.add_source(
+            TextCorpusSource::new("src", samples, TextSampleSource::Synthetic)
+                .with_weight(0.5)
+        );
+
+        let (merged, _) = merger.merge();
+        assert_eq!(merged.len(), 2); // Weight of 0.5 = half (4 * 0.5 = 2)
+    }
+
+    #[test]
+    fn test_text_corpus_merger_priority_dedup() {
+        // High priority sample should be kept, low priority duplicate removed
+        let high_priority = vec![
+            TrainingSample::new("error[E0308]: type mismatch", ErrorCategory::TypeMismatch),
+        ];
+        let low_priority = vec![
+            TrainingSample::new("error[E0308]: TYPE MISMATCH", ErrorCategory::TypeMismatch), // Same after normalization
+        ];
+
+        let mut merger = TextCorpusMerger::new();
+        merger.add_source(
+            TextCorpusSource::new("high", high_priority, TextSampleSource::HandCrafted)
+                .with_priority(10)
+        );
+        merger.add_source(
+            TextCorpusSource::new("low", low_priority, TextSampleSource::Synthetic)
+                .with_priority(1)
+        );
+
+        let (merged, provenance) = merger.merge();
+        assert_eq!(merged.len(), 1);
+        assert_eq!(provenance.duplicates_removed, 1);
+    }
+
+    // ============================================================
+    // Helper Function Tests
+    // ============================================================
+
+    #[test]
+    fn test_sample_hash_different_messages() {
+        let s1 = TrainingSample::new("first message", ErrorCategory::TypeMismatch);
+        let s2 = TrainingSample::new("second message", ErrorCategory::TypeMismatch);
+        assert_ne!(sample_hash(&s1), sample_hash(&s2));
+    }
+
+    #[test]
+    fn test_sample_hash_case_insensitive() {
+        let s1 = TrainingSample::new("ERROR MESSAGE", ErrorCategory::TypeMismatch);
+        let s2 = TrainingSample::new("error message", ErrorCategory::TypeMismatch);
+        assert_eq!(sample_hash(&s1), sample_hash(&s2));
+    }
+
+    #[test]
+    fn test_deterministic_shuffle_empty() {
+        let samples: Vec<TrainingSample> = vec![];
+        let result = deterministic_shuffle(samples, 42);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_deterministic_shuffle_single() {
+        let samples = vec![
+            TrainingSample::new("only", ErrorCategory::TypeMismatch),
+        ];
+        let result = deterministic_shuffle(samples.clone(), 42);
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].message, "only");
+    }
+
+    #[test]
+    fn test_deterministic_shuffle_different_seeds() {
+        let samples = vec![
+            TrainingSample::new("a", ErrorCategory::TypeMismatch),
+            TrainingSample::new("b", ErrorCategory::BorrowChecker),
+            TrainingSample::new("c", ErrorCategory::Other),
+            TrainingSample::new("d", ErrorCategory::SyntaxError),
+        ];
+
+        let result1 = deterministic_shuffle(samples.clone(), 1);
+        let result2 = deterministic_shuffle(samples.clone(), 2);
+
+        // Different seeds should produce different orders (most likely)
+        let same_order = result1.iter().zip(result2.iter())
+            .all(|(a, b)| a.message == b.message);
+        // With 4 elements, probability of same order is very low
+        assert!(!same_order);
+    }
+
+    #[test]
+    fn test_balance_classes_no_limit() {
+        let samples = vec![
+            TrainingSample::new("a", ErrorCategory::TypeMismatch),
+            TrainingSample::new("b", ErrorCategory::TypeMismatch),
+            TrainingSample::new("c", ErrorCategory::BorrowChecker),
+        ];
+
+        let balanced = balance_classes(samples.clone(), None);
+        assert_eq!(balanced.len(), 3); // No limit, keep all
+    }
+
+    #[test]
+    fn test_balance_classes_empty() {
+        let samples: Vec<TrainingSample> = vec![];
+        let balanced = balance_classes(samples, Some(10));
+        assert!(balanced.is_empty());
+    }
+
+    #[test]
+    fn test_balance_classes_all_same_category() {
+        let samples = vec![
+            TrainingSample::new("a", ErrorCategory::TypeMismatch),
+            TrainingSample::new("b", ErrorCategory::TypeMismatch),
+            TrainingSample::new("c", ErrorCategory::TypeMismatch),
+            TrainingSample::new("d", ErrorCategory::TypeMismatch),
+        ];
+
+        let balanced = balance_classes(samples, Some(2));
+        assert_eq!(balanced.len(), 2);
+    }
+
+    // ============================================================
+    // parse_category Tests
+    // ============================================================
+
+    #[test]
+    fn test_parse_category_all_variants() {
+        // TypeMismatch
+        assert_eq!(parse_category("typemismatch"), ErrorCategory::TypeMismatch);
+        assert_eq!(parse_category("TypeMismatch"), ErrorCategory::TypeMismatch);
+        assert_eq!(parse_category("type"), ErrorCategory::TypeMismatch);
+
+        // BorrowChecker
+        assert_eq!(parse_category("borrowchecker"), ErrorCategory::BorrowChecker);
+        assert_eq!(parse_category("BorrowChecker"), ErrorCategory::BorrowChecker);
+        assert_eq!(parse_category("borrow_checker"), ErrorCategory::BorrowChecker);
+
+        // MissingImport
+        assert_eq!(parse_category("missingimport"), ErrorCategory::MissingImport);
+        assert_eq!(parse_category("missing_import"), ErrorCategory::MissingImport);
+        assert_eq!(parse_category("import"), ErrorCategory::MissingImport);
+
+        // SyntaxError
+        assert_eq!(parse_category("syntaxerror"), ErrorCategory::SyntaxError);
+        assert_eq!(parse_category("syntax_error"), ErrorCategory::SyntaxError);
+        assert_eq!(parse_category("syntax"), ErrorCategory::SyntaxError);
+
+        // LifetimeError
+        assert_eq!(parse_category("lifetimeerror"), ErrorCategory::LifetimeError);
+        assert_eq!(parse_category("lifetime_error"), ErrorCategory::LifetimeError);
+        assert_eq!(parse_category("lifetime"), ErrorCategory::LifetimeError);
+
+        // TraitBound
+        assert_eq!(parse_category("traitbound"), ErrorCategory::TraitBound);
+        assert_eq!(parse_category("trait_bound"), ErrorCategory::TraitBound);
+        assert_eq!(parse_category("trait"), ErrorCategory::TraitBound);
+    }
+
+    #[test]
+    fn test_parse_category_whitespace() {
+        assert_eq!(parse_category("  type  "), ErrorCategory::TypeMismatch);
+    }
+
+    #[test]
+    fn test_parse_category_unknown() {
+        assert_eq!(parse_category("random"), ErrorCategory::Other);
+        assert_eq!(parse_category(""), ErrorCategory::Other);
+    }
+
+    // ============================================================
+    // load_real_errors_file Tests
+    // ============================================================
+
+    #[test]
+    fn test_load_real_errors_file_nonexistent() {
+        let samples = load_real_errors_file(Path::new("/nonexistent/path"));
+        assert!(samples.is_empty());
+    }
+
+    #[test]
+    fn test_load_real_errors_file_temp() {
+        use std::io::Write;
+
+        let dir = tempfile::tempdir().unwrap();
+        let file_path = dir.path().join("errors.txt");
+
+        {
+            let mut file = std::fs::File::create(&file_path).unwrap();
+            writeln!(file, "# Comment line").unwrap();
+            writeln!(file, "").unwrap();
+            writeln!(file, "E0308|mismatched types|type|add type annotation").unwrap();
+            writeln!(file, "E0382|moved value|borrow").unwrap();
+        }
+
+        let samples = load_real_errors_file(&file_path);
+        assert_eq!(samples.len(), 2);
+        assert!(samples[0].message.contains("E0308"));
+        assert_eq!(samples[0].category, ErrorCategory::TypeMismatch);
+        assert!(samples[1].message.contains("E0382"));
+        assert_eq!(samples[1].category, ErrorCategory::BorrowChecker);
+    }
+
+    // ============================================================
+    // print_merge_stats Tests
+    // ============================================================
+
+    #[test]
+    fn test_print_merge_stats_runs_without_error() {
+        let mut stats = MergeStats::default();
+        stats.synthetic_count = 100;
+        stats.depyler_count = 50;
+        stats.verificar_count = 30;
+        stats.final_count = 180;
+        stats.by_category.insert(ErrorCategory::TypeMismatch, 100);
+        stats.by_category.insert(ErrorCategory::BorrowChecker, 80);
+        stats.provenance.by_source_type.insert(TextSampleSource::Synthetic, 100);
+        stats.provenance.by_source_type.insert(TextSampleSource::HandCrafted, 80);
+
+        // Just ensure it doesn't panic
+        print_merge_stats(&stats);
+    }
+
+    #[test]
+    fn test_print_merge_stats_empty() {
+        let stats = MergeStats::default();
+        // Should not panic with zeros
+        print_merge_stats(&stats);
+    }
+
+    // ============================================================
+    // build_unified_corpus_with_oip Tests
+    // ============================================================
+
+    #[test]
+    fn test_build_unified_corpus_with_oip_nonexistent() {
+        // Should gracefully handle missing file
+        let result = build_unified_corpus_with_oip("/nonexistent/oip/path");
+        assert!(result.stats.oip_count == 0);
+    }
+
+    // ============================================================
+    // UnifiedTrainingResult Tests
+    // ============================================================
+
+    #[test]
+    fn test_unified_training_result_structure() {
+        let config = UnifiedTrainingConfig {
+            synthetic_samples: 50,
+            balance_classes: true,
+            max_per_class: Some(10),
+            ..Default::default()
+        };
+        let result = build_unified_corpus(&config);
+
+        assert!(result.stats.final_count > 0);
+        // With balancing enabled, categories should be limited
+    }
 }

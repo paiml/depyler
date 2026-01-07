@@ -13,8 +13,6 @@ use tokio::sync::{mpsc, RwLock};
 use tokio::time::interval;
 use tracing::{debug, error, info, warn};
 
-use super::mcp_server::DepylerMcpServer;
-
 /// Configuration for the MCP agent
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentConfig {
@@ -46,9 +44,6 @@ use super::transpilation_monitor::{
 pub struct AgentDaemon {
     /// Daemon configuration
     config: DaemonConfig,
-
-    /// MCP server instance
-    mcp_server: Option<DepylerMcpServer>,
 
     /// Transpilation monitor engine
     transpilation_monitor: Option<TranspilationMonitorEngine>,
@@ -232,7 +227,6 @@ impl AgentDaemon {
 
         Self {
             config,
-            mcp_server: None,
             transpilation_monitor: None,
             state,
             shutdown_tx: None,
@@ -261,10 +255,6 @@ impl AgentDaemon {
         // Change working directory
         std::env::set_current_dir(&self.config.daemon.working_directory)
             .map_err(|e| anyhow::anyhow!("Failed to change working directory: {}", e))?;
-
-        // Initialize MCP server
-        let mcp_server = DepylerMcpServer::new();
-        self.mcp_server = Some(mcp_server);
 
         // Initialize transpilation monitor
         let transpilation_monitor =
@@ -563,13 +553,6 @@ impl AgentDaemon {
     /// Shutdown daemon
     pub async fn shutdown(&mut self) -> Result<()> {
         info!("Shutting down daemon...");
-
-        // Shutdown MCP server
-        if let Some(mcp_server) = self.mcp_server.take() {
-            if let Err(e) = mcp_server.shutdown().await {
-                error!("Failed to shutdown MCP server: {}", e);
-            }
-        }
 
         // Shutdown transpilation monitor
         if let Some(mut monitor) = self.transpilation_monitor.take() {
@@ -870,7 +853,6 @@ mod tests {
     fn test_agent_daemon_new() {
         let config = DaemonConfig::default();
         let daemon = AgentDaemon::new(config);
-        assert!(daemon.mcp_server.is_none());
         assert!(daemon.transpilation_monitor.is_none());
         assert!(daemon.shutdown_tx.is_none());
     }

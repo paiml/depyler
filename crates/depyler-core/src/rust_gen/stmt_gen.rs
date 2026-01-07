@@ -8738,7 +8738,6 @@ mod tests {
 
     #[test]
     fn test_captures_outer_scope_local_assignment() {
-        use crate::hir::HirParam;
         let params = vec![];
         // Defines 'y' locally then uses it
         let body = vec![
