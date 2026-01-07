@@ -5516,7 +5516,6 @@ fn test_ext2_raise_io_error() {
 }
 
 #[test]
-#[test]
 fn test_ext2_raise_attribute_error_skip() {
     // getattr not fully supported - skip
 }

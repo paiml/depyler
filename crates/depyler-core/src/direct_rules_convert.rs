@@ -4245,3 +4245,1015 @@ pub(crate) fn convert_bitwise_op(op: BinOp) -> Result<syn::BinOp> {
     }
 }
 
+// =============================================================================
+// EXTREME TDD TEST MODULE - DEPYLER-COVERAGE-95
+// =============================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // =========================================================================
+    // convert_literal tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_literal_int() {
+        let lit = Literal::Int(42);
+        let result = convert_literal(&lit);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("42"));
+    }
+
+    #[test]
+    fn test_convert_literal_int_negative() {
+        let lit = Literal::Int(-100);
+        let result = convert_literal(&lit);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("100"));
+    }
+
+    #[test]
+    fn test_convert_literal_float() {
+        let lit = Literal::Float(3.14);
+        let result = convert_literal(&lit);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("3.14") || result_str.contains("3.1"));
+    }
+
+    #[test]
+    fn test_convert_literal_string() {
+        let lit = Literal::String("hello".to_string());
+        let result = convert_literal(&lit);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("hello"));
+    }
+
+    #[test]
+    fn test_convert_literal_string_empty() {
+        let lit = Literal::String("".to_string());
+        let result = convert_literal(&lit);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("\"\"") || result_str.contains("String"));
+    }
+
+    #[test]
+    fn test_convert_literal_bool_true() {
+        let lit = Literal::Bool(true);
+        let result = convert_literal(&lit);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("true"));
+    }
+
+    #[test]
+    fn test_convert_literal_bool_false() {
+        let lit = Literal::Bool(false);
+        let result = convert_literal(&lit);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("false"));
+    }
+
+    #[test]
+    fn test_convert_literal_none() {
+        let lit = Literal::None;
+        let result = convert_literal(&lit);
+        let result_str = quote::quote!(#result).to_string();
+        assert!(result_str.contains("None") || result_str.contains("()"));
+    }
+
+    // =========================================================================
+    // convert_binop tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_binop_add() {
+        let result = convert_binop(BinOp::Add);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_sub() {
+        let result = convert_binop(BinOp::Sub);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_mul() {
+        let result = convert_binop(BinOp::Mul);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_div() {
+        let result = convert_binop(BinOp::Div);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_mod() {
+        let result = convert_binop(BinOp::Mod);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_eq() {
+        let result = convert_binop(BinOp::Eq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_not_eq() {
+        let result = convert_binop(BinOp::NotEq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_lt() {
+        let result = convert_binop(BinOp::Lt);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_gt() {
+        let result = convert_binop(BinOp::Gt);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_lt_eq() {
+        let result = convert_binop(BinOp::LtEq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_gt_eq() {
+        let result = convert_binop(BinOp::GtEq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_and() {
+        let result = convert_binop(BinOp::And);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_or() {
+        let result = convert_binop(BinOp::Or);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_bit_and() {
+        let result = convert_binop(BinOp::BitAnd);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_bit_or() {
+        let result = convert_binop(BinOp::BitOr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_bit_xor() {
+        let result = convert_binop(BinOp::BitXor);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_lshift() {
+        let result = convert_binop(BinOp::LShift);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_binop_rshift() {
+        let result = convert_binop(BinOp::RShift);
+        assert!(result.is_ok());
+    }
+
+    // =========================================================================
+    // convert_arithmetic_op tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_arithmetic_op_add() {
+        let result = convert_arithmetic_op(BinOp::Add);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_arithmetic_op_sub() {
+        let result = convert_arithmetic_op(BinOp::Sub);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_arithmetic_op_mul() {
+        let result = convert_arithmetic_op(BinOp::Mul);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_arithmetic_op_div() {
+        let result = convert_arithmetic_op(BinOp::Div);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_arithmetic_op_mod() {
+        let result = convert_arithmetic_op(BinOp::Mod);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_arithmetic_op_floor_div_special() {
+        let result = convert_arithmetic_op(BinOp::FloorDiv);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_arithmetic_op_pow_special() {
+        let result = convert_arithmetic_op(BinOp::Pow);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_arithmetic_op_invalid() {
+        let result = convert_arithmetic_op(BinOp::And);
+        assert!(result.is_err());
+    }
+
+    // =========================================================================
+    // convert_comparison_op tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_comparison_op_eq() {
+        let result = convert_comparison_op(BinOp::Eq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_comparison_op_not_eq() {
+        let result = convert_comparison_op(BinOp::NotEq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_comparison_op_lt() {
+        let result = convert_comparison_op(BinOp::Lt);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_comparison_op_lt_eq() {
+        let result = convert_comparison_op(BinOp::LtEq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_comparison_op_gt() {
+        let result = convert_comparison_op(BinOp::Gt);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_comparison_op_gt_eq() {
+        let result = convert_comparison_op(BinOp::GtEq);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_comparison_op_invalid() {
+        let result = convert_comparison_op(BinOp::Add);
+        assert!(result.is_err());
+    }
+
+    // =========================================================================
+    // convert_logical_op tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_logical_op_and() {
+        let result = convert_logical_op(BinOp::And);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_logical_op_or() {
+        let result = convert_logical_op(BinOp::Or);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_logical_op_invalid() {
+        let result = convert_logical_op(BinOp::Add);
+        assert!(result.is_err());
+    }
+
+    // =========================================================================
+    // convert_bitwise_op tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_bitwise_op_and() {
+        let result = convert_bitwise_op(BinOp::BitAnd);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_bitwise_op_or() {
+        let result = convert_bitwise_op(BinOp::BitOr);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_bitwise_op_xor() {
+        let result = convert_bitwise_op(BinOp::BitXor);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_bitwise_op_lshift() {
+        let result = convert_bitwise_op(BinOp::LShift);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_bitwise_op_rshift() {
+        let result = convert_bitwise_op(BinOp::RShift);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_bitwise_op_invalid() {
+        let result = convert_bitwise_op(BinOp::Add);
+        assert!(result.is_err());
+    }
+
+    // =========================================================================
+    // is_len_call tests
+    // =========================================================================
+
+    #[test]
+    fn test_is_len_call_true() {
+        let expr = HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(is_len_call(&expr));
+    }
+
+    #[test]
+    fn test_is_len_call_false_other_func() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_len_call(&expr));
+    }
+
+    #[test]
+    fn test_is_len_call_false_not_call() {
+        let expr = HirExpr::Var("len".to_string());
+        assert!(!is_len_call(&expr));
+    }
+
+    // =========================================================================
+    // is_pure_expression_direct tests
+    // =========================================================================
+
+    #[test]
+    fn test_is_pure_expression_literal_int() {
+        let expr = HirExpr::Literal(Literal::Int(42));
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_literal_string() {
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_var() {
+        let expr = HirExpr::Var("x".to_string());
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_binary() {
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_call_not_pure() {
+        // All function calls are considered impure in this implementation
+        let expr = HirExpr::Call {
+            func: "len".to_string(),
+            args: vec![HirExpr::Var("x".to_string())],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_call_print() {
+        let expr = HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_method_call_not_pure() {
+        // All method calls are considered impure in this implementation
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("x".to_string())),
+            method: "len".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_method_call_append() {
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("x".to_string())),
+            method: "append".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        assert!(!is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_attribute() {
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("self".to_string())),
+            attr: "x".to_string(),
+        };
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_index() {
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_tuple() {
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Var("x".to_string()),
+        ]);
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    #[test]
+    fn test_is_pure_expression_unary() {
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(42))),
+        };
+        assert!(is_pure_expression_direct(&expr));
+    }
+
+    // =========================================================================
+    // find_mutable_vars_in_body tests
+    // =========================================================================
+
+    #[test]
+    fn test_find_mutable_vars_empty() {
+        let stmts: Vec<HirStmt> = vec![];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn test_find_mutable_vars_single_assign() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        }];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.is_empty()); // First assignment is not mutable
+    }
+
+    #[test]
+    fn test_find_mutable_vars_reassignment() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(2)),
+                type_annotation: None,
+            },
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("x"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_attribute_assign() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Attribute {
+                value: Box::new(HirExpr::Var("self".to_string())),
+                attr: "x".to_string(),
+            },
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        }];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("self"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_index_assign() {
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Index {
+                base: Box::new(HirExpr::Var("arr".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::Int(0))),
+            },
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        }];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("arr"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_tuple_assign() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Tuple(vec![
+                    AssignTarget::Symbol("a".to_string()),
+                    AssignTarget::Symbol("b".to_string()),
+                ]),
+                value: HirExpr::Tuple(vec![
+                    HirExpr::Literal(Literal::Int(1)),
+                    HirExpr::Literal(Literal::Int(2)),
+                ]),
+                type_annotation: None,
+            },
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("a".to_string()),
+                value: HirExpr::Literal(Literal::Int(3)),
+                type_annotation: None,
+            },
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("a"));
+        assert!(!result.contains("b"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_append_method() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("lst".to_string()),
+                value: HirExpr::List(vec![]),
+                type_annotation: None,
+            },
+            HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("lst".to_string())),
+                method: "append".to_string(),
+                args: vec![HirExpr::Literal(Literal::Int(1))],
+                kwargs: vec![],
+            }),
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("lst"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_in_if_body() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: None,
+            },
+            HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: HirExpr::Literal(Literal::Int(1)),
+                    type_annotation: None,
+                }],
+                else_body: None,
+            },
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("x"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_in_else_body() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: None,
+            },
+            HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![],
+                else_body: Some(vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".to_string()),
+                    value: HirExpr::Literal(Literal::Int(1)),
+                    type_annotation: None,
+                }]),
+            },
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("x"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_in_while_body() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("i".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: None,
+            },
+            HirStmt::While {
+                condition: HirExpr::Binary {
+                    op: BinOp::Lt,
+                    left: Box::new(HirExpr::Var("i".to_string())),
+                    right: Box::new(HirExpr::Literal(Literal::Int(10))),
+                },
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("i".to_string()),
+                    value: HirExpr::Binary {
+                        op: BinOp::Add,
+                        left: Box::new(HirExpr::Var("i".to_string())),
+                        right: Box::new(HirExpr::Literal(Literal::Int(1))),
+                    },
+                    type_annotation: None,
+                }],
+            },
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("i"));
+    }
+
+    #[test]
+    fn test_find_mutable_vars_in_for_body() {
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("total".to_string()),
+                value: HirExpr::Literal(Literal::Int(0)),
+                type_annotation: None,
+            },
+            HirStmt::For {
+                target: AssignTarget::Symbol("i".to_string()),
+                iter: HirExpr::Call {
+                    func: "range".to_string(),
+                    args: vec![HirExpr::Literal(Literal::Int(10))],
+                    kwargs: vec![],
+                },
+                body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("total".to_string()),
+                    value: HirExpr::Binary {
+                        op: BinOp::Add,
+                        left: Box::new(HirExpr::Var("total".to_string())),
+                        right: Box::new(HirExpr::Var("i".to_string())),
+                    },
+                    type_annotation: None,
+                }],
+            },
+        ];
+        let result = find_mutable_vars_in_body(&stmts);
+        assert!(result.contains("total"));
+    }
+
+    // =========================================================================
+    // convert_body tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_body_empty() {
+        let type_mapper = TypeMapper::default();
+        let stmts: Vec<HirStmt> = vec![];
+        let result = convert_body(&stmts, &type_mapper);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_convert_body_single_pass() {
+        let type_mapper = TypeMapper::default();
+        let stmts = vec![HirStmt::Pass];
+        let result = convert_body(&stmts, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_body_single_expr() {
+        let type_mapper = TypeMapper::default();
+        let stmts = vec![HirStmt::Expr(HirExpr::Literal(Literal::Int(42)))];
+        let result = convert_body(&stmts, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_body_simple_assign() {
+        let type_mapper = TypeMapper::default();
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        }];
+        let result = convert_body(&stmts, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_body_return_int() {
+        let type_mapper = TypeMapper::default();
+        let stmts = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))];
+        let result = convert_body(&stmts, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_body_return_none() {
+        let type_mapper = TypeMapper::default();
+        let stmts = vec![HirStmt::Return(None)];
+        let result = convert_body(&stmts, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    // =========================================================================
+    // convert_expr tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_expr_literal_int() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Literal(Literal::Int(42));
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_literal_string() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Literal(Literal::String("hello".to_string()));
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_var() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Var("x".to_string());
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_binary_add() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Add,
+            left: Box::new(HirExpr::Literal(Literal::Int(1))),
+            right: Box::new(HirExpr::Literal(Literal::Int(2))),
+        };
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_list_empty() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::List(vec![]);
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_list_with_elements() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_dict_empty() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Dict(vec![]);
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_tuple() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::String("a".to_string())),
+        ]);
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_index() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Index {
+            base: Box::new(HirExpr::Var("arr".to_string())),
+            index: Box::new(HirExpr::Literal(Literal::Int(0))),
+        };
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_attribute() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Attribute {
+            value: Box::new(HirExpr::Var("obj".to_string())),
+            attr: "field".to_string(),
+        };
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_call_simple() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_call_with_args() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Call {
+            func: "func".to_string(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        };
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_unary_not() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand: Box::new(HirExpr::Literal(Literal::Bool(true))),
+        };
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_expr_unary_neg() {
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Unary {
+            op: UnaryOp::Neg,
+            operand: Box::new(HirExpr::Literal(Literal::Int(42))),
+        };
+        let result = convert_expr(&expr, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    // =========================================================================
+    // convert_stmt tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_stmt_pass() {
+        let type_mapper = TypeMapper::default();
+        let stmt = HirStmt::Pass;
+        let result = convert_stmt(&stmt, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_stmt_break() {
+        let type_mapper = TypeMapper::default();
+        let stmt = HirStmt::Break { label: None };
+        let result = convert_stmt(&stmt, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_stmt_continue() {
+        let type_mapper = TypeMapper::default();
+        let stmt = HirStmt::Continue { label: None };
+        let result = convert_stmt(&stmt, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_stmt_expr() {
+        let type_mapper = TypeMapper::default();
+        let stmt = HirStmt::Expr(HirExpr::Literal(Literal::Int(42)));
+        let result = convert_stmt(&stmt, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_stmt_assign() {
+        let type_mapper = TypeMapper::default();
+        let stmt = HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(42)),
+            type_annotation: None,
+        };
+        let result = convert_stmt(&stmt, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_stmt_return_some() {
+        let type_mapper = TypeMapper::default();
+        let stmt = HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))));
+        let result = convert_stmt(&stmt, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_stmt_return_none() {
+        let type_mapper = TypeMapper::default();
+        let stmt = HirStmt::Return(None);
+        let result = convert_stmt(&stmt, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    // =========================================================================
+    // convert_block tests
+    // =========================================================================
+
+    #[test]
+    fn test_convert_block_empty() {
+        let type_mapper = TypeMapper::default();
+        let stmts: Vec<HirStmt> = vec![];
+        let result = convert_block(&stmts, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_block_single_stmt() {
+        let type_mapper = TypeMapper::default();
+        let stmts = vec![HirStmt::Pass];
+        let result = convert_block(&stmts, &type_mapper);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_block_multiple_stmts() {
+        let type_mapper = TypeMapper::default();
+        let stmts = vec![
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            },
+            HirStmt::Assign {
+                target: AssignTarget::Symbol("y".to_string()),
+                value: HirExpr::Literal(Literal::Int(2)),
+                type_annotation: None,
+            },
+        ];
+        let result = convert_block(&stmts, &type_mapper);
+        assert!(result.is_ok());
+    }
+}
+
