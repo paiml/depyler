@@ -149,6 +149,13 @@ mod tests {
     }
 
     #[test]
+    fn test_training_monitor_default() {
+        let monitor = TrainingMonitor::default();
+        assert!(!monitor.should_stop());
+        assert!(monitor.get_alerts().is_empty());
+    }
+
+    #[test]
     fn test_record_epoch() {
         let mut monitor = TrainingMonitor::new();
         monitor.record_epoch(1, 290, 280, 307, 27);
@@ -156,6 +163,52 @@ mod tests {
         let json = monitor.summary_json().unwrap();
         assert!(json.contains("compile_rate"));
         assert!(json.contains("transpile_rate"));
+    }
+
+    #[test]
+    fn test_record_epoch_zero_total() {
+        let mut monitor = TrainingMonitor::new();
+        // Edge case: no files processed
+        monitor.record_epoch(1, 0, 0, 0, 0);
+        // Should not panic, rates should be 0.0
+        let json = monitor.summary_json().unwrap();
+        assert!(json.contains("compile_rate"));
+    }
+
+    #[test]
+    fn test_record_epoch_all_success() {
+        let mut monitor = TrainingMonitor::new();
+        monitor.record_epoch(1, 100, 100, 100, 0);
+        let json = monitor.summary_json().unwrap();
+        assert!(json.contains("transpile_rate"));
+    }
+
+    #[test]
+    fn test_record_epoch_all_failure() {
+        let mut monitor = TrainingMonitor::new();
+        monitor.record_epoch(1, 0, 0, 100, 100);
+        let json = monitor.summary_json().unwrap();
+        assert!(json.contains("error_count"));
+    }
+
+    #[test]
+    fn test_record_error() {
+        let mut monitor = TrainingMonitor::new();
+        monitor.record_error("E0308");
+        monitor.record_error("E0277");
+        let json = monitor.summary_json().unwrap();
+        assert!(json.contains("error_E0308"));
+        assert!(json.contains("error_E0277"));
+    }
+
+    #[test]
+    fn test_record_error_multiple_same() {
+        let mut monitor = TrainingMonitor::new();
+        monitor.record_error("E0001");
+        monitor.record_error("E0001");
+        monitor.record_error("E0001");
+        let json = monitor.summary_json().unwrap();
+        assert!(json.contains("error_E0001"));
     }
 
     #[test]
@@ -177,6 +230,28 @@ mod tests {
     }
 
     #[test]
+    fn test_no_regression_stable_rate() {
+        let mut monitor = TrainingMonitor::new();
+        monitor.record_epoch(1, 100, 80, 100, 20);
+        monitor.record_epoch(2, 100, 78, 100, 22);
+        // Only 2.5% drop, not enough for regression
+        let alerts = monitor.get_alerts();
+        let regression_alerts: Vec<_> = alerts.iter().filter(|a| a.contains("regression")).collect();
+        assert!(regression_alerts.is_empty(), "Unexpected regression: {:?}", regression_alerts);
+    }
+
+    #[test]
+    fn test_no_regression_improving_rate() {
+        let mut monitor = TrainingMonitor::new();
+        monitor.record_epoch(1, 100, 50, 100, 50);
+        monitor.record_epoch(2, 100, 75, 100, 25);
+        // Rate improved, no regression
+        let alerts = monitor.get_alerts();
+        let regression_alerts: Vec<_> = alerts.iter().filter(|a| a.contains("regression")).collect();
+        assert!(regression_alerts.is_empty());
+    }
+
+    #[test]
     fn test_generate_report() {
         let mut monitor = TrainingMonitor::new();
         monitor.record_epoch(1, 290, 280, 307, 27);
@@ -185,5 +260,55 @@ mod tests {
         let report = monitor.generate_report("test-run");
         assert!(report.contains("HANSEI POST-TRAINING REPORT"));
         assert!(report.contains("test-run"));
+    }
+
+    #[test]
+    fn test_generate_report_empty() {
+        let monitor = TrainingMonitor::new();
+        let report = monitor.generate_report("empty-run");
+        assert!(report.contains("HANSEI POST-TRAINING REPORT"));
+        assert!(report.contains("empty-run"));
+    }
+
+    #[test]
+    fn test_duration_secs() {
+        let monitor = TrainingMonitor::new();
+        std::thread::sleep(std::time::Duration::from_millis(10));
+        let duration = monitor.duration_secs();
+        assert!(duration >= 0.01);
+    }
+
+    #[test]
+    fn test_summary_json_format() {
+        let mut monitor = TrainingMonitor::new();
+        monitor.record_epoch(1, 50, 40, 100, 10);
+        let json = monitor.summary_json().unwrap();
+        // Should be valid JSON
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert!(parsed.is_object());
+    }
+
+    #[test]
+    fn test_should_stop_initially_false() {
+        let monitor = TrainingMonitor::new();
+        assert!(!monitor.should_stop());
+    }
+
+    #[test]
+    fn test_get_alerts_initially_empty() {
+        let monitor = TrainingMonitor::new();
+        let alerts = monitor.get_alerts();
+        assert!(alerts.is_empty());
+    }
+
+    #[test]
+    fn test_multiple_epochs_summary() {
+        let mut monitor = TrainingMonitor::new();
+        for i in 1..=10 {
+            monitor.record_epoch(i, 100, 80 + i, 100, 20 - i);
+        }
+        let json = monitor.summary_json().unwrap();
+        assert!(json.contains("epoch"));
+        assert!(json.contains("compile_rate"));
     }
 }
