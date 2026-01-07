@@ -186,6 +186,203 @@ mod tests {
     }
 
     #[test]
+    fn test_root_cause_from_e0599_field() {
+        let root = RootCause::from_error_code("E0599", "no field named `bar`");
+        if let RootCause::TranspilerGap { gap_type, .. } = root {
+            assert_eq!(gap_type, "missing_field");
+        } else {
+            panic!("Expected TranspilerGap");
+        }
+    }
+
+    #[test]
+    fn test_root_cause_from_e0308() {
+        let root = RootCause::from_error_code("E0308", "mismatched types");
+        if let RootCause::TranspilerGap { gap_type, location } = root {
+            assert_eq!(gap_type, "type_inference");
+            assert_eq!(location, "type_mapper.rs");
+        } else {
+            panic!("Expected TranspilerGap");
+        }
+    }
+
+    #[test]
+    fn test_root_cause_from_e0277() {
+        let root = RootCause::from_error_code("E0277", "trait bound not satisfied");
+        if let RootCause::TranspilerGap { gap_type, .. } = root {
+            assert_eq!(gap_type, "missing_trait");
+        } else {
+            panic!("Expected TranspilerGap");
+        }
+    }
+
+    #[test]
+    fn test_root_cause_from_e0425() {
+        let root = RootCause::from_error_code("E0425", "cannot find value");
+        if let RootCause::TranspilerGap { gap_type, location } = root {
+            assert_eq!(gap_type, "undefined_variable");
+            assert_eq!(location, "func_gen.rs");
+        } else {
+            panic!("Expected TranspilerGap");
+        }
+    }
+
+    #[test]
+    fn test_root_cause_from_e0433() {
+        let root = RootCause::from_error_code("E0433", "failed to resolve");
+        if let RootCause::TranspilerGap { gap_type, location } = root {
+            assert_eq!(gap_type, "missing_import");
+            assert_eq!(location, "stmt_gen.rs");
+        } else {
+            panic!("Expected TranspilerGap");
+        }
+    }
+
+    #[test]
+    fn test_root_cause_from_e0382() {
+        let root = RootCause::from_error_code("E0382", "use of moved value");
+        if let RootCause::TranspilerGap { gap_type, .. } = root {
+            assert_eq!(gap_type, "borrow_checker");
+        } else {
+            panic!("Expected TranspilerGap");
+        }
+    }
+
+    #[test]
+    fn test_root_cause_from_e0502() {
+        let root = RootCause::from_error_code("E0502", "cannot borrow");
+        if let RootCause::TranspilerGap { gap_type, .. } = root {
+            assert_eq!(gap_type, "borrow_checker");
+        } else {
+            panic!("Expected TranspilerGap");
+        }
+    }
+
+    #[test]
+    fn test_root_cause_from_e0507() {
+        let root = RootCause::from_error_code("E0507", "cannot move out of");
+        if let RootCause::TranspilerGap { gap_type, .. } = root {
+            assert_eq!(gap_type, "borrow_checker");
+        } else {
+            panic!("Expected TranspilerGap");
+        }
+    }
+
+    #[test]
+    fn test_root_cause_unknown() {
+        let root = RootCause::from_error_code("E9999", "unknown error");
+        assert!(matches!(root, RootCause::Unknown));
+    }
+
+    #[test]
+    fn test_root_cause_debug() {
+        let root = RootCause::TranspilerGap {
+            gap_type: "test".to_string(),
+            location: "test.rs".to_string(),
+        };
+        let debug = format!("{:?}", root);
+        assert!(debug.contains("TranspilerGap"));
+        assert!(debug.contains("test"));
+    }
+
+    #[test]
+    fn test_root_cause_clone() {
+        let root = RootCause::TranspilerGap {
+            gap_type: "type_inference".to_string(),
+            location: "type_mapper.rs".to_string(),
+        };
+        let cloned = root.clone();
+        assert!(matches!(cloned, RootCause::TranspilerGap { .. }));
+    }
+
+    #[test]
+    fn test_suggested_fix_struct() {
+        let fix = SuggestedFix {
+            description: "Add missing method".to_string(),
+            file: PathBuf::from("expr_gen.rs"),
+            confidence: 0.95,
+        };
+        assert_eq!(fix.description, "Add missing method");
+        assert_eq!(fix.file, PathBuf::from("expr_gen.rs"));
+        assert!((fix.confidence - 0.95).abs() < 0.001);
+    }
+
+    #[test]
+    fn test_suggested_fix_clone() {
+        let fix = SuggestedFix {
+            description: "Fix type".to_string(),
+            file: PathBuf::from("type_mapper.rs"),
+            confidence: 0.8,
+        };
+        let cloned = fix.clone();
+        assert_eq!(fix.description, cloned.description);
+        assert_eq!(fix.file, cloned.file);
+    }
+
+    #[test]
+    fn test_suggested_fix_apply() {
+        let fix = SuggestedFix {
+            description: "Test fix".to_string(),
+            file: PathBuf::from("test.rs"),
+            confidence: 0.9,
+        };
+        let result = fix.apply();
+        assert!(result.is_ok());
+        let applied = result.unwrap();
+        assert_eq!(applied.description, "Test fix");
+        assert!(!applied.verified);
+    }
+
+    #[test]
+    fn test_error_cluster_struct() {
+        let cluster = ErrorCluster {
+            root_cause: RootCause::Unknown,
+            error_code: "E0308".to_string(),
+            examples_blocked: vec![PathBuf::from("a.py")],
+            sample_errors: vec![],
+            fix_confidence: 0.75,
+            suggested_fix: None,
+        };
+        assert_eq!(cluster.error_code, "E0308");
+        assert_eq!(cluster.examples_blocked.len(), 1);
+    }
+
+    #[test]
+    fn test_error_cluster_clone() {
+        let cluster = ErrorCluster {
+            root_cause: RootCause::Unknown,
+            error_code: "E0599".to_string(),
+            examples_blocked: vec![PathBuf::from("a.py"), PathBuf::from("b.py")],
+            sample_errors: vec![],
+            fix_confidence: 0.85,
+            suggested_fix: None,
+        };
+        let cloned = cluster.clone();
+        assert_eq!(cluster.error_code, cloned.error_code);
+        assert_eq!(cluster.examples_blocked.len(), cloned.examples_blocked.len());
+    }
+
+    #[test]
+    fn test_error_cluster_with_fix() {
+        let cluster = ErrorCluster {
+            root_cause: RootCause::TranspilerGap {
+                gap_type: "missing_method".to_string(),
+                location: "expr_gen.rs".to_string(),
+            },
+            error_code: "E0599".to_string(),
+            examples_blocked: vec![PathBuf::from("test.py")],
+            sample_errors: vec![],
+            fix_confidence: 0.95,
+            suggested_fix: Some(SuggestedFix {
+                description: "Add method".to_string(),
+                file: PathBuf::from("expr_gen.rs"),
+                confidence: 0.95,
+            }),
+        };
+        assert!(cluster.suggested_fix.is_some());
+    }
+
+    #[test]
     fn test_cluster_groups_by_error_code() {
         let clusterer = ErrorClusterer::new();
         let classifications = vec![
@@ -223,6 +420,57 @@ mod tests {
     }
 
     #[test]
+    fn test_cluster_multiple_error_codes() {
+        let clusterer = ErrorClusterer::new();
+        let classifications = vec![
+            ErrorClassification {
+                error: CompilationError {
+                    code: "E0599".to_string(),
+                    message: "method not found".to_string(),
+                    file: PathBuf::from("a.rs"),
+                    line: 1,
+                    column: 1,
+                },
+                category: ErrorCategory::TranspilerGap,
+                subcategory: "missing_method".to_string(),
+                confidence: 0.9,
+                suggested_fix: None,
+            },
+            ErrorClassification {
+                error: CompilationError {
+                    code: "E0308".to_string(),
+                    message: "mismatched types".to_string(),
+                    file: PathBuf::from("b.rs"),
+                    line: 2,
+                    column: 2,
+                },
+                category: ErrorCategory::TranspilerGap,
+                subcategory: "type_inference".to_string(),
+                confidence: 0.85,
+                suggested_fix: None,
+            },
+        ];
+
+        let clusters = clusterer.cluster(&classifications);
+        assert_eq!(clusters.len(), 2);
+    }
+
+    #[test]
+    fn test_cluster_empty() {
+        let clusterer = ErrorClusterer::new();
+        let classifications: Vec<ErrorClassification> = vec![];
+        let clusters = clusterer.cluster(&classifications);
+        assert!(clusters.is_empty());
+    }
+
+    #[test]
+    fn test_clusterer_default() {
+        let clusterer = ErrorClusterer::default();
+        let clusters = clusterer.cluster(&[]);
+        assert!(clusters.is_empty());
+    }
+
+    #[test]
     fn test_impact_score() {
         let cluster = ErrorCluster {
             root_cause: RootCause::Unknown,
@@ -239,5 +487,69 @@ mod tests {
 
         let expected = 3.0 * 0.9;
         assert!((cluster.impact_score() - expected).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_impact_score_zero_confidence() {
+        let cluster = ErrorCluster {
+            root_cause: RootCause::Unknown,
+            error_code: "E0599".to_string(),
+            examples_blocked: vec![PathBuf::from("a.py")],
+            sample_errors: vec![],
+            fix_confidence: 0.0,
+            suggested_fix: None,
+        };
+        assert!((cluster.impact_score() - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_impact_score_empty_examples() {
+        let cluster = ErrorCluster {
+            root_cause: RootCause::Unknown,
+            error_code: "E0599".to_string(),
+            examples_blocked: vec![],
+            sample_errors: vec![],
+            fix_confidence: 1.0,
+            suggested_fix: None,
+        };
+        assert!((cluster.impact_score() - 0.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_cluster_average_confidence() {
+        let clusterer = ErrorClusterer::new();
+        let classifications = vec![
+            ErrorClassification {
+                error: CompilationError {
+                    code: "E0599".to_string(),
+                    message: "test".to_string(),
+                    file: PathBuf::from("a.rs"),
+                    line: 1,
+                    column: 1,
+                },
+                category: ErrorCategory::TranspilerGap,
+                subcategory: "test".to_string(),
+                confidence: 0.8,
+                suggested_fix: None,
+            },
+            ErrorClassification {
+                error: CompilationError {
+                    code: "E0599".to_string(),
+                    message: "test".to_string(),
+                    file: PathBuf::from("b.rs"),
+                    line: 1,
+                    column: 1,
+                },
+                category: ErrorCategory::TranspilerGap,
+                subcategory: "test".to_string(),
+                confidence: 1.0,
+                suggested_fix: None,
+            },
+        ];
+
+        let clusters = clusterer.cluster(&classifications);
+        assert_eq!(clusters.len(), 1);
+        // Average of 0.8 and 1.0 is 0.9
+        assert!((clusters[0].fix_confidence - 0.9).abs() < 0.01);
     }
 }
