@@ -524,4 +524,256 @@ mod tests {
         };
         reporter.report_iteration(&state, &cluster);
     }
+
+    // ============================================================================
+    // Progress Bar Tests
+    // ============================================================================
+
+    #[test]
+    fn test_progress_bar_zero_total() {
+        let bar = super::progress_bar(0, 0, 10);
+        assert_eq!(bar, "░░░░░░░░░░");
+    }
+
+    #[test]
+    fn test_progress_bar_empty() {
+        let bar = super::progress_bar(0, 10, 10);
+        assert_eq!(bar, "░░░░░░░░░░");
+    }
+
+    #[test]
+    fn test_progress_bar_full() {
+        let bar = super::progress_bar(10, 10, 10);
+        assert_eq!(bar, "██████████");
+    }
+
+    #[test]
+    fn test_progress_bar_half() {
+        let bar = super::progress_bar(5, 10, 10);
+        assert_eq!(bar, "█████░░░░░");
+    }
+
+    #[test]
+    fn test_progress_bar_quarter() {
+        let bar = super::progress_bar(25, 100, 20);
+        assert_eq!(bar, "█████░░░░░░░░░░░░░░░");
+    }
+
+    #[test]
+    fn test_progress_bar_overflow() {
+        // current > total should clamp to 100%
+        let bar = super::progress_bar(15, 10, 10);
+        assert_eq!(bar, "██████████");
+    }
+
+    #[test]
+    fn test_progress_bar_width_1() {
+        let bar = super::progress_bar(5, 10, 1);
+        // 50% of width 1 rounds to 1, but chars are UTF-8 (█ = 3 bytes)
+        assert_eq!(bar.chars().count(), 1);
+    }
+
+    // ============================================================================
+    // Display Mode Tests
+    // ============================================================================
+
+    #[test]
+    fn test_reporter_with_display_mode_rich() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Rich);
+        assert!(reporter.verbose);
+        assert!(reporter.should_output());
+    }
+
+    #[test]
+    fn test_reporter_with_display_mode_minimal() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Minimal);
+        assert!(reporter.verbose);
+        assert!(reporter.should_output());
+    }
+
+    #[test]
+    fn test_reporter_with_display_mode_json() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Json);
+        assert!(reporter.verbose);
+        assert!(!reporter.should_output());
+    }
+
+    #[test]
+    fn test_reporter_with_display_mode_silent() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Silent);
+        assert!(!reporter.verbose);
+        assert!(!reporter.should_output());
+    }
+
+    #[test]
+    fn test_reporter_silent_report_start() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Silent);
+        let state = super::super::state::ConvergenceState::new(make_test_config());
+        // Should not panic and should not output
+        reporter.report_start(&state);
+    }
+
+    #[test]
+    fn test_reporter_silent_report_iteration() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Silent);
+        let state = super::super::state::ConvergenceState::new(make_test_config());
+        let cluster = make_test_cluster();
+        reporter.report_iteration(&state, &cluster);
+    }
+
+    #[test]
+    fn test_reporter_silent_report_finish() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Silent);
+        let state = super::super::state::ConvergenceState::new(make_test_config());
+        reporter.report_finish(&state);
+    }
+
+    #[test]
+    fn test_reporter_json_no_output() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Json);
+        let state = super::super::state::ConvergenceState::new(make_test_config());
+        let cluster = make_test_cluster();
+        // JSON mode should not produce text output
+        reporter.report_start(&state);
+        reporter.report_iteration(&state, &cluster);
+        reporter.report_finish(&state);
+    }
+
+    #[test]
+    fn test_reporter_minimal_report_start() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Minimal);
+        let state = super::super::state::ConvergenceState::new(make_test_config());
+        reporter.report_start(&state);
+    }
+
+    #[test]
+    fn test_reporter_minimal_report_iteration() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Minimal);
+        let state = super::super::state::ConvergenceState::new(make_test_config());
+        let cluster = make_test_cluster();
+        reporter.report_iteration(&state, &cluster);
+    }
+
+    #[test]
+    fn test_reporter_minimal_report_finish() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Minimal);
+        let state = super::super::state::ConvergenceState::new(make_test_config());
+        reporter.report_finish(&state);
+    }
+
+    #[test]
+    fn test_reporter_minimal_report_finish_not_converged() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Minimal);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.compilation_rate = 50.0;
+        reporter.report_finish(&state);
+    }
+
+    // ============================================================================
+    // Edge Cases
+    // ============================================================================
+
+    #[test]
+    fn test_truncate_empty() {
+        assert_eq!(super::truncate("", 10), "          ");
+    }
+
+    #[test]
+    fn test_truncate_path_empty() {
+        assert_eq!(super::truncate_path("", 10), "");
+    }
+
+    #[test]
+    fn test_iteration_report_debug() {
+        let report = IterationReport {
+            iteration: 1,
+            compilation_rate: 50.0,
+            target_rate: 100.0,
+            total_examples: 10,
+            passing_examples: 5,
+            top_cluster: None,
+        };
+        let debug = format!("{:?}", report);
+        assert!(debug.contains("iteration"));
+        assert!(debug.contains("compilation_rate"));
+    }
+
+    #[test]
+    fn test_iteration_report_clone() {
+        let report = IterationReport {
+            iteration: 1,
+            compilation_rate: 50.0,
+            target_rate: 100.0,
+            total_examples: 10,
+            passing_examples: 5,
+            top_cluster: None,
+        };
+        let cloned = report.clone();
+        assert_eq!(report.iteration, cloned.iteration);
+        assert_eq!(report.compilation_rate, cloned.compilation_rate);
+    }
+
+    #[test]
+    fn test_error_cluster_summary_debug() {
+        let summary = ErrorClusterSummary {
+            error_code: "E0308".to_string(),
+            examples_blocked: 3,
+            fix_confidence: 0.85,
+            root_cause_description: "type mismatch".to_string(),
+        };
+        let debug = format!("{:?}", summary);
+        assert!(debug.contains("E0308"));
+        assert!(debug.contains("examples_blocked"));
+    }
+
+    #[test]
+    fn test_reporter_rich_with_zero_max_iterations() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Rich);
+        let mut config = make_test_config();
+        config.max_iterations = 0;
+        // Can't create state with invalid config, so use a valid one
+        // and manually set iteration to test edge case
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.iteration = 0;
+        // Set max_iterations to 0 after creation for testing
+        state.config.max_iterations = 0;
+        let cluster = make_test_cluster();
+        // Should handle division by zero gracefully
+        reporter.report_iteration(&state, &cluster);
+    }
+
+    #[test]
+    fn test_reporter_rich_with_long_error_code() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Rich);
+        let state = super::super::state::ConvergenceState::new(make_test_config());
+        let cluster = ErrorCluster {
+            root_cause: super::super::clusterer::RootCause::TranspilerGap {
+                gap_type: "very_long_gap_type_name_that_exceeds_typical_lengths".to_string(),
+                location: "very_long_location_path_for_testing.rs".to_string(),
+            },
+            error_code: "E0599_EXTENDED_ERROR_CODE".to_string(),
+            examples_blocked: vec![],
+            sample_errors: vec![],
+            fix_confidence: 0.5,
+            suggested_fix: None,
+        };
+        reporter.report_iteration(&state, &cluster);
+    }
+
+    #[test]
+    fn test_reporter_format_iteration_with_examples() {
+        let reporter = ConvergenceReporter::new(true);
+        let mut state = super::super::state::ConvergenceState::new(make_test_config());
+        state.iteration = 3;
+        state.compilation_rate = 80.0;
+        state.examples = vec![
+            super::super::state::ExampleState::new(PathBuf::from("a.py"), true),
+            super::super::state::ExampleState::new(PathBuf::from("b.py"), true),
+            super::super::state::ExampleState::new(PathBuf::from("c.py"), false),
+        ];
+        let cluster = make_test_cluster();
+        let report = reporter.format_iteration(&state, &cluster);
+        assert!(report.contains("Iteration 3"));
+        assert!(report.contains("2/3"));
+    }
 }
