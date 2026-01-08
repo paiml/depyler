@@ -625,6 +625,7 @@ pub(crate) fn codegen_try_stmt(
 ///
 /// Looks for pattern: `let var = expr.parse::<i32>().unwrap_or_default();`
 /// Returns: (variable_name, parse_expression_without_unwrap_or, remaining_statements)
+// DEPYLER-FIX-RC1: Replaced fragile string matching with syn-based AST analysis
 fn extract_parse_from_tokens(
     try_stmts: &[proc_macro2::TokenStream],
 ) -> Option<(String, String, Vec<proc_macro2::TokenStream>)> {
@@ -632,48 +633,71 @@ fn extract_parse_from_tokens(
         return None;
     }
 
-    // Convert first statement to string (note: tokens have spaces between them)
-    let first_stmt = try_stmts[0].to_string();
+    let first_token_stream = &try_stmts[0];
+    
+    // Attempt to parse as a Stmt. If it fails (e.g. partial tokens), we bail.
+    let stmt: syn::Stmt = syn::parse2(first_token_stream.clone()).ok()?;
 
-    // Pattern 1: let var_name = something . parse :: < i32 > () . unwrap_or_default () ;
-    // Pattern 2: var_name = something . parse :: < i32 > () . unwrap_or_default () ;
-    // Note: TokenStream.to_string() adds spaces between tokens
-    // DEPYLER-0437: Handle both declaration and assignment patterns
-    if first_stmt.contains("parse") && first_stmt.contains("unwrap_or_default") {
-        // Try to extract variable name from both patterns
-        let var_name = if let Some(let_pos) = first_stmt.find("let ") {
-            // Pattern: let var_name = ...
-            first_stmt[let_pos..].find(" =").map(|eq_pos| {
-                first_stmt[let_pos + 4..let_pos + eq_pos].trim().to_string()
-            })
-        } else {
-            // Pattern: var_name = ... (assignment without let, used with hoisted decls)
-            first_stmt.find(" = ").map(|eq_pos| first_stmt[..eq_pos].trim().to_string())
-        };
+    match stmt {
+        // Handle: let var = expr;
+        syn::Stmt::Local(local) => {
+            // Extract variable name from pattern
+            let var_name = if let syn::Pat::Ident(pat_ident) = &local.pat {
+                pat_ident.ident.to_string()
+            } else {
+                return None;
+            };
 
-        if let Some(var_name) = var_name {
-            // Extract parse expression (between "= " and "unwrap_or_default")
-            if let Some(eq_start) = first_stmt.find(" = ") {
-                if let Some(unwrap_pos) = first_stmt.find("unwrap_or_default") {
-                    // Go back from unwrap_pos to skip ". " before it
-                    let parse_end =
-                        if unwrap_pos >= 2 && &first_stmt[unwrap_pos - 2..unwrap_pos] == ". " {
-                            unwrap_pos - 2
-                        } else {
-                            unwrap_pos
-                        };
+            // Check init expression
+            if let Some(init) = &local.init {
+                let parse_expr = extract_parse_expr(&init.expr)?;
+                let remaining = try_stmts[1..].to_vec();
+                return Some((var_name, parse_expr, remaining));
+            }
+        }
+        // Handle: var = expr; or expr;
+        syn::Stmt::Expr(expr, _) => {
+            if let syn::Expr::Assign(assign) = expr {
+                // Extract var name from LHS
+                let var_name = if let syn::Expr::Path(path) = *assign.left {
+                    path.path.segments.last()?.ident.to_string()
+                } else {
+                    return None;
+                };
 
-                    let parse_expr = first_stmt[eq_start + 3..parse_end].trim().to_string();
+                let parse_expr = extract_parse_expr(&assign.right)?;
+                let remaining = try_stmts[1..].to_vec();
+                return Some((var_name, parse_expr, remaining));
+            }
+        }
+        // DEPYLER-FIX-RC1: Explicitly ignore Item (fn, struct) and Mac (macro)
+        // This ensures we never match a "for loop" or "while loop" even if it contains "parse"
+        _ => return None,
+    }
 
-                    // Collect remaining statements
-                    let remaining: Vec<_> = try_stmts[1..].to_vec();
+    None
+}
 
-                    return Some((var_name, parse_expr, remaining));
-                }
+/// Helper to check if an expression is `... .parse::<...>().unwrap_or_default()`
+/// Returns the inner stringified expression if matched.
+fn extract_parse_expr(expr: &syn::Expr) -> Option<String> {
+    // We are looking for: MethodCall(unwrap_or_default) -> MethodCall(parse)
+    
+    // 1. Check outer method: unwrap_or_default()
+    if let syn::Expr::MethodCall(unwrap_call) = expr {
+        if unwrap_call.method != "unwrap_or_default" {
+            return None;
+        }
+
+        // 2. Check inner receiver: parse()
+        if let syn::Expr::MethodCall(parse_call) = &*unwrap_call.receiver {
+            if parse_call.method == "parse" {
+                // Found it! Return the receiver of the parse call (the string being parsed)
+                // We reconstruct it to a string to match the original function signature
+                return Some(quote::quote!(#parse_call).to_string());
             }
         }
     }
-
     None
 }
 
