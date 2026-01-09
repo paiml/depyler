@@ -642,6 +642,11 @@ pub(crate) fn codegen_function_body(
     // causing auto-borrow logic to skip local String variables with same names
     ctx.fn_str_params.clear();
 
+    // DEPYLER-1044: Clear numpy_vars from previous function
+    // Without this, numpy tracking from one function pollutes subsequent functions
+    // especially CSE temps like _cse_temp_0 which are reused across functions
+    ctx.numpy_vars.clear();
+
     for param in &func.params {
         ctx.declare_var(&param.name);
         // Store parameter type information for set/dict disambiguation
