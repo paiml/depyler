@@ -2460,26 +2460,27 @@ pub fn generate_rust_file(
                 }
             }
 
-            // DEPYLER-1041: Reverse Add implementations (primitive + DepylerValue)
-            // Allows expressions like `total + item` where total is i32 and item is DepylerValue
+            // DEPYLER-1041/1043: Reverse Add implementations (primitive + DepylerValue)
+            // Returns the LHS primitive type so `total = total + item` compiles
+            // where total is i32 and item is DepylerValue
             impl std::ops::Add<DepylerValue> for i32 {
-                type Output = DepylerValue;
+                type Output = i32;
                 fn add(self, rhs: DepylerValue) -> Self::Output {
-                    rhs + (self as i64)
+                    self + rhs.to_i64() as i32
                 }
             }
 
             impl std::ops::Add<DepylerValue> for i64 {
-                type Output = DepylerValue;
+                type Output = i64;
                 fn add(self, rhs: DepylerValue) -> Self::Output {
-                    rhs + self
+                    self + rhs.to_i64()
                 }
             }
 
             impl std::ops::Add<DepylerValue> for f64 {
-                type Output = DepylerValue;
+                type Output = f64;
                 fn add(self, rhs: DepylerValue) -> Self::Output {
-                    rhs + self
+                    self + rhs.to_f64()
                 }
             }
 
@@ -2511,35 +2512,24 @@ pub fn generate_rust_file(
                 }
             }
 
-            // DEPYLER-1041: Reverse Sub implementations (primitive - DepylerValue)
+            // DEPYLER-1041/1043: Reverse Sub implementations (primitive - DepylerValue)
+            // Returns the LHS primitive type for assignment compatibility
             impl std::ops::Sub<DepylerValue> for i32 {
-                type Output = DepylerValue;
+                type Output = i32;
                 fn sub(self, rhs: DepylerValue) -> Self::Output {
-                    match rhs {
-                        DepylerValue::Int(_dv_int) => DepylerValue::Int(self as i64 - _dv_int),
-                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self as f64 - _dv_float),
-                        _ => DepylerValue::None,
-                    }
+                    self - rhs.to_i64() as i32
                 }
             }
             impl std::ops::Sub<DepylerValue> for i64 {
-                type Output = DepylerValue;
+                type Output = i64;
                 fn sub(self, rhs: DepylerValue) -> Self::Output {
-                    match rhs {
-                        DepylerValue::Int(_dv_int) => DepylerValue::Int(self - _dv_int),
-                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self as f64 - _dv_float),
-                        _ => DepylerValue::None,
-                    }
+                    self - rhs.to_i64()
                 }
             }
             impl std::ops::Sub<DepylerValue> for f64 {
-                type Output = DepylerValue;
+                type Output = f64;
                 fn sub(self, rhs: DepylerValue) -> Self::Output {
-                    match rhs {
-                        DepylerValue::Int(_dv_int) => DepylerValue::Float(self - _dv_int as f64),
-                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self - _dv_float),
-                        _ => DepylerValue::None,
-                    }
+                    self - rhs.to_f64()
                 }
             }
 
@@ -2571,23 +2561,24 @@ pub fn generate_rust_file(
                 }
             }
 
-            // DEPYLER-1041: Reverse Mul implementations (primitive * DepylerValue)
+            // DEPYLER-1041/1043: Reverse Mul implementations (primitive * DepylerValue)
+            // Returns the LHS primitive type for assignment compatibility
             impl std::ops::Mul<DepylerValue> for i32 {
-                type Output = DepylerValue;
+                type Output = i32;
                 fn mul(self, rhs: DepylerValue) -> Self::Output {
-                    rhs * (self as i64)
+                    self * rhs.to_i64() as i32
                 }
             }
             impl std::ops::Mul<DepylerValue> for i64 {
-                type Output = DepylerValue;
+                type Output = i64;
                 fn mul(self, rhs: DepylerValue) -> Self::Output {
-                    rhs * self
+                    self * rhs.to_i64()
                 }
             }
             impl std::ops::Mul<DepylerValue> for f64 {
-                type Output = DepylerValue;
+                type Output = f64;
                 fn mul(self, rhs: DepylerValue) -> Self::Output {
-                    rhs * self
+                    self * rhs.to_f64()
                 }
             }
 
@@ -2621,41 +2612,28 @@ pub fn generate_rust_file(
                 }
             }
 
-            // DEPYLER-1041: Reverse Div implementations (primitive / DepylerValue)
+            // DEPYLER-1041/1043: Reverse Div implementations (primitive / DepylerValue)
+            // Returns the LHS primitive type for assignment compatibility
+            // Division by zero returns 0 (safe default)
             impl std::ops::Div<DepylerValue> for i32 {
-                type Output = DepylerValue;
+                type Output = i32;
                 fn div(self, rhs: DepylerValue) -> Self::Output {
-                    match rhs {
-                        DepylerValue::Int(0) => DepylerValue::None,
-                        DepylerValue::Int(_dv_int) => DepylerValue::Int(self as i64 / _dv_int),
-                        DepylerValue::Float(_dv_float) if _dv_float == 0.0 => DepylerValue::None,
-                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self as f64 / _dv_float),
-                        _ => DepylerValue::None,
-                    }
+                    let divisor = rhs.to_i64() as i32;
+                    if divisor == 0 { 0 } else { self / divisor }
                 }
             }
             impl std::ops::Div<DepylerValue> for i64 {
-                type Output = DepylerValue;
+                type Output = i64;
                 fn div(self, rhs: DepylerValue) -> Self::Output {
-                    match rhs {
-                        DepylerValue::Int(0) => DepylerValue::None,
-                        DepylerValue::Int(_dv_int) => DepylerValue::Int(self / _dv_int),
-                        DepylerValue::Float(_dv_float) if _dv_float == 0.0 => DepylerValue::None,
-                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self as f64 / _dv_float),
-                        _ => DepylerValue::None,
-                    }
+                    let divisor = rhs.to_i64();
+                    if divisor == 0 { 0 } else { self / divisor }
                 }
             }
             impl std::ops::Div<DepylerValue> for f64 {
-                type Output = DepylerValue;
+                type Output = f64;
                 fn div(self, rhs: DepylerValue) -> Self::Output {
-                    match rhs {
-                        DepylerValue::Int(0) => DepylerValue::None,
-                        DepylerValue::Int(_dv_int) => DepylerValue::Float(self / _dv_int as f64),
-                        DepylerValue::Float(_dv_float) if _dv_float == 0.0 => DepylerValue::None,
-                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self / _dv_float),
-                        _ => DepylerValue::None,
-                    }
+                    let divisor = rhs.to_f64();
+                    if divisor == 0.0 { 0.0 } else { self / divisor }
                 }
             }
 
@@ -2718,6 +2696,45 @@ pub fn generate_rust_file(
                     match self {
                         DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int | rhs),
                         _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1046: IntoIterator for DepylerValue to allow `for x in value` syntax
+            // Python behavior:
+            // - list: iterate over elements
+            // - dict: iterate over keys
+            // - str: iterate over characters (collected to avoid borrow issues)
+            // - other: empty iterator
+            impl IntoIterator for DepylerValue {
+                type Item = DepylerValue;
+                type IntoIter = std::vec::IntoIter<DepylerValue>;
+
+                fn into_iter(self) -> Self::IntoIter {
+                    match self {
+                        DepylerValue::List(_dv_list) => _dv_list.into_iter(),
+                        DepylerValue::Dict(_dv_dict) => _dv_dict.into_keys().collect::<Vec<_>>().into_iter(),
+                        DepylerValue::Str(_dv_str) => {
+                            _dv_str.chars().map(|_dv_c| DepylerValue::Str(_dv_c.to_string())).collect::<Vec<_>>().into_iter()
+                        }
+                        _ => Vec::new().into_iter(),
+                    }
+                }
+            }
+
+            // DEPYLER-1046: IntoIterator for &DepylerValue (by reference)
+            impl<'_dv_a> IntoIterator for &'_dv_a DepylerValue {
+                type Item = DepylerValue;
+                type IntoIter = std::vec::IntoIter<DepylerValue>;
+
+                fn into_iter(self) -> Self::IntoIter {
+                    match self {
+                        DepylerValue::List(_dv_list) => _dv_list.iter().cloned().collect::<Vec<_>>().into_iter(),
+                        DepylerValue::Dict(_dv_dict) => _dv_dict.keys().cloned().collect::<Vec<_>>().into_iter(),
+                        DepylerValue::Str(_dv_str) => {
+                            _dv_str.chars().map(|_dv_c| DepylerValue::Str(_dv_c.to_string())).collect::<Vec<_>>().into_iter()
+                        }
+                        _ => Vec::new().into_iter(),
                     }
                 }
             }
