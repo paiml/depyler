@@ -4557,6 +4557,44 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
                         }
                     }
+                    // DEPYLER-1040: Handle struct field access (e.g., args.debug, args.count)
+                    HirExpr::Attribute { attr, .. } => {
+                        if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+                            match field_type {
+                                Type::Int => parse_quote! { DepylerValue::Int(#val_expr as i64) },
+                                Type::Float => parse_quote! { DepylerValue::Float(#val_expr as f64) },
+                                Type::Bool => parse_quote! { DepylerValue::Bool(#val_expr) },
+                                Type::String => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
+                                Type::Optional(inner) => {
+                                    match inner.as_ref() {
+                                        Type::Int => parse_quote! {
+                                            match #val_expr {
+                                                Some(v) => DepylerValue::Int(v as i64),
+                                                None => DepylerValue::None,
+                                            }
+                                        },
+                                        Type::String => parse_quote! {
+                                            match #val_expr {
+                                                Some(v) => DepylerValue::Str(v.to_string()),
+                                                None => DepylerValue::None,
+                                            }
+                                        },
+                                        _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                                    }
+                                }
+                                Type::List(_) => parse_quote! {
+                                    DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect())
+                                },
+                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                            }
+                        } else {
+                            // DEPYLER-1040: Without explicit type info, use safe stringify
+                            // Name-based heuristics are unreliable because fields might be Option<T>
+                            // (e.g., args.count could be Option<i32>, not i32)
+                            // Using format!("{:?}") is safe for any type
+                            parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                        }
+                    }
                     // TODO: Handle nested List/Dict by recursively enabling DepylerValue context?
                     // For now, fallback to string representation for complex nested types to avoid compile errors
                     _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
@@ -4843,6 +4881,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-1031: Track complex expressions (function calls, method calls, etc.)
         // These are treated as "unknown type" and trigger mixed type handling
         let mut has_complex_expr = false;
+        // DEPYLER-1040: Track unknown-type attribute accesses
+        // If we have multiple, assume they're potentially different types
+        let mut unknown_attribute_count = 0;
         // DEPYLER-0601: Also track list element types for heterogeneous detection
         let mut has_list_of_int = false;
         let mut has_list_of_string = false;
@@ -4867,6 +4908,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             Type::String => has_string_literal = true,
                             _ => {}
                         }
+                    }
+                }
+                // DEPYLER-1040: Handle struct field access (e.g., args.debug, args.count)
+                // Look up field type from class_field_types or infer from attribute name
+                HirExpr::Attribute { attr, .. } => {
+                    if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+                        match field_type {
+                            Type::Bool => has_bool_literal = true,
+                            Type::Int => has_int_literal = true,
+                            Type::Float => has_float_literal = true,
+                            Type::String => has_string_literal = true,
+                            Type::List(_) => has_complex_expr = true,
+                            Type::Optional(_) => has_complex_expr = true,
+                            _ => has_complex_expr = true,
+                        }
+                    } else {
+                        // DEPYLER-1040: Without explicit type info, count as unknown
+                        // Multiple unknown attributes likely have different types
+                        unknown_attribute_count += 1;
                     }
                 }
                 // DEPYLER-0601: Check list element types for heterogeneous detection
@@ -4908,9 +4968,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         .filter(|&&b| b)
         .count();
 
-        // Use json! if we have 2+ distinct literal types OR 2+ distinct list types
+        // Use DepylerValue/json! if we have 2+ distinct literal types OR 2+ distinct list types
         // This handles both {"a": 1, "b": "str"} and {"items": [1,2], "tags": ["a"]}
-        Ok(distinct_literal_types >= 2 || distinct_list_types >= 2)
+        // DEPYLER-1040: Also trigger for multiple unknown-type attributes (likely different types)
+        Ok(distinct_literal_types >= 2 || distinct_list_types >= 2 || unknown_attribute_count >= 2)
     }
 
     /// DEPYLER-0461: Recursively check if dict contains any nested dicts
