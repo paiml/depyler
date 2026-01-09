@@ -2460,6 +2460,29 @@ pub fn generate_rust_file(
                 }
             }
 
+            // DEPYLER-1041: Reverse Add implementations (primitive + DepylerValue)
+            // Allows expressions like `total + item` where total is i32 and item is DepylerValue
+            impl std::ops::Add<DepylerValue> for i32 {
+                type Output = DepylerValue;
+                fn add(self, rhs: DepylerValue) -> Self::Output {
+                    rhs + (self as i64)
+                }
+            }
+
+            impl std::ops::Add<DepylerValue> for i64 {
+                type Output = DepylerValue;
+                fn add(self, rhs: DepylerValue) -> Self::Output {
+                    rhs + self
+                }
+            }
+
+            impl std::ops::Add<DepylerValue> for f64 {
+                type Output = DepylerValue;
+                fn add(self, rhs: DepylerValue) -> Self::Output {
+                    rhs + self
+                }
+            }
+
             // DEPYLER-1040b: Sub with concrete types
             impl std::ops::Sub<i64> for DepylerValue {
                 type Output = DepylerValue;
@@ -2483,6 +2506,38 @@ pub fn generate_rust_file(
                     match self {
                         DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 - rhs),
                         DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float - rhs),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1041: Reverse Sub implementations (primitive - DepylerValue)
+            impl std::ops::Sub<DepylerValue> for i32 {
+                type Output = DepylerValue;
+                fn sub(self, rhs: DepylerValue) -> Self::Output {
+                    match rhs {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(self as i64 - _dv_int),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self as f64 - _dv_float),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+            impl std::ops::Sub<DepylerValue> for i64 {
+                type Output = DepylerValue;
+                fn sub(self, rhs: DepylerValue) -> Self::Output {
+                    match rhs {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(self - _dv_int),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self as f64 - _dv_float),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+            impl std::ops::Sub<DepylerValue> for f64 {
+                type Output = DepylerValue;
+                fn sub(self, rhs: DepylerValue) -> Self::Output {
+                    match rhs {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Float(self - _dv_int as f64),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self - _dv_float),
                         _ => DepylerValue::None,
                     }
                 }
@@ -2516,6 +2571,26 @@ pub fn generate_rust_file(
                 }
             }
 
+            // DEPYLER-1041: Reverse Mul implementations (primitive * DepylerValue)
+            impl std::ops::Mul<DepylerValue> for i32 {
+                type Output = DepylerValue;
+                fn mul(self, rhs: DepylerValue) -> Self::Output {
+                    rhs * (self as i64)
+                }
+            }
+            impl std::ops::Mul<DepylerValue> for i64 {
+                type Output = DepylerValue;
+                fn mul(self, rhs: DepylerValue) -> Self::Output {
+                    rhs * self
+                }
+            }
+            impl std::ops::Mul<DepylerValue> for f64 {
+                type Output = DepylerValue;
+                fn mul(self, rhs: DepylerValue) -> Self::Output {
+                    rhs * self
+                }
+            }
+
             // DEPYLER-1040b: Div with concrete types
             impl std::ops::Div<i64> for DepylerValue {
                 type Output = DepylerValue;
@@ -2541,6 +2616,44 @@ pub fn generate_rust_file(
                     match self {
                         DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 / rhs),
                         DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float / rhs),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1041: Reverse Div implementations (primitive / DepylerValue)
+            impl std::ops::Div<DepylerValue> for i32 {
+                type Output = DepylerValue;
+                fn div(self, rhs: DepylerValue) -> Self::Output {
+                    match rhs {
+                        DepylerValue::Int(0) => DepylerValue::None,
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(self as i64 / _dv_int),
+                        DepylerValue::Float(_dv_float) if _dv_float == 0.0 => DepylerValue::None,
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self as f64 / _dv_float),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+            impl std::ops::Div<DepylerValue> for i64 {
+                type Output = DepylerValue;
+                fn div(self, rhs: DepylerValue) -> Self::Output {
+                    match rhs {
+                        DepylerValue::Int(0) => DepylerValue::None,
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(self / _dv_int),
+                        DepylerValue::Float(_dv_float) if _dv_float == 0.0 => DepylerValue::None,
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self as f64 / _dv_float),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+            impl std::ops::Div<DepylerValue> for f64 {
+                type Output = DepylerValue;
+                fn div(self, rhs: DepylerValue) -> Self::Output {
+                    match rhs {
+                        DepylerValue::Int(0) => DepylerValue::None,
+                        DepylerValue::Int(_dv_int) => DepylerValue::Float(self / _dv_int as f64),
+                        DepylerValue::Float(_dv_float) if _dv_float == 0.0 => DepylerValue::None,
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(self / _dv_float),
                         _ => DepylerValue::None,
                     }
                 }
