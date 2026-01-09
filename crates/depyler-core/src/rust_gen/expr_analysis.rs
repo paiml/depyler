@@ -82,22 +82,43 @@ pub fn expr_infers_float(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
 }
 
 /// DEPYLER-0932: Check if an expression produces a numpy/trueno Vector value
+/// DEPYLER-1044: Fixed to not flag abs(scalar), sqrt(scalar), etc. as numpy
 pub fn is_numpy_value_expr(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
     match expr {
-        HirExpr::Call { func, .. } => {
-            matches!(
+        // These always create vectors
+        HirExpr::Call { func, .. }
+            if matches!(
                 func.as_str(),
-                "array" | "zeros" | "ones" | "empty" | "linspace" | "arange"
-                    | "full" | "copy" | "abs" | "sqrt" | "sin" | "cos" | "exp"
-                    | "log" | "clip" | "clamp" | "normalize"
-            )
+                "array" | "zeros" | "ones" | "empty" | "linspace" | "arange" | "full" | "copy"
+            ) =>
+        {
+            true
         }
-        HirExpr::MethodCall { method, .. } => {
-            matches!(
+        // DEPYLER-1044: abs, sqrt, etc. return vector ONLY if argument is vector
+        // abs(scalar) -> scalar, abs(array) -> array
+        HirExpr::Call { func, args, .. }
+            if matches!(
+                func.as_str(),
+                "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" | "clip" | "clamp" | "normalize"
+            ) =>
+        {
+            args.first().map_or(false, |arg| is_numpy_value_expr(arg, ctx))
+        }
+        // DEPYLER-1044: Method calls preserve numpy nature of object
+        HirExpr::MethodCall { object, method, .. }
+            if matches!(
                 method.as_str(),
-                "array" | "zeros" | "ones" | "abs" | "sqrt" | "sin" | "cos"
-                    | "exp" | "log" | "clip" | "clamp" | "unwrap" | "scale"
-            )
+                "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" | "clip" | "clamp" | "unwrap"
+                    | "scale"
+            ) =>
+        {
+            is_numpy_value_expr(object, ctx)
+        }
+        // These method calls always create vectors
+        HirExpr::MethodCall { method, .. }
+            if matches!(method.as_str(), "array" | "zeros" | "ones") =>
+        {
+            true
         }
         HirExpr::Binary { left, right, .. } => {
             is_numpy_value_expr(left, ctx) || is_numpy_value_expr(right, ctx)

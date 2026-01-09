@@ -206,17 +206,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return true;
             }
             // DEPYLER-0950: Heuristic for colorsys color channel variables
-            // Single-letter color channel names like r, g, h, s, v, l are typically f64
-            // from colorsys.hsv_to_rgb(), rgb_to_hsv(), rgb_to_hls() etc.
-            // Only match exact single-letter names to avoid false positives
-            // DEPYLER-0954: Note: a, b, x, y are too generic and cause false positives
-            // (b, y were incorrectly included before - causes spurious float casts)
-            if matches!(
-                name.as_str(),
-                "r" | "g" | "h" | "s" | "v" | "l" | "c" | "m" | "k"
-            ) {
-                return true;
-            }
+            // DEPYLER-1044: REMOVED - single-letter heuristics are too aggressive
+            // "c", "r", "g", etc. often appear as loop counters or general-purpose vars
+            // Better to require explicit type annotation for float variables
+            // Previously caused false positives: c in test_cse.py nested_expressions
         }
         false
     }
