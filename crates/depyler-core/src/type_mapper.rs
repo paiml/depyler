@@ -22,6 +22,15 @@ pub enum StringStrategy {
 pub struct TypeMapper {
     pub width_preference: IntWidth,
     pub string_type: StringStrategy,
+    /// DEPYLER-1015: NASA single-shot compile mode - use std-only types
+    /// When true, uses String instead of serde_json::Value for unknown types
+    #[serde(default = "default_nasa_mode")]
+    pub nasa_mode: bool,
+}
+
+/// DEPYLER-1015: Default to NASA mode enabled for backward compatibility
+fn default_nasa_mode() -> bool {
+    true
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -101,6 +110,7 @@ impl Default for TypeMapper {
         Self {
             width_preference: IntWidth::I32,
             string_type: StringStrategy::AlwaysOwned,
+            nasa_mode: true, // DEPYLER-1015: Default to NASA mode for single-shot compile
         }
     }
 }
@@ -120,6 +130,32 @@ impl TypeMapper {
         self
     }
 
+    /// DEPYLER-1015: Enable/disable NASA single-shot compile mode
+    pub fn with_nasa_mode(mut self, enabled: bool) -> Self {
+        self.nasa_mode = enabled;
+        self
+    }
+
+    /// DEPYLER-1015: Get the fallback type for unknown values
+    /// In NASA mode: String (std-only, always compiles with rustc)
+    /// In normal mode: serde_json::Value (requires cargo/external crate)
+    fn unknown_fallback(&self) -> RustType {
+        if self.nasa_mode {
+            RustType::Custom("DepylerValue".to_string())
+        } else {
+            RustType::Custom("serde_json::Value".to_string())
+        }
+    }
+
+    /// DEPYLER-1015: Get the fallback type name as a string for format! usage
+    fn unknown_fallback_str(&self) -> &'static str {
+        if self.nasa_mode {
+            "DepylerValue"
+        } else {
+            "serde_json::Value"
+        }
+    }
+
     pub fn map_type(&self, py_type: &PythonType) -> RustType {
         // CITL: Trace Python→Rust type mapping decision
         trace_decision!(
@@ -131,10 +167,11 @@ impl TypeMapper {
         );
 
         match py_type {
-            // DEPYLER-0781: Map Unknown to serde_json::Value for concrete typing
+            // DEPYLER-0781: Map Unknown to concrete fallback type
             // Previously used TypeParam("T") which caused E0283 errors when T
             // wasn't actually used in the function signature
-            PythonType::Unknown => RustType::Custom("serde_json::Value".to_string()),
+            // DEPYLER-1015: Use unknown_fallback() for NASA mode compatibility
+            PythonType::Unknown => self.unknown_fallback(),
             PythonType::Int => RustType::Primitive(match self.width_preference {
                 IntWidth::I32 => PrimitiveType::I32,
                 IntWidth::I64 => PrimitiveType::I64,
@@ -148,25 +185,25 @@ impl TypeMapper {
             },
             PythonType::Bool => RustType::Primitive(PrimitiveType::Bool),
             PythonType::None => RustType::Unit,
-            // DEPYLER-0750: Use serde_json::Value for bare list (no type params)
+            // DEPYLER-0750: Use fallback for bare list (no type params)
             // to avoid generating Vec<T> which requires generic parameter declaration
+            // DEPYLER-1015: Use unknown_fallback() for NASA mode compatibility
             PythonType::List(inner) => match inner.as_ref() {
-                PythonType::Unknown => RustType::Vec(Box::new(RustType::Custom(
-                    "serde_json::Value".to_string(),
-                ))),
+                PythonType::Unknown => RustType::Vec(Box::new(self.unknown_fallback())),
                 _ => RustType::Vec(Box::new(self.map_type(inner))),
             },
             PythonType::Dict(k, v) => {
                 // DEPYLER-0776: Use concrete types for Dict with Unknown key/value
-                // Bare `dict` annotation → Dict(Unknown, Unknown) → HashMap<String, serde_json::Value>
+                // Bare `dict` annotation → Dict(Unknown, Unknown) → HashMap<String, fallback>
                 // This matches common Python usage patterns and avoids E0412 for undeclared T
+                // DEPYLER-1015: Use unknown_fallback() for NASA mode compatibility
                 let key_type = if matches!(**k, PythonType::Unknown) {
                     RustType::String
                 } else {
                     self.map_type(k)
                 };
                 let val_type = if matches!(**v, PythonType::Unknown) {
-                    RustType::Custom("serde_json::Value".to_string())
+                    self.unknown_fallback()
                 } else {
                     self.map_type(v)
                 };
@@ -191,16 +228,15 @@ impl TypeMapper {
                     // DEPYLER-0718: Use serde_json::Value for bare Dict/List to enable
                     // single-shot compilation. TypeParam("V"/"T") requires generics declaration
                     // which isn't generated, causing E0412 "cannot find type" errors.
+                    // DEPYLER-1015: Use unknown_fallback() for NASA mode compatibility
                     match name.as_str() {
                         "Dict" => RustType::HashMap(
                             Box::new(RustType::String), // Default to String keys
-                            Box::new(RustType::Custom("serde_json::Value".to_string())), // DEPYLER-0718: Use Value, not TypeParam
+                            Box::new(self.unknown_fallback()), // DEPYLER-0718/1015: Use fallback, not TypeParam
                         ),
                         // DEPYLER-0609: Handle both "List" (typing import) and "list" (builtin)
-                        // DEPYLER-0718: Use serde_json::Value for bare List (no type params)
-                        "List" | "list" => RustType::Vec(Box::new(RustType::Custom(
-                            "serde_json::Value".to_string(),
-                        ))),
+                        // DEPYLER-0718/1015: Use fallback for bare List (no type params)
+                        "List" | "list" => RustType::Vec(Box::new(self.unknown_fallback())),
                         "Set" => RustType::HashSet(Box::new(RustType::String)),
                         // DEPYLER-0379: Handle generic tuple annotation
                         // Python `-> tuple` (without type parameters) maps to empty Rust tuple `()`
@@ -227,29 +263,41 @@ impl TypeMapper {
                         "Callable" | "typing.Callable" | "callable" => {
                             RustType::Custom("impl Fn()".to_string())
                         }
-                        // DEPYLER-0589: Python Any type maps to serde_json::Value
+                        // DEPYLER-0589/1015: Python Any type maps to fallback
                         // Both typing.Any and bare 'any' need to be handled
-                        "Any" | "typing.Any" | "any" => {
-                            RustType::Custom("serde_json::Value".to_string())
-                        }
-                        // DEPYLER-0628: Python object type maps to serde_json::Value
+                        "Any" | "typing.Any" | "any" => self.unknown_fallback(),
+                        // DEPYLER-0628/1015: Python object type maps to fallback
                         // Python's base object type needs dynamic typing in Rust
-                        "object" | "builtins.object" => {
-                            RustType::Custom("serde_json::Value".to_string())
-                        }
-                        // DEPYLER-0592: Python datetime module types map to chrono types
-                        // This fixes E0412 errors where 'date', 'datetime', 'time' are unknown types
+                        "object" | "builtins.object" => self.unknown_fallback(),
+                        // DEPYLER-0592/1025: Python datetime module types
+                        // NASA mode: use std::time types; otherwise use chrono
                         "date" | "datetime.date" => {
-                            RustType::Custom("chrono::NaiveDate".to_string())
+                            if self.nasa_mode {
+                                RustType::Custom("(u32, u32, u32)".to_string()) // (year, month, day)
+                            } else {
+                                RustType::Custom("chrono::NaiveDate".to_string())
+                            }
                         }
                         "datetime" | "datetime.datetime" => {
-                            RustType::Custom("chrono::NaiveDateTime".to_string())
+                            if self.nasa_mode {
+                                RustType::Custom("std::time::SystemTime".to_string())
+                            } else {
+                                RustType::Custom("chrono::NaiveDateTime".to_string())
+                            }
                         }
                         "time" | "datetime.time" => {
-                            RustType::Custom("chrono::NaiveTime".to_string())
+                            if self.nasa_mode {
+                                RustType::Custom("(u32, u32, u32)".to_string()) // (hour, min, sec)
+                            } else {
+                                RustType::Custom("chrono::NaiveTime".to_string())
+                            }
                         }
                         "timedelta" | "datetime.timedelta" => {
-                            RustType::Custom("chrono::Duration".to_string())
+                            if self.nasa_mode {
+                                RustType::Custom("std::time::Duration".to_string())
+                            } else {
+                                RustType::Custom("chrono::Duration".to_string())
+                            }
                         }
                         // DEPYLER-197: Python Path types map to std::path::PathBuf
                         // pathlib.Path → PathBuf (owned path, can be modified)
@@ -270,10 +318,10 @@ impl TypeMapper {
                         | "ZeroDivisionError" | "OverflowError" | "ArithmeticError" => {
                             RustType::Custom("Box<dyn std::error::Error>".to_string())
                         }
-                        // DEPYLER-0742: Python collections.deque maps to std::collections::VecDeque
+                        // DEPYLER-0742/1015: Python collections.deque maps to std::collections::VecDeque
                         // VecDeque is the Rust equivalent of Python's deque (double-ended queue)
                         "deque" | "collections.deque" | "Deque" => {
-                            RustType::Custom("std::collections::VecDeque<serde_json::Value>".to_string())
+                            RustType::Custom(format!("std::collections::VecDeque<{}>", self.unknown_fallback_str()))
                         }
                         // DEPYLER-0742: Python Counter maps to HashMap (for now)
                         // A proper Counter implementation would need a wrapper type
@@ -424,14 +472,15 @@ impl TypeMapper {
                 _ => RustType::HashSet(Box::new(self.map_type(inner))),
             },
             PythonType::UnificationVar(id) => {
-                // DEPYLER-0692: UnificationVar indicates incomplete type inference
+                // DEPYLER-0692/1015: UnificationVar indicates incomplete type inference
                 // Instead of panicking, fall back to a generic type
                 // This allows compilation to proceed even when inference is incomplete
                 tracing::warn!(
-                    "UnificationVar({}) encountered in type mapper. Falling back to serde_json::Value.",
-                    id
+                    "UnificationVar({}) encountered in type mapper. Falling back to {}.",
+                    id,
+                    self.unknown_fallback_str()
                 );
-                RustType::Custom("serde_json::Value".to_string())
+                self.unknown_fallback()
             }
         }
     }
@@ -815,12 +864,12 @@ mod tests {
             "MyClass"
         );
 
-        // DEPYLER-0781: Unknown type now maps to serde_json::Value (concrete fallback)
-        // This prevents unused generic parameter errors (E0283)
+        // DEPYLER-0781/1015: Unknown type now maps to String in NASA mode (default)
+        // This prevents unused generic parameter errors (E0283) and ensures single-shot compile
         let unknown_type = PythonType::Unknown;
         assert_eq!(
             mapper.map_type(&unknown_type),
-            RustType::Custom("serde_json::Value".to_string())
+            RustType::String // NASA mode default
         );
     }
 
@@ -842,32 +891,27 @@ mod tests {
 
     #[test]
     fn test_depyler_0589_any_type_mapping() {
-        // DEPYLER-0589: Python `any` and `Any` should map to serde_json::Value
+        // DEPYLER-0589/1015: Python `any` and `Any` should map to String in NASA mode
         let mapper = TypeMapper::new();
 
-        // Lowercase 'any'
+        // Lowercase 'any' - maps to String in NASA mode
         let any_lower = PythonType::Custom("any".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&any_lower) {
-            assert_eq!(name, "serde_json::Value");
-        } else {
-            panic!("Expected Custom type for 'any'");
-        }
+        assert_eq!(mapper.map_type(&any_lower), RustType::String);
 
         // Uppercase 'Any'
         let any_upper = PythonType::Custom("Any".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&any_upper) {
-            assert_eq!(name, "serde_json::Value");
-        } else {
-            panic!("Expected Custom type for 'Any'");
-        }
+        assert_eq!(mapper.map_type(&any_upper), RustType::String);
 
         // typing.Any
         let typing_any = PythonType::Custom("typing.Any".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&typing_any) {
-            assert_eq!(name, "serde_json::Value");
-        } else {
-            panic!("Expected Custom type for 'typing.Any'");
-        }
+        assert_eq!(mapper.map_type(&typing_any), RustType::String);
+
+        // Non-NASA mode should use serde_json::Value
+        let non_nasa_mapper = TypeMapper::new().with_nasa_mode(false);
+        assert_eq!(
+            non_nasa_mapper.map_type(&any_lower),
+            RustType::Custom("serde_json::Value".to_string())
+        );
     }
 
     #[test]
@@ -920,81 +964,90 @@ mod tests {
         assert!(mapper.needs_reference(&RustType::HashSet(Box::new(RustType::String))));
     }
 
-    // ============ datetime type mappings (DEPYLER-0592) ============
+    // ============ datetime type mappings (DEPYLER-0592/1025) ============
+    // DEPYLER-1025: Tests now test both NASA mode (std types) and non-NASA mode (chrono types)
 
     #[test]
     fn test_date_type_mapping() {
-        let mapper = TypeMapper::new();
-
+        // NASA mode (default) - uses tuple
+        let nasa_mapper = TypeMapper::new();
         let date = PythonType::Custom("date".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&date) {
-            assert_eq!(name, "chrono::NaiveDate");
+        if let RustType::Custom(name) = nasa_mapper.map_type(&date) {
+            assert_eq!(name, "(u32, u32, u32)");
         } else {
-            panic!("Expected Custom type for 'date'");
+            panic!("Expected Custom type for 'date' in NASA mode");
         }
 
+        // Non-NASA mode - uses chrono
+        let non_nasa_mapper = TypeMapper::new().with_nasa_mode(false);
         let datetime_date = PythonType::Custom("datetime.date".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&datetime_date) {
+        if let RustType::Custom(name) = non_nasa_mapper.map_type(&datetime_date) {
             assert_eq!(name, "chrono::NaiveDate");
         } else {
-            panic!("Expected Custom type for 'datetime.date'");
+            panic!("Expected Custom type for 'datetime.date' in non-NASA mode");
         }
     }
 
     #[test]
     fn test_datetime_type_mapping() {
-        let mapper = TypeMapper::new();
-
+        // NASA mode (default) - uses std::time::SystemTime
+        let nasa_mapper = TypeMapper::new();
         let datetime = PythonType::Custom("datetime".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&datetime) {
-            assert_eq!(name, "chrono::NaiveDateTime");
+        if let RustType::Custom(name) = nasa_mapper.map_type(&datetime) {
+            assert_eq!(name, "std::time::SystemTime");
         } else {
-            panic!("Expected Custom type for 'datetime'");
+            panic!("Expected Custom type for 'datetime' in NASA mode");
         }
 
+        // Non-NASA mode - uses chrono
+        let non_nasa_mapper = TypeMapper::new().with_nasa_mode(false);
         let datetime_datetime = PythonType::Custom("datetime.datetime".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&datetime_datetime) {
+        if let RustType::Custom(name) = non_nasa_mapper.map_type(&datetime_datetime) {
             assert_eq!(name, "chrono::NaiveDateTime");
         } else {
-            panic!("Expected Custom type for 'datetime.datetime'");
+            panic!("Expected Custom type for 'datetime.datetime' in non-NASA mode");
         }
     }
 
     #[test]
     fn test_time_type_mapping() {
-        let mapper = TypeMapper::new();
-
+        // NASA mode (default) - uses tuple
+        let nasa_mapper = TypeMapper::new();
         let time = PythonType::Custom("time".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&time) {
-            assert_eq!(name, "chrono::NaiveTime");
+        if let RustType::Custom(name) = nasa_mapper.map_type(&time) {
+            assert_eq!(name, "(u32, u32, u32)");
         } else {
-            panic!("Expected Custom type for 'time'");
+            panic!("Expected Custom type for 'time' in NASA mode");
         }
 
+        // Non-NASA mode - uses chrono
+        let non_nasa_mapper = TypeMapper::new().with_nasa_mode(false);
         let datetime_time = PythonType::Custom("datetime.time".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&datetime_time) {
+        if let RustType::Custom(name) = non_nasa_mapper.map_type(&datetime_time) {
             assert_eq!(name, "chrono::NaiveTime");
         } else {
-            panic!("Expected Custom type for 'datetime.time'");
+            panic!("Expected Custom type for 'datetime.time' in non-NASA mode");
         }
     }
 
     #[test]
     fn test_timedelta_type_mapping() {
-        let mapper = TypeMapper::new();
-
+        // NASA mode (default) - uses std::time::Duration
+        let nasa_mapper = TypeMapper::new();
         let timedelta = PythonType::Custom("timedelta".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&timedelta) {
-            assert_eq!(name, "chrono::Duration");
+        if let RustType::Custom(name) = nasa_mapper.map_type(&timedelta) {
+            assert_eq!(name, "std::time::Duration");
         } else {
-            panic!("Expected Custom type for 'timedelta'");
+            panic!("Expected Custom type for 'timedelta' in NASA mode");
         }
 
+        // Non-NASA mode - uses chrono
+        let non_nasa_mapper = TypeMapper::new().with_nasa_mode(false);
         let datetime_timedelta = PythonType::Custom("datetime.timedelta".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&datetime_timedelta) {
+        if let RustType::Custom(name) = non_nasa_mapper.map_type(&datetime_timedelta) {
             assert_eq!(name, "chrono::Duration");
         } else {
-            panic!("Expected Custom type for 'datetime.timedelta'");
+            panic!("Expected Custom type for 'datetime.timedelta' in non-NASA mode");
         }
     }
 
@@ -1135,26 +1188,24 @@ mod tests {
 
     #[test]
     fn test_object_type_mapping() {
+        // DEPYLER-1015: In NASA mode, object maps to String
         let mapper = TypeMapper::new();
 
         let object = PythonType::Custom("object".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&object) {
-            assert_eq!(name, "serde_json::Value");
-        } else {
-            panic!("Expected Custom type for 'object'");
-        }
+        assert_eq!(mapper.map_type(&object), RustType::String);
     }
 
-    // ============ bare collection type mappings (DEPYLER-0718) ============
+    // ============ bare collection type mappings (DEPYLER-0718/1015) ============
 
     #[test]
     fn test_bare_dict_type_mapping() {
+        // DEPYLER-1015: In NASA mode, bare Dict uses String for values
         let mapper = TypeMapper::new();
 
         let dict = PythonType::Custom("Dict".to_string());
         if let RustType::HashMap(k, v) = mapper.map_type(&dict) {
             assert_eq!(*k, RustType::String);
-            assert_eq!(*v, RustType::Custom("serde_json::Value".to_string()));
+            assert_eq!(*v, RustType::String); // NASA mode: String fallback
         } else {
             panic!("Expected HashMap for 'Dict'");
         }
@@ -1162,18 +1213,19 @@ mod tests {
 
     #[test]
     fn test_bare_list_type_mapping() {
+        // DEPYLER-1015: In NASA mode, bare List uses String for elements
         let mapper = TypeMapper::new();
 
         let list = PythonType::Custom("List".to_string());
         if let RustType::Vec(inner) = mapper.map_type(&list) {
-            assert_eq!(*inner, RustType::Custom("serde_json::Value".to_string()));
+            assert_eq!(*inner, RustType::String); // NASA mode: String fallback
         } else {
             panic!("Expected Vec for 'List'");
         }
 
         let list_lower = PythonType::Custom("list".to_string());
         if let RustType::Vec(inner) = mapper.map_type(&list_lower) {
-            assert_eq!(*inner, RustType::Custom("serde_json::Value".to_string()));
+            assert_eq!(*inner, RustType::String); // NASA mode: String fallback
         } else {
             panic!("Expected Vec for 'list'");
         }
@@ -1586,12 +1638,9 @@ mod tests {
     fn test_object_builtins_type_mapping() {
         let mapper = TypeMapper::new();
 
+        // DEPYLER-1015: In NASA mode, builtins.object maps to String
         let obj = PythonType::Custom("builtins.object".to_string());
-        if let RustType::Custom(name) = mapper.map_type(&obj) {
-            assert_eq!(name, "serde_json::Value");
-        } else {
-            panic!("Expected serde_json::Value for builtins.object");
-        }
+        assert_eq!(mapper.map_type(&obj), RustType::String);
     }
 
     // ============ Additional RustType tests ============
