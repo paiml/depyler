@@ -336,6 +336,10 @@ pub struct CodeGenContext<'a> {
     /// - Subscript: `memo[k] = v` → `memo.as_mut().unwrap().insert(k, v)`
     pub mut_option_dict_params: HashSet<String>, // DEPYLER-0964: Track &mut Option<Dict> params
     pub needs_depyler_value_enum: bool,          // DEPYLER-FIX-RC2: Track need for DepylerValue enum
+    /// DEPYLER-1060: Track module-level constant types (dict, list, set)
+    /// These persist across function boundaries and aren't cleared when processing functions.
+    /// Used by is_dict_expr() to recognize module-level statics accessed from within functions.
+    pub module_constant_types: HashMap<String, Type>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -660,6 +664,7 @@ pub mod test_helpers {
             function_param_types: HashMap::new(),
             mut_option_dict_params: HashSet::new(),
             needs_depyler_value_enum: false,
+            module_constant_types: HashMap::new(), // DEPYLER-1060
         }
     }
 }

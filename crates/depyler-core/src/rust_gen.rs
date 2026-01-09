@@ -1185,20 +1185,28 @@ fn infer_lazy_constant_type(
         }
     }
 
-    // DEPYLER-1016: Handle Dict/List properly in NASA mode
+    // DEPYLER-1016/1060: Handle Dict/List properly in NASA mode using DepylerValue
+    // DEPYLER-1060: Use DepylerValue for keys to support non-string keys like {1: "a"}
     if ctx.type_mapper.nasa_mode {
         match value {
             HirExpr::Dict(_) => {
                 ctx.needs_hashmap = true;
-                return quote! { std::collections::HashMap<String, String> };
+                ctx.needs_depyler_value_enum = true;
+                return quote! { std::collections::HashMap<DepylerValue, DepylerValue> };
             }
             HirExpr::List(_) => {
-                // For lists, try to infer element type, fallback to String
-                return quote! { Vec<String> };
+                ctx.needs_depyler_value_enum = true;
+                return quote! { Vec<DepylerValue> };
             }
             HirExpr::Set(_) => {
                 ctx.needs_hashset = true;
-                return quote! { std::collections::HashSet<String> };
+                ctx.needs_depyler_value_enum = true;
+                return quote! { std::collections::HashSet<DepylerValue> };
+            }
+            // DEPYLER-1060: Index into DepylerValue dict returns DepylerValue
+            HirExpr::Index { .. } => {
+                ctx.needs_depyler_value_enum = true;
+                return quote! { DepylerValue };
             }
             _ => {}
         }
@@ -1364,11 +1372,12 @@ fn is_path_constant_expr(value: &HirExpr) -> bool {
     }
 }
 
-/// DEPYLER-0516: Infer type annotation for unary expressions (negative/positive literals)
+/// DEPYLER-0516: Infer type annotation for unary expressions
 ///
-/// Handles type inference for unary operations like -1, +1, --1, -1.5, etc.
+/// Handles type inference for unary operations like -1, +1, --1, -1.5, !True, ~0xFF, etc.
 /// DEPYLER-1022: Uses NASA mode aware fallback type
-/// Complexity: 5 (recursive pattern matching with early returns)
+/// DEPYLER-1040b: Fixed to handle Not and BitNot correctly (not falling through to String)
+/// Complexity: 7 (recursive pattern matching with early returns)
 fn infer_unary_type(
     op: &UnaryOp,
     operand: &HirExpr,
@@ -1383,13 +1392,39 @@ fn infer_unary_type(
         (UnaryOp::Neg | UnaryOp::Pos, HirExpr::Literal(Literal::Float(_))) => {
             quote! { : f64 }
         }
-        // Nested unary (e.g., --1) - recursively check inner operand
+        // DEPYLER-1040b: Logical NOT on bool literal → bool
+        (UnaryOp::Not, HirExpr::Literal(Literal::Bool(_))) => {
+            quote! { : bool }
+        }
+        // DEPYLER-1040b: Bitwise NOT on int literal → i32
+        (UnaryOp::BitNot, HirExpr::Literal(Literal::Int(_))) => {
+            quote! { : i32 }
+        }
+        // Nested unary (e.g., --1, !!True, ~~0xFF) - recursively check inner operand
         (UnaryOp::Neg | UnaryOp::Pos, HirExpr::Unary { operand: inner, .. }) => {
             match inner.as_ref() {
                 HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
                 HirExpr::Literal(Literal::Float(_)) => quote! { : f64 },
                 _ => ctx.fallback_type_annotation(),
             }
+        }
+        // DEPYLER-1040b: Nested logical NOT (e.g., !!True)
+        (UnaryOp::Not, HirExpr::Unary { operand: inner, op: UnaryOp::Not }) => {
+            match inner.as_ref() {
+                HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
+                _ => ctx.fallback_type_annotation(),
+            }
+        }
+        // DEPYLER-1040b: Nested bitwise NOT (e.g., ~~0xFF)
+        (UnaryOp::BitNot, HirExpr::Unary { operand: inner, op: UnaryOp::BitNot }) => {
+            match inner.as_ref() {
+                HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
+                _ => ctx.fallback_type_annotation(),
+            }
+        }
+        // DEPYLER-1040b: NOT on identifier - fallback to bool (logical not always returns bool)
+        (UnaryOp::Not, _) => {
+            quote! { : bool }
         }
         // Other unary operations - fallback (DEPYLER-1022: NASA mode aware)
         _ => ctx.fallback_type_annotation(),
@@ -1418,6 +1453,24 @@ fn generate_constant_tokens(
     let mut last_by_name: HashMap<&str, &HirConstant> = HashMap::new();
     for constant in constants {
         last_by_name.insert(&constant.name, constant);
+    }
+
+    // DEPYLER-1060: Pre-register module-level constants in var_types
+    // This enables is_dict_expr() to work for module-level statics like `d = {1: "a"}`
+    for constant in constants {
+        let const_type = match &constant.value {
+            HirExpr::Dict(_) => Some(crate::hir::Type::Dict(
+                Box::new(crate::hir::Type::Unknown),
+                Box::new(crate::hir::Type::Unknown),
+            )),
+            HirExpr::List(_) => Some(crate::hir::Type::List(Box::new(crate::hir::Type::Unknown))),
+            HirExpr::Set(_) => Some(crate::hir::Type::Set(Box::new(crate::hir::Type::Unknown))),
+            _ => None,
+        };
+        if let Some(t) = const_type {
+            ctx.var_types
+                .insert(constant.name.clone().into(), t.clone());
+        }
     }
 
     let mut items = Vec::new();
@@ -1462,9 +1515,10 @@ fn generate_constant_tokens(
         // DEPYLER-REARCH-001: Complex types need runtime initialization (Lazy)
         // DEPYLER-0188: PathBuf expressions also need runtime init (not const-evaluable)
         // DEPYLER-0714: Function calls also need runtime init - can't be const
+        // DEPYLER-1060: Index expressions into statics need runtime init
         let needs_runtime_init = matches!(
             &constant.value,
-            HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_) | HirExpr::Call { .. }
+            HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_) | HirExpr::Call { .. } | HirExpr::Index { .. }
         ) || is_path_constant_expr(&constant.value);
 
         let token = if needs_runtime_init {
@@ -1814,6 +1868,7 @@ pub fn generate_rust_file(
         adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
         function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
         mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
+        module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
     };
 
     // Analyze all functions first for string optimization
@@ -1934,6 +1989,25 @@ pub fn generate_rust_file(
     let (classes, adt_child_to_parent) = convert_classes_to_rust(&module.classes, ctx.type_mapper, &ctx.vararg_functions)?;
     ctx.adt_child_to_parent = adt_child_to_parent;
 
+    // DEPYLER-1060: Pre-register module-level constant types BEFORE function conversion
+    // This enables is_dict_expr() to work for module-level statics like `d = {1: "a"}`
+    // when accessed from within functions (e.g., val = d[1])
+    // Uses module_constant_types (not var_types) because var_types is cleared per-function
+    for constant in &module.constants {
+        let const_type = match &constant.value {
+            HirExpr::Dict(_) => Some(Type::Dict(
+                Box::new(Type::Unknown),
+                Box::new(Type::Unknown),
+            )),
+            HirExpr::List(_) => Some(Type::List(Box::new(Type::Unknown))),
+            HirExpr::Set(_) => Some(Type::Set(Box::new(Type::Unknown))),
+            _ => None,
+        };
+        if let Some(t) = const_type {
+            ctx.module_constant_types.insert(constant.name.clone(), t.clone());
+        }
+    }
+
     // Convert all functions to detect what imports we need
     let functions = convert_functions_to_rust(&module.functions, &mut ctx)?;
 
@@ -1988,41 +2062,88 @@ pub fn generate_rust_file(
     // DEPYLER-FIX-RC2: Inject DepylerValue enum if heterogeneous dicts were detected
     // OR if we are in NASA mode (since TypeMapper now defaults 'Any' to DepylerValue)
     // DEPYLER-1043: Added trait implementations for Display, len, chars, insert, Index
+    // DEPYLER-1040b/1051: Added Hash/Eq for dict keys (Point 14 falsification fix)
     if ctx.needs_depyler_value_enum || nasa_mode {
         let depyler_value_enum = quote! {
             /// Sum type for heterogeneous dictionary values (Python fidelity)
-            #[derive(Debug, Clone, PartialEq)]
+            /// DEPYLER-1040b: Now implements Hash + Eq to support non-string dict keys
+            #[derive(Debug, Clone, Default)]
             pub enum DepylerValue {
                 Int(i64),
                 Float(f64),
                 Str(String),
                 Bool(bool),
+                #[default]
                 None,
                 List(Vec<DepylerValue>),
-                Dict(std::collections::HashMap<String, DepylerValue>),
+                Dict(std::collections::HashMap<DepylerValue, DepylerValue>),
             }
 
-            impl std::fmt::Display for DepylerValue {
-                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            // DEPYLER-1040b: Implement PartialEq manually (f64 doesn't derive Eq)
+            // DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
+            impl PartialEq for DepylerValue {
+                fn eq(&self, other: &Self) -> bool {
+                    match (self, other) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => _dv_a == _dv_b,
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => _dv_a.to_bits() == _dv_b.to_bits(),
+                        (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => _dv_a == _dv_b,
+                        (DepylerValue::Bool(_dv_a), DepylerValue::Bool(_dv_b)) => _dv_a == _dv_b,
+                        (DepylerValue::None, DepylerValue::None) => true,
+                        (DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) => _dv_a == _dv_b,
+                        (DepylerValue::Dict(_dv_a), DepylerValue::Dict(_dv_b)) => _dv_a == _dv_b,
+                        _ => false,
+                    }
+                }
+            }
+
+            // DEPYLER-1040b: Implement Eq (required for HashMap keys)
+            impl Eq for DepylerValue {}
+
+            // DEPYLER-1040b: Implement Hash (required for HashMap keys)
+            // Uses to_bits() for f64 to ensure consistent hashing
+            // DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
+            impl std::hash::Hash for DepylerValue {
+                fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                    std::mem::discriminant(self).hash(state);
                     match self {
-                        DepylerValue::Int(i) => write!(f, "{}", i),
-                        DepylerValue::Float(fl) => write!(f, "{}", fl),
-                        DepylerValue::Str(s) => write!(f, "{}", s),
-                        DepylerValue::Bool(b) => write!(f, "{}", b),
-                        DepylerValue::None => write!(f, "None"),
-                        DepylerValue::List(l) => write!(f, "{:?}", l),
-                        DepylerValue::Dict(d) => write!(f, "{:?}", d),
+                        DepylerValue::Int(_dv_int) => _dv_int.hash(state),
+                        DepylerValue::Float(_dv_float) => _dv_float.to_bits().hash(state),
+                        DepylerValue::Str(_dv_str) => _dv_str.hash(state),
+                        DepylerValue::Bool(_dv_bool) => _dv_bool.hash(state),
+                        DepylerValue::None => {}
+                        DepylerValue::List(_dv_list) => _dv_list.hash(state),
+                        DepylerValue::Dict(_) => {
+                            // Dicts are not hashable in Python either
+                            // We hash the length as a fallback (matches Python's TypeError)
+                            0u8.hash(state);
+                        }
+                    }
+                }
+            }
+
+            // DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
+            impl std::fmt::Display for DepylerValue {
+                fn fmt(&self, _dv_fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    match self {
+                        DepylerValue::Int(_dv_int) => write!(_dv_fmt, "{}", _dv_int),
+                        DepylerValue::Float(_dv_float) => write!(_dv_fmt, "{}", _dv_float),
+                        DepylerValue::Str(_dv_str) => write!(_dv_fmt, "{}", _dv_str),
+                        DepylerValue::Bool(_dv_bool) => write!(_dv_fmt, "{}", _dv_bool),
+                        DepylerValue::None => write!(_dv_fmt, "None"),
+                        DepylerValue::List(_dv_list) => write!(_dv_fmt, "{:?}", _dv_list),
+                        DepylerValue::Dict(_dv_dict) => write!(_dv_fmt, "{:?}", _dv_dict),
                     }
                 }
             }
 
             impl DepylerValue {
                 /// Get length of string, list, or dict
+                /// DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
                 pub fn len(&self) -> usize {
                     match self {
-                        DepylerValue::Str(s) => s.len(),
-                        DepylerValue::List(l) => l.len(),
-                        DepylerValue::Dict(d) => d.len(),
+                        DepylerValue::Str(_dv_str) => _dv_str.len(),
+                        DepylerValue::List(_dv_list) => _dv_list.len(),
+                        DepylerValue::Dict(_dv_dict) => _dv_dict.len(),
                         _ => 0,
                     }
                 }
@@ -2035,56 +2156,116 @@ pub fn generate_rust_file(
                 /// Get chars iterator for string values
                 pub fn chars(&self) -> std::str::Chars<'_> {
                     match self {
-                        DepylerValue::Str(s) => s.chars(),
+                        DepylerValue::Str(_dv_str) => _dv_str.chars(),
                         _ => "".chars(),
                     }
                 }
 
                 /// Insert into dict (mutates self if Dict variant)
-                pub fn insert(&mut self, key: String, value: DepylerValue) {
-                    if let DepylerValue::Dict(d) = self {
-                        d.insert(key, value);
+                /// DEPYLER-1040b: Now accepts DepylerValue keys for non-string dict keys
+                pub fn insert(&mut self, key: impl Into<DepylerValue>, value: impl Into<DepylerValue>) {
+                    if let DepylerValue::Dict(_dv_dict) = self {
+                        _dv_dict.insert(key.into(), value.into());
                     }
                 }
 
                 /// Get value from dict by key
-                pub fn get(&self, key: &str) -> Option<&DepylerValue> {
-                    if let DepylerValue::Dict(d) = self {
-                        d.get(key)
+                /// DEPYLER-1040b: Now accepts DepylerValue keys
+                pub fn get(&self, key: &DepylerValue) -> Option<&DepylerValue> {
+                    if let DepylerValue::Dict(_dv_dict) = self {
+                        _dv_dict.get(key)
                     } else {
                         Option::None
                     }
                 }
 
+                /// Get value from dict by string key (convenience method)
+                pub fn get_str(&self, key: &str) -> Option<&DepylerValue> {
+                    self.get(&DepylerValue::Str(key.to_string()))
+                }
+
                 /// Check if dict contains key
-                pub fn contains_key(&self, key: &str) -> bool {
-                    if let DepylerValue::Dict(d) = self {
-                        d.contains_key(key)
+                /// DEPYLER-1040b: Now accepts DepylerValue keys
+                pub fn contains_key(&self, key: &DepylerValue) -> bool {
+                    if let DepylerValue::Dict(_dv_dict) = self {
+                        _dv_dict.contains_key(key)
                     } else {
                         false
+                    }
+                }
+
+                /// Check if dict contains string key (convenience method)
+                pub fn contains_key_str(&self, key: &str) -> bool {
+                    self.contains_key(&DepylerValue::Str(key.to_string()))
+                }
+
+                /// DEPYLER-1051: Get iterator over list values
+                /// Returns an empty iterator for non-list types
+                pub fn iter(&self) -> std::slice::Iter<'_, DepylerValue> {
+                    match self {
+                        DepylerValue::List(_dv_list) => _dv_list.iter(),
+                        _ => [].iter(),
+                    }
+                }
+
+                /// DEPYLER-1051: Get mutable iterator over list values
+                pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, DepylerValue> {
+                    match self {
+                        DepylerValue::List(_dv_list) => _dv_list.iter_mut(),
+                        _ => [].iter_mut(),
+                    }
+                }
+
+                /// DEPYLER-1051: Get iterator over dict key-value pairs
+                /// DEPYLER-1040b: Now uses DepylerValue keys
+                pub fn items(&self) -> std::collections::hash_map::Iter<'_, DepylerValue, DepylerValue> {
+                    static EMPTY_MAP: std::sync::LazyLock<std::collections::HashMap<DepylerValue, DepylerValue>> = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+                    match self {
+                        DepylerValue::Dict(_dv_dict) => _dv_dict.iter(),
+                        _ => EMPTY_MAP.iter(),
+                    }
+                }
+
+                /// DEPYLER-1051: Get iterator over dict keys
+                /// DEPYLER-1040b: Now returns DepylerValue keys
+                pub fn keys(&self) -> std::collections::hash_map::Keys<'_, DepylerValue, DepylerValue> {
+                    static EMPTY_MAP: std::sync::LazyLock<std::collections::HashMap<DepylerValue, DepylerValue>> = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+                    match self {
+                        DepylerValue::Dict(_dv_dict) => _dv_dict.keys(),
+                        _ => EMPTY_MAP.keys(),
+                    }
+                }
+
+                /// DEPYLER-1051: Get iterator over dict values
+                /// DEPYLER-1040b: Now uses DepylerValue keys internally
+                pub fn values(&self) -> std::collections::hash_map::Values<'_, DepylerValue, DepylerValue> {
+                    static EMPTY_MAP: std::sync::LazyLock<std::collections::HashMap<DepylerValue, DepylerValue>> = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+                    match self {
+                        DepylerValue::Dict(_dv_dict) => _dv_dict.values(),
+                        _ => EMPTY_MAP.values(),
                     }
                 }
 
                 /// Convert to String
                 pub fn to_string(&self) -> String {
                     match self {
-                        DepylerValue::Str(s) => s.clone(),
-                        DepylerValue::Int(i) => i.to_string(),
-                        DepylerValue::Float(fl) => fl.to_string(),
-                        DepylerValue::Bool(b) => b.to_string(),
+                        DepylerValue::Str(_dv_str) => _dv_str.clone(),
+                        DepylerValue::Int(_dv_int) => _dv_int.to_string(),
+                        DepylerValue::Float(_dv_float) => _dv_float.to_string(),
+                        DepylerValue::Bool(_dv_bool) => _dv_bool.to_string(),
                         DepylerValue::None => "None".to_string(),
-                        DepylerValue::List(l) => format!("{:?}", l),
-                        DepylerValue::Dict(d) => format!("{:?}", d),
+                        DepylerValue::List(_dv_list) => format!("{:?}", _dv_list),
+                        DepylerValue::Dict(_dv_dict) => format!("{:?}", _dv_dict),
                     }
                 }
 
                 /// Convert to i64
                 pub fn to_i64(&self) -> i64 {
                     match self {
-                        DepylerValue::Int(i) => *i,
-                        DepylerValue::Float(fl) => *fl as i64,
-                        DepylerValue::Bool(b) => if *b { 1 } else { 0 },
-                        DepylerValue::Str(s) => s.parse().unwrap_or(0),
+                        DepylerValue::Int(_dv_int) => *_dv_int,
+                        DepylerValue::Float(_dv_float) => *_dv_float as i64,
+                        DepylerValue::Bool(_dv_bool) => if *_dv_bool { 1 } else { 0 },
+                        DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0),
                         _ => 0,
                     }
                 }
@@ -2092,10 +2273,10 @@ pub fn generate_rust_file(
                 /// Convert to f64
                 pub fn to_f64(&self) -> f64 {
                     match self {
-                        DepylerValue::Float(fl) => *fl,
-                        DepylerValue::Int(i) => *i as f64,
-                        DepylerValue::Bool(b) => if *b { 1.0 } else { 0.0 },
-                        DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+                        DepylerValue::Float(_dv_float) => *_dv_float,
+                        DepylerValue::Int(_dv_int) => *_dv_int as f64,
+                        DepylerValue::Bool(_dv_bool) => if *_dv_bool { 1.0 } else { 0.0 },
+                        DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0.0),
                         _ => 0.0,
                     }
                 }
@@ -2103,12 +2284,12 @@ pub fn generate_rust_file(
                 /// Convert to bool
                 pub fn to_bool(&self) -> bool {
                     match self {
-                        DepylerValue::Bool(b) => *b,
-                        DepylerValue::Int(i) => *i != 0,
-                        DepylerValue::Float(fl) => *fl != 0.0,
-                        DepylerValue::Str(s) => !s.is_empty(),
-                        DepylerValue::List(l) => !l.is_empty(),
-                        DepylerValue::Dict(d) => !d.is_empty(),
+                        DepylerValue::Bool(_dv_bool) => *_dv_bool,
+                        DepylerValue::Int(_dv_int) => *_dv_int != 0,
+                        DepylerValue::Float(_dv_float) => *_dv_float != 0.0,
+                        DepylerValue::Str(_dv_str) => !_dv_str.is_empty(),
+                        DepylerValue::List(_dv_list) => !_dv_list.is_empty(),
+                        DepylerValue::Dict(_dv_dict) => !_dv_dict.is_empty(),
                         DepylerValue::None => false,
                     }
                 }
@@ -2116,9 +2297,9 @@ pub fn generate_rust_file(
 
             impl std::ops::Index<usize> for DepylerValue {
                 type Output = DepylerValue;
-                fn index(&self, idx: usize) -> &Self::Output {
+                fn index(&self, _dv_idx: usize) -> &Self::Output {
                     match self {
-                        DepylerValue::List(l) => &l[idx],
+                        DepylerValue::List(_dv_list) => &_dv_list[_dv_idx],
                         _ => panic!("Cannot index non-list DepylerValue"),
                     }
                 }
@@ -2126,10 +2307,304 @@ pub fn generate_rust_file(
 
             impl std::ops::Index<&str> for DepylerValue {
                 type Output = DepylerValue;
-                fn index(&self, key: &str) -> &Self::Output {
+                fn index(&self, _dv_key: &str) -> &Self::Output {
+                    // DEPYLER-1040b: Convert &str to DepylerValue for lookup
                     match self {
-                        DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+                        DepylerValue::Dict(_dv_dict) => _dv_dict.get(&DepylerValue::Str(_dv_key.to_string())).unwrap_or(&DepylerValue::None),
                         _ => panic!("Cannot index non-dict DepylerValue with string key"),
+                    }
+                }
+            }
+
+            // DEPYLER-1040b: Index by DepylerValue key (for non-string keys like integers)
+            impl std::ops::Index<DepylerValue> for DepylerValue {
+                type Output = DepylerValue;
+                fn index(&self, _dv_key: DepylerValue) -> &Self::Output {
+                    match self {
+                        DepylerValue::Dict(_dv_dict) => _dv_dict.get(&_dv_key).unwrap_or(&DepylerValue::None),
+                        _ => panic!("Cannot index non-dict DepylerValue"),
+                    }
+                }
+            }
+
+            // DEPYLER-1040b: Index by integer key (common Python pattern: d[1])
+            // DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
+            impl std::ops::Index<i64> for DepylerValue {
+                type Output = DepylerValue;
+                fn index(&self, _dv_key: i64) -> &Self::Output {
+                    match self {
+                        DepylerValue::Dict(_dv_dict) => _dv_dict.get(&DepylerValue::Int(_dv_key)).unwrap_or(&DepylerValue::None),
+                        DepylerValue::List(_dv_list) => &_dv_list[_dv_key as usize],
+                        _ => panic!("Cannot index DepylerValue with integer"),
+                    }
+                }
+            }
+
+            impl std::ops::Index<i32> for DepylerValue {
+                type Output = DepylerValue;
+                fn index(&self, _dv_key: i32) -> &Self::Output {
+                    &self[_dv_key as i64]
+                }
+            }
+
+            // DEPYLER-1051: From<T> implementations for seamless value creation
+            // Enables: let x: DepylerValue = 42.into();
+            impl From<i64> for DepylerValue {
+                fn from(v: i64) -> Self { DepylerValue::Int(v) }
+            }
+            impl From<i32> for DepylerValue {
+                fn from(v: i32) -> Self { DepylerValue::Int(v as i64) }
+            }
+            impl From<f64> for DepylerValue {
+                fn from(v: f64) -> Self { DepylerValue::Float(v) }
+            }
+            impl From<String> for DepylerValue {
+                fn from(v: String) -> Self { DepylerValue::Str(v) }
+            }
+            impl From<&str> for DepylerValue {
+                fn from(v: &str) -> Self { DepylerValue::Str(v.to_string()) }
+            }
+            impl From<bool> for DepylerValue {
+                fn from(v: bool) -> Self { DepylerValue::Bool(v) }
+            }
+            impl From<Vec<DepylerValue>> for DepylerValue {
+                fn from(v: Vec<DepylerValue>) -> Self { DepylerValue::List(v) }
+            }
+            // DEPYLER-1040b: Updated to use DepylerValue keys
+            impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
+                fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self { DepylerValue::Dict(v) }
+            }
+            // DEPYLER-1040b: Backward compatibility for String-keyed HashMaps
+            impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
+                fn from(v: std::collections::HashMap<String, DepylerValue>) -> Self {
+                    let converted: std::collections::HashMap<DepylerValue, DepylerValue> = v
+                        .into_iter()
+                        .map(|(k, v)| (DepylerValue::Str(k), v))
+                        .collect();
+                    DepylerValue::Dict(converted)
+                }
+            }
+
+            // DEPYLER-1051: Arithmetic operations for DepylerValue
+            // Enables: let result = x + y; where x, y are DepylerValue
+            // DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
+            impl std::ops::Add for DepylerValue {
+                type Output = DepylerValue;
+                fn add(self, rhs: Self) -> Self::Output {
+                    match (self, rhs) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Int(_dv_a + _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a + _dv_b),
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a as f64 + _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Float(_dv_a + _dv_b as f64),
+                        (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => DepylerValue::Str(_dv_a + &_dv_b),
+                        _ => DepylerValue::None, // Incompatible types
+                    }
+                }
+            }
+
+            impl std::ops::Sub for DepylerValue {
+                type Output = DepylerValue;
+                fn sub(self, rhs: Self) -> Self::Output {
+                    match (self, rhs) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Int(_dv_a - _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a - _dv_b),
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a as f64 - _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Float(_dv_a - _dv_b as f64),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            impl std::ops::Mul for DepylerValue {
+                type Output = DepylerValue;
+                fn mul(self, rhs: Self) -> Self::Output {
+                    match (self, rhs) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Int(_dv_a * _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a * _dv_b),
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a as f64 * _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Float(_dv_a * _dv_b as f64),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            impl std::ops::Div for DepylerValue {
+                type Output = DepylerValue;
+                fn div(self, rhs: Self) -> Self::Output {
+                    match (self, rhs) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => DepylerValue::Int(_dv_a / _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => DepylerValue::Float(_dv_a / _dv_b),
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => DepylerValue::Float(_dv_a as f64 / _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => DepylerValue::Float(_dv_a / _dv_b as f64),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1051: Add with concrete types (for mixed operations)
+            impl std::ops::Add<i64> for DepylerValue {
+                type Output = DepylerValue;
+                fn add(self, rhs: i64) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int + rhs),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float + rhs as f64),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            impl std::ops::Add<i32> for DepylerValue {
+                type Output = DepylerValue;
+                fn add(self, rhs: i32) -> Self::Output {
+                    self + (rhs as i64)
+                }
+            }
+
+            // DEPYLER-1040b: Sub with concrete types
+            impl std::ops::Sub<i64> for DepylerValue {
+                type Output = DepylerValue;
+                fn sub(self, rhs: i64) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int - rhs),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float - rhs as f64),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+            impl std::ops::Sub<i32> for DepylerValue {
+                type Output = DepylerValue;
+                fn sub(self, rhs: i32) -> Self::Output {
+                    self - (rhs as i64)
+                }
+            }
+            impl std::ops::Sub<f64> for DepylerValue {
+                type Output = DepylerValue;
+                fn sub(self, rhs: f64) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 - rhs),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float - rhs),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1040b: Mul with concrete types
+            impl std::ops::Mul<i64> for DepylerValue {
+                type Output = DepylerValue;
+                fn mul(self, rhs: i64) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int * rhs),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float * rhs as f64),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+            impl std::ops::Mul<i32> for DepylerValue {
+                type Output = DepylerValue;
+                fn mul(self, rhs: i32) -> Self::Output {
+                    self * (rhs as i64)
+                }
+            }
+            impl std::ops::Mul<f64> for DepylerValue {
+                type Output = DepylerValue;
+                fn mul(self, rhs: f64) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 * rhs),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float * rhs),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1040b: Div with concrete types
+            impl std::ops::Div<i64> for DepylerValue {
+                type Output = DepylerValue;
+                fn div(self, rhs: i64) -> Self::Output {
+                    if rhs == 0 { return DepylerValue::None; }
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int / rhs),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float / rhs as f64),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+            impl std::ops::Div<i32> for DepylerValue {
+                type Output = DepylerValue;
+                fn div(self, rhs: i32) -> Self::Output {
+                    self / (rhs as i64)
+                }
+            }
+            impl std::ops::Div<f64> for DepylerValue {
+                type Output = DepylerValue;
+                fn div(self, rhs: f64) -> Self::Output {
+                    if rhs == 0.0 { return DepylerValue::None; }
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 / rhs),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float / rhs),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1040b: Add f64 for completeness
+            impl std::ops::Add<f64> for DepylerValue {
+                type Output = DepylerValue;
+                fn add(self, rhs: f64) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 + rhs),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float + rhs),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1040b: Neg (unary minus) for DepylerValue
+            impl std::ops::Neg for DepylerValue {
+                type Output = DepylerValue;
+                fn neg(self) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(-_dv_int),
+                        DepylerValue::Float(_dv_float) => DepylerValue::Float(-_dv_float),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1040b: Not (logical not) for DepylerValue
+            impl std::ops::Not for DepylerValue {
+                type Output = bool;
+                fn not(self) -> Self::Output {
+                    !self.to_bool()
+                }
+            }
+
+            // DEPYLER-1040b: BitNot (bitwise not) for DepylerValue
+            impl std::ops::BitXor<i64> for DepylerValue {
+                type Output = DepylerValue;
+                fn bitxor(self, rhs: i64) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int ^ rhs),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            impl std::ops::BitAnd<i64> for DepylerValue {
+                type Output = DepylerValue;
+                fn bitand(self, rhs: i64) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int & rhs),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            impl std::ops::BitOr<i64> for DepylerValue {
+                type Output = DepylerValue;
+                fn bitor(self, rhs: i64) -> Self::Output {
+                    match self {
+                        DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int | rhs),
+                        _ => DepylerValue::None,
                     }
                 }
             }
@@ -2538,6 +3013,8 @@ mod tests {
             adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
             function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
             mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
+            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
         }
     }
 
@@ -3504,16 +3981,16 @@ mod tests {
     }
 
     #[test]
-    fn test_infer_unary_type_not_fallback() {
+    fn test_infer_unary_type_not_returns_bool() {
+        // DEPYLER-1040b: Logical NOT always returns bool, not a fallback type
         let mut ctx = create_test_context();
         let result = infer_unary_type(
             &UnaryOp::Not,
             &HirExpr::Var("x".to_string()),
             &mut ctx,
         );
-        // DEPYLER-1022: NASA mode (default) uses String fallback, non-NASA uses serde_json::Value
         let result_str = result.to_string();
-        assert!(result_str.contains("String") || result_str.contains("Value"));
+        assert!(result_str.contains("bool"), "Expected bool type for NOT, got: {}", result_str);
     }
 
     #[test]
