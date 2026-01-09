@@ -6103,6 +6103,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     false
                 }
             }
+            // DEPYLER-1044: Handle attribute access (e.g., self.config)
+            HirExpr::Attribute { attr, .. } => {
+                if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+                    matches!(field_type, Type::Dict(_, _))
+                        || matches!(field_type, Type::Custom(s) if s == "Dict")
+                } else {
+                    // Heuristic: common dict-like attribute names
+                    let name = attr.as_str();
+                    name == "config"
+                        || name == "settings"
+                        || name == "options"
+                        || name == "data"
+                        || name == "metadata"
+                        || name == "headers"
+                        || name == "params"
+                        || name == "kwargs"
+                        || name.ends_with("_dict")
+                        || name.ends_with("_map")
+                }
+            }
             _ => false,
         }
     }
@@ -6305,6 +6325,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 left,
                 right,
             } => self.is_list_expr(left) || self.is_list_expr(right),
+            // DEPYLER-1044: Handle attribute access (e.g., self.permissions)
+            // Check class_field_types for the attribute's type
+            HirExpr::Attribute { attr, .. } => {
+                if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+                    matches!(field_type, Type::List(_))
+                } else {
+                    // Heuristic: common list-like attribute names
+                    let name = attr.as_str();
+                    name.ends_with("s") && !name.ends_with("ss")
+                        || name.ends_with("list")
+                        || name.ends_with("items")
+                        || name.ends_with("elements")
+                        || name == "permissions"
+                        || name == "values"
+                        || name == "keys"
+                        || name == "children"
+                        || name == "args"
+                }
+            }
             _ => false,
         }
     }
