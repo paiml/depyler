@@ -1,9 +1,14 @@
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 use std::collections::HashMap;
-use std::collections::IndexMap;
 use std::collections::VecDeque;
+const STR_A: &'static str = "a";
 const STR_APPLE: &'static str = "apple";
 const STR_B: &'static str = "b";
-const STR_A: &'static str = "a";
 #[derive(Debug, Clone)]
 pub struct IndexError {
     message: String,
@@ -21,13 +26,156 @@ impl IndexError {
         }
     }
 }
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    #[default]
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
 #[doc = "Test basic deque operations"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_deque_basic() -> Vec<i32> {
-    let mut d: deque = VecDeque::from(vec![1, 2, 3]);
-    d.push(4);
-    d.appendleft(0);
+    let mut d: std::collections::VecDeque<DepylerValue> = VecDeque::from(vec![1, 2, 3]);
+    d.push_back(4);
+    d.push_front(0);
     let result: Vec<i32> = d.into_iter().collect::<Vec<_>>();
     result
 }
@@ -35,16 +183,16 @@ pub fn test_deque_basic() -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_deque_pop() -> (i32, i32) {
-    let mut d: deque = VecDeque::from(vec![1, 2, 3, 4, 5]);
-    let right: i32 = d.pop().unwrap_or_default();
-    let left: i32 = d.popleft();
+    let mut d: std::collections::VecDeque<DepylerValue> = VecDeque::from(vec![1, 2, 3, 4, 5]);
+    let right: i32 = d.pop_back().unwrap_or_default();
+    let left: i32 = d.pop_front();
     (left, right)
 }
 #[doc = "Test deque extend operations"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_deque_extend() -> Vec<i32> {
-    let mut d: deque = VecDeque::from(vec![1, 2, 3]);
+    let mut d: std::collections::VecDeque<DepylerValue> = VecDeque::from(vec![1, 2, 3]);
     d.extend(vec![4, 5].iter().cloned());
     d.extendleft(vec![0, -1]);
     let result: Vec<i32> = d.into_iter().collect::<Vec<_>>();
@@ -54,10 +202,10 @@ pub fn test_deque_extend() -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_deque_rotate() -> Vec<i32> {
-    let mut d: deque = VecDeque::from(vec![1, 2, 3, 4, 5]);
-    for _i in 0..2 {
-        let item: i32 = d.pop().unwrap_or_default();
-        d.appendleft(item);
+    let mut d: std::collections::VecDeque<DepylerValue> = VecDeque::from(vec![1, 2, 3, 4, 5]);
+    for _i in 0..(2) {
+        let item: i32 = d.pop_back().unwrap_or_default();
+        d.push_front(item);
     }
     let result: Vec<i32> = d.into_iter().collect::<Vec<_>>();
     result
@@ -73,7 +221,7 @@ pub fn test_counter_basic() -> Result<HashMap<String, i32>, Box<dyn std::error::
         STR_APPLE.to_string(),
     ];
     let mut counts: std::collections::HashMap<String, i32> = {
-        let map = HashMap::new();
+        let map: HashMap<String, i32> = HashMap::new();
         map
     };
     for item in items.iter().cloned() {
@@ -84,7 +232,7 @@ pub fn test_counter_basic() -> Result<HashMap<String, i32>, Box<dyn std::error::
                 counts.insert(_key, _old_val + 1);
             }
         } else {
-            counts.insert(item.clone(), 1);
+            counts.insert(item.to_string().clone(), 1);
         }
     }
     Ok(counts)
@@ -95,7 +243,7 @@ pub fn test_counter_most_common(
     n: i32,
 ) -> Result<Vec<(String, i32)>, Box<dyn std::error::Error>> {
     let mut counts: std::collections::HashMap<String, i32> = {
-        let map = HashMap::new();
+        let map: HashMap<String, i32> = HashMap::new();
         map
     };
     for item in items.iter().cloned() {
@@ -106,7 +254,7 @@ pub fn test_counter_most_common(
                 counts.insert(_key, _old_val + 1);
             }
         } else {
-            counts.insert(item.clone(), 1);
+            counts.insert(item.to_string().clone(), 1);
         }
     }
     let mut count_list: Vec<(String, i32)> = vec![];
@@ -114,15 +262,29 @@ pub fn test_counter_most_common(
         let pair: (String, i32) = (key, counts.get(&key).cloned().unwrap_or_default());
         count_list.push(pair);
     }
-    for i in 0..count_list.len() as i32 {
-        for j in i + 1..count_list.len() as i32 {
-            if count_list.get(j as usize).cloned().unwrap_or_default().1
-                > count_list.get(i as usize).cloned().unwrap_or_default().1
+    for i in 0..(count_list.len() as i32) {
+        for j in (i + 1)..(count_list.len() as i32) {
+            if count_list
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .1
+                > count_list
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .1
             {
-                let temp: (String, i32) = count_list.get(i as usize).cloned().unwrap_or_default();
+                let temp: (String, i32) = count_list
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
                 count_list.insert(
                     (i) as usize,
-                    count_list.get(j as usize).cloned().unwrap_or_default(),
+                    count_list
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
                 );
                 count_list.insert((j) as usize, temp);
             }
@@ -156,11 +318,14 @@ pub fn test_counter_arithmetic() -> Result<HashMap<String, i32>, Box<dyn std::er
         map
     };
     let mut result: std::collections::HashMap<String, i32> = {
-        let map = HashMap::new();
+        let map: HashMap<String, i32> = HashMap::new();
         map
     };
     for key in counter1.keys().cloned().collect::<Vec<_>>() {
-        result.insert(key.clone(), counter1.get(&key).cloned().unwrap_or_default());
+        result.insert(
+            key.to_string().clone(),
+            counter1.get(&key).cloned().unwrap_or_default(),
+        );
     }
     for key in counter2.keys().cloned().collect::<Vec<_>>() {
         if result.get(&key).is_some() {
@@ -173,7 +338,10 @@ pub fn test_counter_arithmetic() -> Result<HashMap<String, i32>, Box<dyn std::er
                 );
             }
         } else {
-            result.insert(key.clone(), counter2.get(&key).cloned().unwrap_or_default());
+            result.insert(
+                key.to_string().clone(),
+                counter2.get(&key).cloned().unwrap_or_default(),
+            );
         }
     }
     Ok(result)
@@ -182,7 +350,7 @@ pub fn test_counter_arithmetic() -> Result<HashMap<String, i32>, Box<dyn std::er
 #[doc = " Depyler: verified panic-free"]
 pub fn test_defaultdict_int() -> HashMap<String, i32> {
     let mut counts: std::collections::HashMap<String, i32> = {
-        let map = HashMap::new();
+        let map: HashMap<String, i32> = HashMap::new();
         map
     };
     let words: Vec<String> = vec![
@@ -195,14 +363,14 @@ pub fn test_defaultdict_int() -> HashMap<String, i32> {
     ];
     for word in words.iter().cloned() {
         let current: i32 = counts.get(&word).cloned().unwrap_or(0);
-        counts.insert(word.clone(), current + 1);
+        counts.insert(word.to_string().clone(), current + 1);
     }
     counts
 }
 #[doc = "Test defaultdict with list default"]
 pub fn test_defaultdict_list() -> Result<HashMap<String, Vec<i32>>, Box<dyn std::error::Error>> {
     let mut groups: std::collections::HashMap<String, Vec<i32>> = {
-        let map = HashMap::new();
+        let map: HashMap<String, Vec<i32>> = HashMap::new();
         map
     };
     let pairs: Vec<(String, i32)> = vec![
@@ -215,8 +383,8 @@ pub fn test_defaultdict_list() -> Result<HashMap<String, Vec<i32>>, Box<dyn std:
     for pair in pairs.iter().cloned() {
         let key: String = pair.0;
         let value: i32 = pair.1;
-        if !groups.get(&key).is_some() {
-            groups.insert(key.clone(), vec![]);
+        if groups.get(&key).is_none() {
+            groups.insert(key.to_string().clone(), vec![]);
         }
         groups.get(&key).cloned().unwrap_or_default().push(value);
     }
@@ -226,12 +394,12 @@ pub fn test_defaultdict_list() -> Result<HashMap<String, Vec<i32>>, Box<dyn std:
 #[doc = " Depyler: verified panic-free"]
 pub fn test_ordereddict_basic() -> Vec<(String, i32)> {
     let mut od: std::collections::HashMap<String, i32> = {
-        let map = HashMap::new();
+        let map: HashMap<String, i32> = HashMap::new();
         map
     };
-    od.insert("first".to_string().to_string(), 1);
-    od.insert("second".to_string().to_string(), 2);
-    od.insert("third".to_string().to_string(), 3);
+    od.insert("first".to_string(), 1);
+    od.insert("second".to_string(), 2);
+    od.insert("third".to_string(), 3);
     let mut result: Vec<(String, i32)> = vec![];
     for key in od.keys().cloned().collect::<Vec<_>>() {
         let pair: (String, i32) = (key, od.get(&key).cloned().unwrap_or_default());
@@ -251,7 +419,7 @@ pub fn test_ordereddict_move_to_end() -> Vec<String> {
         map
     };
     let value: i32 = od.remove(STR_A).expect("KeyError: key not found");
-    od.insert(STR_A, value);
+    od.insert(STR_A.to_string(), value);
     let keys: Vec<String> = od.keys().cloned().collect::<Vec<_>>();
     keys
 }
@@ -264,13 +432,13 @@ pub fn test_chainmap<'b, 'a>(
     let key: String = "x".to_string();
     let _cse_temp_0 = dict1.get(&key).is_some();
     if _cse_temp_0 {
-        Ok(dict1.get(&key).cloned().unwrap_or_default())
+        return Ok(dict1.get(&key).cloned().unwrap_or_default());
     } else {
         let _cse_temp_1 = dict2.get(&key).is_some();
         if _cse_temp_1 {
-            Ok(dict2.get(&key).cloned().unwrap_or_default())
+            return Ok(dict2.get(&key).cloned().unwrap_or_default());
         } else {
-            Ok(-1)
+            return Ok(-1);
         }
     }
 }
@@ -283,7 +451,7 @@ pub fn word_frequency_counter(
         .map(|s| s.to_string())
         .collect::<Vec<String>>();
     let mut freq: std::collections::HashMap<String, i32> = {
-        let map = HashMap::new();
+        let map: HashMap<String, i32> = HashMap::new();
         map
     };
     for word in words.iter().cloned() {
@@ -294,7 +462,7 @@ pub fn word_frequency_counter(
                 freq.insert(_key, _old_val + 1);
             }
         } else {
-            freq.insert(word.clone(), 1);
+            freq.insert(word.to_string().clone(), 1);
         }
     }
     Ok(freq)
@@ -304,7 +472,7 @@ pub fn group_by_first_letter(
     words: &Vec<String>,
 ) -> Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> {
     let mut groups: std::collections::HashMap<String, Vec<String>> = {
-        let map = HashMap::new();
+        let map: HashMap<String, Vec<String>> = HashMap::new();
         map
     };
     for word in words.iter().cloned() {
@@ -324,8 +492,8 @@ pub fn group_by_first_letter(
                 .map(|c| c.to_string())
                 .unwrap_or_default()
         };
-        if !groups.get(&first_letter).is_some() {
-            groups.insert(first_letter.clone(), vec![]);
+        if groups.get(&first_letter).is_none() {
+            groups.insert(first_letter.to_string().clone(), vec![]);
         }
         groups
             .get(&first_letter)
@@ -338,13 +506,13 @@ pub fn group_by_first_letter(
 #[doc = "Use deque as a stack(LIFO)"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_deque_as_stack() -> Vec<i32> {
-    let mut stack: deque = VecDeque::new();
-    stack.push(1);
-    stack.push(2);
-    stack.push(3);
+    let mut stack: std::collections::VecDeque<DepylerValue> = VecDeque::new();
+    stack.push_back(1);
+    stack.push_back(2);
+    stack.push_back(3);
     let mut result: Vec<i32> = vec![];
     while stack.len() as i32 > 0 {
-        let item: i32 = stack.pop().unwrap_or_default();
+        let item: i32 = stack.pop_back().unwrap_or_default();
         result.push(item);
     }
     result
@@ -352,13 +520,13 @@ pub fn test_deque_as_stack() -> Vec<i32> {
 #[doc = "Use deque as a queue(FIFO)"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_deque_as_queue() -> Vec<i32> {
-    let mut queue: deque = VecDeque::new();
-    queue.push(1);
-    queue.push(2);
-    queue.push(3);
+    let mut queue: std::collections::VecDeque<DepylerValue> = VecDeque::new();
+    queue.push_back(1);
+    queue.push_back(2);
+    queue.push_back(3);
     let mut result: Vec<i32> = vec![];
     while queue.len() as i32 > 0 {
-        let item: i32 = queue.popleft();
+        let item: i32 = queue.pop_front();
         result.push(item);
     }
     result
@@ -366,7 +534,7 @@ pub fn test_deque_as_queue() -> Vec<i32> {
 #[doc = "Manual implementation of LRU cache concept using deque"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_lru_cache_manual(cache_size: i32) -> Vec<i32> {
-    let mut cache: deque = VecDeque::new();
+    let mut cache: std::collections::VecDeque<DepylerValue> = VecDeque::new();
     let max_size: i32 = cache_size;
     let items: Vec<i32> = vec![1, 2, 3, 1, 4, 2, 5, 1, 6];
     let mut result: Vec<i32> = vec![];
@@ -379,9 +547,9 @@ pub fn test_lru_cache_manual(cache_size: i32) -> Vec<i32> {
             }
         }
         if !found {
-            cache.push(item);
+            cache.push_back(item);
             if cache.len() as i32 > max_size {
-                let evicted: i32 = cache.popleft();
+                let evicted: i32 = cache.pop_front();
             }
         }
         result.push(item);
@@ -392,11 +560,11 @@ pub fn test_lru_cache_manual(cache_size: i32) -> Vec<i32> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>> {
-    let _deque_basic: Vec<i32> = test_deque_basic();
-    let _deque_pops: (i32, i32) = test_deque_pop();
-    let _deque_extended: Vec<i32> = test_deque_extend();
-    let _deque_rotated: Vec<i32> = test_deque_rotate();
-    let _counts: std::collections::HashMap<String, i32> = test_counter_basic()?;
+    let deque_basic: Vec<i32> = test_deque_basic();
+    let deque_pops: (i32, i32) = test_deque_pop();
+    let deque_extended: Vec<i32> = test_deque_extend();
+    let deque_rotated: Vec<i32> = test_deque_rotate();
+    let counts: std::collections::HashMap<String, i32> = test_counter_basic()?;
     let items: Vec<String> = vec![
         STR_A.to_string(),
         STR_B.to_string(),
@@ -407,12 +575,12 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
         "d".to_string(),
         STR_A.to_string(),
     ];
-    let _most_common: Vec<(String, i32)> = test_counter_most_common(&items, 2)?;
-    let _merged: std::collections::HashMap<String, i32> = test_counter_arithmetic()?;
-    let _int_default: std::collections::HashMap<String, i32> = test_defaultdict_int();
-    let _list_default: std::collections::HashMap<String, Vec<i32>> = test_defaultdict_list()?;
-    let _ordered: Vec<(String, i32)> = test_ordereddict_basic();
-    let _moved: Vec<String> = test_ordereddict_move_to_end();
+    let most_common: Vec<(String, i32)> = test_counter_most_common(&items, 2)?;
+    let merged: std::collections::HashMap<String, i32> = test_counter_arithmetic()?;
+    let int_default: std::collections::HashMap<String, i32> = test_defaultdict_int();
+    let list_default: std::collections::HashMap<String, Vec<i32>> = test_defaultdict_list()?;
+    let ordered: Vec<(String, i32)> = test_ordereddict_basic();
+    let moved: Vec<String> = test_ordereddict_move_to_end();
     let d1: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert("x".to_string(), 1);
@@ -425,9 +593,9 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
         map.insert("z".to_string(), 4);
         map
     };
-    let _chain_result: i32 = test_chainmap(&d1, &d2)?;
+    let chain_result: i32 = test_chainmap(&d1, &d2)?;
     let text: String = "hello world hello python world".to_string();
-    let _freq: std::collections::HashMap<String, i32> = word_frequency_counter(&text)?;
+    let freq: std::collections::HashMap<String, i32> = word_frequency_counter(&text)?;
     let words: Vec<String> = vec![
         STR_APPLE.to_string(),
         "banana".to_string(),
@@ -435,10 +603,10 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
         "blueberry".to_string(),
         "cherry".to_string(),
     ];
-    let _grouped: std::collections::HashMap<String, Vec<String>> = group_by_first_letter(&words)?;
-    let _stack_result: Vec<i32> = test_deque_as_stack();
-    let _queue_result: Vec<i32> = test_deque_as_queue();
-    let _lru_result: Vec<i32> = test_lru_cache_manual(3);
+    let grouped: std::collections::HashMap<String, Vec<String>> = group_by_first_letter(&words)?;
+    let stack_result: Vec<i32> = test_deque_as_stack();
+    let queue_result: Vec<i32> = test_deque_as_queue();
+    let lru_result: Vec<i32> = test_lru_cache_manual(3);
     println!("{}", "All collections module tests completed successfully");
     Ok(())
 }

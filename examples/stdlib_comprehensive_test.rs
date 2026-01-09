@@ -1,5 +1,11 @@
-const STR_A: &'static str = "a";
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 const STR_B: &'static str = "b";
+const STR_A: &'static str = "a";
 use std::collections::HashMap;
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
@@ -16,6 +22,148 @@ impl IndexError {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+        }
+    }
+}
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
         }
     }
 }
@@ -40,7 +188,10 @@ pub fn test_list_extend() -> i32 {
 pub fn test_list_insert() -> Result<i32, Box<dyn std::error::Error>> {
     let mut numbers = vec![1, 3];
     numbers.insert(1 as usize, 2);
-    Ok(numbers.get(1usize).cloned().unwrap_or_default())
+    Ok(numbers
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
 }
 #[doc = "Test list.remove() method"]
 #[doc = " Depyler: verified panic-free"]
@@ -103,14 +254,20 @@ pub fn test_list_count() -> i32 {
 pub fn test_list_reverse() -> Result<i32, Box<dyn std::error::Error>> {
     let mut numbers = vec![1, 2, 3];
     numbers.reverse();
-    Ok(numbers.get(0usize).cloned().unwrap_or_default())
+    Ok(numbers
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
 }
 #[doc = "Test list.sort() method"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_list_sort() -> Result<i32, Box<dyn std::error::Error>> {
     let mut numbers = vec![3, 1, 2];
     numbers.sort();
-    Ok(numbers.get(0usize).cloned().unwrap_or_default())
+    Ok(numbers
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
 }
 #[doc = "Test dict.get() method"]
 #[doc = " Depyler: verified panic-free"]
@@ -154,6 +311,7 @@ pub fn test_dict_keys() -> i32 {
 #[doc = "Test dict.values() method"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_dict_values() -> i32 {
+    let mut total: i32 = Default::default();
     let data = {
         let mut map = HashMap::new();
         map.insert(STR_A.to_string(), 10);
@@ -161,9 +319,9 @@ pub fn test_dict_values() -> i32 {
         map
     };
     let values = data.values().cloned().collect::<Vec<_>>();
-    let mut total = 0;
+    total = 0;
     for v in values.iter().cloned() {
-        total = total + v;
+        total = (total as f64) + v;
     }
     total
 }
@@ -218,11 +376,15 @@ pub fn test_dict_update() -> i32 {
         map.insert(STR_A.to_string(), 1);
         map
     };
-    data.update(&{
+    for (k, v) in ({
         let mut map = HashMap::new();
         map.insert(STR_B.to_string(), 2);
         map
-    });
+    })
+    .iter()
+    {
+        data.insert(k.clone(), v.clone());
+    }
     data.len() as i32 as i32
 }
 #[doc = "Test dict.setdefault() method - existing key"]
@@ -277,7 +439,7 @@ pub fn test_dict_popitem() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_add() -> i32 {
     let mut numbers = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set
@@ -290,7 +452,7 @@ pub fn test_set_add() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_remove() -> i32 {
     let mut numbers = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
@@ -306,7 +468,7 @@ pub fn test_set_remove() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_discard() -> i32 {
     let mut numbers = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
@@ -320,13 +482,13 @@ pub fn test_set_discard() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_pop() -> bool {
     let mut numbers = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
         set
     };
-    let _value = numbers
+    let value = numbers
         .iter()
         .next()
         .cloned()
@@ -342,7 +504,7 @@ pub fn test_set_pop() -> bool {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_clear() -> i32 {
     let mut numbers = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
@@ -356,13 +518,13 @@ pub fn test_set_clear() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_union() -> i32 {
     let set1 = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set
     };
     let set2 = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(2);
         set.insert(3);
         set
@@ -378,14 +540,14 @@ pub fn test_set_union() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_intersection() -> i32 {
     let set1 = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
         set
     };
     let set2 = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(2);
         set.insert(3);
         set.insert(4);
@@ -402,14 +564,14 @@ pub fn test_set_intersection() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_difference() -> i32 {
     let set1 = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
         set
     };
     let set2 = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(2);
         set.insert(3);
         set
@@ -425,17 +587,19 @@ pub fn test_set_difference() -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_update() -> i32 {
     let mut numbers = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set
     };
-    numbers.update(&{
-        let mut set = HashSet::new();
+    for item in {
+        let mut set = std::collections::HashSet::new();
         set.insert(3);
         set.insert(4);
         set
-    });
+    } {
+        numbers.insert(item);
+    }
     numbers.len() as i32 as i32
 }
 #[cfg(test)]

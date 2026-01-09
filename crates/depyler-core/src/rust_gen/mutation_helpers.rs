@@ -21,7 +21,9 @@ pub fn is_mutating_method(method: &str) -> bool {
         // csv::Reader requires &mut self for headers(), records(), deserialize()
         // csv::Writer requires &mut self for write_record(), serialize()
         "headers" | "records" | "deserialize" | "serialize" | "write_record" |
-        "writeheader" | "writerow"
+        "writeheader" | "writerow" |
+        // DEPYLER-1002: Hashlib digest methods that require &mut self for finalize_reset()
+        "hexdigest" | "digest" | "finalize" | "finalize_reset"
     )
 }
 

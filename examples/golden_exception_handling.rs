@@ -1,3 +1,9 @@
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -47,6 +53,148 @@ impl ValueError {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+        }
+    }
+}
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
         }
     }
 }
@@ -115,7 +263,7 @@ pub fn divide_safe(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
         };
     }
 }
-#[doc = "try/except with KeyError.\n\n    Python: try d[key] except KeyError\n    Rust: d.get(&key).copied().unwrap_or(-1)\n    "]
+#[doc = "try/except with KeyError.\n\n    Python: try d[key] except KeyError\n    Rust: d.get(&key).cloned().unwrap_or(-1)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn get_with_key_error<'a, 'b>(
@@ -127,14 +275,14 @@ pub fn get_with_key_error<'a, 'b>(
 #[doc = "try/except with exception variable binding.\n\n    Python: except KeyError as e → use e\n    Rust: Err(e) =>format!(\"Error: {}\", e)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_with_bound_exception<'a, 'b>(
+pub fn get_with_bound_exception<'b, 'a>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<String, Box<dyn std::error::Error>> {
+    let mut value: i32 = Default::default();
     match (|| -> Result<String, Box<dyn std::error::Error>> {
         value = d.get(key).cloned().unwrap_or_default();
         return Ok((value).to_string());
-        Ok(Default::default())
     })() {
         Ok(_result) => {
             return Ok(_result);
@@ -151,9 +299,18 @@ pub fn multiple_handlers<'a, 'b>(
     s: &'a str,
     d: &'b std::collections::HashMap<String, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut num;
-    num = s.parse::<i32>().unwrap_or_default();
-    return Ok(d.get(&(num).to_string()).cloned().unwrap_or_default());
+    let mut num: i32 = Default::default();
+    match (|| -> Result<(), Box<dyn std::error::Error>> {
+        num = s.parse::<i32>().unwrap_or_default();
+        return Ok(d.get(&(num).to_string()).cloned().unwrap_or_default());
+    })() {
+        Ok(_result) => {
+            return Ok(_result);
+        }
+        Err(_) => {
+            return Ok(-1);
+        }
+    }
 }
 #[doc = "Nested try/except blocks.\n\n    Python: outer try wrapping inner try\n    Rust: nested match expressions\n    "]
 #[doc = " Depyler: verified panic-free"]
@@ -161,17 +318,30 @@ pub fn multiple_handlers<'a, 'b>(
 pub fn nested_try_except(x: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut outer: i32 = 0;
     let mut inner: i32 = 0;
-    {
+    match (|| -> Result<i32, Box<dyn std::error::Error>> {
         outer = x + 1;
-        {
+        match (|| -> Result<i32, Box<dyn std::error::Error>> {
             inner = outer * 2;
             if inner > 100 {
                 panic!("{}", ValueError::new("Too large".to_string()));
             }
             return Ok(inner);
-            return Ok(outer);
+        })() {
+            Ok(_result) => {
+                return Ok(_result);
+            }
+            Err(_) => {
+                return Ok(outer);
+            }
         }
-        return Ok(0);
+        Ok(Default::default())
+    })() {
+        Ok(_result) => {
+            return Ok(_result);
+        }
+        Err(_) => {
+            return Ok(0);
+        }
     }
 }
 #[doc = "try/except/finally for resource cleanup.\n\n    Python: finally block always executes\n    Rust: Drop guard or explicit cleanup\n\n    Note: This tests cleanup semantics, not file I/O.\n    "]
@@ -181,14 +351,13 @@ pub fn try_except_finally_pattern(filename: &str) -> Result<String, Box<dyn std:
     let mut result: String = "".to_string();
     let mut opened: bool = false;
     {
-        match (|| -> Result<(), Box<dyn std::error::Error>> {
+        match (|| -> Result<String, Box<dyn std::error::Error>> {
             opened = true;
             result = format!("Processing {}", filename);
             if filename == "" {
                 panic!("{}", ValueError::new("Empty filename".to_string()));
             }
             return Ok(result.to_string());
-            Ok(Default::default())
         })() {
             Ok(_result) => {
                 return Ok(_result);
@@ -206,9 +375,15 @@ pub fn try_except_finally_pattern(filename: &str) -> Result<String, Box<dyn std:
 #[doc = " Depyler: proven to terminate"]
 pub fn propagate_result(values: &Vec<String>) -> i32 {
     let mut total: i32 = 0;
-    match v.parse::<i32>() {
-        Ok(num___i32) => {
-            return total;
+    match (|| -> Result<i32, Box<dyn std::error::Error>> {
+        for v in values.iter().cloned() {
+            let num: i32 = v.parse::<i32>().unwrap_or_default();
+            total = total + num;
+        }
+        return Ok(total);
+    })() {
+        Ok(_result) => {
+            return _result;
         }
         Err(_) => {
             return -1;
@@ -219,8 +394,8 @@ pub fn propagate_result(values: &Vec<String>) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn early_return_in_try(x: i32) -> i32 {
-    let mut result;
-    {
+    let mut result: i32 = Default::default();
+    match (|| -> Result<(), Box<dyn std::error::Error>> {
         if x < 0 {
             return -1;
         }
@@ -228,8 +403,14 @@ pub fn early_return_in_try(x: i32) -> i32 {
         if result > 100 {
             return 100;
         }
-        return result;
-        return 0;
+        return Ok(result);
+    })() {
+        Ok(_result) => {
+            return _result;
+        }
+        Err(_) => {
+            return 0;
+        }
     }
 }
 #[doc = "Complex computation in try with multiple failure points.\n\n    Python: Chain of operations that can fail\n    Rust: Result chain with ? or match\n    "]
@@ -240,9 +421,9 @@ pub fn exception_with_computation(
     b: i32,
     c: i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut step1;
-    let mut step2;
-    {
+    let mut step2: i32 = Default::default();
+    let mut step1: i32 = Default::default();
+    match (|| -> Result<i32, Box<dyn std::error::Error>> {
         step1 = {
             let a = a;
             let b = b;
@@ -259,13 +440,18 @@ pub fn exception_with_computation(
                 q
             }
         };
-        step2 = step1 * c;
+        step2 = (step1 as f64) * c;
         if step2 < 0 {
             panic!("{}", ValueError::new("Negative result".to_string()));
         }
         return Ok(step2);
-        return Ok(-1);
-        return Ok(-2);
+    })() {
+        Ok(_result) => {
+            return Ok(_result);
+        }
+        Err(_) => {
+            return Ok(-1);
+        }
     }
 }
 #[doc = "Full try/except/else pattern.\n\n    Python: else block runs when try succeeds(no exception)\n    Rust: Separate success path in match arm\n    "]
@@ -305,12 +491,18 @@ pub fn try_except_else_finally(s: &str) -> String {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn raise_without_args(x: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    {
+    match (|| -> Result<i32, Box<dyn std::error::Error>> {
         if x < 0 {
             panic!("{}", ValueError::new("Negative".to_string()));
         }
         return Ok(x);
-        return Err("Exception raised".into());
+    })() {
+        Ok(_result) => {
+            return Ok(_result);
+        }
+        Err(_) => {
+            return Err("Exception raised".into());
+        }
     }
 }
 #[doc = "Raise with explicit message.\n\n    Python: raise ValueError(\"message\")\n    Rust: Err(Box::new(ValueError {
@@ -347,9 +539,8 @@ pub fn raise_custom_exception(value: i32, min_val: i32, max_val: i32) -> Result<
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn raise_from_exception(s: &str) -> Result<i32, Box<dyn std::error::Error>> {
-    match (|| -> Result<i64, Box<dyn std::error::Error>> {
+    match (|| -> Result<i32, Box<dyn std::error::Error>> {
         return Ok(s.parse::<i32>().unwrap_or_default());
-        Ok(Default::default())
     })() {
         Ok(_result) => {
             return Ok(_result);
@@ -401,21 +592,16 @@ pub fn validate_and_transform(value: i32) -> Result<i32, Box<dyn std::error::Err
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn catch_custom_exception(value: i32) -> Result<String, Box<dyn std::error::Error>> {
+    let mut result: i32 = Default::default();
     match (|| -> Result<(), Box<dyn std::error::Error>> {
         result = validate_and_transform(value)?;
         return Ok(format!("Result: {}", result));
-        Ok(Default::default())
     })() {
         Ok(_result) => {
             return Ok(_result);
         }
         Err(e) => {
             return Ok(format!("Validation failed: {}", e.message));
-            return Ok(format!(
-                "Range error: {} not in [{}, {}]",
-                e.value, e.min_val, e.max_val
-            ));
-            return Ok(format!("Value error: {:?}", e));
         }
     }
 }
@@ -423,68 +609,84 @@ pub fn catch_custom_exception(value: i32) -> Result<String, Box<dyn std::error::
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    assert!(parse_int_safe("42".to_string()) == 42);
-    assert!(parse_int_safe("invalid".to_string()) == 0);
-    assert!(parse_int_with_error("42".to_string()) == 42);
+    assert_eq!(parse_int_safe("42".to_string()), 42);
+    assert_eq!(parse_int_safe("invalid".to_string()), 0);
+    assert_eq!(parse_int_with_error("42".to_string()), 42);
     assert!(parse_int_with_error("invalid".to_string()).is_none());
-    assert!(divide_safe(10, 2) == 5);
-    assert!(divide_safe(10, 0) == 0);
+    assert_eq!(divide_safe(10, 2), 5);
+    assert_eq!(divide_safe(10, 0), 0);
     let d: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
         map.insert("a".to_string(), 1);
         map.insert("b".to_string(), 2);
         map
     };
-    assert!(get_with_key_error(&d, "a") == 1);
-    assert!(get_with_key_error(& d, "missing".to_string()) = = (- 1));
-    assert!(
+    assert_eq!(get_with_key_error(&d, "a"), 1);
+    assert_eq!(get_with_key_error(&d, "missing".to_string()), -1);
+    assert_eq!(
         multiple_handlers("1".to_string(), &{
             let mut map = HashMap::new();
             map.insert("1".to_string().to_string(), 100);
             map
-        }) == 100
+        }),
+        100
     );
-    assert!(multiple_handlers("invalid".to_string(), & {
-    let mut map = HashMap::new();
-    map.insert("1".to_string().to_string(), 100);
-    map }) = = (- 1));
-    assert!(multiple_handlers("99".to_string(), & {
-    let mut map = HashMap::new();
-    map.insert("1".to_string().to_string(), 100);
-    map }) = = (- 2));
-    assert!(nested_try_except(10) == 22);
-    assert!(nested_try_except(100) == 101);
-    assert!(
+    assert_eq!(
+        multiple_handlers("invalid".to_string(), &{
+            let mut map = HashMap::new();
+            map.insert("1".to_string().to_string(), 100);
+            map
+        }),
+        -1
+    );
+    assert_eq!(
+        multiple_handlers("99".to_string(), &{
+            let mut map = HashMap::new();
+            map.insert("1".to_string().to_string(), 100);
+            map
+        }),
+        -2
+    );
+    assert_eq!(nested_try_except(10), 22);
+    assert_eq!(nested_try_except(100), 101);
+    assert_eq!(
         propagate_result(&vec![
             "1".to_string().to_string(),
             "2".to_string().to_string(),
             "3".to_string().to_string()
-        ]) == 6
+        ]),
+        6
     );
-    assert!(propagate_result(& vec! ["1".to_string().to_string(), "invalid".to_string().to_string()]) = = (- 1));
-    assert!(early_return_in_try(- 5) = = (- 1));
-    assert!(early_return_in_try(10) == 20);
-    assert!(early_return_in_try(100) == 100);
-    assert!(exception_with_computation(10, 2, 3) == 15);
-    assert!(exception_with_computation(10, 0, 3) = = (- 1));
-    assert!(exception_with_computation(10, 2, - 3) = = (- 2));
-    assert!(try_except_else("5".to_string()) == 10);
-    assert!(try_except_else("invalid".to_string()) = = (- 1));
-    assert!(try_except_else_finally("5".to_string()) == "success_done:50".to_string());
-    assert!(try_except_else_finally("invalid".to_string()) == "error_done:-1".to_string());
-    assert!(raise_with_message(50) == 50);
-    assert!(raise_custom_exception(50, 0, 100) == 50);
-    assert!(validate_and_transform(100) == 50);
-    assert!(catch_custom_exception(100) == "Result: 50".to_string());
-    assert!(catch_custom_exception(-1)
-        .get("Validation failed".to_string())
-        .is_some());
-    assert!(catch_custom_exception(2000)
-        .get("Range error".to_string())
-        .is_some());
-    assert!(catch_custom_exception(3)
-        .get("Value error".to_string())
-        .is_some());
+    assert_eq!(
+        propagate_result(&vec![
+            "1".to_string().to_string(),
+            "invalid".to_string().to_string()
+        ]),
+        -1
+    );
+    assert_eq!(early_return_in_try(-5), -1);
+    assert_eq!(early_return_in_try(10), 20);
+    assert_eq!(early_return_in_try(100), 100);
+    assert_eq!(exception_with_computation(10, 2, 3), 15);
+    assert_eq!(exception_with_computation(10, 0, 3), -1);
+    assert_eq!(exception_with_computation(10, 2, -3), -2);
+    assert_eq!(try_except_else("5".to_string()), 10);
+    assert_eq!(try_except_else("invalid".to_string()), -1);
+    assert_eq!(
+        try_except_else_finally("5".to_string()),
+        "success_done:50".to_string()
+    );
+    assert_eq!(
+        try_except_else_finally("invalid".to_string()),
+        "error_done:-1".to_string()
+    );
+    assert_eq!(raise_with_message(50), 50);
+    assert_eq!(raise_custom_exception(50, 0, 100), 50);
+    assert_eq!(validate_and_transform(100), 50);
+    assert_eq!(catch_custom_exception(100), "Result: 50".to_string());
+    assert!(catch_custom_exception(-1).contains("Validation failed"));
+    assert!(catch_custom_exception(2000).contains("Range error"));
+    assert!(catch_custom_exception(3).contains("Value error"));
     ()
 }
 #[cfg(test)]

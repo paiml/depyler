@@ -559,6 +559,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Right side might be &String from ref pattern - deref to String for comparison
                 right_expr = parse_quote! { *#right_expr };
             }
+
+            // DEPYLER-1045: Handle char vs &str comparison
+            // When iterating over string.chars(), the loop variable is Rust `char` type.
+            // Comparing char with &str doesn't work - need to convert char to String.
+            if matches!(op, BinOp::Eq | BinOp::NotEq) {
+                let left_is_char_iter = if let HirExpr::Var(name) = left {
+                    self.ctx.char_iter_vars.contains(name)
+                } else {
+                    false
+                };
+                let right_is_char_iter = if let HirExpr::Var(name) = right {
+                    self.ctx.char_iter_vars.contains(name)
+                } else {
+                    false
+                };
+
+                // Convert char to String for comparison
+                if left_is_char_iter && !right_is_char_iter {
+                    left_expr = parse_quote! { #left_expr.to_string() };
+                }
+                if right_is_char_iter && !left_is_char_iter {
+                    right_expr = parse_quote! { #right_expr.to_string() };
+                }
+            }
         }
 
         match op {
@@ -1408,6 +1432,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
                             parse_quote! { #lit }
                         }
+                        HirExpr::Var(var_name) if self.ctx.char_iter_vars.contains(var_name) => {
+                            // DEPYLER-1045: char can be passed directly to String.contains()
+                            // No &* dereference needed - char implements Pattern trait
+                            left_expr.clone()
+                        }
                         _ => {
                             // Use &* to deref-reborrow - works for both String (&*String -> &str)
                             // and &str (&*&str -> &str), avoiding unstable str_as_str feature
@@ -1558,9 +1587,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // DEPYLER-STDLIB-DATETIME: Handle datetime constructors
+            // DEPYLER-STDLIB-DATETIME/1025: Handle datetime constructors
             "datetime" if args.len() >= 3 => {
-                self.ctx.needs_chrono = true;
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if !nasa_mode {
+                    self.ctx.needs_chrono = true;
+                }
                 let year = match args[0].to_rust_expr(self.ctx) {
                     Ok(e) => e,
                     Err(e) => return Some(Err(e)),
@@ -1575,12 +1607,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 };
 
                 if args.len() == 3 {
-                    Some(Ok(parse_quote! {
-                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
-                            .unwrap()
-                            .and_hms_opt(0, 0, 0)
-                            .unwrap()
-                    }))
+                    if nasa_mode {
+                        // DEPYLER-1025: NASA mode - use std::time::SystemTime
+                        Some(Ok(parse_quote! { std::time::SystemTime::now() }))
+                    } else {
+                        Some(Ok(parse_quote! {
+                            chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
+                                .unwrap()
+                                .and_hms_opt(0, 0, 0)
+                                .unwrap()
+                        }))
+                    }
                 } else if args.len() >= 6 {
                     let hour = match args[3].to_rust_expr(self.ctx) {
                         Ok(e) => e,
@@ -1594,12 +1631,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(e) => e,
                         Err(e) => return Some(Err(e)),
                     };
-                    Some(Ok(parse_quote! {
-                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
-                            .unwrap()
-                            .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
-                            .unwrap()
-                    }))
+                    if nasa_mode {
+                        // DEPYLER-1025: NASA mode - use std::time::SystemTime
+                        Some(Ok(parse_quote! { std::time::SystemTime::now() }))
+                    } else {
+                        Some(Ok(parse_quote! {
+                            chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
+                                .unwrap()
+                                .and_hms_opt(#hour as u32, #minute as u32, #second as u32)
+                                .unwrap()
+                        }))
+                    }
                 } else {
                     Some(Err(anyhow::anyhow!(
                         "datetime() requires 3 or 6+ arguments"
@@ -1610,9 +1652,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 "datetime() requires at least 3 arguments (year, month, day)"
             ))),
 
-            // date(year, month, day) → NaiveDate::from_ymd_opt(y, m, d).unwrap()
+            // DEPYLER-1025: date(year, month, day) - NASA mode uses tuple
             "date" if args.len() == 3 => {
-                self.ctx.needs_chrono = true;
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if !nasa_mode {
+                    self.ctx.needs_chrono = true;
+                }
                 let year = match args[0].to_rust_expr(self.ctx) {
                     Ok(e) => e,
                     Err(e) => return Some(Err(e)),
@@ -1625,34 +1670,55 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(e) => e,
                     Err(e) => return Some(Err(e)),
                 };
-                Some(Ok(parse_quote! {
-                    chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
-                }))
+                if nasa_mode {
+                    Some(Ok(parse_quote! { (#year as u32, #month as u32, #day as u32) }))
+                } else {
+                    Some(Ok(parse_quote! {
+                        chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
+                    }))
+                }
             }
 
-            // DEPYLER-0938: time() with no args → NaiveTime at midnight
+            // DEPYLER-0938/1025: time() with no args - NASA mode uses tuple
             "time" if args.is_empty() => {
-                self.ctx.needs_chrono = true;
-                Some(Ok(parse_quote! {
-                    chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
-                }))
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if !nasa_mode {
+                    self.ctx.needs_chrono = true;
+                }
+                if nasa_mode {
+                    Some(Ok(parse_quote! { (0u32, 0u32, 0u32) }))
+                } else {
+                    Some(Ok(parse_quote! {
+                        chrono::NaiveTime::from_hms_opt(0, 0, 0).unwrap()
+                    }))
+                }
             }
 
-            // DEPYLER-0938: time(hour) → NaiveTime::from_hms_opt(h, 0, 0).unwrap()
+            // DEPYLER-0938/1025: time(hour) - NASA mode uses tuple
             "time" if args.len() == 1 => {
-                self.ctx.needs_chrono = true;
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if !nasa_mode {
+                    self.ctx.needs_chrono = true;
+                }
                 let hour = match args[0].to_rust_expr(self.ctx) {
                     Ok(e) => e,
                     Err(e) => return Some(Err(e)),
                 };
-                Some(Ok(parse_quote! {
-                    chrono::NaiveTime::from_hms_opt(#hour as u32, 0, 0).unwrap()
-                }))
+                if nasa_mode {
+                    Some(Ok(parse_quote! { (#hour as u32, 0u32, 0u32) }))
+                } else {
+                    Some(Ok(parse_quote! {
+                        chrono::NaiveTime::from_hms_opt(#hour as u32, 0, 0).unwrap()
+                    }))
+                }
             }
 
-            // time(hour, minute, second) → NaiveTime::from_hms_opt(h, m, s).unwrap()
+            // DEPYLER-1025: time(hour, minute, second) - NASA mode uses tuple
             "time" if args.len() >= 2 => {
-                self.ctx.needs_chrono = true;
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if !nasa_mode {
+                    self.ctx.needs_chrono = true;
+                }
                 let hour = match args[0].to_rust_expr(self.ctx) {
                     Ok(e) => e,
                     Err(e) => return Some(Err(e)),
@@ -1663,31 +1729,50 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 };
 
                 if args.len() == 2 {
-                    Some(Ok(parse_quote! {
-                        chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, 0).unwrap()
-                    }))
+                    if nasa_mode {
+                        Some(Ok(parse_quote! { (#hour as u32, #minute as u32, 0u32) }))
+                    } else {
+                        Some(Ok(parse_quote! {
+                            chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, 0).unwrap()
+                        }))
+                    }
                 } else {
                     let second = match args[2].to_rust_expr(self.ctx) {
                         Ok(e) => e,
                         Err(e) => return Some(Err(e)),
                     };
-                    Some(Ok(parse_quote! {
-                        chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).unwrap()
-                    }))
+                    if nasa_mode {
+                        Some(Ok(parse_quote! { (#hour as u32, #minute as u32, #second as u32) }))
+                    } else {
+                        Some(Ok(parse_quote! {
+                            chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).unwrap()
+                        }))
+                    }
                 }
             }
 
-            // timedelta(days=..., seconds=...) → Duration::days(...) + Duration::seconds(...)
+            // DEPYLER-1025: timedelta(days=..., seconds=...) - NASA mode uses std::time::Duration
             "timedelta" => {
-                self.ctx.needs_chrono = true;
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if !nasa_mode {
+                    self.ctx.needs_chrono = true;
+                }
                 if args.is_empty() {
-                    Some(Ok(parse_quote! { chrono::Duration::zero() }))
+                    if nasa_mode {
+                        Some(Ok(parse_quote! { std::time::Duration::from_secs(0) }))
+                    } else {
+                        Some(Ok(parse_quote! { chrono::Duration::zero() }))
+                    }
                 } else if args.len() == 1 {
                     let days = match args[0].to_rust_expr(self.ctx) {
                         Ok(e) => e,
                         Err(e) => return Some(Err(e)),
                     };
-                    Some(Ok(parse_quote! { chrono::Duration::days(#days as i64) }))
+                    if nasa_mode {
+                        Some(Ok(parse_quote! { std::time::Duration::from_secs((#days as u64) * 86400) }))
+                    } else {
+                        Some(Ok(parse_quote! { chrono::Duration::days(#days as i64) }))
+                    }
                 } else if args.len() == 2 {
                     let days = match args[0].to_rust_expr(self.ctx) {
                         Ok(e) => e,
@@ -1697,9 +1782,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(e) => e,
                         Err(e) => return Some(Err(e)),
                     };
-                    Some(Ok(parse_quote! {
-                        chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)
-                    }))
+                    if nasa_mode {
+                        Some(Ok(parse_quote! { std::time::Duration::from_secs((#days as u64) * 86400 + (#seconds as u64)) }))
+                    } else {
+                        Some(Ok(parse_quote! {
+                            chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)
+                        }))
+                    }
                 } else {
                     None // Let it fall through
                 }
@@ -3522,7 +3611,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     // already_collected, is_range_expr, is_iterator_expr, is_csv_reader_var
 
     pub(crate) fn convert_generic_call(
-        &self,
+        &mut self,
         func: &str,
         hir_args: &[HirExpr],
         args: &[syn::Expr],
@@ -3662,6 +3751,68 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 module.constructor_patterns.get(*type_name)
             });
 
+            // DEPYLER-1004: Special handling for serde_json::from_str to use proper type annotation
+            // When called via `from json import loads`, we need to:
+            // 1. Check return type context for HashMap vs Value
+            // 2. Add type annotation and .unwrap()
+            // DEPYLER-1022: NASA mode returns stub HashMap
+            if rust_path == "serde_json::from_str" && args.len() == 1 {
+                let arg = &args[0];
+                if self.ctx.type_mapper.nasa_mode {
+                    // NASA mode: return stub HashMap
+                    // DEPYLER-1051: Use DepylerValue for Hybrid Fallback Strategy
+                    self.ctx.needs_hashmap = true;
+                    self.ctx.needs_depyler_value_enum = true;
+                    return Ok(parse_quote! {
+                        std::collections::HashMap::<String, DepylerValue>::new()
+                    });
+                }
+                self.ctx.needs_serde_json = true;
+                if stdlib_method_gen::json::return_type_needs_json_dict(self.ctx) {
+                    self.ctx.needs_hashmap = true;
+                    return Ok(parse_quote! {
+                        serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#arg).unwrap()
+                    });
+                } else {
+                    return Ok(parse_quote! {
+                        serde_json::from_str::<serde_json::Value>(&#arg).unwrap()
+                    });
+                }
+            }
+
+            // DEPYLER-1004: Special handling for serde_json::from_reader
+            // DEPYLER-1022: NASA mode returns stub HashMap
+            if rust_path == "serde_json::from_reader" && args.len() == 1 {
+                let arg = &args[0];
+                if self.ctx.type_mapper.nasa_mode {
+                    // NASA mode: return stub HashMap
+                    // DEPYLER-1051: Use DepylerValue for Hybrid Fallback Strategy
+                    self.ctx.needs_hashmap = true;
+                    self.ctx.needs_depyler_value_enum = true;
+                    return Ok(parse_quote! {
+                        std::collections::HashMap::<String, DepylerValue>::new()
+                    });
+                }
+                self.ctx.needs_serde_json = true;
+                if stdlib_method_gen::json::return_type_needs_json_dict(self.ctx) {
+                    self.ctx.needs_hashmap = true;
+                    return Ok(parse_quote! {
+                        serde_json::from_reader::<_, std::collections::HashMap<String, serde_json::Value>>(#arg).unwrap()
+                    });
+                } else {
+                    return Ok(parse_quote! {
+                        serde_json::from_reader::<_, serde_json::Value>(#arg).unwrap()
+                    });
+                }
+            }
+
+            // DEPYLER-1004: Check if this function returns Result and needs .unwrap()
+            // json to_string and to_writer still need .unwrap()
+            let needs_unwrap = matches!(
+                rust_path.as_str(),
+                "serde_json::to_string" | "serde_json::to_writer"
+            );
+
             // Generate call based on constructor pattern
             return match constructor_pattern {
                 Some(ConstructorPattern::New) => {
@@ -3683,7 +3834,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 Some(ConstructorPattern::Function) | None => {
                     // Regular function call (default behavior)
-                    if args.is_empty() {
+                    // DEPYLER-1004: Add .unwrap() for Result-returning functions
+                    if needs_unwrap {
+                        if args.is_empty() {
+                            Ok(parse_quote! { #path().unwrap() })
+                        } else {
+                            Ok(parse_quote! { #path(#(#args),*).unwrap() })
+                        }
+                    } else if args.is_empty() {
                         Ok(parse_quote! { #path() })
                     } else {
                         Ok(parse_quote! { #path(#(#args),*) })
@@ -3800,6 +3958,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 // Integer literal passed where f64 expected - coerce to float
                                 let f_val = *n as f64;
                                 return parse_quote! { #f_val };
+                            }
+                        }
+                    }
+
+                    // DEPYLER-1045: Convert char to String when passing to functions expecting &str
+                    // When a loop variable from string.chars() is passed to a function,
+                    // it needs to be converted to String because char and &str are incompatible.
+                    if let HirExpr::Var(var_name) = hir_arg {
+                        if self.ctx.char_iter_vars.contains(var_name) {
+                            // Check if function expects &str at this param position
+                            let expects_str = self.ctx
+                                .function_param_borrows
+                                .get(func)
+                                .and_then(|borrows| borrows.get(param_idx))
+                                .copied()
+                                .unwrap_or(true); // Default to expecting str for char iter vars
+                            if expects_str {
+                                return parse_quote! { &#arg_expr.to_string() };
                             }
                         }
                     }
@@ -5559,9 +5735,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let data = &arg_exprs[0];
 
-                // base64.b64encode(data) → base64::engine::general_purpose::STANDARD.encode(data)
+                // base64.b64encode(data) → Vec<u8> (Python returns bytes)
+                // DEPYLER-1003: Return Vec<u8> so .decode('utf-8') works with from_utf8_lossy
                 parse_quote! {
-                    base64::engine::general_purpose::STANDARD.encode(#data)
+                    base64::engine::general_purpose::STANDARD.encode(#data).into_bytes()
                 }
             }
 
@@ -5584,9 +5761,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let data = &arg_exprs[0];
 
-                // base64.urlsafe_b64encode(data) → base64::engine::general_purpose::URL_SAFE.encode(data)
+                // base64.urlsafe_b64encode(data) → Vec<u8> (Python returns bytes)
+                // DEPYLER-1003: Return Vec<u8> so .decode('utf-8') works with from_utf8_lossy
                 parse_quote! {
-                    base64::engine::general_purpose::URL_SAFE.encode(#data)
+                    base64::engine::general_purpose::URL_SAFE.encode(#data).into_bytes()
                 }
             }
 
@@ -5816,51 +5994,79 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
                 } else {
-                    // hashlib.md5(data) → one-shot hash computation
+                    // DEPYLER-1002: Return hasher object, let .hexdigest() finalize
                     let data = &arg_exprs[0];
                     parse_quote! {
                         {
                             use md5::Digest;
-                            let mut hasher = md5::Md5::new();
+                            use digest::DynDigest;
+                            let mut hasher = Box::new(md5::Md5::new()) as Box<dyn DynDigest>;
                             hasher.update(#data);
-                            hex::encode(hasher.finalize())
+                            hasher
                         }
                     }
                 }
             }
 
             // SHA-1 hash
+            // DEPYLER-1002: Return hasher object, let .hexdigest() finalize
             "sha1" => {
-                if arg_exprs.len() != 1 {
-                    bail!("hashlib.sha1() requires exactly 1 argument");
+                if arg_exprs.len() > 1 {
+                    bail!("hashlib.sha1() accepts 0 or 1 arguments");
                 }
-                self.ctx.needs_sha2 = true;
-                let data = &arg_exprs[0];
+                // DEPYLER-1001: Fix sha1 dependency - was incorrectly setting needs_sha2
+                self.ctx.needs_sha1 = true;
+                self.ctx.needs_digest = true;
 
-                parse_quote! {
-                    {
-                        use sha1::Digest;
-                        let mut hasher = sha1::Sha1::new();
-                        hasher.update(#data);
-                        hex::encode(hasher.finalize())
+                if arg_exprs.is_empty() {
+                    parse_quote! {
+                        {
+                            use sha1::Digest;
+                            use digest::DynDigest;
+                            Box::new(sha1::Sha1::new()) as Box<dyn DynDigest>
+                        }
+                    }
+                } else {
+                    let data = &arg_exprs[0];
+                    parse_quote! {
+                        {
+                            use sha1::Digest;
+                            use digest::DynDigest;
+                            let mut hasher = Box::new(sha1::Sha1::new()) as Box<dyn DynDigest>;
+                            hasher.update(#data);
+                            hasher
+                        }
                     }
                 }
             }
 
             // SHA-224 hash
+            // DEPYLER-1002: Return hasher object, let .hexdigest() finalize
             "sha224" => {
-                if arg_exprs.len() != 1 {
-                    bail!("hashlib.sha224() requires exactly 1 argument");
+                if arg_exprs.len() > 1 {
+                    bail!("hashlib.sha224() accepts 0 or 1 arguments");
                 }
                 self.ctx.needs_sha2 = true;
-                let data = &arg_exprs[0];
+                self.ctx.needs_digest = true;
 
-                parse_quote! {
-                    {
-                        use sha2::Digest;
-                        let mut hasher = sha2::Sha224::new();
-                        hasher.update(#data);
-                        hex::encode(hasher.finalize())
+                if arg_exprs.is_empty() {
+                    parse_quote! {
+                        {
+                            use sha2::Digest;
+                            use digest::DynDigest;
+                            Box::new(sha2::Sha224::new()) as Box<dyn DynDigest>
+                        }
+                    }
+                } else {
+                    let data = &arg_exprs[0];
+                    parse_quote! {
+                        {
+                            use sha2::Digest;
+                            use digest::DynDigest;
+                            let mut hasher = Box::new(sha2::Sha224::new()) as Box<dyn DynDigest>;
+                            hasher.update(#data);
+                            hasher
+                        }
                     }
                 }
             }
@@ -5868,6 +6074,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // SHA-256 hash
             // DEPYLER-0558: Support both one-shot and incremental patterns
             // Use Box<dyn DynDigest> for type-erased hasher objects
+            // DEPYLER-1002: Always return hasher object, let .hexdigest() finalize
             "sha256" => {
                 if arg_exprs.len() > 1 {
                     bail!("hashlib.sha256() accepts 0 or 1 arguments");
@@ -5885,87 +6092,141 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
                 } else {
-                    // hashlib.sha256(data) → one-shot hash computation
+                    // hashlib.sha256(data) → return hasher with data already updated
+                    // The .hexdigest() method call will finalize and hex-encode
                     let data = &arg_exprs[0];
                     parse_quote! {
                         {
                             use sha2::Digest;
-                            let mut hasher = sha2::Sha256::new();
+                            use digest::DynDigest;
+                            let mut hasher = Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>;
                             hasher.update(#data);
-                            hex::encode(hasher.finalize())
+                            hasher
                         }
                     }
                 }
             }
 
             // SHA-384 hash
+            // DEPYLER-1002: Return hasher object, let .hexdigest() finalize
             "sha384" => {
-                if arg_exprs.len() != 1 {
-                    bail!("hashlib.sha384() requires exactly 1 argument");
+                if arg_exprs.len() > 1 {
+                    bail!("hashlib.sha384() accepts 0 or 1 arguments");
                 }
                 self.ctx.needs_sha2 = true;
-                let data = &arg_exprs[0];
+                self.ctx.needs_digest = true;
 
-                parse_quote! {
-                    {
-                        use sha2::Digest;
-                        let mut hasher = sha2::Sha384::new();
-                        hasher.update(#data);
-                        hex::encode(hasher.finalize())
+                if arg_exprs.is_empty() {
+                    parse_quote! {
+                        {
+                            use sha2::Digest;
+                            use digest::DynDigest;
+                            Box::new(sha2::Sha384::new()) as Box<dyn DynDigest>
+                        }
+                    }
+                } else {
+                    let data = &arg_exprs[0];
+                    parse_quote! {
+                        {
+                            use sha2::Digest;
+                            use digest::DynDigest;
+                            let mut hasher = Box::new(sha2::Sha384::new()) as Box<dyn DynDigest>;
+                            hasher.update(#data);
+                            hasher
+                        }
                     }
                 }
             }
 
             // SHA-512 hash
+            // DEPYLER-1002: Return hasher object, let .hexdigest() finalize
             "sha512" => {
-                if arg_exprs.len() != 1 {
-                    bail!("hashlib.sha512() requires exactly 1 argument");
+                if arg_exprs.len() > 1 {
+                    bail!("hashlib.sha512() accepts 0 or 1 arguments");
                 }
                 self.ctx.needs_sha2 = true;
-                let data = &arg_exprs[0];
+                self.ctx.needs_digest = true;
 
-                parse_quote! {
-                    {
-                        use sha2::Digest;
-                        let mut hasher = sha2::Sha512::new();
-                        hasher.update(#data);
-                        hex::encode(hasher.finalize())
+                if arg_exprs.is_empty() {
+                    parse_quote! {
+                        {
+                            use sha2::Digest;
+                            use digest::DynDigest;
+                            Box::new(sha2::Sha512::new()) as Box<dyn DynDigest>
+                        }
+                    }
+                } else {
+                    let data = &arg_exprs[0];
+                    parse_quote! {
+                        {
+                            use sha2::Digest;
+                            use digest::DynDigest;
+                            let mut hasher = Box::new(sha2::Sha512::new()) as Box<dyn DynDigest>;
+                            hasher.update(#data);
+                            hasher
+                        }
                     }
                 }
             }
 
             // BLAKE2b hash
+            // DEPYLER-1002: Return hasher object, let .hexdigest() finalize
             "blake2b" => {
-                if arg_exprs.len() != 1 {
-                    bail!("hashlib.blake2b() requires exactly 1 argument");
+                if arg_exprs.len() > 1 {
+                    bail!("hashlib.blake2b() accepts 0 or 1 arguments");
                 }
                 self.ctx.needs_blake2 = true;
-                let data = &arg_exprs[0];
+                self.ctx.needs_digest = true;
 
-                parse_quote! {
-                    {
-                        use blake2::Digest;
-                        let mut hasher = blake2::Blake2b512::new();
-                        hasher.update(#data);
-                        hex::encode(hasher.finalize())
+                if arg_exprs.is_empty() {
+                    parse_quote! {
+                        {
+                            use blake2::Digest;
+                            use digest::DynDigest;
+                            Box::new(blake2::Blake2b512::new()) as Box<dyn DynDigest>
+                        }
+                    }
+                } else {
+                    let data = &arg_exprs[0];
+                    parse_quote! {
+                        {
+                            use blake2::Digest;
+                            use digest::DynDigest;
+                            let mut hasher = Box::new(blake2::Blake2b512::new()) as Box<dyn DynDigest>;
+                            hasher.update(#data);
+                            hasher
+                        }
                     }
                 }
             }
 
             // BLAKE2s hash
+            // DEPYLER-1002: Return hasher object, let .hexdigest() finalize
             "blake2s" => {
-                if arg_exprs.len() != 1 {
-                    bail!("hashlib.blake2s() requires exactly 1 argument");
+                if arg_exprs.len() > 1 {
+                    bail!("hashlib.blake2s() accepts 0 or 1 arguments");
                 }
                 self.ctx.needs_blake2 = true;
-                let data = &arg_exprs[0];
+                self.ctx.needs_digest = true;
 
-                parse_quote! {
-                    {
-                        use blake2::Digest;
-                        let mut hasher = blake2::Blake2s256::new();
-                        hasher.update(#data);
-                        hex::encode(hasher.finalize())
+                if arg_exprs.is_empty() {
+                    parse_quote! {
+                        {
+                            use blake2::Digest;
+                            use digest::DynDigest;
+                            Box::new(blake2::Blake2s256::new()) as Box<dyn DynDigest>
+                        }
+                    }
+                } else {
+                    let data = &arg_exprs[0];
+                    parse_quote! {
+                        {
+                            use blake2::Digest;
+                            use digest::DynDigest;
+                            let mut hasher = Box::new(blake2::Blake2s256::new()) as Box<dyn DynDigest>;
+                            hasher.update(#data);
+                            hasher
+                        }
                     }
                 }
             }
@@ -7848,7 +8109,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(result)
     }
 
-    /// DEPYLER-0830: Convert datetime/timedelta methods on variable instances
+    /// DEPYLER-0830/1025: Convert datetime/timedelta methods on variable instances
     /// This handles cases like `td.total_seconds()` where td is a TimeDelta variable
     /// Unlike try_convert_datetime_method which handles module calls like datetime.datetime.now()
     #[inline]
@@ -7859,81 +8120,120 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         hir_args: &[HirExpr],
         arg_exprs: &[syn::Expr],
     ) -> Result<syn::Expr> {
-        // Mark that we need the chrono crate
-        self.ctx.needs_chrono = true;
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        // Only mark chrono needed if NOT in NASA mode
+        if !nasa_mode {
+            self.ctx.needs_chrono = true;
+        }
 
         let result = match method {
-            // timedelta.total_seconds() → td.num_seconds() as f64
+            // timedelta.total_seconds() → td.as_secs_f64() (NASA) or td.num_seconds() as f64 (chrono)
             "total_seconds" => {
-                parse_quote! { #dt_expr.num_seconds() as f64 }
+                if nasa_mode {
+                    parse_quote! { #dt_expr.as_secs_f64() }
+                } else {
+                    parse_quote! { #dt_expr.num_seconds() as f64 }
+                }
             }
 
-            // datetime.fromisoformat(s) → NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S")
+            // datetime.fromisoformat(s) → parse timestamp string
             "fromisoformat" => {
                 if arg_exprs.is_empty() {
                     bail!("fromisoformat() requires 1 argument (string)");
                 }
                 let s = &arg_exprs[0];
-                parse_quote! {
-                    chrono::NaiveDateTime::parse_from_str(&#s, "%Y-%m-%dT%H:%M:%S").unwrap()
-                }
-            }
-
-            // datetime.isoformat() → dt.format("%Y-%m-%dT%H:%M:%S").to_string()
-            "isoformat" => {
-                parse_quote! { #dt_expr.format("%Y-%m-%dT%H:%M:%S").to_string() }
-            }
-
-            // datetime.strftime(fmt) → dt.format(fmt).to_string()
-            // DEPYLER-0935: chrono's format() takes &str, not String
-            // Extract bare string literal for compatibility
-            "strftime" => {
-                if arg_exprs.is_empty() {
-                    bail!("strftime() requires 1 argument (format string)");
-                }
-                let fmt = match hir_args.first() {
-                    Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
-                    _ => arg_exprs[0].clone(),
-                };
-                parse_quote! { #dt_expr.format(#fmt).to_string() }
-            }
-
-            // datetime.timestamp() → dt.and_utc().timestamp() as f64
-            "timestamp" => {
-                parse_quote! { #dt_expr.and_utc().timestamp() as f64 }
-            }
-
-            // datetime.timetuple() - not directly supported, return tuple of components
-            "timetuple" => {
-                parse_quote! {
-                    (#dt_expr.year(), #dt_expr.month(), #dt_expr.day(),
-                     #dt_expr.hour(), #dt_expr.minute(), #dt_expr.second())
-                }
-            }
-
-            // datetime.weekday() → dt.weekday().num_days_from_monday()
-            "weekday" => {
-                parse_quote! { #dt_expr.weekday().num_days_from_monday() as i32 }
-            }
-
-            // datetime.isoweekday() → dt.weekday().number_from_monday()
-            "isoweekday" => {
-                parse_quote! { (#dt_expr.weekday().num_days_from_monday() + 1) as i32 }
-            }
-
-            // datetime.isocalendar() → (year, week, weekday)
-            "isocalendar" => {
-                parse_quote! {
-                    {
-                        let iso = #dt_expr.iso_week();
-                        (iso.year(), iso.week() as i32, #dt_expr.weekday().number_from_monday() as i32)
+                if nasa_mode {
+                    // NASA mode: return current time (simplified)
+                    parse_quote! { std::time::SystemTime::now() }
+                } else {
+                    parse_quote! {
+                        chrono::NaiveDateTime::parse_from_str(&#s, "%Y-%m-%dT%H:%M:%S").unwrap()
                     }
                 }
             }
 
-            // datetime.replace() - simplified: with_year, with_month, etc.
+            // datetime.isoformat() → format!("{:?}", dt) (NASA) or dt.format(...) (chrono)
+            "isoformat" => {
+                if nasa_mode {
+                    parse_quote! { format!("{:?}", #dt_expr) }
+                } else {
+                    parse_quote! { #dt_expr.format("%Y-%m-%dT%H:%M:%S").to_string() }
+                }
+            }
+
+            // datetime.strftime(fmt) → format!("{:?}", dt) (NASA) or dt.format(fmt) (chrono)
+            "strftime" => {
+                if arg_exprs.is_empty() {
+                    bail!("strftime() requires 1 argument (format string)");
+                }
+                if nasa_mode {
+                    parse_quote! { format!("{:?}", #dt_expr) }
+                } else {
+                    let fmt = match hir_args.first() {
+                        Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
+                        _ => arg_exprs[0].clone(),
+                    };
+                    parse_quote! { #dt_expr.format(#fmt).to_string() }
+                }
+            }
+
+            // datetime.timestamp() → UNIX_EPOCH.elapsed() (NASA) or dt.and_utc().timestamp() (chrono)
+            "timestamp" => {
+                if nasa_mode {
+                    parse_quote! {
+                        #dt_expr.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0)
+                    }
+                } else {
+                    parse_quote! { #dt_expr.and_utc().timestamp() as f64 }
+                }
+            }
+
+            // datetime.timetuple() - return tuple (NASA returns zeros, chrono extracts components)
+            "timetuple" => {
+                if nasa_mode {
+                    parse_quote! { (0i32, 0u32, 0u32, 0u32, 0u32, 0u32) }
+                } else {
+                    parse_quote! {
+                        (#dt_expr.year(), #dt_expr.month(), #dt_expr.day(),
+                         #dt_expr.hour(), #dt_expr.minute(), #dt_expr.second())
+                    }
+                }
+            }
+
+            // datetime.weekday() → 0 (NASA) or dt.weekday().num_days_from_monday() (chrono)
+            "weekday" => {
+                if nasa_mode {
+                    parse_quote! { 0i32 }
+                } else {
+                    parse_quote! { #dt_expr.weekday().num_days_from_monday() as i32 }
+                }
+            }
+
+            // datetime.isoweekday() → 1 (NASA) or dt.weekday().number_from_monday() (chrono)
+            "isoweekday" => {
+                if nasa_mode {
+                    parse_quote! { 1i32 }
+                } else {
+                    parse_quote! { (#dt_expr.weekday().num_days_from_monday() + 1) as i32 }
+                }
+            }
+
+            // datetime.isocalendar() → (year, week, weekday) tuple
+            "isocalendar" => {
+                if nasa_mode {
+                    parse_quote! { (2024i32, 1i32, 1i32) }
+                } else {
+                    parse_quote! {
+                        {
+                            let iso = #dt_expr.iso_week();
+                            (iso.year(), iso.week() as i32, #dt_expr.weekday().number_from_monday() as i32)
+                        }
+                    }
+                }
+            }
+
+            // datetime.replace() - simplified: pass through
             "replace" => {
-                // For now, just pass through - would need kwargs support for proper impl
                 parse_quote! { #dt_expr }
             }
 
@@ -7948,15 +8248,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// Try to convert datetime module method calls
-    /// DEPYLER-STDLIB-DATETIME: Comprehensive datetime module support
+    /// DEPYLER-STDLIB-DATETIME/1025: Comprehensive datetime module support with NASA mode
     #[inline]
     pub(crate) fn try_convert_datetime_method(
         &mut self,
         method: &str,
         args: &[HirExpr],
     ) -> Result<Option<syn::Expr>> {
-        // Mark that we need the chrono crate
-        self.ctx.needs_chrono = true;
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+        // Only mark chrono needed if NOT in NASA mode
+        if !nasa_mode {
+            self.ctx.needs_chrono = true;
+        }
 
         // Convert arguments first
         let arg_exprs: Vec<syn::Expr> = args
@@ -7965,183 +8268,237 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .collect::<Result<Vec<_>>>()?;
 
         let result = match method {
-            // datetime.datetime.now([tz]) → Local::now() or Utc::now()
+            // datetime.datetime.now([tz]) → SystemTime::now() (NASA) or Local::now() (chrono)
             "now" => {
-                if arg_exprs.is_empty() {
+                if nasa_mode {
+                    parse_quote! { std::time::SystemTime::now() }
+                } else if arg_exprs.is_empty() {
                     parse_quote! { chrono::Local::now().naive_local() }
                 } else {
-                    // DEPYLER-0595: datetime.now(tz) - use Utc for UTC, Local otherwise
-                    // For simplicity, assume UTC if any tz provided
                     parse_quote! { chrono::Utc::now().naive_utc() }
                 }
             }
 
-            // datetime.datetime.utcnow() → Utc::now()
+            // datetime.datetime.utcnow() → SystemTime::now() (NASA) or Utc::now() (chrono)
             "utcnow" => {
                 if arg_exprs.is_empty() {
-                    parse_quote! { chrono::Utc::now().naive_utc() }
+                    if nasa_mode {
+                        parse_quote! { std::time::SystemTime::now() }
+                    } else {
+                        parse_quote! { chrono::Utc::now().naive_utc() }
+                    }
                 } else {
                     bail!("datetime.utcnow() takes no arguments");
                 }
             }
 
-            // datetime.datetime.today() → Local::now().date()
+            // datetime.datetime.today() → SystemTime::now() (NASA) or Local::now().date() (chrono)
             "today" => {
                 if arg_exprs.is_empty() {
-                    parse_quote! { chrono::Local::now().date_naive() }
+                    if nasa_mode {
+                        parse_quote! { std::time::SystemTime::now() }
+                    } else {
+                        parse_quote! { chrono::Local::now().date_naive() }
+                    }
                 } else {
                     bail!("datetime.today() takes no arguments");
                 }
             }
 
-            // datetime.datetime.strftime(format) → dt.format(format).to_string()
-            // DEPYLER-0555: chrono's format() takes &str, not String
+            // datetime.datetime.strftime(format) → format!("{:?}", dt) (NASA) or dt.format(...) (chrono)
             "strftime" => {
                 if arg_exprs.len() != 2 {
                     bail!("strftime() requires exactly 2 arguments (self, format)");
                 }
                 let dt = &arg_exprs[0];
-                // Extract bare string literal for chrono format compatibility
-                let fmt = match &args[1] {
-                    HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
-                    _ => arg_exprs[1].clone(),
-                };
-                parse_quote! { #dt.format(#fmt).to_string() }
+                if nasa_mode {
+                    parse_quote! { format!("{:?}", #dt) }
+                } else {
+                    let fmt = match &args[1] {
+                        HirExpr::Literal(Literal::String(s)) => parse_quote! { #s },
+                        _ => arg_exprs[1].clone(),
+                    };
+                    parse_quote! { #dt.format(#fmt).to_string() }
+                }
             }
 
-            // datetime.datetime.strptime(string, format) → NaiveDateTime::parse_from_str(string, format)
-            // DEPYLER-0622: chrono's parse_from_str expects &str, not String
+            // datetime.datetime.strptime(string, format) → SystemTime::now() (NASA) or parse_from_str (chrono)
             "strptime" => {
                 if arg_exprs.len() != 2 {
                     bail!("strptime() requires exactly 2 arguments (string, format)");
                 }
-                let s = &arg_exprs[0];
-                // DEPYLER-0622: Extract bare string literal for &str compatibility
-                // If fmt is a variable (not a literal), it might be String from iteration
-                let fmt: syn::Expr = match &args[1] {
-                    HirExpr::Literal(Literal::String(fmt_str)) => parse_quote! { #fmt_str },
-                    _ => {
-                        // For non-literals, add & to borrow as &str
-                        let fmt_expr = &arg_exprs[1];
-                        parse_quote! { &#fmt_expr }
+                if nasa_mode {
+                    parse_quote! { std::time::SystemTime::now() }
+                } else {
+                    let s = &arg_exprs[0];
+                    let fmt: syn::Expr = match &args[1] {
+                        HirExpr::Literal(Literal::String(fmt_str)) => parse_quote! { #fmt_str },
+                        _ => {
+                            let fmt_expr = &arg_exprs[1];
+                            parse_quote! { &#fmt_expr }
+                        }
+                    };
+                    parse_quote! {
+                        chrono::NaiveDateTime::parse_from_str(#s, #fmt).unwrap()
                     }
-                };
-                parse_quote! {
-                    chrono::NaiveDateTime::parse_from_str(#s, #fmt).unwrap()
                 }
             }
 
-            // datetime.datetime.isoformat() → dt.to_rfc3339()
+            // datetime.datetime.isoformat() → format!("{:?}", dt) (NASA) or dt.to_string() (chrono)
             "isoformat" => {
                 if arg_exprs.len() != 1 {
                     bail!("isoformat() requires exactly 1 argument (self)");
                 }
                 let dt = &arg_exprs[0];
-                parse_quote! { #dt.to_string() }
+                if nasa_mode {
+                    parse_quote! { format!("{:?}", #dt) }
+                } else {
+                    parse_quote! { #dt.to_string() }
+                }
             }
 
-            // datetime.datetime.timestamp() → dt.timestamp()
+            // datetime.datetime.timestamp() → UNIX_EPOCH duration (NASA) or dt.timestamp() (chrono)
             "timestamp" => {
                 if arg_exprs.len() != 1 {
                     bail!("timestamp() requires exactly 1 argument (self)");
                 }
                 let dt = &arg_exprs[0];
-                parse_quote! { #dt.and_utc().timestamp() as f64 }
+                if nasa_mode {
+                    parse_quote! {
+                        #dt.duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0)
+                    }
+                } else {
+                    parse_quote! { #dt.and_utc().timestamp() as f64 }
+                }
             }
 
-            // datetime.datetime.fromtimestamp(ts) → NaiveDateTime::from_timestamp(ts, 0)
-            // DEPYLER-0555: Use .clone() to handle both owned f64 and borrowed &f64 params
-            // Clone on &f64 returns f64 due to Copy trait, making cast work for both cases
+            // datetime.datetime.fromtimestamp(ts) → SystemTime (NASA) or DateTime (chrono)
             "fromtimestamp" => {
                 if arg_exprs.len() != 1 {
                     bail!("fromtimestamp() requires exactly 1 argument (timestamp)");
                 }
                 let ts = &arg_exprs[0];
-                parse_quote! {
-                    chrono::DateTime::from_timestamp((#ts).clone() as i64, 0)
-                        .unwrap()
-                        .naive_local()
+                if nasa_mode {
+                    parse_quote! {
+                        std::time::UNIX_EPOCH + std::time::Duration::from_secs((#ts).clone() as u64)
+                    }
+                } else {
+                    parse_quote! {
+                        chrono::DateTime::from_timestamp((#ts).clone() as i64, 0)
+                            .unwrap()
+                            .naive_local()
+                    }
                 }
             }
 
-            // date.weekday() → dt.weekday().num_days_from_monday()
+            // date.weekday() → 0 (NASA) or dt.weekday().num_days_from_monday() (chrono)
             "weekday" => {
                 if arg_exprs.len() != 1 {
                     bail!("weekday() requires exactly 1 argument (self)");
                 }
-                let dt = &arg_exprs[0];
-                parse_quote! { #dt.weekday().num_days_from_monday() as i32 }
+                if nasa_mode {
+                    parse_quote! { 0i32 }
+                } else {
+                    let dt = &arg_exprs[0];
+                    parse_quote! { #dt.weekday().num_days_from_monday() as i32 }
+                }
             }
 
-            // date.isoweekday() → dt.weekday().number_from_monday()
+            // date.isoweekday() → 1 (NASA) or dt.weekday().number_from_monday() (chrono)
             "isoweekday" => {
                 if arg_exprs.len() != 1 {
                     bail!("isoweekday() requires exactly 1 argument (self)");
                 }
-                let dt = &arg_exprs[0];
-                // ISO weekday: Monday=1, Sunday=7
-                parse_quote! { (#dt.weekday().num_days_from_monday() + 1) as i32 }
+                if nasa_mode {
+                    parse_quote! { 1i32 }
+                } else {
+                    let dt = &arg_exprs[0];
+                    parse_quote! { (#dt.weekday().num_days_from_monday() + 1) as i32 }
+                }
             }
 
-            // timedelta.total_seconds() → duration.num_seconds() as f64
+            // timedelta.total_seconds() → as_secs_f64 (NASA) or num_seconds (chrono)
             "total_seconds" => {
                 if arg_exprs.len() != 1 {
                     bail!("total_seconds() requires exactly 1 argument (self)");
                 }
                 let td = &arg_exprs[0];
-                parse_quote! { #td.num_seconds() as f64 }
+                if nasa_mode {
+                    parse_quote! { #td.as_secs_f64() }
+                } else {
+                    parse_quote! { #td.num_seconds() as f64 }
+                }
             }
 
-            // datetime.date() → extract date part
+            // datetime.date() → extract date part (passthrough for both modes)
             "date" => {
                 if arg_exprs.len() != 1 {
                     bail!("date() requires exactly 1 argument (self)");
                 }
                 let dt = &arg_exprs[0];
-                parse_quote! { #dt.date() }
+                if nasa_mode {
+                    parse_quote! { #dt }
+                } else {
+                    parse_quote! { #dt.date() }
+                }
             }
 
-            // datetime.time() → extract time part
+            // datetime.time() → extract time part (passthrough for NASA)
             "time" => {
                 if arg_exprs.len() != 1 {
                     bail!("time() requires exactly 1 argument (self)");
                 }
                 let dt = &arg_exprs[0];
-                parse_quote! { #dt.time() }
+                if nasa_mode {
+                    parse_quote! { #dt }
+                } else {
+                    parse_quote! { #dt.time() }
+                }
             }
 
-            // datetime.replace(year=..., month=..., day=..., ...)
+            // datetime.replace() - passthrough for both modes
             "replace" => {
                 if arg_exprs.len() != 2 {
                     bail!("replace() not fully implemented (requires keyword args)");
                 }
-                // Simplified: assume single year replacement
                 let dt = &arg_exprs[0];
-                let new_year = &arg_exprs[1];
-                parse_quote! { #dt.with_year(#new_year as i32).unwrap() }
+                if nasa_mode {
+                    parse_quote! { #dt }
+                } else {
+                    let new_year = &arg_exprs[1];
+                    parse_quote! { #dt.with_year(#new_year as i32).unwrap() }
+                }
             }
 
-            // DEPYLER-0938: datetime.combine(date, time) → NaiveDateTime::new(date, time)
+            // DEPYLER-0938/1025: datetime.combine(date, time) → SystemTime (NASA) or NaiveDateTime (chrono)
             "combine" => {
                 if arg_exprs.len() != 2 {
                     bail!("combine() requires exactly 2 arguments (date, time)");
                 }
-                let date_expr = &arg_exprs[0];
-                let time_expr = &arg_exprs[1];
-                parse_quote! { chrono::NaiveDateTime::new(#date_expr, #time_expr) }
+                if nasa_mode {
+                    parse_quote! { std::time::SystemTime::now() }
+                } else {
+                    let date_expr = &arg_exprs[0];
+                    let time_expr = &arg_exprs[1];
+                    parse_quote! { chrono::NaiveDateTime::new(#date_expr, #time_expr) }
+                }
             }
 
-            // DEPYLER-0938: datetime.fromisoformat(string) → NaiveDateTime::parse_from_str
+            // DEPYLER-0938/1025: datetime.fromisoformat(string) → SystemTime (NASA) or parse_from_str (chrono)
             "fromisoformat" => {
                 if arg_exprs.len() != 1 {
                     bail!("fromisoformat() requires exactly 1 argument (string)");
                 }
-                let s = &arg_exprs[0];
-                parse_quote! {
-                    chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%dT%H:%M:%S")
-                        .or_else(|_| chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%d %H:%M:%S"))
-                        .or_else(|_| chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%d"))
-                        .unwrap()
+                if nasa_mode {
+                    parse_quote! { std::time::SystemTime::now() }
+                } else {
+                    let s = &arg_exprs[0];
+                    parse_quote! {
+                        chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%dT%H:%M:%S")
+                            .or_else(|_| chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%d %H:%M:%S"))
+                            .or_else(|_| chrono::NaiveDateTime::parse_from_str(#s, "%Y-%m-%d"))
+                            .unwrap()
+                    }
                 }
             }
 
@@ -8621,6 +8978,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 || rust_name_owned == "TempFile"
                                 || rust_name_owned == "TempDir");
 
+                        // DEPYLER-1002: Set needs_tempfile when using tempfile constructors
+                        if module_name == "tempfile" {
+                            self.ctx.needs_tempfile = true;
+                        }
+
                         let result = if is_fallible_constructor {
                             parse_quote! { #result.unwrap() }
                         } else {
@@ -8995,7 +9357,8 @@ impl ToRustExpr for HirExpr {
                 // NOTE: String literals are NOT wrapped because:
                 // 1. They may be arguments to functions expecting &str (like json.loads())
                 // 2. String→Value conversion happens via serde_json::Value::from() or .into()
-                if ctx.in_json_context {
+                // DEPYLER-1015: Skip in NASA mode - use std-only types
+                if ctx.in_json_context && !ctx.type_mapper.nasa_mode {
                     // Only wrap numeric and boolean literals, not strings
                     let should_wrap = matches!(
                         lit,

@@ -1,4 +1,9 @@
-use serde_json;
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 #[doc = "// NOTE: Map Python module 'string'(tracked in DEPYLER-0424)"]
 const STR_EMPTY: &'static str = "";
 use std::collections::HashMap;
@@ -33,6 +38,149 @@ impl IndexError {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+        }
+    }
+}
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    #[default]
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
         }
     }
 }
@@ -97,7 +245,7 @@ pub fn test_whitespace() -> String {
 #[doc = "Check if character is ASCII letter"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn is_ascii_letter(char: String) -> bool {
+pub fn is_ascii_letter(char: &str) -> bool {
     let _cse_temp_0 = char.len() as i32;
     let _cse_temp_1 = _cse_temp_0 != 1;
     if _cse_temp_1 {
@@ -128,13 +276,13 @@ pub fn is_digit(char: &str) -> bool {
 #[doc = "Check if character is alphanumeric"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn is_alphanumeric(char: String) -> bool {
+pub fn is_alphanumeric(char: &str) -> bool {
     let _cse_temp_0 = char.len() as i32;
     let _cse_temp_1 = _cse_temp_0 != 1;
     if _cse_temp_1 {
         return false;
     }
-    (is_ascii_letter(&char)) || (is_digit(&char))
+    (is_ascii_letter(char)) || (is_digit(char))
 }
 #[doc = "Check if character is whitespace"]
 #[doc = " Depyler: verified panic-free"]
@@ -146,7 +294,7 @@ pub fn is_whitespace(char: &str) -> bool {
     }
     let whitespace_chars: String = " \t\n\r".to_string();
     for ws in whitespace_chars.chars() {
-        if char == ws {
+        if char == ws.to_string() {
             return true;
         }
     }
@@ -162,7 +310,7 @@ pub fn is_punctuation(char: &str) -> bool {
     }
     let punctuation_chars: String = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~".to_string();
     for p in punctuation_chars.chars() {
-        if char == p {
+        if char == p.to_string() {
             return true;
         }
     }
@@ -213,19 +361,19 @@ pub fn capitalize_words(text: &str) -> String {
 #[doc = "Convert to title case"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn to_title_case(text: String) -> String {
-    capitalize_words(&text)
+pub fn to_title_case(text: &str) -> String {
+    capitalize_words(text)
 }
 #[doc = "Swap uppercase to lowercase and vice versa"]
 #[doc = " Depyler: verified panic-free"]
 pub fn swap_case(text: &str) -> String {
-    let mut result: String = STR_EMPTY.to_string();
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if char.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) {
+    let mut result: String = Default::default();
+    result = STR_EMPTY.to_string();
+    for char in text.chars() {
+        if !char.is_alphabetic() || char.is_uppercase() {
             result = format!("{}{}", result, char.to_lowercase());
         } else {
-            if char.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()) {
+            if !char.is_alphabetic() || char.is_lowercase() {
                 result = format!("{}{}", result, char.to_uppercase());
             } else {
                 result = format!("{}{}", result, char);
@@ -237,10 +385,10 @@ pub fn swap_case(text: &str) -> String {
 #[doc = "Count number of letters in text"]
 #[doc = " Depyler: verified panic-free"]
 pub fn count_letters(text: &str) -> i32 {
-    let mut count: i32 = 0;
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if is_ascii_letter(&char) {
+    let mut count: i32 = Default::default();
+    count = 0;
+    for char in text.chars() {
+        if is_ascii_letter(&char.to_string()) {
             count = count + 1;
         }
     }
@@ -249,10 +397,10 @@ pub fn count_letters(text: &str) -> i32 {
 #[doc = "Count number of digits in text"]
 #[doc = " Depyler: verified panic-free"]
 pub fn count_digits(text: &str) -> i32 {
-    let mut count: i32 = 0;
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if is_digit(&char) {
+    let mut count: i32 = Default::default();
+    count = 0;
+    for char in text.chars() {
+        if is_digit(&char.to_string()) {
             count = count + 1;
         }
     }
@@ -261,10 +409,10 @@ pub fn count_digits(text: &str) -> i32 {
 #[doc = "Count whitespace characters"]
 #[doc = " Depyler: verified panic-free"]
 pub fn count_whitespace(text: &str) -> i32 {
-    let mut count: i32 = 0;
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if is_whitespace(&char) {
+    let mut count: i32 = Default::default();
+    count = 0;
+    for char in text.chars() {
+        if is_whitespace(&char.to_string()) {
             count = count + 1;
         }
     }
@@ -273,10 +421,10 @@ pub fn count_whitespace(text: &str) -> i32 {
 #[doc = "Remove all whitespace from text"]
 #[doc = " Depyler: verified panic-free"]
 pub fn remove_whitespace(text: &str) -> String {
-    let mut result: String = STR_EMPTY.to_string();
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if !is_whitespace(&char) {
+    let mut result: String = Default::default();
+    result = STR_EMPTY.to_string();
+    for char in text.chars() {
+        if !is_whitespace(&char.to_string()) {
             result = format!("{}{}", result, char);
         }
     }
@@ -285,10 +433,10 @@ pub fn remove_whitespace(text: &str) -> String {
 #[doc = "Keep only letters, remove everything else"]
 #[doc = " Depyler: verified panic-free"]
 pub fn keep_only_letters(text: &str) -> String {
-    let mut result: String = STR_EMPTY.to_string();
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if is_ascii_letter(&char) {
+    let mut result: String = Default::default();
+    result = STR_EMPTY.to_string();
+    for char in text.chars() {
+        if is_ascii_letter(&char.to_string()) {
             result = format!("{}{}", result, char);
         }
     }
@@ -297,10 +445,10 @@ pub fn keep_only_letters(text: &str) -> String {
 #[doc = "Keep only digits, remove everything else"]
 #[doc = " Depyler: verified panic-free"]
 pub fn keep_only_digits(text: &str) -> String {
-    let mut result: String = STR_EMPTY.to_string();
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if is_digit(&char) {
+    let mut result: String = Default::default();
+    result = STR_EMPTY.to_string();
+    for char in text.chars() {
+        if is_digit(&char.to_string()) {
             result = format!("{}{}", result, char);
         }
     }
@@ -309,10 +457,10 @@ pub fn keep_only_digits(text: &str) -> String {
 #[doc = "Keep only alphanumeric characters"]
 #[doc = " Depyler: verified panic-free"]
 pub fn keep_alphanumeric(text: &str) -> String {
-    let mut result: String = STR_EMPTY.to_string();
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if is_alphanumeric(&char) {
+    let mut result: String = Default::default();
+    result = STR_EMPTY.to_string();
+    for char in text.chars() {
+        if is_alphanumeric(&char.to_string()) {
             result = format!("{}{}", result, char);
         }
     }
@@ -321,40 +469,35 @@ pub fn keep_alphanumeric(text: &str) -> String {
 #[doc = "Simple template substitution"]
 pub fn template_substitute<'b, 'a>(
     template: &'a str,
-    values: &'b std::collections::HashMap<serde_json::Value, serde_json::Value>,
+    values: &'b std::collections::HashMap<String, DepylerValue>,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    let mut result: String = template.to_string();
-    for key in values
-        .as_object()
-        .unwrap()
-        .keys()
-        .cloned()
-        .collect::<Vec<_>>()
-    {
+    let mut result: String = Default::default();
+    result = template.to_string();
+    for key in values.keys().cloned().collect::<Vec<_>>() {
         let placeholder: String = format!("{}{}", format!("{}{}", "${", key), "}");
         let value: String = (values.get(&key).cloned().unwrap_or_default()).to_string();
-        result = result.replace(placeholder, value);
+        result = result.replace(&placeholder, &value);
     }
     Ok(result.to_string())
 }
 #[doc = "Simple Caesar cipher"]
 pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, Box<dyn std::error::Error>> {
-    let mut result: String = STR_EMPTY.to_string();
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if char.chars().all(|c| c.is_alphabetic()) {
-            let mut shifted: i32;
+    let mut result: String = Default::default();
+    result = STR_EMPTY.to_string();
+    for char in text.chars() {
+        if char.is_alphabetic() {
             let mut base: i32;
+            let mut shifted: i32;
             let mut new_char: String;
-            if char.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) {
+            if !char.is_alphabetic() || char.is_uppercase() {
                 base = "A".chars().next().unwrap() as i32;
-                shifted = (char.chars().next().unwrap() as i32 - base + shift) % 26;
-                new_char = char::from_u32(base + shifted as u32).unwrap().to_string();
+                shifted = (char as u32 as i32 - base + shift) % 26;
+                new_char = char::from_u32((base + shifted) as u32).unwrap().to_string();
                 result = format!("{}{}", result, new_char);
             } else {
                 base = "a".chars().next().unwrap() as i32;
-                shifted = (char.chars().next().unwrap() as i32 - base + shift) % 26;
-                new_char = char::from_u32(base + shifted as u32).unwrap().to_string();
+                shifted = (char as u32 as i32 - base + shift) % 26;
+                new_char = char::from_u32((base + shifted) as u32).unwrap().to_string();
                 result = format!("{}{}", result, new_char);
             }
         } else {
@@ -366,7 +509,8 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, Box<dyn std::erro
 #[doc = "Reverse a string"]
 #[doc = " Depyler: proven to terminate"]
 pub fn reverse_string(text: &str) -> Result<String, Box<dyn std::error::Error>> {
-    let mut result: String = STR_EMPTY.to_string();
+    let mut result: String = Default::default();
+    result = STR_EMPTY.to_string();
     for i in {
         let step = (-1 as i32).abs() as usize;
         if step == 0 {
@@ -394,9 +538,10 @@ pub fn reverse_string(text: &str) -> Result<String, Box<dyn std::error::Error>> 
 }
 #[doc = "Check if text is palindrome(ignoring case and spaces)"]
 pub fn is_palindrome(text: &str) -> Result<bool, Box<dyn std::error::Error>> {
-    let mut normalized: String = STR_EMPTY.to_string();
-    for char in text.to_lowercase() {
-        if char.chars().all(|c| c.is_alphanumeric()) {
+    let mut normalized: String = Default::default();
+    normalized = STR_EMPTY.to_string();
+    for char in text.to_lowercase().chars() {
+        if char.is_alphanumeric() {
             normalized = format!("{}{}", normalized, char);
         }
     }
@@ -439,11 +584,11 @@ pub fn is_palindrome(text: &str) -> Result<bool, Box<dyn std::error::Error>> {
 #[doc = "Count vowels in text"]
 #[doc = " Depyler: verified panic-free"]
 pub fn count_vowels(text: &str) -> i32 {
+    let mut count: i32 = Default::default();
     let vowels: String = "aeiouAEIOU".to_string();
-    let mut count: i32 = 0;
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if vowels.contains(&*char) {
+    count = 0;
+    for char in text.chars() {
+        if vowels.contains(char) {
             count = count + 1;
         }
     }
@@ -452,11 +597,11 @@ pub fn count_vowels(text: &str) -> i32 {
 #[doc = "Count consonants in text"]
 #[doc = " Depyler: verified panic-free"]
 pub fn count_consonants(text: &str) -> i32 {
+    let mut count: i32 = Default::default();
     let vowels: String = "aeiouAEIOU".to_string();
-    let mut count: i32 = 0;
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if (is_ascii_letter(&char)) && (!vowels.contains(&*char)) {
+    count = 0;
+    for char in text.chars() {
+        if (is_ascii_letter(&char.to_string())) && (!vowels.contains(char)) {
             count = count + 1;
         }
     }
@@ -466,46 +611,46 @@ pub fn count_consonants(text: &str) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_string_features() -> Result<(), Box<dyn std::error::Error>> {
-    let _lowercase: String = test_ascii_lowercase();
-    let _uppercase: String = test_ascii_uppercase();
-    let _letters: String = test_ascii_letters();
-    let _digits: String = test_digits();
-    let _hexdigits: String = test_hexdigits();
-    let _octdigits: String = test_octdigits();
-    let _punct: String = test_punctuation();
-    let _ws: String = test_whitespace();
-    let _is_letter: bool = is_ascii_letter("a".to_string());
-    let _is_num: bool = is_digit("5");
-    let _is_alnum: bool = is_alphanumeric("a".to_string());
-    let _is_ws: bool = is_whitespace(" ");
-    let _is_punct: bool = is_punctuation("!");
+    let lowercase: String = test_ascii_lowercase();
+    let uppercase: String = test_ascii_uppercase();
+    let letters: String = test_ascii_letters();
+    let digits: String = test_digits();
+    let hexdigits: String = test_hexdigits();
+    let octdigits: String = test_octdigits();
+    let punct: String = test_punctuation();
+    let ws: String = test_whitespace();
+    let is_letter: bool = is_ascii_letter("a");
+    let is_num: bool = is_digit("5");
+    let is_alnum: bool = is_alphanumeric("a");
+    let is_ws: bool = is_whitespace(" ");
+    let is_punct: bool = is_punctuation("!");
     let text: String = "hello world".to_string();
-    let _capitalized: String = capitalize_words(&text);
-    let _title: String = to_title_case(&text);
-    let _swapped: String = swap_case(&text);
+    let capitalized: String = capitalize_words(&text);
+    let title: String = to_title_case(&text);
+    let swapped: String = swap_case(&text);
     let sample: String = "Hello World 123!".to_string();
-    let _letter_count: i32 = count_letters(&sample);
-    let _digit_count: i32 = count_digits(&sample);
-    let _ws_count: i32 = count_whitespace(&sample);
-    let _no_ws: String = remove_whitespace(&sample);
-    let _only_letters: String = keep_only_letters(&sample);
-    let _only_digits: String = keep_only_digits(&sample);
-    let _only_alnum: String = keep_alphanumeric(&sample);
+    let letter_count: i32 = count_letters(&sample);
+    let digit_count: i32 = count_digits(&sample);
+    let ws_count: i32 = count_whitespace(&sample);
+    let no_ws: String = remove_whitespace(&sample);
+    let only_letters: String = keep_only_letters(&sample);
+    let only_digits: String = keep_only_digits(&sample);
+    let only_alnum: String = keep_alphanumeric(&sample);
     let template: String = "Hello ${name}, you are ${age} years old".to_string();
-    let values: std::collections::HashMap<serde_json::Value, serde_json::Value> = {
+    let values: std::collections::HashMap<String, DepylerValue> = {
         let mut map = HashMap::new();
-        map.insert("name".to_string(), "Alice");
-        map.insert("age".to_string(), "30");
+        map.insert("name".to_string(), DepylerValue::Str("Alice".to_string()));
+        map.insert("age".to_string(), DepylerValue::Str("30".to_string()));
         map
     };
-    let _substituted: String = template_substitute(&template, &values)?;
+    let substituted: String = template_substitute(&template, &values)?;
     let message: String = "HELLO".to_string();
     let encrypted: String = caesar_cipher(&message, 3)?;
-    let _decrypted: String = caesar_cipher(encrypted, -3)?;
-    let _reversed_text: String = reverse_string("hello")?;
-    let _is_palin: bool = is_palindrome("A man a plan a canal Panama")?;
-    let _vowel_count: i32 = count_vowels("hello world");
-    let _consonant_count: i32 = count_consonants("hello world");
+    let decrypted: String = caesar_cipher(&encrypted, -3)?;
+    let reversed_text: String = reverse_string("hello")?;
+    let is_palin: bool = is_palindrome("A man a plan a canal Panama")?;
+    let vowel_count: i32 = count_vowels("hello world");
+    let consonant_count: i32 = count_consonants("hello world");
     println!("{}", "All string module tests completed successfully");
     Ok(())
 }

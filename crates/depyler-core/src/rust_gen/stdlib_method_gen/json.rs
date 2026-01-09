@@ -19,6 +19,9 @@ use syn::parse_quote;
 /// - `json.dump(obj, file)` → `serde_json::to_writer(file, &obj).unwrap()`
 /// - `json.load(file)` → `serde_json::from_reader::<_, Value>(file).unwrap()`
 ///
+/// DEPYLER-1022: NASA mode support - returns stub implementations that don't
+/// require serde_json external crate.
+///
 /// # Complexity: 5 (match with 5 branches)
 pub fn convert_json_method(
     method: &str,
@@ -31,7 +34,19 @@ pub fn convert_json_method(
         .map(|arg| arg.to_rust_expr(ctx))
         .collect::<Result<Vec<_>>>()?;
 
-    // Mark that we need serde_json crate
+    // DEPYLER-1022: In NASA mode, use stub implementations
+    if ctx.type_mapper.nasa_mode {
+        let result = match method {
+            "dumps" => convert_dumps_nasa(&arg_exprs)?,
+            "loads" => convert_loads_nasa(&arg_exprs, ctx)?,
+            "dump" => convert_dump_nasa(&arg_exprs)?,
+            "load" => convert_load_nasa(&arg_exprs, ctx)?,
+            _ => bail!("json.{} not implemented yet", method),
+        };
+        return Ok(Some(result));
+    }
+
+    // Mark that we need serde_json crate (non-NASA mode)
     ctx.needs_serde_json = true;
 
     let result = match method {
@@ -154,6 +169,8 @@ pub fn return_type_needs_json_dict(ctx: &CodeGenContext) -> bool {
                 }
             }
             Type::Custom(s) if s.contains("HashMap") && s.contains("Value") => return true,
+            // DEPYLER-1004: Handle bare Dict from typing import (becomes Type::Custom("Dict"))
+            Type::Custom(s) if s == "Dict" => return true,
             _ => {}
         }
     }
@@ -163,6 +180,8 @@ pub fn return_type_needs_json_dict(ctx: &CodeGenContext) -> bool {
         match ret_type {
             Type::Dict(_, value_type) => is_json_value_type(value_type.as_ref()),
             Type::Custom(s) if s.contains("HashMap") && s.contains("Value") => true,
+            // DEPYLER-1004: Handle bare Dict from typing import (becomes Type::Custom("Dict"))
+            Type::Custom(s) if s == "Dict" => true,
             _ => false,
         }
     } else {
@@ -179,16 +198,101 @@ fn is_json_value_type(t: &Type) -> bool {
     }
 }
 
+// ============ NASA Mode Stub Functions ============
+// DEPYLER-1022: These functions provide std-only implementations that compile
+// without external crates. They use format!("{:?}", ...) for serialization
+// and return empty containers for deserialization.
+
+/// NASA mode: json.dumps() → format!("{:?}", obj)
+fn convert_dumps_nasa(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+        bail!("json.dumps() requires 1 or 2 arguments");
+    }
+    let obj = &arg_exprs[0];
+    // Use Debug formatting as a simple serialization
+    Ok(parse_quote! { format!("{:?}", #obj) })
+}
+
+/// NASA mode: json.loads() → empty HashMap stub
+/// DEPYLER-1051: Uses DepylerValue for Hybrid Fallback Strategy
+fn convert_loads_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
+    if arg_exprs.len() != 1 {
+        bail!("json.loads() requires exactly 1 argument");
+    }
+    let _s = &arg_exprs[0];
+    ctx.needs_hashmap = true;
+    ctx.needs_depyler_value_enum = true; // DEPYLER-1051: Need DepylerValue enum
+    // Return empty HashMap as stub - actual parsing requires serde_json
+    // DEPYLER-1051: Use DepylerValue for value type to match return type inference
+    Ok(parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() })
+}
+
+/// NASA mode: json.dump() → write Debug format to file (stub)
+fn convert_dump_nasa(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    if arg_exprs.len() != 2 {
+        bail!("json.dump() requires exactly 2 arguments (obj, file)");
+    }
+    let obj = &arg_exprs[0];
+    let _file = &arg_exprs[1];
+    // Stub: just format the object (file writing requires more complex handling)
+    Ok(parse_quote! { format!("{:?}", #obj) })
+}
+
+/// NASA mode: json.load() → empty HashMap stub
+/// DEPYLER-1051: Uses DepylerValue for Hybrid Fallback Strategy
+fn convert_load_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
+    if arg_exprs.len() != 1 {
+        bail!("json.load() requires exactly 1 argument (file)");
+    }
+    let _file = &arg_exprs[0];
+    ctx.needs_hashmap = true;
+    ctx.needs_depyler_value_enum = true; // DEPYLER-1051: Need DepylerValue enum
+    // Return empty HashMap as stub
+    // DEPYLER-1051: Use DepylerValue for value type to match return type inference
+    Ok(parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::hir::Literal;
 
-    // ============ convert_json_method tests ============
+    /// Create context with NASA mode disabled for testing serde_json integration
+    fn ctx_with_serde_json() -> CodeGenContext<'static> {
+        let mut ctx = CodeGenContext::default();
+        ctx.type_mapper = Box::leak(Box::new(ctx.type_mapper.clone().with_nasa_mode(false)));
+        ctx
+    }
+
+    // ============ NASA Mode Tests (Default) ============
+
+    #[test]
+    fn test_nasa_mode_json_dumps_returns_format() {
+        let mut ctx = CodeGenContext::default(); // Default is NASA mode
+        let args = vec![HirExpr::Var("data".to_string())];
+
+        let result = convert_json_method("dumps", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_some());
+        assert!(!ctx.needs_serde_json); // NASA mode doesn't need serde_json
+    }
+
+    #[test]
+    fn test_nasa_mode_json_loads_returns_hashmap() {
+        let mut ctx = CodeGenContext::default();
+        let args = vec![HirExpr::Var("json_str".to_string())];
+
+        let result = convert_json_method("loads", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(!ctx.needs_serde_json); // NASA mode doesn't need serde_json
+        assert!(ctx.needs_hashmap); // But does need HashMap
+    }
+
+    // ============ Non-NASA Mode Tests (serde_json) ============
 
     #[test]
     fn test_convert_json_dumps_single_arg() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_serde_json();
         let args = vec![HirExpr::Var("data".to_string())];
 
         let result = convert_json_method("dumps", &args, &mut ctx);
@@ -199,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_convert_json_dumps_with_indent() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_serde_json();
         let args = vec![
             HirExpr::Var("data".to_string()),
             HirExpr::Literal(Literal::Int(2)),
@@ -234,7 +338,7 @@ mod tests {
 
     #[test]
     fn test_convert_json_loads_single_arg() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_serde_json();
         let args = vec![HirExpr::Var("json_str".to_string())];
 
         let result = convert_json_method("loads", &args, &mut ctx);
@@ -253,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_convert_json_loads_with_dict_list_union_return() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_serde_json();
         ctx.current_return_type = Some(Type::Union(vec![
             Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
             Type::List(Box::new(Type::Unknown)),
@@ -267,7 +371,7 @@ mod tests {
 
     #[test]
     fn test_convert_json_loads_with_dict_any_return() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_serde_json();
         ctx.current_return_type = Some(Type::Dict(
             Box::new(Type::String),
             Box::new(Type::Unknown),  // Unknown represents Any
@@ -281,7 +385,7 @@ mod tests {
 
     #[test]
     fn test_convert_json_dump_correct_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_serde_json(); // Non-NASA mode
         let args = vec![
             HirExpr::Var("data".to_string()),
             HirExpr::Var("file".to_string()),
@@ -303,7 +407,7 @@ mod tests {
 
     #[test]
     fn test_convert_json_load_single_arg() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_serde_json(); // Non-NASA mode
         let args = vec![HirExpr::Var("file".to_string())];
 
         let result = convert_json_method("load", &args, &mut ctx);

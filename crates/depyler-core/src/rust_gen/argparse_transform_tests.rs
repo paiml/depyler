@@ -977,18 +977,19 @@ fn test_subcommand_var_mapping() {
 }
 
 #[test]
-fn test_any_type_maps_to_serde_value() {
+fn test_any_type_maps_to_string_in_nasa_mode() {
     let mut arg = ArgParserArgument::new("data".to_string());
     arg.arg_type = Some(Type::Custom("Any".to_string()));
-    // Any maps to serde_json::Value via type_to_rust_string
+    // DEPYLER-1020: Any maps to String in NASA mode (default) via type_to_rust_string
     // The actual rust_type() function is tested via integration tests
     assert!(arg.arg_type.is_some());
 }
 
 #[test]
-fn test_object_type_maps_to_serde_value() {
+fn test_object_type_maps_to_string_in_nasa_mode() {
     let mut arg = ArgParserArgument::new("data".to_string());
     arg.arg_type = Some(Type::Custom("object".to_string()));
+    // DEPYLER-1020: object maps to String in NASA mode (default)
     assert!(arg.arg_type.is_some());
 }
 
@@ -2108,14 +2109,14 @@ fn test_rust_type_nested_optional() {
 fn test_rust_type_builtins_object() {
     let mut arg = ArgParserArgument::new("obj".to_string());
     arg.arg_type = Some(Type::Custom("builtins.object".to_string()));
-    // Through pipeline this maps to serde_json::Value but rust_type just returns custom name
-    assert!(arg.rust_type().contains("object") || arg.rust_type().contains("Value"));
+    // DEPYLER-1020: Through pipeline this maps to String in NASA mode (default)
+    assert!(arg.rust_type().contains("object") || arg.rust_type().contains("String"));
 }
 
 #[test]
 fn test_rust_type_any_lowercase() {
     let mut arg = ArgParserArgument::new("data".to_string());
     arg.arg_type = Some(Type::Custom("any".to_string()));
-    // Should map to serde_json::Value through type_to_rust_string
-    assert!(arg.rust_type().contains("any") || arg.rust_type().contains("Value"));
+    // DEPYLER-1020: Should map to String in NASA mode (default) through type_to_rust_string
+    assert!(arg.rust_type().contains("any") || arg.rust_type().contains("String"));
 }

@@ -1,4 +1,9 @@
-use itertools;
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
     message: String,
@@ -30,6 +35,149 @@ impl IndexError {
     pub fn new(message: impl Into<String>) -> Self {
         Self {
             message: message.into(),
+        }
+    }
+}
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    #[default]
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
         }
     }
 }
@@ -124,8 +272,13 @@ pub fn test_cycle(
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut result: Vec<String> = vec![];
     let mut idx: i32 = 0;
-    for _i in 0..num_items {
-        result.push(items.get(idx as usize).cloned().unwrap_or_default());
+    for _i in 0..(num_items) {
+        result.push(
+            items
+                .get(idx as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
         idx = (idx + 1) % items.len() as i32;
     }
     Ok(result)
@@ -135,7 +288,7 @@ pub fn test_cycle(
 #[doc = " Depyler: proven to terminate"]
 pub fn test_repeat(value: i32, times: i32) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
-    for _i in 0..times {
+    for _i in 0..(times) {
         result.push(value);
     }
     result
@@ -209,17 +362,25 @@ pub fn test_accumulate(numbers: &Vec<i32>) -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pairwise(items: &Vec<i32>) -> Vec<(i32, i32)> {
     let mut result: Vec<(i32, i32)> = vec![];
-    for i in 0..(items.len() as i32).saturating_sub(1) {
-        let pair: (i32, i32) = (items.get(i as usize).cloned().unwrap_or_default(), {
-            let base = &items;
-            let idx: i32 = i + 1;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub(idx.abs() as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx).cloned().unwrap_or_default()
-        });
+    for i in 0..((items.len() as i32).saturating_sub(1)) {
+        let pair: (i32, i32) = (
+            items
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+            {
+                let base = &items;
+                let idx: i32 = i + 1;
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            },
+        );
         result.push(pair);
     }
     result
@@ -229,24 +390,46 @@ pub fn test_pairwise(items: &Vec<i32>) -> Vec<(i32, i32)> {
 pub fn test_groupby_manual(
     items: &Vec<i32>,
 ) -> Result<Vec<(bool, Vec<i32>)>, Box<dyn std::error::Error>> {
+    let mut current_group: Vec<i32> = Default::default();
+    let mut current_is_even: bool = Default::default();
     let mut groups: Vec<(bool, Vec<i32>)> = vec![];
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
         return Ok(groups);
     }
-    let _cse_temp_2 = items.get(0usize).cloned().unwrap_or_default() % 2;
+    let _cse_temp_2 = items
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+        % 2;
     let _cse_temp_3 = _cse_temp_2 == 0;
-    let mut current_is_even: bool = _cse_temp_3.clone();
-    let mut current_group: Vec<i32> = vec![items.get(0usize).cloned().unwrap_or_default()];
-    for i in 1..items.len() as i32 {
-        let item_is_even: bool = items.get(i as usize).cloned().unwrap_or_default() % 2 == 0;
+    current_is_even = _cse_temp_3;
+    current_group = vec![items
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")];
+    for i in (1)..(items.len() as i32) {
+        let item_is_even: bool = items
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            % 2
+            == 0;
         if item_is_even == current_is_even {
-            current_group.push(items.get(i as usize).cloned().unwrap_or_default());
+            current_group.push(
+                items
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
         } else {
             groups.push((current_is_even, current_group));
             current_is_even = item_is_even;
-            current_group = vec![items.get(i as usize).cloned().unwrap_or_default()];
+            current_group = vec![items
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")];
         }
     }
     groups.push((current_is_even, current_group));
@@ -259,9 +442,17 @@ pub fn test_compress<'b, 'a>(
     selectors: &'b Vec<bool>,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
     let mut result: Vec<String> = vec![];
-    for i in 0..std::cmp::min(data.len() as i32, selectors.len() as i32) {
-        if selectors.get(i as usize).cloned().unwrap_or_default() {
-            result.push(data.get(i as usize).cloned().unwrap_or_default());
+    for i in 0..(std::cmp::min(data.len() as i32, selectors.len() as i32)) {
+        if selectors
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+        {
+            result.push(
+                data.get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
         }
     }
     Ok(result)
@@ -305,24 +496,32 @@ pub fn cartesian_product_manual<'a, 'b>(
 }
 #[doc = "Manual implementation of zip_longest"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_zip_longest<'a, 'b>(
+pub fn test_zip_longest<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
     fillvalue: i32,
 ) -> Result<Vec<(i32, i32)>, Box<dyn std::error::Error>> {
+    let mut val1: i32 = Default::default();
+    let mut val2: i32 = Default::default();
     let mut result: Vec<(i32, i32)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
     let _cse_temp_2 = std::cmp::max(_cse_temp_0, _cse_temp_1);
     let max_len: i32 = _cse_temp_2;
-    for i in 0..max_len {
-        let mut val1: i32 = fillvalue.clone();
-        let mut val2: i32 = fillvalue.clone();
+    for i in 0..(max_len) {
+        val1 = fillvalue;
+        val2 = fillvalue;
         if i < list1.len() as i32 {
-            val1 = list1.get(i as usize).cloned().unwrap_or_default();
+            val1 = list1
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
         }
         if i < list2.len() as i32 {
-            val2 = list2.get(i as usize).cloned().unwrap_or_default();
+            val2 = list2
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
         }
         let pair: (i32, i32) = (val1, val2);
         result.push(pair);
@@ -332,8 +531,9 @@ pub fn test_zip_longest<'a, 'b>(
 #[doc = "Split iterable into batches of fixed size"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_batching(items: &Vec<i32>, batch_size: i32) -> Vec<Vec<i32>> {
+    let mut current_batch: Vec<i32> = Default::default();
     let mut batches: Vec<Vec<i32>> = vec![];
-    let mut current_batch: Vec<i32> = vec![];
+    current_batch = vec![];
     for item in items.iter().cloned() {
         current_batch.push(item);
         if current_batch.len() as i32 == batch_size {
@@ -353,7 +553,7 @@ pub fn test_batching(items: &Vec<i32>, batch_size: i32) -> Vec<Vec<i32>> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sliding_window(items: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
     let mut windows: Vec<Vec<i32>> = vec![];
-    for i in 0..(items.len() as i32).saturating_sub(window_size) + 1 {
+    for i in 0..((items.len() as i32).saturating_sub(window_size) + 1) {
         let window: Vec<i32> = {
             let base = &items;
             let start_idx = i as isize;
@@ -386,19 +586,34 @@ pub fn test_unique_justseen(items: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::e
     if _cse_temp_1 {
         return Ok(vec![]);
     }
-    let mut result: Vec<i32> = vec![items.get(0usize).cloned().unwrap_or_default()];
-    for i in 1..items.len() as i32 {
-        if items.get(i as usize).cloned().unwrap_or_default() != {
-            let base = &items;
-            let idx: i32 = i - 1;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub(idx.abs() as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx).cloned().unwrap_or_default()
-        } {
-            result.push(items.get(i as usize).cloned().unwrap_or_default());
+    let mut result: Vec<i32> = vec![items
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")];
+    for i in (1)..(items.len() as i32) {
+        if items
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            != {
+                let base = &items;
+                let idx: i32 = i - 1;
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            }
+        {
+            result.push(
+                items
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
         }
     }
     Ok(result)
@@ -417,7 +632,10 @@ pub fn test_nth_item(
     if _cse_temp_3 {
         return Ok(default);
     }
-    Ok(items.get(n as usize).cloned().unwrap_or_default())
+    Ok(items
+        .get(n as usize)
+        .cloned()
+        .expect("IndexError: list index out of range"))
 }
 #[doc = "Check if all items in iterable are equal"]
 pub fn test_all_equal(items: &Vec<i32>) -> Result<bool, Box<dyn std::error::Error>> {
@@ -426,7 +644,10 @@ pub fn test_all_equal(items: &Vec<i32>) -> Result<bool, Box<dyn std::error::Erro
     if _cse_temp_1 {
         return Ok(true);
     }
-    let first: i32 = items.get(0usize).cloned().unwrap_or_default();
+    let first: i32 = items
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
     for item in items.iter().cloned() {
         if item != first {
             return Ok(false);
@@ -437,7 +658,8 @@ pub fn test_all_equal(items: &Vec<i32>) -> Result<bool, Box<dyn std::error::Erro
 #[doc = "Count how many items meet a condition"]
 #[doc = " Depyler: verified panic-free"]
 pub fn test_quantify(items: &Vec<i32>, threshold: i32) -> i32 {
-    let mut count: i32 = 0;
+    let mut count: i32 = Default::default();
+    count = 0;
     for item in items.iter().cloned() {
         if item > threshold {
             count = count + 1;
@@ -449,6 +671,51 @@ pub fn test_quantify(items: &Vec<i32>, threshold: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_all_itertools_features() -> Result<(), Box<dyn std::error::Error>> {
+    let chained: Vec<i32> = test_chain_iterables();
+    let zipped: Vec<(i32, String)> = test_zip_iterables();
+    let enumerated: Vec<(i32, String)> = test_enumerate();
+    let evens: Vec<i32> = test_filter()?;
+    let squared: Vec<i32> = test_map();
+    let counted: Vec<i32> = test_count(0, 2, 5);
+    let colors: Vec<String> = vec!["red".to_string(), "green".to_string(), "blue".to_string()];
+    let cycled: Vec<String> = test_cycle(&colors, 10)?;
+    let repeated: Vec<i32> = test_repeat(42, 5);
+    let data: Vec<i32> = vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let sliced: Vec<i32> = test_islice(&data, 2, 7);
+    let numbers2: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+    let taken: Vec<i32> = test_takewhile(&numbers2, 5);
+    let dropped: Vec<i32> = test_dropwhile(&numbers2, 5);
+    let accumulated: Vec<i32> = test_accumulate(&vec![1, 2, 3, 4, 5]);
+    let pairs: Vec<(i32, i32)> = test_pairwise(&vec![1, 2, 3, 4, 5]);
+    let grouped: Vec<(bool, Vec<i32>)> = test_groupby_manual(&vec![1, 1, 2, 2, 2, 3, 4, 4])?;
+    let data_str: Vec<String> = vec![
+        "a".to_string(),
+        "b".to_string(),
+        "c".to_string(),
+        "d".to_string(),
+        "e".to_string(),
+    ];
+    let selectors: Vec<bool> = vec![true, false, true, false, true];
+    let compressed: Vec<String> = test_compress(&data_str, &selectors)?;
+    let nested: Vec<Vec<i32>> = vec![vec![1, 2], vec![3, 4], vec![5, 6]];
+    let flattened: Vec<i32> = test_chain_from_iterable(&nested);
+    let flattened2: Vec<i32> = flatten_nested_lists(&nested);
+    let list1: Vec<i32> = vec![1, 2, 3];
+    let list2: Vec<i32> = vec![10, 20];
+    let product: Vec<(i32, i32)> = cartesian_product_manual(&list1, &list2);
+    let short_list: Vec<i32> = vec![1, 2, 3];
+    let long_list: Vec<i32> = vec![10, 20, 30, 40, 50];
+    let zip_long: Vec<(i32, i32)> = test_zip_longest(&short_list, &long_list, 0)?;
+    let batch_data: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    let batches: Vec<Vec<i32>> = test_batching(&batch_data, 3);
+    let window_data: Vec<i32> = vec![1, 2, 3, 4, 5];
+    let windows: Vec<Vec<i32>> = test_sliding_window(&window_data, 3);
+    let duplicates: Vec<i32> = vec![1, 1, 2, 2, 2, 3, 3, 4, 4, 4, 4, 5];
+    let unique: Vec<i32> = test_unique_justseen(&duplicates)?;
+    let nth: i32 = test_nth_item(&vec![10, 20, 30, 40, 50], 2, -1)?;
+    let all_same: bool = test_all_equal(&vec![5, 5, 5, 5])?;
+    let not_same: bool = test_all_equal(&vec![1, 2, 3])?;
+    let above_threshold: i32 = test_quantify(&vec![1, 5, 10, 3, 8, 2, 15], 5);
     println!("{}", "All itertools tests completed successfully");
     Ok(())
 }

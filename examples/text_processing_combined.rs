@@ -1,3 +1,9 @@
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 #[doc = "// NOTE: Map Python module 'string'(tracked in DEPYLER-0424)"]
 use std::collections::HashMap;
 const STR_EMPTY: &'static str = "";
@@ -35,13 +41,155 @@ impl IndexError {
         }
     }
 }
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
 #[doc = "Tokenize text into words using string operations"]
 #[doc = " Depyler: verified panic-free"]
 pub fn tokenize_text(text: &str) -> Vec<String> {
-    let mut cleaned: String = STR_EMPTY.to_string();
+    let mut cleaned: String = Default::default();
+    cleaned = STR_EMPTY.to_string();
     let punctuation: String = ".,!?;:\"'()[]{}—-".to_string();
-    for _char in text.chars() {
-        let char = _char.to_string();
+    for char in text.chars() {
         let mut is_punct: bool = false;
         for p in punctuation.chars() {
             if char == p {
@@ -70,7 +218,7 @@ pub fn count_word_frequencies(
     words: &Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut frequencies: std::collections::HashMap<String, i32> = {
-        let map = HashMap::new();
+        let map: HashMap<String, i32> = HashMap::new();
         map
     };
     for word in words.iter().cloned() {
@@ -81,7 +229,7 @@ pub fn count_word_frequencies(
                 frequencies.insert(_key, _old_val + 1);
             }
         } else {
-            frequencies.insert(word.clone(), 1);
+            frequencies.insert(word.to_string().clone(), 1);
         }
     }
     Ok(frequencies)
@@ -96,23 +244,42 @@ pub fn get_most_common_words(
         let count: i32 = frequencies.get(&word).cloned().unwrap_or_default();
         word_counts.push((word, count));
     }
-    for i in 0..word_counts.len() as i32 {
-        for j in i + 1..word_counts.len() as i32 {
-            if word_counts.get(j as usize).cloned().unwrap_or_default().1
-                > word_counts.get(i as usize).cloned().unwrap_or_default().1
+    for i in 0..(word_counts.len() as i32) {
+        for j in (i + 1)..(word_counts.len() as i32) {
+            if word_counts
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .1
+                > word_counts
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .1
             {
-                let temp: (String, i32) = word_counts.get(i as usize).cloned().unwrap_or_default();
+                let temp: (String, i32) = word_counts
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
                 word_counts.insert(
                     (i) as usize,
-                    word_counts.get(j as usize).cloned().unwrap_or_default(),
+                    word_counts
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
                 );
                 word_counts.insert((j) as usize, temp);
             }
         }
     }
     let mut result: Vec<(String, i32)> = vec![];
-    for i in 0..std::cmp::min(n, word_counts.len() as i32) {
-        result.push(word_counts.get(i as usize).cloned().unwrap_or_default());
+    for i in 0..(std::cmp::min(n, word_counts.len() as i32)) {
+        result.push(
+            word_counts
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
     }
     Ok(result)
 }
@@ -129,21 +296,20 @@ pub fn analyze_character_distribution(
         map.insert("other".to_string(), 0);
         map
     };
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if char.chars().all(|c| c.is_alphabetic()) {
+    for char in text.chars() {
+        if char.is_alphabetic() {
             distribution.insert(
                 "letters".to_string(),
                 distribution.get("letters").cloned().unwrap_or_default() + 1,
             );
         } else {
-            if char.chars().all(|c| c.is_numeric()) {
+            if char.is_numeric() {
                 distribution.insert(
                     "digits".to_string(),
                     distribution.get("digits").cloned().unwrap_or_default() + 1,
                 );
             } else {
-                if char.chars().all(|c| c.is_whitespace()) {
+                if char.is_whitespace() {
                     distribution.insert(
                         "spaces".to_string(),
                         distribution.get("spaces").cloned().unwrap_or_default() + 1,
@@ -169,10 +335,10 @@ pub fn analyze_character_distribution(
 #[doc = "Extract sentences using simple pattern matching"]
 #[doc = " Depyler: verified panic-free"]
 pub fn extract_sentences(text: &str) -> Vec<String> {
+    let mut current_sentence: String = Default::default();
     let mut sentences: Vec<String> = vec![];
-    let mut current_sentence: String = STR_EMPTY.to_string();
-    for _char in text.chars() {
-        let char = _char.to_string();
+    current_sentence = STR_EMPTY.to_string();
+    for char in text.chars() {
         current_sentence = format!("{}{}", current_sentence, char);
         if ((char == ".") || (char == "!")) || (char == "?") {
             let trimmed: String = current_sentence.trim().to_string();
@@ -191,38 +357,39 @@ pub fn extract_sentences(text: &str) -> Vec<String> {
 }
 #[doc = "Calculate readability metrics combining multiple operations"]
 pub fn calculate_readability_metrics(
-    text: String,
+    text: &str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
+    let mut total_chars: i32 = Default::default();
     let mut metrics: std::collections::HashMap<String, f64> = {
-        let map = HashMap::new();
+        let map: HashMap<String, f64> = HashMap::new();
         map
     };
-    let words: Vec<String> = tokenize_text(&text);
-    let sentences: Vec<String> = extract_sentences(&text);
+    let words: Vec<String> = tokenize_text(text);
+    let sentences: Vec<String> = extract_sentences(text);
     let _cse_temp_0 = words.len() as i32;
     let _cse_temp_1 = (_cse_temp_0) as f64;
-    metrics.insert("word_count".to_string().to_string(), _cse_temp_1);
+    metrics.insert("word_count".to_string(), _cse_temp_1);
     let _cse_temp_2 = sentences.len() as i32;
     let _cse_temp_3 = (_cse_temp_2) as f64;
-    metrics.insert("sentence_count".to_string().to_string(), _cse_temp_3);
-    let mut total_chars: i32 = 0;
+    metrics.insert("sentence_count".to_string(), _cse_temp_3);
+    total_chars = 0;
     for word in words.iter().cloned() {
         total_chars = total_chars + word.len() as i32;
     }
     let _cse_temp_4 = _cse_temp_0 > 0;
     if _cse_temp_4 {
         let _cse_temp_5 = (total_chars) as f64;
-        let _cse_temp_6 = (_cse_temp_5 as f64) / (_cse_temp_1 as f64);
-        metrics.insert("avg_word_length".to_string().to_string(), _cse_temp_6);
+        let _cse_temp_6 = ((_cse_temp_5) as f64) / ((_cse_temp_1) as f64);
+        metrics.insert("avg_word_length".to_string(), _cse_temp_6);
     } else {
-        metrics.insert("avg_word_length".to_string().to_string(), 0.0);
+        metrics.insert("avg_word_length".to_string(), 0.0);
     }
     let _cse_temp_7 = _cse_temp_2 > 0;
     if _cse_temp_7 {
-        let _cse_temp_8 = (_cse_temp_1 as f64) / (_cse_temp_3 as f64);
-        metrics.insert("avg_sentence_length".to_string().to_string(), _cse_temp_8);
+        let _cse_temp_8 = ((_cse_temp_1) as f64) / ((_cse_temp_3) as f64);
+        metrics.insert("avg_sentence_length".to_string(), _cse_temp_8);
     } else {
-        metrics.insert("avg_sentence_length".to_string().to_string(), 0.0);
+        metrics.insert("avg_sentence_length".to_string(), 0.0);
     }
     Ok(metrics)
 }
@@ -230,12 +397,12 @@ pub fn calculate_readability_metrics(
 #[doc = " Depyler: verified panic-free"]
 pub fn group_words_by_length(words: &Vec<String>) -> HashMap<i32, Vec<String>> {
     let mut groups: std::collections::HashMap<i32, Vec<String>> = {
-        let map = HashMap::new();
+        let map: HashMap<i32, Vec<String>> = HashMap::new();
         map
     };
     for word in words.iter().cloned() {
         let length: i32 = word.len() as i32 as i32;
-        if !groups.get(&length).is_some() {
+        if groups.get(&length).is_none() {
             groups.insert(length.clone(), vec![]);
         }
         groups.get(&length).cloned().unwrap_or_default().push(word);
@@ -309,9 +476,9 @@ pub fn find_word_patterns(
 #[doc = " Depyler: proven to terminate"]
 pub fn create_ngrams(words: &Vec<String>, n: i32) -> Vec<String> {
     let mut ngrams: Vec<String> = vec![];
-    for i in 0..(words.len() as i32).saturating_sub(n) + 1 {
+    for i in 0..((words.len() as i32).saturating_sub(n) + 1) {
         let mut ngram_words: Vec<String> = vec![];
-        for j in 0..n {
+        for j in 0..(n) {
             ngram_words.push({
                 let base = &words;
                 let idx: i32 = i + j;
@@ -320,7 +487,9 @@ pub fn create_ngrams(words: &Vec<String>, n: i32) -> Vec<String> {
                 } else {
                     idx as usize
                 };
-                base.get(actual_idx).cloned().unwrap_or_default()
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
             });
         }
         let ngram: String = ngram_words.join(" ");
@@ -336,16 +505,16 @@ pub fn calculate_word_diversity(words: &Vec<String>) -> Result<f64, Box<dyn std:
         return Ok(0.0);
     }
     let mut unique_words: std::collections::HashMap<String, bool> = {
-        let map = HashMap::new();
+        let map: HashMap<String, bool> = HashMap::new();
         map
     };
     for word in words.iter().cloned() {
-        unique_words.insert(word.clone(), true);
+        unique_words.insert(word.to_string().clone(), true);
     }
     let _cse_temp_2 = unique_words.len() as i32;
     let _cse_temp_3 = (_cse_temp_2) as f64;
     let _cse_temp_4 = (_cse_temp_0) as f64;
-    let _cse_temp_5 = (_cse_temp_3 as f64) / (_cse_temp_4 as f64);
+    let _cse_temp_5 = ((_cse_temp_3) as f64) / ((_cse_temp_4) as f64);
     let diversity: f64 = _cse_temp_5;
     Ok(diversity)
 }
@@ -396,12 +565,13 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, Box<dyn std:
 pub fn analyze_vowel_consonant_ratio(
     text: &str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
+    let mut consonant_count: i32 = Default::default();
+    let mut vowel_count: i32 = Default::default();
     let vowels: String = "aeiouAEIOU".to_string();
-    let mut vowel_count: i32 = 0;
-    let mut consonant_count: i32 = 0;
-    for _char in text.chars() {
-        let char = _char.to_string();
-        if char.chars().all(|c| c.is_alphabetic()) {
+    vowel_count = 0;
+    consonant_count = 0;
+    for char in text.chars() {
+        if char.is_alphabetic() {
             if vowels.contains(&*char) {
                 vowel_count = vowel_count + 1;
             } else {
@@ -411,26 +581,26 @@ pub fn analyze_vowel_consonant_ratio(
     }
     let total_letters: i32 = vowel_count + consonant_count;
     let mut result: std::collections::HashMap<String, f64> = {
-        let map = HashMap::new();
+        let map: HashMap<String, f64> = HashMap::new();
         map
     };
     let _cse_temp_0 = total_letters > 0;
     if _cse_temp_0 {
         let _cse_temp_1 = (vowel_count) as f64;
         let _cse_temp_2 = (total_letters) as f64;
-        let _cse_temp_3 = (_cse_temp_1 as f64) / (_cse_temp_2 as f64);
-        result.insert("vowel_ratio".to_string().to_string(), _cse_temp_3);
+        let _cse_temp_3 = ((_cse_temp_1) as f64) / ((_cse_temp_2) as f64);
+        result.insert("vowel_ratio".to_string(), _cse_temp_3);
         let _cse_temp_4 = (consonant_count) as f64;
-        let _cse_temp_5 = (_cse_temp_4 as f64) / (_cse_temp_2 as f64);
-        result.insert("consonant_ratio".to_string().to_string(), _cse_temp_5);
+        let _cse_temp_5 = ((_cse_temp_4) as f64) / ((_cse_temp_2) as f64);
+        result.insert("consonant_ratio".to_string(), _cse_temp_5);
     } else {
-        result.insert("vowel_ratio".to_string().to_string(), 0.0);
-        result.insert("consonant_ratio".to_string().to_string(), 0.0);
+        result.insert("vowel_ratio".to_string(), 0.0);
+        result.insert("consonant_ratio".to_string(), 0.0);
     }
     let _cse_temp_6 = (vowel_count) as f64;
-    result.insert("vowel_count".to_string().to_string(), _cse_temp_6);
+    result.insert("vowel_count".to_string(), _cse_temp_6);
     let _cse_temp_7 = (consonant_count) as f64;
-    result.insert("consonant_count".to_string().to_string(), _cse_temp_7);
+    result.insert("consonant_count".to_string(), _cse_temp_7);
     Ok(result)
 }
 #[doc = "Main text processing pipeline"]

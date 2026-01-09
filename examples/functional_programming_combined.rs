@@ -1,3 +1,9 @@
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -33,6 +39,148 @@ impl IndexError {
         }
     }
 }
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
 #[doc = "Map transformation over list"]
 #[doc = " Depyler: verified panic-free"]
 pub fn map_transform(data: &Vec<i32>, multiplier: i32) -> Vec<i32> {
@@ -57,7 +205,8 @@ pub fn filter_predicate(data: &Vec<i32>, threshold: i32) -> Vec<i32> {
 #[doc = "Reduce list to sum"]
 #[doc = " Depyler: verified panic-free"]
 pub fn reduce_sum(data: &Vec<i32>) -> i32 {
-    let mut total: i32 = 0;
+    let mut total: i32 = Default::default();
+    total = 0;
     for item in data.iter().cloned() {
         total = total + item;
     }
@@ -66,12 +215,13 @@ pub fn reduce_sum(data: &Vec<i32>) -> i32 {
 #[doc = "Reduce list to product"]
 #[doc = " Depyler: verified panic-free"]
 pub fn reduce_product(data: &Vec<i32>) -> i32 {
+    let mut product: i32 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
         return 0;
     }
-    let mut product: i32 = 1;
+    product = 1;
     for item in data.iter().cloned() {
         product = product * item;
     }
@@ -80,7 +230,7 @@ pub fn reduce_product(data: &Vec<i32>) -> i32 {
 #[doc = "Chain multiple operations together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn chain_operations(data: Vec<i32>) -> i32 {
+pub fn chain_operations(data: &Vec<i32>) -> i32 {
     let mapped: Vec<i32> = map_transform(&data, 2);
     let filtered: Vec<i32> = filter_predicate(&mapped, 10);
     let result: i32 = reduce_sum(&filtered);
@@ -95,10 +245,16 @@ pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i3
     let _cse_temp_1 = list2.len() as i32;
     let _cse_temp_2 = std::cmp::min(_cse_temp_0, _cse_temp_1);
     let min_len: i32 = _cse_temp_2;
-    for i in 0..min_len {
+    for i in 0..(min_len) {
         let pair: (i32, String) = (
-            list1.get(i as usize).cloned().unwrap_or_default(),
-            list2.get(i as usize).cloned().unwrap_or_default(),
+            list1
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+            list2
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
         );
         result.push(pair);
     }
@@ -109,8 +265,14 @@ pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i3
 #[doc = " Depyler: proven to terminate"]
 pub fn enumerate_list(items: &Vec<String>) -> Vec<(i32, String)> {
     let mut result: Vec<(i32, String)> = vec![];
-    for i in 0..items.len() as i32 {
-        let pair: (i32, String) = (i, items.get(i as usize).cloned().unwrap_or_default());
+    for i in 0..(items.len() as i32) {
+        let pair: (i32, String) = (
+            i,
+            items
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+        );
         result.push(pair);
     }
     result
@@ -121,12 +283,12 @@ pub fn group_by_property(
     modulo: i32,
 ) -> Result<HashMap<i32, Vec<i32>>, Box<dyn std::error::Error>> {
     let mut groups: std::collections::HashMap<i32, Vec<i32>> = {
-        let map = HashMap::new();
+        let map: HashMap<i32, Vec<i32>> = HashMap::new();
         map
     };
     for item in items.iter().cloned() {
         let key: i32 = item % modulo;
-        if !groups.get(&key).is_some() {
+        if groups.get(&key).is_none() {
             groups.insert(key.clone(), vec![]);
         }
         groups.get(&key).cloned().unwrap_or_default().push(item);
@@ -213,17 +375,24 @@ pub fn drop_while_condition(data: &Vec<i32>, threshold: i32) -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn pairwise_iteration(data: &Vec<i32>) -> Vec<(i32, i32)> {
     let mut result: Vec<(i32, i32)> = vec![];
-    for i in 0..(data.len() as i32).saturating_sub(1) {
-        let pair: (i32, i32) = (data.get(i as usize).cloned().unwrap_or_default(), {
-            let base = &data;
-            let idx: i32 = i + 1;
-            let actual_idx = if idx < 0 {
-                base.len().saturating_sub(idx.abs() as usize)
-            } else {
-                idx as usize
-            };
-            base.get(actual_idx).cloned().unwrap_or_default()
-        });
+    for i in 0..((data.len() as i32).saturating_sub(1)) {
+        let pair: (i32, i32) = (
+            data.get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"),
+            {
+                let base = &data;
+                let idx: i32 = i + 1;
+                let actual_idx = if idx < 0 {
+                    base.len().saturating_sub(idx.abs() as usize)
+                } else {
+                    idx as usize
+                };
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            },
+        );
         result.push(pair);
     }
     result
@@ -233,9 +402,9 @@ pub fn pairwise_iteration(data: &Vec<i32>) -> Vec<(i32, i32)> {
 #[doc = " Depyler: proven to terminate"]
 pub fn sliding_window(data: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
     let mut result: Vec<Vec<i32>> = vec![];
-    for i in 0..(data.len() as i32).saturating_sub(window_size) + 1 {
+    for i in 0..((data.len() as i32).saturating_sub(window_size) + 1) {
         let mut window: Vec<i32> = vec![];
-        for j in 0..window_size {
+        for j in 0..(window_size) {
             window.push({
                 let base = &data;
                 let idx: i32 = i + j;
@@ -244,7 +413,9 @@ pub fn sliding_window(data: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
                 } else {
                     idx as usize
                 };
-                base.get(actual_idx).cloned().unwrap_or_default()
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
             });
         }
         result.push(window);
@@ -253,7 +424,7 @@ pub fn sliding_window(data: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
 }
 #[doc = "Compose two functions(f ∘ g)"]
 #[doc = " Depyler: verified panic-free"]
-pub fn compose_two_functions(data: Vec<i32>) -> Vec<i32> {
+pub fn compose_two_functions(data: &Vec<i32>) -> Vec<i32> {
     let step1: Vec<i32> = map_transform(&data, 2);
     let mut step2: Vec<i32> = vec![];
     for item in step1.iter().cloned() {
@@ -263,13 +434,15 @@ pub fn compose_two_functions(data: Vec<i32>) -> Vec<i32> {
 }
 #[doc = "Apply multiple operations in sequence"]
 #[doc = " Depyler: verified panic-free"]
-pub fn apply_multiple_operations<'b, 'a>(
+pub fn apply_multiple_operations<'a, 'b>(
     data: &'a Vec<i32>,
     operations: &'b Vec<String>,
 ) -> Vec<i32> {
-    let mut result: Vec<i32> = data.clone();
+    let mut result: Vec<i32> = Default::default();
+    let mut new_result: Vec<i32> = Default::default();
+    result = data.clone();
     for op in operations.iter().cloned() {
-        let mut new_result: Vec<i32> = vec![];
+        new_result = vec![];
         if op == "double" {
             for item in result.iter().cloned() {
                 new_result.push(item * 2);
@@ -306,7 +479,7 @@ pub fn map_reduce_pattern(data: &Vec<i32>) -> i32 {
 #[doc = "Filter-Map-Reduce pipeline"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn filter_map_reduce_pattern(data: Vec<i32>, threshold: i32) -> i32 {
+pub fn filter_map_reduce_pattern(data: &Vec<i32>, threshold: i32) -> i32 {
     let filtered: Vec<i32> = filter_predicate(&data, threshold);
     let mapped: Vec<i32> = map_transform(&filtered, 3);
     let reduced: i32 = reduce_sum(&mapped);
@@ -316,12 +489,12 @@ pub fn filter_map_reduce_pattern(data: Vec<i32>, threshold: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 pub fn unique_elements(data: &Vec<i32>) -> Vec<i32> {
     let mut seen: std::collections::HashMap<i32, bool> = {
-        let map = HashMap::new();
+        let map: HashMap<i32, bool> = HashMap::new();
         map
     };
     let mut result: Vec<i32> = vec![];
     for item in data.iter().cloned() {
-        if !seen.get(&item).is_some() {
+        if seen.get(&item).is_none() {
             seen.insert(item.clone(), true);
             result.push(item);
         }
@@ -331,7 +504,7 @@ pub fn unique_elements(data: &Vec<i32>) -> Vec<i32> {
 #[doc = "Count occurrences of each value"]
 pub fn count_by_value(data: &Vec<i32>) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
     let mut counts: std::collections::HashMap<i32, i32> = {
-        let map = HashMap::new();
+        let map: HashMap<i32, i32> = HashMap::new();
         map
     };
     for item in data.iter().cloned() {
@@ -353,15 +526,29 @@ pub fn sorted_by_key(
     items: &Vec<(String, i32)>,
 ) -> Result<Vec<(String, i32)>, Box<dyn std::error::Error>> {
     let mut result: Vec<(String, i32)> = items.clone();
-    for i in 0..result.len() as i32 {
-        for j in i + 1..result.len() as i32 {
-            if result.get(j as usize).cloned().unwrap_or_default().1
-                < result.get(i as usize).cloned().unwrap_or_default().1
+    for i in 0..(result.len() as i32) {
+        for j in (i + 1)..(result.len() as i32) {
+            if result
+                .get(j as usize)
+                .cloned()
+                .expect("IndexError: list index out of range")
+                .1
+                < result
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+                    .1
             {
-                let temp: (String, i32) = result.get(i as usize).cloned().unwrap_or_default();
+                let temp: (String, i32) = result
+                    .get(i as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
                 result.insert(
                     (i) as usize,
-                    result.get(j as usize).cloned().unwrap_or_default(),
+                    result
+                        .get(j as usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
                 );
                 result.insert((j) as usize, temp);
             }
@@ -391,8 +578,8 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
     let total: i32 = reduce_sum(&data);
     println!("{}", format!("   Sum: {}", total));
     println!("{}", "\n4. Chained Operations");
-    let chained: i32 = chain_operations(data);
-    println!("{}", format!("   Result: {:?}", chained));
+    let chained: i32 = chain_operations(&data);
+    println!("{}", format!("   Result: {}", chained));
     println!("{}", "\n5. Zip Pattern");
     let labels: Vec<String> = vec![
         "a".to_string(),
@@ -468,23 +655,17 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
         format!("   Windows(size 3): {} windows", windows.len() as i32)
     );
     println!("{}", "\n14. Function Composition");
-    let composed: Vec<i32> = compose_two_functions(vec![1, 2, 3]);
+    let composed: Vec<i32> = compose_two_functions(&vec![1, 2, 3]);
     println!(
         "{}",
         format!("   Composed result: {} elements", composed.len() as i32)
     );
     println!("{}", "\n15. Map-Reduce Pattern");
     let mr_result: i32 = map_reduce_pattern(&vec![1, 2, 3, 4]);
-    println!(
-        "{}",
-        format!("   Map-Reduce sum of squares: {:?}", mr_result)
-    );
+    println!("{}", format!("   Map-Reduce sum of squares: {}", mr_result));
     println!("{}", "\n16. Filter-Map-Reduce");
-    let fmr_result: i32 = filter_map_reduce_pattern(data, 5);
-    println!(
-        "{}",
-        format!("   Filter-Map-Reduce result: {:?}", fmr_result)
-    );
+    let fmr_result: i32 = filter_map_reduce_pattern(&data, 5);
+    println!("{}", format!("   Filter-Map-Reduce result: {}", fmr_result));
     println!("{}", "\n17. Unique Elements");
     let duplicates: Vec<i32> = vec![1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
     let unique: Vec<i32> = unique_elements(&duplicates);

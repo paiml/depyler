@@ -7,7 +7,7 @@
 //! - Hoisting variable declarations for scope-based patterns
 //! - Extracting walrus operator assignments
 
-use crate::hir::{AssignTarget, HirExpr, HirStmt, FStringPart};
+use crate::hir::{AssignTarget, BinOp, HirExpr, HirStmt, FStringPart};
 use std::collections::HashSet;
 
 /// Check if a variable is used in an expression
@@ -193,6 +193,118 @@ pub fn is_var_used_as_dict_key_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
         }
         HirStmt::Return(Some(expr)) => is_var_used_as_dict_key_in_expr(var_name, expr),
         HirStmt::Expr(expr) => is_var_used_as_dict_key_in_expr(var_name, expr),
+        _ => false,
+    }
+}
+
+/// DEPYLER-1045: Check if a variable is used as a function argument in an expression
+/// This is used to detect when a char loop variable needs to be converted to String
+/// for functions that expect &str arguments
+pub fn is_var_used_as_func_arg_in_expr(var_name: &str, expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Call { args, .. } => {
+            // Check if var is directly used as an argument
+            args.iter().any(|arg| matches!(arg, HirExpr::Var(name) if name == var_name))
+        }
+        HirExpr::MethodCall { args, .. } => {
+            args.iter().any(|arg| matches!(arg, HirExpr::Var(name) if name == var_name))
+        }
+        HirExpr::Binary { left, right, .. } => {
+            is_var_used_as_func_arg_in_expr(var_name, left)
+                || is_var_used_as_func_arg_in_expr(var_name, right)
+        }
+        HirExpr::Unary { operand, .. } => is_var_used_as_func_arg_in_expr(var_name, operand),
+        HirExpr::IfExpr { test, body, orelse } => {
+            is_var_used_as_func_arg_in_expr(var_name, test)
+                || is_var_used_as_func_arg_in_expr(var_name, body)
+                || is_var_used_as_func_arg_in_expr(var_name, orelse)
+        }
+        _ => false,
+    }
+}
+
+/// DEPYLER-1045: Check if a variable is used as a function argument in a statement
+pub fn is_var_used_as_func_arg_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Assign { value, .. } => is_var_used_as_func_arg_in_expr(var_name, value),
+        HirStmt::If { condition, then_body, else_body } => {
+            is_var_used_as_func_arg_in_expr(var_name, condition)
+                || then_body.iter().any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
+                || else_body.as_ref().is_some_and(|body| {
+                    body.iter().any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
+                })
+        }
+        HirStmt::While { condition, body } => {
+            is_var_used_as_func_arg_in_expr(var_name, condition)
+                || body.iter().any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
+        }
+        HirStmt::For { iter, body, .. } => {
+            is_var_used_as_func_arg_in_expr(var_name, iter)
+                || body.iter().any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
+        }
+        HirStmt::Return(Some(expr)) => is_var_used_as_func_arg_in_expr(var_name, expr),
+        HirStmt::Expr(expr) => is_var_used_as_func_arg_in_expr(var_name, expr),
+        _ => false,
+    }
+}
+
+/// DEPYLER-1045: Check if a variable is used in a comparison (== or !=) in an expression
+/// This helps detect when a char loop variable is compared with a &str and needs conversion
+pub fn is_var_in_comparison_in_expr(var_name: &str, expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::Binary { left, right, op } => {
+            // Check if this is a comparison operation
+            let is_comparison = matches!(op, BinOp::Eq | BinOp::NotEq | BinOp::In | BinOp::NotIn);
+            if is_comparison {
+                // Check if var_name is directly one of the operands
+                let var_is_left = matches!(left.as_ref(), HirExpr::Var(name) if name == var_name);
+                let var_is_right = matches!(right.as_ref(), HirExpr::Var(name) if name == var_name);
+                if var_is_left || var_is_right {
+                    return true;
+                }
+            }
+            // Recursively check sub-expressions
+            is_var_in_comparison_in_expr(var_name, left)
+                || is_var_in_comparison_in_expr(var_name, right)
+        }
+        HirExpr::Unary { operand, .. } => is_var_in_comparison_in_expr(var_name, operand),
+        HirExpr::IfExpr { test, body, orelse } => {
+            is_var_in_comparison_in_expr(var_name, test)
+                || is_var_in_comparison_in_expr(var_name, body)
+                || is_var_in_comparison_in_expr(var_name, orelse)
+        }
+        HirExpr::Call { args, .. } => {
+            args.iter().any(|arg| is_var_in_comparison_in_expr(var_name, arg))
+        }
+        HirExpr::MethodCall { object, args, .. } => {
+            is_var_in_comparison_in_expr(var_name, object)
+                || args.iter().any(|arg| is_var_in_comparison_in_expr(var_name, arg))
+        }
+        _ => false,
+    }
+}
+
+/// DEPYLER-1045: Check if a variable is used in a comparison in a statement
+pub fn is_var_in_comparison_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
+    match stmt {
+        HirStmt::Assign { value, .. } => is_var_in_comparison_in_expr(var_name, value),
+        HirStmt::If { condition, then_body, else_body } => {
+            is_var_in_comparison_in_expr(var_name, condition)
+                || then_body.iter().any(|s| is_var_in_comparison_in_stmt(var_name, s))
+                || else_body.as_ref().is_some_and(|body| {
+                    body.iter().any(|s| is_var_in_comparison_in_stmt(var_name, s))
+                })
+        }
+        HirStmt::While { condition, body } => {
+            is_var_in_comparison_in_expr(var_name, condition)
+                || body.iter().any(|s| is_var_in_comparison_in_stmt(var_name, s))
+        }
+        HirStmt::For { iter, body, .. } => {
+            is_var_in_comparison_in_expr(var_name, iter)
+                || body.iter().any(|s| is_var_in_comparison_in_stmt(var_name, s))
+        }
+        HirStmt::Return(Some(expr)) => is_var_in_comparison_in_expr(var_name, expr),
+        HirStmt::Expr(expr) => is_var_in_comparison_in_expr(var_name, expr),
         _ => false,
     }
 }

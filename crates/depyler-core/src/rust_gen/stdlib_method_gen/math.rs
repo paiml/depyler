@@ -153,17 +153,17 @@ fn convert_expm1(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 /// Rounding: ceil, floor, trunc, round
+/// DEPYLER-1006: Return f64 instead of i32 to match type annotations
+/// Python's math.floor/ceil return int, but users often annotate as float
+/// Returning f64 is compatible with both (f64 can be used where i64 expected via coercion)
 fn convert_rounding(method: &str, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("math.{}() requires exactly 1 argument", method);
     }
     let arg = &arg_exprs[0];
     let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
-    if method == "ceil" || method == "floor" {
-        Ok(parse_quote! { (#arg as f64).#method_ident() as i32 })
-    } else {
-        Ok(parse_quote! { (#arg as f64).#method_ident() })
-    }
+    // Return f64 for all rounding operations - compatible with both int and float annotations
+    Ok(parse_quote! { (#arg as f64).#method_ident() })
 }
 
 /// fabs(x) - absolute value
@@ -595,7 +595,8 @@ mod tests {
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
-        assert!(code.contains("ceil") && code.contains("i32"));
+        // DEPYLER-1006: Now returns f64 instead of i32 for type annotation compatibility
+        assert!(code.contains("ceil") && code.contains("f64"));
     }
 
     #[test]

@@ -16,17 +16,19 @@ use syn::{self, parse_quote};
 fn convert_logical_bitwise_binop(op: BinOp) -> Option<Result<syn::BinOp>> {
     use BinOp::*;
 
+    // DEPYLER-1005: Use syn::BinOp variants directly to avoid tokenization issues
+    // parse_quote! for compound operators can produce incorrect spacing when re-quoted
     Some(Ok(match op {
         // Logical operators
-        And => parse_quote! { && },
-        Or => parse_quote! { || },
+        And => syn::BinOp::And(Default::default()),
+        Or => syn::BinOp::Or(Default::default()),
 
         // Bitwise operators
-        BitAnd => parse_quote! { & },
-        BitOr => parse_quote! { | },
-        BitXor => parse_quote! { ^ },
-        LShift => parse_quote! { << },
-        RShift => parse_quote! { >> },
+        BitAnd => syn::BinOp::BitAnd(Default::default()),
+        BitOr => syn::BinOp::BitOr(Default::default()),
+        BitXor => syn::BinOp::BitXor(Default::default()),
+        LShift => syn::BinOp::Shl(Default::default()),
+        RShift => syn::BinOp::Shr(Default::default()),
 
         _ => return None,
     }))
@@ -59,12 +61,14 @@ pub fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
     }
 
     match op {
-        // Arithmetic operators
-        Add => Ok(parse_quote! { + }),
-        Sub => Ok(parse_quote! { - }),
-        Mul => Ok(parse_quote! { * }),
-        Div => Ok(parse_quote! { / }),
-        Mod => Ok(parse_quote! { % }),
+        // Arithmetic operators - use syn::BinOp variants directly to avoid tokenization issues
+        // DEPYLER-1005: parse_quote! for compound operators (==, !=, etc) can produce
+        // incorrect tokenization (= = instead of ==) when re-quoted
+        Add => Ok(syn::BinOp::Add(Default::default())),
+        Sub => Ok(syn::BinOp::Sub(Default::default())),
+        Mul => Ok(syn::BinOp::Mul(Default::default())),
+        Div => Ok(syn::BinOp::Div(Default::default())),
+        Mod => Ok(syn::BinOp::Rem(Default::default())),
 
         // Special arithmetic cases handled by convert_binary
         FloorDiv => {
@@ -72,13 +76,13 @@ pub fn convert_binop(op: BinOp) -> Result<syn::BinOp> {
         }
         Pow => bail!("Power operator handled by convert_binary with type-specific logic"),
 
-        // Comparison operators
-        Eq => Ok(parse_quote! { == }),
-        NotEq => Ok(parse_quote! { != }),
-        Lt => Ok(parse_quote! { < }),
-        LtEq => Ok(parse_quote! { <= }),
-        Gt => Ok(parse_quote! { > }),
-        GtEq => Ok(parse_quote! { >= }),
+        // Comparison operators - DEPYLER-1005: Use syn::BinOp variants directly
+        Eq => Ok(syn::BinOp::Eq(Default::default())),
+        NotEq => Ok(syn::BinOp::Ne(Default::default())),
+        Lt => Ok(syn::BinOp::Lt(Default::default())),
+        LtEq => Ok(syn::BinOp::Le(Default::default())),
+        Gt => Ok(syn::BinOp::Gt(Default::default())),
+        GtEq => Ok(syn::BinOp::Ge(Default::default())),
 
         // Special membership operators handled in convert_binary
         In | NotIn => bail!("in/not in operators should be handled by convert_binary"),

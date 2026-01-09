@@ -57,11 +57,12 @@ fn type_to_rust_string(ty: &Type) -> String {
         Type::String => "String".to_string(),
         Type::Bool => "bool".to_string(),
         Type::Custom(name) if name == "PathBuf" => "PathBuf".to_string(),
-        // DEPYLER-169: Map special Python types to their Rust equivalents
+        // DEPYLER-169, DEPYLER-1020: Map special Python types to their Rust equivalents
+        // In NASA mode (default), use String instead of serde_json::Value
         Type::Custom(name)
             if name == "object" || name == "builtins.object" || name == "Any" || name == "any" =>
         {
-            "serde_json::Value".to_string()
+            "String".to_string()
         }
         Type::Custom(name) => name.clone(),
         Type::List(inner) => format!("Vec<{}>", type_to_rust_string(inner)),
@@ -2061,17 +2062,18 @@ mod tests {
 
     #[test]
     fn test_type_to_rust_string_any_variants() {
+        // DEPYLER-1020: In NASA mode (default), object/Any maps to String
         assert_eq!(
             type_to_rust_string(&Type::Custom("object".to_string())),
-            "serde_json::Value"
+            "String"
         );
         assert_eq!(
             type_to_rust_string(&Type::Custom("Any".to_string())),
-            "serde_json::Value"
+            "String"
         );
         assert_eq!(
             type_to_rust_string(&Type::Custom("any".to_string())),
-            "serde_json::Value"
+            "String"
         );
     }
 

@@ -200,13 +200,16 @@ pub fn convert_oct_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 /// chr(code) → char::from_u32(code).unwrap().to_string()
+/// DEPYLER-1045: Wrap code in parentheses to handle arithmetic expressions correctly
+/// e.g., chr(base + shifted) → char::from_u32((base + shifted) as u32)
 pub fn convert_chr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.len() != 1 {
         bail!("chr() requires exactly 1 argument");
     }
     let code = &args[0];
+    // Wrap in parens to ensure cast applies to entire expression, not just last operand
     Ok(parse_quote! {
-        char::from_u32(#code as u32).unwrap().to_string()
+        char::from_u32((#code) as u32).unwrap().to_string()
     })
 }
 
