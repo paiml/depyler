@@ -5,7 +5,8 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 #[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
-#[derive(Debug, Clone, PartialEq, Default)]
+#[doc = r" DEPYLER-1040b: Now implements Hash + Eq to support non-string dict keys"]
+#[derive(Debug, Clone, Default)]
 pub enum DepylerValue {
     Int(i64),
     Float(f64),
@@ -14,28 +15,62 @@ pub enum DepylerValue {
     #[default]
     None,
     List(Vec<DepylerValue>),
-    Dict(std::collections::HashMap<String, DepylerValue>),
+    Dict(std::collections::HashMap<DepylerValue, DepylerValue>),
+}
+impl PartialEq for DepylerValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => _dv_a == _dv_b,
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                _dv_a.to_bits() == _dv_b.to_bits()
+            }
+            (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => _dv_a == _dv_b,
+            (DepylerValue::Bool(_dv_a), DepylerValue::Bool(_dv_b)) => _dv_a == _dv_b,
+            (DepylerValue::None, DepylerValue::None) => true,
+            (DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) => _dv_a == _dv_b,
+            (DepylerValue::Dict(_dv_a), DepylerValue::Dict(_dv_b)) => _dv_a == _dv_b,
+            _ => false,
+        }
+    }
+}
+impl Eq for DepylerValue {}
+impl std::hash::Hash for DepylerValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
+        match self {
+            DepylerValue::Int(_dv_int) => _dv_int.hash(state),
+            DepylerValue::Float(_dv_float) => _dv_float.to_bits().hash(state),
+            DepylerValue::Str(_dv_str) => _dv_str.hash(state),
+            DepylerValue::Bool(_dv_bool) => _dv_bool.hash(state),
+            DepylerValue::None => {}
+            DepylerValue::List(_dv_list) => _dv_list.hash(state),
+            DepylerValue::Dict(_) => {
+                0u8.hash(state);
+            }
+        }
+    }
 }
 impl std::fmt::Display for DepylerValue {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _dv_fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DepylerValue::Int(i) => write!(f, "{}", i),
-            DepylerValue::Float(fl) => write!(f, "{}", fl),
-            DepylerValue::Str(s) => write!(f, "{}", s),
-            DepylerValue::Bool(b) => write!(f, "{}", b),
-            DepylerValue::None => write!(f, "None"),
-            DepylerValue::List(l) => write!(f, "{:?}", l),
-            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+            DepylerValue::Int(_dv_int) => write!(_dv_fmt, "{}", _dv_int),
+            DepylerValue::Float(_dv_float) => write!(_dv_fmt, "{}", _dv_float),
+            DepylerValue::Str(_dv_str) => write!(_dv_fmt, "{}", _dv_str),
+            DepylerValue::Bool(_dv_bool) => write!(_dv_fmt, "{}", _dv_bool),
+            DepylerValue::None => write!(_dv_fmt, "None"),
+            DepylerValue::List(_dv_list) => write!(_dv_fmt, "{:?}", _dv_list),
+            DepylerValue::Dict(_dv_dict) => write!(_dv_fmt, "{:?}", _dv_dict),
         }
     }
 }
 impl DepylerValue {
     #[doc = r" Get length of string, list, or dict"]
+    #[doc = r" DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables"]
     pub fn len(&self) -> usize {
         match self {
-            DepylerValue::Str(s) => s.len(),
-            DepylerValue::List(l) => l.len(),
-            DepylerValue::Dict(d) => d.len(),
+            DepylerValue::Str(_dv_str) => _dv_str.len(),
+            DepylerValue::List(_dv_list) => _dv_list.len(),
+            DepylerValue::Dict(_dv_dict) => _dv_dict.len(),
             _ => 0,
         }
     }
@@ -46,104 +81,600 @@ impl DepylerValue {
     #[doc = r" Get chars iterator for string values"]
     pub fn chars(&self) -> std::str::Chars<'_> {
         match self {
-            DepylerValue::Str(s) => s.chars(),
+            DepylerValue::Str(_dv_str) => _dv_str.chars(),
             _ => "".chars(),
         }
     }
     #[doc = r" Insert into dict(mutates self if Dict variant)"]
-    pub fn insert(&mut self, key: String, value: DepylerValue) {
-        if let DepylerValue::Dict(d) = self {
-            d.insert(key, value);
+    #[doc = r" DEPYLER-1040b: Now accepts DepylerValue keys for non-string dict keys"]
+    pub fn insert(&mut self, key: impl Into<DepylerValue>, value: impl Into<DepylerValue>) {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.insert(key.into(), value.into());
         }
     }
     #[doc = r" Get value from dict by key"]
-    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
-        if let DepylerValue::Dict(d) = self {
-            d.get(key)
+    #[doc = r" DEPYLER-1040b: Now accepts DepylerValue keys"]
+    pub fn get(&self, key: &DepylerValue) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.get(key)
         } else {
             Option::None
         }
     }
+    #[doc = r" Get value from dict by string key(convenience method)"]
+    pub fn get_str(&self, key: &str) -> Option<&DepylerValue> {
+        self.get(&DepylerValue::Str(key.to_string()))
+    }
     #[doc = r" Check if dict contains key"]
-    pub fn contains_key(&self, key: &str) -> bool {
-        if let DepylerValue::Dict(d) = self {
-            d.contains_key(key)
+    #[doc = r" DEPYLER-1040b: Now accepts DepylerValue keys"]
+    pub fn contains_key(&self, key: &DepylerValue) -> bool {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.contains_key(key)
         } else {
             false
+        }
+    }
+    #[doc = r" Check if dict contains string key(convenience method)"]
+    pub fn contains_key_str(&self, key: &str) -> bool {
+        self.contains_key(&DepylerValue::Str(key.to_string()))
+    }
+    #[doc = r" DEPYLER-1051: Get iterator over list values"]
+    #[doc = r" Returns an empty iterator for non-list types"]
+    pub fn iter(&self) -> std::slice::Iter<'_, DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.iter(),
+            _ => [].iter(),
+        }
+    }
+    #[doc = r" DEPYLER-1051: Get mutable iterator over list values"]
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.iter_mut(),
+            _ => [].iter_mut(),
+        }
+    }
+    #[doc = r" DEPYLER-1051: Get iterator over dict key-value pairs"]
+    #[doc = r" DEPYLER-1040b: Now uses DepylerValue keys"]
+    pub fn items(&self) -> std::collections::hash_map::Iter<'_, DepylerValue, DepylerValue> {
+        static EMPTY_MAP: std::sync::LazyLock<
+            std::collections::HashMap<DepylerValue, DepylerValue>,
+        > = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict.iter(),
+            _ => EMPTY_MAP.iter(),
+        }
+    }
+    #[doc = r" DEPYLER-1051: Get iterator over dict keys"]
+    #[doc = r" DEPYLER-1040b: Now returns DepylerValue keys"]
+    pub fn keys(&self) -> std::collections::hash_map::Keys<'_, DepylerValue, DepylerValue> {
+        static EMPTY_MAP: std::sync::LazyLock<
+            std::collections::HashMap<DepylerValue, DepylerValue>,
+        > = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict.keys(),
+            _ => EMPTY_MAP.keys(),
+        }
+    }
+    #[doc = r" DEPYLER-1051: Get iterator over dict values"]
+    #[doc = r" DEPYLER-1040b: Now uses DepylerValue keys internally"]
+    pub fn values(&self) -> std::collections::hash_map::Values<'_, DepylerValue, DepylerValue> {
+        static EMPTY_MAP: std::sync::LazyLock<
+            std::collections::HashMap<DepylerValue, DepylerValue>,
+        > = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict.values(),
+            _ => EMPTY_MAP.values(),
         }
     }
     #[doc = r" Convert to String"]
     pub fn to_string(&self) -> String {
         match self {
-            DepylerValue::Str(s) => s.clone(),
-            DepylerValue::Int(i) => i.to_string(),
-            DepylerValue::Float(fl) => fl.to_string(),
-            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::Str(_dv_str) => _dv_str.clone(),
+            DepylerValue::Int(_dv_int) => _dv_int.to_string(),
+            DepylerValue::Float(_dv_float) => _dv_float.to_string(),
+            DepylerValue::Bool(_dv_bool) => _dv_bool.to_string(),
             DepylerValue::None => "None".to_string(),
-            DepylerValue::List(l) => format!("{:?}", l),
-            DepylerValue::Dict(d) => format!("{:?}", d),
+            DepylerValue::List(_dv_list) => format!("{:?}", _dv_list),
+            DepylerValue::Dict(_dv_dict) => format!("{:?}", _dv_dict),
         }
     }
     #[doc = r" Convert to i64"]
     pub fn to_i64(&self) -> i64 {
         match self {
-            DepylerValue::Int(i) => *i,
-            DepylerValue::Float(fl) => *fl as i64,
-            DepylerValue::Bool(b) => {
-                if *b {
+            DepylerValue::Int(_dv_int) => *_dv_int,
+            DepylerValue::Float(_dv_float) => *_dv_float as i64,
+            DepylerValue::Bool(_dv_bool) => {
+                if *_dv_bool {
                     1
                 } else {
                     0
                 }
             }
-            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0),
             _ => 0,
         }
     }
     #[doc = r" Convert to f64"]
     pub fn to_f64(&self) -> f64 {
         match self {
-            DepylerValue::Float(fl) => *fl,
-            DepylerValue::Int(i) => *i as f64,
-            DepylerValue::Bool(b) => {
-                if *b {
+            DepylerValue::Float(_dv_float) => *_dv_float,
+            DepylerValue::Int(_dv_int) => *_dv_int as f64,
+            DepylerValue::Bool(_dv_bool) => {
+                if *_dv_bool {
                     1.0
                 } else {
                     0.0
                 }
             }
-            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0.0),
             _ => 0.0,
         }
     }
     #[doc = r" Convert to bool"]
     pub fn to_bool(&self) -> bool {
         match self {
-            DepylerValue::Bool(b) => *b,
-            DepylerValue::Int(i) => *i != 0,
-            DepylerValue::Float(fl) => *fl != 0.0,
-            DepylerValue::Str(s) => !s.is_empty(),
-            DepylerValue::List(l) => !l.is_empty(),
-            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::Bool(_dv_bool) => *_dv_bool,
+            DepylerValue::Int(_dv_int) => *_dv_int != 0,
+            DepylerValue::Float(_dv_float) => *_dv_float != 0.0,
+            DepylerValue::Str(_dv_str) => !_dv_str.is_empty(),
+            DepylerValue::List(_dv_list) => !_dv_list.is_empty(),
+            DepylerValue::Dict(_dv_dict) => !_dv_dict.is_empty(),
             DepylerValue::None => false,
         }
     }
 }
 impl std::ops::Index<usize> for DepylerValue {
     type Output = DepylerValue;
-    fn index(&self, idx: usize) -> &Self::Output {
+    fn index(&self, _dv_idx: usize) -> &Self::Output {
         match self {
-            DepylerValue::List(l) => &l[idx],
+            DepylerValue::List(_dv_list) => &_dv_list[_dv_idx],
             _ => panic!("Cannot index non-list DepylerValue"),
         }
     }
 }
 impl std::ops::Index<&str> for DepylerValue {
     type Output = DepylerValue;
-    fn index(&self, key: &str) -> &Self::Output {
+    fn index(&self, _dv_key: &str) -> &Self::Output {
         match self {
-            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Str(_dv_key.to_string()))
+                .unwrap_or(&DepylerValue::None),
             _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
+impl std::ops::Index<DepylerValue> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, _dv_key: DepylerValue) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict.get(&_dv_key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, _dv_key: i64) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Int(_dv_key))
+                .unwrap_or(&DepylerValue::None),
+            DepylerValue::List(_dv_list) => &_dv_list[_dv_key as usize],
+            _ => panic!("Cannot index DepylerValue with integer"),
+        }
+    }
+}
+impl std::ops::Index<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, _dv_key: i32) -> &Self::Output {
+        &self[_dv_key as i64]
+    }
+}
+impl From<i64> for DepylerValue {
+    fn from(v: i64) -> Self {
+        DepylerValue::Int(v)
+    }
+}
+impl From<i32> for DepylerValue {
+    fn from(v: i32) -> Self {
+        DepylerValue::Int(v as i64)
+    }
+}
+impl From<f64> for DepylerValue {
+    fn from(v: f64) -> Self {
+        DepylerValue::Float(v)
+    }
+}
+impl From<String> for DepylerValue {
+    fn from(v: String) -> Self {
+        DepylerValue::Str(v)
+    }
+}
+impl From<&str> for DepylerValue {
+    fn from(v: &str) -> Self {
+        DepylerValue::Str(v.to_string())
+    }
+}
+impl From<bool> for DepylerValue {
+    fn from(v: bool) -> Self {
+        DepylerValue::Bool(v)
+    }
+}
+impl From<Vec<DepylerValue>> for DepylerValue {
+    fn from(v: Vec<DepylerValue>) -> Self {
+        DepylerValue::List(v)
+    }
+}
+impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
+        DepylerValue::Dict(v)
+    }
+}
+impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashMap<String, DepylerValue>) -> Self {
+        let converted: std::collections::HashMap<DepylerValue, DepylerValue> = v
+            .into_iter()
+            .map(|(k, v)| (DepylerValue::Str(k), v))
+            .collect();
+        DepylerValue::Dict(converted)
+    }
+}
+impl std::ops::Add for DepylerValue {
+    type Output = DepylerValue;
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Int(_dv_a + _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a + _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a as f64 + _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Float(_dv_a + _dv_b as f64)
+            }
+            (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => {
+                DepylerValue::Str(_dv_a + &_dv_b)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Sub for DepylerValue {
+    type Output = DepylerValue;
+    fn sub(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Int(_dv_a - _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a - _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a as f64 - _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Float(_dv_a - _dv_b as f64)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Mul for DepylerValue {
+    type Output = DepylerValue;
+    fn mul(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Int(_dv_a * _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a * _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a as f64 * _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Float(_dv_a * _dv_b as f64)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Div for DepylerValue {
+    type Output = DepylerValue;
+    fn div(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                DepylerValue::Int(_dv_a / _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                DepylerValue::Float(_dv_a / _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                DepylerValue::Float(_dv_a as f64 / _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                DepylerValue::Float(_dv_a / _dv_b as f64)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Add<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn add(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int + rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float + rhs as f64),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Add<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn add(self, rhs: i32) -> Self::Output {
+        self + (rhs as i64)
+    }
+}
+impl std::ops::Add<DepylerValue> for i32 {
+    type Output = i32;
+    fn add(self, rhs: DepylerValue) -> Self::Output {
+        self + rhs.to_i64() as i32
+    }
+}
+impl std::ops::Add<DepylerValue> for i64 {
+    type Output = i64;
+    fn add(self, rhs: DepylerValue) -> Self::Output {
+        self + rhs.to_i64()
+    }
+}
+impl std::ops::Add<DepylerValue> for f64 {
+    type Output = f64;
+    fn add(self, rhs: DepylerValue) -> Self::Output {
+        self + rhs.to_f64()
+    }
+}
+impl std::ops::Sub<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn sub(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int - rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float - rhs as f64),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Sub<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn sub(self, rhs: i32) -> Self::Output {
+        self - (rhs as i64)
+    }
+}
+impl std::ops::Sub<f64> for DepylerValue {
+    type Output = DepylerValue;
+    fn sub(self, rhs: f64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 - rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float - rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Sub<DepylerValue> for i32 {
+    type Output = i32;
+    fn sub(self, rhs: DepylerValue) -> Self::Output {
+        self - rhs.to_i64() as i32
+    }
+}
+impl std::ops::Sub<DepylerValue> for i64 {
+    type Output = i64;
+    fn sub(self, rhs: DepylerValue) -> Self::Output {
+        self - rhs.to_i64()
+    }
+}
+impl std::ops::Sub<DepylerValue> for f64 {
+    type Output = f64;
+    fn sub(self, rhs: DepylerValue) -> Self::Output {
+        self - rhs.to_f64()
+    }
+}
+impl std::ops::Mul<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn mul(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int * rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float * rhs as f64),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Mul<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn mul(self, rhs: i32) -> Self::Output {
+        self * (rhs as i64)
+    }
+}
+impl std::ops::Mul<f64> for DepylerValue {
+    type Output = DepylerValue;
+    fn mul(self, rhs: f64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 * rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float * rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Mul<DepylerValue> for i32 {
+    type Output = i32;
+    fn mul(self, rhs: DepylerValue) -> Self::Output {
+        self * rhs.to_i64() as i32
+    }
+}
+impl std::ops::Mul<DepylerValue> for i64 {
+    type Output = i64;
+    fn mul(self, rhs: DepylerValue) -> Self::Output {
+        self * rhs.to_i64()
+    }
+}
+impl std::ops::Mul<DepylerValue> for f64 {
+    type Output = f64;
+    fn mul(self, rhs: DepylerValue) -> Self::Output {
+        self * rhs.to_f64()
+    }
+}
+impl std::ops::Div<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn div(self, rhs: i64) -> Self::Output {
+        if rhs == 0 {
+            return DepylerValue::None;
+        }
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int / rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float / rhs as f64),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Div<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn div(self, rhs: i32) -> Self::Output {
+        self / (rhs as i64)
+    }
+}
+impl std::ops::Div<f64> for DepylerValue {
+    type Output = DepylerValue;
+    fn div(self, rhs: f64) -> Self::Output {
+        if rhs == 0.0 {
+            return DepylerValue::None;
+        }
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 / rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float / rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Div<DepylerValue> for i32 {
+    type Output = i32;
+    fn div(self, rhs: DepylerValue) -> Self::Output {
+        let divisor = rhs.to_i64() as i32;
+        if divisor == 0 {
+            0
+        } else {
+            self / divisor
+        }
+    }
+}
+impl std::ops::Div<DepylerValue> for i64 {
+    type Output = i64;
+    fn div(self, rhs: DepylerValue) -> Self::Output {
+        let divisor = rhs.to_i64();
+        if divisor == 0 {
+            0
+        } else {
+            self / divisor
+        }
+    }
+}
+impl std::ops::Div<DepylerValue> for f64 {
+    type Output = f64;
+    fn div(self, rhs: DepylerValue) -> Self::Output {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            0.0
+        } else {
+            self / divisor
+        }
+    }
+}
+impl std::ops::Add<f64> for DepylerValue {
+    type Output = DepylerValue;
+    fn add(self, rhs: f64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 + rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float + rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Neg for DepylerValue {
+    type Output = DepylerValue;
+    fn neg(self) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(-_dv_int),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(-_dv_float),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Not for DepylerValue {
+    type Output = bool;
+    fn not(self) -> Self::Output {
+        !self.to_bool()
+    }
+}
+impl std::ops::BitXor<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn bitxor(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int ^ rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::BitAnd<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn bitand(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int & rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::BitOr<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn bitor(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int | rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl IntoIterator for DepylerValue {
+    type Item = DepylerValue;
+    type IntoIter = std::vec::IntoIter<DepylerValue>;
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.into_iter(),
+            DepylerValue::Dict(_dv_dict) => _dv_dict.into_keys().collect::<Vec<_>>().into_iter(),
+            DepylerValue::Str(_dv_str) => _dv_str
+                .chars()
+                .map(|_dv_c| DepylerValue::Str(_dv_c.to_string()))
+                .collect::<Vec<_>>()
+                .into_iter(),
+            _ => Vec::new().into_iter(),
+        }
+    }
+}
+impl<'_dv_a> IntoIterator for &'_dv_a DepylerValue {
+    type Item = DepylerValue;
+    type IntoIter = std::vec::IntoIter<DepylerValue>;
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            DepylerValue::List(_dv_list) => {
+                _dv_list.iter().cloned().collect::<Vec<_>>().into_iter()
+            }
+            DepylerValue::Dict(_dv_dict) => {
+                _dv_dict.keys().cloned().collect::<Vec<_>>().into_iter()
+            }
+            DepylerValue::Str(_dv_str) => _dv_str
+                .chars()
+                .map(|_dv_c| DepylerValue::Str(_dv_c.to_string()))
+                .collect::<Vec<_>>()
+                .into_iter(),
+            _ => Vec::new().into_iter(),
         }
     }
 }
@@ -215,23 +746,23 @@ pub fn large_function(x: i32, y: i32, z: i32) -> i32 {
     let c = z + x;
     let _cse_temp_0 = a * b;
     let d = _cse_temp_0;
-    let _cse_temp_1 = (b as f64) * c;
+    let _cse_temp_1 = b * c;
     let e = _cse_temp_1;
-    let _cse_temp_2 = c * (a as f64);
+    let _cse_temp_2 = c * a;
     let f = _cse_temp_2;
     let g = d + e;
     let h = e + f;
     let i = f + d;
-    let _cse_temp_3 = (g as f64) * (h as f64);
+    let _cse_temp_3 = g * h;
     let j = _cse_temp_3;
-    let _cse_temp_4 = h * (i as f64);
+    let _cse_temp_4 = h * i;
     let k = _cse_temp_4;
-    let _cse_temp_5 = (i as f64) * g;
+    let _cse_temp_5 = i * g;
     let l = _cse_temp_5;
-    let m = (j as f64) + k;
-    let n = (k as f64) + (l as f64);
-    let o = l + (j as f64);
-    let _cse_temp_6 = m + (n as f64) + (o as f64);
+    let m = j + k;
+    let n = k + l;
+    let o = l + j;
+    let _cse_temp_6 = m + n + o;
     let result = _cse_temp_6;
     result
 }
