@@ -69,10 +69,11 @@ impl AnnotationAwareTypeMapper {
         inner: &PythonType,
         annotations: &TranspilationAnnotations,
     ) -> RustType {
-        // DEPYLER-0750: List[Unknown] should map to Vec<serde_json::Value> for single-shot compilation
+        // DEPYLER-0750/1015: List[Unknown] should map to Vec<fallback> for single-shot compilation
         // Using concrete type instead of TypeParam("T") to avoid requiring generic declaration
+        // DEPYLER-1015: Use String in NASA mode, serde_json::Value otherwise
         let inner_rust = if matches!(inner, PythonType::Unknown) {
-            RustType::Custom("serde_json::Value".to_string())
+            self.base_mapper.map_type(inner) // Delegates to TypeMapper which handles NASA mode
         } else {
             self.map_type_with_annotations(inner, annotations)
         };
@@ -102,16 +103,17 @@ impl AnnotationAwareTypeMapper {
         value: &PythonType,
         annotations: &TranspilationAnnotations,
     ) -> RustType {
-        // DEPYLER-0776: Dict with Unknown key/value should map to concrete types for single-shot compilation
-        // Using String for keys and serde_json::Value for values to avoid requiring generic T declaration
+        // DEPYLER-0776/1015: Dict with Unknown key/value should map to concrete types for single-shot compilation
+        // Using String for keys and fallback for values to avoid requiring generic T declaration
         // This matches common Python usage patterns: bare `dict` annotation → Dict(Unknown, Unknown)
+        // DEPYLER-1015: Use base_mapper which handles NASA mode
         let key_rust = if matches!(key, PythonType::Unknown) {
             RustType::String
         } else {
             self.map_type_with_annotations(key, annotations)
         };
         let value_rust = if matches!(value, PythonType::Unknown) {
-            RustType::Custom("serde_json::Value".to_string())
+            self.base_mapper.map_type(value) // Delegates to TypeMapper which handles NASA mode
         } else {
             self.map_type_with_annotations(value, annotations)
         };
@@ -316,12 +318,12 @@ mod tests {
 
     #[test]
     fn test_list_unknown_inner() {
-        // DEPYLER-0750: List[Unknown] should map to Vec<serde_json::Value>
+        // DEPYLER-0750/1015/1051: List[Unknown] should map to Vec<DepylerValue> in NASA mode (Hybrid Fallback)
         let mapper = AnnotationAwareTypeMapper::new();
         let annotations = create_test_annotations();
         let list_type = PythonType::List(Box::new(PythonType::Unknown));
         let result = mapper.map_type_with_annotations(&list_type, &annotations);
-        assert_eq!(result, RustType::Vec(Box::new(RustType::Custom("serde_json::Value".to_string()))));
+        assert_eq!(result, RustType::Vec(Box::new(RustType::Custom("DepylerValue".to_string()))));
     }
 
     // === Dict ownership tests ===
@@ -378,22 +380,22 @@ mod tests {
 
     #[test]
     fn test_dict_unknown_value() {
-        // DEPYLER-0776: Dict with Unknown value should use serde_json::Value
+        // DEPYLER-0776/1015/1051: Dict with Unknown value should use DepylerValue in NASA mode (Hybrid Fallback)
         let mapper = AnnotationAwareTypeMapper::new();
         let annotations = create_test_annotations();
         let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Unknown));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(result, RustType::Custom("HashMap<String, serde_json::Value>".to_string()));
+        assert_eq!(result, RustType::Custom("HashMap<String, DepylerValue>".to_string()));
     }
 
     #[test]
     fn test_dict_both_unknown() {
-        // DEPYLER-0776: Dict with both Unknown key/value
+        // DEPYLER-0776/1015/1051: Dict with both Unknown key/value - DepylerValue in NASA mode (Hybrid Fallback)
         let mapper = AnnotationAwareTypeMapper::new();
         let annotations = create_test_annotations();
         let dict_type = PythonType::Dict(Box::new(PythonType::Unknown), Box::new(PythonType::Unknown));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(result, RustType::Custom("HashMap<String, serde_json::Value>".to_string()));
+        assert_eq!(result, RustType::Custom("HashMap<String, DepylerValue>".to_string()));
     }
 
     // === needs_reference_with_annotations tests ===

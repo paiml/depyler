@@ -1,3 +1,9 @@
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct ZeroDivisionError {
@@ -33,6 +39,148 @@ impl IndexError {
         }
     }
 }
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
 #[derive(Debug, Clone)]
 pub struct CSVParser {
     pub delimiter: String,
@@ -50,19 +198,21 @@ impl CSVParser {
         let mut current_field = "".to_string();
         let mut in_quotes = false;
         let mut i = 0;
-        while i < line.len() as i32 {
+        while i < (line.len() as i32) {
             let char = line[i as usize];
-            if char == self.quote_char {
-                if in_quotes && i + 1 < line.len() as i32 && line[i + 1 as usize] == self.quote_char
+            if char == self.quote_char.clone() {
+                if in_quotes
+                    && i + 1 < (line.len() as i32)
+                    && line[i + 1 as usize] == self.quote_char.clone()
                 {
-                    let current_field = current_field + self.quote_char;
+                    let current_field = current_field + self.quote_char.clone();
                     let i = i + 2;
                 } else {
                     let in_quotes = !in_quotes;
                     let i = i + 1;
                 };
             } else {
-                if char == self.delimiter && !in_quotes {
+                if char == self.delimiter.clone() && !in_quotes {
                     fields.push(current_field);
                     let current_field = "".to_string();
                     let i = i + 1;
@@ -115,8 +265,8 @@ impl CSVParser {
                 let mut map = std::collections::HashMap::new();
                 map
             };
-            for (i, value) in enumerate(row) {
-                if i < headers.len() as i32 {
+            for (i, value) in row.iter().cloned().enumerate().map(|(i, x)| (i as i32, x)) {
+                if i < (headers.len() as i32) {
                     row_dict.insert(headers[i as usize], value);
                 } else {
                     row_dict.insert(format!("column_{}", i), value);
@@ -137,9 +287,8 @@ pub fn calculate_column_stats<'a, 'b>(
     let _cse_temp_0 = !dict_rows
         .get(0usize)
         .cloned()
-        .unwrap_or_default()
-        .get(column_name)
-        .is_some();
+        .expect("IndexError: list index out of range")
+        .contains(&*column_name);
     let _cse_temp_1 = (!dict_rows) || (_cse_temp_0);
     if _cse_temp_1 {
         return Ok({
@@ -154,10 +303,18 @@ pub fn calculate_column_stats<'a, 'b>(
     }
     let mut values: Vec<f64> = vec![];
     for row in dict_rows.iter().cloned() {
-        match row.get(column_name).cloned() {
-            Ok(value) => {
-                values.push(value);
-            }
+        let mut value: f64 = Default::default();
+        match (|| -> Result<(), Box<dyn std::error::Error>> {
+            value = row
+                .get(column_name)
+                .cloned()
+                .unwrap_or_default()
+                .parse::<f64>()
+                .unwrap();
+            values.push(value);
+            Ok(())
+        })() {
+            Ok(()) => {}
             Err(_) => {
                 continue;
             }
@@ -186,16 +343,19 @@ pub fn calculate_column_stats<'a, 'b>(
     let max_val = _cse_temp_6;
     Ok({
         let mut map = HashMap::new();
-        map.insert("count".to_string(), (count) as f64);
-        map.insert("sum".to_string(), total);
-        map.insert("mean".to_string(), mean_val);
-        map.insert("min".to_string(), min_val);
-        map.insert("max".to_string(), max_val);
+        map.insert(
+            "count".to_string(),
+            DepylerValue::Str(format!("{:?}", (count) as f64)),
+        );
+        map.insert("sum".to_string(), DepylerValue::Int(total as i64));
+        map.insert("mean".to_string(), DepylerValue::Int(mean_val as i64));
+        map.insert("min".to_string(), DepylerValue::Int(min_val as i64));
+        map.insert("max".to_string(), DepylerValue::Int(max_val as i64));
         map
     })
 }
 #[doc = "Filter CSV rows where column equals condition_value"]
-pub fn filter_csv_rows<'b, 'a>(
+pub fn filter_csv_rows<'a, 'b>(
     csv_content: String,
     column_name: &'a str,
     condition_value: &'b str,
@@ -205,8 +365,11 @@ pub fn filter_csv_rows<'b, 'a>(
     if !rows {
         return Ok("".to_string());
     }
-    let headers = rows.get(0usize).cloned().unwrap_or_default();
-    let _cse_temp_0 = !headers.get(column_name).is_some();
+    let headers = rows
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    let _cse_temp_0 = !headers.contains(&*column_name);
     if _cse_temp_0 {
         return Ok(csv_content.to_string());
     }
@@ -244,7 +407,7 @@ pub fn filter_csv_rows<'b, 'a>(
     Ok(result_lines.join("\n"))
 }
 #[doc = "Group CSV rows by values in specified column"]
-pub fn group_by_column<'a, 'b>(
+pub fn group_by_column<'b, 'a>(
     csv_content: &'a str,
     group_column: &'b str,
 ) -> Result<HashMap<String, Vec<HashMap<String, String>>>, Box<dyn std::error::Error>> {
@@ -254,14 +417,14 @@ pub fn group_by_column<'a, 'b>(
         String,
         Vec<std::collections::HashMap<String, String>>,
     > = {
-        let map = HashMap::new();
+        let map: HashMap<String, Vec<std::collections::HashMap<String, String>>> = HashMap::new();
         map
     };
     for row in dict_rows.iter().cloned() {
-        if row.get(group_column).is_some() {
+        if row.contains(&*group_column) {
             let group_key = row.get(group_column).cloned().unwrap_or_default();
-            if !groups.get(&group_key).is_some() {
-                groups.insert(group_key.clone(), vec![]);
+            if groups.get(&group_key).is_none() {
+                groups.insert(group_key.to_string().clone(), vec![]);
             }
             groups
                 .get(&group_key)

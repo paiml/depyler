@@ -1,3 +1,9 @@
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 pub type UserId = i32;
 pub type Username = String;
 pub type UserData = std::collections::HashMap<UserId, Username>;
@@ -144,42 +150,184 @@ impl TypeOrListUnion {
         }
     }
 }
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
 #[derive(Debug, Clone)]
-pub struct Container {
+pub struct Container<T: Clone> {
     pub value: T,
 }
-impl Container {
+impl<T: Clone> Container<T> {
     pub fn new(value: T) -> Self {
         Self { value }
     }
     pub fn get(&self) -> T {
-        return self.value;
+        return self.value.clone();
     }
     pub fn set(&mut self, value: T) {
         self.value = value;
     }
 }
 #[derive(Debug, Clone)]
-pub struct Mapping {
+pub struct Mapping<K: Clone, V: Clone> {
     pub data: std::collections::HashMap<K, V>,
 }
-impl Mapping {
+impl<K: Clone, V: Clone> Mapping<K, V> {
     pub fn new() -> Self {
         Self {
             data: std::collections::HashMap::new(),
         }
     }
     pub fn put(&self, key: K, value: V) {
-        self.data.insert(key, value);
+        self.data.clone().insert(key, value);
     }
     pub fn get(&self, key: K) -> Option<V> {
-        return self.data.get(key);
+        return Some(self.data.clone().get(key));
     }
 }
 #[doc = "Function with simple type annotations."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn simple_types(a: i32, b: f64, c: String, d: bool, e: ()) -> i32 {
+pub fn simple_types(a: i32, _b: f64, _c: String, _d: bool, _e: ()) -> i32 {
     a
 }
 #[doc = "Function with container type annotations."]
@@ -187,11 +335,12 @@ pub fn simple_types(a: i32, b: f64, c: String, d: bool, e: ()) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn container_types(
     items: &Vec<i32>,
-    mapping: std::collections::HashMap<String, f64>,
-    unique: std::collections::HashSet<String>,
-    coords: (i32, i32, i32),
+    _mapping: std::collections::HashMap<String, f64>,
+    _unique: std::collections::HashSet<String>,
+    _coords: (i32, i32, i32),
 ) -> Vec<String> {
     items
+        .as_slice()
         .iter()
         .cloned()
         .map(|item| (item).to_string())
@@ -202,11 +351,11 @@ pub fn container_types(
 #[doc = " Depyler: proven to terminate"]
 pub fn optional_types(
     maybe_value: &Option<i32>,
-    either_type: IntOrStringUnion,
-    complex_union: UnionType1,
+    _either_type: IntOrStringUnion,
+    _complex_union: String1,
 ) -> Option<String> {
     if maybe_value.is_some() {
-        return Some((maybe_value).to_string());
+        return Some((maybe_value).unwrap().to_string());
     }
     None
 }
@@ -214,13 +363,13 @@ pub fn optional_types(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn nested_types(
-    matrix: Vec<Vec<i32>>,
-    lookup: std::collections::HashMap<String, Vec<f64>>,
-    optional_dict: Option<std::collections::HashMap<String, i32>>,
-    union_list: Vec<UnionType>,
+    _matrix: Vec<Vec<i32>>,
+    _lookup: std::collections::HashMap<String, Vec<f64>>,
+    _optional_dict: Option<std::collections::HashMap<String, i32>>,
+    _union_list: Vec<String>,
 ) -> HashMap<String, Vec<Option<i32>>> {
     {
-        let map = HashMap::new();
+        let map: HashMap<String, Vec<Option<i32>>> = HashMap::new();
         map
     }
 }
@@ -229,7 +378,10 @@ pub fn nested_types(
 #[doc = " Depyler: proven to terminate"]
 pub fn generic_function<T: Clone>(items: &Vec<T>) -> Result<T, Box<dyn std::error::Error>> {
     Ok(if !items.is_empty() {
-        items.get(0usize).cloned().unwrap_or_default()
+        items
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
     } else {
         None
     })
@@ -237,10 +389,10 @@ pub fn generic_function<T: Clone>(items: &Vec<T>) -> Result<T, Box<dyn std::erro
 #[doc = "Function with complex nested generic types."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn complex_generics(
-    data: Vec<Option<std::collections::HashMap<String, UnionType>>>,
-    processor: Container<Vec<T>>,
-    mappings: std::collections::HashMap<String, Mapping<String, i32>>,
+pub fn complex_generics<T: Clone>(
+    _data: Vec<Option<std::collections::HashMap<String, UnionType>>>,
+    _processor: Container<Vec<T>>,
+    _mappings: std::collections::HashMap<String, Mapping<String, i32>>,
 ) -> TypeOrListUnion {
     Container::new(42)
 }
@@ -249,10 +401,10 @@ pub fn complex_generics(
 #[doc = " Depyler: proven to terminate"]
 pub fn custom_types<'a, 'b>(
     user_id: &'a UserId,
-    username: Username,
+    _username: Username,
     all_users: &'b UserData,
 ) -> Option<Username> {
-    Some(all_users.get(&user_id).cloned())
+    all_users.get(&user_id).cloned()
 }
 #[doc = "Function with variable-length tuple."]
 #[doc = " Depyler: verified panic-free"]
@@ -263,7 +415,7 @@ pub fn variable_tuple(args: &[String]) -> Vec<String> {
 #[doc = "Function taking another function as parameter."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn higher_order(func: Box<dyn Fn(i32, i32) -> i32>, a: i32, b: i32) -> i32 {
+pub fn higher_order(func: impl Fn(i32, i32) -> i32, a: i32, b: i32) -> i32 {
     func(a, b)
 }
 #[doc = "Demonstrate type extraction for various Python types."]
@@ -282,7 +434,7 @@ pub fn demo_all_types() {
             map
         },
         {
-            let mut set = HashSet::new();
+            let mut set = std::collections::HashSet::new();
             set.insert("x".to_string());
             set.insert("y".to_string());
             set
@@ -290,7 +442,7 @@ pub fn demo_all_types() {
         (1, 2, 3),
     );
     println!("{}", format!("Container types result: {:?}", result2));
-    let result3 = optional_types(42, "either".to_string(), 3.14);
+    let result3 = optional_types(&Some(42), "either".to_string(), 3.14);
     println!("{}", format!("Optional types result: {:?}", result3));
     let int_container = Container::new(42);
     let str_container = Container::new("hello".to_string());
@@ -304,13 +456,15 @@ pub fn demo_all_types() {
     );
     let mapping = ({
         let base = &Mapping;
-        let idx: i32 = (str, int);
+        let idx: i32 = (|x: &_| x.to_string(), |x| x as i32);
         let actual_idx = if idx < 0 {
             base.len().saturating_sub(idx.abs() as usize)
         } else {
             idx as usize
         };
-        base.get(actual_idx).cloned().unwrap_or_default()
+        base.get(actual_idx)
+            .cloned()
+            .expect("IndexError: list index out of range")
     })();
     mapping.put("answer".to_string(), 42);
     println!(
@@ -319,8 +473,8 @@ pub fn demo_all_types() {
     );
     let users = {
         let mut map = HashMap::new();
-        map.insert(1, "Alice");
-        map.insert(2, "Bob");
+        map.insert(1, "Alice".to_string());
+        map.insert(2, "Bob".to_string());
         map
     };
     let username = custom_types(1, "Alice".to_string(), &users);

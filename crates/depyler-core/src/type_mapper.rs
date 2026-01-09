@@ -193,12 +193,12 @@ impl TypeMapper {
                 _ => RustType::Vec(Box::new(self.map_type(inner))),
             },
             PythonType::Dict(k, v) => {
-                // DEPYLER-0776: Use concrete types for Dict with Unknown key/value
-                // Bare `dict` annotation → Dict(Unknown, Unknown) → HashMap<String, fallback>
-                // This matches common Python usage patterns and avoids E0412 for undeclared T
-                // DEPYLER-1015: Use unknown_fallback() for NASA mode compatibility
+                // DEPYLER-1040b: Use DepylerValue for unknown dict keys (Point 14 falsification fix)
+                // Python allows integer keys `{1: "a"}`, tuple keys `{(1,2): "b"}`, etc.
+                // Using String would cause E0308 for non-string keys.
+                // Principle: "If unsure, use DepylerValue. Never guess."
                 let key_type = if matches!(**k, PythonType::Unknown) {
-                    RustType::String
+                    self.unknown_fallback() // DepylerValue instead of String
                 } else {
                     self.map_type(k)
                 };
@@ -230,14 +230,17 @@ impl TypeMapper {
                     // which isn't generated, causing E0412 "cannot find type" errors.
                     // DEPYLER-1015: Use unknown_fallback() for NASA mode compatibility
                     match name.as_str() {
+                        // DEPYLER-1040b: Use DepylerValue for both keys and values
+                        // Point 14: Dict with integer keys `{1: "a"}` must not assume String keys
                         "Dict" => RustType::HashMap(
-                            Box::new(RustType::String), // Default to String keys
-                            Box::new(self.unknown_fallback()), // DEPYLER-0718/1015: Use fallback, not TypeParam
+                            Box::new(self.unknown_fallback()), // DepylerValue keys (not String)
+                            Box::new(self.unknown_fallback()), // DEPYLER-0718/1015: Use fallback
                         ),
                         // DEPYLER-0609: Handle both "List" (typing import) and "list" (builtin)
                         // DEPYLER-0718/1015: Use fallback for bare List (no type params)
                         "List" | "list" => RustType::Vec(Box::new(self.unknown_fallback())),
-                        "Set" => RustType::HashSet(Box::new(RustType::String)),
+                        // DEPYLER-1040b: Use DepylerValue for sets too
+                        "Set" => RustType::HashSet(Box::new(self.unknown_fallback())),
                         // DEPYLER-0379: Handle generic tuple annotation
                         // Python `-> tuple` (without type parameters) maps to empty Rust tuple `()`
                         // This is a fallback - ideally type should be inferred from return value
@@ -864,12 +867,13 @@ mod tests {
             "MyClass"
         );
 
-        // DEPYLER-0781/1015: Unknown type now maps to String in NASA mode (default)
+        // DEPYLER-0781/1015/1051: Unknown type now maps to DepylerValue in NASA mode (default)
         // This prevents unused generic parameter errors (E0283) and ensures single-shot compile
+        // DEPYLER-1051: Hybrid Fallback Strategy - DepylerValue for all uncertain types
         let unknown_type = PythonType::Unknown;
         assert_eq!(
             mapper.map_type(&unknown_type),
-            RustType::String // NASA mode default
+            RustType::Custom("DepylerValue".to_string()) // NASA mode uses DepylerValue
         );
     }
 
@@ -891,20 +895,20 @@ mod tests {
 
     #[test]
     fn test_depyler_0589_any_type_mapping() {
-        // DEPYLER-0589/1015: Python `any` and `Any` should map to String in NASA mode
+        // DEPYLER-0589/1015/1051: Python `any` and `Any` should map to DepylerValue in NASA mode
         let mapper = TypeMapper::new();
 
-        // Lowercase 'any' - maps to String in NASA mode
+        // Lowercase 'any' - maps to DepylerValue in NASA mode (Hybrid Fallback)
         let any_lower = PythonType::Custom("any".to_string());
-        assert_eq!(mapper.map_type(&any_lower), RustType::String);
+        assert_eq!(mapper.map_type(&any_lower), RustType::Custom("DepylerValue".to_string()));
 
         // Uppercase 'Any'
         let any_upper = PythonType::Custom("Any".to_string());
-        assert_eq!(mapper.map_type(&any_upper), RustType::String);
+        assert_eq!(mapper.map_type(&any_upper), RustType::Custom("DepylerValue".to_string()));
 
         // typing.Any
         let typing_any = PythonType::Custom("typing.Any".to_string());
-        assert_eq!(mapper.map_type(&typing_any), RustType::String);
+        assert_eq!(mapper.map_type(&typing_any), RustType::Custom("DepylerValue".to_string()));
 
         // Non-NASA mode should use serde_json::Value
         let non_nasa_mapper = TypeMapper::new().with_nasa_mode(false);
@@ -1188,24 +1192,25 @@ mod tests {
 
     #[test]
     fn test_object_type_mapping() {
-        // DEPYLER-1015: In NASA mode, object maps to String
+        // DEPYLER-1015/1051: In NASA mode, object maps to DepylerValue (Hybrid Fallback)
         let mapper = TypeMapper::new();
 
         let object = PythonType::Custom("object".to_string());
-        assert_eq!(mapper.map_type(&object), RustType::String);
+        assert_eq!(mapper.map_type(&object), RustType::Custom("DepylerValue".to_string()));
     }
 
-    // ============ bare collection type mappings (DEPYLER-0718/1015) ============
+    // ============ bare collection type mappings (DEPYLER-0718/1015/1051) ============
 
     #[test]
     fn test_bare_dict_type_mapping() {
-        // DEPYLER-1015: In NASA mode, bare Dict uses String for values
+        // DEPYLER-1040b: In NASA mode, bare Dict uses DepylerValue for BOTH keys AND values
+        // Point 14: Dict with integer keys `{1: "a"}` must not assume String keys
         let mapper = TypeMapper::new();
 
         let dict = PythonType::Custom("Dict".to_string());
         if let RustType::HashMap(k, v) = mapper.map_type(&dict) {
-            assert_eq!(*k, RustType::String);
-            assert_eq!(*v, RustType::String); // NASA mode: String fallback
+            assert_eq!(*k, RustType::Custom("DepylerValue".to_string())); // DEPYLER-1040b: DepylerValue keys
+            assert_eq!(*v, RustType::Custom("DepylerValue".to_string())); // NASA mode: DepylerValue fallback
         } else {
             panic!("Expected HashMap for 'Dict'");
         }
@@ -1213,19 +1218,19 @@ mod tests {
 
     #[test]
     fn test_bare_list_type_mapping() {
-        // DEPYLER-1015: In NASA mode, bare List uses String for elements
+        // DEPYLER-1015/1051: In NASA mode, bare List uses DepylerValue for elements (Hybrid Fallback)
         let mapper = TypeMapper::new();
 
         let list = PythonType::Custom("List".to_string());
         if let RustType::Vec(inner) = mapper.map_type(&list) {
-            assert_eq!(*inner, RustType::String); // NASA mode: String fallback
+            assert_eq!(*inner, RustType::Custom("DepylerValue".to_string())); // NASA mode: DepylerValue fallback
         } else {
             panic!("Expected Vec for 'List'");
         }
 
         let list_lower = PythonType::Custom("list".to_string());
         if let RustType::Vec(inner) = mapper.map_type(&list_lower) {
-            assert_eq!(*inner, RustType::String); // NASA mode: String fallback
+            assert_eq!(*inner, RustType::Custom("DepylerValue".to_string())); // NASA mode: DepylerValue fallback
         } else {
             panic!("Expected Vec for 'list'");
         }
@@ -1233,11 +1238,12 @@ mod tests {
 
     #[test]
     fn test_bare_set_type_mapping() {
+        // DEPYLER-1040b: Bare Set uses DepylerValue for consistency
         let mapper = TypeMapper::new();
 
         let set = PythonType::Custom("Set".to_string());
         if let RustType::HashSet(inner) = mapper.map_type(&set) {
-            assert_eq!(*inner, RustType::String);
+            assert_eq!(*inner, RustType::Custom("DepylerValue".to_string())); // DEPYLER-1040b
         } else {
             panic!("Expected HashSet for 'Set'");
         }
@@ -1632,15 +1638,15 @@ mod tests {
         }
     }
 
-    // ============ Object type mapping (DEPYLER-0628) ============
+    // ============ Object type mapping (DEPYLER-0628/1051) ============
 
     #[test]
     fn test_object_builtins_type_mapping() {
         let mapper = TypeMapper::new();
 
-        // DEPYLER-1015: In NASA mode, builtins.object maps to String
+        // DEPYLER-1015/1051: In NASA mode, builtins.object maps to DepylerValue (Hybrid Fallback)
         let obj = PythonType::Custom("builtins.object".to_string());
-        assert_eq!(mapper.map_type(&obj), RustType::String);
+        assert_eq!(mapper.map_type(&obj), RustType::Custom("DepylerValue".to_string()));
     }
 
     // ============ Additional RustType tests ============

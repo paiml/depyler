@@ -1,4 +1,9 @@
-use serde_json;
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 use std::collections::HashMap;
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
@@ -18,24 +23,169 @@ impl ZeroDivisionError {
         }
     }
 }
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
 #[doc = "Showcase nested dictionary assignment support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn showcase_dictionary_assignment() -> (
-    std::collections::HashMap<String, std::collections::HashMap<String, serde_json::Value>>,
-    serde_json::Value,
+    std::collections::HashMap<
+        String,
+        std::collections::HashMap<String, std::collections::HashMap<String, DepylerValue>>,
+    >,
+    std::collections::HashMap<String, DepylerValue>,
 ) {
     let mut d = {
-        let map = HashMap::new();
+        let map: HashMap<String, String> = HashMap::new();
         map
     };
-    d.insert("key".to_string().to_string(), serde_json::json!("value"));
+    d.insert("key".to_string(), "value".to_string());
     let nested = {
         let mut map = HashMap::new();
         map.insert("level1".to_string(), {
             let mut map = HashMap::new();
             map.insert("level2".to_string(), {
-                let map = HashMap::new();
+                let map: HashMap<String, String> = HashMap::new();
                 map
             });
             map
@@ -47,21 +197,27 @@ pub fn showcase_dictionary_assignment() -> (
         .unwrap()
         .get_mut(&"level2")
         .unwrap()
-        .insert("level3".to_string().to_string(), "deep value");
+        .insert("level3".to_string(), "deep value".to_string());
     let mut coords = {
-        let map = HashMap::new();
+        let map: HashMap<String, String> = HashMap::new();
         map
     };
-    coords.insert((10, 20), serde_json::json!("location A"));
-    coords.insert((30, 40), serde_json::json!("location B"));
+    coords.insert((10, 20).to_string(), "location A".to_string());
+    coords.insert((30, 40).to_string(), "location B".to_string());
     (nested, coords)
 }
 #[doc = "Showcase comprehensive set support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_set_operations() -> (i32, i32, i32, i32, serde_json::Value) {
+pub fn showcase_set_operations() -> (
+    std::collections::HashSet<i32>,
+    std::collections::HashSet<i32>,
+    std::collections::HashSet<i32>,
+    std::collections::HashSet<i32>,
+    std::collections::HashSet<i32>,
+) {
     let set1 = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
@@ -70,7 +226,7 @@ pub fn showcase_set_operations() -> (i32, i32, i32, i32, serde_json::Value) {
         set
     };
     let set2 = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(4);
         set.insert(5);
         set.insert(6);
@@ -98,7 +254,7 @@ pub fn showcase_set_operations() -> (i32, i32, i32, i32, serde_json::Value) {
         .collect::<std::collections::HashSet<_>>();
     let symmetric_diff = _cse_temp_2;
     let mut mutable_set = {
-        let mut set = HashSet::new();
+        let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
@@ -114,33 +270,51 @@ pub fn showcase_set_operations() -> (i32, i32, i32, i32, serde_json::Value) {
 #[doc = "Showcase set comprehensions"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_set_comprehensions() -> (serde_json::Value, serde_json::Value, serde_json::Value) {
-    let squares = (0..10).into_iter().map(|x| x * x).collect::<HashSet<_>>();
-    let even_squares = (0..10)
+pub fn showcase_set_comprehensions() -> (
+    std::collections::HashSet<String>,
+    std::collections::HashSet<String>,
+    std::collections::HashSet<String>,
+) {
+    let squares = (0..(10))
         .into_iter()
-        .filter(|&x| x % 2 == 0)
         .map(|x| x * x)
-        .collect::<HashSet<_>>();
+        .collect::<std::collections::HashSet<_>>();
+    let even_squares = (0..(10))
+        .into_iter()
+        .filter(|x| {
+            let x = x.clone();
+            x % 2 == 0
+        })
+        .map(|x| x * x)
+        .collect::<std::collections::HashSet<_>>();
     let unique_chars = "hello world"
         .to_string()
         .into_iter()
-        .filter(|&c| c.chars().all(|c| c.is_alphabetic()))
+        .filter(|c| {
+            let c = c.clone();
+            c.chars().all(|c| c.is_alphabetic())
+        })
         .map(|c| c.to_uppercase())
-        .collect::<HashSet<_>>();
+        .collect::<std::collections::HashSet<_>>();
     (squares, even_squares, unique_chars)
 }
 #[doc = "Showcase frozen set support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_frozen_sets() -> (i32, std::collections::HashMap<i32, String>) {
-    let immutable1 = std::sync::Arc::new(vec![1, 2, 3, 4].into_iter().collect::<HashSet<_>>());
-    let immutable2 = std::sync::Arc::new(3..6.into_iter().collect::<HashSet<_>>());
+pub fn showcase_frozen_sets() -> (DepylerValue, std::collections::HashMap<String, String>) {
+    let immutable1 = std::sync::Arc::new(
+        vec![1, 2, 3, 4]
+            .into_iter()
+            .collect::<std::collections::HashSet<_>>(),
+    );
+    let immutable2 =
+        std::sync::Arc::new((3)..(6).into_iter().collect::<std::collections::HashSet<_>>());
     let _cse_temp_0 = immutable1 & immutable2;
     let result = _cse_temp_0;
     let frozen_dict = {
         let mut map = HashMap::new();
-        map.insert(immutable1, "first set");
-        map.insert(immutable2, "second set");
+        map.insert(immutable1, "first set".to_string());
+        map.insert(immutable2, "second set".to_string());
         map
     };
     (result, frozen_dict)
@@ -148,24 +322,24 @@ pub fn showcase_frozen_sets() -> (i32, std::collections::HashMap<i32, String>) {
 #[doc = "Showcase break and continue statements"]
 #[doc = " Depyler: proven to terminate"]
 pub fn showcase_control_flow(
-) -> Result<(serde_json::Value, serde_json::Value, serde_json::Value), Box<dyn std::error::Error>> {
+) -> Result<(Vec<DepylerValue>, Vec<DepylerValue>, Vec<DepylerValue>), Box<dyn std::error::Error>> {
     let mut result1 = vec![];
-    for i in 0..10 {
+    for i in 0..(10) {
         if i == 5 {
             break;
         }
         result1.push(i);
     }
     let mut result2 = vec![];
-    for i in 0..10 {
+    for i in 0..(10) {
         if i % 2 == 0 {
             continue;
         }
         result2.push(i);
     }
     let mut result3 = vec![];
-    for i in 0..3 {
-        for j in 0..3 {
+    for i in 0..(3) {
+        for j in 0..(3) {
             if (i == 1) && (j == 1) {
                 break;
             }
@@ -177,7 +351,7 @@ pub fn showcase_control_flow(
 #[doc = "Showcase power operator support"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn showcase_power_operator() -> (f64, f64, f64, f64) {
+pub fn showcase_power_operator() -> (i32, f64, f64, i32) {
     let _cse_temp_0 = ({ 2 } as i32)
         .checked_pow({ 10 } as u32)
         .expect("Power operation overflowed");

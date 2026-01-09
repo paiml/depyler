@@ -1,4 +1,9 @@
-use rand as random;
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 use std::collections::HashMap;
 use std::f64 as math;
 #[derive(Debug, Clone)]
@@ -35,16 +40,156 @@ impl IndexError {
         }
     }
 }
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
 #[doc = "Roll multiple dice and return sum"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn roll_dice(num_dice: i32, num_sides: i32) -> i32 {
-    let mut total: i32 = 0;
-    for _i in 0..num_dice {
-        let roll: i32 = {
-            use rand::Rng;
-            rand::thread_rng().gen_range(1..=num_sides)
-        };
+    let mut total: i32 = Default::default();
+    total = 0;
+    for _i in 0..(num_dice) {
+        let roll: i32 = 1;
         total = total + roll;
     }
     total
@@ -57,10 +202,10 @@ pub fn simulate_dice_rolls(
     num_trials: i32,
 ) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
     let mut results: std::collections::HashMap<i32, i32> = {
-        let map = HashMap::new();
+        let map: HashMap<i32, i32> = HashMap::new();
         map
     };
-    for _trial in 0..num_trials {
+    for _trial in 0..(num_trials) {
         let total: i32 = roll_dice(num_dice, num_sides);
         if results.get(&total).is_some() {
             {
@@ -79,11 +224,8 @@ pub fn simulate_dice_rolls(
 #[doc = " Depyler: proven to terminate"]
 pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
     let mut flips: Vec<String> = vec![];
-    for _i in 0..num_flips {
-        let flip: i32 = {
-            use rand::Rng;
-            rand::thread_rng().gen_range(0..=1)
-        };
+    for _i in 0..(num_flips) {
+        let flip: i32 = 0;
         if flip == 0 {
             flips.push("H".to_string());
         } else {
@@ -97,20 +239,32 @@ pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
 pub fn count_streaks(
     sequence: &Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
+    let mut current_streak: i32 = Default::default();
+    let mut current_type: String = Default::default();
+    let mut max_heads_streak: i32 = Default::default();
+    let mut max_tails_streak: i32 = Default::default();
     let _cse_temp_0 = sequence.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
         return Ok({
-            let map = HashMap::new();
+            let map: HashMap<String, i32> = HashMap::new();
             map
         });
     }
-    let mut max_heads_streak: i32 = 0;
-    let mut max_tails_streak: i32 = 0;
-    let mut current_streak: i32 = 1;
-    let mut current_type: String = sequence.get(0usize).cloned().unwrap_or_default();
-    for i in 1..sequence.len() as i32 {
-        if sequence.get(i as usize).cloned().unwrap_or_default() == current_type {
+    max_heads_streak = 0;
+    max_tails_streak = 0;
+    current_streak = 1;
+    current_type = sequence
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    for i in (1)..(sequence.len() as i32) {
+        if sequence
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            == current_type
+        {
             current_streak = current_streak + 1;
         } else {
             if (current_type == "H") && (current_streak > max_heads_streak) {
@@ -120,7 +274,10 @@ pub fn count_streaks(
                     max_tails_streak = current_streak;
                 }
             }
-            current_type = sequence.get(i as usize).cloned().unwrap_or_default();
+            current_type = sequence
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
             current_streak = 1;
         }
     }
@@ -150,10 +307,11 @@ pub fn count_streaks(
 pub fn monte_carlo_pi_estimation(
     num_samples: i32,
 ) -> Result<(f64, f64), Box<dyn std::error::Error>> {
-    let mut inside_circle: i32 = 0;
-    for _i in 0..num_samples {
-        let x: f64 = rand::random::<f64>();
-        let y: f64 = rand::random::<f64>();
+    let mut inside_circle: i32 = Default::default();
+    inside_circle = 0;
+    for _i in 0..(num_samples) {
+        let x: f64 = 0.5_f64;
+        let y: f64 = 0.5_f64;
         let distance_squared: f64 = x * x + y * y;
         if distance_squared <= 1.0 {
             inside_circle = inside_circle + 1;
@@ -162,10 +320,10 @@ pub fn monte_carlo_pi_estimation(
     let _cse_temp_0 = (inside_circle) as f64;
     let _cse_temp_1 = 4.0 * _cse_temp_0;
     let _cse_temp_2 = (num_samples) as f64;
-    let _cse_temp_3 = (_cse_temp_1 as f64) / (_cse_temp_2 as f64);
+    let _cse_temp_3 = ((_cse_temp_1) as f64) / ((_cse_temp_2) as f64);
     let pi_estimate: f64 = _cse_temp_3;
     let actual_pi: f64 = 3.14159265359;
-    let _cse_temp_4 = pi_estimate - actual_pi.abs();
+    let _cse_temp_4 = (pi_estimate - actual_pi).abs();
     let error: f64 = _cse_temp_4;
     Ok((pi_estimate, error))
 }
@@ -173,13 +331,12 @@ pub fn monte_carlo_pi_estimation(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
-    let mut x: i32 = 0;
-    let mut y: i32 = 0;
-    for _step in 0..num_steps {
-        let direction: i32 = {
-            use rand::Rng;
-            rand::thread_rng().gen_range(0..=3)
-        };
+    let mut x: i32 = Default::default();
+    let mut y: i32 = Default::default();
+    x = 0;
+    y = 0;
+    for _step in 0..(num_steps) {
+        let direction: i32 = 0;
         if direction == 0 {
             y = y + 1;
         } else {
@@ -210,15 +367,14 @@ pub fn simulate_queue_system(
     num_customers: i32,
     service_time_range: (i32, i32),
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
+    let mut total_wait: i32 = Default::default();
+    let mut max_wait: i32 = Default::default();
     let mut wait_times: Vec<i32> = vec![];
     let mut queue_length: i32 = 0;
     let mut current_time: i32 = 0;
-    for _customer in 0..num_customers {
+    for _customer in 0..(num_customers) {
         let arrival_time: i32 = current_time;
-        let service_time: i32 = {
-            use rand::Rng;
-            rand::thread_rng().gen_range(service_time_range.0..=service_time_range.1)
-        };
+        let service_time: i32 = service_time_range.0;
         let wait_time: i32 = queue_length;
         wait_times.push(wait_time);
         queue_length = queue_length + service_time;
@@ -227,16 +383,16 @@ pub fn simulate_queue_system(
             queue_length = std::cmp::max(0, queue_length - 1);
         }
     }
-    let mut total_wait: i32 = 0;
+    total_wait = 0;
     for wait in wait_times.iter().cloned() {
         total_wait = total_wait + wait;
     }
     let avg_wait: f64 = if wait_times.len() as i32 > 0 {
-        (total_wait) as f64 / (wait_times.len() as i32) as f64
+        (((total_wait) as f64) as f64) / (((wait_times.len() as i32) as f64) as f64)
     } else {
         0.0
     };
-    let mut max_wait: i32 = 0;
+    max_wait = 0;
     for wait in wait_times.iter().cloned() {
         if wait > max_wait {
             max_wait = wait;
@@ -244,9 +400,15 @@ pub fn simulate_queue_system(
     }
     let stats: std::collections::HashMap<String, f64> = {
         let mut map = HashMap::new();
-        map.insert("avg_wait".to_string(), avg_wait);
-        map.insert("max_wait".to_string(), (max_wait) as f64);
-        map.insert("total_customers".to_string(), (num_customers) as f64);
+        map.insert("avg_wait".to_string(), DepylerValue::Float(avg_wait as f64));
+        map.insert(
+            "max_wait".to_string(),
+            DepylerValue::Str(format!("{:?}", (max_wait) as f64)),
+        );
+        map.insert(
+            "total_customers".to_string(),
+            DepylerValue::Str(format!("{:?}", (num_customers) as f64)),
+        );
         map
     };
     Ok(stats)
@@ -263,15 +425,9 @@ pub fn simulate_card_game(
         map.insert("ties".to_string(), 0);
         map
     };
-    for _game in 0..num_games {
-        let player_card: i32 = {
-            use rand::Rng;
-            rand::thread_rng().gen_range(1..=13)
-        };
-        let dealer_card: i32 = {
-            use rand::Rng;
-            rand::thread_rng().gen_range(1..=13)
-        };
+    for _game in 0..(num_games) {
+        let player_card: i32 = 1;
+        let dealer_card: i32 = 1;
         if player_card > dealer_card {
             results.insert(
                 "wins".to_string(),
@@ -306,14 +462,9 @@ pub fn calculate_win_rate(
     if _cse_temp_2 {
         return Ok(0.0);
     }
-    let _cse_temp_3 = results
-        .get("wins")
-        .cloned()
-        .unwrap_or_default()
-        .parse::<f64>()
-        .unwrap();
+    let _cse_temp_3 = (results.get("wins").cloned().unwrap_or_default()) as f64;
     let _cse_temp_4 = (total_games) as f64;
-    let _cse_temp_5 = (_cse_temp_3 as f64) / (_cse_temp_4 as f64);
+    let _cse_temp_5 = ((_cse_temp_3) as f64) / ((_cse_temp_4) as f64);
     let win_rate: f64 = _cse_temp_5;
     Ok(win_rate)
 }
@@ -325,10 +476,11 @@ pub fn simulate_population_growth(
     growth_rate: f64,
     num_generations: i32,
 ) -> Vec<i32> {
+    let mut current_population: i32 = Default::default();
     let mut populations: Vec<i32> = vec![initial_population];
-    let mut current_population: i32 = initial_population.clone();
-    for _generation in 0..num_generations {
-        let random_factor: f64 = rand::random::<f64>() * 0.2 - 0.1;
+    current_population = initial_population;
+    for _generation in 0..(num_generations) {
+        let random_factor: f64 = 0.5_f64 * 0.2 - 0.1;
         let actual_growth: f64 = growth_rate + random_factor;
         let growth: i32 = ((current_population) as f64 * actual_growth) as i32;
         current_population = current_population + growth;
@@ -343,19 +495,26 @@ pub fn simulate_population_growth(
 pub fn analyze_population_trend(
     populations: &Vec<i32>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
+    let mut total_growth: f64 = Default::default();
+    let mut peak: i32 = Default::default();
     let _cse_temp_0 = populations.len() as i32;
     let _cse_temp_1 = _cse_temp_0 < 2;
     if _cse_temp_1 {
         return Ok({
-            let map = HashMap::new();
+            let map: HashMap<String, f64> = HashMap::new();
             map
         });
     }
-    let mut total_growth: f64 = 0.0;
+    total_growth = 0.0;
     let num_intervals: i32 = _cse_temp_0 - 1;
-    for i in 0..num_intervals {
-        if populations.get(i as usize).cloned().unwrap_or_default() > 0 {
-            let growth_rate: f64 = ({
+    for i in 0..(num_intervals) {
+        if populations
+            .get(i as usize)
+            .cloned()
+            .expect("IndexError: list index out of range")
+            > 0
+        {
+            let growth_rate: f64 = ((({
                 let base = &populations;
                 let idx: i32 = i + 1;
                 let actual_idx = if idx < 0 {
@@ -363,24 +522,31 @@ pub fn analyze_population_trend(
                 } else {
                     idx as usize
                 };
-                base.get(actual_idx).cloned().unwrap_or_default()
-            } - populations.get(i as usize).cloned().unwrap_or_default())
-                as f64
-                / populations
+                base.get(actual_idx)
+                    .cloned()
+                    .expect("IndexError: list index out of range")
+            } - populations
+                .get(i as usize)
+                .cloned()
+                .expect("IndexError: list index out of range"))
+                as f64) as f64)
+                / (((populations
                     .get(i as usize)
                     .cloned()
-                    .unwrap_or_default()
-                    .parse::<f64>()
-                    .unwrap();
+                    .expect("IndexError: list index out of range")) as f64)
+                    as f64);
             total_growth = total_growth + growth_rate;
         }
     }
     let avg_growth: f64 = if num_intervals > 0 {
-        (total_growth as f64) / ((num_intervals) as f64 as f64)
+        ((total_growth) as f64) / (((num_intervals) as f64) as f64)
     } else {
         0.0
     };
-    let mut peak: i32 = populations.get(0usize).cloned().unwrap_or_default();
+    peak = populations
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
     for pop in populations.iter().cloned() {
         if pop > peak {
             peak = pop;
@@ -388,18 +554,25 @@ pub fn analyze_population_trend(
     }
     let analysis: std::collections::HashMap<String, f64> = {
         let mut map = HashMap::new();
-        map.insert("avg_growth_rate".to_string(), avg_growth);
-        map.insert("peak_population".to_string(), (peak) as f64);
+        map.insert(
+            "avg_growth_rate".to_string(),
+            DepylerValue::Float(avg_growth as f64),
+        );
+        map.insert(
+            "peak_population".to_string(),
+            DepylerValue::Str(format!("{:?}", (peak) as f64)),
+        );
         map.insert(
             "final_population".to_string(),
-            {
-                let base = &populations;
-                base.get(base.len().saturating_sub(1usize))
-                    .cloned()
-                    .unwrap_or_default()
-            }
-            .parse::<f64>()
-            .unwrap(),
+            DepylerValue::Str(format!(
+                "{:?}",
+                ({
+                    let base = &populations;
+                    base.get(base.len().saturating_sub(1usize))
+                        .cloned()
+                        .unwrap_or_default()
+                }) as f64
+            )),
         );
         map
     };
@@ -410,10 +583,7 @@ pub fn analyze_population_trend(
 #[doc = " Depyler: proven to terminate"]
 pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
     println!("{}", "=== Comprehensive Simulation Demo ===");
-    {
-        let _seed = 42;
-        ()
-    };
+    ();
     println!("{}", "\n1. Dice Rolling Simulation");
     let dice_results: std::collections::HashMap<i32, i32> = simulate_dice_rolls(2, 6, 1000)?;
     println!("{}", format!("   Simulated {} rolls of 2d6", 1000));
@@ -443,7 +613,7 @@ pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "{}",
         format!(
-            "   Final position:({}, {}), Distance: {:?}",
+            "   Final position:({}, {}), Distance: {}",
             final_pos.0, final_pos.1, distance
         )
     );

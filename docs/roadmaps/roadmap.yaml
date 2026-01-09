@@ -3105,3 +3105,67 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-SINGLE-SHOT-80
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-SINGLE-SHOT-80'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-07T20:18:08.513377+00:00
+  updated: 2026-01-07T20:18:08.513377+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1026
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1026'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-08T17:15:32.640341+00:00
+  updated: 2026-01-08T17:15:32.640341+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1038
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1038'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-08T23:21:16.763345+00:00
+  updated: 2026-01-08T23:21:16.763345+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: docs/specifications/1.0-single-shot-compile.md
+  github_issue: null
+  item_type: task
+  title: 'New task: docs/specifications/1.0-single-shot-compile.md'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-09T15:30:06.945011+00:00
+  updated: 2026-01-09T15:30:06.945011+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

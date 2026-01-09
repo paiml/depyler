@@ -91,6 +91,14 @@ fn apply_string_replacements(code: String) -> String {
         .replace(" : ", ": ")
         // Fix parameter spacing
         .replace(" , ", ", ")
+        // DEPYLER-1002: Fix equality operator spacing (= = -> ==)
+        .replace(" = = ", " == ")
+        .replace(" = =", " ==")
+        .replace("= = ", "== ")
+        // DEPYLER-1002: Fix inequality operator spacing (! = -> !=)
+        .replace(" ! = ", " != ")
+        .replace(" ! =", " !=")
+        .replace("! = ", "!= ")
         // Fix assignment operator spacing issues
         .replace("=(", " = (")
         .replace("= (", " = (")

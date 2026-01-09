@@ -463,8 +463,7 @@ impl TypeExtractor {
     /// DEPYLER-0609: Pragmatic compilation - map to types that compile
     fn map_stdlib_type(module: &str, type_name: &str) -> Option<Type> {
         match module {
-            // Threading module - map to serde_json::Value as universal placeholder
-            // Real sync primitives would need proper Rust equivalents
+            // DEPYLER-1025: Threading module - use std::sync types (NASA mode default)
             "threading" => match type_name {
                 "Lock" | "RLock" => Some(Type::Custom("std::sync::Mutex<()>".to_string())),
                 "Semaphore" | "BoundedSemaphore" => {
@@ -473,46 +472,46 @@ impl TypeExtractor {
                 }
                 "Event" => Some(Type::Custom("std::sync::Condvar".to_string())),
                 "Thread" => Some(Type::Custom("std::thread::JoinHandle<()>".to_string())),
-                _ => Some(Type::Custom("serde_json::Value".to_string())),
+                _ => Some(Type::Custom("String".to_string())),
             },
-            // Datetime module - map to chrono types
+            // DEPYLER-1025: Datetime module - use std::time types (NASA mode default)
             "datetime" => match type_name {
                 "datetime" | "date" | "time" => {
-                    Some(Type::Custom("chrono::DateTime<chrono::Utc>".to_string()))
+                    Some(Type::Custom("std::time::SystemTime".to_string()))
                 }
-                "timedelta" => Some(Type::Custom("chrono::Duration".to_string())),
-                _ => Some(Type::Custom("serde_json::Value".to_string())),
+                "timedelta" => Some(Type::Custom("std::time::Duration".to_string())),
+                _ => Some(Type::Custom("String".to_string())),
             },
-            // Queue module
+            // DEPYLER-1025: Queue module - use std types (NASA mode default)
             "queue" => match type_name {
                 "Queue" | "LifoQueue" | "PriorityQueue" => {
-                    Some(Type::Custom("std::collections::VecDeque<serde_json::Value>".to_string()))
+                    Some(Type::Custom("std::collections::VecDeque<String>".to_string()))
                 }
-                _ => Some(Type::Custom("serde_json::Value".to_string())),
+                _ => Some(Type::Custom("String".to_string())),
             },
-            // Multiprocessing
-            "multiprocessing" => Some(Type::Custom("serde_json::Value".to_string())),
-            // Asyncio types
+            // DEPYLER-1025: Multiprocessing - use String placeholder
+            "multiprocessing" => Some(Type::Custom("String".to_string())),
+            // DEPYLER-1024: Asyncio types - use std::sync types (NASA mode default)
             "asyncio" => match type_name {
-                "Task" => Some(Type::Custom("tokio::task::JoinHandle<()>".to_string())),
-                "Event" => Some(Type::Custom("tokio::sync::Notify".to_string())),
-                "Queue" => Some(Type::Custom("tokio::sync::mpsc::Receiver<serde_json::Value>".to_string())),
-                "Lock" => Some(Type::Custom("tokio::sync::Mutex<()>".to_string())),
-                "Semaphore" => Some(Type::Custom("tokio::sync::Semaphore".to_string())),
-                _ => Some(Type::Custom("serde_json::Value".to_string())),
+                "Task" => Some(Type::Custom("std::thread::JoinHandle<()>".to_string())),
+                "Event" => Some(Type::Custom("std::sync::Condvar".to_string())),
+                "Queue" => Some(Type::Custom("std::sync::mpsc::Receiver<String>".to_string())),
+                "Lock" => Some(Type::Custom("std::sync::Mutex<()>".to_string())),
+                "Semaphore" => Some(Type::Custom("std::sync::Mutex<i32>".to_string())),
+                _ => Some(Type::Custom("String".to_string())),
             },
             // DEPYLER-0679: subprocess module types
             "subprocess" => match type_name {
                 "CompletedProcess" => Some(Type::Custom("CompletedProcess".to_string())),
                 "Popen" => Some(Type::Custom("std::process::Child".to_string())),
-                _ => Some(Type::Custom("serde_json::Value".to_string())),
+                _ => Some(Type::Custom("String".to_string())),
             },
-            // Catch-all for other stdlib modules
+            // DEPYLER-1025: Catch-all for other stdlib modules - use String (NASA mode default)
             "collections" | "collections.abc" | "typing" | "types" | "functools" | "itertools"
             | "pathlib" | "os" | "sys" | "io" | "re" | "json" | "pickle"
             | "socket" | "ssl" | "http" | "urllib" => {
-                // For most stdlib types, use serde_json::Value as placeholder
-                Some(Type::Custom("serde_json::Value".to_string()))
+                // For most stdlib types, use String as placeholder (NASA mode)
+                Some(Type::Custom("String".to_string()))
             }
             _ => None, // Unknown module - let the default handling apply
         }

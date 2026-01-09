@@ -996,6 +996,9 @@ fn stmt_mutates_self(stmt: &HirStmt) -> bool {
             matches!(target, AssignTarget::Attribute { value, .. }
                 if matches!(value.as_ref(), HirExpr::Var(sym) if sym.as_str() == "self"))
         }
+        // DEPYLER-1008: Check for method calls that mutate self.field
+        // e.g., self.messages.append(msg) -> self.messages is mutated
+        HirStmt::Expr(expr) => expr_mutates_self(expr),
         HirStmt::If {
             then_body,
             else_body,
@@ -1011,6 +1014,30 @@ fn stmt_mutates_self(stmt: &HirStmt) -> bool {
         }
         _ => false,
     }
+}
+
+/// DEPYLER-1008: Check if an expression mutates self
+/// Looks for method calls like self.messages.append(msg) that mutate self.field
+fn expr_mutates_self(expr: &HirExpr) -> bool {
+    if let HirExpr::MethodCall { object, method, .. } = expr {
+        // Check if method is a mutating method
+        let is_mutating = matches!(
+            method.as_str(),
+            "append" | "push" | "push_back" | "push_front"
+                | "appendleft" | "popleft" | "pop"
+                | "insert" | "remove" | "clear" | "extend"
+                | "add" | "update" | "discard"
+        );
+        if is_mutating {
+            // Check if object is self.field
+            if let HirExpr::Attribute { value, .. } = object.as_ref() {
+                if let HirExpr::Var(name) = value.as_ref() {
+                    return name == "self";
+                }
+            }
+        }
+    }
+    false
 }
 
 /// DEPYLER-0740: Collect type variables from a Type recursively
@@ -1463,7 +1490,8 @@ fn convert_method_to_impl_item(
         // DEPYLER-0648: Pass vararg_functions for proper slice wrapping at call sites
         // DEPYLER-0704: Pass param_types for type coercion
         // DEPYLER-0720: Pass class_field_types for self.field float coercion
-        convert_method_body_block(&method.body, type_mapper, method.is_classmethod, vararg_functions, &param_types, &class_field_types)?
+        // DEPYLER-1037: Pass effective_ret_type for Optional wrapping in returns
+        convert_method_body_block(&method.body, type_mapper, method.is_classmethod, vararg_functions, &param_types, &class_field_types, &effective_ret_type)?
     };
 
     Ok(syn::ImplItemFn {
@@ -2351,9 +2379,9 @@ mod tests {
         let bool_lit = convert_literal(&Literal::Bool(true));
         assert!(matches!(bool_lit, syn::Expr::Lit(_)));
 
-        // Test None literal
+        // Test None literal - DEPYLER-1037: Now produces Rust's None, not ()
         let none_lit = convert_literal(&Literal::None);
-        assert!(matches!(none_lit, syn::Expr::Tuple(_)));
+        assert!(matches!(none_lit, syn::Expr::Path(_)));
     }
 
     #[test]
@@ -2547,8 +2575,8 @@ mod tests {
 
         let none_expr = HirExpr::Literal(Literal::None);
         let result = converter.convert(&none_expr).unwrap();
-        // None becomes () which is a tuple
-        assert!(matches!(result, syn::Expr::Tuple(_)));
+        // DEPYLER-1037: None becomes Rust's None (a path), not ()
+        assert!(matches!(result, syn::Expr::Path(_)));
     }
 
     #[test]
@@ -4354,8 +4382,8 @@ mod tests {
     #[test]
     fn test_convert_literal_none() {
         let result = convert_literal(&Literal::None);
-        // None converts to () which is a tuple expression
-        assert!(matches!(result, syn::Expr::Tuple(_)));
+        // DEPYLER-1037: None converts to Rust's None (a path expression), not ()
+        assert!(matches!(result, syn::Expr::Path(_)));
     }
 
     // ============ convert_binop tests ============
