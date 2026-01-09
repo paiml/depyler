@@ -300,9 +300,10 @@ pub struct LambdaConfig {
 }
 
 /// Lambda runtime
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum LambdaRuntime {
     ProvidedAl2,
+    #[default]
     ProvidedAl2023,
 }
 
@@ -316,15 +317,10 @@ impl LambdaRuntime {
     }
 }
 
-impl Default for LambdaRuntime {
-    fn default() -> Self {
-        Self::ProvidedAl2023
-    }
-}
-
 /// Lambda architecture
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Architecture {
+    #[default]
     X86_64,
     Arm64,
 }
@@ -344,12 +340,6 @@ impl Architecture {
             Self::X86_64 => "x86_64-unknown-linux-musl",
             Self::Arm64 => "aarch64-unknown-linux-musl",
         }
-    }
-}
-
-impl Default for Architecture {
-    fn default() -> Self {
-        Self::X86_64
     }
 }
 

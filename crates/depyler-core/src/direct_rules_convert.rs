@@ -127,11 +127,13 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
         match expr {
             HirExpr::MethodCall { object, method, args, .. } => {
                 // Check if this is a mutating method
+                // DEPYLER-1002: Added hexdigest/digest for hashlib - finalize_reset() requires &mut self
                 let is_mutating = matches!(
                     method.as_str(),
                     "append" | "extend" | "insert" | "remove" | "pop" | "clear" |
                     "reverse" | "sort" | "update" | "setdefault" | "popitem" |
-                    "add" | "discard" | "write" | "write_all" | "writelines" | "flush"
+                    "add" | "discard" | "write" | "write_all" | "writelines" | "flush" |
+                    "hexdigest" | "digest" | "finalize" | "finalize_reset"
                 );
                 if is_mutating {
                     if let HirExpr::Var(var_name) = object.as_ref() {
@@ -861,6 +863,7 @@ pub(crate) fn convert_block_with_context(
 
 /// DEPYLER-0720: Convert method body block with class field type awareness
 /// This is used for class methods where we know the field types
+/// DEPYLER-1037: Added ret_type parameter for Optional wrapping in return statements
 pub(crate) fn convert_method_body_block(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,
@@ -868,8 +871,9 @@ pub(crate) fn convert_method_body_block(
     vararg_functions: &std::collections::HashSet<String>,
     param_types: &std::collections::HashMap<String, Type>,
     class_field_types: &std::collections::HashMap<String, Type>,
+    ret_type: &Type,
 ) -> Result<syn::Block> {
-    let rust_stmts = convert_method_body_stmts(stmts, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+    let rust_stmts = convert_method_body_stmts(stmts, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
     Ok(syn::Block {
         brace_token: Default::default(),
         stmts: rust_stmts,
@@ -877,6 +881,7 @@ pub(crate) fn convert_method_body_block(
 }
 
 /// DEPYLER-0720: Convert method body statements with class field type awareness
+/// DEPYLER-1037: Added ret_type parameter for Optional wrapping in return statements
 pub(crate) fn convert_method_body_stmts(
     stmts: &[HirStmt],
     type_mapper: &TypeMapper,
@@ -884,17 +889,20 @@ pub(crate) fn convert_method_body_stmts(
     vararg_functions: &std::collections::HashSet<String>,
     param_types: &std::collections::HashMap<String, Type>,
     class_field_types: &std::collections::HashMap<String, Type>,
+    ret_type: &Type,
 ) -> Result<Vec<syn::Stmt>> {
     // DEPYLER-0713: Pre-analyze which variables need to be mutable
     let mutable_vars = find_mutable_vars_in_body(stmts);
 
     stmts
         .iter()
-        .map(|stmt| convert_method_stmt(stmt, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, &mutable_vars))
+        .map(|stmt| convert_method_stmt(stmt, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, &mutable_vars, ret_type))
         .collect()
 }
 
 /// DEPYLER-0720: Convert a single statement with class field type awareness
+/// DEPYLER-1037: Added ret_type parameter for Optional wrapping in return statements
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn convert_method_stmt(
     stmt: &HirStmt,
     type_mapper: &TypeMapper,
@@ -903,6 +911,7 @@ pub(crate) fn convert_method_stmt(
     param_types: &std::collections::HashMap<String, Type>,
     class_field_types: &std::collections::HashMap<String, Type>,
     mutable_vars: &std::collections::HashSet<String>,
+    ret_type: &Type,
 ) -> Result<syn::Stmt> {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
@@ -910,10 +919,27 @@ pub(crate) fn convert_method_stmt(
             convert_assign_stmt_with_mutable_vars(target, value_expr, type_mapper, mutable_vars)
         }
         HirStmt::Return(expr) => {
+            // DEPYLER-1037: Check if return type is Optional for proper wrapping
+            let is_optional_return = matches!(ret_type, Type::Optional(_));
+
             let ret_expr = if let Some(e) = expr {
-                convert_expr_with_class_fields(e, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?
+                // Check if expression is None literal
+                let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
+                let converted = convert_expr_with_class_fields(e, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+
+                if is_optional_return && !is_none_literal {
+                    // Wrap non-None values in Some() for Optional return types
+                    parse_quote! { Some(#converted) }
+                } else {
+                    converted
+                }
             } else {
-                parse_quote! { () }
+                // Bare return statement
+                if is_optional_return {
+                    parse_quote! { None }
+                } else {
+                    parse_quote! { () }
+                }
             };
             Ok(syn::Stmt::Expr(
                 parse_quote! { return #ret_expr },
@@ -926,11 +952,11 @@ pub(crate) fn convert_method_stmt(
             else_body,
         } => {
             let cond = convert_expr_with_class_fields(condition, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
-            let then_block = convert_method_body_block(then_body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+            let then_block = convert_method_body_block(then_body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
 
             let if_expr = if let Some(else_stmts) = else_body {
                 let else_block =
-                    convert_method_body_block(else_stmts, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+                    convert_method_body_block(else_stmts, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
                 parse_quote! {
                     if #cond #then_block else #else_block
                 }
@@ -944,7 +970,7 @@ pub(crate) fn convert_method_stmt(
         }
         HirStmt::While { condition, body } => {
             let cond = convert_expr_with_class_fields(condition, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
-            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
 
             let while_expr = parse_quote! {
                 while #cond #body_block
@@ -975,7 +1001,7 @@ pub(crate) fn convert_method_stmt(
             };
 
             let iter_expr = convert_expr_with_class_fields(iter, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
-            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
 
             let for_expr = parse_quote! {
                 for #target_pattern in #iter_expr #body_block
@@ -1751,6 +1777,14 @@ impl<'a> ExprConverter<'a> {
         match func {
             "len" => self.convert_len_call(&arg_exprs),
             "range" => self.convert_range_call(&arg_exprs),
+            // DEPYLER-1001: enumerate(iterable) → iterable.iter().cloned().enumerate().map(|(i, x)| (i as i32, x))
+            "enumerate" => self.convert_enumerate_call(&arg_exprs),
+            // DEPYLER-1001: zip(a, b) → a.into_iter().zip(b.into_iter())
+            "zip" => self.convert_zip_call(&arg_exprs),
+            // DEPYLER-1001: reversed(iterable) → iterable.iter().cloned().rev()
+            "reversed" => self.convert_reversed_call(&arg_exprs),
+            // DEPYLER-1001: sorted(iterable) → sorted Vec
+            "sorted" => self.convert_sorted_call(&arg_exprs),
             "zeros" | "ones" | "full" => self.convert_array_init_call(func, args, &arg_exprs),
             "set" => self.convert_set_constructor(&arg_exprs),
             "frozenset" => self.convert_frozenset_constructor(&arg_exprs),
@@ -1917,6 +1951,67 @@ impl<'a> ExprConverter<'a> {
         } else {
             bail!("tuple() takes at most 1 argument ({} given)", args.len())
         }
+    }
+
+    /// DEPYLER-1001: enumerate(iterable) → iterable.iter().cloned().enumerate().map(|(i, x)| (i as i32, x))
+    /// enumerate(iterable, start) → iterable.iter().cloned().enumerate().map(|(i, x)| ((i + start) as i32, x))
+    fn convert_enumerate_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("enumerate() requires 1 or 2 arguments");
+        }
+        let iterable = &args[0];
+        if args.len() == 2 {
+            let start = &args[1];
+            Ok(parse_quote! {
+                #iterable.iter().cloned().enumerate().map(|(i, x)| ((i + #start as usize) as i32, x))
+            })
+        } else {
+            Ok(parse_quote! {
+                #iterable.iter().cloned().enumerate().map(|(i, x)| (i as i32, x))
+            })
+        }
+    }
+
+    /// DEPYLER-1001: zip(a, b) → a.into_iter().zip(b.into_iter())
+    fn convert_zip_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() < 2 {
+            bail!("zip() requires at least 2 arguments");
+        }
+        let first = &args[0];
+        let second = &args[1];
+        if args.len() == 2 {
+            Ok(parse_quote! { #first.into_iter().zip(#second.into_iter()) })
+        } else {
+            let mut zip_expr: syn::Expr = parse_quote! { #first.into_iter().zip(#second.into_iter()) };
+            for iter in &args[2..] {
+                zip_expr = parse_quote! { #zip_expr.zip(#iter.into_iter()) };
+            }
+            Ok(zip_expr)
+        }
+    }
+
+    /// DEPYLER-1001: reversed(iterable) → iterable.iter().cloned().rev()
+    fn convert_reversed_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.len() != 1 {
+            bail!("reversed() requires exactly 1 argument");
+        }
+        let iterable = &args[0];
+        Ok(parse_quote! { #iterable.iter().cloned().rev() })
+    }
+
+    /// DEPYLER-1001: sorted(iterable) → sorted Vec with partial_cmp for float support
+    fn convert_sorted_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
+        if args.is_empty() || args.len() > 2 {
+            bail!("sorted() requires 1 or 2 arguments");
+        }
+        let iterable = &args[0];
+        Ok(parse_quote! {
+            {
+                let mut sorted_vec = #iterable.iter().cloned().collect::<Vec<_>>();
+                sorted_vec.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                sorted_vec
+            }
+        })
     }
 
     /// DEPYLER-0968: sum() builtin for class method bodies
@@ -2933,6 +3028,436 @@ impl<'a> ExprConverter<'a> {
             }
         }
 
+        // DEPYLER-1002: Handle base64 module method calls in class methods
+        // DEPYLER-1026: NASA mode uses stub implementations instead of base64 crate
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "base64" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                let nasa_mode = self.type_mapper.nasa_mode;
+                match method {
+                    "b64encode" if arg_exprs.len() == 1 => {
+                        let data = &arg_exprs[0];
+                        if nasa_mode {
+                            // NASA mode: Return hex-encoded bytes as stub
+                            return Ok(parse_quote! {
+                                #data.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+                            });
+                        }
+                        return Ok(parse_quote! {
+                            base64::engine::general_purpose::STANDARD.encode(#data)
+                        });
+                    }
+                    "b64decode" if arg_exprs.len() == 1 => {
+                        let data = &arg_exprs[0];
+                        if nasa_mode {
+                            // NASA mode: Return input bytes as stub
+                            return Ok(parse_quote! {
+                                #data.as_bytes().to_vec()
+                            });
+                        }
+                        return Ok(parse_quote! {
+                            base64::engine::general_purpose::STANDARD.decode(#data).unwrap()
+                        });
+                    }
+                    "urlsafe_b64encode" if arg_exprs.len() == 1 => {
+                        let data = &arg_exprs[0];
+                        if nasa_mode {
+                            return Ok(parse_quote! {
+                                #data.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+                            });
+                        }
+                        return Ok(parse_quote! {
+                            base64::engine::general_purpose::URL_SAFE.encode(#data)
+                        });
+                    }
+                    "urlsafe_b64decode" if arg_exprs.len() == 1 => {
+                        let data = &arg_exprs[0];
+                        if nasa_mode {
+                            return Ok(parse_quote! {
+                                #data.as_bytes().to_vec()
+                            });
+                        }
+                        return Ok(parse_quote! {
+                            base64::engine::general_purpose::URL_SAFE.decode(#data).unwrap()
+                        });
+                    }
+                    "b32encode" if arg_exprs.len() == 1 => {
+                        let data = &arg_exprs[0];
+                        if nasa_mode {
+                            return Ok(parse_quote! {
+                                #data.iter().map(|b| format!("{:02x}", b)).collect::<String>().into_bytes()
+                            });
+                        }
+                        return Ok(parse_quote! {
+                            data_encoding::BASE32.encode(#data).into_bytes()
+                        });
+                    }
+                    "b32decode" if arg_exprs.len() == 1 => {
+                        let data = &arg_exprs[0];
+                        if nasa_mode {
+                            return Ok(parse_quote! {
+                                #data.to_vec()
+                            });
+                        }
+                        return Ok(parse_quote! {
+                            data_encoding::BASE32.decode(#data).unwrap()
+                        });
+                    }
+                    "b16encode" | "hexlify" if arg_exprs.len() == 1 => {
+                        let data = &arg_exprs[0];
+                        if nasa_mode {
+                            // NASA mode: Can use std format for hex
+                            return Ok(parse_quote! {
+                                #data.iter().map(|b| format!("{:02x}", b)).collect::<String>().into_bytes()
+                            });
+                        }
+                        return Ok(parse_quote! {
+                            hex::encode(#data).into_bytes()
+                        });
+                    }
+                    "b16decode" | "unhexlify" if arg_exprs.len() == 1 => {
+                        let data = &arg_exprs[0];
+                        if nasa_mode {
+                            // NASA mode: Return input as bytes stub
+                            return Ok(parse_quote! {
+                                #data.to_vec()
+                            });
+                        }
+                        return Ok(parse_quote! {
+                            hex::decode(#data).unwrap()
+                        });
+                    }
+                    _ => {} // Fall through for unhandled base64 methods
+                }
+            }
+        }
+
+        // DEPYLER-1002: Handle hashlib module method calls in class methods
+        // hashlib.md5() → Md5::new()
+        // hashlib.sha256() → Sha256::new()
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "hashlib" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                match method {
+                    "md5" => {
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use md5::Digest;
+                                    Box::new(md5::Md5::new()) as Box<dyn DynDigest>
+                                }
+                            });
+                        } else {
+                            let data = &arg_exprs[0];
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use md5::Digest;
+                                    let mut h = Box::new(md5::Md5::new()) as Box<dyn DynDigest>;
+                                    h.update(#data);
+                                    h
+                                }
+                            });
+                        }
+                    }
+                    "sha1" => {
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha1::Digest;
+                                    Box::new(sha1::Sha1::new()) as Box<dyn DynDigest>
+                                }
+                            });
+                        } else {
+                            let data = &arg_exprs[0];
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha1::Digest;
+                                    let mut h = Box::new(sha1::Sha1::new()) as Box<dyn DynDigest>;
+                                    h.update(#data);
+                                    h
+                                }
+                            });
+                        }
+                    }
+                    "sha256" => {
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
+                                }
+                            });
+                        } else {
+                            let data = &arg_exprs[0];
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    let mut h = Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>;
+                                    h.update(#data);
+                                    h
+                                }
+                            });
+                        }
+                    }
+                    "sha512" => {
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    Box::new(sha2::Sha512::new()) as Box<dyn DynDigest>
+                                }
+                            });
+                        } else {
+                            let data = &arg_exprs[0];
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    let mut h = Box::new(sha2::Sha512::new()) as Box<dyn DynDigest>;
+                                    h.update(#data);
+                                    h
+                                }
+                            });
+                        }
+                    }
+                    "sha384" => {
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    Box::new(sha2::Sha384::new()) as Box<dyn DynDigest>
+                                }
+                            });
+                        } else {
+                            let data = &arg_exprs[0];
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    let mut h = Box::new(sha2::Sha384::new()) as Box<dyn DynDigest>;
+                                    h.update(#data);
+                                    h
+                                }
+                            });
+                        }
+                    }
+                    "blake2b" | "blake2s" => {
+                        // For blake2, just use sha256 as fallback since blake2 crate API differs
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
+                                }
+                            });
+                        } else {
+                            let data = &arg_exprs[0];
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    let mut h = Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>;
+                                    h.update(#data);
+                                    h
+                                }
+                            });
+                        }
+                    }
+                    "new" => {
+                        // hashlib.new("algorithm", data) factory method
+                        // For simplicity, default to sha256 since we can't pattern match strings at compile time
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
+                                }
+                            });
+                        } else if arg_exprs.len() == 1 {
+                            // Just algorithm name, no data
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>
+                                }
+                            });
+                        } else {
+                            // Algorithm name + data
+                            let data = &arg_exprs[1];
+                            return Ok(parse_quote! {
+                                {
+                                    use digest::DynDigest;
+                                    use sha2::Digest;
+                                    let mut h = Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>;
+                                    h.update(#data);
+                                    h
+                                }
+                            });
+                        }
+                    }
+                    _ => {} // Fall through for unhandled hashlib methods
+                }
+            }
+        }
+
+        // DEPYLER-1002: Handle json module method calls in class methods
+        // DEPYLER-1022: NASA mode uses std-only stubs
+        // json.dumps(obj) → serde_json::to_string(&obj).unwrap() (or format! in NASA mode)
+        // json.loads(s) → serde_json::from_str(&s).unwrap() (or empty HashMap in NASA mode)
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "json" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                match method {
+                    "dumps" if !arg_exprs.is_empty() => {
+                        let obj = &arg_exprs[0];
+                        // DEPYLER-1022: NASA mode uses format! instead of serde_json
+                        if self.type_mapper.nasa_mode {
+                            return Ok(parse_quote! { format!("{:?}", #obj) });
+                        }
+                        return Ok(parse_quote! { serde_json::to_string(&#obj).unwrap() });
+                    }
+                    "loads" if !arg_exprs.is_empty() => {
+                        let _s = &arg_exprs[0];
+                        // DEPYLER-1022/1051: NASA mode returns empty HashMap stub with DepylerValue
+                        if self.type_mapper.nasa_mode {
+                            return Ok(parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() });
+                        }
+                        return Ok(parse_quote! { serde_json::from_str::<serde_json::Value>(&#_s).unwrap() });
+                    }
+                    _ => {} // Fall through
+                }
+            }
+        }
+
+        // DEPYLER-1002: Handle math module method calls in class methods
+        // math.sqrt(x) → x.sqrt()
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "math" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                match method {
+                    "sqrt" if !arg_exprs.is_empty() => {
+                        let x = &arg_exprs[0];
+                        return Ok(parse_quote! { (#x as f64).sqrt() });
+                    }
+                    "sin" if !arg_exprs.is_empty() => {
+                        let x = &arg_exprs[0];
+                        return Ok(parse_quote! { (#x as f64).sin() });
+                    }
+                    "cos" if !arg_exprs.is_empty() => {
+                        let x = &arg_exprs[0];
+                        return Ok(parse_quote! { (#x as f64).cos() });
+                    }
+                    "tan" if !arg_exprs.is_empty() => {
+                        let x = &arg_exprs[0];
+                        return Ok(parse_quote! { (#x as f64).tan() });
+                    }
+                    "floor" if !arg_exprs.is_empty() => {
+                        let x = &arg_exprs[0];
+                        return Ok(parse_quote! { (#x as f64).floor() });
+                    }
+                    "ceil" if !arg_exprs.is_empty() => {
+                        let x = &arg_exprs[0];
+                        return Ok(parse_quote! { (#x as f64).ceil() });
+                    }
+                    "abs" if !arg_exprs.is_empty() => {
+                        let x = &arg_exprs[0];
+                        return Ok(parse_quote! { (#x as f64).abs() });
+                    }
+                    "pow" if arg_exprs.len() >= 2 => {
+                        let x = &arg_exprs[0];
+                        let y = &arg_exprs[1];
+                        return Ok(parse_quote! { (#x as f64).powf(#y as f64) });
+                    }
+                    "log" if !arg_exprs.is_empty() => {
+                        let x = &arg_exprs[0];
+                        if arg_exprs.len() >= 2 {
+                            let base = &arg_exprs[1];
+                            return Ok(parse_quote! { (#x as f64).log(#base as f64) });
+                        }
+                        return Ok(parse_quote! { (#x as f64).ln() });
+                    }
+                    "exp" if !arg_exprs.is_empty() => {
+                        let x = &arg_exprs[0];
+                        return Ok(parse_quote! { (#x as f64).exp() });
+                    }
+                    _ => {} // Fall through
+                }
+            }
+        }
+
+        // DEPYLER-1002: Handle random module method calls in class methods
+        // random.randint(a, b) → rand::thread_rng().gen_range(a..=b)
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "random" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                match method {
+                    "randint" if arg_exprs.len() >= 2 => {
+                        let a = &arg_exprs[0];
+                        let b = &arg_exprs[1];
+                        return Ok(parse_quote! {
+                            {
+                                use rand::Rng;
+                                rand::thread_rng().gen_range(#a..=#b)
+                            }
+                        });
+                    }
+                    "random" if arg_exprs.is_empty() => {
+                        return Ok(parse_quote! {
+                            {
+                                use rand::Rng;
+                                rand::thread_rng().gen::<f64>()
+                            }
+                        });
+                    }
+                    "choice" if !arg_exprs.is_empty() => {
+                        let seq = &arg_exprs[0];
+                        return Ok(parse_quote! {
+                            {
+                                use rand::seq::SliceRandom;
+                                #seq.choose(&mut rand::thread_rng()).cloned().unwrap()
+                            }
+                        });
+                    }
+                    "shuffle" if !arg_exprs.is_empty() => {
+                        let seq = &arg_exprs[0];
+                        return Ok(parse_quote! {
+                            {
+                                use rand::seq::SliceRandom;
+                                #seq.shuffle(&mut rand::thread_rng())
+                            }
+                        });
+                    }
+                    _ => {} // Fall through
+                }
+            }
+        }
+
         // DEPYLER-0200: Handle os.path.* and os.environ.* method calls in class methods
         // Pattern: os.path.exists(path), os.environ.get("KEY") etc.
         if let HirExpr::Attribute { value, attr } = object {
@@ -3037,7 +3562,36 @@ impl<'a> ExprConverter<'a> {
             }
         }
 
-        let object_expr = self.convert(object)?;
+        // DEPYLER-1008: Check if this is a mutating method call on self.field
+        // If so, we should NOT add .clone() to the object expression
+        // Mutating methods: append, push, insert, pop, clear, extend, remove, add, update, etc.
+        let is_mutating_method = matches!(
+            method,
+            "append" | "push" | "push_back" | "push_front"
+                | "appendleft" | "popleft" | "pop"
+                | "insert" | "remove" | "clear" | "extend"
+                | "add" | "update" | "discard"
+        );
+
+        // Check if object is self.field pattern
+        let is_self_field = matches!(
+            object,
+            HirExpr::Attribute { value, .. } if matches!(value.as_ref(), HirExpr::Var(name) if name == "self")
+        );
+
+        let object_expr = if is_mutating_method && is_self_field {
+            // DEPYLER-1008: For mutating calls on self.field, don't add .clone()
+            // Just generate self.field directly
+            if let HirExpr::Attribute { value, attr } = object {
+                let attr_ident = make_ident(attr);
+                let value_expr = self.convert(value)?;
+                parse_quote! { #value_expr.#attr_ident }
+            } else {
+                self.convert(object)?
+            }
+        } else {
+            self.convert(object)?
+        };
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
             .map(|arg| self.convert(arg))
@@ -3051,6 +3605,44 @@ impl<'a> ExprConverter<'a> {
                     bail!("append() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
+
+                // DEPYLER-1051: Check if target is Vec<DepylerValue> (e.g., untyped class field)
+                // If so, wrap the argument in appropriate DepylerValue variant
+                let is_vec_depyler_value = if let HirExpr::Attribute { attr, .. } = object {
+                    self.class_field_types
+                        .get(attr)
+                        .map(|t| matches!(t, Type::List(elem) if matches!(elem.as_ref(), Type::Unknown)))
+                        .unwrap_or(false)
+                } else {
+                    false
+                };
+
+                if is_vec_depyler_value {
+                    // Wrap argument in DepylerValue based on argument type
+                    let wrapped_arg: syn::Expr = if !args.is_empty() {
+                        match &args[0] {
+                            HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                            HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                            HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
+                            HirExpr::Var(name) => {
+                                // Check parameter type
+                                match self.param_types.get(name) {
+                                    Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                                    Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                                    Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                                    Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+                                }
+                            }
+                            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+                        }
+                    } else {
+                        parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) }
+                    };
+                    return Ok(parse_quote! { #object_expr.push(#wrapped_arg) });
+                }
+
                 // DEPYLER-0742: VecDeque uses push_back, Vec uses push
                 if self.is_deque_expr(object) {
                     Ok(parse_quote! { #object_expr.push_back(#arg) })
@@ -3452,11 +4044,12 @@ impl<'a> ExprConverter<'a> {
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
             // DEPYLER-0833: Use |x| pattern (not |&x|) to avoid E0507 on non-Copy types
+            // DEPYLER-1000: Clone loop variable inside filter to fix E0308 reference mismatch
             let cond_expr = self.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|#target_pat| #cond_expr)
+                    .filter(|#target_pat| { let #target_pat = #target_pat.clone(); #cond_expr })
                     .map(|#target_pat| #element_expr)
                     .collect::<Vec<_>>()
             })
@@ -3486,11 +4079,12 @@ impl<'a> ExprConverter<'a> {
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
             // DEPYLER-0833: Use |x| pattern (not |&x|) to avoid E0507 on non-Copy types
+            // DEPYLER-1000: Clone loop variable inside filter to fix E0308 reference mismatch
             let cond_expr = self.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
-                    .filter(|#target_pat| #cond_expr)
+                    .filter(|#target_pat| { let #target_pat = #target_pat.clone(); #cond_expr })
                     .map(|#target_pat| #element_expr)
                     .collect::<std::collections::HashSet<_>>()
             })
@@ -3554,27 +4148,53 @@ impl<'a> ExprConverter<'a> {
             },
             "datetime" => match constructor {
                 "datetime" => {
-                    // datetime.datetime(y,m,d,...) → chrono placeholder
-                    // For now, return Utc::now() as a stub
-                    Some(parse_quote! { chrono::Utc::now() })
+                    // DEPYLER-1025: In NASA mode, use std::time instead of chrono
+                    if self.type_mapper.nasa_mode {
+                        Some(parse_quote! { std::time::SystemTime::now() })
+                    } else {
+                        // datetime.datetime(y,m,d,...) → chrono placeholder
+                        Some(parse_quote! { chrono::Utc::now() })
+                    }
                 }
                 "date" => {
-                    Some(parse_quote! { chrono::Utc::now().date_naive() })
+                    if self.type_mapper.nasa_mode {
+                        Some(parse_quote! { std::time::SystemTime::now() })
+                    } else {
+                        Some(parse_quote! { chrono::Utc::now().date_naive() })
+                    }
                 }
                 "time" => {
-                    Some(parse_quote! { chrono::Utc::now().time() })
+                    if self.type_mapper.nasa_mode {
+                        Some(parse_quote! { std::time::SystemTime::now() })
+                    } else {
+                        Some(parse_quote! { chrono::Utc::now().time() })
+                    }
                 }
                 "timedelta" => {
-                    // datetime.timedelta(days=n) → chrono::Duration::days(n)
-                    if let Some(arg) = arg_exprs.first() {
-                        Some(parse_quote! { chrono::Duration::days(#arg) })
+                    // DEPYLER-1025: In NASA mode, use std::time::Duration
+                    if self.type_mapper.nasa_mode {
+                        if let Some(arg) = arg_exprs.first() {
+                            Some(parse_quote! { std::time::Duration::from_secs((#arg as u64) * 86400) })
+                        } else {
+                            Some(parse_quote! { std::time::Duration::from_secs(0) })
+                        }
                     } else {
-                        Some(parse_quote! { chrono::Duration::zero() })
+                        // datetime.timedelta(days=n) → chrono::Duration::days(n)
+                        if let Some(arg) = arg_exprs.first() {
+                            Some(parse_quote! { chrono::Duration::days(#arg) })
+                        } else {
+                            Some(parse_quote! { chrono::Duration::zero() })
+                        }
                     }
                 }
                 "now" => {
-                    // datetime.datetime.now() → chrono::Utc::now()
-                    Some(parse_quote! { chrono::Utc::now() })
+                    // DEPYLER-1025: In NASA mode, use std::time
+                    if self.type_mapper.nasa_mode {
+                        Some(parse_quote! { std::time::SystemTime::now() })
+                    } else {
+                        // datetime.datetime.now() → chrono::Utc::now()
+                        Some(parse_quote! { chrono::Utc::now() })
+                    }
                 }
                 _ => None,
             },
@@ -3594,19 +4214,53 @@ impl<'a> ExprConverter<'a> {
                 _ => None,
             },
             "asyncio" => match constructor {
-                "Event" => Some(parse_quote! { tokio::sync::Notify::new() }),
-                "Lock" => Some(parse_quote! { tokio::sync::Mutex::new(()) }),
+                // DEPYLER-1024: In NASA mode, use std-only primitives
+                "Event" => {
+                    if self.type_mapper.nasa_mode {
+                        Some(parse_quote! { std::sync::Condvar::new() })
+                    } else {
+                        Some(parse_quote! { tokio::sync::Notify::new() })
+                    }
+                }
+                // DEPYLER-1024: In NASA mode, use std-only primitives instead of tokio
+                "Lock" => {
+                    if self.type_mapper.nasa_mode {
+                        Some(parse_quote! { std::sync::Mutex::new(()) })
+                    } else {
+                        Some(parse_quote! { tokio::sync::Mutex::new(()) })
+                    }
+                }
                 "Semaphore" => {
-                    if let Some(arg) = arg_exprs.first() {
+                    // NASA mode: No direct std equivalent, use dummy
+                    if self.type_mapper.nasa_mode {
+                        Some(parse_quote! { () })
+                    } else if let Some(arg) = arg_exprs.first() {
                         Some(parse_quote! { tokio::sync::Semaphore::new(#arg as usize) })
                     } else {
                         Some(parse_quote! { tokio::sync::Semaphore::new(1) })
                     }
                 }
-                "Queue" => Some(parse_quote! { tokio::sync::mpsc::channel(100).1 }),
+                "Queue" => {
+                    if self.type_mapper.nasa_mode {
+                        Some(parse_quote! { std::sync::mpsc::channel().1 })
+                    } else {
+                        Some(parse_quote! { tokio::sync::mpsc::channel(100).1 })
+                    }
+                }
                 // DEPYLER-0747: asyncio.sleep(secs) → tokio::time::sleep(Duration)
+                // DEPYLER-1024: In NASA mode, use std::thread::sleep instead
                 "sleep" => {
-                    if let Some(arg) = arg_exprs.first() {
+                    if self.type_mapper.nasa_mode {
+                        if let Some(arg) = arg_exprs.first() {
+                            Some(parse_quote! {
+                                std::thread::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+                            })
+                        } else {
+                            Some(parse_quote! {
+                                std::thread::sleep(std::time::Duration::from_secs(0))
+                            })
+                        }
+                    } else if let Some(arg) = arg_exprs.first() {
                         Some(parse_quote! {
                             tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
                         })
@@ -3617,11 +4271,18 @@ impl<'a> ExprConverter<'a> {
                     }
                 }
                 // DEPYLER-0747: asyncio.run(coro) → tokio runtime block_on
-                "run" => arg_exprs.first().map(|arg| {
-                    parse_quote! {
-                        tokio::runtime::Runtime::new().unwrap().block_on(#arg)
+                // DEPYLER-1024: In NASA mode, just call the function directly (since async is converted to sync)
+                "run" => {
+                    if self.type_mapper.nasa_mode {
+                        arg_exprs.first().map(|arg| parse_quote! { #arg })
+                    } else {
+                        arg_exprs.first().map(|arg| {
+                            parse_quote! {
+                                tokio::runtime::Runtime::new().unwrap().block_on(#arg)
+                            }
+                        })
                     }
-                }),
+                }
                 _ => None,
             },
             // DEPYLER-0950: json.loads/load need proper type annotation and borrowing
@@ -4157,7 +4818,9 @@ pub(crate) fn convert_literal(lit: &Literal) -> syn::Expr {
             let lit = syn::LitBool::new(*b, proc_macro2::Span::call_site());
             parse_quote! { #lit }
         }
-        Literal::None => parse_quote! { () },
+        // DEPYLER-1037: Literal::None should map to Rust's None (for Option types)
+        // Python: return None -> Rust: return None (when return type is Option<T>)
+        Literal::None => parse_quote! { None },
     }
 }
 

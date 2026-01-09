@@ -1469,7 +1469,7 @@ fn generate_constant_tokens(
         };
         if let Some(t) = const_type {
             ctx.var_types
-                .insert(constant.name.clone().into(), t.clone());
+                .insert(constant.name.clone(), t.clone());
         }
     }
 

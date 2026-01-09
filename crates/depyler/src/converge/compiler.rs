@@ -104,6 +104,7 @@ impl BatchCompiler {
 // ============================================================================
 
 /// Truncate filename for display
+#[allow(dead_code)]
 pub fn truncate_filename(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         format!("{:width$}", s, width = max_len)
