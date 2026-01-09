@@ -2951,6 +2951,18 @@ pub fn generate_rust_file(
         formatted_code = formatted_code.replace("#[derive(clap :: Parser)]\n", "#[derive(Default)]\n");
         formatted_code = formatted_code.replace("#[derive(clap::Parser, Debug)]\n", "#[derive(Debug, Default)]\n");
         formatted_code = formatted_code.replace("#[derive(clap::Parser, Debug, Clone)]\n", "#[derive(Debug, Clone, Default)]\n");
+        // DEPYLER-1048: Fix Commands enum for subcommands
+        // Add Default derive to Commands enum and add a default unit variant
+        formatted_code = formatted_code.replace("#[derive(clap::Subcommand)]\n", "#[derive(Default)]\n");
+        formatted_code = formatted_code.replace("#[derive(clap :: Subcommand)]\n", "#[derive(Default)]\n");
+        // Add a default unit variant to Commands enum
+        // Pattern: "enum Commands {\n" -> "enum Commands {\n    #[default]\n    __DepylerNone,\n"
+        formatted_code = formatted_code.replace(
+            "enum Commands {\n",
+            "enum Commands {\n    #[default]\n    __DepylerNone,\n"
+        );
+        // Add catch-all arm for the new variant in match statements
+        // This is simpler than wrapping with Option
         formatted_code = formatted_code.replace("#[command(author, version, about)]\n", "");
         // Remove #[command(...)] and #[arg(...)] attributes - they're from clap
         // Use line-by-line removal since regex crate isn't available in this function
