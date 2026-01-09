@@ -4612,33 +4612,65 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             self.ctx.needs_hashmap = true;
             self.ctx.needs_depyler_value_enum = true;
 
+            // DEPYLER-1047: Check if return/target type expects String keys
+            // Pattern: `fn f() -> HashMap<String, DepylerValue>` should use String keys
+            // NOT DepylerValue keys, even when values are DepylerValue
+            // NOTE: Bare `dict` return type parses as Dict(Unknown, Unknown) but generates
+            // HashMap<String, DepylerValue>, so Unknown key type also means String keys
+            let return_expects_string_keys = if let Some(Type::Dict(key_type, _)) = &self.ctx.current_return_type {
+                matches!(key_type.as_ref(), Type::String | Type::Unknown)
+            } else {
+                false
+            };
+            let target_expects_string_keys = if let Some(Type::Dict(key_type, _)) = &self.ctx.current_assign_type {
+                matches!(key_type.as_ref(), Type::String | Type::Unknown)
+            } else {
+                false
+            };
+            let use_string_keys = (return_expects_string_keys || target_expects_string_keys) && !has_non_string_keys;
+
             let mut insert_stmts = Vec::new();
             for (key, value) in items {
                 let key_expr_raw = key.to_rust_expr(self.ctx)?;
                 let val_expr = value.to_rust_expr(self.ctx)?;
 
+                // DEPYLER-1047: Use String keys when return/target type expects String keys
                 // DEPYLER-1060: Wrap keys in DepylerValue to support non-string keys
                 // Point 14: {1: "a"} must use DepylerValue::Int(1), not String
-                let key_expr: syn::Expr = match key {
-                    HirExpr::Literal(Literal::Int(_)) => {
-                        parse_quote! { DepylerValue::Int(#key_expr_raw as i64) }
+                let key_expr: syn::Expr = if use_string_keys {
+                    // Return type expects HashMap<String, _>, use String keys
+                    match key {
+                        HirExpr::Literal(Literal::String(_)) => {
+                            parse_quote! { #key_expr_raw.to_string() }
+                        }
+                        _ => {
+                            // For non-string keys in string-key context, convert to string
+                            parse_quote! { format!("{}", #key_expr_raw) }
+                        }
                     }
-                    HirExpr::Literal(Literal::Float(_)) => {
-                        parse_quote! { DepylerValue::Float(#key_expr_raw as f64) }
-                    }
-                    HirExpr::Literal(Literal::String(_)) => {
-                        parse_quote! { DepylerValue::Str(#key_expr_raw.to_string()) }
-                    }
-                    HirExpr::Literal(Literal::Bool(_)) => {
-                        parse_quote! { DepylerValue::Bool(#key_expr_raw) }
-                    }
-                    HirExpr::Var(_) => {
-                        // For variables, use .into() to convert to DepylerValue
-                        parse_quote! { DepylerValue::from(#key_expr_raw) }
-                    }
-                    _ => {
-                        // For complex expressions, try .into()
-                        parse_quote! { DepylerValue::from(#key_expr_raw) }
+                } else {
+                    // Return type expects HashMap<DepylerValue, _>, use DepylerValue keys
+                    match key {
+                        HirExpr::Literal(Literal::Int(_)) => {
+                            parse_quote! { DepylerValue::Int(#key_expr_raw as i64) }
+                        }
+                        HirExpr::Literal(Literal::Float(_)) => {
+                            parse_quote! { DepylerValue::Float(#key_expr_raw as f64) }
+                        }
+                        HirExpr::Literal(Literal::String(_)) => {
+                            parse_quote! { DepylerValue::Str(#key_expr_raw.to_string()) }
+                        }
+                        HirExpr::Literal(Literal::Bool(_)) => {
+                            parse_quote! { DepylerValue::Bool(#key_expr_raw) }
+                        }
+                        HirExpr::Var(_) => {
+                            // For variables, use .into() to convert to DepylerValue
+                            parse_quote! { DepylerValue::from(#key_expr_raw) }
+                        }
+                        _ => {
+                            // For complex expressions, try .into()
+                            parse_quote! { DepylerValue::from(#key_expr_raw) }
+                        }
                     }
                 };
 
