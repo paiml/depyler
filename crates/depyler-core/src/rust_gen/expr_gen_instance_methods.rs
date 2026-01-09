@@ -5985,20 +5985,41 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             // np.array() call
             HirExpr::Call { func, .. } if func == "array" => true,
-            // np.abs(), np.sqrt(), etc. calls that return vectors
-            HirExpr::Call { func, .. } => {
-                matches!(func.as_str(), "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" |
-                         "zeros" | "ones" | "clip" | "clamp" | "normalize")
+            // DEPYLER-1044: np.zeros(), np.ones() always return vectors
+            HirExpr::Call { func, .. } if matches!(func.as_str(), "zeros" | "ones") => true,
+            // DEPYLER-1044: abs, sqrt, etc. return vector ONLY if argument is vector
+            // abs(scalar) -> scalar, abs(array) -> array
+            HirExpr::Call { func, args, .. }
+                if matches!(
+                    func.as_str(),
+                    "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" | "clip" | "clamp" | "normalize"
+                ) =>
+            {
+                args.first().map_or(false, |arg| self.is_numpy_array_expr(arg))
             }
-            // Method calls on numpy arrays return numpy arrays
-            HirExpr::MethodCall { method, .. } => {
-                matches!(method.as_str(), "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" |
-                         "clamp" | "clip" | "unwrap")
+            // DEPYLER-1044: Method calls on numpy arrays return numpy arrays
+            // BUT scalar.abs() returns scalar, not vector
+            HirExpr::MethodCall { object, method, .. } => {
+                // unwrap/abs/sqrt/etc preserve array nature of object
+                if matches!(
+                    method.as_str(),
+                    "unwrap" | "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" | "clamp" | "clip"
+                ) {
+                    return self.is_numpy_array_expr(object);
+                }
+                false
             }
             // DEPYLER-0804: Check var_types first to avoid false positives
             // Variables with known scalar types (Float, Int) are NOT numpy arrays
             HirExpr::Var(name) => {
-                // DEPYLER-0932: First check numpy_vars set (most reliable)
+                // DEPYLER-1044: FIRST check CSE temps - they are NEVER numpy arrays
+                // This must happen before any other checks to prevent false positives
+                let n = name.as_str();
+                if n.starts_with("_cse_temp_") {
+                    return false;
+                }
+
+                // DEPYLER-0932: Check numpy_vars set (most reliable)
                 // This tracks variables explicitly assigned from numpy operations
                 if self.ctx.numpy_vars.contains(name) {
                     return true;
@@ -6009,6 +6030,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Scalar types are never numpy arrays
                     if matches!(ty, Type::Float | Type::Int | Type::Bool | Type::String) {
                         return false;
+                    }
+                    // DEPYLER-1044: Check for Rust-specific scalar types stored as Custom
+                    // Parameters with explicit type annotations (e.g., a: i32) are stored as
+                    // Type::Custom("i32"), not Type::Int. These are also scalars!
+                    if let Type::Custom(type_name) = ty {
+                        let tn = type_name.as_str();
+                        // Rust scalar types are NOT numpy arrays
+                        if matches!(
+                            tn,
+                            "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
+                                | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
+                                | "f32" | "f64"
+                                | "bool"
+                        ) {
+                            return false;
+                        }
+                        // DEPYLER-0836: trueno::Vector<T> types are numpy arrays
+                        if tn.starts_with("Vector<") || tn == "Vector" {
+                            return true;
+                        }
                     }
                     // DEPYLER-0955: Only treat List types as numpy arrays if they contain
                     // numeric primitives (Int, Float). Lists of tuples, strings, etc.
@@ -6021,23 +6062,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Non-numeric lists (tuples, strings, etc.) are NOT numpy arrays
                         return false;
                     }
-                    // DEPYLER-0836: trueno::Vector<T> types are numpy arrays
-                    if let Type::Custom(type_name) = ty {
-                        if type_name.starts_with("Vector<") || type_name == "Vector" {
-                            return true;
-                        }
-                    }
                 }
                 // Fall back to name heuristics only for unknown types
                 // DEPYLER-0804: Removed "x", "y" - too generic, often scalars
-                // DEPYLER-0836: "result" is included when in numpy context (needs_trueno)
-                // DEPYLER-0926: Added "a", "b" for common numpy vector arithmetic patterns
-                let n = name.as_str();
-                let is_numpy_context = self.ctx.needs_trueno;
+                // DEPYLER-1044: Removed "a", "b", "result" - WAY too generic, causes CSE failures
+                // Only use truly unambiguous numpy-like names
                 matches!(n, "arr" | "array" | "data" | "values" | "vec" | "vector")
                     || n.starts_with("arr_") || n.ends_with("_arr")
                     || n.starts_with("vec_") || n.ends_with("_vec")
-                    || (is_numpy_context && matches!(n, "result" | "a" | "b" | "v1" | "v2"))
             }
             // Recursive: binary op on vector yields vector
             HirExpr::Binary { left, .. } => self.is_numpy_array_expr(left),
