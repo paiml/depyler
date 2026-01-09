@@ -39,6 +39,51 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arg = &arg_exprs[0];
 
+                // DEPYLER-1051: Check if target is Vec<DepylerValue> (e.g., untyped class field)
+                // If so, wrap the argument in appropriate DepylerValue variant
+                let is_vec_depyler_value = if let HirExpr::Attribute { value: _, attr } = object {
+                    // Check class field type
+                    self.ctx
+                        .class_field_types
+                        .get(attr)
+                        .map(|t| matches!(t, Type::List(elem) if matches!(elem.as_ref(), Type::Unknown)))
+                        .unwrap_or(false)
+                } else if let HirExpr::Var(var_name) = object {
+                    matches!(
+                        self.ctx.var_types.get(var_name),
+                        Some(Type::List(elem)) if matches!(elem.as_ref(), Type::Unknown)
+                    )
+                } else {
+                    false
+                };
+
+                if is_vec_depyler_value {
+                    // DEPYLER-1051: Wrap argument in DepylerValue based on argument type
+                    let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
+                        match &hir_args[0] {
+                            HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                            HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                            HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
+                            HirExpr::Var(name) => {
+                                // Check variable type
+                                match self.ctx.var_types.get(name) {
+                                    Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                                    Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                                    Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                                    Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+                                }
+                            }
+                            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
+                        }
+                    } else {
+                        parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) }
+                    };
+                    self.ctx.needs_depyler_value_enum = true;
+                    return Ok(parse_quote! { #object_expr.push(#wrapped_arg) });
+                }
+
                 // DEPYLER-0422 Fix #7: Convert &str literals to String when pushing to Vec<String>
                 // Five-Whys Root Cause:
                 // 1. Why: expected String, found &str
@@ -3489,6 +3534,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 });
             }
 
+            // DEPYLER-1060: Check for dict with non-string keys (e.g., d = {1: "a"})
+            // This handles DepylerValue dicts with integer keys
+            if self.is_dict_expr(base) {
+                let index_expr = index.to_rust_expr(self.ctx)?;
+                // HashMap<DepylerValue, DepylerValue>.get() expects &DepylerValue
+                // Wrap the integer index in DepylerValue::Int and borrow
+                return Ok(parse_quote! {
+                    #base_expr.get(&DepylerValue::Int(#index_expr as i64)).cloned().unwrap_or_default()
+                });
+            }
+
             // Vec/List access with numeric index
             let index_expr = index.to_rust_expr(self.ctx)?;
 
@@ -3561,11 +3617,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// Check if the index expression is a string key (for HashMap access)
-    /// Returns true if: index is string literal, OR base is Dict/HashMap type
+    /// Returns true if: index is string literal, OR index variable is string type
+    /// DEPYLER-1060: Does NOT return true just because base is Dict - that could have non-string keys
     pub(crate) fn is_string_index(&self, base: &HirExpr, index: &HirExpr) -> Result<bool> {
         // Check 1: Is index a string literal?
         if matches!(index, HirExpr::Literal(Literal::String(_))) {
             return Ok(true);
+        }
+
+        // DEPYLER-1060: If index is an integer literal, this is NOT string indexing
+        // Even for dicts - they might have integer keys like {1: "a"}
+        if matches!(index, HirExpr::Literal(Literal::Int(_))) {
+            return Ok(false);
         }
 
         // Check 2: Is base expression a Dict/HashMap type?
@@ -3573,9 +3636,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if let HirExpr::Var(sym) = base {
             // DEPYLER-0449: First check actual variable type if known
             if let Some(var_type) = self.ctx.var_types.get(sym) {
-                // If variable is typed as serde_json::Value or Dict, use string indexing
+                // DEPYLER-1060: For Dict types, only use string indexing if index is a string variable
+                // Not just because base is Dict - dict could have non-string keys
                 if matches!(var_type, Type::Dict(_, _)) {
-                    return Ok(true);
+                    // Check if index is a string variable
+                    return Ok(self.is_string_variable(index));
                 }
             }
 
@@ -4514,21 +4579,70 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-1015: Skip in NASA mode
         let return_needs_json = if nasa_mode { false } else { self.return_type_needs_json_dict() };
 
+        // DEPYLER-1045: Check if target type annotation requires DepylerValue
+        // When `values: dict = {...}`, the type annotation maps to DepylerValue values
+        // even if all literal values are strings (homogeneous)
+        let target_needs_depyler_value = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type {
+            // Unknown value type means bare `dict` annotation → DepylerValue
+            matches!(val_type.as_ref(), Type::Unknown)
+        } else {
+            false
+        };
+
+        // DEPYLER-1050: Check if function return type requires DepylerValue
+        // When function returns HashMap<String, DepylerValue>, ALL dict literals in the
+        // function body must use DepylerValue wrapping (even in nested return statements)
+        let return_needs_depyler_value = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_return_type {
+            // Unknown value type means bare `dict` return → DepylerValue
+            matches!(val_type.as_ref(), Type::Unknown)
+        } else {
+            false
+        };
+
+        // DEPYLER-1060: Check if dict has non-string keys
+        // Point 14: {1: "a"} requires DepylerValue keys, not String keys
+        let has_non_string_keys = items.iter().any(|(key, _)| {
+            !matches!(key, HirExpr::Literal(Literal::String(_)))
+        });
+
         // DEPYLER-1023: In NASA mode with mixed types, use DepylerValue enum
         // This ensures proper type fidelity for heterogeneous Python dicts
-        if nasa_mode && has_mixed_types {
+        // DEPYLER-1045: Also use DepylerValue when target type annotation requires it
+        // DEPYLER-1050: Also use DepylerValue when function return type requires it
+        // DEPYLER-1060: Also use DepylerValue when dict has non-string keys
+        if nasa_mode && (has_mixed_types || target_needs_depyler_value || return_needs_depyler_value || has_non_string_keys) {
             self.ctx.needs_hashmap = true;
             self.ctx.needs_depyler_value_enum = true;
 
             let mut insert_stmts = Vec::new();
             for (key, value) in items {
-                let mut key_expr = key.to_rust_expr(self.ctx)?;
+                let key_expr_raw = key.to_rust_expr(self.ctx)?;
                 let val_expr = value.to_rust_expr(self.ctx)?;
 
-                // Convert string literal keys to owned Strings
-                if matches!(key, HirExpr::Literal(Literal::String(_))) {
-                    key_expr = parse_quote! { #key_expr.to_string() };
-                }
+                // DEPYLER-1060: Wrap keys in DepylerValue to support non-string keys
+                // Point 14: {1: "a"} must use DepylerValue::Int(1), not String
+                let key_expr: syn::Expr = match key {
+                    HirExpr::Literal(Literal::Int(_)) => {
+                        parse_quote! { DepylerValue::Int(#key_expr_raw as i64) }
+                    }
+                    HirExpr::Literal(Literal::Float(_)) => {
+                        parse_quote! { DepylerValue::Float(#key_expr_raw as f64) }
+                    }
+                    HirExpr::Literal(Literal::String(_)) => {
+                        parse_quote! { DepylerValue::Str(#key_expr_raw.to_string()) }
+                    }
+                    HirExpr::Literal(Literal::Bool(_)) => {
+                        parse_quote! { DepylerValue::Bool(#key_expr_raw) }
+                    }
+                    HirExpr::Var(_) => {
+                        // For variables, use .into() to convert to DepylerValue
+                        parse_quote! { DepylerValue::from(#key_expr_raw) }
+                    }
+                    _ => {
+                        // For complex expressions, try .into()
+                        parse_quote! { DepylerValue::from(#key_expr_raw) }
+                    }
+                };
 
                 // Wrap values in DepylerValue enum variants
                 let wrapped_val: syn::Expr = match value {
@@ -6045,6 +6159,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check var_types in context to see if this variable is a set
                 if let Some(var_type) = self.ctx.var_types.get(name) {
                     matches!(var_type, Type::Set(_))
+                // DEPYLER-1060: Check module_constant_types for module-level static sets
+                } else if let Some(var_type) = self.ctx.module_constant_types.get(name.as_str()) {
+                    matches!(var_type, Type::Set(_))
                 } else {
                     false
                 }
@@ -6160,6 +6277,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Type::Custom(s) if s == "serde_json::Value" || s == "Value" => true,
                         _ => false,
                     }
+                // DEPYLER-1060: Check module_constant_types for module-level static dicts
+                // var_types is cleared per-function, but module_constant_types persists
+                } else if let Some(var_type) = self.ctx.module_constant_types.get(name.as_str()) {
+                    matches!(var_type, Type::Dict(_, _))
                 } else {
                     false
                 }
@@ -6374,6 +6495,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-169: Check var_types for List type
                 // This enables proper `item in list_var` detection
                 if let Some(var_type) = self.ctx.var_types.get(name) {
+                    matches!(var_type, Type::List(_))
+                // DEPYLER-1060: Check module_constant_types for module-level static lists
+                } else if let Some(var_type) = self.ctx.module_constant_types.get(name.as_str()) {
                     matches!(var_type, Type::List(_))
                 } else {
                     // Fall back to conservative: only treat explicit list literals as lists
