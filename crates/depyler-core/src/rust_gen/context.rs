@@ -70,6 +70,7 @@ pub struct CodeGenContext<'a> {
     pub needs_num_rational: bool,
     pub needs_base64: bool,
     pub needs_md5: bool,
+    pub needs_sha1: bool,  // DEPYLER-1001: sha1 crate for hashlib.sha1()
     pub needs_sha2: bool,
     pub needs_sha3: bool,
     pub needs_digest: bool, // DEPYLER-0558: For Box<dyn DynDigest> type-erased hashers
@@ -83,10 +84,13 @@ pub struct CodeGenContext<'a> {
     pub needs_io_write: bool, // DEPYLER-0458: Track std::io::Write trait for file I/O
     pub needs_bufread: bool, // DEPYLER-0522: Track std::io::BufRead trait for .lines() method
     pub needs_once_cell: bool, // DEPYLER-REARCH-001: Track once_cell for lazy static initialization
+    pub needs_lazy_lock: bool, // DEPYLER-1016: Track std::sync::LazyLock for NASA mode (std-only)
     pub needs_trueno: bool,    // Phase 3: NumPy→Trueno codegen (SIMD-accelerated tensor lib)
     pub numpy_vars: HashSet<String>, // DEPYLER-0932: Track variables assigned from numpy operations
     pub needs_tokio: bool,     // DEPYLER-0747: asyncio→tokio async runtime mapping
     pub needs_glob: bool,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
+    pub needs_statrs: bool,    // DEPYLER-1001: statrs crate for statistics module
+    pub needs_url: bool,       // DEPYLER-1001: url crate for urllib.parse module
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,
@@ -139,6 +143,10 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0720: Track class field types for self.field attribute access
     /// Maps field name -> Type, used to determine if self.X is float for int-to-float coercion
     pub class_field_types: HashMap<String, Type>,
+    /// DEPYLER-1007: Track class method return types for return type inference
+    /// Maps (ClassName, MethodName) -> Type, used to infer types from method calls
+    /// Example: ("Point", "distance_squared") -> Type::Int
+    pub class_method_return_types: HashMap<(String, String), Type>,
     /// DEPYLER-0307 Fix #9: Track variables that iterate over tuples (from zip())
     /// Used to generate tuple field access syntax (tuple.0, tuple.1) instead of vector indexing
     pub tuple_iter_vars: HashSet<String>,
@@ -326,7 +334,8 @@ pub struct CodeGenContext<'a> {
     /// - Assignment: `memo = {}` → `*memo = Some(HashMap::new())`
     /// - Method calls: `memo.get(k)` → `memo.as_ref().unwrap().get(&k)`
     /// - Subscript: `memo[k] = v` → `memo.as_mut().unwrap().insert(k, v)`
-    pub mut_option_dict_params: HashSet<String>,
+    pub mut_option_dict_params: HashSet<String>, // DEPYLER-0964: Track &mut Option<Dict> params
+    pub needs_depyler_value_enum: bool,          // DEPYLER-FIX-RC2: Track need for DepylerValue enum
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -461,6 +470,37 @@ impl<'a> CodeGenContext<'a> {
     pub fn exception_nesting_depth(&self) -> usize {
         self.exception_scopes.len()
     }
+
+    /// DEPYLER-1022: Return the fallback type annotation based on NASA mode
+    ///
+    /// In NASA mode (default), returns `: String` to avoid external crate dependencies.
+    /// In non-NASA mode, returns `: serde_json::Value` and sets needs_serde_json flag.
+    ///
+    /// # Complexity
+    /// 2 (if + quote)
+    pub fn fallback_type_annotation(&mut self) -> proc_macro2::TokenStream {
+        if self.type_mapper.nasa_mode {
+            quote::quote! { : String }
+        } else {
+            self.needs_serde_json = true;
+            quote::quote! { : serde_json::Value }
+        }
+    }
+
+    /// DEPYLER-1022: Return the fallback type (without colon) based on NASA mode
+    ///
+    /// In NASA mode, returns `String`. In non-NASA mode, returns `serde_json::Value`.
+    ///
+    /// # Complexity
+    /// 2 (if + quote)
+    pub fn fallback_type(&mut self) -> proc_macro2::TokenStream {
+        if self.type_mapper.nasa_mode {
+            quote::quote! { String }
+        } else {
+            self.needs_serde_json = true;
+            quote::quote! { serde_json::Value }
+        }
+    }
 }
 
 /// Trait for converting HIR elements to Rust tokens
@@ -523,6 +563,7 @@ pub mod test_helpers {
             needs_num_rational: false,
             needs_base64: false,
             needs_md5: false,
+            needs_sha1: false,
             needs_sha2: false,
             needs_sha3: false,
             needs_digest: false,
@@ -536,10 +577,13 @@ pub mod test_helpers {
             needs_io_write: false,
             needs_bufread: false,
             needs_once_cell: false,
+            needs_lazy_lock: false, // DEPYLER-1016
             needs_trueno: false,
             numpy_vars: HashSet::new(),
             needs_tokio: false,
             needs_glob: false,
+            needs_statrs: false,
+            needs_url: false,
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -572,6 +616,7 @@ pub mod test_helpers {
             function_param_defaults: HashMap::new(),
             class_field_defaults: HashMap::new(),
             class_field_types: HashMap::new(),
+            class_method_return_types: HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(),
             ref_params: HashSet::new(),
@@ -614,6 +659,7 @@ pub mod test_helpers {
             adt_child_to_parent: HashMap::new(),
             function_param_types: HashMap::new(),
             mut_option_dict_params: HashSet::new(),
+            needs_depyler_value_enum: false,
         }
     }
 }
