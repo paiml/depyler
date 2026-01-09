@@ -499,8 +499,8 @@ pub(crate) fn codegen_try_stmt(
             let any_handler_raises = handlers.iter().any(|h| handler_contains_raise(&h.body));
             let ok_arm_body = if try_return_type.is_some() {
                 // Always wrap in Ok() - we're returning from a Result<T, E> closure
-                // If any_handler_raises, the outer function also returns Result, but that's handled by transform
-                if any_handler_raises || ctx.exception_nesting_depth() > 0 {
+                // If any_handler_raises OR outer function returns Result, we must wrap in Ok()
+                if any_handler_raises || ctx.exception_nesting_depth() > 0 || ctx.current_function_can_fail {
                     quote! { return Ok(_result); }
                 } else {
                     quote! { return _result; }

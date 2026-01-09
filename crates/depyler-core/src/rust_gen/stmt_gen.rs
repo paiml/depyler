@@ -76,12 +76,41 @@ fn extract_nested_indices_tokens(
 // ============================================================================
 
 /// Generate code for Assert statement
+/// DEPYLER-1005: Handle binary comparison expressions specially to avoid = = tokenization issue
 #[inline]
 pub(crate) fn codegen_assert_stmt(
     test: &HirExpr,
     msg: &Option<HirExpr>,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-1005: For binary comparison expressions, generate assert_eq!/assert_ne! macros
+    // to avoid the = = tokenization issue when syn::ExprBinary is interpolated into quote!
+    if let HirExpr::Binary { op, left, right } = test {
+        match op {
+            BinOp::Eq => {
+                let left_expr = left.to_rust_expr(ctx)?;
+                let right_expr = right.to_rust_expr(ctx)?;
+                if let Some(message_expr) = msg {
+                    let msg_tokens = message_expr.to_rust_expr(ctx)?;
+                    return Ok(quote! { assert_eq!(#left_expr, #right_expr, "{}", #msg_tokens); });
+                } else {
+                    return Ok(quote! { assert_eq!(#left_expr, #right_expr); });
+                }
+            }
+            BinOp::NotEq => {
+                let left_expr = left.to_rust_expr(ctx)?;
+                let right_expr = right.to_rust_expr(ctx)?;
+                if let Some(message_expr) = msg {
+                    let msg_tokens = message_expr.to_rust_expr(ctx)?;
+                    return Ok(quote! { assert_ne!(#left_expr, #right_expr, "{}", #msg_tokens); });
+                } else {
+                    return Ok(quote! { assert_ne!(#left_expr, #right_expr); });
+                }
+            }
+            _ => {} // Fall through to default handling
+        }
+    }
+
     let test_expr = test.to_rust_expr(ctx)?;
 
     if let Some(message_expr) = msg {
@@ -521,7 +550,27 @@ pub(crate) fn codegen_return_stmt(
     );
 
     if let Some(e) = expr {
+        // DEPYLER-1036: Set current_assign_type for Dict expressions in return statements
+        // This ensures empty dicts use the function return type for type inference
+        let prev_assign_type = ctx.current_assign_type.take();
+        if matches!(e, HirExpr::Dict(_)) {
+            if let Some(return_type) = &ctx.current_return_type {
+                // Extract Dict type from Optional<Dict> or use directly if Dict
+                let dict_type = match return_type {
+                    Type::Optional(inner) => match inner.as_ref() {
+                        Type::Dict(_, _) => Some(inner.as_ref().clone()),
+                        _ => None,
+                    },
+                    Type::Dict(_, _) => Some(return_type.clone()),
+                    _ => None,
+                };
+                if let Some(dt) = dict_type {
+                    ctx.current_assign_type = Some(dt);
+                }
+            }
+        }
         let mut expr_tokens = e.to_rust_expr(ctx)?;
+        ctx.current_assign_type = prev_assign_type;
 
         // DEPYLER-0626: Wrap return value with Box::new() for heterogeneous IO types
         // When function returns Box<dyn Write> (e.g., sys.stdout vs File), wrap the value
@@ -554,7 +603,8 @@ pub(crate) fn codegen_return_stmt(
                 || name == "Any"
                 || name == "typing.Any"
         );
-        if is_json_value_return {
+        // DEPYLER-1017: Skip serde_json in NASA mode
+        if is_json_value_return && !ctx.type_mapper.nasa_mode {
             // Use serde_json::json!() macro to convert the expression to Value
             // This handles bool, int, float, string, arrays, etc. automatically
             expr_tokens = parse_quote! { serde_json::json!(#expr_tokens) };
@@ -604,21 +654,35 @@ pub(crate) fn codegen_return_stmt(
                 .get(var_name)
                 .map(|ty| matches!(ty, Type::Optional(_)))
                 .unwrap_or(false)
-        } else if let HirExpr::MethodCall { method, .. } = e {
+        } else if let HirExpr::MethodCall { method, args, .. } = e {
             // DEPYLER-0951: These methods return Option<T>, don't wrap in Some()
             // - dict.get(key) -> Option<&V>
             // - environ.get(key) -> Option<String> (via std::env::var().ok())
             // - Result.ok() -> Option<T>
             // - Option.cloned() -> Option<T>
-            matches!(
-                method.as_str(),
-                "get" | "ok" | "cloned" | "copied" | "pop" | "first" | "last"
-            )
+            // DEPYLER-1036: dict.get(key, default) returns value type, NOT Option
+            // Python's dict.get with 2 args has built-in default, so it never returns None
+            let is_get_with_default = method == "get" && args.len() == 2;
+            if is_get_with_default {
+                false // dict.get(key, default) returns value, not Option
+            } else {
+                matches!(
+                    method.as_str(),
+                    "get" | "ok" | "cloned" | "copied" | "pop" | "first" | "last"
+                )
+            }
         } else {
             // DEPYLER-0951: Also check if the generated tokens end with .ok() or contain .get(
             // This catches cases where the HIR doesn't directly show the Option-returning method
             let expr_str = quote!(#expr_tokens).to_string();
-            expr_str.ends_with(". ok ()") || expr_str.contains(". get (")
+            // DEPYLER-1036: Check for unwrapping methods that convert Option<T> to T
+            // If expression ends with .unwrap_or(...) or .unwrap_or_default(), it's NOT optional
+            let has_option_method = expr_str.ends_with(". ok ()") || expr_str.contains(". get (");
+            let has_unwrap_method = expr_str.contains(". unwrap_or (")
+                || expr_str.contains(". unwrap_or_default (")
+                || expr_str.contains(". unwrap (")
+                || expr_str.contains(". expect (");
+            has_option_method && !has_unwrap_method
         };
 
         // DEPYLER-0498: Check if expression is if-expr with None arm (ternary with None)
@@ -3385,54 +3449,60 @@ pub(crate) fn codegen_assign_stmt(
     // This ensures dict literals use json!({}) instead of HashMap::new()
     let prev_json_context = ctx.in_json_context;
 
+    // DEPYLER-1015: In NASA mode, never set json context - use std-only types
+    let nasa_mode = ctx.type_mapper.nasa_mode;
+
     // DEPYLER-0713: Check if target variable is typed as serde_json::Value
     // If so, set json context so literals get wrapped with json!()
-    if let AssignTarget::Symbol(var_name) = target {
-        // Check if variable is tracked as Value type
-        if let Some(var_type) = ctx.var_types.get(var_name) {
-            if matches!(var_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
-                ctx.in_json_context = true;
-            }
-        }
-        // Also check type annotation
-        if let Some(annot) = type_annotation {
-            if matches!(annot, Type::Custom(name) if name == "serde_json::Value" || name == "Value" || name == "Any" || name == "any") {
-                ctx.in_json_context = true;
-            }
-        }
-    }
-
-    if let AssignTarget::Index { base, .. } = target {
-        // DEPYLER-0714: Check actual type FIRST before falling back to name heuristic
-        if let HirExpr::Var(base_name) = base.as_ref() {
-            // DEPYLER-0713: Check if base is typed as Value
-            if let Some(base_type) = ctx.var_types.get(base_name) {
-                if matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
+    // DEPYLER-1015: Skip in NASA mode
+    if !nasa_mode {
+        if let AssignTarget::Symbol(var_name) = target {
+            // Check if variable is tracked as Value type
+            if let Some(var_type) = ctx.var_types.get(var_name) {
+                if matches!(var_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
                     ctx.in_json_context = true;
                 }
-                // Check if it's a HashMap with Value values OR Unknown values
-                if let Type::Dict(_, v) = base_type {
-                    let val_is_json = match v.as_ref() {
-                        Type::Unknown => true,
-                        Type::Custom(name) if name == "serde_json::Value" || name == "Value" => true,
-                        _ => false,
-                    };
-                    if val_is_json {
+            }
+            // Also check type annotation
+            if let Some(annot) = type_annotation {
+                if matches!(annot, Type::Custom(name) if name == "serde_json::Value" || name == "Value" || name == "Any" || name == "any") {
+                    ctx.in_json_context = true;
+                }
+            }
+        }
+
+        if let AssignTarget::Index { base, .. } = target {
+            // DEPYLER-0714: Check actual type FIRST before falling back to name heuristic
+            if let HirExpr::Var(base_name) = base.as_ref() {
+                // DEPYLER-0713: Check if base is typed as Value
+                if let Some(base_type) = ctx.var_types.get(base_name) {
+                    if matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
                         ctx.in_json_context = true;
                     }
-                }
-            } else {
-                // DEPYLER-0714: Only use name heuristic when type is NOT known
-                let name_str = base_name.as_str();
-                // Variables commonly used with serde_json::Value
-                if name_str == "config"
-                    || name_str == "data"
-                    || name_str == "value"
-                    || name_str == "current"
-                    || name_str == "obj"
-                    || name_str == "json"
-                {
-                    ctx.in_json_context = true;
+                    // Check if it's a HashMap with Value values OR Unknown values
+                    if let Type::Dict(_, v) = base_type {
+                        let val_is_json = match v.as_ref() {
+                            Type::Unknown => true,
+                            Type::Custom(name) if name == "serde_json::Value" || name == "Value" => true,
+                            _ => false,
+                        };
+                        if val_is_json {
+                            ctx.in_json_context = true;
+                        }
+                    }
+                } else {
+                    // DEPYLER-0714: Only use name heuristic when type is NOT known
+                    let name_str = base_name.as_str();
+                    // Variables commonly used with serde_json::Value
+                    if name_str == "config"
+                        || name_str == "data"
+                        || name_str == "value"
+                        || name_str == "current"
+                        || name_str == "obj"
+                        || name_str == "json"
+                    {
+                        ctx.in_json_context = true;
+                    }
                 }
             }
         }
@@ -3595,6 +3665,40 @@ pub(crate) fn codegen_assign_stmt(
             value_expr = parse_quote! { Box::new(#value_expr) };
         }
     }
+
+    // DEPYLER-1027/DEPYLER-1029: Handle dict value assignment to dict in NASA mode
+    // Only wrap dict values in format!() if the target dict expects String values
+    // If target is Dict[str, Dict[...]], keep dict values as HashMap
+    let value_expr = if ctx.type_mapper.nasa_mode {
+        if let AssignTarget::Index { base, .. } = target {
+            if matches!(value, HirExpr::Dict(_)) {
+                // DEPYLER-1027/1034: Handle dict value assignment in NASA mode
+                // Only DON'T wrap if we KNOW the outer dict expects Dict values (not String)
+                let has_dict_value_type = if let HirExpr::Var(base_name) = &**base {
+                    ctx.var_types.get(base_name).is_some_and(|t| {
+                        // Only skip wrapping if value type is explicitly Dict
+                        matches!(t, Type::Dict(_, val_type) if matches!(val_type.as_ref(), Type::Dict(_, _)))
+                    })
+                } else {
+                    false
+                };
+
+                if has_dict_value_type {
+                    // Keep as HashMap for Dict[K, Dict[...]] types
+                    value_expr
+                } else {
+                    // Default: wrap in format! for HashMap<String, String> compatibility
+                    parse_quote! { format!("{:?}", #value_expr) }
+                }
+            } else {
+                value_expr
+            }
+        } else {
+            value_expr
+        }
+    } else {
+        value_expr
+    };
 
     match target {
         AssignTarget::Symbol(symbol) => {
@@ -3915,55 +4019,18 @@ pub(crate) fn codegen_assign_index(
     // Extract the base and all intermediate indices
     let (base_expr, indices) = extract_nested_indices_tokens(base, ctx)?;
 
-    // DEPYLER-0403: Convert string literals to String for Dict<String, String> values
-    // Check if value_expr is a string literal and the dict value type is String
+    // DEPYLER-0403/DEPYLER-1027: Convert string literals to String for Dict values
+    // In NASA mode (single-shot compile), always use HashMap<String, String> for dicts
+    // so string literal values ALWAYS need .to_string() for type consistency
     let value_expr = if !is_numeric_index {
-        // Get the base variable name to look up its type
-        let base_name = match base {
-            HirExpr::Var(name) => Some(name.as_str()),
-            HirExpr::Index {
-                base: inner_base, ..
-            } => {
-                // For nested subscripts, get the root variable
-                fn get_root_var(expr: &HirExpr) -> Option<&str> {
-                    match expr {
-                        HirExpr::Var(name) => Some(name.as_str()),
-                        HirExpr::Index { base, .. } => get_root_var(base),
-                        _ => None,
-                    }
-                }
-                get_root_var(inner_base)
-            }
-            _ => None,
-        };
-
-        // Check if we need to convert string literal to String
-        let needs_string_conversion = if let Some(name) = base_name {
-            if let Some(base_type) = ctx.var_types.get(name) {
-                // Navigate through nested Dict types to find the innermost value type
-                let depth = indices.len() + 1; // +1 for the final index
-                let mut current_type = base_type.clone();
-                for _ in 0..depth {
-                    if let Type::Dict(_, val_type) = current_type {
-                        current_type = (*val_type).clone();
-                    } else {
-                        break;
-                    }
-                }
-                // Check if innermost value type is String
-                matches!(current_type, Type::String)
-            } else {
-                false
-            }
-        } else {
-            false
-        };
-
         // Check if value_expr is a string literal
         let is_string_literal =
             matches!(&value_expr, syn::Expr::Lit(lit) if matches!(&lit.lit, syn::Lit::Str(_)));
 
-        if needs_string_conversion && is_string_literal {
+        // DEPYLER-1027: Always convert string literals to String when inserting into dicts
+        // This handles the common case of HashMap<String, String> which is the default for
+        // empty dict literals like `d = {}` in NASA single-shot compile mode
+        if is_string_literal {
             parse_quote! { #value_expr.to_string() }
         } else {
             value_expr
@@ -3974,7 +4041,10 @@ pub(crate) fn codegen_assign_index(
 
     // DEPYLER-0449: Detect if base is serde_json::Value (needs .as_object_mut())
     // DEPYLER-0560: Also detect if base is HashMap<String, serde_json::Value>
-    let (needs_as_object_mut, needs_json_value_wrap) = if let HirExpr::Var(base_name) = base {
+    // DEPYLER-1017: Skip serde_json logic in NASA mode
+    let (needs_as_object_mut, needs_json_value_wrap) = if ctx.type_mapper.nasa_mode {
+        (false, false)
+    } else if let HirExpr::Var(base_name) = base {
         if !is_numeric_index {
             // DEPYLER-0449: Helper function to check if name looks like JSON value
             let check_json_name_heuristic = |name_str: &str| {
@@ -4029,8 +4099,9 @@ pub(crate) fn codegen_assign_index(
 
     // DEPYLER-0472: Wrap value in serde_json::Value when assigning to Value dicts
     // DEPYLER-0560: Also wrap when dict value type is serde_json::Value
+    // DEPYLER-1017: Skip serde_json in NASA mode
     // Check if value needs wrapping (not already json!() or Value variant)
-    let final_value_expr = if needs_as_object_mut || needs_json_value_wrap {
+    let final_value_expr = if (needs_as_object_mut || needs_json_value_wrap) && !ctx.type_mapper.nasa_mode {
         // Check if value_expr is already a json!() or Value expression
         let value_str = quote! { #value_expr }.to_string();
         if value_str.contains("serde_json :: json !") || value_str.contains("serde_json :: Value") {
@@ -4051,15 +4122,32 @@ pub(crate) fn codegen_assign_index(
         value_expr
     };
 
-    // DEPYLER-0567: Convert string literal keys to String for HashMap<String, ...>
-    // Check if the index is a string literal that needs .to_string()
-    let final_index = if !is_numeric_index {
+    // DEPYLER-0567/DEPYLER-1027/DEPYLER-1029: Convert keys based on dict's key type
+    // In NASA mode, only convert to String if the dict's key type is String
+    // If dict has int keys (e.g., Dict[int, str]), keep keys as integers
+    let dict_has_int_keys = if let HirExpr::Var(base_name) = base {
+        ctx.var_types.get(base_name).is_some_and(|t| {
+            matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Int))
+        })
+    } else {
+        false
+    };
+
+    let final_index = if !is_numeric_index && !dict_has_int_keys {
         let idx_str = quote! { #final_index }.to_string();
-        // If it's a string literal like "key", convert to "key".to_string()
-        if idx_str.starts_with('"') && !idx_str.contains(".to_string()") {
+        // Check if already has .to_string() - handle spaces from quote! macro
+        // quote! produces ". to_string ( )" with spaces, not ".to_string()"
+        if idx_str.contains("to_string") {
+            final_index
+        } else if idx_str.starts_with('"') {
+            // String literal like "key" → "key".to_string()
             parse_quote! { #final_index.to_string() }
         } else {
-            final_index
+            // DEPYLER-1027: Non-string keys (integers, variables) also need .to_string()
+            // for HashMap<String, ...> in NASA single-shot compile mode
+            // Examples: d[42] = "v" → d.insert(42.to_string(), ...)
+            //           d[n] = "v" → d.insert(n.to_string(), ...)
+            parse_quote! { #final_index.to_string() }
         }
     } else {
         final_index
@@ -4508,6 +4596,14 @@ fn infer_expr_return_type(expr: &HirExpr, ctx: &CodeGenContext) -> Type {
                 "float" => Type::Float,
                 "bool" => Type::Bool,
                 _ => Type::Unknown,
+            }
+        }
+        HirExpr::Binary { left, right, .. } => {
+            let left_type = infer_expr_return_type(left, ctx);
+            if !matches!(left_type, Type::Unknown) {
+                left_type
+            } else {
+                infer_expr_return_type(right, ctx)
             }
         }
         _ => Type::Unknown,
