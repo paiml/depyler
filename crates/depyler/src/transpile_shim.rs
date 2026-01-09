@@ -373,6 +373,7 @@ pub fn format_oracle_trace(oracle_config: &OracleConfig, pattern_path: Option<&P
 }
 
 /// Format summary output for transpilation
+#[allow(clippy::too_many_arguments)]
 pub fn format_summary(
     input_path: &Path,
     output_path: &Path,

@@ -23,6 +23,12 @@ pub fn convert_random_method(
     args: &[HirExpr],
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
+    // DEPYLER-1018: In NASA mode, return stub values instead of using rand crate
+    // This ensures std-only compilation at the cost of runtime correctness
+    if ctx.type_mapper.nasa_mode {
+        return convert_random_method_nasa_stub(method, args, ctx);
+    }
+
     let arg_exprs: Vec<syn::Expr> = args
         .iter()
         .map(|arg| arg.to_rust_expr(ctx))
@@ -252,14 +258,124 @@ fn convert_seed(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
 }
 
+/// DEPYLER-1018: NASA mode stub for random methods
+///
+/// Returns deterministic values to enable std-only compilation.
+/// WARNING: These are NOT random - for compilation testing only!
+fn convert_random_method_nasa_stub(
+    method: &str,
+    args: &[HirExpr],
+    ctx: &mut CodeGenContext,
+) -> Result<Option<syn::Expr>> {
+    let arg_exprs: Vec<syn::Expr> = args
+        .iter()
+        .map(|arg| arg.to_rust_expr(ctx))
+        .collect::<Result<Vec<_>>>()?;
+
+    let result = match method {
+        // random() returns 0.5 (middle of [0, 1))
+        "random" => parse_quote! { 0.5_f64 },
+        // randint(a, b) returns a (first value in range)
+        "randint" => {
+            if !arg_exprs.is_empty() {
+                let a = &arg_exprs[0];
+                parse_quote! { #a }
+            } else {
+                parse_quote! { 0 }
+            }
+        }
+        // randrange returns start value
+        "randrange" => {
+            if arg_exprs.len() >= 2 {
+                let start = &arg_exprs[0];
+                parse_quote! { #start }
+            } else {
+                // Both single arg (0..stop) and no args return 0
+                parse_quote! { 0 }
+            }
+        }
+        // uniform(a, b) returns a
+        "uniform" => {
+            if !arg_exprs.is_empty() {
+                let a = &arg_exprs[0];
+                parse_quote! { #a as f64 }
+            } else {
+                parse_quote! { 0.0_f64 }
+            }
+        }
+        // choice returns first element
+        "choice" => {
+            if !arg_exprs.is_empty() {
+                let seq = &arg_exprs[0];
+                parse_quote! { #seq[0].clone() }
+            } else {
+                bail!("random.choice() requires a sequence argument")
+            }
+        }
+        // shuffle is no-op (already shuffled... not)
+        "shuffle" => parse_quote! { () },
+        // sample returns first k elements
+        "sample" => {
+            if arg_exprs.len() >= 2 {
+                let seq = &arg_exprs[0];
+                let k = &arg_exprs[1];
+                parse_quote! { #seq[..#k as usize].to_vec() }
+            } else {
+                bail!("random.sample() requires 2 arguments")
+            }
+        }
+        // choices returns first element repeated
+        "choices" => {
+            if !arg_exprs.is_empty() {
+                let seq = &arg_exprs[0];
+                let k = if arg_exprs.len() >= 2 { &arg_exprs[1] } else { &parse_quote! { 1 } };
+                parse_quote! { vec![#seq[0].clone(); #k as usize] }
+            } else {
+                bail!("random.choices() requires a sequence argument")
+            }
+        }
+        // gauss returns mu (mean)
+        "gauss" | "normalvariate" => {
+            if !arg_exprs.is_empty() {
+                let mu = &arg_exprs[0];
+                parse_quote! { #mu as f64 }
+            } else {
+                parse_quote! { 0.0_f64 }
+            }
+        }
+        // expovariate returns 1/lambda (mean of exponential)
+        "expovariate" => {
+            if !arg_exprs.is_empty() {
+                let lambd = &arg_exprs[0];
+                parse_quote! { 1.0_f64 / (#lambd as f64) }
+            } else {
+                parse_quote! { 1.0_f64 }
+            }
+        }
+        // seed is no-op
+        "seed" => parse_quote! { () },
+        _ => bail!("random.{} not implemented in NASA mode", method),
+    };
+
+    Ok(Some(result))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::hir::Literal;
 
+    /// Create a CodeGenContext with NASA mode disabled for testing rand crate integration
+    fn ctx_with_rand_enabled() -> CodeGenContext<'static> {
+        let mut ctx = CodeGenContext::default();
+        // DEPYLER-1018: Disable NASA mode to test actual rand crate integration
+        ctx.type_mapper = Box::leak(Box::new(ctx.type_mapper.clone().with_nasa_mode(false)));
+        ctx
+    }
+
     #[test]
     fn test_convert_random_random() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args: Vec<HirExpr> = vec![];
         let result = convert_random_method("random", &args, &mut ctx);
         assert!(result.is_ok());
@@ -271,7 +387,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_random_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Literal(Literal::Int(1))];
         let result = convert_random_method("random", &args, &mut ctx);
         assert!(result.is_err());
@@ -279,7 +395,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_randint() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![
             HirExpr::Literal(Literal::Int(1)),
             HirExpr::Literal(Literal::Int(10)),
@@ -293,7 +409,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_randint_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Literal(Literal::Int(1))];
         let result = convert_random_method("randint", &args, &mut ctx);
         assert!(result.is_err());
@@ -301,7 +417,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_randrange_single() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Literal(Literal::Int(10))];
         let result = convert_random_method("randrange", &args, &mut ctx);
         assert!(result.is_ok());
@@ -309,7 +425,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_randrange_two() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![
             HirExpr::Literal(Literal::Int(5)),
             HirExpr::Literal(Literal::Int(10)),
@@ -320,7 +436,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_randrange_three() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![
             HirExpr::Literal(Literal::Int(0)),
             HirExpr::Literal(Literal::Int(10)),
@@ -332,7 +448,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_randrange_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args: Vec<HirExpr> = vec![];
         let result = convert_random_method("randrange", &args, &mut ctx);
         assert!(result.is_err());
@@ -340,7 +456,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_uniform() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![
             HirExpr::Literal(Literal::Float(0.0)),
             HirExpr::Literal(Literal::Float(1.0)),
@@ -351,7 +467,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_uniform_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Literal(Literal::Float(0.0))];
         let result = convert_random_method("uniform", &args, &mut ctx);
         assert!(result.is_err());
@@ -359,7 +475,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_choice() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Var("items".to_string())];
         let result = convert_random_method("choice", &args, &mut ctx);
         assert!(result.is_ok());
@@ -370,7 +486,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_choice_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args: Vec<HirExpr> = vec![];
         let result = convert_random_method("choice", &args, &mut ctx);
         assert!(result.is_err());
@@ -378,7 +494,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_shuffle() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Var("items".to_string())];
         let result = convert_random_method("shuffle", &args, &mut ctx);
         assert!(result.is_ok());
@@ -389,7 +505,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_shuffle_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args: Vec<HirExpr> = vec![];
         let result = convert_random_method("shuffle", &args, &mut ctx);
         assert!(result.is_err());
@@ -397,7 +513,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_sample() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![
             HirExpr::Var("items".to_string()),
             HirExpr::Literal(Literal::Int(3)),
@@ -411,7 +527,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_sample_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Var("items".to_string())];
         let result = convert_random_method("sample", &args, &mut ctx);
         assert!(result.is_err());
@@ -419,7 +535,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_choices() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Var("items".to_string())];
         let result = convert_random_method("choices", &args, &mut ctx);
         assert!(result.is_ok());
@@ -427,7 +543,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_choices_with_k() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![
             HirExpr::Var("items".to_string()),
             HirExpr::Literal(Literal::Int(5)),
@@ -438,7 +554,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_choices_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args: Vec<HirExpr> = vec![];
         let result = convert_random_method("choices", &args, &mut ctx);
         assert!(result.is_err());
@@ -446,7 +562,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_gauss() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![
             HirExpr::Literal(Literal::Float(0.0)),
             HirExpr::Literal(Literal::Float(1.0)),
@@ -461,7 +577,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_normalvariate() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![
             HirExpr::Literal(Literal::Float(0.0)),
             HirExpr::Literal(Literal::Float(1.0)),
@@ -473,7 +589,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_gauss_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Literal(Literal::Float(0.0))];
         let result = convert_random_method("gauss", &args, &mut ctx);
         assert!(result.is_err());
@@ -481,7 +597,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_expovariate() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args = vec![HirExpr::Literal(Literal::Float(1.0))];
         let result = convert_random_method("expovariate", &args, &mut ctx);
         assert!(result.is_ok());
@@ -493,7 +609,7 @@ mod tests {
 
     #[test]
     fn test_convert_random_expovariate_wrong_args() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args: Vec<HirExpr> = vec![];
         let result = convert_random_method("expovariate", &args, &mut ctx);
         assert!(result.is_err());
@@ -501,11 +617,24 @@ mod tests {
 
     #[test]
     fn test_convert_random_unknown() {
-        let mut ctx = CodeGenContext::default();
+        let mut ctx = ctx_with_rand_enabled();
         let args: Vec<HirExpr> = vec![];
         let result = convert_random_method("unknown", &args, &mut ctx);
         assert!(result.is_err());
         let err = result.err().unwrap();
         assert!(err.to_string().contains("not implemented"));
+    }
+
+    // NASA mode stub tests
+    #[test]
+    fn test_nasa_mode_random_returns_stub() {
+        let mut ctx = CodeGenContext::default(); // Default is NASA mode
+        let args: Vec<HirExpr> = vec![];
+        let result = convert_random_method("random", &args, &mut ctx);
+        assert!(result.is_ok());
+        assert!(!ctx.needs_rand); // No rand crate needed in NASA mode
+        let expr = result.unwrap().unwrap();
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("0.5")); // Stub value
     }
 }

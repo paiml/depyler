@@ -12,6 +12,7 @@ use depyler::{
 use std::path::PathBuf;
 
 /// Handle converge command
+#[allow(clippy::too_many_arguments)]
 async fn handle_converge_command(
     input_dir: PathBuf,
     target_rate: f64,

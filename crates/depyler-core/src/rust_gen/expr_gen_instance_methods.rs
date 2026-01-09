@@ -2895,12 +2895,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             if let Some(arg) = arg_exprs.first() {
                                 return Ok(parse_quote! { #arg });
                             }
-                        } else {
-                            if let Some(arg) = arg_exprs.first() {
-                                return Ok(parse_quote! {
-                                    tokio::runtime::Runtime::new().unwrap().block_on(#arg)
-                                });
-                            }
+                        } else if let Some(arg) = arg_exprs.first() {
+                            return Ok(parse_quote! {
+                                tokio::runtime::Runtime::new().unwrap().block_on(#arg)
+                            });
                         }
                     }
                     _ => {} // Fall through for other asyncio methods
@@ -4889,8 +4887,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Otherwise default to HashMap<String, String>
                 if let Some(Type::Dict(ref key_type, ref val_type)) = self.ctx.current_assign_type {
                     // Use type_to_rust_type to convert HIR Type to TokenStream
-                    let key_tokens = type_to_rust_type(key_type, &self.ctx.type_mapper);
-                    let val_tokens = type_to_rust_type(val_type, &self.ctx.type_mapper);
+                    let key_tokens = type_to_rust_type(key_type, self.ctx.type_mapper);
+                    let val_tokens = type_to_rust_type(val_type, self.ctx.type_mapper);
 
                     return Ok(parse_quote! {
                         {
