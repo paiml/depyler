@@ -3,6 +3,7 @@
 //! DEPYLER-COVERAGE-95: Extracted from expr_gen.rs to reduce file size
 //! and improve testability. Contains collection and instance method handlers.
 
+use crate::direct_rules::type_to_rust_type;
 use crate::hir::*;
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::expr_gen::ExpressionConverter;
@@ -1038,30 +1039,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0594: bytes.decode([encoding]) → String::from_utf8_lossy()
                 // Python: b.decode() or b.decode('utf-8')
                 // Rust: String::from_utf8_lossy(bytes).to_string()
-
-                // DEPYLER-0200: base64.encode() already returns String - no decode needed
-                // Note: This is now handled in convert_method_call before reaching here
-                // Check if object is a base64 encode call (represented as MethodCall)
-                // base64.b64encode(...) is HIR MethodCall { object: Var("base64"), method: "b64encode", ... }
-                let is_base64_encode = match hir_object {
-                    HirExpr::MethodCall { object, method, .. } => {
-                        matches!(object.as_ref(), HirExpr::Var(module) if module.as_str() == "base64")
-                            && (method.as_str().contains("b64encode")
-                                || method.as_str().contains("urlsafe_b64encode"))
-                    }
-                    HirExpr::Call { func, .. } => {
-                        func.as_str().contains("b64encode")
-                            || func.as_str().contains("urlsafe_b64encode")
-                    }
-                    _ => false,
-                };
-
-                if is_base64_encode {
-                    // base64::encode() returns String - just return it directly
-                    Ok(object_expr.clone())
-                } else {
-                    Ok(parse_quote! { String::from_utf8_lossy(&#obj).to_string() })
-                }
+                // DEPYLER-1003: base64.b64encode now returns Vec<u8> so this works uniformly
+                Ok(parse_quote! { String::from_utf8_lossy(&#obj).to_string() })
             }
             "isalnum" => {
                 // DEPYLER-0302: str.isalnum() → .chars().all(|c| c.is_alphanumeric())
@@ -2079,33 +2058,56 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         };
 
         if is_datetime_object {
-            self.ctx.needs_chrono = true;
+            // DEPYLER-1025: In NASA mode, use std::time stubs instead of chrono
+            let nasa_mode = self.ctx.type_mapper.nasa_mode;
+            if !nasa_mode {
+                self.ctx.needs_chrono = true;
+            }
             match method {
-                // dt.isoformat() → dt.to_string() (chrono's Display produces ISO format)
+                // dt.isoformat() → format for ISO string representation
                 "isoformat" if arg_exprs.is_empty() => {
-                    return Ok(parse_quote! { #object_expr.to_string() });
+                    if nasa_mode {
+                        return Ok(parse_quote! { format!("{:?}", #object_expr) });
+                    } else {
+                        return Ok(parse_quote! { #object_expr.to_string() });
+                    }
                 }
-                // dt.strftime(fmt) → dt.format(fmt).to_string()
-                // DEPYLER-0555: chrono's format() takes &str, not String
+                // dt.strftime(fmt) → format string
                 "strftime" if arg_exprs.len() == 1 => {
-                    // Extract bare string literal for chrono format compatibility
-                    let fmt = match hir_args.first() {
-                        Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
-                        _ => arg_exprs[0].clone(),
-                    };
-                    return Ok(parse_quote! { #object_expr.format(#fmt).to_string() });
+                    if nasa_mode {
+                        return Ok(parse_quote! { format!("{:?}", #object_expr) });
+                    } else {
+                        // DEPYLER-0555: chrono's format() takes &str, not String
+                        let fmt = match hir_args.first() {
+                            Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
+                            _ => arg_exprs[0].clone(),
+                        };
+                        return Ok(parse_quote! { #object_expr.format(#fmt).to_string() });
+                    }
                 }
-                // dt.timestamp() → dt.timestamp() (same in chrono)
+                // dt.timestamp() → Unix timestamp
                 "timestamp" if arg_exprs.is_empty() => {
-                    return Ok(parse_quote! { #object_expr.and_utc().timestamp() as f64 });
+                    if nasa_mode {
+                        return Ok(parse_quote! { #object_expr.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as f64 });
+                    } else {
+                        return Ok(parse_quote! { #object_expr.and_utc().timestamp() as f64 });
+                    }
                 }
-                // dt.date() → dt.date() (chrono NaiveDateTime has date())
+                // dt.date() → date component
                 "date" if arg_exprs.is_empty() => {
-                    return Ok(parse_quote! { #object_expr.date() });
+                    if nasa_mode {
+                        return Ok(parse_quote! { #object_expr });
+                    } else {
+                        return Ok(parse_quote! { #object_expr.date() });
+                    }
                 }
-                // dt.time() → dt.time() (chrono NaiveDateTime has time())
+                // dt.time() → time component
                 "time" if arg_exprs.is_empty() => {
-                    return Ok(parse_quote! { #object_expr.time() });
+                    if nasa_mode {
+                        return Ok(parse_quote! { #object_expr });
+                    } else {
+                        return Ok(parse_quote! { #object_expr.time() });
+                    }
                 }
                 _ => {} // Fall through to default handling
             }
@@ -2807,31 +2809,53 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DEPYLER-0747: Handle asyncio module method calls
-        // asyncio.sleep(secs) → tokio::time::sleep(Duration)
-        // asyncio.run(coro) → tokio runtime block_on
+        // asyncio.sleep(secs) → tokio::time::sleep(Duration) or std::thread::sleep in NASA mode
+        // asyncio.run(coro) → tokio runtime block_on or direct call in NASA mode
         if let HirExpr::Var(module) = object {
             if module == "asyncio" {
-                self.ctx.needs_tokio = true;
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if !nasa_mode {
+                    self.ctx.needs_tokio = true;
+                }
                 let arg_exprs: Vec<syn::Expr> = args
                     .iter()
                     .map(|arg| arg.to_rust_expr(self.ctx))
                     .collect::<Result<Vec<_>>>()?;
                 match method {
                     "sleep" => {
-                        if let Some(arg) = arg_exprs.first() {
+                        if nasa_mode {
+                            // DEPYLER-1024: Use std::thread::sleep in NASA mode
+                            if let Some(arg) = arg_exprs.first() {
+                                return Ok(parse_quote! {
+                                    std::thread::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+                                });
+                            }
                             return Ok(parse_quote! {
-                                tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+                                std::thread::sleep(std::time::Duration::from_secs(0))
+                            });
+                        } else {
+                            if let Some(arg) = arg_exprs.first() {
+                                return Ok(parse_quote! {
+                                    tokio::time::sleep(std::time::Duration::from_secs_f64(#arg as f64))
+                                });
+                            }
+                            return Ok(parse_quote! {
+                                tokio::time::sleep(std::time::Duration::from_secs(0))
                             });
                         }
-                        return Ok(parse_quote! {
-                            tokio::time::sleep(std::time::Duration::from_secs(0))
-                        });
                     }
                     "run" => {
-                        if let Some(arg) = arg_exprs.first() {
-                            return Ok(parse_quote! {
-                                tokio::runtime::Runtime::new().unwrap().block_on(#arg)
-                            });
+                        if nasa_mode {
+                            // DEPYLER-1024: Just call the function directly in NASA mode
+                            if let Some(arg) = arg_exprs.first() {
+                                return Ok(parse_quote! { #arg });
+                            }
+                        } else {
+                            if let Some(arg) = arg_exprs.first() {
+                                return Ok(parse_quote! {
+                                    tokio::runtime::Runtime::new().unwrap().block_on(#arg)
+                                });
+                            }
                         }
                     }
                     _ => {} // Fall through for other asyncio methods
@@ -3046,12 +3070,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // DEPYLER-0558: Handle hasher methods (hexdigest, update) for incremental hashing
+        // DEPYLER-1002: Use finalize_reset() for Box<dyn DynDigest> compatibility
         if method == "hexdigest" {
             self.ctx.needs_hex = true;
+            self.ctx.needs_digest = true;
             let object_expr = object.to_rust_expr(self.ctx)?;
-            // hexdigest() on hasher → hex::encode(hasher.finalize())
+            // hexdigest() on hasher → hex::encode(hasher.finalize_reset())
+            // finalize_reset() works with Box<dyn DynDigest>
             return Ok(parse_quote! {
-                hex::encode(#object_expr.finalize())
+                {
+                    use digest::DynDigest;
+                    hex::encode(#object_expr.finalize_reset())
+                }
             });
         }
 
@@ -4333,7 +4363,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         has_mixed_types: bool,
         needs_string_unify: bool,
     ) -> Result<syn::Expr> {
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+
         if has_mixed_types {
+            // DEPYLER-1033: In NASA mode, convert all elements to String instead of using serde_json
+            if nasa_mode {
+                let elt_exprs: Vec<syn::Expr> = elts
+                    .iter()
+                    .map(|e| {
+                        let expr = e.to_rust_expr(self.ctx)?;
+                        // Convert all elements to String for NASA mode compatibility
+                        Ok(parse_quote! { format!("{:?}", #expr) })
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                return Ok(parse_quote! { vec![#(#elt_exprs),*] });
+            }
+
             // DEPYLER-0711: Convert to Vec<serde_json::Value> for heterogeneous lists
             self.ctx.needs_serde_json = true;
 
@@ -4451,16 +4497,82 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             confidence = 0.85
         );
 
+        // DEPYLER-1015: In NASA mode, use std-only types (no serde_json)
+        // Convert all values to String for single-shot compile compatibility
+        let nasa_mode = self.ctx.type_mapper.nasa_mode;
+
         // DEPYLER-0376: Detect heterogeneous dicts (mixed value types)
         // DEPYLER-0461: Also check if we're in json!() context (nested dicts must use json!())
         // DEPYLER-0560: Check if function returns Dict with Any/Unknown value type
         // For mixed types or json context, use serde_json::json! instead of HashMap
+        // DEPYLER-1023: In NASA mode, still detect mixed types but convert to String instead of json
         let has_mixed_types = self.dict_has_mixed_types(items)?;
-        let in_json_context = self.ctx.in_json_context;
+        let in_json_context = if nasa_mode { false } else { self.ctx.in_json_context };
 
         // DEPYLER-0560: Check if return type requires serde_json::Value
         // If function returns Dict[str, Any] → HashMap<String, serde_json::Value>
-        let return_needs_json = self.return_type_needs_json_dict();
+        // DEPYLER-1015: Skip in NASA mode
+        let return_needs_json = if nasa_mode { false } else { self.return_type_needs_json_dict() };
+
+        // DEPYLER-1023: In NASA mode with mixed types, use DepylerValue enum
+        // This ensures proper type fidelity for heterogeneous Python dicts
+        if nasa_mode && has_mixed_types {
+            self.ctx.needs_hashmap = true;
+            self.ctx.needs_depyler_value_enum = true;
+
+            let mut insert_stmts = Vec::new();
+            for (key, value) in items {
+                let mut key_expr = key.to_rust_expr(self.ctx)?;
+                let val_expr = value.to_rust_expr(self.ctx)?;
+
+                // Convert string literal keys to owned Strings
+                if matches!(key, HirExpr::Literal(Literal::String(_))) {
+                    key_expr = parse_quote! { #key_expr.to_string() };
+                }
+
+                // Wrap values in DepylerValue enum variants
+                let wrapped_val: syn::Expr = match value {
+                    HirExpr::Literal(Literal::Int(_)) => {
+                        parse_quote! { DepylerValue::Int(#val_expr as i64) }
+                    }
+                    HirExpr::Literal(Literal::Float(_)) => {
+                        parse_quote! { DepylerValue::Float(#val_expr as f64) }
+                    }
+                    HirExpr::Literal(Literal::String(_)) => {
+                        parse_quote! { DepylerValue::Str(#val_expr.to_string()) }
+                    }
+                    HirExpr::Literal(Literal::Bool(_)) => {
+                        parse_quote! { DepylerValue::Bool(#val_expr) }
+                    }
+                    HirExpr::Literal(Literal::None) => {
+                        parse_quote! { DepylerValue::None }
+                    }
+                    HirExpr::Var(name) => {
+                        let var_type = self.ctx.var_types.get(name);
+                        match var_type {
+                            Some(Type::Int) => parse_quote! { DepylerValue::Int(#val_expr as i64) },
+                            Some(Type::Float) => parse_quote! { DepylerValue::Float(#val_expr as f64) },
+                            Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#val_expr) },
+                            Some(Type::String) => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
+                            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                        }
+                    }
+                    // TODO: Handle nested List/Dict by recursively enabling DepylerValue context?
+                    // For now, fallback to string representation for complex nested types to avoid compile errors
+                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                };
+
+                insert_stmts.push(quote! { map.insert(#key_expr, #wrapped_val); });
+            }
+
+            return Ok(parse_quote! {
+                {
+                    let mut map = HashMap::new();
+                    #(#insert_stmts)*
+                    map
+                }
+            });
+        }
 
         // DEPYLER-0560: When inside json!() context (nested dict), use json!() macro
         // This produces serde_json::Value which is what nested contexts expect
@@ -4484,7 +4596,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0560: When return type is HashMap<String, serde_json::Value>,
         // build HashMap with json!() wrapped values (NOT a raw json!() object)
-        if has_mixed_types || return_needs_json {
+        // DEPYLER-1023: Skip in NASA mode (handled above with String conversion)
+        if !nasa_mode && (has_mixed_types || return_needs_json) {
             self.ctx.needs_serde_json = true;
             self.ctx.needs_hashmap = true;
 
@@ -4595,11 +4708,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 key_expr = parse_quote! { #key_expr.to_string() };
             }
 
-            // DEPYLER-0729/0953: ALWAYS convert string literal values to String
+            // DEPYLER-0729/0953: Convert string literal values to owned String
             // HashMap<K, String> is the standard pattern, not HashMap<K, &str>
             // This ensures consistent types across dict literal, access, and assignment
-            // Without this, `d = {"k": "v"}` creates HashMap<String, &str> which breaks
-            // when later accessing with d["k"] or assigning d["k2"] = "v2"
+            // DEPYLER-1021: In NASA mode, DON'T convert primitive types (int, float, bool)
+            // to String - this breaks type inference. Only convert string literals.
+            // The original DEPYLER-1015 logic was too aggressive.
             if matches!(value, HirExpr::Literal(Literal::String(_))) {
                 val_expr = parse_quote! { #val_expr.to_string() };
             }
@@ -4611,11 +4725,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Empty dicts don't need mutable bindings
         // DEPYLER-0472: When in json context, use json!({}) instead of HashMap::new()
         // This happens when dict is assigned to serde_json::Value (e.g., current[k] = {})
+        // DEPYLER-1015: Skip json!({}) in NASA mode
         if items.is_empty() {
-            if self.ctx.in_json_context {
-                // Use json!({}) for serde_json::Value compatibility
+            if self.ctx.in_json_context && !nasa_mode {
+                // Use json!({}) for serde_json::Value compatibility (non-NASA mode only)
                 self.ctx.needs_serde_json = true;
                 Ok(parse_quote! { serde_json::json!({}) })
+            } else if nasa_mode {
+                // DEPYLER-1029: Check for type annotation to get proper HashMap types
+                // If we have `d: Dict[int, str] = {}`, use HashMap<i32, String>
+                // Otherwise default to HashMap<String, String>
+                if let Some(Type::Dict(ref key_type, ref val_type)) = self.ctx.current_assign_type {
+                    // Use type_to_rust_type to convert HIR Type to TokenStream
+                    let key_tokens = type_to_rust_type(key_type, &self.ctx.type_mapper);
+                    let val_tokens = type_to_rust_type(val_type, &self.ctx.type_mapper);
+
+                    return Ok(parse_quote! {
+                        {
+                            let map: HashMap<#key_tokens, #val_tokens> = HashMap::new();
+                            map
+                        }
+                    });
+                }
+
+                // Default: HashMap<String, String> when no type annotation
+                Ok(parse_quote! {
+                    {
+                        let map: HashMap<String, String> = HashMap::new();
+                        map
+                    }
+                })
             } else {
                 // Regular HashMap for normal dicts
                 Ok(parse_quote! {
@@ -4701,6 +4840,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut has_int_literal = false;
         let mut has_float_literal = false;
         let mut has_string_literal = false;
+        // DEPYLER-1031: Track complex expressions (function calls, method calls, etc.)
+        // These are treated as "unknown type" and trigger mixed type handling
+        let mut has_complex_expr = false;
         // DEPYLER-0601: Also track list element types for heterogeneous detection
         let mut has_list_of_int = false;
         let mut has_list_of_string = false;
@@ -4713,6 +4855,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 HirExpr::Literal(Literal::Int(_)) => has_int_literal = true,
                 HirExpr::Literal(Literal::Float(_)) => has_float_literal = true,
                 HirExpr::Literal(Literal::String(_)) => has_string_literal = true,
+                // DEPYLER-1031: Function calls and method calls are complex expressions
+                HirExpr::Call { .. } | HirExpr::MethodCall { .. } => has_complex_expr = true,
+                // DEPYLER-1023: Check variable types from ctx.var_types for heterogeneous detection
+                HirExpr::Var(name) => {
+                    if let Some(var_type) = self.ctx.var_types.get(name) {
+                        match var_type {
+                            Type::Bool => has_bool_literal = true,
+                            Type::Int => has_int_literal = true,
+                            Type::Float => has_float_literal = true,
+                            Type::String => has_string_literal = true,
+                            _ => {}
+                        }
+                    }
+                }
                 // DEPYLER-0601: Check list element types for heterogeneous detection
                 HirExpr::List(elems) if !elems.is_empty() => {
                     // Determine list element type from first element
@@ -4729,11 +4885,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Count how many distinct literal types we have
+        // DEPYLER-1031: Include complex expressions in the count
         let distinct_literal_types = [
             has_bool_literal,
             has_int_literal,
             has_float_literal,
             has_string_literal,
+            has_complex_expr, // Treat complex expressions as a distinct type
         ]
         .iter()
         .filter(|&&b| b)
@@ -5502,9 +5660,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-0691: Add filters for each condition (no walrus in element)
             // DEPYLER-0820: Use |pattern| not |&pattern| to avoid E0507 on non-Copy types
+            // DEPYLER-1000: Clone loop variable inside filter to fix E0308 reference mismatch
+            // After .iter().cloned(), filter receives &T reference, but condition expects T
+            // Solution: let target = target.clone() inside closure shadows ref with owned value
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|#target_pat| { let #target_pat = #target_pat.clone(); #cond_expr }) };
             }
 
             // Add the map transformation
@@ -5929,7 +6090,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Var(name) => {
                 // Check var_types to see if this variable is a dict/HashMap
                 if let Some(var_type) = self.ctx.var_types.get(name) {
-                    matches!(var_type, Type::Dict(_, _))
+                    match var_type {
+                        Type::Dict(_, _) => true,
+                        // DEPYLER-1004: Handle bare Dict from typing import (becomes Type::Custom("Dict"))
+                        Type::Custom(s) if s == "Dict" => true,
+                        // DEPYLER-1004: json.loads() returns serde_json::Value which is dict-like
+                        // When assigned from json.loads(), variables get Type::Custom("serde_json::Value")
+                        Type::Custom(s) if s == "serde_json::Value" || s == "Value" => true,
+                        _ => false,
+                    }
                 } else {
                     false
                 }
@@ -5966,7 +6135,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// because it requires .as_object().unwrap() before iteration methods.
     /// DEPYLER-0969: H₃ Error Cascade Prevention - Type::Unknown maps to serde_json::Value
     /// so ALL Unknown-typed variables should use JSON method translations.
+    /// DEPYLER-1017: In NASA mode, skip serde_json - Unknown maps to String
     pub(crate) fn is_serde_json_value(&self, expr: &HirExpr) -> bool {
+        // DEPYLER-1017: In NASA mode, never treat anything as serde_json::Value
+        if self.ctx.type_mapper.nasa_mode {
+            return false;
+        }
         if let HirExpr::Var(name) = expr {
             // Check explicit type info first - this is authoritative
             if let Some(var_type) = self.ctx.var_types.get(name) {
@@ -6043,7 +6217,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ///
     /// This is used to wrap default values in dict.get(key, default) with json!()
     /// for type compatibility.
+    /// DEPYLER-1017: In NASA mode, never use serde_json::Value
     pub(crate) fn dict_has_json_value_values(&self, expr: &HirExpr) -> bool {
+        // DEPYLER-1017: In NASA mode, dicts never have JSON values
+        if self.ctx.type_mapper.nasa_mode {
+            return false;
+        }
         match expr {
             // Variable dict - check type info
             HirExpr::Var(name) => {
@@ -6497,9 +6676,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0691: Add filters for each condition
             // DEPYLER-0820: Use |pattern| not |&pattern| - after .cloned() values are owned,
             // filter() receives &Item, using |pattern| binds as references avoiding E0507
+            // DEPYLER-1000: Clone loop variable inside filter to fix E0308 reference mismatch
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|#target_pat| { let #target_pat = #target_pat.clone(); #cond_expr }) };
             }
 
             // Add the map transformation
@@ -6561,9 +6741,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0691: Add filters for each condition
             // DEPYLER-0820: Use |pattern| not |&pattern| - after .cloned() values are owned,
             // filter() receives &Item, using |pattern| binds as references avoiding E0507
+            // DEPYLER-1000: Clone loop variable inside filter to fix E0308 reference mismatch
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+                chain = parse_quote! { #chain.filter(|#target_pat| { let #target_pat = #target_pat.clone(); #cond_expr }) };
             }
 
             // DEPYLER-0706: Add the map transformation (to key-value tuple)
@@ -6703,7 +6884,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     pub(crate) fn convert_await(&mut self, value: &HirExpr) -> Result<syn::Expr> {
         let value_expr = value.to_rust_expr(self.ctx)?;
-        Ok(parse_quote! { #value_expr.await })
+        // DEPYLER-1024: In NASA mode, strip .await since async is converted to sync
+        if self.ctx.type_mapper.nasa_mode {
+            Ok(value_expr)
+        } else {
+            Ok(parse_quote! { #value_expr.await })
+        }
     }
 
     pub(crate) fn convert_yield(&mut self, value: &Option<Box<HirExpr>>) -> Result<syn::Expr> {
