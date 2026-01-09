@@ -1087,8 +1087,19 @@ impl RustCodeGen for HirFunction {
                 ctx,
             )?
         } else if self.properties.is_async {
-            // DEPYLER-0748: If this is async main(), add #[tokio::main] attribute
-            if self.name == "main" {
+            // DEPYLER-1024: In NASA mode, convert async to sync (no tokio dependency)
+            let nasa_mode = ctx.type_mapper.nasa_mode;
+            if nasa_mode {
+                // NASA mode: Convert async functions to regular sync functions
+                // This allows single-shot compilation without tokio
+                quote! {
+                    #(#attrs)*
+                    pub fn #name #generic_params(#(#params),*) #return_type #where_clause {
+                        #(#body_stmts)*
+                    }
+                }
+            } else if self.name == "main" {
+                // DEPYLER-0748: If this is async main(), add #[tokio::main] attribute
                 ctx.needs_tokio = true;
                 quote! {
                     #(#attrs)*

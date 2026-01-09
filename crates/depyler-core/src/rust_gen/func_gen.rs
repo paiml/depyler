@@ -637,6 +637,11 @@ pub(crate) fn codegen_function_body(
     // DEPYLER-0310: Set error type for raise statement wrapping
     ctx.current_error_type = error_type;
 
+    // DEPYLER-1045: Clear fn_str_params from previous function
+    // Without this, &str params from previous functions pollute later functions,
+    // causing auto-borrow logic to skip local String variables with same names
+    ctx.fn_str_params.clear();
+
     for param in &func.params {
         ctx.declare_var(&param.name);
         // Store parameter type information for set/dict disambiguation
@@ -2013,15 +2018,33 @@ pub(crate) fn infer_return_type_from_body_with_params(
     }
 
     // Build additional types from variable assignments
-    build_var_type_env(&func.body, &mut var_types);
+    // DEPYLER-1007: Use full class-aware version to recognize:
+    // - Constructor calls like `p = Point(3, 4)` → p has type Type::Custom("Point")
+    // - Method calls like `dist_sq = p.distance_squared()` → dist_sq has type Int
+    build_var_type_env_full(
+        &func.body,
+        &mut var_types,
+        &ctx.function_return_types,
+        &ctx.class_method_return_types,
+    );
 
-    // Collect return types with the environment
+    // DEPYLER-1007: Collect return types with class method return type awareness
+    // This enables proper return type inference for expressions like `p.distance_squared()`
     let mut return_types = Vec::new();
-    collect_return_types_with_env(&func.body, &mut return_types, &var_types);
+    collect_return_types_with_class_methods(
+        &func.body,
+        &mut return_types,
+        &var_types,
+        &ctx.class_method_return_types,
+    );
 
     // Check for trailing expression (implicit return)
     if let Some(HirStmt::Expr(expr)) = func.body.last() {
-        let trailing_type = infer_expr_type_with_env(expr, &var_types);
+        let trailing_type = infer_expr_type_with_class_methods(
+            expr,
+            &var_types,
+            &ctx.class_method_return_types,
+        );
         if !matches!(trailing_type, Type::Unknown) {
             return_types.push(trailing_type);
         }
@@ -2114,6 +2137,27 @@ pub(crate) fn infer_return_type_from_body_with_params(
 
 /// Build a type environment by collecting variable assignments
 pub(crate) fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collections::HashMap<String, Type>) {
+    build_var_type_env_with_classes(stmts, var_types, &std::collections::HashMap::new());
+}
+
+/// DEPYLER-1007: Build type environment with class constructor and method type awareness
+/// This version recognizes class constructor calls and method calls, assigns the correct types
+pub(crate) fn build_var_type_env_with_classes(
+    stmts: &[HirStmt],
+    var_types: &mut std::collections::HashMap<String, Type>,
+    function_return_types: &std::collections::HashMap<String, Type>,
+) {
+    // Call the full version with empty class_method_return_types for backward compat
+    build_var_type_env_full(stmts, var_types, function_return_types, &std::collections::HashMap::new());
+}
+
+/// DEPYLER-1007: Full type environment builder with both constructor and method type awareness
+pub(crate) fn build_var_type_env_full(
+    stmts: &[HirStmt],
+    var_types: &mut std::collections::HashMap<String, Type>,
+    function_return_types: &std::collections::HashMap<String, Type>,
+    class_method_return_types: &std::collections::HashMap<(String, String), Type>,
+) {
     for stmt in stmts {
         match stmt {
             HirStmt::Assign {
@@ -2126,8 +2170,20 @@ pub(crate) fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collect
                 let value_type = if let Some(annot) = type_annotation {
                     annot.clone()
                 } else {
-                    // DEPYLER-0415: Use the environment we're building for lookups
-                    infer_expr_type_with_env(value, var_types)
+                    // DEPYLER-1007: Check if this is a class constructor call
+                    // e.g., `p = Point(3, 4)` → p should have type Type::Custom("Point")
+                    if let HirExpr::Call { func, .. } = value {
+                        if let Some(ctor_type) = function_return_types.get(func) {
+                            ctor_type.clone()
+                        } else {
+                            // Use class-aware type inference for method calls
+                            infer_expr_type_with_class_methods(value, var_types, class_method_return_types)
+                        }
+                    } else {
+                        // DEPYLER-1007: Use class-aware type inference for method calls
+                        // e.g., `dist_sq = p.distance_squared()` → dist_sq should have Int type
+                        infer_expr_type_with_class_methods(value, var_types, class_method_return_types)
+                    }
                 };
                 if !matches!(value_type, Type::Unknown) {
                     var_types.insert(name.clone(), value_type);
@@ -2138,13 +2194,13 @@ pub(crate) fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collect
                 else_body,
                 ..
             } => {
-                build_var_type_env(then_body, var_types);
+                build_var_type_env_full(then_body, var_types, function_return_types, class_method_return_types);
                 if let Some(else_stmts) = else_body {
-                    build_var_type_env(else_stmts, var_types);
+                    build_var_type_env_full(else_stmts, var_types, function_return_types, class_method_return_types);
                 }
             }
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
-                build_var_type_env(body, var_types);
+                build_var_type_env_full(body, var_types, function_return_types, class_method_return_types);
             }
             HirStmt::Try {
                 body,
@@ -2152,19 +2208,19 @@ pub(crate) fn build_var_type_env(stmts: &[HirStmt], var_types: &mut std::collect
                 orelse,
                 finalbody,
             } => {
-                build_var_type_env(body, var_types);
+                build_var_type_env_full(body, var_types, function_return_types, class_method_return_types);
                 for handler in handlers {
-                    build_var_type_env(&handler.body, var_types);
+                    build_var_type_env_full(&handler.body, var_types, function_return_types, class_method_return_types);
                 }
                 if let Some(orelse_stmts) = orelse {
-                    build_var_type_env(orelse_stmts, var_types);
+                    build_var_type_env_full(orelse_stmts, var_types, function_return_types, class_method_return_types);
                 }
                 if let Some(finally_stmts) = finalbody {
-                    build_var_type_env(finally_stmts, var_types);
+                    build_var_type_env_full(finally_stmts, var_types, function_return_types, class_method_return_types);
                 }
             }
             HirStmt::With { body, .. } => {
-                build_var_type_env(body, var_types);
+                build_var_type_env_full(body, var_types, function_return_types, class_method_return_types);
             }
             _ => {}
         }
@@ -2436,12 +2492,19 @@ pub(crate) fn infer_expr_type_with_env(
                 "readlines" => Type::List(Box::new(Type::String)),
                 // datetime methods that return other types
                 "timestamp" => Type::Float,
-                // DEPYLER-0592: Use fully qualified chrono types
-                "date" => Type::Custom("chrono::NaiveDate".to_string()),
-                "time" => Type::Custom("chrono::NaiveTime".to_string()),
+                // DEPYLER-0592/1025: Use std types (NASA mode default)
+                "date" => Type::Custom("std::time::SystemTime".to_string()),
+                "time" => Type::Custom("std::time::SystemTime".to_string()),
                 // DEPYLER-0750: Counter.most_common() returns list of (key, count) tuples
                 "most_common" => Type::List(Box::new(Type::Tuple(vec![Type::String, Type::Int]))),
-                _ => Type::Unknown,
+                _ => {
+                    // DEPYLER-1007: Check if this is a user-defined class method call
+                    // If object_type is Custom("ClassName"), look up (ClassName, method) in class_method_return_types
+                    // This enables return type inference for expressions like `p.distance_squared()`
+                    // Note: class_method_return_types needs to be passed via infer_expr_type_with_class_methods
+                    // For backward compatibility, this returns Unknown when no class info is available
+                    Type::Unknown
+                }
             }
         }
         // DEPYLER-0463: Handle Index with environment for serde_json::Value preservation
@@ -2565,6 +2628,88 @@ pub(crate) fn infer_expr_type_with_env(
 // NOTE: collect_return_types() removed - replaced by collect_return_types_with_env()
 // which provides better type inference using variable type environment (DEPYLER-0415)
 
+/// DEPYLER-1007: Infer expression type with access to both variable types and class method return types
+/// This enables return type inference for user-defined class method calls like `p.distance_squared()`
+pub(crate) fn infer_expr_type_with_class_methods(
+    expr: &HirExpr,
+    var_types: &std::collections::HashMap<String, Type>,
+    class_method_return_types: &std::collections::HashMap<(String, String), Type>,
+) -> Type {
+    match expr {
+        // DEPYLER-1007: Handle method calls on typed variables (e.g., p.distance_squared())
+        HirExpr::MethodCall { object, method, .. } => {
+            // First try to get the object's type from the environment
+            let object_type = infer_expr_type_with_class_methods(object, var_types, class_method_return_types);
+
+            // If object is a Custom type (user-defined class), look up the method return type
+            if let Type::Custom(class_name) = &object_type {
+                if let Some(ret_type) = class_method_return_types.get(&(class_name.clone(), method.clone())) {
+                    return ret_type.clone();
+                }
+            }
+
+            // Fall back to standard inference
+            infer_expr_type_with_env(expr, var_types)
+        }
+        // For all other expressions, delegate to standard inference
+        _ => infer_expr_type_with_env(expr, var_types),
+    }
+}
+
+/// DEPYLER-1007: Collect return types with class method return type awareness
+/// This version uses infer_expr_type_with_class_methods for proper class method return type inference
+pub(crate) fn collect_return_types_with_class_methods(
+    stmts: &[HirStmt],
+    types: &mut Vec<Type>,
+    var_types: &std::collections::HashMap<String, Type>,
+    class_method_return_types: &std::collections::HashMap<(String, String), Type>,
+) {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Return(Some(expr)) => {
+                types.push(infer_expr_type_with_class_methods(expr, var_types, class_method_return_types));
+            }
+            HirStmt::Return(None) => {
+                types.push(Type::None);
+            }
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
+                collect_return_types_with_class_methods(then_body, types, var_types, class_method_return_types);
+                if let Some(else_stmts) = else_body {
+                    collect_return_types_with_class_methods(else_stmts, types, var_types, class_method_return_types);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                collect_return_types_with_class_methods(body, types, var_types, class_method_return_types);
+            }
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
+                collect_return_types_with_class_methods(body, types, var_types, class_method_return_types);
+                for handler in handlers {
+                    collect_return_types_with_class_methods(&handler.body, types, var_types, class_method_return_types);
+                }
+                if let Some(orelse_stmts) = orelse {
+                    collect_return_types_with_class_methods(orelse_stmts, types, var_types, class_method_return_types);
+                }
+                if let Some(finally_stmts) = finalbody {
+                    collect_return_types_with_class_methods(finally_stmts, types, var_types, class_method_return_types);
+                }
+            }
+            HirStmt::With { body, .. } => {
+                collect_return_types_with_class_methods(body, types, var_types, class_method_return_types);
+            }
+            _ => {}
+        }
+    }
+}
+
 /// Simple expression type inference without context
 /// Handles common cases like literals, comparisons, and arithmetic
 /// DEPYLER-0600: Made pub(crate) for stmt_gen comprehension type tracking
@@ -2670,7 +2815,20 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))
             } else {
                 let key_type = infer_expr_type_simple(&pairs[0].0);
-                let val_type = infer_expr_type_simple(&pairs[0].1);
+                // DEPYLER-1051: Check ALL value types for heterogeneous dicts
+                // If any value has a different type, use Unknown (→ DepylerValue)
+                let first_val_type = infer_expr_type_simple(&pairs[0].1);
+                let is_homogeneous = pairs.iter().skip(1).all(|(_, v)| {
+                    let v_type = infer_expr_type_simple(v);
+                    // Unknown can coexist with any type (it will be inferred)
+                    matches!(v_type, Type::Unknown) || v_type == first_val_type
+                });
+                let val_type = if is_homogeneous {
+                    first_val_type
+                } else {
+                    // Mixed types → DepylerValue (via Unknown mapping)
+                    Type::Unknown
+                };
                 Type::Dict(Box::new(key_type), Box::new(val_type))
             }
         }

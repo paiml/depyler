@@ -1,14 +1,159 @@
-use clap::Parser;
-use rand as random;
-use serde_json;
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
 const STR__: &'static str = "=";
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[derive(Debug, Clone, PartialEq)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<String, DepylerValue>),
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(i) => write!(f, "{}", i),
+            DepylerValue::Float(fl) => write!(f, "{}", fl),
+            DepylerValue::Str(s) => write!(f, "{}", s),
+            DepylerValue::Bool(b) => write!(f, "{}", b),
+            DepylerValue::None => write!(f, "None"),
+            DepylerValue::List(l) => write!(f, "{:?}", l),
+            DepylerValue::Dict(d) => write!(f, "{:?}", d),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(s) => s.len(),
+            DepylerValue::List(l) => l.len(),
+            DepylerValue::Dict(d) => d.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(s) => s.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    pub fn insert(&mut self, key: String, value: DepylerValue) {
+        if let DepylerValue::Dict(d) = self {
+            d.insert(key, value);
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    pub fn get(&self, key: &str) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(d) = self {
+            d.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Check if dict contains key"]
+    pub fn contains_key(&self, key: &str) -> bool {
+        if let DepylerValue::Dict(d) = self {
+            d.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(s) => s.clone(),
+            DepylerValue::Int(i) => i.to_string(),
+            DepylerValue::Float(fl) => fl.to_string(),
+            DepylerValue::Bool(b) => b.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(l) => format!("{:?}", l),
+            DepylerValue::Dict(d) => format!("{:?}", d),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(i) => *i,
+            DepylerValue::Float(fl) => *fl as i64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(fl) => *fl,
+            DepylerValue::Int(i) => *i as f64,
+            DepylerValue::Bool(b) => {
+                if *b {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(s) => s.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(b) => *b,
+            DepylerValue::Int(i) => *i != 0,
+            DepylerValue::Float(fl) => *fl != 0.0,
+            DepylerValue::Str(s) => !s.is_empty(),
+            DepylerValue::List(l) => !l.is_empty(),
+            DepylerValue::Dict(d) => !d.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(l) => &l[idx],
+            _ => panic!("Cannot index non-list DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(d) => d.get(key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
 #[derive(Debug, Clone)]
 pub struct MarcoPoloGame {
     pub difficulty: String,
     pub verbose: bool,
     pub score: i32,
     pub attempts: i32,
-    pub difficulty_ranges: std::collections::HashMap<serde_json::Value, serde_json::Value>,
+    pub difficulty_ranges: std::collections::HashMap<String, DepylerValue>,
 }
 impl MarcoPoloGame {
     pub fn new(difficulty: String, verbose: bool) -> Self {
@@ -21,8 +166,11 @@ impl MarcoPoloGame {
         }
     }
     pub fn generate_number(&self) -> i32 {
-        let (min_val, max_val) = self.difficulty_ranges[self.difficulty as usize];
-        return random.randint(min_val, max_val);
+        let (min_val, max_val) = self.difficulty_ranges.clone()[self.difficulty.clone() as usize];
+        return {
+            use rand::Rng;
+            rand::thread_rng().gen_range(min_val..=max_val)
+        };
     }
     pub fn get_hint(&self, guess: i32, target: i32) -> String {
         if guess < target {
@@ -51,8 +199,8 @@ impl MarcoPoloGame {
     }
     pub fn play_round(&self) -> bool {
         let target = self.generate_number();
-        let (min_val, max_val) = self.difficulty_ranges[self.difficulty as usize];
-        if self.verbose {
+        let (min_val, max_val) = self.difficulty_ranges.clone()[self.difficulty.clone() as usize];
+        if self.verbose.clone() {
             println!("{}", format!("\n[DEBUG] Target number: {}", target));
         };
         println!(
@@ -82,11 +230,11 @@ impl MarcoPoloGame {
                             continue;
                         };
                         let round_attempts = round_attempts + 1;
-                        self.attempts = self.attempts + 1;
+                        self.attempts = self.attempts.clone() + 1;
                         if guess == target {
                             println!("{}", "🎉 Polo! You found it!".to_string());
-                            self.score = self.score + 1;
-                            if self.verbose {
+                            self.score = self.score.clone() + 1;
+                            if self.verbose.clone() {
                                 println!(
                                     "{}",
                                     format!("[DEBUG] Attempts this round: {}", round_attempts)
@@ -100,7 +248,7 @@ impl MarcoPoloGame {
                     }
                     Ok(())
                 })();
-                if let Err(_e) = _result {
+                if let Err(_) = _result {
                     {
                         println!("{}", "Please enter a valid number!".to_string());
                     }
@@ -109,10 +257,10 @@ impl MarcoPoloGame {
         }
     }
     pub fn calculate_performance(&self) -> String {
-        if self.attempts == 0 {
+        if self.attempts.clone() == 0 {
             return "No games played".to_string();
         };
-        let avg_attempts = self.attempts / (self.score).max(1);
+        let avg_attempts = self.attempts.clone() / (self.score.clone()).max(1);
         if avg_attempts <= 5 {
             return "🏆 Expert".to_string();
         } else {
@@ -128,24 +276,14 @@ impl MarcoPoloGame {
         };
     }
 }
-#[derive(clap::Parser)]
-#[command(about = "Marco Polo CLI - A number guessing game")]
-#[command(after_help = "Example: marco_polo --rounds 5 --difficulty medium")]
+#[derive(Default)]
 struct Args {
-    #[arg(short = 'r', long)]
-    #[arg(default_value = "3")]
     #[doc = "Number of rounds to play(default: 3)"]
     rounds: i32,
-    #[arg(short = 'd', long)]
-    #[arg(default_value = "medium")]
-    #[arg(value_parser = ["easy", "medium", "hard"])]
     #[doc = "Game difficulty(default: medium)"]
     difficulty: String,
-    #[arg(short = 'v', long)]
-    #[arg(action = clap::ArgAction::SetTrue)]
     #[doc = "Enable verbose output"]
     verbose: bool,
-    #[arg(long)]
     version: Option<String>,
 }
 #[doc = "Parse command line arguments."]
@@ -232,16 +370,22 @@ pub fn main() {
             args.rounds, args.difficulty
         )
     );
-    for round_num in 1..args.rounds + 1 {
+    for round_num in (1)..(args
+        .rounds
+        .iter()
+        .chain(1.iter())
+        .cloned()
+        .collect::<Vec<_>>())
+    {
         println!("{}", format!("\n{}", STR__.repeat(30 as usize)));
-        println!("{}", format!("Round {:?} of {}", round_num, args.rounds));
+        println!("{}", format!("Round {} of {}", round_num, args.rounds));
         println!("{}", format!("{}", STR__.repeat(30 as usize)));
         if !game.play_round() {
             println!("{}", "\nGame ended early.");
             break;
         }
     }
-    print_statistics(game, args.rounds);
+    print_statistics(&game, args.rounds);
     println!("{}", "\nThanks for playing! 👋");
     ()
 }

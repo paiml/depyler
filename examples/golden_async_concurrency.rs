@@ -1,5 +1,10 @@
-use serde_json;
-#[doc = "// NOTE: Map Python module 'asyncio'(tracked in DEPYLER-0424)"] use std::collections::HashMap;
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
+use std::collections::HashMap;
     use std::collections::HashSet;
     #[derive(Debug, Clone)] pub struct ZeroDivisionError {
     message: String ,
@@ -35,6 +40,93 @@ impl ValueError {
 }
 }
 }
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"] #[derive(Debug, Clone, PartialEq)] pub enum DepylerValue {
+    Int(i64), Float(f64), Str(String), Bool(bool), None, List(Vec<DepylerValue>), Dict(std::collections::HashMap<String, DepylerValue>) ,
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+    DepylerValue::Int(i) =>write!(f, "{}", i), DepylerValue::Float(fl) =>write!(f, "{}", fl), DepylerValue::Str(s) =>write!(f, "{}", s), DepylerValue::Bool(b) =>write!(f, "{}", b), DepylerValue::None =>write!(f, "None"), DepylerValue::List(l) =>write!(f, "{:?}", l), DepylerValue::Dict(d) =>write!(f, "{:?}", d) ,
+}
+}
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"] pub fn len(&self) -> usize {
+    match self {
+    DepylerValue::Str(s) =>s.len(), DepylerValue::List(l) =>l.len(), DepylerValue::Dict(d) =>d.len(), _ =>0 ,
+}
+} #[doc = r" Check if empty"] pub fn is_empty(&self) -> bool {
+    self.len() == 0
+}
+#[doc = r" Get chars iterator for string values"] pub fn chars(&self) -> std::str::Chars<'_>{
+    match self {
+    DepylerValue::Str(s) =>s.chars(), _ =>"".chars() ,
+}
+} #[doc = r" Insert into dict(mutates self if Dict variant)"] pub fn insert(&mut self, key: String, value: DepylerValue) {
+    if let DepylerValue::Dict(d) = self {
+    d.insert(key, value);
+   
+}
+} #[doc = r" Get value from dict by key"] pub fn get(&self, key: & str) -> Option<& DepylerValue>{
+    if let DepylerValue::Dict(d) = self {
+    d.get(key)
+}
+else {
+    Option::None
+}
+} #[doc = r" Check if dict contains key"] pub fn contains_key(&self, key: & str) -> bool {
+    if let DepylerValue::Dict(d) = self {
+    d.contains_key(key)
+}
+else {
+    false
+}
+} #[doc = r" Convert to String"] pub fn to_string(&self) -> String {
+    match self {
+    DepylerValue::Str(s) =>s.clone(), DepylerValue::Int(i) =>i.to_string(), DepylerValue::Float(fl) =>fl.to_string(), DepylerValue::Bool(b) =>b.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(l) =>format!("{:?}", l), DepylerValue::Dict(d) =>format!("{:?}", d) ,
+}
+} #[doc = r" Convert to i64"] pub fn to_i64(&self) -> i64 {
+    match self {
+    DepylerValue::Int(i) =>* i, DepylerValue::Float(fl) =>* fl as i64, DepylerValue::Bool(b) =>if * b {
+    1
+}
+else {
+    0
+}
+, DepylerValue::Str(s) =>s.parse().unwrap_or(0), _ =>0 ,
+}
+} #[doc = r" Convert to f64"] pub fn to_f64(&self) -> f64 {
+    match self {
+    DepylerValue::Float(fl) =>* fl, DepylerValue::Int(i) =>* i as f64, DepylerValue::Bool(b) =>if * b {
+    1.0
+}
+else {
+    0.0
+}
+, DepylerValue::Str(s) =>s.parse().unwrap_or(0.0), _ =>0.0 ,
+}
+} #[doc = r" Convert to bool"] pub fn to_bool(&self) -> bool {
+    match self {
+    DepylerValue::Bool(b) =>* b, DepylerValue::Int(i) =>* i!= 0, DepylerValue::Float(fl) =>* fl!= 0.0, DepylerValue::Str(s) =>! s.is_empty(), DepylerValue::List(l) =>! l.is_empty(), DepylerValue::Dict(d) =>! d.is_empty(), DepylerValue::None =>false ,
+}
+}
+}
+impl std::ops::Index<usize>for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, idx: usize) -> & Self::Output {
+    match self {
+    DepylerValue::List(l) =>& l [idx], _ =>panic!("Cannot index non-list DepylerValue") ,
+}
+}
+}
+impl std::ops::Index<& str>for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, key: & str) -> & Self::Output {
+    match self {
+    DepylerValue::Dict(d) =>d.get(key).unwrap_or(& DepylerValue::None), _ =>panic!("Cannot index non-dict DepylerValue with string key") ,
+}
+}
+}
 #[derive(Debug, Clone)] pub struct AsyncResource {
     pub name: String, pub is_open: bool, pub data: String
 }
@@ -44,13 +136,13 @@ impl AsyncResource {
     name, is_open: false, data: String::new()
 }
 } pub async fn __aenter__(&mut self) -> AsyncResource {
-    asyncio.sleep(0.001).await;
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
     self.is_open = true;
     return self;
    
 }
-pub async fn __aexit__(&mut self, exc_type: Option<r#type>, exc_val: Option<Box<dyn std::error::Error>>, exc_tb: Option<serde_json::Value>) -> bool {
-    asyncio.sleep(0.001).await;
+pub async fn __aexit__(&mut self, exc_type: Option<r#type>, exc_val: Option<Box<dyn std::error::Error>>, exc_tb: Option<DepylerValue>) -> bool {
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
     self.is_open = false;
     return false;
    
@@ -64,45 +156,45 @@ impl AsyncCounter {
     limit, current: 0
 }
 } pub async fn __anext__(&mut self) -> i32 {
-    if self.current>= self.limit {
+    if self.current.clone()>= self.limit.clone() {
     panic!("Exception: {}", StopAsyncIteration);
     };
-    asyncio.sleep(0.001).await;
-    let value = self.current;
-    self.current = self.current + 1;
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64)).await;
+    let value = self.current.clone();
+    self.current = self.current.clone() + 1;
     return value;
    
 }
-} #[doc = "Simplest async function.\n\n    Python: async def → Future[int]\n    Rust: async fn simple_async() -> i64\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn simple_async() -> i32 {
+} #[doc = "Simplest async function.\n\n    Python: async def → Future[int]\n    Rust: async fn simple_async() -> i64\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn simple_async() -> i32 {
     42
 }
-#[doc = "Async function that awaits another.\n\n    Python: await simple_async()\n    Rust: simple_async().await\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_with_await() -> i32 {
-    let result: i32 = simple_async().await;
+#[doc = "Async function that awaits another.\n\n    Python: await simple_async()\n    Rust: simple_async().await\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_with_await() -> i32 {
+    let result: i32 = simple_async();
     result * 2
 }
-#[doc = "Async function with sleep.\n\n    Python: await asyncio.sleep(seconds)\n    Rust: tokio::time::sleep(Duration::from_secs_f64(seconds)).await\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_with_sleep(seconds: f64) -> String {
-    asyncio.sleep(seconds).await;
+#[doc = "Async function with sleep.\n\n    Python: await asyncio.sleep(seconds)\n    Rust: std::thread::sleep(Duration::from_secs_f64(seconds)).await\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_with_sleep(seconds: f64) -> String {
+    std::thread::sleep(std::time::Duration::from_secs_f64(seconds as f64));
     format!("Slept for {} seconds", seconds)
 }
-#[doc = "First step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn compute_step1(x: i32) -> i32 {
-    asyncio.sleep(0.001).await;
+#[doc = "First step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn compute_step1(x: i32) -> i32 {
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
     x + 10
 }
-#[doc = "Second step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn compute_step2(x: i32) -> i32 {
-    asyncio.sleep(0.001).await;
+#[doc = "Second step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn compute_step2(x: i32) -> i32 {
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
     x * 2
 }
-#[doc = "Third step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn compute_step3(x: i32) -> i32 {
-    asyncio.sleep(0.001).await;
+#[doc = "Third step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn compute_step3(x: i32) -> i32 {
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
     x - 5
 }
-#[doc = "Chain of async function calls.\n\n    Python: Sequential awaits\n    Rust: Sequential .await calls\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_computation_chain (start: i32) -> i32 {
-    let step1: i32 = compute_step1(start).await;
-    let step2: i32 = compute_step2(step1).await;
-    let step3: i32 = compute_step3(step2).await;
+#[doc = "Chain of async function calls.\n\n    Python: Sequential awaits\n    Rust: Sequential .await calls\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_computation_chain (start: i32) -> i32 {
+    let step1: i32 = compute_step1(start);
+    let step2: i32 = compute_step2(step1);
+    let step3: i32 = compute_step3(step2);
     step3
 }
-#[doc = "Use async context manager.\n\n    Python: async with AsyncResource(name) as r\n    Rust: Async block with resource management\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn use_async_context_manager(name: String) -> String {
+#[doc = "Use async context manager.\n\n    Python: async with AsyncResource(name) as r\n    Rust: Async block with resource management\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn use_async_context_manager(name: & str) -> String {
     let mut result: String = "".to_string();
     let mut _context = AsyncResource::new(name);
     let resource = _context.__aenter__().await;
@@ -110,7 +202,7 @@ impl AsyncCounter {
     result = resource.data;
     result.to_string()
 }
-#[doc = "Nested async context managers.\n\n    Python: Nested async with statements\n    Rust: Nested async blocks\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn nested_async_context_managers(name1: String, name2: String) -> String {
+#[doc = "Nested async context managers.\n\n    Python: Nested async with statements\n    Rust: Nested async blocks\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn nested_async_context_managers<'a, 'b>(name1: & 'a str, name2: & 'b str) -> String {
     let mut results: Vec<String>= vec! [];
     let mut _context = AsyncResource::new(name1);
     let r1 = _context.__aenter__().await;
@@ -120,16 +212,18 @@ impl AsyncCounter {
     results.push(r2.name);
     results.join (",")
 }
-#[doc = "Use async for loop.\n\n    Python: async for x in AsyncCounter(limit)\n    Rust: while let Some(x) = counter.next().await\n    "] #[doc = " Depyler: verified panic-free"] pub async fn async_for_loop(limit: i32) -> i32 {
-    let mut total: i32 = 0;
+#[doc = "Use async for loop.\n\n    Python: async for x in AsyncCounter(limit)\n    Rust: while let Some(x) = counter.next().await\n    "] #[doc = " Depyler: verified panic-free"] pub fn async_for_loop(limit: i32) -> i32 {
+    let mut total: i32 = Default::default();
+    total = 0;
     for value in AsyncCounter::new(limit) {
     total = total + value;
    
 }
 total
 }
-#[doc = "Async for with early break.\n\n    Python: async for with break condition\n    Rust: break in while let loop\n    "] #[doc = " Depyler: verified panic-free"] pub async fn async_for_with_break(limit: i32, stop_at: i32) -> i32 {
-    let mut total: i32 = 0;
+#[doc = "Async for with early break.\n\n    Python: async for with break condition\n    Rust: break in while let loop\n    "] #[doc = " Depyler: verified panic-free"] pub fn async_for_with_break(limit: i32, stop_at: i32) -> i32 {
+    let mut total: i32 = Default::default();
+    total = 0;
     for value in AsyncCounter::new(limit) {
     if value>= stop_at {
     break;
@@ -140,54 +234,62 @@ total = total + value;
 }
 total
 }
-#[doc = "First concurrent task."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn task_a() -> String {
-    asyncio.sleep(0.01).await;
+#[doc = "First concurrent task."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn task_a() -> String {
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.01 as f64));
     "A".to_string()
 }
-#[doc = "Second concurrent task."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn task_b() -> String {
-    asyncio.sleep(0.01).await;
+#[doc = "Second concurrent task."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn task_b() -> String {
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.01 as f64));
     "B".to_string()
 }
-#[doc = "Third concurrent task."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn task_c() -> String {
-    asyncio.sleep(0.01).await;
+#[doc = "Third concurrent task."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn task_c() -> String {
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.01 as f64));
     "C".to_string()
 }
-#[doc = "Run tasks concurrently with gather.\n\n    Python: asyncio.gather(task_a(), task_b(), task_c())\n    Rust: tokio::join!(task_a(), task_b(), task_c())\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn concurrent_gather() -> Vec<String>{
-    let results: Vec<String>= asyncio.gather(task_a(), task_b(), task_c()).await;
+#[doc = "Run tasks concurrently with gather.\n\n    Python: asyncio.gather(task_a(), task_b(), task_c())\n    Rust: (task_a(), task_b(), task_c())\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn concurrent_gather() -> Vec<String>{
+    let results: Vec<String>= asyncio.gather(task_a(), task_b(), task_c());
     results
 }
-#[doc = "Process multiple values concurrently.\n\n    Python: asyncio.gather(*[process(v) for v in values])\n    Rust: futures::future::join_all or tokio::join!\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn concurrent_with_results(values: & Vec<i32>) -> Vec<i32>{
-    let tasks = values.as_slice().iter().copied().map(| v | process(v)).collect::<Vec<_>>();
-    let results: Vec<i32>= asyncio.gather(tasks).await;
+#[doc = "Process multiple values concurrently.\n\n    Python: asyncio.gather(*[process(v) for v in values])\n    Rust: futures::future::join_all or tokio::join!\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn concurrent_with_results(values: & Vec<i32>) -> Vec<i32>{
+    let tasks = values.as_slice().iter().cloned().map(| v | process(v)).collect::<Vec<_>>();
+    let results: Vec<i32>= asyncio.gather(tasks);
     results
 }
-#[doc = "Concurrent execution with timeout.\n\n    Python: asyncio.wait_for with timeout\n    Rust: tokio::time::timeout\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn concurrent_with_timeout(timeout_secs: f64) -> Option<String>{
-    let mut result;
-    {
-    result = asyncio.wait_for(slow_task()).await;
-    return Some(result.to_string());
+#[doc = "Concurrent execution with timeout.\n\n    Python: asyncio.wait_for with timeout\n    Rust: tokio::time::timeout\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn concurrent_with_timeout(timeout_secs: f64) -> Option<String>{
+    let mut result: String = Default::default();
+    match(|| -> Result<String, Box<dyn std::error::Error>>{
+    result = Some(slow_task());
+    return Ok(Some(result.to_string()));
+    })() {
+    Ok(_result) =>{
+    return _result;
+   
+}
+, Err(_) =>{
     return None;
    
 }
-} #[doc = "Synchronous helper function."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn sync_helper(x: i32) -> i32 {
+}
+}
+#[doc = "Synchronous helper function."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn sync_helper(x: i32) -> i32 {
     x * 3
 }
-#[doc = "Async function calling sync function.\n\n    Python: Call regular function from async\n    Rust: Direct call(sync functions can be called from async)\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_calling_sync(x: i32) -> i32 {
+#[doc = "Async function calling sync function.\n\n    Python: Call regular function from async\n    Rust: Direct call(sync functions can be called from async)\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_calling_sync(x: i32) -> i32 {
     let intermediate: i32 = sync_helper(x);
-    asyncio.sleep(0.001).await;
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
     intermediate + 1
 }
-#[doc = "Mix of async and sync operations.\n\n    Python: Sync operations between await points\n    Rust: Regular Rust code between .await points\n    "] #[doc = " Depyler: verified panic-free"] pub async fn async_with_sync_computation(values: & Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>{
-    let mut total: i32 = 0;
+#[doc = "Mix of async and sync operations.\n\n    Python: Sync operations between await points\n    Rust: Regular Rust code between .await points\n    "] #[doc = " Depyler: verified panic-free"] pub fn async_with_sync_computation(values: & Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>{
+    let mut total: i32 = Default::default();
+    total = 0;
     for v in values.iter().cloned() {
-    let doubled: i32 = v * 2;
+    let doubled: i32 = v * 2f64;
     total = total + doubled;
    
 }
-asyncio.sleep(0.001).await;
+std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
     let result: i32 = if! values.is_empty() {
-    {
-    let a = total;
+    { let a = total;
     let b = values.len() as i32;
     let q = a / b;
     let r = a % b;
@@ -208,24 +310,32 @@ else {
     0 };
     Ok(result)
 }
-#[doc = "Async function with try/except.\n\n    Python: try/except in async function\n    Rust: Result handling in async fn\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_with_exception_handling(x: i32) -> Result<i32, Box<dyn std::error::Error>>{
-    {
+#[doc = "Async function with try/except.\n\n    Python: try/except in async function\n    Rust: Result handling in async fn\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_with_exception_handling(x: i32) -> Result<i32, Box<dyn std::error::Error>>{
+    match(|| -> Result<i32, Box<dyn std::error::Error>>{
     if x<0 {
     panic!("{}", ValueError::new("Negative value".to_string()));
    
 }
-asyncio.sleep(0.001).await;
+std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
     return Ok(x * 2);
+    })() {
+    Ok(_result) =>{
+    return Ok(_result);
+   
+}
+, Err(_) =>{
     return Ok(- 1);
    
 }
-} #[doc = "Async function that re-raises exception.\n\n    Python: raise in async except block\n    Rust: return Err(e) in async fn\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_reraise_exception(x: i32) -> Result<i32, Box<dyn std::error::Error>>{
-    {
+}
+}
+#[doc = "Async function that re-raises exception.\n\n    Python: raise in async except block\n    Rust: return Err(e) in async fn\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_reraise_exception(x: i32) -> Result<i32, Box<dyn std::error::Error>>{
+    match(|| -> Result<i32, Box<dyn std::error::Error>>{
     if x == 0 {
     panic!("{}", ZeroDivisionError::new("Cannot be zero".to_string()));
    
 }
-asyncio.sleep(0.001).await;
+std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
     return Ok({ let a = 100;
     let b = x;
     let q = a / b;
@@ -242,11 +352,19 @@ else {
     q
 }
 });
+    })() {
+    Ok(_result) =>{
+    return Ok(_result);
+   
+}
+, Err(_) =>{
     return Err("Exception raised".into());
    
 }
-} #[doc = "Async function returning Optional.\n\n    Python: async def -> Optional[int]\n    Rust: async fn...-> Option<i64>\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_return_optional(x: i32) -> Option<i32>{
-    asyncio.sleep(0.001).await;
+}
+}
+#[doc = "Async function returning Optional.\n\n    Python: async def -> Optional[int]\n    Rust: async fn...-> Option<i64>\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_return_optional(x: i32) -> Option<i32>{
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
     let _cse_temp_0 = x<0;
     if _cse_temp_0 {
     return None;
@@ -254,53 +372,53 @@ else {
 }
 Some(x)
 }
-#[doc = "Async function returning tuple.\n\n    Python: async def -> Tuple[int, int]\n    Rust: async fn...-> (i64, i64)\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_return_tuple(a: i32, b: i32) -> (i32, i32) {
-    asyncio.sleep(0.001).await;
-  (a + b, a * b)
+#[doc = "Async function returning tuple.\n\n    Python: async def -> Tuple[int, int]\n    Rust: async fn...-> (i64, i64)\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_return_tuple(a: i32, b: i32) -> (i32, i32) {
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
+   (a + b, a * b)
 }
-#[doc = "Async function returning dict.\n\n    Python: async def -> Dict[str, int]\n    Rust: async fn...-> HashMap<String, i64>\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_return_dict(keys: Vec<String>) -> HashMap<String, i32>{
+#[doc = "Async function returning dict.\n\n    Python: async def -> Dict[str, int]\n    Rust: async fn...-> HashMap<String, i64>\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_return_dict(keys: & Vec<String>) -> HashMap<String, i32>{
     let mut result: std::collections::HashMap<String, i32>= {
-    let map = HashMap::new();
+    let map: HashMap<String, i32>= HashMap::new();
     map };
     for(i, key) in keys.iter().cloned().enumerate().map(|(i, x) |(i as i32, x)) {
     let i = i as i32;
-    asyncio.sleep(0.001).await;
-    result.insert(key.clone(), i);
+    std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
+    result.insert(key.to_string().clone(), i);
    
 }
 result
 }
-#[doc = "Async main function exercising all patterns."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub async fn async_main () -> i32 {
-    assert!(simple_async().await == 42);
-    assert!(async_with_await().await == 84);
-    assert!(async_computation_chain (5).await == 25);
-    let result: String = use_async_context_manager("test".to_string()).await;
-    assert!(result == "Data for test".to_string());
-    let nested: String = nested_async_context_managers("a".to_string(), "b".to_string()).await;
-    assert!(nested == "a,b".to_string());
-    assert!(async_for_loop(5).await == 10);
-    assert!(async_for_with_break(10, 3).await == 3);
-    let gather_results: Vec<String>= concurrent_gather().await;
-    assert!(gather_results.into_iter().collect::<HashSet<_>>() == {
-    let mut set = HashSet::new();
+#[doc = "Async main function exercising all patterns."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_main () -> i32 {
+    assert_eq!(simple_async(), 42);
+    assert_eq!(async_with_await(), 84);
+    assert_eq!(async_computation_chain (5), 25);
+    let result: String = use_async_context_manager("test".to_string());
+    assert_eq!(result, "Data for test".to_string());
+    let nested: String = nested_async_context_managers("a".to_string(), "b".to_string());
+    assert_eq!(nested, "a,b".to_string());
+    assert_eq!(async_for_loop(5), 10);
+    assert_eq!(async_for_with_break(10, 3), 3);
+    let gather_results: Vec<String>= concurrent_gather();
+    assert_eq!(gather_results.into_iter().collect::<std::collections::HashSet<_>>(), {
+    let mut set = std::collections::HashSet::new();
     set.insert("A".to_string());
     set.insert("B".to_string());
     set.insert("C".to_string());
     set });
-    let concurrent_results: Vec<i32>= concurrent_with_results(& vec! [1, 2, 3]).await;
-    assert!(concurrent_results == vec! [2, 4, 6]);
-    let timeout_result: Option<String>= concurrent_with_timeout(0.001).await;
+    let concurrent_results: Vec<i32>= concurrent_with_results(& vec! [1, 2, 3]);
+    assert_eq!(concurrent_results, vec! [2, 4, 6]);
+    let timeout_result: Option<String>= concurrent_with_timeout(0.001);
     assert!(timeout_result.is_none());
-    assert!(async_calling_sync(10).await == 31);
-    assert!(async_with_sync_computation(& vec! [2, 4, 6]).await == 8);
-    assert!(async_with_exception_handling(5).await == 10);
-    assert!(async_with_exception_handling(- 5).await =  = (- 1));
-    assert!(async_return_optional(5).await == 5);
-    assert!(async_return_optional(- 5).await.is_none());
-    let tuple_result :(i32, i32) = async_return_tuple(3, 4).await;
-    assert!(tuple_result =  = (7, 12));
-    let dict_result: std::collections::HashMap<String, i32>= async_return_dict(vec! ["a".to_string().to_string(), "b".to_string().to_string(), "c".to_string().to_string()]).await;
-    assert!(dict_result == {
+    assert_eq!(async_calling_sync(10), 31);
+    assert_eq!(async_with_sync_computation(& vec! [2, 4, 6]), 8);
+    assert_eq!(async_with_exception_handling(5), 10);
+    assert_eq!(async_with_exception_handling(- 5), - 1);
+    assert_eq!(async_return_optional(5), 5);
+    assert!(async_return_optional(- 5).is_none());
+    let tuple_result :(i32, i32) = async_return_tuple(3, 4);
+    assert_eq!(tuple_result ,(7, 12));
+    let dict_result: std::collections::HashMap<String, i32>= async_return_dict(& vec! ["a".to_string().to_string(), "b".to_string().to_string(), "c".to_string().to_string()]);
+    assert_eq!(dict_result, {
     let mut map = HashMap::new();
     map.insert("a".to_string().to_string(), 0);
     map.insert("b".to_string().to_string(), 1);
@@ -309,7 +427,7 @@ result
     0
 }
 #[doc = "Entry point that runs the async main."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn main () {
-    let result: i32 = asyncio.run(async_main ());
+    let result: i32 = async_main ();
     let _ = result;
    
 }

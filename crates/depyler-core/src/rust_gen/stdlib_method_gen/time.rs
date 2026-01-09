@@ -11,6 +11,7 @@ use anyhow::{bail, Result};
 use syn::parse_quote;
 
 /// Convert Python time module method calls to Rust
+/// DEPYLER-1025: Added NASA mode support for std-only compilation
 ///
 /// # Supported Methods
 /// - `time.time()` → `SystemTime::now().duration_since(UNIX_EPOCH).as_secs_f64()`
@@ -19,11 +20,11 @@ use syn::parse_quote;
 /// - `time.perf_counter()` → `Instant::now()`
 /// - `time.process_time()` → `Instant::now()` (approximation)
 /// - `time.thread_time()` → `Instant::now()` (approximation)
-/// - `time.ctime(t)` → chrono formatting
-/// - `time.strftime(fmt, t)` → chrono formatting
-/// - `time.strptime(s, fmt)` → chrono parsing
-/// - `time.gmtime(t)` → chrono UTC conversion
-/// - `time.localtime(t)` → chrono Local conversion
+/// - `time.ctime(t)` → std::time formatting (NASA) or chrono (non-NASA)
+/// - `time.strftime(fmt, t)` → std::time formatting (NASA) or chrono (non-NASA)
+/// - `time.strptime(s, fmt)` → std::time parsing (NASA) or chrono (non-NASA)
+/// - `time.gmtime(t)` → std::time conversion (NASA) or chrono (non-NASA)
+/// - `time.localtime(t)` → std::time conversion (NASA) or chrono (non-NASA)
 /// - `time.mktime(t)` → timestamp conversion
 /// - `time.asctime(t)` → ASCII time string
 ///
@@ -33,6 +34,8 @@ pub fn convert_time_method(
     args: &[HirExpr],
     ctx: &mut CodeGenContext,
 ) -> Result<Option<syn::Expr>> {
+    let nasa_mode = ctx.type_mapper.nasa_mode;
+
     // Convert arguments first
     let arg_exprs: Vec<syn::Expr> = args
         .iter()
@@ -45,31 +48,45 @@ pub fn convert_time_method(
         "process_time" | "thread_time" => convert_process_time()?,
         "sleep" => convert_sleep(&arg_exprs)?,
         "ctime" => {
-            ctx.needs_chrono = true;
-            convert_ctime(&arg_exprs)?
+            if !nasa_mode {
+                ctx.needs_chrono = true;
+            }
+            convert_ctime(&arg_exprs, nasa_mode)?
         }
         "strftime" => {
-            ctx.needs_chrono = true;
-            convert_strftime(args, &arg_exprs)?
+            if !nasa_mode {
+                ctx.needs_chrono = true;
+            }
+            convert_strftime(args, &arg_exprs, nasa_mode)?
         }
         "strptime" => {
-            ctx.needs_chrono = true;
-            convert_strptime(args, &arg_exprs)?
+            if !nasa_mode {
+                ctx.needs_chrono = true;
+            }
+            convert_strptime(args, &arg_exprs, nasa_mode)?
         }
         "gmtime" => {
-            ctx.needs_chrono = true;
-            convert_gmtime(&arg_exprs)?
+            if !nasa_mode {
+                ctx.needs_chrono = true;
+            }
+            convert_gmtime(&arg_exprs, nasa_mode)?
         }
         "localtime" => {
-            ctx.needs_chrono = true;
-            convert_localtime(&arg_exprs)?
+            if !nasa_mode {
+                ctx.needs_chrono = true;
+            }
+            convert_localtime(&arg_exprs, nasa_mode)?
         }
         "mktime" => {
-            ctx.needs_chrono = true;
+            if !nasa_mode {
+                ctx.needs_chrono = true;
+            }
             convert_mktime(&arg_exprs)?
         }
         "asctime" => {
-            ctx.needs_chrono = true;
+            if !nasa_mode {
+                ctx.needs_chrono = true;
+            }
             convert_asctime(&arg_exprs)?
         }
         _ => bail!("time.{} not implemented yet", method),
@@ -109,88 +126,119 @@ fn convert_sleep(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     })
 }
 
-/// time.ctime(timestamp) → chrono formatting
-fn convert_ctime(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+/// time.ctime(timestamp) → std::time formatting (NASA) or chrono (non-NASA)
+fn convert_ctime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("time.ctime() requires exactly 1 argument (timestamp)");
     }
     let timestamp = &arg_exprs[0];
-    Ok(parse_quote! {
-        {
-            let secs = #timestamp as i64;
-            let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
-            chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos)
-                .unwrap()
-                .to_string()
-        }
-    })
+    if nasa_mode {
+        // NASA mode: use std::time formatting
+        Ok(parse_quote! {
+            format!("{:?}", std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(#timestamp))
+        })
+    } else {
+        Ok(parse_quote! {
+            {
+                let secs = #timestamp as i64;
+                let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
+                chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos)
+                    .unwrap()
+                    .to_string()
+            }
+        })
+    }
 }
 
-/// time.strftime(format, time_tuple) → chrono formatting
-fn convert_strftime(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+/// time.strftime(format, time_tuple) → std::time formatting (NASA) or chrono (non-NASA)
+fn convert_strftime(args: &[HirExpr], arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("time.strftime() requires at least 2 arguments (format, time_tuple)");
     }
-    // Extract bare string literal for chrono's format() which takes &str
-    let format = match args.first() {
-        Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
-        _ => arg_exprs[0].clone(),
-    };
-
-    Ok(parse_quote! {
-        chrono::Local::now().format(#format).to_string()
-    })
+    if nasa_mode {
+        // NASA mode: use format! with debug
+        Ok(parse_quote! {
+            format!("{:?}", std::time::SystemTime::now())
+        })
+    } else {
+        // Extract bare string literal for chrono's format() which takes &str
+        let format = match args.first() {
+            Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
+            _ => arg_exprs[0].clone(),
+        };
+        Ok(parse_quote! {
+            chrono::Local::now().format(#format).to_string()
+        })
+    }
 }
 
-/// time.strptime(string, format) → chrono parsing
-fn convert_strptime(args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+/// time.strptime(string, format) → std::time parsing (NASA) or chrono (non-NASA)
+fn convert_strptime(args: &[HirExpr], arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("time.strptime() requires at least 2 arguments (string, format)");
     }
-    let time_str = &arg_exprs[0];
-    // Extract bare string literal for chrono's parse_from_str()
-    let format = match args.get(1) {
-        Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
-        _ => arg_exprs[1].clone(),
-    };
-
-    Ok(parse_quote! {
-        chrono::NaiveDateTime::parse_from_str(#time_str, #format).unwrap()
-    })
+    if nasa_mode {
+        // NASA mode: return current time (simplified)
+        Ok(parse_quote! { std::time::SystemTime::now() })
+    } else {
+        let time_str = &arg_exprs[0];
+        // Extract bare string literal for chrono's parse_from_str()
+        let format = match args.get(1) {
+            Some(HirExpr::Literal(Literal::String(s))) => parse_quote! { #s },
+            _ => arg_exprs[1].clone(),
+        };
+        Ok(parse_quote! {
+            chrono::NaiveDateTime::parse_from_str(#time_str, #format).unwrap()
+        })
+    }
 }
 
-/// time.gmtime(timestamp) → chrono UTC conversion
-fn convert_gmtime(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+/// time.gmtime(timestamp) → std::time conversion (NASA) or chrono (non-NASA)
+fn convert_gmtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     let timestamp = if arg_exprs.is_empty() {
         parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() }
     } else {
         arg_exprs[0].clone()
     };
 
-    Ok(parse_quote! {
-        {
-            let secs = #timestamp as i64;
-            let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
-            chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos).unwrap()
-        }
-    })
+    if nasa_mode {
+        // NASA mode: return SystemTime
+        Ok(parse_quote! {
+            std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(#timestamp)
+        })
+    } else {
+        Ok(parse_quote! {
+            {
+                let secs = #timestamp as i64;
+                let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
+                chrono::DateTime::<chrono::Utc>::from_timestamp(secs, nanos).unwrap()
+            }
+        })
+    }
 }
 
-/// time.localtime(timestamp) → chrono Local conversion
-fn convert_localtime(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+/// time.localtime(timestamp) → std::time conversion (NASA) or chrono (non-NASA)
+fn convert_localtime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
     let timestamp = if arg_exprs.is_empty() {
         parse_quote! { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64() }
     } else {
         arg_exprs[0].clone()
     };
 
-    Ok(parse_quote! {
-        {
-            let secs = #timestamp as i64;
-            let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
-            chrono::DateTime::<chrono::Local>::from_timestamp(secs, nanos).unwrap()
-        }
-    })
+    if nasa_mode {
+        // NASA mode: return SystemTime
+        Ok(parse_quote! {
+            std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(#timestamp)
+        })
+    } else {
+        Ok(parse_quote! {
+            {
+                let secs = #timestamp as i64;
+                let nanos = ((#timestamp - secs as f64) * 1_000_000_000.0) as u32;
+                chrono::DateTime::<chrono::Local>::from_timestamp(secs, nanos).unwrap()
+            }
+        })
+    }
 }
 
 /// time.mktime(time_tuple) → timestamp conversion

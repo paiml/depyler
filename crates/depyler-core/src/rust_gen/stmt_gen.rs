@@ -26,8 +26,9 @@ use crate::rust_gen::truthiness_helpers::{
 }; // DEPYLER-COVERAGE-95: Use centralized truthiness helpers
 use crate::rust_gen::var_analysis::{
     extract_toplevel_assigned_symbols, extract_walrus_from_condition,
-    find_var_position_in_tuple, is_var_reassigned_in_stmt, is_var_used_as_dict_key_in_stmt,
-    is_var_used_in_stmt, needs_boxed_dyn_write,
+    find_var_position_in_tuple, is_var_reassigned_in_stmt,
+    is_var_used_as_dict_key_in_stmt, is_var_used_in_stmt,
+    needs_boxed_dyn_write,
 }; // DEPYLER-0023: Centralized var analysis
 use crate::rust_gen::stmt_gen_complex::{try_generate_subcommand_match, is_subcommand_check}; // DEPYLER-COVERAGE-95: Split from stmt_gen
 use crate::trace_decision;
@@ -2396,6 +2397,34 @@ pub(crate) fn codegen_for_stmt(
                 }
             }
         }
+
+        // DEPYLER-1045: Handle string method calls that return String
+        // When iterating over text.lower(), text.upper(), text.strip(), etc.,
+        // we need to add .chars() because these methods return String which is not an iterator
+        if let HirExpr::MethodCall { method, .. } = iter {
+            // List of Python string methods that return strings (need .chars() for iteration)
+            let is_string_returning_method = matches!(
+                method.as_str(),
+                "lower"
+                    | "upper"
+                    | "strip"
+                    | "lstrip"
+                    | "rstrip"
+                    | "capitalize"
+                    | "title"
+                    | "swapcase"
+                    | "casefold"
+                    | "replace"
+            );
+            if is_string_returning_method {
+                iter_expr = parse_quote! { #iter_expr.chars() };
+
+                // Track the loop variable as char iterator
+                if let AssignTarget::Symbol(loop_var_name) = target {
+                    ctx.char_iter_vars.insert(loop_var_name.clone());
+                }
+            }
+        }
     }
 
     // DEPYLER-0607: Handle JSON Value iteration for dict index and method chains
@@ -2577,16 +2606,22 @@ pub(crate) fn codegen_for_stmt(
     let is_range_iteration = matches!(iter, HirExpr::Call { func, .. } if func == "range");
     // DEPYLER-0744: Check if iterable is actually a String type, not just any variable
     // This prevents List[int] from being treated as string iteration
-    let is_string_iteration = if let HirExpr::Var(var_name) = iter {
-        ctx.var_types
-            .get(var_name)
-            .is_some_and(|t| matches!(t, Type::String))
+    // DEPYLER-1045: Use char_iter_vars to detect string iteration (populated when .chars() is added)
+    // This is more reliable than just checking var_types since it catches name-based heuristics too
+    let is_string_iteration = if let AssignTarget::Symbol(loop_var_name) = target {
+        ctx.char_iter_vars.contains(loop_var_name)
     } else {
         false
     };
     // Only consider string iteration if we're iterating over a STRING variable (not list/dict/etc.)
+    // DEPYLER-1045: Only convert if loop variable is used as a dict key
+    // Dictionary keys need String type for HashMap<String, _>
+    // NOTE: We removed function arg and comparison detection because:
+    // - Most functions (like ord()) work fine with char
+    // - Char methods (is_alphabetic, is_uppercase) don't exist on String
+    // - Comparisons can be handled by converting the comparison, not the variable
     let needs_char_to_string = !is_range_iteration && is_string_iteration && if let AssignTarget::Symbol(loop_var_name) = target {
-        // Check if the loop variable is used as a dictionary key in the body
+        // Only convert to String if used as dictionary key
         body.iter().any(|stmt| is_var_used_as_dict_key_in_stmt(loop_var_name, stmt))
     } else {
         false
@@ -2678,6 +2713,30 @@ pub(crate) fn codegen_for_stmt(
                 #(#body_stmts)*
             }
         })
+    }
+}
+
+/// DEPYLER-1042: Get the value type for a subscript expression
+/// For `d["key"]` where `d: Dict[K, V]`, returns `Some(V)`
+/// Handles nested subscripts: `d["k1"]["k2"]` returns innermost value type
+fn get_subscript_value_type(expr: &HirExpr, ctx: &CodeGenContext) -> Option<Type> {
+    match expr {
+        HirExpr::Var(name) => {
+            // Look up the variable's type and extract dict value type
+            if let Some(Type::Dict(_, val_type)) = ctx.var_types.get(name) {
+                return Some(val_type.as_ref().clone());
+            }
+            None
+        }
+        HirExpr::Index { base, .. } => {
+            // Recursively get the value type, then extract its dict value type
+            // For d["k1"]["k2"], first get value type of d["k1"], then its value type
+            if let Type::Dict(_, inner_val_type) = get_subscript_value_type(base.as_ref(), ctx)? {
+                return Some(inner_val_type.as_ref().clone());
+            }
+            None
+        }
+        _ => None,
     }
 }
 
@@ -3071,7 +3130,10 @@ pub(crate) fn codegen_assign_stmt(
         // DEPYLER-0709: Also track Tuple types for correct field access (.0, .1)
         if let Some(annot_type) = type_annotation {
             match annot_type {
-                Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_) => {
+                // DEPYLER-1045: Added Type::String to enable auto-borrow in function calls
+                // Without this, `text: str = "hello world"` wouldn't be tracked,
+                // causing `capitalize_words(text)` to miss the `&` borrow.
+                Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_) | Type::String => {
                     ctx.var_types.insert(var_name.clone(), annot_type.clone());
                 }
                 _ => {}
@@ -3513,6 +3575,19 @@ pub(crate) fn codegen_assign_stmt(
     let prev_assign_type = ctx.current_assign_type.take();
     ctx.current_assign_type = type_annotation.clone();
 
+    // DEPYLER-1042: For subscript assignments, propagate inner type from base dict
+    // Pattern: d["level1"] = {} where d: Dict[str, Dict[str, str]]
+    // The empty dict should get type Dict[str, str], not default HashMap<String, String>
+    if ctx.current_assign_type.is_none() {
+        if let AssignTarget::Index { base, .. } = target {
+            // Extract the value type from the base expression's dict type
+            let base_value_type = get_subscript_value_type(base.as_ref(), ctx);
+            if base_value_type.is_some() {
+                ctx.current_assign_type = base_value_type;
+            }
+        }
+    }
+
     let mut value_expr = value.to_rust_expr(ctx)?;
 
     // DEPYLER-0727: Restore previous assignment type
@@ -3672,15 +3747,22 @@ pub(crate) fn codegen_assign_stmt(
     let value_expr = if ctx.type_mapper.nasa_mode {
         if let AssignTarget::Index { base, .. } = target {
             if matches!(value, HirExpr::Dict(_)) {
-                // DEPYLER-1027/1034: Handle dict value assignment in NASA mode
+                // DEPYLER-1027/1034/1042: Handle dict value assignment in NASA mode
                 // Only DON'T wrap if we KNOW the outer dict expects Dict values (not String)
-                let has_dict_value_type = if let HirExpr::Var(base_name) = &**base {
-                    ctx.var_types.get(base_name).is_some_and(|t| {
-                        // Only skip wrapping if value type is explicitly Dict
-                        matches!(t, Type::Dict(_, val_type) if matches!(val_type.as_ref(), Type::Dict(_, _)))
-                    })
-                } else {
-                    false
+                // DEPYLER-1042: Use get_subscript_value_type for nested subscripts
+                let has_dict_value_type = {
+                    // Get the value type from the subscript chain
+                    if let Some(val_type) = get_subscript_value_type(base.as_ref(), ctx) {
+                        // Value type is Dict → target expects Dict, skip wrapping
+                        matches!(val_type, Type::Dict(_, _))
+                    } else if let HirExpr::Var(base_name) = &**base {
+                        // Fallback: direct Var check for simple cases
+                        ctx.var_types.get(base_name).is_some_and(|t| {
+                            matches!(t, Type::Dict(_, val_type) if matches!(val_type.as_ref(), Type::Dict(_, _)))
+                        })
+                    } else {
+                        false
+                    }
                 };
 
                 if has_dict_value_type {
@@ -4120,6 +4202,47 @@ pub(crate) fn codegen_assign_index(
         }
     } else {
         value_expr
+    };
+
+    // DEPYLER-1050: In NASA mode, wrap values in DepylerValue when function returns HashMap<String, DepylerValue>
+    // This handles subscript assignments like `d["key"] = "value"` where d is returned as heterogeneous dict
+    let final_value_expr = if ctx.type_mapper.nasa_mode {
+        // Check if function return type requires DepylerValue
+        let return_needs_depyler_value = if let Some(Type::Dict(_, val_type)) = &ctx.current_return_type {
+            matches!(val_type.as_ref(), Type::Unknown)
+        } else {
+            false
+        };
+
+        // Check if target variable requires DepylerValue
+        let var_needs_depyler_value = if let HirExpr::Var(base_name) = base {
+            if let Some(Type::Dict(_, val_type)) = ctx.var_types.get(base_name) {
+                matches!(val_type.as_ref(), Type::Unknown)
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if return_needs_depyler_value || var_needs_depyler_value {
+            ctx.needs_depyler_value_enum = true;
+            // Wrap based on value type
+            let value_str = quote! { #final_value_expr }.to_string();
+            if value_str.contains("DepylerValue::") {
+                // Already wrapped
+                final_value_expr
+            } else if value_str.contains(".to_string()") || value_str.starts_with('"') {
+                parse_quote! { DepylerValue::Str(#final_value_expr) }
+            } else {
+                // Default to Str wrapping with format for unknown types
+                parse_quote! { DepylerValue::Str(format!("{:?}", #final_value_expr)) }
+            }
+        } else {
+            final_value_expr
+        }
+    } else {
+        final_value_expr
     };
 
     // DEPYLER-0567/DEPYLER-1027/DEPYLER-1029: Convert keys based on dict's key type

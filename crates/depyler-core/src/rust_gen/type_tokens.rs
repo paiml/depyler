@@ -5,11 +5,15 @@
 //!
 //! DEPYLER-0759: Type mapping consistency
 //! DEPYLER-0770: Callable type handling
+//! DEPYLER-1022: NASA mode support (uses String instead of serde_json::Value)
 
 use crate::hir::Type;
 use quote::quote;
 
-/// Convert HIR Type to Rust proc_macro2::TokenStream
+/// Convert HIR Type to Rust proc_macro2::TokenStream (NASA mode - default)
+///
+/// DEPYLER-1022: Default to NASA mode which uses String instead of serde_json::Value
+/// for object/Any types. This ensures single-shot compilation without external crates.
 ///
 /// Maps Python types to their Rust equivalents:
 /// - Int -> i32
@@ -21,9 +25,18 @@ use quote::quote;
 /// - Dict(K, V) -> HashMap<K, V>
 /// - Tuple(T...) -> (T, ...)
 /// - Optional(T) -> Option<T>
-/// - Custom types with special mappings (object, Any, bytearray, etc.)
+/// - Custom types with special mappings (object, Any -> String in NASA mode)
 /// - Callable[[T...], R] -> &dyn Fn(T...) -> R
 pub fn hir_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
+    // DEPYLER-1022: Default to NASA mode (true) for single-shot compilation
+    hir_type_to_tokens_with_mode(ty, true)
+}
+
+/// Convert HIR Type to Rust proc_macro2::TokenStream with explicit NASA mode flag
+///
+/// When `nasa_mode` is true, uses String instead of serde_json::Value for object/Any types.
+/// This allows code to compile with `rustc --crate-type lib` without external dependencies.
+pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::TokenStream {
     match ty {
         // DEPYLER-0759: Use i32 to match all other type mappers in the codebase
         Type::Int => quote! { i32 },
@@ -33,27 +46,36 @@ pub fn hir_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
         Type::None => quote! { () },
         Type::Unknown => quote! { () },
         Type::List(elem) => {
-            let elem_ty = hir_type_to_tokens(elem);
+            let elem_ty = hir_type_to_tokens_with_mode(elem, nasa_mode);
             quote! { Vec<#elem_ty> }
         }
         Type::Dict(key, value) => {
-            let key_ty = hir_type_to_tokens(key);
-            let val_ty = hir_type_to_tokens(value);
+            let key_ty = hir_type_to_tokens_with_mode(key, nasa_mode);
+            let val_ty = hir_type_to_tokens_with_mode(value, nasa_mode);
             quote! { std::collections::HashMap<#key_ty, #val_ty> }
         }
         Type::Tuple(types) => {
-            let elem_types: Vec<_> = types.iter().map(hir_type_to_tokens).collect();
+            let elem_types: Vec<_> = types
+                .iter()
+                .map(|t| hir_type_to_tokens_with_mode(t, nasa_mode))
+                .collect();
             quote! { (#(#elem_types),*) }
         }
         Type::Optional(inner) => {
-            let inner_ty = hir_type_to_tokens(inner);
+            let inner_ty = hir_type_to_tokens_with_mode(inner, nasa_mode);
             quote! { Option<#inner_ty> }
         }
         Type::Custom(name) => {
             // DEPYLER-169: Map special Python types to their Rust equivalents
+            // DEPYLER-1022: In NASA mode, use String instead of serde_json::Value
             let mapped_name = match name.as_str() {
-                "object" | "builtins.object" => "serde_json::Value",
-                "Any" | "typing.Any" | "any" => "serde_json::Value",
+                "object" | "builtins.object" | "Any" | "typing.Any" | "any" => {
+                    if nasa_mode {
+                        "String"
+                    } else {
+                        "serde_json::Value"
+                    }
+                }
                 "bytearray" => "Vec<u8>",
                 "bytes" => "Vec<u8>",
                 "memoryview" => "&[u8]",
@@ -68,12 +90,15 @@ pub fn hir_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
         // DEPYLER-0770: Handle Callable[[T1, T2], R] -> &dyn Fn(T1, T2) -> R
         Type::Generic { base, params } if base == "Callable" && params.len() == 2 => {
             let param_types: Vec<proc_macro2::TokenStream> = match &params[0] {
-                Type::Tuple(inner) => inner.iter().map(hir_type_to_tokens).collect(),
-                Type::List(inner) => vec![hir_type_to_tokens(inner)],
+                Type::Tuple(inner) => inner
+                    .iter()
+                    .map(|t| hir_type_to_tokens_with_mode(t, nasa_mode))
+                    .collect(),
+                Type::List(inner) => vec![hir_type_to_tokens_with_mode(inner, nasa_mode)],
                 Type::None | Type::Unknown => vec![],
-                _ => vec![hir_type_to_tokens(&params[0])],
+                _ => vec![hir_type_to_tokens_with_mode(&params[0], nasa_mode)],
             };
-            let return_type = hir_type_to_tokens(&params[1]);
+            let return_type = hir_type_to_tokens_with_mode(&params[1], nasa_mode);
 
             if matches!(params[1], Type::None) {
                 quote! { &dyn Fn(#(#param_types),*) }
@@ -91,7 +116,10 @@ pub fn hir_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
             if params.is_empty() {
                 quote! { #base_ident }
             } else {
-                let param_tokens: Vec<_> = params.iter().map(hir_type_to_tokens).collect();
+                let param_tokens: Vec<_> = params
+                    .iter()
+                    .map(|t| hir_type_to_tokens_with_mode(t, nasa_mode))
+                    .collect();
                 quote! { #base_ident<#(#param_tokens),*> }
             }
         }
@@ -300,33 +328,52 @@ mod tests {
 
     // ============ Custom Types - Special Mappings ============
 
+    // ============ Custom Types - NASA Mode (Default) ============
+    // DEPYLER-1022: NASA mode uses String instead of serde_json::Value
+
     #[test]
-    fn test_custom_object() {
+    fn test_custom_object_nasa_mode() {
+        // NASA mode (default) maps object to String
         let result = hir_type_to_tokens(&Type::Custom("object".to_string()));
-        assert_eq!(tokens_to_string(result), "serde_json::Value");
+        assert_eq!(tokens_to_string(result), "String");
     }
 
     #[test]
-    fn test_custom_builtins_object() {
+    fn test_custom_builtins_object_nasa_mode() {
         let result = hir_type_to_tokens(&Type::Custom("builtins.object".to_string()));
-        assert_eq!(tokens_to_string(result), "serde_json::Value");
+        assert_eq!(tokens_to_string(result), "String");
     }
 
     #[test]
-    fn test_custom_any() {
+    fn test_custom_any_nasa_mode() {
         let result = hir_type_to_tokens(&Type::Custom("Any".to_string()));
-        assert_eq!(tokens_to_string(result), "serde_json::Value");
+        assert_eq!(tokens_to_string(result), "String");
     }
 
     #[test]
-    fn test_custom_typing_any() {
+    fn test_custom_typing_any_nasa_mode() {
         let result = hir_type_to_tokens(&Type::Custom("typing.Any".to_string()));
+        assert_eq!(tokens_to_string(result), "String");
+    }
+
+    #[test]
+    fn test_custom_lowercase_any_nasa_mode() {
+        let result = hir_type_to_tokens(&Type::Custom("any".to_string()));
+        assert_eq!(tokens_to_string(result), "String");
+    }
+
+    // ============ Non-NASA Mode Tests ============
+    // Verify serde_json::Value is used when NASA mode is disabled
+
+    #[test]
+    fn test_custom_object_non_nasa() {
+        let result = hir_type_to_tokens_with_mode(&Type::Custom("object".to_string()), false);
         assert_eq!(tokens_to_string(result), "serde_json::Value");
     }
 
     #[test]
-    fn test_custom_lowercase_any() {
-        let result = hir_type_to_tokens(&Type::Custom("any".to_string()));
+    fn test_custom_any_non_nasa() {
+        let result = hir_type_to_tokens_with_mode(&Type::Custom("Any".to_string()), false);
         assert_eq!(tokens_to_string(result), "serde_json::Value");
     }
 

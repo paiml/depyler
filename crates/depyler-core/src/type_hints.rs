@@ -930,24 +930,21 @@ impl TypeHintProvider {
 
     fn analyze_indexing(&mut self, base: &HirExpr, index: &HirExpr) -> Result<()> {
         if let HirExpr::Var(var) = base {
-            // DEPYLER-0552: Check if index is a string literal (dict access)
-            // or an integer/variable (list access)
+            // DEPYLER-1040b: Check ONLY for actual evidence (string literal or fstring)
+            // NOT variable names - per directive: "If you write if var_name.contains(...), you are fired"
+            // Removed: DEPYLER-0552 heuristics based on variable naming patterns
             let is_string_key = matches!(
                 index,
                 HirExpr::Literal(crate::hir::Literal::String(_)) | HirExpr::FString { .. }
             );
-            // Also check for common string key variable names
-            let is_likely_string_key = if let HirExpr::Var(idx_name) = index {
-                idx_name == "key" || idx_name == "k" || idx_name.ends_with("_key")
-            } else {
-                false
-            };
 
-            if is_string_key || is_likely_string_key {
+            if is_string_key {
                 // Dict access: info["path"] → HashMap<String, Value>
+                // Only when we have 100% proof (string literal index)
                 self.record_usage_pattern(var, UsagePattern::DictAccess);
             } else {
-                // List access: items[0] → Vec<T>
+                // DEPYLER-1040b: Without proof, assume DepylerValue (container)
+                // "If you have 99% proof, use DepylerValue"
                 self.record_usage_pattern(var, UsagePattern::Container);
             }
         }
@@ -1428,6 +1425,7 @@ impl TypeHintProvider {
     }
 
     // DEPYLER-0740: Infer dict type, handling None values
+    // DEPYLER-1051: Check for heterogeneous value types → DepylerValue
     fn infer_dict_expr_type(&self, items: &[(HirExpr, HirExpr)]) -> Type {
         if items.is_empty() {
             return Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown));
@@ -1441,16 +1439,33 @@ impl TypeHintProvider {
         // Get key type from first item
         let key_type = self.infer_expr_type(&items[0].0);
 
-        // Get value type from first non-None value
-        let base_val_type = items
+        // DEPYLER-1051: Collect all non-None value types to check for heterogeneity
+        let value_types: Vec<Type> = items
             .iter()
             .filter(|(_, v)| !matches!(v, HirExpr::Literal(crate::hir::Literal::None)))
             .map(|(_, v)| self.infer_expr_type(v))
-            .find(|t| !matches!(t, Type::None | Type::Unknown))
-            .unwrap_or_else(|| self.infer_expr_type(&items[0].1));
+            .filter(|t| !matches!(t, Type::None | Type::Unknown))
+            .collect();
 
-        // If any value is None, wrap value type in Option
-        let val_type = if has_none_value && !matches!(base_val_type, Type::None) {
+        // Check if all value types are the same (homogeneous)
+        let is_homogeneous = if value_types.is_empty() {
+            true
+        } else {
+            let first = &value_types[0];
+            value_types.iter().skip(1).all(|t| t == first)
+        };
+
+        let base_val_type = if !is_homogeneous {
+            // DEPYLER-1051: Mixed types → Unknown (maps to DepylerValue)
+            Type::Unknown
+        } else if let Some(first) = value_types.first() {
+            first.clone()
+        } else {
+            self.infer_expr_type(&items[0].1)
+        };
+
+        // If any value is None, wrap value type in Option (only for homogeneous types)
+        let val_type = if has_none_value && !matches!(base_val_type, Type::None | Type::Unknown) {
             Type::Optional(Box::new(base_val_type))
         } else {
             base_val_type
