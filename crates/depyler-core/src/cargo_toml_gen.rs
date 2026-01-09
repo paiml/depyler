@@ -99,6 +99,11 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
         deps.push(Dependency::new("sha2", "0.10"));
     }
 
+    // DEPYLER-1001: sha1 crate for hashlib.sha1()
+    if ctx.needs_sha1 {
+        deps.push(Dependency::new("sha1", "0.10"));
+    }
+
     // DEPYLER-0558: digest crate for DynDigest trait (type-erased hashers)
     if ctx.needs_digest {
         deps.push(Dependency::new("digest", "0.10"));
@@ -154,6 +159,16 @@ pub fn extract_dependencies(ctx: &CodeGenContext) -> Vec<Dependency> {
     // DEPYLER-0829: glob crate for Path.glob() and Path.rglob()
     if ctx.needs_glob {
         deps.push(Dependency::new("glob", "0.3"));
+    }
+
+    // DEPYLER-1001: statrs crate for Python statistics module
+    if ctx.needs_statrs {
+        deps.push(Dependency::new("statrs", "0.16"));
+    }
+
+    // DEPYLER-1001: url crate for Python urllib.parse module
+    if ctx.needs_url {
+        deps.push(Dependency::new("url", "2.5"));
     }
 
     // DEPYLER-0384: Check if ArgumentParser was used (needs clap)
@@ -426,6 +441,7 @@ mod tests {
             needs_num_rational: false,
             needs_base64: false,
             needs_md5: true,
+            needs_sha1: false,
             needs_sha2: false,
             needs_sha3: false,
             needs_blake2: false,
@@ -439,9 +455,12 @@ mod tests {
             needs_io_write: false,  // DEPYLER-0458
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_lazy_lock: false, // DEPYLER-1016: std::sync::LazyLock for NASA mode
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             numpy_vars: std::collections::HashSet::new(), // DEPYLER-0932
             needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
+            needs_statrs: false,    // DEPYLER-1001: statrs crate for statistics module
+            needs_url: false,       // DEPYLER-1001: url crate for urllib.parse module
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![std::collections::HashSet::new()],
             current_function_can_fail: false,
@@ -470,6 +489,7 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             property_methods: std::collections::HashSet::new(), // DEPYLER-0737: Track @property methods
             function_return_types: std::collections::HashMap::new(),
+            class_method_return_types: std::collections::HashMap::new(), // DEPYLER-1007
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: std::collections::HashSet::new(),
             iterator_vars: std::collections::HashSet::new(), // DEPYLER-0520: Track iterator vars
@@ -518,6 +538,8 @@ mod tests {
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
+            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -572,6 +594,7 @@ mod tests {
             needs_num_rational: true,
             needs_base64: true,
             needs_md5: true,
+            needs_sha1: true,
             needs_sha2: true,
             needs_sha3: true,
             needs_blake2: true,
@@ -587,9 +610,12 @@ mod tests {
             needs_io_write: false,  // DEPYLER-0458
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_lazy_lock: false, // DEPYLER-1016: std::sync::LazyLock for NASA mode
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             numpy_vars: HashSet::new(), // DEPYLER-0932
             needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
+            needs_statrs: false,    // DEPYLER-1001: statrs crate for statistics module
+            needs_url: false,       // DEPYLER-1001: url crate for urllib.parse module
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -618,6 +644,7 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             property_methods: HashSet::new(), // DEPYLER-0737: Track @property methods
             function_return_types: std::collections::HashMap::new(),
+            class_method_return_types: std::collections::HashMap::new(), // DEPYLER-1007
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
@@ -666,6 +693,8 @@ mod tests {
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
+            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
         };
 
         let deps = extract_dependencies(&ctx);
@@ -719,6 +748,7 @@ mod tests {
             needs_num_rational: false,
             needs_base64: false,
             needs_md5: false,
+            needs_sha1: false,
             needs_sha2: false,
             needs_sha3: false,
             needs_blake2: false,
@@ -732,9 +762,12 @@ mod tests {
             needs_io_write: false,  // DEPYLER-0458
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_lazy_lock: false, // DEPYLER-1016: std::sync::LazyLock for NASA mode
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             numpy_vars: HashSet::new(), // DEPYLER-0932
             needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
+            needs_statrs: false,    // DEPYLER-1001: statrs crate for statistics module
+            needs_url: false,       // DEPYLER-1001: url crate for urllib.parse module
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -763,6 +796,7 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             property_methods: HashSet::new(), // DEPYLER-0737: Track @property methods
             function_return_types: std::collections::HashMap::new(),
+            class_method_return_types: std::collections::HashMap::new(), // DEPYLER-1007
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
@@ -811,6 +845,8 @@ mod tests {
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
+            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
         };
 
         let deps = extract_dependencies(&ctx);
@@ -1111,6 +1147,7 @@ mod tests {
             needs_num_rational: false,
             needs_base64: false,
             needs_md5: false,
+            needs_sha1: false,
             needs_sha2: false,
             needs_sha3: false,
             needs_blake2: false,
@@ -1124,9 +1161,12 @@ mod tests {
             needs_io_write: false,  // DEPYLER-0458
             needs_bufread: false,   // DEPYLER-0522
             needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_lazy_lock: false, // DEPYLER-1016: std::sync::LazyLock for NASA mode
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             numpy_vars: HashSet::new(), // DEPYLER-0932
             needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
+            needs_statrs: false,    // DEPYLER-1001: statrs crate for statistics module
+            needs_url: false,       // DEPYLER-1001: url crate for urllib.parse module
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
@@ -1155,6 +1195,7 @@ mod tests {
             mutating_methods: std::collections::HashMap::new(),
             property_methods: HashSet::new(), // DEPYLER-0737: Track @property methods
             function_return_types: std::collections::HashMap::new(),
+            class_method_return_types: std::collections::HashMap::new(), // DEPYLER-1007
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
@@ -1203,6 +1244,8 @@ mod tests {
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
+            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
         };
 
         let deps = extract_dependencies(&ctx);
