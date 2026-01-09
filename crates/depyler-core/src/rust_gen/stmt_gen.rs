@@ -3588,6 +3588,25 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
+    // DEPYLER-1045: For simple variable assignments, look up the target's type from var_types
+    // Pattern: memo = {} where memo: Dict[int, int] (from parameter)
+    // The empty dict should get type Dict[int, int], not default HashMap<String, String>
+    if ctx.current_assign_type.is_none() {
+        if let AssignTarget::Symbol(name) = target {
+            if let Some(var_type) = ctx.var_types.get(name.as_str()) {
+                // Handle Option<Dict<K, V>> by extracting the inner Dict type
+                // Parameter types may be wrapped in Optional from Optional annotations
+                if let Type::Optional(inner) = var_type {
+                    if let Type::Dict(_, _) = inner.as_ref() {
+                        ctx.current_assign_type = Some(inner.as_ref().clone());
+                    }
+                } else if let Type::Dict(_, _) = var_type {
+                    ctx.current_assign_type = Some(var_type.clone());
+                }
+            }
+        }
+    }
+
     let mut value_expr = value.to_rust_expr(ctx)?;
 
     // DEPYLER-0727: Restore previous assignment type
