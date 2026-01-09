@@ -7071,6 +7071,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
         // Parameters named 'fn', 'match', 'type', etc. need to use raw identifier syntax
+        // NOTE (DEPYLER-1061): Lambda parameters are intentionally NOT typed with DepylerValue.
+        // Adding DepylerValue type annotations breaks call sites that pass raw literals.
+        // E0282 "type annotations needed" errors occur for lambdas stored in variables
+        // that use iterator methods like .iter(). This is a known limitation requiring
+        // bidirectional type inference (from usage context to lambda definition).
         let param_pats: Vec<syn::Pat> = params
             .iter()
             .map(|p| {
