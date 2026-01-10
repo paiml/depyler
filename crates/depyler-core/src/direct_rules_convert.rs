@@ -3528,6 +3528,76 @@ impl<'a> ExprConverter<'a> {
             }
         }
 
+        // DEPYLER-1049: Handle time module method calls in class methods
+        // time.time() → std::time::SystemTime::now().duration_since(UNIX_EPOCH).as_secs_f64()
+        // time.sleep(s) → std::thread::sleep(Duration::from_secs_f64(s))
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "time" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                match method {
+                    "time" if arg_exprs.is_empty() => {
+                        return Ok(parse_quote! {
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs_f64()
+                        });
+                    }
+                    "sleep" if arg_exprs.len() == 1 => {
+                        let secs = &arg_exprs[0];
+                        return Ok(parse_quote! {
+                            std::thread::sleep(std::time::Duration::from_secs_f64(#secs))
+                        });
+                    }
+                    "monotonic" | "perf_counter" if arg_exprs.is_empty() => {
+                        return Ok(parse_quote! { std::time::Instant::now() });
+                    }
+                    "process_time" | "thread_time" if arg_exprs.is_empty() => {
+                        // Approximation using Instant
+                        return Ok(parse_quote! { std::time::Instant::now() });
+                    }
+                    "ctime" => {
+                        // NASA mode: return formatted string stub
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! {
+                                format!("{:?}", std::time::SystemTime::now())
+                            });
+                        } else {
+                            let timestamp = &arg_exprs[0];
+                            return Ok(parse_quote! {
+                                format!("{:?}", std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(#timestamp))
+                            });
+                        }
+                    }
+                    "gmtime" | "localtime" => {
+                        // NASA mode: return SystemTime stub
+                        if arg_exprs.is_empty() {
+                            return Ok(parse_quote! { std::time::SystemTime::now() });
+                        } else {
+                            let timestamp = &arg_exprs[0];
+                            return Ok(parse_quote! {
+                                std::time::UNIX_EPOCH + std::time::Duration::from_secs_f64(#timestamp)
+                            });
+                        }
+                    }
+                    "mktime" if !arg_exprs.is_empty() => {
+                        let _t = &arg_exprs[0];
+                        // NASA mode: return current timestamp as stub
+                        return Ok(parse_quote! {
+                            std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs_f64()
+                        });
+                    }
+                    _ => {} // Fall through for unhandled time methods
+                }
+            }
+        }
+
         // DEPYLER-0200: Handle os.path.* and os.environ.* method calls in class methods
         // Pattern: os.path.exists(path), os.environ.get("KEY") etc.
         if let HirExpr::Attribute { value, attr } = object {
@@ -5992,6 +6062,78 @@ mod tests {
         ];
         let result = convert_block(&stmts, &type_mapper);
         assert!(result.is_ok());
+    }
+
+    // =========================================================================
+    // DEPYLER-1049: time module method calls in class methods
+    // =========================================================================
+
+    #[test]
+    fn test_DEPYLER_1049_time_time_in_class_method() {
+        // Test that time.time() is converted to std::time in class methods
+        let type_mapper = TypeMapper::default();
+        let converter = ExprConverter::new(&type_mapper);
+
+        // time.time() method call
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("time".to_string())),
+            method: "time".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+
+        let result = converter.convert(&expr).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+
+        // Should contain SystemTime and UNIX_EPOCH
+        assert!(result_str.contains("SystemTime"), "Should use std::time::SystemTime");
+        assert!(result_str.contains("UNIX_EPOCH"), "Should use UNIX_EPOCH");
+        assert!(result_str.contains("as_secs_f64"), "Should return f64 seconds");
+    }
+
+    #[test]
+    fn test_DEPYLER_1049_time_sleep_in_class_method() {
+        // Test that time.sleep(n) is converted to std::thread::sleep
+        let type_mapper = TypeMapper::default();
+        let converter = ExprConverter::new(&type_mapper);
+
+        // time.sleep(1.5) method call
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("time".to_string())),
+            method: "sleep".to_string(),
+            args: vec![HirExpr::Literal(Literal::Float(1.5))],
+            kwargs: vec![],
+        };
+
+        let result = converter.convert(&expr).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+
+        // Should contain thread::sleep and Duration
+        assert!(result_str.contains("thread") && result_str.contains("sleep"),
+            "Should use std::thread::sleep");
+        assert!(result_str.contains("Duration"), "Should use Duration");
+    }
+
+    #[test]
+    fn test_DEPYLER_1049_time_monotonic_in_class_method() {
+        // Test that time.monotonic() is converted to std::time::Instant
+        let type_mapper = TypeMapper::default();
+        let converter = ExprConverter::new(&type_mapper);
+
+        // time.monotonic() method call
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("time".to_string())),
+            method: "monotonic".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        };
+
+        let result = converter.convert(&expr).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+
+        // Should contain Instant::now
+        assert!(result_str.contains("Instant"), "Should use std::time::Instant");
+        assert!(result_str.contains("now"), "Should call now()");
     }
 }
 
