@@ -2512,14 +2512,50 @@ pub(crate) fn codegen_for_stmt(
                 _ => None,
             })
         }
-        HirExpr::Call { func, args, .. } if func == "enumerate" => {
-            // enumerate(items) yields (int, elem_type)
-            if let Some(HirExpr::Var(var_name)) = args.first() {
-                ctx.var_types.get(var_name).and_then(|t| match t {
-                    Type::List(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
-                    Type::Set(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+        // DEPYLER-1051: Handle direct iteration over self.field
+        // Look up field type in class_field_types to get element type
+        HirExpr::Attribute { value, attr, .. } => {
+            if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                ctx.class_field_types.get(attr).and_then(|t| match t {
+                    Type::List(elem_t) => Some(*elem_t.clone()),
+                    Type::Set(elem_t) => Some(*elem_t.clone()),
+                    Type::Dict(key_t, _) => Some(*key_t.clone()),
                     _ => None,
                 })
+            } else {
+                None
+            }
+        }
+        HirExpr::Call { func, args, .. } if func == "enumerate" => {
+            // enumerate(items) yields (int, elem_type)
+            if let Some(arg) = args.first() {
+                match arg {
+                    HirExpr::Var(var_name) => {
+                        ctx.var_types.get(var_name).and_then(|t| match t {
+                            Type::List(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+                            Type::Set(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+                            _ => None,
+                        })
+                    }
+                    // DEPYLER-1051: Handle enumerate(self.field) for struct field iteration
+                    // Look up field type in class_field_types to get element type
+                    HirExpr::Attribute { value, attr, .. } => {
+                        if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                            ctx.class_field_types.get(attr).and_then(|t| match t {
+                                Type::List(elem_t) => {
+                                    Some(Type::Tuple(vec![Type::Int, *elem_t.clone()]))
+                                }
+                                Type::Set(elem_t) => {
+                                    Some(Type::Tuple(vec![Type::Int, *elem_t.clone()]))
+                                }
+                                _ => None,
+                            })
+                        } else {
+                            None
+                        }
+                    }
+                    _ => None,
+                }
             } else {
                 None
             }
