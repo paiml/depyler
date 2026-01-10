@@ -2077,6 +2077,8 @@ pub fn generate_rust_file(
                 None,
                 List(Vec<DepylerValue>),
                 Dict(std::collections::HashMap<DepylerValue, DepylerValue>),
+                /// DEPYLER-1050: Tuple variant for Python tuple support
+                Tuple(Vec<DepylerValue>),
             }
 
             // DEPYLER-1040b: Implement PartialEq manually (f64 doesn't derive Eq)
@@ -2091,6 +2093,7 @@ pub fn generate_rust_file(
                         (DepylerValue::None, DepylerValue::None) => true,
                         (DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) => _dv_a == _dv_b,
                         (DepylerValue::Dict(_dv_a), DepylerValue::Dict(_dv_b)) => _dv_a == _dv_b,
+                        (DepylerValue::Tuple(_dv_a), DepylerValue::Tuple(_dv_b)) => _dv_a == _dv_b,
                         _ => false,
                     }
                 }
@@ -2117,6 +2120,7 @@ pub fn generate_rust_file(
                             // We hash the length as a fallback (matches Python's TypeError)
                             0u8.hash(state);
                         }
+                        DepylerValue::Tuple(_dv_tuple) => _dv_tuple.hash(state),
                     }
                 }
             }
@@ -2132,6 +2136,7 @@ pub fn generate_rust_file(
                         DepylerValue::None => write!(_dv_fmt, "None"),
                         DepylerValue::List(_dv_list) => write!(_dv_fmt, "{:?}", _dv_list),
                         DepylerValue::Dict(_dv_dict) => write!(_dv_fmt, "{:?}", _dv_dict),
+                        DepylerValue::Tuple(_dv_tuple) => write!(_dv_fmt, "{:?}", _dv_tuple),
                     }
                 }
             }
@@ -2144,6 +2149,7 @@ pub fn generate_rust_file(
                         DepylerValue::Str(_dv_str) => _dv_str.len(),
                         DepylerValue::List(_dv_list) => _dv_list.len(),
                         DepylerValue::Dict(_dv_dict) => _dv_dict.len(),
+                        DepylerValue::Tuple(_dv_tuple) => _dv_tuple.len(),
                         _ => 0,
                     }
                 }
@@ -2256,6 +2262,7 @@ pub fn generate_rust_file(
                         DepylerValue::None => "None".to_string(),
                         DepylerValue::List(_dv_list) => format!("{:?}", _dv_list),
                         DepylerValue::Dict(_dv_dict) => format!("{:?}", _dv_dict),
+                        DepylerValue::Tuple(_dv_tuple) => format!("{:?}", _dv_tuple),
                     }
                 }
 
@@ -2290,6 +2297,7 @@ pub fn generate_rust_file(
                         DepylerValue::Str(_dv_str) => !_dv_str.is_empty(),
                         DepylerValue::List(_dv_list) => !_dv_list.is_empty(),
                         DepylerValue::Dict(_dv_dict) => !_dv_dict.is_empty(),
+                        DepylerValue::Tuple(_dv_tuple) => !_dv_tuple.is_empty(),
                         DepylerValue::None => false,
                     }
                 }
@@ -2300,7 +2308,8 @@ pub fn generate_rust_file(
                 fn index(&self, _dv_idx: usize) -> &Self::Output {
                     match self {
                         DepylerValue::List(_dv_list) => &_dv_list[_dv_idx],
-                        _ => panic!("Cannot index non-list DepylerValue"),
+                        DepylerValue::Tuple(_dv_tuple) => &_dv_tuple[_dv_idx],
+                        _ => panic!("Cannot index non-list/tuple DepylerValue"),
                     }
                 }
             }
@@ -2335,6 +2344,7 @@ pub fn generate_rust_file(
                     match self {
                         DepylerValue::Dict(_dv_dict) => _dv_dict.get(&DepylerValue::Int(_dv_key)).unwrap_or(&DepylerValue::None),
                         DepylerValue::List(_dv_list) => &_dv_list[_dv_key as usize],
+                        DepylerValue::Tuple(_dv_tuple) => &_dv_tuple[_dv_key as usize],
                         _ => panic!("Cannot index DepylerValue with integer"),
                     }
                 }
@@ -2713,6 +2723,7 @@ pub fn generate_rust_file(
                 fn into_iter(self) -> Self::IntoIter {
                     match self {
                         DepylerValue::List(_dv_list) => _dv_list.into_iter(),
+                        DepylerValue::Tuple(_dv_tuple) => _dv_tuple.into_iter(),
                         DepylerValue::Dict(_dv_dict) => _dv_dict.into_keys().collect::<Vec<_>>().into_iter(),
                         DepylerValue::Str(_dv_str) => {
                             _dv_str.chars().map(|_dv_c| DepylerValue::Str(_dv_c.to_string())).collect::<Vec<_>>().into_iter()
@@ -2730,6 +2741,7 @@ pub fn generate_rust_file(
                 fn into_iter(self) -> Self::IntoIter {
                     match self {
                         DepylerValue::List(_dv_list) => _dv_list.iter().cloned().collect::<Vec<_>>().into_iter(),
+                        DepylerValue::Tuple(_dv_tuple) => _dv_tuple.iter().cloned().collect::<Vec<_>>().into_iter(),
                         DepylerValue::Dict(_dv_dict) => _dv_dict.keys().cloned().collect::<Vec<_>>().into_iter(),
                         DepylerValue::Str(_dv_str) => {
                             _dv_str.chars().map(|_dv_c| DepylerValue::Str(_dv_c.to_string())).collect::<Vec<_>>().into_iter()
