@@ -1000,8 +1000,60 @@ pub(crate) fn convert_method_stmt(
                 _ => bail!("Unsupported for loop target type"),
             };
 
+            // DEPYLER-1051: Extract loop variable type from iterator for type coercion
+            // When iterating over self.field where field has type List[T], the loop variable has type T
+            let mut loop_param_types = param_types.clone();
+            let elem_type = match iter {
+                HirExpr::Attribute { value, attr, .. } => {
+                    // Check if this is self.field pattern
+                    if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                        class_field_types.get(attr).and_then(|t| match t {
+                            Type::List(elem_t) => Some(*elem_t.clone()),
+                            Type::Set(elem_t) => Some(*elem_t.clone()),
+                            _ => None,
+                        })
+                    } else {
+                        None
+                    }
+                }
+                HirExpr::Call { func, args, .. } if func == "enumerate" => {
+                    // enumerate(self.field) - extract element type and pair with Int
+                    if let Some(HirExpr::Attribute { value, attr, .. }) = args.first() {
+                        if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                            class_field_types.get(attr).and_then(|t| match t {
+                                Type::List(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+                                Type::Set(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+                                _ => None,
+                            })
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                _ => None,
+            };
+
+            // Add loop variable types to param_types for body processing
+            if let Some(elem_type) = elem_type {
+                match (target, &elem_type) {
+                    (AssignTarget::Symbol(name), _) => {
+                        loop_param_types.insert(name.clone(), elem_type);
+                    }
+                    (AssignTarget::Tuple(targets), Type::Tuple(elem_types)) if targets.len() == elem_types.len() => {
+                        for (t, typ) in targets.iter().zip(elem_types.iter()) {
+                            if let AssignTarget::Symbol(s) = t {
+                                loop_param_types.insert(s.clone(), typ.clone());
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+
             let iter_expr = convert_expr_with_class_fields(iter, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
-            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
+            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, &loop_param_types, class_field_types, ret_type)?;
 
             let for_expr = parse_quote! {
                 for #target_pattern in #iter_expr #body_block
@@ -1663,12 +1715,29 @@ impl<'a> ExprConverter<'a> {
                 let right_is_float = self.expr_returns_float_direct(right);
 
                 // DEPYLER-0828: Handle float/int comparisons with proper coercion
+                // DEPYLER-1051: Helper to extract integer value from literal or negative literal
+                fn extract_int_value(expr: &HirExpr) -> Option<i64> {
+                    match expr {
+                        HirExpr::Literal(Literal::Int(n)) => Some(*n),
+                        // Handle -N which is represented as Unary(Neg, Literal(Int(N)))
+                        HirExpr::Unary { op: UnaryOp::Neg, operand } => {
+                            if let HirExpr::Literal(Literal::Int(n)) = operand.as_ref() {
+                                Some(-*n)
+                            } else {
+                                None
+                            }
+                        }
+                        _ => None,
+                    }
+                }
+
                 // If left is float and right is integer (literal or variable), convert right to float
                 if left_is_float && !right_is_float {
-                    if let HirExpr::Literal(Literal::Int(n)) = right {
+                    if let Some(n) = extract_int_value(right) {
                         // Integer literal: convert at compile time
-                        let float_val = *n as f64;
-                        return Ok(parse_quote! { #safe_left #rust_op #float_val });
+                        // DEPYLER-1051: Use explicit f64 suffix to avoid tokenization issues with negative numbers
+                        let float_lit = syn::LitFloat::new(&format!("{}f64", n), proc_macro2::Span::call_site());
+                        return Ok(parse_quote! { #safe_left #rust_op #float_lit });
                     }
                     // Integer variable or expression: cast to f64 at runtime
                     return Ok(parse_quote! { #safe_left #rust_op (#safe_right as f64) });
@@ -1676,10 +1745,11 @@ impl<'a> ExprConverter<'a> {
 
                 // If right is float and left is integer (literal or variable), convert left to float
                 if right_is_float && !left_is_float {
-                    if let HirExpr::Literal(Literal::Int(n)) = left {
+                    if let Some(n) = extract_int_value(left) {
                         // Integer literal: convert at compile time
-                        let float_val = *n as f64;
-                        return Ok(parse_quote! { #float_val #rust_op #safe_right });
+                        // DEPYLER-1051: Use explicit f64 suffix to avoid tokenization issues with negative numbers
+                        let float_lit = syn::LitFloat::new(&format!("{}f64", n), proc_macro2::Span::call_site());
+                        return Ok(parse_quote! { #float_lit #rust_op #safe_right });
                     }
                     // Integer variable or expression: cast to f64 at runtime
                     return Ok(parse_quote! { (#safe_left as f64) #rust_op #safe_right });

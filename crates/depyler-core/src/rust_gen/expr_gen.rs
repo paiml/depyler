@@ -797,17 +797,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0339: Construct syn::ExprBinary directly instead of using parse_quote!
                 // parse_quote! doesn't properly handle interpolated syn::BinOp values
 
+                // DEPYLER-1051: Coerce int to float for comparison operators
+                // Python allows comparing float with int: `x == 0` where x is float
+                // Rust requires same types: `x == 0.0`
+                let is_comparison = matches!(
+                    op,
+                    BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
+                );
+                let (left_coerced, right_coerced) = if is_comparison {
+                    (
+                        self.coerce_int_to_float_if_needed(left_expr, left, right),
+                        self.coerce_int_to_float_if_needed(right_expr, right, left),
+                    )
+                } else {
+                    (left_expr, right_expr)
+                };
+
                 // DEPYLER-0576: Parenthesize right side when it's a unary negation
                 // Prevents "<-" tokenization issue: x < -20.0 becomes x<- 20.0 without parens
                 let right_expr_final = if matches!(right, HirExpr::Unary { op: UnaryOp::Neg, .. }) {
-                    parse_quote! { (#right_expr) }
+                    parse_quote! { (#right_coerced) }
                 } else {
-                    right_expr
+                    right_coerced
                 };
 
                 Ok(syn::Expr::Binary(syn::ExprBinary {
                     attrs: vec![],
-                    left: Box::new(left_expr),
+                    left: Box::new(left_coerced),
                     op: rust_op,
                     right: Box::new(right_expr_final),
                 }))
