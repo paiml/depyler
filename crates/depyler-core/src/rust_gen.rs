@@ -2963,6 +2963,9 @@ pub fn generate_rust_file(
         formatted_code = formatted_code.replace("#[derive(clap :: Parser)]\n", "#[derive(Default)]\n");
         formatted_code = formatted_code.replace("#[derive(clap::Parser, Debug)]\n", "#[derive(Debug, Default)]\n");
         formatted_code = formatted_code.replace("#[derive(clap::Parser, Debug, Clone)]\n", "#[derive(Debug, Clone, Default)]\n");
+        // DEPYLER-1052: Also handle inline patterns (no newline after derive)
+        formatted_code = formatted_code.replace("#[derive(clap::Parser)] ", "#[derive(Default)] ");
+        formatted_code = formatted_code.replace("#[derive(clap :: Parser)] ", "#[derive(Default)] ");
         // DEPYLER-1048: Fix Commands enum for subcommands
         // Add Default derive to Commands enum and add a default unit variant
         formatted_code = formatted_code.replace("#[derive(clap::Subcommand)]\n", "#[derive(Default)]\n");
@@ -2990,6 +2993,28 @@ pub fn generate_rust_file(
         if !formatted_code.ends_with('\n') {
             formatted_code.push('\n');
         }
+
+        // DEPYLER-1052: Remove inline #[command(...)] attributes that weren't filtered
+        // These appear on the same line as struct definitions
+        while let Some(start) = formatted_code.find("#[command(") {
+            if let Some(end) = formatted_code[start..].find(")]") {
+                let attr_end = start + end + 2;
+                // Remove attribute and trailing space if present
+                let remove_end = if formatted_code.as_bytes().get(attr_end) == Some(&b' ') {
+                    attr_end + 1
+                } else {
+                    attr_end
+                };
+                formatted_code = format!(
+                    "{}{}",
+                    &formatted_code[..start],
+                    &formatted_code[remove_end..]
+                );
+            } else {
+                break;
+            }
+        }
+
         // Remove clap arg attributes
         formatted_code = formatted_code.replace("    #[arg(action = clap::ArgAction::SetTrue)]\n", "");
         formatted_code = formatted_code.replace("    #[arg(action = clap :: ArgAction :: SetTrue)]\n", "");
