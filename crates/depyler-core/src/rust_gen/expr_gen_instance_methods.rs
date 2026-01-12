@@ -7072,6 +7072,107 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-1085: Check if expression returns DepylerValue type
+    /// Used for Value Lifting in if/else branch unification
+    pub(crate) fn expr_returns_depyler_value(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Variables with Unknown type become DepylerValue
+            HirExpr::Var(name) => {
+                matches!(self.ctx.var_types.get(name), Some(Type::Unknown))
+            }
+            // Index access on collections with Unknown element type
+            HirExpr::Index { base, .. } => {
+                if let HirExpr::Var(name) = base.as_ref() {
+                    if let Some(ty) = self.ctx.var_types.get(name) {
+                        return match ty {
+                            Type::List(elem) => matches!(elem.as_ref(), Type::Unknown),
+                            Type::Dict(_, value) => matches!(value.as_ref(), Type::Unknown),
+                            _ => false,
+                        };
+                    }
+                }
+                false
+            }
+            // Method calls on Unknown-typed objects
+            HirExpr::MethodCall { object, .. } => {
+                if let HirExpr::Var(name) = object.as_ref() {
+                    return matches!(self.ctx.var_types.get(name), Some(Type::Unknown));
+                }
+                false
+            }
+            // IfExpr where either branch returns DepylerValue
+            HirExpr::IfExpr { body, orelse, .. } => {
+                self.expr_returns_depyler_value(body) || self.expr_returns_depyler_value(orelse)
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-1085: Check if expression returns a concrete (non-DepylerValue) type
+    /// Returns the concrete type if known, None if Unknown/DepylerValue
+    pub(crate) fn expr_concrete_type(&self, expr: &HirExpr) -> Option<Type> {
+        match expr {
+            HirExpr::Literal(Literal::Int(_)) => Some(Type::Int),
+            HirExpr::Literal(Literal::Float(_)) => Some(Type::Float),
+            HirExpr::Literal(Literal::String(_)) => Some(Type::String),
+            HirExpr::Literal(Literal::Bool(_)) => Some(Type::Bool),
+            HirExpr::Var(name) => {
+                self.ctx.var_types.get(name).and_then(|ty| {
+                    if matches!(ty, Type::Unknown) {
+                        None
+                    } else {
+                        Some(ty.clone())
+                    }
+                })
+            }
+            _ => None,
+        }
+    }
+
+    /// DEPYLER-1085: Wrap a concrete expression in DepylerValue::from()
+    /// Used for Value Lifting when branch types don't match
+    pub(crate) fn lift_to_depyler_value(&self, expr: &HirExpr, rust_expr: syn::Expr) -> syn::Expr {
+        // Use DepylerValue::from() which handles most common types
+        // For specific types, use explicit variants for better performance
+        match expr {
+            HirExpr::Literal(Literal::Int(_)) => {
+                parse_quote! { DepylerValue::Int(#rust_expr as i64) }
+            }
+            HirExpr::Literal(Literal::Float(_)) => {
+                parse_quote! { DepylerValue::Float(#rust_expr as f64) }
+            }
+            HirExpr::Literal(Literal::String(_)) => {
+                parse_quote! { DepylerValue::Str(#rust_expr.to_string()) }
+            }
+            HirExpr::Literal(Literal::Bool(_)) => {
+                parse_quote! { DepylerValue::Bool(#rust_expr) }
+            }
+            HirExpr::Var(name) => {
+                // Check the concrete type and wrap appropriately
+                if let Some(ty) = self.ctx.var_types.get(name) {
+                    match ty {
+                        Type::Int => parse_quote! { DepylerValue::Int(#rust_expr as i64) },
+                        Type::Float => parse_quote! { DepylerValue::Float(#rust_expr as f64) },
+                        Type::String => parse_quote! { DepylerValue::Str(#rust_expr.to_string()) },
+                        Type::Bool => parse_quote! { DepylerValue::Bool(#rust_expr) },
+                        Type::List(_) => parse_quote! { DepylerValue::List(#rust_expr.into_iter().map(|x| DepylerValue::from(x)).collect()) },
+                        _ => parse_quote! { DepylerValue::from(#rust_expr) },
+                    }
+                } else {
+                    parse_quote! { DepylerValue::from(#rust_expr) }
+                }
+            }
+            // For method calls that return known types
+            _ if self.expr_returns_float(expr) => {
+                parse_quote! { DepylerValue::Float(#rust_expr as f64) }
+            }
+            // Default: use DepylerValue::from() which requires Into trait
+            _ => {
+                parse_quote! { DepylerValue::Str(format!("{:?}", #rust_expr)) }
+            }
+        }
+    }
+
     /// DEPYLER-0786: Check if expression is a string type
     /// Used to determine if `or` operator should return string instead of bool
     pub(crate) fn expr_is_string_type(&self, expr: &HirExpr) -> bool {
@@ -7804,6 +7905,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if #test_expr { #body_expr } else { #coerced_orelse }
                 });
             }
+        }
+
+        // DEPYLER-1085: Value Lifting for DepylerValue/concrete type mismatches
+        // When one branch yields DepylerValue and the other a concrete type,
+        // wrap the concrete branch in DepylerValue to unify types
+        let body_is_depyler_value = self.expr_returns_depyler_value(body);
+        let orelse_is_depyler_value = self.expr_returns_depyler_value(orelse);
+
+        if body_is_depyler_value && !orelse_is_depyler_value {
+            // Body is DepylerValue, orelse is concrete - lift orelse
+            let lifted_orelse = self.lift_to_depyler_value(orelse, orelse_expr);
+            return Ok(parse_quote! {
+                if #test_expr { #body_expr } else { #lifted_orelse }
+            });
+        }
+
+        if !body_is_depyler_value && orelse_is_depyler_value {
+            // Orelse is DepylerValue, body is concrete - lift body
+            let lifted_body = self.lift_to_depyler_value(body, body_expr);
+            return Ok(parse_quote! {
+                if #test_expr { #lifted_body } else { #orelse_expr }
+            });
         }
 
         Ok(parse_quote! {
