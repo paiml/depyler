@@ -632,7 +632,22 @@ pub(crate) fn codegen_function_body(
     } else {
         func.ret_type.clone()
     };
-    ctx.current_return_type = Some(effective_return_type);
+    ctx.current_return_type = Some(effective_return_type.clone());
+
+    // DEPYLER-1076: Set flag when function returns impl Iterator/IntoIterator
+    // This triggers `move` keyword on closures that capture local variables
+    ctx.returns_impl_iterator = match &effective_return_type {
+        Type::Custom(name) => {
+            name.starts_with("Generator")
+                || name.starts_with("Iterator")
+                || name.contains("Iterator")
+                || name.contains("Iterable")
+        }
+        Type::Generic { base, .. } => {
+            base == "Generator" || base == "Iterator" || base == "Iterable"
+        }
+        _ => false,
+    };
 
     // DEPYLER-0310: Set error type for raise statement wrapping
     ctx.current_error_type = error_type;
@@ -711,12 +726,22 @@ pub(crate) fn codegen_function_body(
                 if let Ok(syn_type) = rust_type_to_syn(&rust_type) {
                     body_stmts.push(quote! { let mut #ident: #syn_type = Default::default(); });
                 } else {
-                    // Fallback: use () as the type (rare edge case)
-                    body_stmts.push(quote! { let mut #ident: () = Default::default(); });
+                    // DEPYLER-1065: Hybrid Fallback - use DepylerValue instead of ()
+                    let fallback_type = if ctx.type_mapper.nasa_mode {
+                        quote! { DepylerValue }
+                    } else {
+                        quote! { serde_json::Value }
+                    };
+                    body_stmts.push(quote! { let mut #ident: #fallback_type = Default::default(); });
                 }
             } else {
-                // Fallback: use () as the type to avoid E0790
-                body_stmts.push(quote! { let mut #ident: () = Default::default(); });
+                // DEPYLER-1065: Hybrid Fallback - use DepylerValue instead of ()
+                let fallback_type = if ctx.type_mapper.nasa_mode {
+                    quote! { DepylerValue }
+                } else {
+                    quote! { serde_json::Value }
+                };
+                body_stmts.push(quote! { let mut #ident: #fallback_type = Default::default(); });
             }
             ctx.declare_var(var_name);
         }
@@ -739,12 +764,22 @@ pub(crate) fn codegen_function_body(
                 if let Ok(syn_type) = rust_type_to_syn(&rust_type) {
                     body_stmts.push(quote! { let mut #ident: #syn_type = Default::default(); });
                 } else {
-                    // Fallback: use () as the type (rare edge case)
-                    body_stmts.push(quote! { let mut #ident: () = Default::default(); });
+                    // DEPYLER-1065: Hybrid Fallback - use DepylerValue instead of ()
+                    let fallback_type = if ctx.type_mapper.nasa_mode {
+                        quote! { DepylerValue }
+                    } else {
+                        quote! { serde_json::Value }
+                    };
+                    body_stmts.push(quote! { let mut #ident: #fallback_type = Default::default(); });
                 }
             } else {
-                // Fallback: use () as the type to avoid E0790
-                body_stmts.push(quote! { let mut #ident: () = Default::default(); });
+                // DEPYLER-1065: Hybrid Fallback - use DepylerValue instead of ()
+                let fallback_type = if ctx.type_mapper.nasa_mode {
+                    quote! { DepylerValue }
+                } else {
+                    quote! { serde_json::Value }
+                };
+                body_stmts.push(quote! { let mut #ident: #fallback_type = Default::default(); });
             }
             ctx.declare_var(var_name);
         }
@@ -765,6 +800,7 @@ pub(crate) fn codegen_function_body(
     ctx.exit_scope();
     ctx.current_function_can_fail = false;
     ctx.current_return_type = None;
+    ctx.returns_impl_iterator = false;
 
     Ok(body_stmts)
 }
@@ -1641,6 +1677,14 @@ fn apply_borrowing_to_type(
         return Ok(ty);
     }
 
+    // DEPYLER-1075: impl Trait types cannot be borrowed - they're opaque return types
+    // Don't try to wrap `impl Iterator<Item=T> + '_` in a reference
+    if let crate::type_mapper::RustType::Custom(name) = rust_type {
+        if name.starts_with("impl ") {
+            return Ok(ty);
+        }
+    }
+
     // Special case for strings: use &str instead of &String
     if matches!(rust_type, crate::type_mapper::RustType::String) {
         // DEPYLER-0275: Elide lifetime if elision rules apply
@@ -1958,14 +2002,16 @@ fn infer_return_type_from_body(body: &[HirStmt]) -> Option<Type> {
     let mut return_types = Vec::new();
     collect_return_types_with_env(body, &mut return_types, &var_types);
 
-    // DEPYLER-0412: Also check for trailing expression (implicit return)
-    // If the last statement is an expression without return, it's an implicit return
-    if let Some(HirStmt::Expr(expr)) = body.last() {
-        let trailing_type = infer_expr_type_with_env(expr, &var_types);
-        if !matches!(trailing_type, Type::Unknown) {
-            return_types.push(trailing_type);
-        }
-    }
+    // DEPYLER-1084: Do NOT infer return type from trailing expressions
+    // Python does NOT have implicit returns like Rust - expression statements
+    // just evaluate and discard their value. Only explicit `return x` statements
+    // contribute to the return type.
+    //
+    // Previous DEPYLER-0412 incorrectly treated `x + y` as an implicit return,
+    // causing functions like `def compute(): x = 10; y = 20; x + y` to have
+    // inferred return type i32 instead of () (None).
+    //
+    // Explicit returns are already collected by collect_return_types_with_env() above.
 
     if return_types.is_empty() {
         return None;
@@ -2043,17 +2089,10 @@ pub(crate) fn infer_return_type_from_body_with_params(
         &ctx.class_method_return_types,
     );
 
-    // Check for trailing expression (implicit return)
-    if let Some(HirStmt::Expr(expr)) = func.body.last() {
-        let trailing_type = infer_expr_type_with_class_methods(
-            expr,
-            &var_types,
-            &ctx.class_method_return_types,
-        );
-        if !matches!(trailing_type, Type::Unknown) {
-            return_types.push(trailing_type);
-        }
-    }
+    // DEPYLER-1084: Do NOT infer return type from trailing expressions
+    // Python does NOT have implicit returns - expression statements just evaluate
+    // and discard their value. Only explicit `return x` contributes to return type.
+    // See comment in infer_return_type_from_body() for details.
 
     if return_types.is_empty() {
         return None;
