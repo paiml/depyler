@@ -1787,6 +1787,10 @@ pub fn generate_rust_file(
         needs_once_cell: false, // DEPYLER-REARCH-001
         needs_lazy_lock: false, // DEPYLER-1016
         needs_depyler_value_enum: false, // DEPYLER-FIX-RC2
+        needs_depyler_date: false,
+        needs_depyler_datetime: false,
+        needs_depyler_timedelta: false,
+        needs_depyler_regex_match: false, // DEPYLER-1070: DepylerRegexMatch wrapper
         needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
         numpy_vars: HashSet::new(), // DEPYLER-0932: Track numpy array variables
         needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
@@ -1817,6 +1821,8 @@ pub fn generate_rust_file(
         in_generator: false,
         is_classmethod: false,
         generator_state_vars: HashSet::new(),
+        generator_iterator_state_vars: HashSet::new(),
+        returns_impl_iterator: false,
         var_types: std::collections::HashMap::new(),
         class_names,
         mutating_methods,
@@ -2301,6 +2307,49 @@ pub fn generate_rust_file(
                         DepylerValue::None => false,
                     }
                 }
+
+                /// DEPYLER-1064: Get tuple element by index for tuple unpacking
+                /// Returns the element at the given index, or panics with a readable error
+                /// Works on both Tuple and List variants (Python treats them similarly for unpacking)
+                pub fn get_tuple_elem(&self, _dv_idx: usize) -> DepylerValue {
+                    match self {
+                        DepylerValue::Tuple(_dv_tuple) => {
+                            if _dv_idx < _dv_tuple.len() {
+                                _dv_tuple[_dv_idx].clone()
+                            } else {
+                                panic!("Tuple index {} out of bounds (length {})", _dv_idx, _dv_tuple.len())
+                            }
+                        }
+                        DepylerValue::List(_dv_list) => {
+                            if _dv_idx < _dv_list.len() {
+                                _dv_list[_dv_idx].clone()
+                            } else {
+                                panic!("List index {} out of bounds (length {})", _dv_idx, _dv_list.len())
+                            }
+                        }
+                        _dv_other => panic!("Expected tuple or list for unpacking, found {:?}", _dv_other),
+                    }
+                }
+
+                /// DEPYLER-1064: Extract tuple as Vec for multiple assignment
+                /// Validates that the value is a tuple/list with the expected number of elements
+                pub fn extract_tuple(&self, _dv_expected_len: usize) -> Vec<DepylerValue> {
+                    match self {
+                        DepylerValue::Tuple(_dv_tuple) => {
+                            if _dv_tuple.len() != _dv_expected_len {
+                                panic!("Expected tuple of length {}, got length {}", _dv_expected_len, _dv_tuple.len())
+                            }
+                            _dv_tuple.clone()
+                        }
+                        DepylerValue::List(_dv_list) => {
+                            if _dv_list.len() != _dv_expected_len {
+                                panic!("Expected list of length {}, got length {}", _dv_expected_len, _dv_list.len())
+                            }
+                            _dv_list.clone()
+                        }
+                        _dv_other => panic!("Expected tuple or list for unpacking, found {:?}", _dv_other),
+                    }
+                }
             }
 
             impl std::ops::Index<usize> for DepylerValue {
@@ -2750,8 +2799,519 @@ pub fn generate_rust_file(
                     }
                 }
             }
+
+            // DEPYLER-1062: PartialOrd for DepylerValue to support min/max builtins
+            // Uses total ordering for f64 (NaN sorts as greater than all other values)
+            impl std::cmp::PartialOrd for DepylerValue {
+                fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                    match (self, other) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => Some(_dv_a.cmp(_dv_b)),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => Some(_dv_a.total_cmp(_dv_b)),
+                        (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => Some(_dv_a.cmp(_dv_b)),
+                        (DepylerValue::Bool(_dv_a), DepylerValue::Bool(_dv_b)) => Some(_dv_a.cmp(_dv_b)),
+                        // Cross-type comparisons: convert to f64 for numeric, string for others
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => Some((*_dv_a as f64).total_cmp(_dv_b)),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => Some(_dv_a.total_cmp(&(*_dv_b as f64))),
+                        // None compares less than everything except None
+                        (DepylerValue::None, DepylerValue::None) => Some(std::cmp::Ordering::Equal),
+                        (DepylerValue::None, _) => Some(std::cmp::Ordering::Less),
+                        (_, DepylerValue::None) => Some(std::cmp::Ordering::Greater),
+                        // Collections compare by length then element-wise
+                        (DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) => _dv_a.partial_cmp(_dv_b),
+                        (DepylerValue::Tuple(_dv_a), DepylerValue::Tuple(_dv_b)) => _dv_a.partial_cmp(_dv_b),
+                        // Incompatible types: return None (not comparable in Python either)
+                        _ => Option::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1062: Ord for DepylerValue (required for .min()/.max() on iterators)
+            impl std::cmp::Ord for DepylerValue {
+                fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+                    self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+                }
+            }
+
+            // DEPYLER-1062: Safe min helper that handles f64 NaN correctly
+            // Python: min(1.0, float('nan')) returns 1.0 (NaN is "ignored")
+            pub fn depyler_min<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
+                if a.partial_cmp(&b).map_or(true, |c| c == std::cmp::Ordering::Less || c == std::cmp::Ordering::Equal) {
+                    a
+                } else {
+                    b
+                }
+            }
+
+            // DEPYLER-1062: Safe max helper that handles f64 NaN correctly
+            // Python: max(1.0, float('nan')) returns 1.0 (NaN is "ignored")
+            pub fn depyler_max<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
+                if a.partial_cmp(&b).map_or(true, |c| c == std::cmp::Ordering::Greater || c == std::cmp::Ordering::Equal) {
+                    a
+                } else {
+                    b
+                }
+            }
         };
         items.push(depyler_value_enum);
+    }
+
+    // DEPYLER-1066: Inject DepylerDate struct if date types were detected
+    // This wrapper struct provides .day(), .month(), .year() methods
+    // that Python's datetime.date has, which raw tuples don't have.
+    if ctx.needs_depyler_date || nasa_mode {
+        let depyler_date_struct = quote! {
+            /// DEPYLER-1066: Wrapper for Python datetime.date
+            /// Provides .day(), .month(), .year() methods matching Python's API
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+            pub struct DepylerDate(pub u32, pub u32, pub u32);  // (year, month, day)
+
+            impl DepylerDate {
+                /// Create a new date from year, month, day
+                pub fn new(year: u32, month: u32, day: u32) -> Self {
+                    DepylerDate(year, month, day)
+                }
+
+                /// Get today's date (NASA mode: computed from SystemTime)
+                pub fn today() -> Self {
+                    use std::time::{SystemTime, UNIX_EPOCH};
+                    let secs = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    let days = (secs / 86400) as i64;
+                    // Algorithm to convert days since epoch to (year, month, day)
+                    let z = days + 719468;
+                    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+                    let doe = (z - era * 146097) as u32;
+                    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+                    let y = yoe as i64 + era * 400;
+                    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+                    let mp = (5 * doy + 2) / 153;
+                    let d = doy - (153 * mp + 2) / 5 + 1;
+                    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+                    let y = if m <= 2 { y + 1 } else { y };
+                    DepylerDate(y as u32, m, d)
+                }
+
+                /// Get the year component
+                pub fn year(&self) -> u32 {
+                    self.0
+                }
+
+                /// Get the month component (1-12)
+                pub fn month(&self) -> u32 {
+                    self.1
+                }
+
+                /// Get the day component (1-31)
+                pub fn day(&self) -> u32 {
+                    self.2
+                }
+
+                /// Convert to tuple (year, month, day) for interop
+                pub fn to_tuple(&self) -> (u32, u32, u32) {
+                    (self.0, self.1, self.2)
+                }
+
+                /// Get weekday (0 = Monday, 6 = Sunday) - Python datetime.date.weekday()
+                pub fn weekday(&self) -> u32 {
+                    // Zeller's congruence for weekday calculation
+                    let (mut y, mut m, d) = (self.0 as i32, self.1 as i32, self.2 as i32);
+                    if m < 3 {
+                        m += 12;
+                        y -= 1;
+                    }
+                    let q = d;
+                    let k = y % 100;
+                    let j = y / 100;
+                    let h = (q + (13 * (m + 1)) / 5 + k + k / 4 + j / 4 - 2 * j) % 7;
+                    // Convert from Zeller (0=Sat) to Python (0=Mon)
+                    ((h + 5) % 7) as u32
+                }
+
+                /// Get ISO weekday (1 = Monday, 7 = Sunday) - Python datetime.date.isoweekday()
+                pub fn isoweekday(&self) -> u32 {
+                    self.weekday() + 1
+                }
+
+                /// Create date from ordinal (days since year 1, January 1 = ordinal 1)
+                /// Python: date.fromordinal(730120) -> date(2000, 1, 1)
+                pub fn from_ordinal(ordinal: i64) -> Self {
+                    // Convert ordinal to days since epoch (ordinal 1 = Jan 1, year 1)
+                    // Python ordinal 730120 = 2000-01-01
+                    // Epoch ordinal = 719163 (1970-01-01)
+                    let days = ordinal - 719163 - 1;  // Adjust to days since epoch
+                    // Use same algorithm as today()
+                    let z = days + 719468;
+                    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+                    let doe = (z - era * 146097) as u32;
+                    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+                    let y = yoe as i64 + era * 400;
+                    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+                    let mp = (5 * doy + 2) / 153;
+                    let d = doy - (153 * mp + 2) / 5 + 1;
+                    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+                    let y = if m <= 2 { y + 1 } else { y };
+                    DepylerDate(y as u32, m, d)
+                }
+            }
+
+            impl std::fmt::Display for DepylerDate {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "{:04}-{:02}-{:02}", self.0, self.1, self.2)
+                }
+            }
+        };
+        items.push(depyler_date_struct);
+    }
+
+    // DEPYLER-1067: Inject DepylerDateTime struct if datetime types were detected
+    if ctx.needs_depyler_datetime || nasa_mode {
+        let depyler_datetime_struct = quote! {
+            /// DEPYLER-1067: Wrapper for Python datetime.datetime
+            /// Provides .year(), .month(), .day(), .hour(), .minute(), .second(), .microsecond() methods
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+            pub struct DepylerDateTime {
+                pub year: u32,
+                pub month: u32,
+                pub day: u32,
+                pub hour: u32,
+                pub minute: u32,
+                pub second: u32,
+                pub microsecond: u32,
+            }
+
+            impl DepylerDateTime {
+                /// Create a new datetime from components
+                pub fn new(year: u32, month: u32, day: u32, hour: u32, minute: u32, second: u32, microsecond: u32) -> Self {
+                    DepylerDateTime { year, month, day, hour, minute, second, microsecond }
+                }
+
+                /// Get current datetime (NASA mode: computed from SystemTime)
+                pub fn now() -> Self {
+                    use std::time::{SystemTime, UNIX_EPOCH};
+                    let secs = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map(|d| d.as_secs())
+                        .unwrap_or(0);
+                    let nanos = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .map(|d| d.subsec_nanos())
+                        .unwrap_or(0);
+                    let days = (secs / 86400) as i64;
+                    let day_secs = (secs % 86400) as u32;
+                    // Date from days since epoch
+                    let z = days + 719468;
+                    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+                    let doe = (z - era * 146097) as u32;
+                    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+                    let y = yoe as i64 + era * 400;
+                    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+                    let mp = (5 * doy + 2) / 153;
+                    let d = doy - (153 * mp + 2) / 5 + 1;
+                    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+                    let y = if m <= 2 { y + 1 } else { y };
+                    // Time from seconds within day
+                    let hour = day_secs / 3600;
+                    let minute = (day_secs % 3600) / 60;
+                    let second = day_secs % 60;
+                    let microsecond = nanos / 1000;
+                    DepylerDateTime { year: y as u32, month: m, day: d, hour, minute, second, microsecond }
+                }
+
+                /// Alias for now() - Python datetime.datetime.today()
+                pub fn today() -> Self { Self::now() }
+
+                pub fn year(&self) -> u32 { self.year }
+                pub fn month(&self) -> u32 { self.month }
+                pub fn day(&self) -> u32 { self.day }
+                pub fn hour(&self) -> u32 { self.hour }
+                pub fn minute(&self) -> u32 { self.minute }
+                pub fn second(&self) -> u32 { self.second }
+                pub fn microsecond(&self) -> u32 { self.microsecond }
+
+                /// Get weekday (0 = Monday, 6 = Sunday)
+                pub fn weekday(&self) -> u32 {
+                    DepylerDate::new(self.year, self.month, self.day).weekday()
+                }
+
+                /// Get ISO weekday (1 = Monday, 7 = Sunday)
+                pub fn isoweekday(&self) -> u32 {
+                    self.weekday() + 1
+                }
+
+                /// Extract date component
+                pub fn date(&self) -> DepylerDate {
+                    DepylerDate::new(self.year, self.month, self.day)
+                }
+
+                /// Get Unix timestamp
+                pub fn timestamp(&self) -> f64 {
+                    // Simplified: calculate seconds since epoch
+                    let days = self.days_since_epoch();
+                    let secs = days as f64 * 86400.0
+                        + self.hour as f64 * 3600.0
+                        + self.minute as f64 * 60.0
+                        + self.second as f64
+                        + self.microsecond as f64 / 1_000_000.0;
+                    secs
+                }
+
+                fn days_since_epoch(&self) -> i64 {
+                    // Calculate days from 1970-01-01
+                    let (mut y, mut m) = (self.year as i64, self.month as i64);
+                    if m <= 2 { y -= 1; m += 12; }
+                    let era = if y >= 0 { y } else { y - 399 } / 400;
+                    let yoe = (y - era * 400) as u32;
+                    let doy = (153 * (m as u32 - 3) + 2) / 5 + self.day - 1;
+                    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+                    era * 146097 + doe as i64 - 719468
+                }
+
+                /// Create from Unix timestamp
+                pub fn fromtimestamp(ts: f64) -> Self {
+                    let secs = ts as u64;
+                    let microsecond = ((ts - secs as f64) * 1_000_000.0) as u32;
+                    let days = (secs / 86400) as i64;
+                    let day_secs = (secs % 86400) as u32;
+                    let z = days + 719468;
+                    let era = if z >= 0 { z } else { z - 146096 } / 146097;
+                    let doe = (z - era * 146097) as u32;
+                    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+                    let y = yoe as i64 + era * 400;
+                    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+                    let mp = (5 * doy + 2) / 153;
+                    let d = doy - (153 * mp + 2) / 5 + 1;
+                    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+                    let y = if m <= 2 { y + 1 } else { y };
+                    let hour = day_secs / 3600;
+                    let minute = (day_secs % 3600) / 60;
+                    let second = day_secs % 60;
+                    DepylerDateTime { year: y as u32, month: m, day: d, hour, minute, second, microsecond }
+                }
+
+                /// ISO format string
+                pub fn isoformat(&self) -> String {
+                    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+                        self.year, self.month, self.day, self.hour, self.minute, self.second)
+                }
+            }
+
+            impl std::fmt::Display for DepylerDateTime {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    write!(f, "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+                        self.year, self.month, self.day, self.hour, self.minute, self.second)
+                }
+            }
+        };
+        items.push(depyler_datetime_struct);
+    }
+
+    // DEPYLER-1068: Inject DepylerTimeDelta struct if timedelta types were detected
+    if ctx.needs_depyler_timedelta || nasa_mode {
+        let depyler_timedelta_struct = quote! {
+            /// DEPYLER-1068: Wrapper for Python datetime.timedelta
+            /// Provides .days, .seconds, .microseconds, .total_seconds() methods
+            #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+            pub struct DepylerTimeDelta {
+                pub days: i64,
+                pub seconds: i64,
+                pub microseconds: i64,
+            }
+
+            impl DepylerTimeDelta {
+                /// Create a new timedelta from components
+                pub fn new(days: i64, seconds: i64, microseconds: i64) -> Self {
+                    // Normalize: microseconds < 1_000_000, seconds < 86400
+                    let total_us = days * 86400 * 1_000_000 + seconds * 1_000_000 + microseconds;
+                    let total_secs = total_us / 1_000_000;
+                    let us = total_us % 1_000_000;
+                    let d = total_secs / 86400;
+                    let s = total_secs % 86400;
+                    DepylerTimeDelta { days: d, seconds: s, microseconds: us }
+                }
+
+                /// Create from keyword-style arguments (hours, minutes, etc.)
+                pub fn from_components(
+                    days: i64,
+                    seconds: i64,
+                    microseconds: i64,
+                    milliseconds: i64,
+                    minutes: i64,
+                    hours: i64,
+                    weeks: i64,
+                ) -> Self {
+                    let total_days = days + weeks * 7;
+                    let total_secs = seconds + minutes * 60 + hours * 3600;
+                    let total_us = microseconds + milliseconds * 1000;
+                    Self::new(total_days, total_secs, total_us)
+                }
+
+                /// Get total seconds as f64
+                pub fn total_seconds(&self) -> f64 {
+                    self.days as f64 * 86400.0
+                        + self.seconds as f64
+                        + self.microseconds as f64 / 1_000_000.0
+                }
+
+                /// Get days component
+                pub fn days(&self) -> i64 { self.days }
+
+                /// Get seconds component (0-86399)
+                pub fn seconds(&self) -> i64 { self.seconds }
+
+                /// Get microseconds component (0-999999)
+                pub fn microseconds(&self) -> i64 { self.microseconds }
+            }
+
+            impl std::ops::Add for DepylerTimeDelta {
+                type Output = Self;
+                fn add(self, other: Self) -> Self {
+                    Self::new(
+                        self.days + other.days,
+                        self.seconds + other.seconds,
+                        self.microseconds + other.microseconds,
+                    )
+                }
+            }
+
+            impl std::ops::Sub for DepylerTimeDelta {
+                type Output = Self;
+                fn sub(self, other: Self) -> Self {
+                    Self::new(
+                        self.days - other.days,
+                        self.seconds - other.seconds,
+                        self.microseconds - other.microseconds,
+                    )
+                }
+            }
+
+            impl std::fmt::Display for DepylerTimeDelta {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    let hours = self.seconds / 3600;
+                    let mins = (self.seconds % 3600) / 60;
+                    let secs = self.seconds % 60;
+                    if self.days != 0 {
+                        write!(f, "{} day{}, {:02}:{:02}:{:02}",
+                            self.days, if self.days == 1 { "" } else { "s" }, hours, mins, secs)
+                    } else {
+                        write!(f, "{:02}:{:02}:{:02}", hours, mins, secs)
+                    }
+                }
+            }
+        };
+        items.push(depyler_timedelta_struct);
+    }
+
+    // DEPYLER-1070: Inject DepylerRegexMatch struct if regex patterns were detected
+    if ctx.needs_depyler_regex_match || nasa_mode {
+        let depyler_regex_match_struct = quote! {
+            /// DEPYLER-1070: Wrapper for Python re.Match object
+            /// Provides .group(), .groups(), .start(), .end(), .span() methods
+            #[derive(Debug, Clone, PartialEq, Eq, Default)]
+            pub struct DepylerRegexMatch {
+                pub matched: String,
+                pub start: usize,
+                pub end: usize,
+                pub groups: Vec<String>,
+            }
+
+            impl DepylerRegexMatch {
+                /// Create a new match from a string slice match
+                pub fn new(text: &str, start: usize, end: usize) -> Self {
+                    DepylerRegexMatch {
+                        matched: text[start..end].to_string(),
+                        start,
+                        end,
+                        groups: vec![text[start..end].to_string()],
+                    }
+                }
+
+                /// Create a match with capture groups
+                pub fn with_groups(text: &str, start: usize, end: usize, groups: Vec<String>) -> Self {
+                    DepylerRegexMatch {
+                        matched: text[start..end].to_string(),
+                        start,
+                        end,
+                        groups,
+                    }
+                }
+
+                /// Get the matched string (group 0)
+                pub fn group(&self, n: usize) -> String {
+                    self.groups.get(n).cloned().unwrap_or_default()
+                }
+
+                /// Get all capture groups as a tuple-like Vec
+                pub fn groups(&self) -> Vec<String> {
+                    if self.groups.len() > 1 {
+                        self.groups[1..].to_vec()  // Exclude group 0 like Python
+                    } else {
+                        vec![]
+                    }
+                }
+
+                /// Get the start position
+                pub fn start(&self) -> usize {
+                    self.start
+                }
+
+                /// Get the end position
+                pub fn end(&self) -> usize {
+                    self.end
+                }
+
+                /// Get (start, end) tuple
+                pub fn span(&self) -> (usize, usize) {
+                    (self.start, self.end)
+                }
+
+                /// Get the matched string (equivalent to group(0))
+                pub fn as_str(&self) -> &str {
+                    &self.matched
+                }
+
+                /// Simple pattern search (NASA mode alternative to regex)
+                /// Searches for literal string pattern in text
+                pub fn search(pattern: &str, text: &str) -> Option<Self> {
+                    text.find(pattern).map(|start| {
+                        let end = start + pattern.len();
+                        DepylerRegexMatch::new(text, start, end)
+                    })
+                }
+
+                /// Simple pattern match at start (NASA mode alternative to regex)
+                pub fn match_start(pattern: &str, text: &str) -> Option<Self> {
+                    if text.starts_with(pattern) {
+                        Some(DepylerRegexMatch::new(text, 0, pattern.len()))
+                    } else {
+                        None
+                    }
+                }
+
+                /// Find all occurrences (NASA mode alternative to regex findall)
+                pub fn findall(pattern: &str, text: &str) -> Vec<String> {
+                    let mut results = Vec::new();
+                    let mut start = 0;
+                    while let Some(pos) = text[start..].find(pattern) {
+                        results.push(pattern.to_string());
+                        start += pos + pattern.len();
+                    }
+                    results
+                }
+
+                /// Simple string replacement (NASA mode alternative to regex sub)
+                pub fn sub(pattern: &str, repl: &str, text: &str) -> String {
+                    text.replace(pattern, repl)
+                }
+
+                /// Simple string split (NASA mode alternative to regex split)
+                pub fn split(pattern: &str, text: &str) -> Vec<String> {
+                    text.split(pattern).map(|s| s.to_string()).collect()
+                }
+            }
+        };
+        items.push(depyler_regex_match_struct);
     }
 
     // Add classes
@@ -2970,6 +3530,9 @@ pub fn generate_rust_file(
         // Add Default derive to Commands enum and add a default unit variant
         formatted_code = formatted_code.replace("#[derive(clap::Subcommand)]\n", "#[derive(Default)]\n");
         formatted_code = formatted_code.replace("#[derive(clap :: Subcommand)]\n", "#[derive(Default)]\n");
+        // DEPYLER-1088: Also handle inline patterns (no newline after derive)
+        formatted_code = formatted_code.replace("#[derive(clap::Subcommand)] ", "#[derive(Default)] ");
+        formatted_code = formatted_code.replace("#[derive(clap :: Subcommand)] ", "#[derive(Default)] ");
         // Add a default unit variant to Commands enum
         // Pattern: "enum Commands {\n" -> "enum Commands {\n    #[default]\n    __DepylerNone,\n"
         formatted_code = formatted_code.replace(
@@ -2979,23 +3542,10 @@ pub fn generate_rust_file(
         // Add catch-all arm for the new variant in match statements
         // This is simpler than wrapping with Option
         formatted_code = formatted_code.replace("#[command(author, version, about)]\n", "");
-        // Remove #[command(...)] and #[arg(...)] attributes - they're from clap
-        // Use line-by-line removal since regex crate isn't available in this function
-        let lines: Vec<&str> = formatted_code.lines().collect();
-        let filtered_lines: Vec<&str> = lines
-            .into_iter()
-            .filter(|line| {
-                let trimmed = line.trim();
-                !trimmed.starts_with("#[command(") && !trimmed.starts_with("#[arg(")
-            })
-            .collect();
-        formatted_code = filtered_lines.join("\n");
-        if !formatted_code.ends_with('\n') {
-            formatted_code.push('\n');
-        }
 
-        // DEPYLER-1052: Remove inline #[command(...)] attributes that weren't filtered
-        // These appear on the same line as struct definitions
+        // DEPYLER-1088: Remove inline #[command(...)] attributes FIRST
+        // This must happen BEFORE line filtering to prevent removing enum variants
+        // that have inline attributes like `#[command(about = "...")] Resource { name: String },`
         while let Some(start) = formatted_code.find("#[command(") {
             if let Some(end) = formatted_code[start..].find(")]") {
                 let attr_end = start + end + 2;
@@ -3015,16 +3565,34 @@ pub fn generate_rust_file(
             }
         }
 
-        // Remove clap arg attributes
-        formatted_code = formatted_code.replace("    #[arg(action = clap::ArgAction::SetTrue)]\n", "");
-        formatted_code = formatted_code.replace("    #[arg(action = clap :: ArgAction :: SetTrue)]\n", "");
-        formatted_code = formatted_code.replace("    #[arg(action = clap::ArgAction::SetFalse)]\n", "");
-        formatted_code = formatted_code.replace("    #[arg(action = clap :: ArgAction :: SetFalse)]\n", "");
-        formatted_code = formatted_code.replace("    #[arg(action = clap::ArgAction::Count)]\n", "");
-        formatted_code = formatted_code.replace("    #[arg(action = clap :: ArgAction :: Count)]\n", "");
-        formatted_code = formatted_code.replace("    #[arg(short, long)]\n", "");
-        formatted_code = formatted_code.replace("    #[arg(long)]\n", "");
-        formatted_code = formatted_code.replace("    #[arg(short)]\n", "");
+        // DEPYLER-1088: Remove inline #[arg(...)] attributes FIRST (same reason)
+        while let Some(start) = formatted_code.find("#[arg(") {
+            if let Some(end) = formatted_code[start..].find(")]") {
+                let attr_end = start + end + 2;
+                // Remove attribute and trailing space if present
+                let remove_end = if formatted_code.as_bytes().get(attr_end) == Some(&b' ') {
+                    attr_end + 1
+                } else {
+                    attr_end
+                };
+                formatted_code = format!(
+                    "{}{}",
+                    &formatted_code[..start],
+                    &formatted_code[remove_end..]
+                );
+            } else {
+                break;
+            }
+        }
+
+        // DEPYLER-1088: Line filter is no longer needed since inline attrs are removed above
+        // The while loops handle all #[command(...)] and #[arg(...)] patterns
+        // Just ensure proper line endings
+        if !formatted_code.ends_with('\n') {
+            formatted_code.push('\n');
+        }
+
+        // DEPYLER-1088: #[arg(...)] attrs are now handled by while loop above
         // Remove clap imports
         formatted_code = formatted_code.replace("use clap::Parser;\n", "");
         formatted_code = formatted_code.replace("use clap :: Parser;\n", "");
@@ -3140,6 +3708,8 @@ mod tests {
             is_classmethod: false,
             in_generator: false,
             generator_state_vars: HashSet::new(),
+            generator_iterator_state_vars: HashSet::new(),
+            returns_impl_iterator: false, // DEPYLER-1076
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
@@ -3193,7 +3763,11 @@ mod tests {
             function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
             mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_depyler_date: false,
+        needs_depyler_datetime: false,
+        needs_depyler_timedelta: false,
             module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
+            needs_depyler_regex_match: false, // DEPYLER-1070: Track DepylerRegexMatch struct need
         }
     }
 
@@ -3520,16 +4094,21 @@ mod tests {
 
     #[test]
     fn test_codegen_assign_tuple_new_vars() {
-        use crate::hir::AssignTarget;
+        use crate::hir::{AssignTarget, Literal};
 
         let mut ctx = create_test_context();
         let targets = vec![
             AssignTarget::Symbol("a".to_string()),
             AssignTarget::Symbol("b".to_string()),
         ];
-        let value_expr = syn::parse_quote! { (1, 2) };
+        // DEPYLER-1064: Create HirExpr::Tuple for the value parameter
+        let value = HirExpr::Tuple(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        let value_expr: syn::Expr = syn::parse_quote! { (1, 2) };
 
-        let result = codegen_assign_tuple(&targets, value_expr, None, &mut ctx).unwrap();
+        let result = codegen_assign_tuple(&targets, &value, value_expr, None, &mut ctx).unwrap();
         assert!(result.to_string().contains("let (a , b) = (1 , 2)"));
     }
 
