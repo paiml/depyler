@@ -8,6 +8,10 @@ use crate::hir::*;
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::expr_gen::ExpressionConverter;
 use crate::rust_gen::keywords;
+use crate::rust_gen::truthiness_helpers::{
+    is_collection_generic_base, is_collection_type_name, is_collection_var_name,
+    is_option_var_name, is_string_var_name,
+};
 use crate::rust_gen::walrus_helpers;
 use crate::trace_decision;
 #[cfg(feature = "decision-tracing")]
@@ -700,10 +704,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ) -> Result<syn::Expr> {
         // DEPYLER-0564: Convert serde_json::Value to &str for string method calls
         // Check both HIR pattern and Rust expression pattern
-        let needs_conversion = self.needs_value_to_string_conversion(hir_object)
+        let needs_json_conversion = self.needs_value_to_string_conversion(hir_object)
             || self.rust_expr_needs_value_conversion(object_expr);
-        let obj = if needs_conversion {
+
+        // DEPYLER-1064: Extract string from DepylerValue before calling string methods
+        let is_depyler_var = if let HirExpr::Var(var_name) = hir_object {
+            self.ctx.type_mapper.nasa_mode
+                && self.ctx.var_types.get(var_name).is_some_and(|t| {
+                    matches!(t, Type::Unknown)
+                        || matches!(t, Type::Custom(n) if n == "Any" || n == "object")
+                })
+        } else {
+            false
+        };
+
+        let obj = if needs_json_conversion {
             parse_quote! { #object_expr.as_str().unwrap_or_default() }
+        } else if is_depyler_var {
+            // Extract string from DepylerValue using to_string()
+            parse_quote! { #object_expr.to_string() }
         } else {
             object_expr.clone()
         };
@@ -2179,15 +2198,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0519: Handle regex Match.group() method
         // DEPYLER-0961: Return String instead of &str for type compatibility
+        // DEPYLER-1070: Support DepylerRegexMatch in NASA mode
         // Python: match.group(0) or match.group(n)
-        // Rust: match.as_str().to_string() for group(0), or handle numbered groups
-        // NOTE: When called inside if-let patterns, the variable is already unwrapped (Match, not Option)
-        // so we should NOT use .as_ref().map() pattern - just call .as_str() directly
+        // NASA mode: DepylerRegexMatch.group(n) → String
+        // Regex crate: match.as_str().to_string() for group(0), or handle numbered groups
         if method == "group" {
+            let nasa_mode = self.ctx.type_mapper.nasa_mode;
+
+            if nasa_mode {
+                // DEPYLER-1070: DepylerRegexMatch has direct .group(n) method
+                if arg_exprs.is_empty() || hir_args.is_empty() {
+                    // match.group() → match.group(0)
+                    return Ok(parse_quote! { #object_expr.group(0) });
+                }
+                let idx = &arg_exprs[0];
+                return Ok(parse_quote! { #object_expr.group(#idx as usize) });
+            }
+
+            // Regex crate mode
             if arg_exprs.is_empty() || hir_args.is_empty() {
                 // match.group() with no args defaults to group(0) in Python
-                // DEPYLER-0961: Return String for proper type inference
-                // Always use direct .as_str() since inside if-let the value is unwrapped
                 return Ok(parse_quote! { #object_expr.as_str().to_string() });
             }
 
@@ -2195,11 +2225,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             if let HirExpr::Literal(Literal::Int(n)) = &hir_args[0] {
                 if *n == 0 {
                     // match.group(0) → match.as_str().to_string()
-                    // DEPYLER-0961: Return String for proper type inference
                     return Ok(parse_quote! { #object_expr.as_str().to_string() });
                 } else {
                     // match.group(n) → match.get(n).map(|m| m.as_str().to_string()).unwrap_or_default()
-                    // DEPYLER-0961: Return String for proper type inference
                     let idx = &arg_exprs[0];
                     return Ok(parse_quote! {
                         #object_expr.get(#idx).map(|m| m.as_str().to_string()).unwrap_or_default()
@@ -2208,7 +2236,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // Non-literal argument - use runtime check
-            // DEPYLER-0961: Return String for proper type inference
             let idx = &arg_exprs[0];
             return Ok(parse_quote! {
                 if #idx == 0 {
@@ -2252,7 +2279,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 | "encode"  // DEPYLER-0621: str.encode() → .as_bytes().to_vec()
                 | "decode"  // DEPYLER-0621: bytes.decode() → String::from_utf8_lossy()
         ) {
-            return self.convert_string_method(object, object_expr, method, arg_exprs, hir_args);
+            // DEPYLER-1064: Check if object is a DepylerValue variable
+            // If so, extract string before calling string method
+            let is_depyler_var = if let HirExpr::Var(var_name) = object {
+                self.ctx.type_mapper.nasa_mode
+                    && self.ctx.var_types.get(var_name).is_some_and(|t| {
+                        matches!(t, Type::Unknown)
+                            || matches!(t, Type::Custom(n) if n == "Any" || n == "object")
+                    })
+            } else {
+                false
+            };
+
+            let adjusted_object_expr = if is_depyler_var {
+                parse_quote! { #object_expr.to_string() }
+            } else {
+                object_expr.clone()
+            };
+
+            return self.convert_string_method(object, &adjusted_object_expr, method, arg_exprs, hir_args);
         }
 
         // DEPYLER-0232 FIX: Check for user-defined class instances
@@ -3177,33 +3222,49 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0413: Handle string methods FIRST before any other checks
         // This ensures string methods like upper/lower are converted even when
         // inside class methods where parameters might be mistyped as class instances
-        if matches!(
-            method,
-            "upper"
-                | "lower"
-                | "strip"
-                | "lstrip"
-                | "rstrip"
-                | "startswith"
-                | "endswith"
-                | "split"
-                | "splitlines"
-                | "join"
-                | "replace"
-                | "find"
-                | "rfind"
-                | "rindex"
-                | "isdigit"
-                | "isalpha"
-                | "isalnum"
-                | "title"
-                | "center"
-                | "ljust"
-                | "rjust"
-                | "zfill"
-                | "hex"
-                | "format"
-        ) {
+        // DEPYLER-1070: Skip if object is a known stdlib module (re, json, etc.) to allow
+        // module method handling later (e.g., re.split() should be regex split, not str.split())
+        let is_stdlib_module = if let HirExpr::Var(name) = object {
+            matches!(
+                name.as_str(),
+                "re" | "json" | "math" | "random" | "os" | "sys" | "time" | "datetime"
+                    | "pathlib" | "struct" | "statistics" | "fractions" | "decimal"
+                    | "collections" | "itertools" | "functools" | "shutil" | "csv"
+                    | "base64" | "hashlib" | "subprocess" | "string" | "tempfile"
+            )
+        } else {
+            false
+        };
+
+        if !is_stdlib_module
+            && matches!(
+                method,
+                "upper"
+                    | "lower"
+                    | "strip"
+                    | "lstrip"
+                    | "rstrip"
+                    | "startswith"
+                    | "endswith"
+                    | "split"
+                    | "splitlines"
+                    | "join"
+                    | "replace"
+                    | "find"
+                    | "rfind"
+                    | "rindex"
+                    | "isdigit"
+                    | "isalpha"
+                    | "isalnum"
+                    | "title"
+                    | "center"
+                    | "ljust"
+                    | "rjust"
+                    | "zfill"
+                    | "hex"
+                    | "format"
+            )
+        {
             let object_expr = object.to_rust_expr(self.ctx)?;
             let arg_exprs: Vec<syn::Expr> = args
                 .iter()
@@ -3333,7 +3394,63 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
-        let object_expr = object.to_rust_expr(self.ctx)?;
+        // DEPYLER-1064: Handle method calls on DepylerValue variables
+        // When calling string methods on a DepylerValue, extract the string first
+        let is_depyler_value_var = if let HirExpr::Var(var_name) = object {
+            self.ctx.type_mapper.nasa_mode
+                && self.ctx.var_types.get(var_name).is_some_and(|t| {
+                    matches!(t, Type::Unknown)
+                        || matches!(t, Type::Custom(name) if name == "Any" || name == "object")
+                })
+        } else {
+            false
+        };
+
+        let is_string_method = matches!(
+            method,
+            "upper"
+                | "lower"
+                | "strip"
+                | "lstrip"
+                | "rstrip"
+                | "startswith"
+                | "endswith"
+                | "split"
+                | "rsplit"
+                | "splitlines"
+                | "join"
+                | "replace"
+                | "find"
+                | "rfind"
+                | "rindex"
+                | "isdigit"
+                | "isalpha"
+                | "isalnum"
+                | "isspace"
+                | "isupper"
+                | "islower"
+                | "istitle"
+                | "title"
+                | "capitalize"
+                | "swapcase"
+                | "casefold"
+                | "center"
+                | "ljust"
+                | "rjust"
+                | "zfill"
+                | "format"
+                | "encode"
+                | "decode"
+        );
+
+        let object_expr = if is_depyler_value_var && is_string_method {
+            // Extract string from DepylerValue before calling string method
+            let base_expr = object.to_rust_expr(self.ctx)?;
+            parse_quote! { #base_expr.to_string() }
+        } else {
+            object.to_rust_expr(self.ctx)?
+        };
+
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
             .map(|arg| arg.to_rust_expr(self.ctx))
@@ -3533,14 +3650,42 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-1060: Check for dict with non-string keys (e.g., d = {1: "a"})
-            // This handles DepylerValue dicts with integer keys
+            // DEPYLER-1073: Handle float keys using DepylerValue::Float
             if self.is_dict_expr(base) {
                 let index_expr = index.to_rust_expr(self.ctx)?;
-                // HashMap<DepylerValue, DepylerValue>.get() expects &DepylerValue
-                // Wrap the integer index in DepylerValue::Int and borrow
-                return Ok(parse_quote! {
-                    #base_expr.get(&DepylerValue::Int(#index_expr as i64)).cloned().unwrap_or_default()
-                });
+                // Check if dict has float keys
+                let has_float_keys = if let HirExpr::Var(var_name) = base {
+                    self.ctx.var_types.get(var_name).is_some_and(|t| {
+                        matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Float))
+                    })
+                } else {
+                    false
+                };
+
+                // HashMap<DepylerValue, _>.get() expects &DepylerValue
+                if has_float_keys {
+                    // Float keys use DepylerValue::Float
+                    if matches!(index, HirExpr::Literal(Literal::Float(_))) {
+                        return Ok(parse_quote! {
+                            #base_expr.get(&DepylerValue::Float(#index_expr)).cloned().unwrap_or_default()
+                        });
+                    } else if matches!(index, HirExpr::Literal(Literal::Int(_))) {
+                        // Int used as float key - convert
+                        return Ok(parse_quote! {
+                            #base_expr.get(&DepylerValue::Float(#index_expr as f64)).cloned().unwrap_or_default()
+                        });
+                    } else {
+                        // Variable - use From trait
+                        return Ok(parse_quote! {
+                            #base_expr.get(&DepylerValue::from(#index_expr)).cloned().unwrap_or_default()
+                        });
+                    }
+                } else {
+                    // Integer keys use DepylerValue::Int
+                    return Ok(parse_quote! {
+                        #base_expr.get(&DepylerValue::Int(#index_expr as i64)).cloned().unwrap_or_default()
+                    });
+                }
             }
 
             // Vec/List access with numeric index
@@ -3973,8 +4118,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0473: Borrow to avoid moving base (allows reuse later)
                     let base = &#base_expr;
                     // DEPYLER-0459: Cast to isize first to handle negative indices
-                    let start_idx = #start as isize;
-                    let stop_idx = #stop as isize;
+                    // DEPYLER-1083: Parenthesize to avoid cast precedence issues (i + size as isize parses as i + (size as isize))
+                    let start_idx = (#start) as isize;
+                    let stop_idx = (#stop) as isize;
                     let start = if start_idx < 0 {
                         (base.len() as isize + start_idx).max(0) as usize
                     } else {
@@ -3999,7 +4145,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0473: Borrow to avoid moving base (allows reuse later)
                     let base = &#base_expr;
                     // DEPYLER-0459: Cast to isize first to handle negative indices
-                    let start_idx = #start as isize;
+                    // DEPYLER-1083: Parenthesize to avoid cast precedence issues
+                    let start_idx = (#start) as isize;
                     let start = if start_idx < 0 {
                         (base.len() as isize + start_idx).max(0) as usize
                     } else {
@@ -4019,7 +4166,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0473: Borrow to avoid moving base (allows reuse later)
                     let base = &#base_expr;
                     // DEPYLER-0459: Cast to isize first to handle negative indices
-                    let stop_idx = #stop as isize;
+                    // DEPYLER-1083: Parenthesize to avoid cast precedence issues
+                    let stop_idx = (#stop) as isize;
                     let stop = if stop_idx < 0 {
                         (base.len() as isize + stop_idx).max(0) as usize
                     } else {
@@ -4038,8 +4186,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     {
                         let base = #base_expr;
                         // DEPYLER-0459: Cast to isize first to handle negative indices
-                        let start_idx = #start as isize;
-                        let stop_idx = #stop as isize;
+                        // DEPYLER-1083: Parenthesize to avoid cast precedence issues
+                        let start_idx = (#start) as isize;
+                        let stop_idx = (#stop) as isize;
                         let start = if start_idx < 0 {
                             (base.len() as isize + start_idx).max(0) as usize
                         } else {
@@ -4088,7 +4237,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 {
                     let base = #base_expr;
                     // DEPYLER-0459: Cast to isize first to handle negative indices
-                    let start_idx = #start as isize;
+                    // DEPYLER-1083: Parenthesize to avoid cast precedence issues
+                    let start_idx = (#start) as isize;
                     let start = if start_idx < 0 {
                         (base.len() as isize + start_idx).max(0) as usize
                     } else {
@@ -4918,8 +5068,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // If we have `d: Dict[int, str] = {}`, use HashMap<i32, String>
                 // Otherwise default to HashMap<String, String>
                 if let Some(Type::Dict(ref key_type, ref val_type)) = self.ctx.current_assign_type {
-                    // Use type_to_rust_type to convert HIR Type to TokenStream
-                    let key_tokens = type_to_rust_type(key_type, self.ctx.type_mapper);
+                    // DEPYLER-1073: Use DepylerValue for float keys (f64 doesn't implement Hash/Eq)
+                    let key_tokens = if matches!(key_type.as_ref(), Type::Float) {
+                        quote! { DepylerValue }
+                    } else {
+                        type_to_rust_type(key_type, self.ctx.type_mapper)
+                    };
                     let val_tokens = type_to_rust_type(val_type, self.ctx.type_mapper);
 
                     return Ok(parse_quote! {
@@ -5259,6 +5413,97 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(parse_quote! {
                     std::env::vars().collect::<std::collections::HashMap<String, String>>()
                 });
+            }
+        }
+
+        // DEPYLER-1069: Handle datetime class constants (min, max, resolution)
+        // date.min → DepylerDate::new(1, 1, 1)
+        // datetime.min → DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0)
+        // time.min → (0, 0, 0, 0)
+        // timedelta.min → DepylerTimeDelta::new(-999999999, 0, 0)
+        if let HirExpr::Var(var_name) = value {
+            let nasa_mode = self.ctx.type_mapper.nasa_mode;
+            if (var_name == "date" || var_name == "datetime" || var_name == "time" || var_name == "timedelta")
+                && (attr == "min" || attr == "max" || attr == "resolution")
+            {
+                if var_name == "date" {
+                    self.ctx.needs_depyler_date = true;
+                    if nasa_mode {
+                        return Ok(if attr == "min" {
+                            parse_quote! { DepylerDate::new(1, 1, 1) }
+                        } else {
+                            parse_quote! { DepylerDate::new(9999, 12, 31) }
+                        });
+                    } else {
+                        self.ctx.needs_chrono = true;
+                        return Ok(if attr == "min" {
+                            parse_quote! { chrono::NaiveDate::MIN }
+                        } else {
+                            parse_quote! { chrono::NaiveDate::MAX }
+                        });
+                    }
+                } else if var_name == "datetime" {
+                    self.ctx.needs_depyler_datetime = true;
+                    if nasa_mode {
+                        return Ok(if attr == "min" {
+                            parse_quote! { DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0) }
+                        } else {
+                            parse_quote! { DepylerDateTime::new(9999, 12, 31, 23, 59, 59, 999999) }
+                        });
+                    } else {
+                        self.ctx.needs_chrono = true;
+                        return Ok(if attr == "min" {
+                            parse_quote! { chrono::NaiveDateTime::MIN }
+                        } else {
+                            parse_quote! { chrono::NaiveDateTime::MAX }
+                        });
+                    }
+                } else if var_name == "time" {
+                    if nasa_mode {
+                        return Ok(if attr == "min" {
+                            parse_quote! { (0u32, 0u32, 0u32, 0u32) }
+                        } else if attr == "max" {
+                            parse_quote! { (23u32, 59u32, 59u32, 999999u32) }
+                        } else {
+                            // resolution
+                            parse_quote! { (0u32, 0u32, 0u32, 1u32) }
+                        });
+                    } else {
+                        self.ctx.needs_chrono = true;
+                        return Ok(if attr == "min" {
+                            parse_quote! { chrono::NaiveTime::MIN }
+                        } else if attr == "max" {
+                            parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).unwrap() }
+                        } else {
+                            // resolution
+                            parse_quote! { chrono::Duration::microseconds(1) }
+                        });
+                    }
+                } else if var_name == "timedelta" {
+                    self.ctx.needs_depyler_timedelta = true;
+                    if nasa_mode {
+                        return Ok(if attr == "min" {
+                            // timedelta.min = timedelta(-999999999)
+                            parse_quote! { DepylerTimeDelta::new(-999999999, 0, 0) }
+                        } else if attr == "max" {
+                            // timedelta.max = timedelta(days=999999999, hours=23, minutes=59, seconds=59, microseconds=999999)
+                            parse_quote! { DepylerTimeDelta::new(999999999, 86399, 999999) }
+                        } else {
+                            // resolution = timedelta(microseconds=1)
+                            parse_quote! { DepylerTimeDelta::new(0, 0, 1) }
+                        });
+                    } else {
+                        self.ctx.needs_chrono = true;
+                        return Ok(if attr == "min" {
+                            parse_quote! { chrono::Duration::min_value() }
+                        } else if attr == "max" {
+                            parse_quote! { chrono::Duration::max_value() }
+                        } else {
+                            // resolution
+                            parse_quote! { chrono::Duration::microseconds(1) }
+                        });
+                    }
+                }
             }
         }
 
@@ -5665,34 +5910,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 return Ok(parse_quote! { #value_expr.#method_ident() as i32 });
             }
 
-            // DEPYLER-0514 / GH-74: Removed overly-aggressive timedelta property conversions
-            // These attribute names (days, seconds, microseconds) can appear on ANY object,
-            // not just timedelta. Without type information, we cannot distinguish between:
-            //   - obj.seconds (regular field) vs td.seconds (timedelta property)
-            //
-            // Similar to DEPYLER-0357 which removed overly-aggressive .name conversion.
-            //
-            // Future enhancement: Add type-aware attribute rewriting that checks HIR type
-            // information before applying stdlib-specific conversions.
-            //
-            // Commented out until type guards are implemented:
-            //
-            // "days" => {
-            //     // td.days → td.num_days()
-            //     return Ok(parse_quote! { #value_expr.num_days() as i32 });
-            // }
-            //
-            // "seconds" => {
-            //     // td.seconds → td.num_seconds() % 86400 (seconds within the day)
-            //     return Ok(parse_quote! { (#value_expr.num_seconds() % 86400) as i32 });
-            // }
-            //
-            // "microseconds" => {
-            //     // td.microseconds → (td.num_microseconds() % 1_000_000)
-            //     return Ok(
-            //         parse_quote! { (#value_expr.num_microseconds().unwrap() % 1_000_000) as i32 },
-            //     );
-            // }
+            // DEPYLER-1068: timedelta properties with DepylerTimeDelta
+            // These now work correctly with the DepylerTimeDelta wrapper struct
+            // which provides proper .days(), .seconds(), .microseconds() methods
+            "days" => {
+                // td.days → td.days() as i32 (DepylerTimeDelta returns i64)
+                return Ok(parse_quote! { #value_expr.days() as i32 });
+            }
+
+            "seconds" => {
+                // td.seconds → td.seconds() as i32
+                return Ok(parse_quote! { #value_expr.seconds() as i32 });
+            }
+
+            "microseconds" => {
+                // td.microseconds → td.microseconds() as i32
+                return Ok(parse_quote! { #value_expr.microseconds() as i32 });
+            }
+
             _ => {
                 // Not a datetime property, continue with default handling
             }
@@ -5823,9 +6058,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // serde_json::Value doesn't implement IntoIterator, must convert first
                 parse_quote! { #iter_expr.as_array().unwrap_or(&vec![]).iter().cloned() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
-                // DEPYLER-0674: Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
-                // .cloned() works for both Copy and Clone types, .copied() only works for Copy
-                parse_quote! { #iter_expr.iter().cloned() }
+                // DEPYLER-1077: Check if variable is a string type - strings use .chars()
+                let is_string_type = if let HirExpr::Var(var_name) = &*gen.iter {
+                    self.ctx
+                        .var_types
+                        .get(var_name)
+                        .map(|ty| matches!(ty, crate::hir::Type::String))
+                        .unwrap_or(false)
+                } else {
+                    false
+                };
+                if is_string_type {
+                    // DEPYLER-1077: String iteration uses .chars() not .iter()
+                    // Also register target as a char iteration variable for ord() handling
+                    self.ctx.char_iter_vars.insert(gen.target.clone());
+                    parse_quote! { #iter_expr.chars() }
+                } else {
+                    // DEPYLER-0674: Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
+                    // .cloned() works for both Copy and Clone types, .copied() only works for Copy
+                    parse_quote! { #iter_expr.iter().cloned() }
+                }
             } else {
                 // Direct expression (ranges, lists, etc.) - use .into_iter()
                 parse_quote! { #iter_expr.into_iter() }
@@ -6027,7 +6279,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" | "clip" | "clamp" | "normalize"
                 ) =>
             {
-                args.first().map_or(false, |arg| self.is_numpy_array_expr(arg))
+                args.first().is_some_and(|arg| self.is_numpy_array_expr(arg))
             }
             // DEPYLER-1044: Method calls on numpy arrays return numpy arrays
             // BUT scalar.abs() returns scalar, not vector
@@ -7493,6 +7745,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return body.to_rust_expr(self.ctx);
         }
 
+        // DEPYLER-1071: Handle Option variable ternary with method call on Option
+        // Pattern: `option_var.method() if option_var else default`
+        // Python: `m.group(0) if m else None` where m = re.search(...)
+        // Rust: `if let Some(ref m_val) = m { Some(m_val.group(0)) } else { None }`
+        if let HirExpr::Var(var_name) = test {
+            let is_option_var = self.is_option_variable(var_name);
+            if is_option_var {
+                // Check if body uses this variable in a method call
+                if self.body_uses_option_var_method(body, var_name) {
+                    return self.generate_option_if_let_expr(var_name, body, orelse);
+                }
+            }
+        }
+
         let mut test_expr = test.to_rust_expr(self.ctx)?;
         let body_expr = body.to_rust_expr(self.ctx)?;
         let orelse_expr = orelse.to_rust_expr(self.ctx)?;
@@ -7582,6 +7848,116 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         false
     }
 
+    /// DEPYLER-1071: Check if a variable is an Option type (by type tracking or name heuristic)
+    fn is_option_variable(&self, var_name: &str) -> bool {
+        // First check if we have type info
+        if let Some(var_type) = self.ctx.var_types.get(var_name) {
+            if matches!(var_type, Type::Optional(_)) {
+                return true;
+            }
+        }
+        // Fall back to name heuristic for regex match results
+        is_option_var_name(var_name)
+    }
+
+    /// DEPYLER-1071: Check if the body expression uses the given variable in a method call
+    /// This detects patterns like `m.group(0)` where m is the Option variable
+    fn body_uses_option_var_method(&self, body: &HirExpr, var_name: &str) -> bool {
+        match body {
+            // Direct method call on the variable: m.group(0)
+            HirExpr::MethodCall { object, .. } => {
+                if let HirExpr::Var(obj_name) = object.as_ref() {
+                    return obj_name == var_name;
+                }
+                // Check nested method calls
+                self.body_uses_option_var_method(object, var_name)
+            }
+            // Attribute access on the variable
+            HirExpr::Attribute { value, .. } => {
+                if let HirExpr::Var(obj_name) = value.as_ref() {
+                    return obj_name == var_name;
+                }
+                self.body_uses_option_var_method(value, var_name)
+            }
+            // Variable used directly in body
+            HirExpr::Var(name) => name == var_name,
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-1071: Generate `if let Some(ref val) = option_var { body } else { orelse }`
+    /// with the option variable replaced by the unwrapped val in the body
+    fn generate_option_if_let_expr(
+        &mut self,
+        var_name: &str,
+        body: &HirExpr,
+        orelse: &HirExpr,
+    ) -> Result<syn::Expr> {
+        let var_ident = keywords::safe_ident(var_name);
+        let val_name = format!("{}_val", var_name);
+        let val_ident = keywords::safe_ident(&val_name);
+
+        // Create a temporary context with the unwrapped variable name
+        // We'll transform the body to use the unwrapped value
+        let body_with_substitution = self.substitute_var_in_expr(body, var_name, &val_name);
+        let body_expr = body_with_substitution.to_rust_expr(self.ctx)?;
+        let orelse_expr = orelse.to_rust_expr(self.ctx)?;
+
+        // Check if orelse is None - if so, use Option::map pattern
+        if matches!(orelse, HirExpr::Literal(Literal::None)) {
+            // Pattern: `x.method() if x else None` → `x.map(|x_val| x_val.method())`
+            Ok(parse_quote! {
+                #var_ident.as_ref().map(|#val_ident| #body_expr)
+            })
+        } else {
+            // Pattern: `x.method() if x else default` → `if let Some(ref x_val) = x { body } else { orelse }`
+            Ok(parse_quote! {
+                if let Some(ref #val_ident) = #var_ident { #body_expr } else { #orelse_expr }
+            })
+        }
+    }
+
+    /// DEPYLER-1071: Recursively substitute a variable name in an expression
+    fn substitute_var_in_expr(&self, expr: &HirExpr, old_name: &str, new_name: &str) -> HirExpr {
+        match expr {
+            HirExpr::Var(name) if name == old_name => HirExpr::Var(new_name.to_string()),
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                kwargs,
+            } => HirExpr::MethodCall {
+                object: Box::new(self.substitute_var_in_expr(object, old_name, new_name)),
+                method: method.clone(),
+                args: args
+                    .iter()
+                    .map(|a| self.substitute_var_in_expr(a, old_name, new_name))
+                    .collect(),
+                kwargs: kwargs
+                    .iter()
+                    .map(|(k, v)| (k.clone(), self.substitute_var_in_expr(v, old_name, new_name)))
+                    .collect(),
+            },
+            HirExpr::Attribute { value, attr } => HirExpr::Attribute {
+                value: Box::new(self.substitute_var_in_expr(value, old_name, new_name)),
+                attr: attr.clone(),
+            },
+            HirExpr::Call { func, args, kwargs } => HirExpr::Call {
+                func: func.clone(),
+                args: args
+                    .iter()
+                    .map(|a| self.substitute_var_in_expr(a, old_name, new_name))
+                    .collect(),
+                kwargs: kwargs
+                    .iter()
+                    .map(|(k, v)| (k.clone(), self.substitute_var_in_expr(v, old_name, new_name)))
+                    .collect(),
+            },
+            // For other expression types, return as-is (could be extended if needed)
+            _ => expr.clone(),
+        }
+    }
+
     /// Apply Python truthiness conversion to non-boolean conditions
     /// Python: `if val:` where val is String/List/Dict/Set/Optional/Int/Float
     /// Rust: `if !val.is_empty()` / `if val.is_some()` / `if val != 0`
@@ -7593,31 +7969,67 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Check if this is a variable reference that needs truthiness conversion
         if let HirExpr::Var(var_name) = condition {
             if let Some(var_type) = ctx.var_types.get(var_name) {
-                return match var_type {
+                match var_type {
                     // Already boolean - no conversion needed
-                    Type::Bool => cond_expr,
+                    Type::Bool => return cond_expr,
 
                     // String/List/Dict/Set - check if empty
                     Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => {
-                        parse_quote! { !#cond_expr.is_empty() }
+                        return parse_quote! { !#cond_expr.is_empty() };
                     }
 
                     // Optional - check if Some
                     Type::Optional(_) => {
-                        parse_quote! { #cond_expr.is_some() }
+                        return parse_quote! { #cond_expr.is_some() };
                     }
 
                     // Numeric types - check if non-zero
                     Type::Int => {
-                        parse_quote! { #cond_expr != 0 }
+                        return parse_quote! { #cond_expr != 0 };
                     }
                     Type::Float => {
-                        parse_quote! { #cond_expr != 0.0 }
+                        return parse_quote! { #cond_expr != 0.0 };
                     }
 
-                    // Unknown or other types - use as-is (may fail compilation)
-                    _ => cond_expr,
-                };
+                    // DEPYLER-1071: Custom types that are collections
+                    Type::Custom(type_name) => {
+                        if is_collection_type_name(type_name) {
+                            return parse_quote! { !#cond_expr.is_empty() };
+                        }
+                        // Fall through to heuristics
+                    }
+
+                    // DEPYLER-1071: Generic types that are collections
+                    Type::Generic { base, .. } => {
+                        if is_collection_generic_base(base) {
+                            return parse_quote! { !#cond_expr.is_empty() };
+                        }
+                        // Fall through to heuristics
+                    }
+
+                    // Unknown - fall through to heuristics
+                    Type::Unknown => {}
+
+                    // Other types - fall through to heuristics
+                    _ => {}
+                }
+            }
+
+            // DEPYLER-1071: Heuristic fallback for common string variable names
+            if is_string_var_name(var_name) {
+                return parse_quote! { !#cond_expr.is_empty() };
+            }
+
+            // DEPYLER-1071: Heuristic fallback for common collection variable names
+            if is_collection_var_name(var_name) {
+                return parse_quote! { !#cond_expr.is_empty() };
+            }
+
+            // DEPYLER-1071: Heuristic fallback for common Option variable names
+            // This handles regex match results and other optional values
+            // Pattern: `if m:` where m is a regex match result (Option<Match>)
+            if is_option_var_name(var_name) {
+                return parse_quote! { #cond_expr.is_some() };
             }
         }
 
@@ -7701,8 +8113,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if generators.len() == 1 {
             let gen = &generators[0];
             let iter_expr = gen.iter.to_rust_expr(self.ctx)?;
-            let element_expr = element.to_rust_expr(self.ctx)?;
             let target_pat = self.parse_target_pattern(&gen.target)?;
+
+            // DEPYLER-1077: Pre-register char_iter_vars BEFORE converting element expression
+            // This ensures ord(c) knows c is a char when iterating over a string
+            let is_string_iter_precheck = if let HirExpr::Var(var_name) = &*gen.iter {
+                self.ctx
+                    .var_types
+                    .get(var_name)
+                    .map(|ty| matches!(ty, crate::hir::Type::String))
+                    .unwrap_or(false)
+            } else {
+                false
+            };
+            if is_string_iter_precheck {
+                self.ctx.char_iter_vars.insert(gen.target.clone());
+            }
+
+            // Now convert element expression (with char_iter_vars populated)
+            let element_expr = element.to_rust_expr(self.ctx)?;
 
             // DEPYLER-0454: Detect CSV reader variables in generator expressions
             let is_csv_reader = if let HirExpr::Var(var_name) = &*gen.iter {
@@ -7758,23 +8187,112 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // serde_json::Value doesn't implement IntoIterator, must convert first
                 parse_quote! { #iter_expr.as_array().unwrap_or(&vec![]).iter().cloned() }
             } else if matches!(&*gen.iter, HirExpr::Var(_)) {
-                // DEPYLER-0674: Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
-                parse_quote! { #iter_expr.iter().cloned() }
+                // DEPYLER-1077: Check if variable is a string type - strings use .chars()
+                let is_string_type = if let HirExpr::Var(var_name) = &*gen.iter {
+                    self.ctx
+                        .var_types
+                        .get(var_name)
+                        .map(|ty| matches!(ty, crate::hir::Type::String))
+                        .unwrap_or(false)
+                } else {
+                    false
+                };
+                if is_string_type {
+                    // DEPYLER-1077: String iteration uses .chars() not .iter()
+                    // Also register target as a char iteration variable for ord() handling
+                    self.ctx.char_iter_vars.insert(gen.target.clone());
+                    parse_quote! { #iter_expr.chars() }
+                } else {
+                    // DEPYLER-0674: Variable iteration - use .cloned() for non-Copy types (String, Vec, etc.)
+                    parse_quote! { #iter_expr.iter().cloned() }
+                }
             } else {
                 // Direct expression (ranges, lists, etc.) - use .into_iter()
                 parse_quote! { #iter_expr.into_iter() }
             };
 
+            // DEPYLER-1079: Check if iterator is a zip() call on reference types
+            // zip() on &Vec produces (&T, &T) tuples that need dereferencing for owned returns
+            // Pattern: (a, b) for (a, b) in zip(list1, list2) where list1/list2 are &Vec
+            let is_zip_call = matches!(&*gen.iter, HirExpr::Call { func, .. } if func == "zip");
+
+            if is_zip_call && gen.target.contains(',') {
+                // Parse target pattern to extract tuple variable names
+                // Target is like "(a, b)" or "a, b" - strip parens and split
+                let target_clean = gen.target.trim_start_matches('(').trim_end_matches(')');
+                let vars: Vec<&str> = target_clean.split(',').map(|s| s.trim()).collect();
+                if vars.len() == 2 && !vars[0].is_empty() && !vars[1].is_empty() {
+                    let a = syn::Ident::new(vars[0], proc_macro2::Span::call_site());
+                    let b = syn::Ident::new(vars[1], proc_macro2::Span::call_site());
+                    // Add map to clone/dereference tuple elements
+                    chain = parse_quote! { #chain.map(|(#a, #b)| (#a.clone(), #b.clone())) };
+                }
+            }
+
             // DEPYLER-0691: Add filters for each condition
-            // DEPYLER-0820: Use |pattern| not |&pattern| - after .cloned() values are owned,
-            // filter() receives &Item, using |pattern| binds as references avoiding E0507
+            // DEPYLER-0820/1074: filter() receives &Item (even after .cloned())
+            // Use |&#target_pat| to destructure the reference, getting owned value
+            // This allows comparisons like x > 0 to work without type errors
+            //
+            // DEPYLER-1074: Register target variable's element type so numeric coercion works
+            // When iterating over List[float], target x is float, so x > 0 should coerce to x > 0.0
+            let element_type = if let HirExpr::Var(iter_var) = &*gen.iter {
+                self.ctx
+                    .var_types
+                    .get(iter_var)
+                    .and_then(|ty| match ty {
+                        crate::hir::Type::List(elem) => Some(elem.as_ref().clone()),
+                        crate::hir::Type::Set(elem) => Some(elem.as_ref().clone()),
+                        _ => None,
+                    })
+            } else {
+                None
+            };
+
+            // Temporarily register target variable with element type for condition conversion
+            let target_var_name = gen.target.clone();
+            if let Some(ref elem_ty) = element_type {
+                self.ctx.var_types.insert(target_var_name.clone(), elem_ty.clone());
+            }
+
+            // DEPYLER-1076: When function returns impl Iterator, closures need `move`
+            // to take ownership of captured local variables (like min_val, factor, etc.)
+            let needs_move = self.ctx.returns_impl_iterator;
+
+            // DEPYLER-1081: Check if target is a tuple pattern
+            // For tuples like (i, v), using |&(i, v)| causes E0507 for non-Copy elements
+            // Instead, use |(i, v)| which receives references without trying to move
+            let is_tuple_pattern = gen.target.contains(',');
+
             for cond in &gen.conditions {
                 let cond_expr = cond.to_rust_expr(self.ctx)?;
-                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+                if is_tuple_pattern {
+                    // DEPYLER-1081: Tuple patterns - use |(a, b)| to avoid move out of shared ref
+                    // Rust's match ergonomics will handle &(A, B) with |(a, b)| pattern
+                    if needs_move {
+                        chain = parse_quote! { #chain.filter(move |#target_pat| #cond_expr) };
+                    } else {
+                        chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+                    }
+                } else if needs_move {
+                    chain = parse_quote! { #chain.filter(move |&#target_pat| #cond_expr) };
+                } else {
+                    chain = parse_quote! { #chain.filter(|&#target_pat| #cond_expr) };
+                }
+            }
+
+            // Clean up: remove the temporary target variable
+            if element_type.is_some() {
+                self.ctx.var_types.remove(&target_var_name);
             }
 
             // Add the map transformation
-            chain = parse_quote! { #chain.map(|#target_pat| #element_expr) };
+            // DEPYLER-1076: Use move when returning impl Iterator
+            if needs_move {
+                chain = parse_quote! { #chain.map(move |#target_pat| #element_expr) };
+            } else {
+                chain = parse_quote! { #chain.map(|#target_pat| #element_expr) };
+            }
 
             return Ok(chain);
         }
@@ -7804,15 +8322,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let first_iter = self.wrap_range_in_parens(first_iter);
         let mut chain: syn::Expr = parse_quote! { #first_iter.into_iter() };
 
+        // DEPYLER-1076: When function returns impl Iterator, closures need `move`
+        let needs_move = self.ctx.returns_impl_iterator;
+
         // DEPYLER-0691: Add filters for first generator's conditions
         // DEPYLER-0820: Use |pattern| not |&pattern| to avoid E0507 on non-Copy types
         for cond in &first_gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
+            if needs_move {
+                chain = parse_quote! { #chain.filter(move |#first_pat| #cond_expr) };
+            } else {
+                chain = parse_quote! { #chain.filter(|#first_pat| #cond_expr) };
+            }
         }
 
         // Use flat_map for the first generator
-        chain = parse_quote! { #chain.flat_map(|#first_pat| #inner_expr) };
+        // DEPYLER-1076: Use move when returning impl Iterator
+        if needs_move {
+            chain = parse_quote! { #chain.flat_map(move |#first_pat| #inner_expr) };
+        } else {
+            chain = parse_quote! { #chain.flat_map(|#first_pat| #inner_expr) };
+        }
 
         Ok(chain)
     }
@@ -7844,18 +8374,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0691: Add filters for this generator's conditions
         // DEPYLER-0820: Use |pattern| not |&pattern| to avoid E0507 on non-Copy types
+        // DEPYLER-1076: Use move when returning impl Iterator (for captured locals)
         for cond in &gen.conditions {
             let cond_expr = cond.to_rust_expr(self.ctx)?;
-            chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+            if self.ctx.returns_impl_iterator {
+                chain = parse_quote! { #chain.filter(move |#target_pat| #cond_expr) };
+            } else {
+                chain = parse_quote! { #chain.filter(|#target_pat| #cond_expr) };
+            }
         }
 
         // Use flat_map for intermediate generators, map for the last
+        // Note: These already use `move` for capturing outer loop variables
         if depth < generators.len() - 1 {
             // Intermediate generator: use flat_map
             chain = parse_quote! { #chain.flat_map(move |#target_pat| #inner_expr) };
         } else {
             // Last generator: use map
-            chain = parse_quote! { #chain.map(move |#target_pat| #inner_expr) };
+            // DEPYLER-1082: Check if element is just the target variable (identity pattern)
+            // In this case, use .copied() instead of .map(|x| x) to dereference
+            // This handles (x for lst in lists for x in lst) where lst is &Vec<i32>
+            let is_identity = matches!(element, HirExpr::Var(v) if v == &gen.target);
+            if is_identity {
+                // DEPYLER-1082: Use .copied() for primitive types to dereference
+                // This converts Iterator<Item=&T> to Iterator<Item=T> for Copy types
+                chain = parse_quote! { #chain.copied() };
+            } else {
+                chain = parse_quote! { #chain.map(move |#target_pat| #inner_expr) };
+            }
         }
 
         Ok(chain)
