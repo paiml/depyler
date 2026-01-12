@@ -368,11 +368,12 @@ mod tests {
         let args = vec![HirExpr::Literal(Literal::Float(1234567890.0))];
         let result = convert_time_method("ctime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
-        assert!(code.contains("chrono") && code.contains("DateTime"));
-        assert!(code.contains("Utc"));
+        assert!(code.contains("UNIX_EPOCH")); // NASA mode uses std::time
+        // DEPYLER-1086: NASA mode (default) uses std::time, not chrono
+        // chrono::Utc is only generated when nasa_mode=false
     }
 
     #[test]
@@ -396,7 +397,7 @@ mod tests {
         ];
         let result = convert_time_method("strftime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
         assert!(code.contains("format"));
@@ -411,7 +412,7 @@ mod tests {
         ];
         let result = convert_time_method("strftime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
     }
 
     #[test]
@@ -435,10 +436,10 @@ mod tests {
         ];
         let result = convert_time_method("strptime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
-        assert!(code.contains("parse_from_str"));
+        assert!(code.contains("SystemTime")); // NASA mode stub
     }
 
     #[test]
@@ -450,7 +451,7 @@ mod tests {
         ];
         let result = convert_time_method("strptime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
     }
 
     #[test]
@@ -471,11 +472,12 @@ mod tests {
         let args = vec![HirExpr::Literal(Literal::Float(1234567890.0))];
         let result = convert_time_method("gmtime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
-        assert!(code.contains("chrono") && code.contains("DateTime"));
-        assert!(code.contains("Utc"));
+        assert!(code.contains("UNIX_EPOCH")); // NASA mode uses std::time
+        // DEPYLER-1086: NASA mode (default) uses std::time, not chrono
+        // chrono::Utc is only generated when nasa_mode=false
     }
 
     #[test]
@@ -484,7 +486,7 @@ mod tests {
         let args: Vec<HirExpr> = vec![];
         let result = convert_time_method("gmtime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
         assert!(code.contains("SystemTime") && code.contains("now"));
@@ -498,11 +500,12 @@ mod tests {
         let args = vec![HirExpr::Literal(Literal::Float(1234567890.0))];
         let result = convert_time_method("localtime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
-        assert!(code.contains("chrono") && code.contains("DateTime"));
-        assert!(code.contains("Local"));
+        assert!(code.contains("UNIX_EPOCH")); // NASA mode uses std::time
+        // DEPYLER-1086: NASA mode (default) uses std::time, not chrono
+        // chrono::Local is only generated when nasa_mode=false
     }
 
     #[test]
@@ -511,7 +514,7 @@ mod tests {
         let args: Vec<HirExpr> = vec![];
         let result = convert_time_method("localtime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
         assert!(code.contains("SystemTime") && code.contains("now"));
@@ -525,7 +528,7 @@ mod tests {
         let args = vec![HirExpr::Var("time_tuple".to_string())];
         let result = convert_time_method("mktime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
         assert!(code.contains("timestamp"));
@@ -549,7 +552,7 @@ mod tests {
         let args = vec![HirExpr::Var("time_tuple".to_string())];
         let result = convert_time_method("asctime", &args, &mut ctx);
         assert!(result.is_ok());
-        assert!(ctx.needs_chrono);
+        // assert!(ctx.needs_chrono); // Not in NASA mode
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
         assert!(code.contains("to_string"));
