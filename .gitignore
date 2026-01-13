@@ -110,7 +110,8 @@ models/
 .depyler-improve/
 proptest-regressions/
 training_corpus/
-lib.long-type-*.txt
+# Rustc long type hash files (garbage)
+*.long-type-*.txt
 
 # Temporary session/analysis files
 OVERNIGHT_*.md
