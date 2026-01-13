@@ -1,27 +1,284 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#1a1a2e"/>
-      <stop offset="100%" style="stop-color:#16213e"/>
+    <!-- Gradients -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0f172a"/>
+      <stop offset="100%" style="stop-color:#1e293b"/>
     </linearGradient>
-    <linearGradient id="python" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="pythonGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#3776ab"/>
       <stop offset="100%" style="stop-color:#ffd43b"/>
     </linearGradient>
-    <linearGradient id="rust" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" style="stop-color:#dea584"/>
-      <stop offset="100%" style="stop-color:#b7410e"/>
+    <linearGradient id="rustGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ce422b"/>
+      <stop offset="100%" style="stop-color:#f74c00"/>
     </linearGradient>
+    <linearGradient id="oracleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="100%" style="stop-color:#a855f7"/>
+    </linearGradient>
+    <linearGradient id="learnGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#059669"/>
+      <stop offset="100%" style="stop-color:#10b981"/>
+    </linearGradient>
+    <linearGradient id="feedbackGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0891b2"/>
+      <stop offset="100%" style="stop-color:#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="successGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#16a34a"/>
+      <stop offset="100%" style="stop-color:#22c55e"/>
+    </linearGradient>
+
+    <!-- Arrow marker -->
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#94a3b8"/>
+    </marker>
+    <marker id="arrowheadGreen" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22c55e"/>
+    </marker>
+    <marker id="arrowheadCyan" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#22d3ee"/>
+    </marker>
+
+    <!-- Glow filter -->
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Drop shadow -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="4" stdDeviation="4" flood-opacity="0.3"/>
+    </filter>
   </defs>
-  <rect width="1280" height="640" fill="url(#bg)"/>
-  <g transform="translate(640, 280)">
-    <circle cx="-60" cy="0" r="50" fill="#3776ab" opacity="0.9"/>
-    <text x="-60" y="15" font-family="system-ui" font-size="36" font-weight="700" fill="#ffd43b" text-anchor="middle">Py</text>
-    <path d="M-5,0 L30,0" stroke="#fff" stroke-width="4" opacity="0.8"/>
-    <path d="M20,-10 L35,0 L20,10" fill="#fff" opacity="0.8"/>
-    <circle cx="80" cy="0" r="50" fill="url(#rust)" opacity="0.9"/>
-    <text x="80" y="15" font-family="system-ui" font-size="32" font-weight="700" fill="#fff" text-anchor="middle">Rs</text>
+
+  <!-- Background -->
+  <rect width="1200" height="800" fill="url(#bgGrad)"/>
+
+  <!-- Grid pattern -->
+  <g opacity="0.05">
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#fff" stroke-width="0.5"/>
+    </pattern>
+    <rect width="1200" height="800" fill="url(#grid)"/>
   </g>
-  <text x="640" y="480" font-family="system-ui, -apple-system, sans-serif" font-size="64" font-weight="700" fill="#fff" text-anchor="middle">depyler</text>
-  <text x="640" y="530" font-family="system-ui, -apple-system, sans-serif" font-size="24" fill="#888" text-anchor="middle">Python to Rust Transpiler</text>
+
+  <!-- Title -->
+  <text x="600" y="45" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#f8fafc" text-anchor="middle">
+    DEPYLER: Multi-Pass Oracle Compiler Architecture
+  </text>
+  <text x="600" y="70" font-family="monospace" font-size="14" fill="#64748b" text-anchor="middle">
+    Compiler-Driven Type Repair Loop (v1.60.0)
+  </text>
+
+  <!-- Main flow container -->
+  <g transform="translate(50, 100)">
+
+    <!-- ========== PASS 1: HEURISTIC TRANSPILATION ========== -->
+    <g transform="translate(0, 50)">
+      <!-- Python Source -->
+      <rect x="0" y="0" width="160" height="100" rx="12" fill="url(#pythonGrad)" filter="url(#shadow)"/>
+      <text x="80" y="35" font-family="system-ui" font-size="14" font-weight="600" fill="#fff" text-anchor="middle">Python Source</text>
+      <text x="80" y="55" font-family="monospace" font-size="11" fill="#fff" opacity="0.9" text-anchor="middle">script.py</text>
+      <text x="80" y="75" font-family="monospace" font-size="10" fill="#fff" opacity="0.7" text-anchor="middle">def calc(x, y):</text>
+      <text x="80" y="88" font-family="monospace" font-size="10" fill="#fff" opacity="0.7" text-anchor="middle">  return x + y</text>
+
+      <!-- Arrow to Pass 1 -->
+      <line x1="160" y1="50" x2="195" y2="50" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Pass 1 Box -->
+      <rect x="200" y="-10" width="180" height="120" rx="12" fill="#1e293b" stroke="#475569" stroke-width="2" filter="url(#shadow)"/>
+      <rect x="200" y="-10" width="180" height="30" rx="12" fill="#334155"/>
+      <text x="290" y="12" font-family="system-ui" font-size="13" font-weight="600" fill="#f8fafc" text-anchor="middle">PASS 1: Heuristic</text>
+
+      <text x="220" y="40" font-family="monospace" font-size="10" fill="#94a3b8">Type Inference</text>
+      <text x="220" y="55" font-family="monospace" font-size="10" fill="#94a3b8">AST Transform</text>
+      <text x="220" y="70" font-family="monospace" font-size="10" fill="#94a3b8">Codegen (Best-Guess)</text>
+      <text x="220" y="90" font-family="monospace" font-size="9" fill="#64748b">→ x: Unknown, y: Unknown</text>
+
+      <!-- Arrow to Rust Output -->
+      <line x1="380" y1="50" x2="415" y2="50" stroke="#94a3b8" stroke-width="2" marker-end="url(#arrowhead)"/>
+
+      <!-- Rust Output (Candidate) -->
+      <rect x="420" y="0" width="160" height="100" rx="12" fill="url(#rustGrad)" filter="url(#shadow)"/>
+      <text x="500" y="30" font-family="system-ui" font-size="14" font-weight="600" fill="#fff" text-anchor="middle">Rust Candidate</text>
+      <text x="500" y="50" font-family="monospace" font-size="10" fill="#fff" opacity="0.9" text-anchor="middle">fn calc(x: ???,</text>
+      <text x="500" y="63" font-family="monospace" font-size="10" fill="#fff" opacity="0.9" text-anchor="middle">       y: ???)</text>
+      <text x="500" y="80" font-family="monospace" font-size="9" fill="#fef3c7" text-anchor="middle">Type ambiguity!</text>
+    </g>
+
+    <!-- ========== ORACLE VERIFICATION ========== -->
+    <g transform="translate(620, 50)">
+      <!-- Arrow down from Rust -->
+      <path d="M -40 50 L -40 120 L 20 120" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+
+      <!-- Oracle Box -->
+      <rect x="25" y="80" width="200" height="130" rx="12" fill="url(#oracleGrad)" filter="url(#shadow)"/>
+      <text x="125" y="110" font-family="system-ui" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">ORACLE</text>
+      <text x="125" y="128" font-family="monospace" font-size="11" fill="#e9d5ff" text-anchor="middle">rustc / cargo check</text>
+
+      <rect x="40" y="140" width="170" height="55" rx="6" fill="#1e1b4b" opacity="0.5"/>
+      <text x="125" y="158" font-family="monospace" font-size="9" fill="#c4b5fd" text-anchor="middle">$ cargo check --message-format=json</text>
+      <text x="125" y="175" font-family="monospace" font-size="9" fill="#fca5a5" text-anchor="middle">error[E0308]: expected `f64`</text>
+      <text x="125" y="188" font-family="monospace" font-size="9" fill="#fca5a5" text-anchor="middle">       found `i32`</text>
+    </g>
+
+    <!-- ========== CONSTRAINT EXTRACTION ========== -->
+    <g transform="translate(620, 270)">
+      <!-- Arrow from Oracle -->
+      <path d="M 125 -10 L 125 20" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#arrowhead)"/>
+
+      <!-- Learning Box -->
+      <rect x="25" y="25" width="200" height="120" rx="12" fill="url(#learnGrad)" filter="url(#shadow)"/>
+      <text x="125" y="55" font-family="system-ui" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">LEARN</text>
+      <text x="125" y="73" font-family="monospace" font-size="11" fill="#a7f3d0" text-anchor="middle">Constraint Extraction</text>
+
+      <rect x="40" y="85" width="170" height="50" rx="6" fill="#064e3b" opacity="0.5"/>
+      <text x="125" y="103" font-family="monospace" font-size="9" fill="#6ee7b7" text-anchor="middle">Parse E0308 diagnostics:</text>
+      <text x="125" y="118" font-family="monospace" font-size="9" fill="#fff" text-anchor="middle">x: i32 → f64</text>
+      <text x="125" y="130" font-family="monospace" font-size="9" fill="#fff" text-anchor="middle">y: i32 → f64</text>
+    </g>
+
+    <!-- ========== FEEDBACK LOOP ========== -->
+    <g transform="translate(300, 300)">
+      <!-- Arrow from Learn to Feedback -->
+      <path d="M 345 85 L 260 85" stroke="#22d3ee" stroke-width="3" fill="none" marker-end="url(#arrowheadCyan)"/>
+
+      <!-- Feedback Box -->
+      <rect x="60" y="45" width="200" height="100" rx="12" fill="url(#feedbackGrad)" filter="url(#shadow)"/>
+      <text x="160" y="75" font-family="system-ui" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">FEEDBACK</text>
+      <text x="160" y="93" font-family="monospace" font-size="11" fill="#cffafe" text-anchor="middle">Type Refinement</text>
+
+      <text x="160" y="115" font-family="monospace" font-size="9" fill="#fff" text-anchor="middle">Update Symbol Table:</text>
+      <text x="160" y="130" font-family="monospace" font-size="9" fill="#a5f3fc" text-anchor="middle">x: f64, y: f64</text>
+
+      <!-- Arrow back to Pass 2 -->
+      <path d="M 60 95 L -30 95 L -30 -100" stroke="#22d3ee" stroke-width="3" fill="none" stroke-dasharray="8,4"/>
+    </g>
+
+    <!-- ========== PASS 2: CORRECTED ========== -->
+    <g transform="translate(0, 230)">
+      <!-- Pass 2 Box -->
+      <rect x="200" y="-10" width="180" height="100" rx="12" fill="#1e293b" stroke="#22c55e" stroke-width="3" filter="url(#shadow)"/>
+      <rect x="200" y="-10" width="180" height="30" rx="12" fill="#166534"/>
+      <text x="290" y="12" font-family="system-ui" font-size="13" font-weight="600" fill="#fff" text-anchor="middle">PASS 2: Corrected</text>
+
+      <text x="220" y="40" font-family="monospace" font-size="10" fill="#86efac">With learned types:</text>
+      <text x="220" y="55" font-family="monospace" font-size="10" fill="#86efac">x: f64, y: f64</text>
+      <text x="220" y="70" font-family="monospace" font-size="10" fill="#86efac">return: f64</text>
+
+      <!-- Arrow to Final Output -->
+      <line x1="380" y1="40" x2="415" y2="40" stroke="#22c55e" stroke-width="3" marker-end="url(#arrowheadGreen)"/>
+
+      <!-- Final Rust Output -->
+      <rect x="420" y="-20" width="160" height="120" rx="12" fill="url(#successGrad)" filter="url(#shadow)"/>
+      <text x="500" y="10" font-family="system-ui" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">Compiled!</text>
+      <text x="500" y="30" font-family="monospace" font-size="9" fill="#fff" opacity="0.9" text-anchor="middle">fn calc(x: f64,</text>
+      <text x="500" y="43" font-family="monospace" font-size="9" fill="#fff" opacity="0.9" text-anchor="middle">        y: f64)</text>
+      <text x="500" y="56" font-family="monospace" font-size="9" fill="#fff" opacity="0.9" text-anchor="middle">  -&gt; f64 {</text>
+      <text x="500" y="69" font-family="monospace" font-size="9" fill="#fff" opacity="0.9" text-anchor="middle">  x + y</text>
+      <text x="500" y="82" font-family="monospace" font-size="9" fill="#fff" opacity="0.9" text-anchor="middle">}</text>
+    </g>
+
+    <!-- ========== FEEDBACK LOOP ARROW (curved) ========== -->
+    <path d="M 270 190 C 100 190, 100 70, 270 70" stroke="#22d3ee" stroke-width="2" fill="none" stroke-dasharray="6,3" marker-end="url(#arrowheadCyan)"/>
+    <text x="130" y="130" font-family="system-ui" font-size="10" fill="#22d3ee" text-anchor="middle" transform="rotate(-90, 130, 130)">Iterate until ✓</text>
+
+  </g>
+
+  <!-- ========== LEGEND / KEY CONCEPTS ========== -->
+  <g transform="translate(900, 120)">
+    <rect x="0" y="0" width="250" height="280" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1" opacity="0.9"/>
+    <text x="125" y="28" font-family="system-ui" font-size="14" font-weight="600" fill="#f8fafc" text-anchor="middle">Key Concepts</text>
+
+    <line x1="20" y1="42" x2="230" y2="42" stroke="#334155" stroke-width="1"/>
+
+    <!-- Jidoka -->
+    <text x="20" y="65" font-family="system-ui" font-size="12" font-weight="600" fill="#fbbf24">自働化 Jidoka</text>
+    <text x="20" y="80" font-family="system-ui" font-size="10" fill="#94a3b8">Stop on defect, auto-detect errors</text>
+
+    <!-- Kaizen -->
+    <text x="20" y="105" font-family="system-ui" font-size="12" font-weight="600" fill="#22d3ee">改善 Kaizen</text>
+    <text x="20" y="120" font-family="system-ui" font-size="10" fill="#94a3b8">Continuous improvement via iteration</text>
+
+    <!-- Andon -->
+    <text x="20" y="145" font-family="system-ui" font-size="12" font-weight="600" fill="#f472b6">行灯 Andon</text>
+    <text x="20" y="160" font-family="system-ui" font-size="10" fill="#94a3b8">Visual feedback from compiler</text>
+
+    <line x1="20" y1="175" x2="230" y2="175" stroke="#334155" stroke-width="1"/>
+
+    <!-- Theoretical basis -->
+    <text x="20" y="195" font-family="system-ui" font-size="11" font-weight="600" fill="#a78bfa">Theoretical Basis</text>
+    <text x="20" y="212" font-family="system-ui" font-size="9" fill="#94a3b8">• Static JIT (V8/JVM-style)</text>
+    <text x="20" y="226" font-family="system-ui" font-size="9" fill="#94a3b8">• Type Holes (GHC/Haskell)</text>
+    <text x="20" y="240" font-family="system-ui" font-size="9" fill="#94a3b8">• Automated Program Repair</text>
+    <text x="20" y="254" font-family="system-ui" font-size="9" fill="#94a3b8">• Compiler-Driven Synthesis</text>
+    <text x="20" y="268" font-family="system-ui" font-size="9" fill="#94a3b8">• MLOps feedback loop</text>
+  </g>
+
+  <!-- ========== METRICS BOX ========== -->
+  <g transform="translate(900, 420)">
+    <rect x="0" y="0" width="250" height="170" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1" opacity="0.9"/>
+    <text x="125" y="28" font-family="system-ui" font-size="14" font-weight="600" fill="#f8fafc" text-anchor="middle">Current Metrics</text>
+
+    <line x1="20" y1="42" x2="230" y2="42" stroke="#334155" stroke-width="1"/>
+
+    <!-- Compile rate -->
+    <text x="20" y="65" font-family="system-ui" font-size="11" fill="#94a3b8">Single-Shot Compile Rate</text>
+    <rect x="20" y="72" width="210" height="16" rx="4" fill="#334155"/>
+    <rect x="20" y="72" width="56" height="16" rx="4" fill="url(#oracleGrad)"/>
+    <text x="125" y="84" font-family="monospace" font-size="10" font-weight="600" fill="#fff" text-anchor="middle">26.9% (73/271)</text>
+
+    <!-- Target -->
+    <text x="20" y="108" font-family="system-ui" font-size="11" fill="#94a3b8">Target Rate</text>
+    <rect x="20" y="115" width="210" height="16" rx="4" fill="#334155"/>
+    <rect x="20" y="115" width="168" height="16" rx="4" fill="url(#successGrad)" opacity="0.3"/>
+    <text x="125" y="127" font-family="monospace" font-size="10" font-weight="600" fill="#22c55e" text-anchor="middle">80% Target</text>
+
+    <!-- Tests -->
+    <text x="20" y="152" font-family="system-ui" font-size="11" fill="#22c55e">✓ 11,298 tests passing</text>
+    <text x="20" y="165" font-family="system-ui" font-size="10" fill="#64748b">GREEN BOARD achieved</text>
+  </g>
+
+  <!-- ========== ERROR DISTRIBUTION ========== -->
+  <g transform="translate(900, 610)">
+    <rect x="0" y="0" width="250" height="140" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1" opacity="0.9"/>
+    <text x="125" y="25" font-family="system-ui" font-size="12" font-weight="600" fill="#f8fafc" text-anchor="middle">Top Blockers (Oracle Input)</text>
+
+    <text x="20" y="48" font-family="monospace" font-size="9" fill="#f87171">E0308</text>
+    <rect x="60" y="40" width="130" height="10" rx="2" fill="#334155"/>
+    <rect x="60" y="40" width="130" height="10" rx="2" fill="#ef4444" opacity="0.7"/>
+    <text x="195" y="49" font-family="monospace" font-size="8" fill="#94a3b8">3321</text>
+
+    <text x="20" y="65" font-family="monospace" font-size="9" fill="#fb923c">E0599</text>
+    <rect x="60" y="57" width="130" height="10" rx="2" fill="#334155"/>
+    <rect x="60" y="57" width="47" height="10" rx="2" fill="#f97316" opacity="0.7"/>
+    <text x="195" y="66" font-family="monospace" font-size="8" fill="#94a3b8">1199</text>
+
+    <text x="20" y="82" font-family="monospace" font-size="9" fill="#facc15">E0277</text>
+    <rect x="60" y="74" width="130" height="10" rx="2" fill="#334155"/>
+    <rect x="60" y="74" width="32" height="10" rx="2" fill="#eab308" opacity="0.7"/>
+    <text x="195" y="83" font-family="monospace" font-size="8" fill="#94a3b8">804</text>
+
+    <text x="20" y="99" font-family="monospace" font-size="9" fill="#a3e635">E0609</text>
+    <rect x="60" y="91" width="130" height="10" rx="2" fill="#334155"/>
+    <rect x="60" y="91" width="17" height="10" rx="2" fill="#84cc16" opacity="0.7"/>
+    <text x="195" y="100" font-family="monospace" font-size="8" fill="#94a3b8">438</text>
+
+    <text x="20" y="116" font-family="monospace" font-size="9" fill="#22d3ee">E0061</text>
+    <rect x="60" y="108" width="130" height="10" rx="2" fill="#334155"/>
+    <rect x="60" y="108" width="16" height="10" rx="2" fill="#06b6d4" opacity="0.7"/>
+    <text x="195" y="117" font-family="monospace" font-size="8" fill="#94a3b8">420</text>
+
+    <text x="125" y="135" font-family="system-ui" font-size="8" fill="#64748b" text-anchor="middle">Each error → Oracle constraint</text>
+  </g>
+
+  <!-- Version footer -->
+  <text x="600" y="780" font-family="monospace" font-size="10" fill="#475569" text-anchor="middle">
+    Depyler v1.60.0 | Single-Shot Compile Specification | 2026-01-13
+  </text>
 </svg>
