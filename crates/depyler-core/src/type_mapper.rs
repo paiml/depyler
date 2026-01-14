@@ -276,14 +276,17 @@ impl TypeMapper {
                         // NASA mode: use std::time types; otherwise use chrono
                         "date" | "datetime.date" => {
                             if self.nasa_mode {
-                                RustType::Custom("(u32, u32, u32)".to_string()) // (year, month, day)
+                                // DEPYLER-1066: Use DepylerDate struct instead of raw tuple
+                                // This provides .day(), .month(), .year() methods
+                                RustType::Custom("DepylerDate".to_string())
                             } else {
                                 RustType::Custom("chrono::NaiveDate".to_string())
                             }
                         }
                         "datetime" | "datetime.datetime" => {
                             if self.nasa_mode {
-                                RustType::Custom("std::time::SystemTime".to_string())
+                                // DEPYLER-1067: Use DepylerDateTime struct instead of SystemTime
+                                RustType::Custom("DepylerDateTime".to_string())
                             } else {
                                 RustType::Custom("chrono::NaiveDateTime".to_string())
                             }
@@ -297,7 +300,8 @@ impl TypeMapper {
                         }
                         "timedelta" | "datetime.timedelta" => {
                             if self.nasa_mode {
-                                RustType::Custom("std::time::Duration".to_string())
+                                // DEPYLER-1068: Use DepylerTimeDelta struct instead of Duration
+                                RustType::Custom("DepylerTimeDelta".to_string())
                             } else {
                                 RustType::Custom("chrono::Duration".to_string())
                             }
@@ -973,11 +977,11 @@ mod tests {
 
     #[test]
     fn test_date_type_mapping() {
-        // NASA mode (default) - uses tuple
+        // NASA mode (default) - uses DepylerDate (DEPYLER-1066)
         let nasa_mapper = TypeMapper::new();
         let date = PythonType::Custom("date".to_string());
         if let RustType::Custom(name) = nasa_mapper.map_type(&date) {
-            assert_eq!(name, "(u32, u32, u32)");
+            assert_eq!(name, "DepylerDate");
         } else {
             panic!("Expected Custom type for 'date' in NASA mode");
         }
@@ -994,11 +998,11 @@ mod tests {
 
     #[test]
     fn test_datetime_type_mapping() {
-        // NASA mode (default) - uses std::time::SystemTime
+        // NASA mode (default) - uses DepylerDateTime (DEPYLER-1067)
         let nasa_mapper = TypeMapper::new();
         let datetime = PythonType::Custom("datetime".to_string());
         if let RustType::Custom(name) = nasa_mapper.map_type(&datetime) {
-            assert_eq!(name, "std::time::SystemTime");
+            assert_eq!(name, "DepylerDateTime");
         } else {
             panic!("Expected Custom type for 'datetime' in NASA mode");
         }
@@ -1036,11 +1040,11 @@ mod tests {
 
     #[test]
     fn test_timedelta_type_mapping() {
-        // NASA mode (default) - uses std::time::Duration
+        // NASA mode (default) - uses DepylerTimeDelta (DEPYLER-1068)
         let nasa_mapper = TypeMapper::new();
         let timedelta = PythonType::Custom("timedelta".to_string());
         if let RustType::Custom(name) = nasa_mapper.map_type(&timedelta) {
-            assert_eq!(name, "std::time::Duration");
+            assert_eq!(name, "DepylerTimeDelta");
         } else {
             panic!("Expected Custom type for 'timedelta' in NASA mode");
         }

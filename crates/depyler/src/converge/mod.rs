@@ -31,6 +31,7 @@ mod clusterer;
 mod compiler;
 mod reporter;
 mod state;
+pub mod type_constraint_learner;
 
 pub use cache::{
     CacheConfig, CacheEntry, CacheError, CacheStats, CasStore, CompilationStatus, GcResult,
@@ -41,6 +42,9 @@ pub use clusterer::{ErrorCluster, ErrorClusterer, RootCause};
 pub use compiler::{BatchCompiler, CompilationError, CompilationResult};
 pub use reporter::{ConvergenceReporter, IterationReport};
 pub use state::{AppliedFix, ConvergenceConfig, ConvergenceState, DisplayMode, ExampleState};
+pub use type_constraint_learner::{
+    parse_e0308_batch, parse_e0308_constraint, TypeConstraint, TypeConstraintStore,
+};
 
 use anyhow::Result;
 
@@ -51,6 +55,9 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     let classifier = ErrorClassifier::new();
     let clusterer = ErrorClusterer::new();
     let reporter = ConvergenceReporter::with_display_mode(config.display_mode);
+
+    // DEPYLER-1101: Type constraint learning from E0308 errors
+    let mut constraint_store = TypeConstraintStore::new();
 
     reporter.report_start(&state);
 
@@ -64,6 +71,22 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
         let clusters = clusterer.cluster(&classifications);
         state.error_clusters = clusters;
 
+        // DEPYLER-1101: Extract type constraints from E0308 errors
+        for result in &results {
+            if !result.success {
+                let e0308_errors: Vec<(String, String, usize)> = result
+                    .errors
+                    .iter()
+                    .map(|e| (e.code.clone(), e.message.clone(), e.line))
+                    .collect();
+                let constraints =
+                    parse_e0308_batch(&e0308_errors, &result.source_file);
+                for constraint in constraints {
+                    constraint_store.add_constraint(constraint);
+                }
+            }
+        }
+
         if let Some(cluster) = state.error_clusters.iter().max_by(|a, b| {
             a.impact_score().partial_cmp(&b.impact_score()).unwrap_or(std::cmp::Ordering::Equal)
         }) {
@@ -71,6 +94,25 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
         }
 
         state.update_compilation_rate();
+    }
+
+    // DEPYLER-1101: Report learned constraints
+    if constraint_store.stats.constraints_extracted > 0 {
+        tracing::info!(
+            "DEPYLER-1101: Learned {} type constraints from E0308 errors",
+            constraint_store.stats.constraints_extracted
+        );
+
+        // Analyze patterns to identify common fixes
+        let file_constraints: Vec<TypeConstraint> = constraint_store
+            .variable_constraints
+            .values()
+            .cloned()
+            .collect();
+        let patterns = type_constraint_learner::analyze_constraint_patterns(&file_constraints);
+        for (pattern, count) in patterns.iter().filter(|(_, c)| **c >= 5) {
+            tracing::info!("  Common pattern: {} ({} occurrences)", pattern, count);
+        }
     }
 
     reporter.report_finish(&state);
@@ -289,7 +331,7 @@ mod tests {
         let example_path = temp_dir.path().join("broken.py");
         std::fs::write(&example_path, "def foo(): return 1").unwrap();
 
-        let compiler = BatchCompiler::new(temp_dir.path())
+        let _compiler = BatchCompiler::new(temp_dir.path())
             .with_parallel_jobs(4)
             .with_display_mode(DisplayMode::Silent);
 

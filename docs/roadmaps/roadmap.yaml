@@ -3169,3 +3169,301 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-1075
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1075'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-01-11T16:14:21.206198+00:00
+  updated: 2026-01-11T16:54:23.367021+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1076
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1076'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-01-11T16:54:56.460680+00:00
+  updated: 2026-01-11T17:06:48.060924+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1077
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1077'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-01-11T17:07:57.509549+00:00
+  updated: 2026-01-11T17:21:07.391520+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1078
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1078'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-11T17:25:14.513928+00:00
+  updated: 2026-01-11T17:25:14.513928+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1079
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1079'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-11T18:23:37.407992+00:00
+  updated: 2026-01-11T18:23:37.407992+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1080
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1080'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-11T21:12:35.119963+00:00
+  updated: 2026-01-11T21:12:35.119963+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1090
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1090'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-12T14:51:12.419314+00:00
+  updated: 2026-01-12T14:51:12.419314+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1091
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1091'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-12T15:30:48.903701+00:00
+  updated: 2026-01-12T15:30:48.903701+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1092
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1092'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-12T15:56:40.044356+00:00
+  updated: 2026-01-12T15:56:40.044356+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1101
+  github_issue: null
+  item_type: feature
+  title: 'Enhanced Oracle Loop Phase 1: E0308 Type Constraint Learning'
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2026-01-13T10:24:15.787490+00:00
+  updated: 2026-01-13T10:45:35.410619+00:00
+  spec: docs/specifications/1.0-single-shot-compile.md
+  acceptance_criteria:
+  - Parse E0308 'expected X, found Y' error messages systematically
+  - Extract type constraints from rustc error output
+  - Store learned type constraints in oracle lineage
+  - Integrate constraints into re-transpilation attempts
+  - Reduce E0308 errors by 10%+ on convergence corpus
+  phases:
+  - name: Phase 1 - E0308 Message Parser (RED)
+    status: inprogress
+    estimated_effort: 1h
+    completion: 0
+  - name: Phase 2 - Type Constraint Store (GREEN)
+    status: planned
+    estimated_effort: 1h
+    completion: 0
+  - name: Phase 3 - Pipeline Integration (REFACTOR)
+    status: planned
+    estimated_effort: 2h
+    completion: 0
+  subtasks: []
+  estimated_effort: 4h
+  labels:
+  - oracle
+  - E0308
+  - type-inference
+  - convergence
+  notes: Strategic recommendation from DEPYLER-1100. Building on existing 70% oracle infrastructure (OracleCategory, ErrorClassifier, OracleQueryLoop) to systematically learn type constraints from compiler feedback.
+- id: DEPYLER-1102
+  github_issue: null
+  item_type: feature
+  title: 'Close the Oracle Loop: Auto-Retranspile with Learned Constraints'
+  status: completed
+  priority: critical
+  assigned_to: Claude
+  created: 2026-01-13T10:59:52.732318+00:00
+  updated: 2026-01-13T11:39:20.891612+00:00
+  spec: docs/specifications/1.0-single-shot-compile.md
+  acceptance_criteria:
+  - Integrate TypeConstraintLearner into transpile pipeline
+  - When E0308 fails, automatically extract constraints
+  - Update type inference with learned constraints
+  - Trigger automatic re-transpilation pass
+  - Self-healing test case that requires 2 passes to compile
+  phases:
+  - name: Phase 1 - Pipeline Integration (RED)
+    status: inprogress
+    estimated_effort: 1h
+    completion: 0
+  - name: Phase 2 - Constraint Application (GREEN)
+    status: planned
+    estimated_effort: 1h
+    completion: 0
+  - name: Phase 3 - Self-Healing Tests (REFACTOR)
+    status: planned
+    estimated_effort: 1h
+    completion: 0
+  subtasks: []
+  estimated_effort: 3h
+  labels:
+  - oracle
+  - E0308
+  - auto-repair
+  - convergence
+  notes: 'Closes the Oracle Loop from DEPYLER-1101. Full cycle: Transpile (fail) -> Learn (extract) -> Re-Transpile (apply) -> Verify (pass).'
+- id: DEPYLER-1103
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1103'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-01-13T11:53:23.831479+00:00
+  updated: 2026-01-13T12:29:30.144951+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1104
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1104'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-01-13T12:32:35.814913+00:00
+  updated: 2026-01-13T14:09:01.854033+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1105
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1105'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-13T14:15:38.522135+00:00
+  updated: 2026-01-13T14:15:38.522135+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1106
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1106'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-13T16:03:16.852514+00:00
+  updated: 2026-01-13T16:03:16.852514+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1107
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1107'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-13T18:10:12.387038+00:00
+  updated: 2026-01-13T18:10:12.387038+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

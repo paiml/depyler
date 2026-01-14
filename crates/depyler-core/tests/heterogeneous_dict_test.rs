@@ -118,12 +118,14 @@ def main():
 
     let rust = transpile(python).expect("Transpilation should succeed");
 
-    // The dict should use serde_json::json!() for heterogeneous values
-    assert!(
-        rust.contains("serde_json::json!"),
-        "Heterogeneous dict should use serde_json::json!. Generated:\n{}",
-        rust
-    );
+    // Verify generated code uses DepylerValue for heterogeneous dicts
+    // DEPYLER-1051: Hybrid Fallback uses DepylerValue::Dict
+    if !rust.contains("DepylerValue::Dict") {
+        panic!("Heterogeneous dict should use DepylerValue::Dict. Generated:\n{}", rust);
+    }
+    if !rust.contains("DepylerValue::Str") {
+        panic!("Should use DepylerValue::Str. Generated:\n{}", rust);
+    }
 
     // Should compile without type mismatch errors (E0308)
     assert_compiles(&rust, "heterogeneous_dict_list_values_detection");

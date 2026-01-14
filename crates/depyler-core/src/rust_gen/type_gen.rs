@@ -5,8 +5,19 @@
 
 use crate::hir::BinOp;
 use crate::rust_gen::CodeGenContext;
+use crate::type_mapper::{PrimitiveType, RustType};
 use anyhow::{bail, Result};
 use syn::{self, parse_quote};
+
+/// Check if a RustType is a float type (F32 or F64)
+/// DEPYLER-1073: Float types don't implement Hash/Eq in Rust
+#[inline]
+fn is_float_type(rust_type: &RustType) -> bool {
+    matches!(
+        rust_type,
+        RustType::Primitive(PrimitiveType::F64) | RustType::Primitive(PrimitiveType::F32)
+    )
+}
 
 /// Convert logical and bitwise binary operators to syn::BinOp
 ///
@@ -185,14 +196,24 @@ fn collection_type_to_syn(rust_type: &crate::type_mapper::RustType) -> Result<Op
             parse_quote! { Vec<#inner_ty> }
         }
         // DEPYLER-0685: Use fully qualified path for HashMap to avoid import issues
+        // DEPYLER-1073: Use DepylerValue for float keys (f64/f32 don't implement Hash/Eq)
         RustType::HashMap(k, v) => {
-            let key_ty = rust_type_to_syn(k)?;
+            let key_ty = if is_float_type(k) {
+                parse_quote! { DepylerValue }
+            } else {
+                rust_type_to_syn(k)?
+            };
             let val_ty = rust_type_to_syn(v)?;
             parse_quote! { std::collections::HashMap<#key_ty, #val_ty> }
         }
         // DEPYLER-0685: Use fully qualified path for HashSet to avoid import issues
+        // DEPYLER-1073: Use DepylerValue for float elements (f64/f32 don't implement Hash/Eq)
         RustType::HashSet(inner) => {
-            let inner_ty = rust_type_to_syn(inner)?;
+            let inner_ty = if is_float_type(inner) {
+                parse_quote! { DepylerValue }
+            } else {
+                rust_type_to_syn(inner)?
+            };
             parse_quote! { std::collections::HashSet<#inner_ty> }
         }
         RustType::Option(inner) => {
