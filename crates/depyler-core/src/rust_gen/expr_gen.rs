@@ -110,11 +110,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ) -> syn::Expr {
         // Check if other operand is float-typed
         let other_is_float = self.expr_returns_float(other_hir) || self.is_float_var(other_hir);
+
+        // DEPYLER-1072: Coerce integer literals to float when other operand is KNOWN to be float
+        // Pattern: `x <= 0` where x is a float variable
+        // NOTE: Don't coerce for untyped variables - we can't assume their type
+        if let HirExpr::Literal(Literal::Int(val)) = hir_expr {
+            // Only coerce if other operand is KNOWN to be float (has explicit type info)
+            if other_is_float {
+                let float_val = *val as f64;
+                return parse_quote! { #float_val };
+            }
+        }
+
         if !other_is_float {
             return expr;
         }
 
-        // Coerce integer literals to float
+        // Coerce integer literals to float (this handles non-common values)
         if let HirExpr::Literal(Literal::Int(val)) = hir_expr {
             let float_val = *val as f64;
             return parse_quote! { #float_val };
@@ -212,6 +224,58 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Previously caused false positives: c in test_cse.py nested_expressions
         }
         false
+    }
+
+    /// DEPYLER-1053: Infer element type from an iterable expression
+    /// Used to propagate element types to lambda parameters in filter/map builtins
+    /// so that comparison type coercion works correctly.
+    ///
+    /// Example: `filter(lambda x: x != 0, data)` where `data: list[float]`
+    /// We need to know `x` is `Float` to coerce `0` to `0.0`
+    pub(crate) fn infer_iterable_element_type(&self, iterable: &HirExpr) -> Option<Type> {
+        match iterable {
+            // Variable: look up type and extract element type from List/Set
+            HirExpr::Var(name) => {
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    match var_type {
+                        Type::List(elem_t) => return Some(*elem_t.clone()),
+                        Type::Set(elem_t) => return Some(*elem_t.clone()),
+                        // For custom types that look like vectors, assume Float element
+                        Type::Custom(s) if s.contains("Vec<f64>") => return Some(Type::Float),
+                        Type::Custom(s) if s.contains("Vec<f32>") => return Some(Type::Float),
+                        _ => {}
+                    }
+                }
+                None
+            }
+            // Attribute: look up in class_field_types for self.field
+            HirExpr::Attribute { attr, value, .. } => {
+                if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                    if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+                        match field_type {
+                            Type::List(elem_t) => return Some(*elem_t.clone()),
+                            Type::Set(elem_t) => return Some(*elem_t.clone()),
+                            _ => {}
+                        }
+                    }
+                }
+                None
+            }
+            // List literal: infer from first element
+            HirExpr::List(elems) => {
+                if let Some(first) = elems.first() {
+                    match first {
+                        HirExpr::Literal(Literal::Float(_)) => return Some(Type::Float),
+                        HirExpr::Literal(Literal::Int(_)) => return Some(Type::Int),
+                        HirExpr::Literal(Literal::String(_)) => return Some(Type::String),
+                        HirExpr::Literal(Literal::Bool(_)) => return Some(Type::Bool),
+                        _ => {}
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
     }
 
     /// DEPYLER-0465: Add & to borrow a path expression if it's a simple variable
@@ -386,6 +450,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq | BinOp::Eq | BinOp::NotEq
         );
 
+        // DEPYLER-1109: Universal PyOps Dispatch (NASA Mode)
+        // Delegate arithmetic/indexing to PyOps traits to handle type coercion (i32+f64, etc.)
+        if self.ctx.type_mapper.nasa_mode && !is_comparison {
+            match op {
+                BinOp::Add => return Ok(parse_quote! { #left_expr.py_add(#right_expr) }),
+                BinOp::Sub => return Ok(parse_quote! { #left_expr.py_sub(#right_expr) }),
+                BinOp::Mul => return Ok(parse_quote! { #left_expr.py_mul(#right_expr) }),
+                BinOp::Div => return Ok(parse_quote! { #left_expr.py_div(#right_expr) }),
+                BinOp::Mod => return Ok(parse_quote! { #left_expr.py_mod(#right_expr) }),
+                _ => {}
+            }
+        }
+
         if is_comparison {
             if left_is_option && !right_is_option {
                 // Left is Option, right is plain - unwrap left
@@ -409,6 +486,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
+            // DEPYLER-1074: Auto-dereference variables that are references (e.g. from iterators or ref params)
+            // This fixes E0308 errors where we compare &T with T (e.g. &i32 == 0)
+            let left_is_ref = if let HirExpr::Var(name) = left {
+                self.ctx.ref_params.contains(name)
+            } else {
+                false
+            };
+
+            let right_is_ref = if let HirExpr::Var(name) = right {
+                self.ctx.ref_params.contains(name)
+            } else {
+                false
+            };
+
+            if left_is_ref && !right_is_ref {
+                left_expr = parse_quote! { (*#left_expr) };
+            } else if right_is_ref && !left_is_ref {
+                right_expr = parse_quote! { (*#right_expr) };
+            }
+
             // DEPYLER-0550: Handle serde_json::Value comparisons
             // When comparing Option<String> (from dict.get()) with serde_json::Value,
             // convert the Value to Option<String> for compatibility
@@ -430,6 +527,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             if right_is_dict_get && left_is_json_value {
                 left_expr = parse_quote! { #left_expr.as_str().map(|s| s.to_string()) };
             }
+
+
 
             // DEPYLER-0575: Coerce integer literal to float when comparing with float expression
             // DEPYLER-0720: Extended to ALL integer literals, not just 0
@@ -674,10 +773,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let left_deref = self.deref_if_borrowed_param(left, left_expr);
                     let right_deref = self.deref_if_borrowed_param(right, right_expr);
 
-                    let rust_op = convert_binop(op)?;
                     // DEPYLER-0582: Coerce int to float if operating with float
                     let left_coerced = self.coerce_int_to_float_if_needed(left_deref, left, right);
                     let right_coerced = self.coerce_int_to_float_if_needed(right_deref, right, left);
+
+                    // DEPYLER-1109: Universal PyOps Dispatch for subtraction
+                    if self.ctx.type_mapper.nasa_mode {
+                        return Ok(parse_quote! { #left_coerced.py_sub(#right_coerced) });
+                    }
+
+                    let rust_op = convert_binop(op)?;
                     Ok(parse_quote! { #left_coerced #rust_op #right_coerced })
                 }
             }
@@ -704,6 +809,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if self.is_path_expr(left) {
                     // Convert division to .join() for path concatenation
                     return Ok(parse_quote! { #left_expr.join(#right_expr) });
+                }
+
+                // DEPYLER-1109: Universal PyOps Dispatch for division
+                if self.ctx.type_mapper.nasa_mode {
+                    return Ok(parse_quote! { #left_expr.py_div(#right_expr) });
                 }
 
                 // DEPYLER-0658: Check if either operand is a float
@@ -793,6 +903,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             _ => {
+                // DEPYLER-1109: Universal PyOps Dispatch for modulo
+                // In NASA mode, use PyOps trait methods for ALL arithmetic operations
+                if matches!(op, BinOp::Mod) && self.ctx.type_mapper.nasa_mode {
+                    return Ok(parse_quote! { #left_expr.py_mod(#right_expr) });
+                }
+
                 let rust_op = convert_binop(op)?;
                 // DEPYLER-0339: Construct syn::ExprBinary directly instead of using parse_quote!
                 // parse_quote! doesn't properly handle interpolated syn::BinOp values
@@ -885,6 +1001,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }),
             // Any base with float exponent: use .powf()
             (_, HirExpr::Literal(Literal::Float(_))) => Ok(parse_quote! {
+                (#left_paren as f64).powf(#right_paren as f64)
+            }),
+            // DEPYLER-1072: Float-typed expression as exponent (e.g., 1.0 / n)
+            // Division in Python always returns float, so 1.0/n is float
+            _ if self.expr_returns_float(right) => Ok(parse_quote! {
+                (#left_paren as f64).powf(#right_paren as f64)
+            }),
+            // DEPYLER-1072: Float-typed expression as base
+            _ if self.expr_returns_float(left) => Ok(parse_quote! {
                 (#left_paren as f64).powf(#right_paren as f64)
             }),
             // Variables or complex expressions: runtime type selection
@@ -1143,6 +1268,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0582: Coerce int to float if operating with float
                 let left_coerced = self.coerce_int_to_float_if_needed(left_expr, left, right);
                 let right_coerced = self.coerce_int_to_float_if_needed(right_expr, right, left);
+
+                // DEPYLER-1109: Universal PyOps Dispatch for multiplication
+                // In NASA mode, use PyOps trait methods for ALL arithmetic operations
+                // This delegates type coercion to Rust's trait system (robust, compiled)
+                // instead of transpiler logic (complex, brittle)
+                if self.ctx.type_mapper.nasa_mode {
+                    // Use .py_mul() for all multiplication - traits handle i32*f64, etc.
+                    return Ok(parse_quote! { #left_coerced.py_mul(#right_coerced) });
+                }
+
                 // DEPYLER-0582: Wrap operands in parens if they have lower precedence
                 let left_wrapped = precedence::parenthesize_if_lower_precedence(left_coerced, op);
                 let right_wrapped = precedence::parenthesize_if_lower_precedence(right_coerced, op);
@@ -1269,9 +1404,54 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Arithmetic addition
             let rust_op = convert_binop(op)?;
             // DEPYLER-0582: Coerce int to float if operating with float
-            let left_coerced = self.coerce_int_to_float_if_needed(left_expr, left, right);
-            let right_coerced = self.coerce_int_to_float_if_needed(right_expr, right, left);
-            Ok(parse_quote! { #left_coerced #rust_op #right_coerced })
+            let left_coerced = self.coerce_int_to_float_if_needed(left_expr.clone(), left, right);
+            let right_coerced = self.coerce_int_to_float_if_needed(right_expr.clone(), right, left);
+
+            // DEPYLER-1064: Type annotate integer literals when used with DepylerValue
+            // This prevents Rust's type inference ambiguity with multiple Add impls
+            let is_left_depyler = if let HirExpr::Var(name) = left {
+                self.ctx.type_mapper.nasa_mode
+                    && self.ctx.var_types.get(name).is_some_and(|t| {
+                        matches!(t, Type::Unknown)
+                            || matches!(t, Type::Custom(n) if n == "Any" || n == "object")
+                    })
+            } else {
+                false
+            };
+            let is_right_depyler = if let HirExpr::Var(name) = right {
+                self.ctx.type_mapper.nasa_mode
+                    && self.ctx.var_types.get(name).is_some_and(|t| {
+                        matches!(t, Type::Unknown)
+                            || matches!(t, Type::Custom(n) if n == "Any" || n == "object")
+                    })
+            } else {
+                false
+            };
+
+            // DEPYLER-1109: Universal PyOps Dispatch
+            // In NASA mode, use PyOps trait methods for ALL arithmetic operations
+            // This delegates type coercion to Rust's trait system (robust, compiled)
+            // instead of transpiler logic (complex, brittle)
+            if self.ctx.type_mapper.nasa_mode {
+                // Use .py_add() for all arithmetic - traits handle i32+f64, String+&str, etc.
+                return Ok(parse_quote! { #left_coerced.py_add(#right_coerced) });
+            }
+
+            // If one side is DepylerValue and other is int literal, type annotate the literal
+            let final_left = if is_right_depyler && matches!(left, HirExpr::Literal(Literal::Int(_))) {
+                // Annotate left as i64 for DepylerValue's Add<i64>
+                parse_quote! { #left_coerced as i64 }
+            } else {
+                left_coerced
+            };
+            let final_right = if is_left_depyler && matches!(right, HirExpr::Literal(Literal::Int(_))) {
+                // Annotate right as i64 for DepylerValue's Add<i64>
+                parse_quote! { #right_coerced as i64 }
+            } else {
+                right_coerced
+            };
+
+            Ok(parse_quote! { #final_left #rust_op #final_right })
         }
     }
 
@@ -1617,8 +1797,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 if args.len() == 3 {
                     if nasa_mode {
-                        // DEPYLER-1025: NASA mode - use std::time::SystemTime
-                        Some(Ok(parse_quote! { std::time::SystemTime::now() }))
+                        // DEPYLER-1067: NASA mode - use DepylerDateTime::new()
+                        self.ctx.needs_depyler_datetime = true;
+                        Some(Ok(parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, 0, 0, 0, 0) }))
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
@@ -1640,9 +1821,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(e) => e,
                         Err(e) => return Some(Err(e)),
                     };
+                    // DEPYLER-1067: Handle optional microsecond argument
+                    let microsecond = if args.len() >= 7 {
+                        match args[6].to_rust_expr(self.ctx) {
+                            Ok(e) => e,
+                            Err(e) => return Some(Err(e)),
+                        }
+                    } else {
+                        parse_quote! { 0 }
+                    };
                     if nasa_mode {
-                        // DEPYLER-1025: NASA mode - use std::time::SystemTime
-                        Some(Ok(parse_quote! { std::time::SystemTime::now() }))
+                        // DEPYLER-1067: NASA mode - use DepylerDateTime::new()
+                        self.ctx.needs_depyler_datetime = true;
+                        Some(Ok(parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, #hour as u32, #minute as u32, #second as u32, #microsecond as u32) }))
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
@@ -1661,11 +1852,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 "datetime() requires at least 3 arguments (year, month, day)"
             ))),
 
-            // DEPYLER-1025: date(year, month, day) - NASA mode uses tuple
+            // DEPYLER-1025/1066: date(year, month, day) - NASA mode uses DepylerDate struct
             "date" if args.len() == 3 => {
                 let nasa_mode = self.ctx.type_mapper.nasa_mode;
                 if !nasa_mode {
                     self.ctx.needs_chrono = true;
+                } else {
+                    // DEPYLER-1066: Mark that we need the DepylerDate struct
+                    self.ctx.needs_depyler_date = true;
                 }
                 let year = match args[0].to_rust_expr(self.ctx) {
                     Ok(e) => e,
@@ -1680,7 +1874,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Err(e) => return Some(Err(e)),
                 };
                 if nasa_mode {
-                    Some(Ok(parse_quote! { (#year as u32, #month as u32, #day as u32) }))
+                    // DEPYLER-1066: Use DepylerDate::new() instead of raw tuple
+                    Some(Ok(parse_quote! { DepylerDate::new(#year as u32, #month as u32, #day as u32) }))
                 } else {
                     Some(Ok(parse_quote! {
                         chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
@@ -1760,15 +1955,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // DEPYLER-1025: timedelta(days=..., seconds=...) - NASA mode uses std::time::Duration
+            // DEPYLER-1025/1068: timedelta(days=..., seconds=...) - NASA mode uses DepylerTimeDelta
             "timedelta" => {
                 let nasa_mode = self.ctx.type_mapper.nasa_mode;
                 if !nasa_mode {
                     self.ctx.needs_chrono = true;
+                } else {
+                    self.ctx.needs_depyler_timedelta = true;
                 }
                 if args.is_empty() {
                     if nasa_mode {
-                        Some(Ok(parse_quote! { std::time::Duration::from_secs(0) }))
+                        Some(Ok(parse_quote! { DepylerTimeDelta::new(0, 0, 0) }))
                     } else {
                         Some(Ok(parse_quote! { chrono::Duration::zero() }))
                     }
@@ -1778,7 +1975,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Err(e) => return Some(Err(e)),
                     };
                     if nasa_mode {
-                        Some(Ok(parse_quote! { std::time::Duration::from_secs((#days as u64) * 86400) }))
+                        Some(Ok(parse_quote! { DepylerTimeDelta::new(#days as i64, 0, 0) }))
                     } else {
                         Some(Ok(parse_quote! { chrono::Duration::days(#days as i64) }))
                     }
@@ -1792,7 +1989,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Err(e) => return Some(Err(e)),
                     };
                     if nasa_mode {
-                        Some(Ok(parse_quote! { std::time::Duration::from_secs((#days as u64) * 86400 + (#seconds as u64)) }))
+                        Some(Ok(parse_quote! { DepylerTimeDelta::new(#days as i64, #seconds as i64, 0) }))
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)
@@ -2373,10 +2570,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 };
             }
 
+            // DEPYLER-1062: Use depyler_min/depyler_max helpers for safe comparison
+            // These handle PartialOrd correctly and work with f64/DepylerValue
+            // Parenthesize arguments to handle casts safely
             return if is_max {
-                Some(Ok(parse_quote! { std::cmp::max(#arg1, #arg2) }))
+                Some(Ok(parse_quote! { depyler_max((#arg1).clone(), (#arg2).clone()) }))
             } else {
-                Some(Ok(parse_quote! { std::cmp::min(#arg1, #arg2) }))
+                Some(Ok(parse_quote! { depyler_min((#arg1).clone(), (#arg2).clone()) }))
             };
         }
 
@@ -2664,11 +2864,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let iterable_expr = args[1].to_rust_expr(self.ctx)?;
                 // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
                 let param_ident = crate::rust_gen::keywords::safe_ident(&params[0]);
+
+                // DEPYLER-1053: Infer element type from iterable and add lambda param to var_types
+                // This enables type coercion in comparisons like `x != 0` where x is f64
+                let elem_type = self.infer_iterable_element_type(&args[1]);
+                let param_name = params[0].clone();
+                if let Some(ref elem_t) = elem_type {
+                    self.ctx.var_types.insert(param_name.clone(), elem_t.clone());
+                }
+
                 let body_expr = body.to_rust_expr(self.ctx)?;
 
-                // DEPYLER-0754: With .cloned(), values are owned, so use |x| not |&x|
+                // DEPYLER-1053: Remove lambda param from var_types to avoid polluting context
+                if elem_type.is_some() {
+                    self.ctx.var_types.remove(&param_name);
+                }
+
+                // DEPYLER-1053: Use |&x| pattern because filter() always receives &Item
+                // Even with .cloned(), filter's closure parameter is a reference to the owned value
                 return Ok(parse_quote! {
-                    #iterable_expr.iter().cloned().filter(|#param_ident| #body_expr)
+                    #iterable_expr.iter().cloned().filter(|&#param_ident| #body_expr)
                 });
             }
         }
@@ -3006,16 +3221,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .map(|p| crate::rust_gen::keywords::safe_ident(p))
                 .collect();
 
+            // DEPYLER-1053: Infer element types from iterables and add lambda params to var_types
+            // This enables type coercion in comparisons like `x > 0` where x is f64
+            let mut added_params: Vec<String> = Vec::new();
+            for (i, param) in params.iter().enumerate() {
+                if let Some(iterable) = args.get(i + 1) {
+                    if let Some(elem_type) = self.infer_iterable_element_type(iterable) {
+                        self.ctx.var_types.insert(param.clone(), elem_type);
+                        added_params.push(param.clone());
+                    }
+                }
+            }
+
             // Convert lambda body
             let body_expr = body.to_rust_expr(self.ctx)?;
 
+            // DEPYLER-1053: Remove lambda params from var_types to avoid polluting context
+            for param in &added_params {
+                self.ctx.var_types.remove(param);
+            }
+
             // Handle based on number of iterables
             if num_iterables == 1 {
-                // Single iterable: iterable.iter().map(|x| ...).collect()
+                // Single iterable: iterable.iter().map(|&x| ...).collect()
+                // DEPYLER-1053: Use |&x| pattern because iter() yields references
                 let iter_expr = &iterable_exprs[0];
                 let param = &param_idents[0];
                 Ok(Some(parse_quote! {
-                    #iter_expr.iter().map(|#param| #body_expr).collect::<Vec<_>>()
+                    #iter_expr.iter().map(|&#param| #body_expr).collect::<Vec<_>>()
                 }))
             } else {
                 // Multiple iterables: use zip pattern
@@ -3429,11 +3662,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
             let param_ident = crate::rust_gen::keywords::safe_ident(&params[0]);
+
+            // DEPYLER-1053: Infer element type from iterable and add lambda param to var_types
+            // This enables type coercion in comparisons like `x != 0` where x is f64
+            let elem_type = self.infer_iterable_element_type(&hir_args[1]);
+            let param_name = params[0].clone();
+            if let Some(ref elem_t) = elem_type {
+                self.ctx.var_types.insert(param_name.clone(), elem_t.clone());
+            }
+
             let body_expr = body.to_rust_expr(self.ctx)?;
+
+            // DEPYLER-1053: Remove lambda param from var_types to avoid polluting context
+            if elem_type.is_some() {
+                self.ctx.var_types.remove(&param_name);
+            }
+
             let iterable = &args[1];
-            // DEPYLER-0754: With .cloned(), values are owned, so use |x| not |&x|
+            // DEPYLER-1053: Use |&x| pattern because filter() always receives &Item
+            // Even with .cloned(), filter's closure parameter is a reference to the owned value
             Ok(parse_quote! {
-                #iterable.iter().cloned().filter(|#param_ident| #body_expr)
+                #iterable.iter().cloned().filter(|&#param_ident| #body_expr)
             })
         } else {
             let predicate = &args[0];
@@ -4070,7 +4319,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     // DEPYLER-0818: But DON'T borrow if the variable is already &str
                                     // (i.e., it's a function param that was mapped to &str).
                                     // Borrowing an &str would create &&str which is wrong.
-                                    !self.ctx.fn_str_params.contains(var_name)
+                                    // DEPYLER-1092: Use ref_params instead of fn_str_params
+                                    // ref_params contains ONLY params that are actually borrowed (&str)
+                                    // fn_str_params incorrectly contains ALL Type::String params
+                                    !self.ctx.ref_params.contains(var_name)
                                 } else if matches!(var_type, Type::Unknown) {
                                     // DEPYLER-0467: Heuristic for Unknown types
                                     // If variable name suggests it's commonly borrowed, borrow it
@@ -4128,6 +4380,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 .and_then(|borrows| borrows.get(param_idx))
                                 .copied()
                                 .unwrap_or(true) // Default to borrow if unknown
+                        }
+                        // DEPYLER-1092: Handle string literals passed to functions expecting &str
+                        // Python: parse_list(value, ",") → Rust: parse_list(&value, ",")
+                        // String literals are already &str, no .to_string() needed for borrowed params
+                        HirExpr::Literal(Literal::String(_)) => {
+                            // Check if function param expects a borrow (&str)
+                            self.ctx
+                                .function_param_borrows
+                                .get(func)
+                                .and_then(|borrows| borrows.get(param_idx))
+                                .copied()
+                                .unwrap_or(false) // Default: no borrow (owned String)
                         }
                         // DEPYLER-0550: Handle attribute access like args.column, args.value
                         // These are String fields from CLI args struct that need borrowing
@@ -4411,7 +4675,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                     parse_quote! { #b }
                                 }
                                 HirExpr::Literal(Literal::String(s)) => {
-                                    parse_quote! { #s.to_string() }
+                                    // DEPYLER-1092: Check if param expects &str
+                                    // If so, use "..." directly (string literal IS &str)
+                                    // without .to_string(), avoiding E0308
+                                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                                    if param_needs_borrow {
+                                        // String literal "..." is already &str
+                                        parse_quote! { #lit }
+                                    } else {
+                                        parse_quote! { #lit.to_string() }
+                                    }
                                 }
                                 // For complex defaults, skip - function definition should handle
                                 _ => continue,
@@ -8136,24 +8409,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         let result = match method {
-            // timedelta.total_seconds() → td.as_secs_f64() (NASA) or td.num_seconds() as f64 (chrono)
+            // timedelta.total_seconds() → td.total_seconds() (NASA DepylerTimeDelta) or td.num_seconds() as f64 (chrono)
+            // DEPYLER-1068: Use DepylerTimeDelta::total_seconds() in NASA mode
             "total_seconds" => {
                 if nasa_mode {
-                    parse_quote! { #dt_expr.as_secs_f64() }
+                    self.ctx.needs_depyler_timedelta = true;
+                    parse_quote! { #dt_expr.total_seconds() }
                 } else {
                     parse_quote! { #dt_expr.num_seconds() as f64 }
                 }
             }
 
-            // datetime.fromisoformat(s) → parse timestamp string
+            // datetime.fromisoformat(s) → DepylerDateTime (NASA) or parse timestamp string (chrono)
+            // DEPYLER-1067: Use DepylerDateTime in NASA mode
             "fromisoformat" => {
                 if arg_exprs.is_empty() {
                     bail!("fromisoformat() requires 1 argument (string)");
                 }
                 let s = &arg_exprs[0];
                 if nasa_mode {
-                    // NASA mode: return current time (simplified)
-                    parse_quote! { std::time::SystemTime::now() }
+                    // NASA mode: return current time (simplified placeholder)
+                    self.ctx.needs_depyler_datetime = true;
+                    parse_quote! { DepylerDateTime::now() }
                 } else {
                     parse_quote! {
                         chrono::NaiveDateTime::parse_from_str(&#s, "%Y-%m-%dT%H:%M:%S").unwrap()
@@ -8209,19 +8486,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // datetime.weekday() → 0 (NASA) or dt.weekday().num_days_from_monday() (chrono)
+            // datetime.weekday() → dt.weekday() (NASA DepylerDate) or dt.weekday().num_days_from_monday() (chrono)
+            // DEPYLER-1066: Use DepylerDate::weekday() in NASA mode
             "weekday" => {
                 if nasa_mode {
-                    parse_quote! { 0i32 }
+                    self.ctx.needs_depyler_date = true;
+                    parse_quote! { #dt_expr.weekday() as i32 }
                 } else {
                     parse_quote! { #dt_expr.weekday().num_days_from_monday() as i32 }
                 }
             }
 
-            // datetime.isoweekday() → 1 (NASA) or dt.weekday().number_from_monday() (chrono)
+            // datetime.isoweekday() → dt.isoweekday() (NASA DepylerDate) or dt.weekday().number_from_monday() (chrono)
+            // DEPYLER-1066: Use DepylerDate::isoweekday() in NASA mode
             "isoweekday" => {
                 if nasa_mode {
-                    parse_quote! { 1i32 }
+                    self.ctx.needs_depyler_date = true;
+                    parse_quote! { #dt_expr.isoweekday() as i32 }
                 } else {
                     parse_quote! { (#dt_expr.weekday().num_days_from_monday() + 1) as i32 }
                 }
@@ -8277,10 +8558,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .collect::<Result<Vec<_>>>()?;
 
         let result = match method {
-            // datetime.datetime.now([tz]) → SystemTime::now() (NASA) or Local::now() (chrono)
+            // datetime.datetime.now([tz]) → DepylerDateTime::now() (NASA) or Local::now() (chrono)
+            // DEPYLER-1067: Use DepylerDateTime::now() in NASA mode
             "now" => {
                 if nasa_mode {
-                    parse_quote! { std::time::SystemTime::now() }
+                    self.ctx.needs_depyler_datetime = true;
+                    parse_quote! { DepylerDateTime::now() }
                 } else if arg_exprs.is_empty() {
                     parse_quote! { chrono::Local::now().naive_local() }
                 } else {
@@ -8288,11 +8571,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // datetime.datetime.utcnow() → SystemTime::now() (NASA) or Utc::now() (chrono)
+            // datetime.datetime.utcnow() → DepylerDateTime::now() (NASA) or Utc::now() (chrono)
+            // DEPYLER-1067: Use DepylerDateTime in NASA mode
             "utcnow" => {
                 if arg_exprs.is_empty() {
                     if nasa_mode {
-                        parse_quote! { std::time::SystemTime::now() }
+                        self.ctx.needs_depyler_datetime = true;
+                        parse_quote! { DepylerDateTime::now() }
                     } else {
                         parse_quote! { chrono::Utc::now().naive_utc() }
                     }
@@ -8301,13 +8586,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // datetime.datetime.today() → SystemTime::now() (NASA) or Local::now().date() (chrono)
+            // datetime.datetime.today() → DepylerDateTime::today() (NASA) or Local::now() (chrono)
+            // DEPYLER-1067: Use DepylerDateTime::today() in NASA mode (datetime.today() returns datetime, not date)
             "today" => {
                 if arg_exprs.is_empty() {
                     if nasa_mode {
-                        parse_quote! { std::time::SystemTime::now() }
+                        self.ctx.needs_depyler_datetime = true;
+                        parse_quote! { DepylerDateTime::today() }
                     } else {
-                        parse_quote! { chrono::Local::now().date_naive() }
+                        parse_quote! { chrono::Local::now().naive_local() }
                     }
                 } else {
                     bail!("datetime.today() takes no arguments");
@@ -8331,13 +8618,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // datetime.datetime.strptime(string, format) → SystemTime::now() (NASA) or parse_from_str (chrono)
+            // datetime.datetime.strptime(string, format) → DepylerDateTime::now() (NASA) or parse_from_str (chrono)
+            // DEPYLER-1067: Use DepylerDateTime in NASA mode
             "strptime" => {
                 if arg_exprs.len() != 2 {
                     bail!("strptime() requires exactly 2 arguments (string, format)");
                 }
                 if nasa_mode {
-                    parse_quote! { std::time::SystemTime::now() }
+                    // NASA mode: simplified - return current time as placeholder
+                    // Full parsing would require significant code
+                    self.ctx.needs_depyler_datetime = true;
+                    parse_quote! { DepylerDateTime::now() }
                 } else {
                     let s = &arg_exprs[0];
                     let fmt: syn::Expr = match &args[1] {
@@ -8381,16 +8672,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // datetime.datetime.fromtimestamp(ts) → SystemTime (NASA) or DateTime (chrono)
+            // datetime.datetime.fromtimestamp(ts) or datetime.datetime.fromtimestamp(ts, tz)
+            // → DepylerDateTime (NASA) or DateTime (chrono)
+            // DEPYLER-1067: Use DepylerDateTime::fromtimestamp() in NASA mode
+            // Note: Second argument (timezone) is ignored in NASA mode
             "fromtimestamp" => {
-                if arg_exprs.len() != 1 {
-                    bail!("fromtimestamp() requires exactly 1 argument (timestamp)");
+                if arg_exprs.is_empty() || arg_exprs.len() > 2 {
+                    bail!("fromtimestamp() requires 1 or 2 arguments (timestamp, [timezone])");
                 }
                 let ts = &arg_exprs[0];
                 if nasa_mode {
-                    parse_quote! {
-                        std::time::UNIX_EPOCH + std::time::Duration::from_secs((#ts).clone() as u64)
-                    }
+                    self.ctx.needs_depyler_datetime = true;
+                    parse_quote! { DepylerDateTime::fromtimestamp(#ts as f64) }
                 } else {
                     parse_quote! {
                         chrono::DateTime::from_timestamp((#ts).clone() as i64, 0)
@@ -8400,40 +8693,46 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // date.weekday() → 0 (NASA) or dt.weekday().num_days_from_monday() (chrono)
+            // date.weekday() → dt.weekday() (NASA DepylerDate) or dt.weekday().num_days_from_monday() (chrono)
+            // DEPYLER-1066: Use DepylerDate::weekday() in NASA mode
             "weekday" => {
                 if arg_exprs.len() != 1 {
                     bail!("weekday() requires exactly 1 argument (self)");
                 }
+                let dt = &arg_exprs[0];
                 if nasa_mode {
-                    parse_quote! { 0i32 }
+                    self.ctx.needs_depyler_date = true;
+                    parse_quote! { #dt.weekday() as i32 }
                 } else {
-                    let dt = &arg_exprs[0];
                     parse_quote! { #dt.weekday().num_days_from_monday() as i32 }
                 }
             }
 
-            // date.isoweekday() → 1 (NASA) or dt.weekday().number_from_monday() (chrono)
+            // date.isoweekday() → dt.isoweekday() (NASA DepylerDate) or dt.weekday().number_from_monday() (chrono)
+            // DEPYLER-1066: Use DepylerDate::isoweekday() in NASA mode
             "isoweekday" => {
                 if arg_exprs.len() != 1 {
                     bail!("isoweekday() requires exactly 1 argument (self)");
                 }
+                let dt = &arg_exprs[0];
                 if nasa_mode {
-                    parse_quote! { 1i32 }
+                    self.ctx.needs_depyler_date = true;
+                    parse_quote! { #dt.isoweekday() as i32 }
                 } else {
-                    let dt = &arg_exprs[0];
                     parse_quote! { (#dt.weekday().num_days_from_monday() + 1) as i32 }
                 }
             }
 
-            // timedelta.total_seconds() → as_secs_f64 (NASA) or num_seconds (chrono)
+            // timedelta.total_seconds() → total_seconds() (NASA DepylerTimeDelta) or num_seconds (chrono)
+            // DEPYLER-1068: Use DepylerTimeDelta::total_seconds() in NASA mode
             "total_seconds" => {
                 if arg_exprs.len() != 1 {
                     bail!("total_seconds() requires exactly 1 argument (self)");
                 }
                 let td = &arg_exprs[0];
                 if nasa_mode {
-                    parse_quote! { #td.as_secs_f64() }
+                    self.ctx.needs_depyler_timedelta = true;
+                    parse_quote! { #td.total_seconds() }
                 } else {
                     parse_quote! { #td.num_seconds() as f64 }
                 }
@@ -8493,13 +8792,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
 
-            // DEPYLER-0938/1025: datetime.fromisoformat(string) → SystemTime (NASA) or parse_from_str (chrono)
+            // DEPYLER-0938/1025/1067: datetime.fromisoformat(string) → DepylerDateTime (NASA) or parse_from_str (chrono)
             "fromisoformat" => {
                 if arg_exprs.len() != 1 {
                     bail!("fromisoformat() requires exactly 1 argument (string)");
                 }
                 if nasa_mode {
-                    parse_quote! { std::time::SystemTime::now() }
+                    self.ctx.needs_depyler_datetime = true;
+                    parse_quote! { DepylerDateTime::now() }
                 } else {
                     let s = &arg_exprs[0];
                     parse_quote! {
@@ -8510,6 +8810,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 }
             }
+
+            // DEPYLER-1069: date.fromordinal(n) → DepylerDate (NASA) or NaiveDate (chrono)
+            "fromordinal" => {
+                if arg_exprs.len() != 1 {
+                    bail!("fromordinal() requires exactly 1 argument (ordinal)");
+                }
+                let n = &arg_exprs[0];
+                if nasa_mode {
+                    self.ctx.needs_depyler_date = true;
+                    parse_quote! { DepylerDate::from_ordinal(#n as i64) }
+                } else {
+                    parse_quote! {
+                        chrono::NaiveDate::from_num_days_from_ce_opt(#n as i32).unwrap()
+                    }
+                }
+            }
+
+            // Note: min/max are handled in the caller where we know the module name
+            // to differentiate between date.min and datetime.min
 
             _ => return Ok(None), // Not a recognized datetime method
         };
@@ -9078,8 +9397,96 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0188: Don't match module_name == "time" here - that's the time module!
             // Only match "date" for `from datetime import date` pattern.
             // The time module (import time; time.time()) is handled separately below.
+
+            // DEPYLER-1069: Handle date.min/max vs datetime.min/max specially
+            // date.min → DepylerDate(1, 1, 1), datetime.min → DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0)
+            if (module_name == "datetime" || module_name == "date") && (method == "min" || method == "max") {
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if module_name == "date" {
+                    // date.min / date.max
+                    if nasa_mode {
+                        self.ctx.needs_depyler_date = true;
+                        return Ok(Some(if method == "min" {
+                            parse_quote! { DepylerDate::new(1, 1, 1) }
+                        } else {
+                            parse_quote! { DepylerDate::new(9999, 12, 31) }
+                        }));
+                    } else {
+                        self.ctx.needs_chrono = true;
+                        return Ok(Some(if method == "min" {
+                            parse_quote! { chrono::NaiveDate::MIN }
+                        } else {
+                            parse_quote! { chrono::NaiveDate::MAX }
+                        }));
+                    }
+                } else {
+                    // datetime.min / datetime.max
+                    if nasa_mode {
+                        self.ctx.needs_depyler_datetime = true;
+                        return Ok(Some(if method == "min" {
+                            parse_quote! { DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0) }
+                        } else {
+                            parse_quote! { DepylerDateTime::new(9999, 12, 31, 23, 59, 59, 999999) }
+                        }));
+                    } else {
+                        self.ctx.needs_chrono = true;
+                        return Ok(Some(if method == "min" {
+                            parse_quote! { chrono::NaiveDateTime::MIN }
+                        } else {
+                            parse_quote! { chrono::NaiveDateTime::MAX }
+                        }));
+                    }
+                }
+            }
+
+            // DEPYLER-1069: Handle date.today() vs datetime.today() separately
+            // date.today() → DepylerDate::today(), datetime.today() → DepylerDateTime::today()
+            if (module_name == "datetime" || module_name == "date") && method == "today" && args.is_empty() {
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if module_name == "date" {
+                    if nasa_mode {
+                        self.ctx.needs_depyler_date = true;
+                        return Ok(Some(parse_quote! { DepylerDate::today() }));
+                    } else {
+                        self.ctx.needs_chrono = true;
+                        return Ok(Some(parse_quote! { chrono::Local::now().date_naive() }));
+                    }
+                } else {
+                    // datetime.today()
+                    if nasa_mode {
+                        self.ctx.needs_depyler_datetime = true;
+                        return Ok(Some(parse_quote! { DepylerDateTime::today() }));
+                    } else {
+                        self.ctx.needs_chrono = true;
+                        return Ok(Some(parse_quote! { chrono::Local::now().naive_local() }));
+                    }
+                }
+            }
+
             if module_name == "datetime" || module_name == "date" {
                 return self.try_convert_datetime_method(method, args);
+            }
+
+            // DEPYLER-1069: Handle datetime.time class attributes (min, max)
+            // These are only valid for datetime.time class, not the time module
+            // time.min → (0, 0, 0, 0), time.max → (23, 59, 59, 999999)
+            if module_name == "time" && (method == "min" || method == "max") {
+                let nasa_mode = self.ctx.type_mapper.nasa_mode;
+                if nasa_mode {
+                    // Return tuple (hour, minute, second, microsecond)
+                    return Ok(Some(if method == "min" {
+                        parse_quote! { (0u32, 0u32, 0u32, 0u32) }
+                    } else {
+                        parse_quote! { (23u32, 59u32, 59u32, 999999u32) }
+                    }));
+                } else {
+                    self.ctx.needs_chrono = true;
+                    return Ok(Some(if method == "min" {
+                        parse_quote! { chrono::NaiveTime::MIN }
+                    } else {
+                        parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).unwrap() }
+                    }));
+                }
             }
 
             // DEPYLER-0595: Handle bytes class methods
@@ -9440,6 +9847,17 @@ impl ToRustExpr for HirExpr {
                                 return Ok(result);
                             }
                         }
+                    }
+                }
+
+                // DEPYLER-1113: Query Sovereign Type Database for external module method calls
+                // When we encounter a call like requests.get(url), look up the return type
+                // from the TypeDB to enable downstream type propagation.
+                if let HirExpr::Var(module_name) = &**object {
+                    if let Some(return_type) = converter.ctx.lookup_external_return_type(module_name, method) {
+                        // Store the return type for assignment handling in stmt_gen
+                        // This enables: resp = requests.get(url) → resp: Response
+                        converter.ctx.last_external_call_return_type = Some(return_type);
                     }
                 }
 
@@ -10652,5 +11070,66 @@ mod tests {
         let result = literal_to_rust_expr(&Literal::Bytes(vec![]), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         assert!(code.contains("b\"\""));
+    }
+
+    // DEPYLER-1053: Tests for lambda parameter type inference in filter/map
+    #[test]
+    pub(crate) fn test_DEPYLER_1053_infer_element_type_from_list_var() {
+        // Test that infer_iterable_element_type correctly extracts Float from List(Float)
+        let mut ctx = CodeGenContext::default();
+        // Register a variable as List(Float)
+        ctx.var_types.insert("data".to_string(), Type::List(Box::new(Type::Float)));
+
+        let mut converter = ExpressionConverter::new(&mut ctx);
+        let iterable = HirExpr::Var("data".to_string());
+        let elem_type = converter.infer_iterable_element_type(&iterable);
+
+        assert!(elem_type.is_some());
+        assert!(matches!(elem_type, Some(Type::Float)));
+    }
+
+    #[test]
+    pub(crate) fn test_DEPYLER_1053_infer_element_type_from_list_literal() {
+        // Test that infer_iterable_element_type correctly infers Float from list literal
+        let mut ctx = CodeGenContext::default();
+
+        let mut converter = ExpressionConverter::new(&mut ctx);
+        let iterable = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Float(1.0)),
+            HirExpr::Literal(Literal::Float(2.0)),
+        ]);
+        let elem_type = converter.infer_iterable_element_type(&iterable);
+
+        assert!(elem_type.is_some());
+        assert!(matches!(elem_type, Some(Type::Float)));
+    }
+
+    #[test]
+    pub(crate) fn test_DEPYLER_1053_infer_element_type_from_int_list() {
+        // Test that infer_iterable_element_type correctly infers Int from list literal
+        let mut ctx = CodeGenContext::default();
+
+        let mut converter = ExpressionConverter::new(&mut ctx);
+        let iterable = HirExpr::List(vec![
+            HirExpr::Literal(Literal::Int(1)),
+            HirExpr::Literal(Literal::Int(2)),
+        ]);
+        let elem_type = converter.infer_iterable_element_type(&iterable);
+
+        assert!(elem_type.is_some());
+        assert!(matches!(elem_type, Some(Type::Int)));
+    }
+
+    #[test]
+    pub(crate) fn test_DEPYLER_1053_infer_element_type_returns_none_for_unknown() {
+        // Test that infer_iterable_element_type returns None for unknown iterables
+        let mut ctx = CodeGenContext::default();
+
+        let mut converter = ExpressionConverter::new(&mut ctx);
+        // Variable not registered in var_types
+        let iterable = HirExpr::Var("unknown".to_string());
+        let elem_type = converter.infer_iterable_element_type(&iterable);
+
+        assert!(elem_type.is_none());
     }
 }

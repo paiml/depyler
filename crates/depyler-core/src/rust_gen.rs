@@ -1877,6 +1877,7 @@ pub fn generate_rust_file(
         module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
         #[cfg(feature = "sovereign-types")]
         type_query: None, // DEPYLER-1112: Sovereign Type Database
+        last_external_call_return_type: None, // DEPYLER-1113: External call return type
     };
 
     // Analyze all functions first for string optimization
@@ -4413,6 +4414,7 @@ mod tests {
         needs_depyler_timedelta: false,
             module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
             needs_depyler_regex_match: false, // DEPYLER-1070: Track DepylerRegexMatch struct need
+            last_external_call_return_type: None, // DEPYLER-1113
         }
     }
 
