@@ -574,10 +574,10 @@ impl<'a> CodeGenContext<'a> {
     /// 3 (feature check + option check + mutex lock + query)
     #[cfg(feature = "sovereign-types")]
     pub fn has_external_symbol(&self, module: &str, symbol: &str) -> bool {
-        self.type_query.as_ref().map_or(false, |tq| {
+        self.type_query.as_ref().is_some_and(|tq| {
             tq.lock()
                 .ok()
-                .map_or(false, |mut query| query.has_symbol(module, symbol))
+                .is_some_and(|mut query| query.has_symbol(module, symbol))
         })
     }
 
