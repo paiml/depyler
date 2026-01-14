@@ -96,71 +96,74 @@ fn build_database(packages: &str, output: &PathBuf, target: Option<&std::path::P
     let package_list: Vec<&str> = packages.split(',').map(|s| s.trim()).collect();
     info!(packages = ?package_list, "Building type database");
 
-    // Create harvester
-    let harvester = match target {
-        Some(dir) => Harvester::new(dir)?,
-        None => Harvester::temp()?,
-    };
-
+    let harvester = create_harvester(target)?;
     let extractor = Extractor::new();
     let mut all_facts: Vec<TypeFact> = Vec::new();
 
     for package in &package_list {
-        info!(package = %package, "Harvesting package");
+        let facts = harvest_package(&harvester, &extractor, package);
+        all_facts.extend(facts);
+    }
 
-        match harvester.fetch(package) {
-            Ok(result) => {
-                info!(
-                    package = %package,
-                    stubs = result.stub_files.len(),
-                    sources = result.source_files.len(),
-                    "Package harvested"
-                );
+    write_database(output, &all_facts)
+}
 
-                // Extract from each file
-                for file in result.all_files() {
-                    // Derive module name from file path
-                    let module = derive_module_name(file, &result.root);
+fn create_harvester(target: Option<&std::path::Path>) -> Result<Harvester> {
+    match target {
+        Some(dir) => Ok(Harvester::new(dir)?),
+        None => Ok(Harvester::temp()?),
+    }
+}
 
-                    match extractor.extract_file(file, &module) {
-                        Ok(facts) => {
-                            info!(
-                                file = %file.display(),
-                                facts = facts.len(),
-                                "Extracted facts"
-                            );
-                            all_facts.extend(facts);
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                file = %file.display(),
-                                error = %e,
-                                "Failed to extract from file"
-                            );
-                        }
-                    }
-                }
+fn harvest_package(harvester: &Harvester, extractor: &Extractor, package: &str) -> Vec<TypeFact> {
+    info!(package = %package, "Harvesting package");
+
+    match harvester.fetch(package) {
+        Ok(result) => {
+            info!(
+                package = %package,
+                stubs = result.stub_files.len(),
+                sources = result.source_files.len(),
+                "Package harvested"
+            );
+            extract_facts_from_result(extractor, &result)
+        }
+        Err(e) => {
+            tracing::error!(package = %package, error = %e, "Failed to harvest package");
+            Vec::new()
+        }
+    }
+}
+
+fn extract_facts_from_result(
+    extractor: &Extractor,
+    result: &depyler_knowledge::HarvestResult,
+) -> Vec<TypeFact> {
+    let mut facts = Vec::new();
+    for file in result.all_files() {
+        let module = derive_module_name(file, &result.root);
+        match extractor.extract_file(file, &module) {
+            Ok(extracted) => {
+                info!(file = %file.display(), facts = extracted.len(), "Extracted facts");
+                facts.extend(extracted);
             }
             Err(e) => {
-                tracing::error!(package = %package, error = %e, "Failed to harvest package");
+                tracing::warn!(file = %file.display(), error = %e, "Failed to extract from file");
             }
         }
     }
+    facts
+}
 
-    // Write to database
+fn write_database(output: &PathBuf, facts: &[TypeFact]) -> Result<()> {
     let db = TypeDatabase::new(output)?;
-    db.write(&all_facts)?;
+    db.write(facts)?;
 
     let size = db.size_bytes()?;
-    info!(
-        output = %output.display(),
-        facts = all_facts.len(),
-        size_kb = size / 1024,
-        "Database written"
-    );
+    info!(output = %output.display(), facts = facts.len(), size_kb = size / 1024, "Database written");
 
     println!("\n✅ Type database built successfully!");
-    println!("   Facts: {}", all_facts.len());
+    println!("   Facts: {}", facts.len());
     println!("   Size:  {} KB", size / 1024);
     println!("   Path:  {}", output.display());
 

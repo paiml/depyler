@@ -484,6 +484,7 @@ mod tests {
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: std::collections::HashSet::new(),
+            generator_iterator_state_vars: std::collections::HashSet::new(),
             var_types: std::collections::HashMap::new(),
             class_names: std::collections::HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
@@ -534,12 +535,18 @@ mod tests {
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
+            returns_impl_iterator: false, // DEPYLER-1076
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_depyler_date: false,
+            needs_depyler_datetime: false,
+            needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
+            needs_depyler_regex_match: false, // DEPYLER-1070
+            last_external_call_return_type: None, // DEPYLER-1113
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -639,6 +646,7 @@ mod tests {
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: HashSet::new(),
+            generator_iterator_state_vars: HashSet::new(),
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
@@ -689,12 +697,18 @@ mod tests {
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
+            returns_impl_iterator: false, // DEPYLER-1076
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_depyler_date: false,
+            needs_depyler_datetime: false,
+            needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
+            needs_depyler_regex_match: false, // DEPYLER-1070
+            last_external_call_return_type: None, // DEPYLER-1113
         };
 
         let deps = extract_dependencies(&ctx);
@@ -791,6 +805,7 @@ mod tests {
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: HashSet::new(),
+            generator_iterator_state_vars: HashSet::new(),
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
@@ -841,12 +856,18 @@ mod tests {
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
+            returns_impl_iterator: false, // DEPYLER-1076
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_depyler_date: false,
+            needs_depyler_datetime: false,
+            needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
+            needs_depyler_regex_match: false, // DEPYLER-1070
+            last_external_call_return_type: None, // DEPYLER-1113
         };
 
         let deps = extract_dependencies(&ctx);
@@ -1190,6 +1211,7 @@ mod tests {
             in_generator: false,
             is_classmethod: false,
             generator_state_vars: HashSet::new(),
+            generator_iterator_state_vars: HashSet::new(),
             var_types: std::collections::HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: std::collections::HashMap::new(),
@@ -1240,12 +1262,18 @@ mod tests {
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
+            returns_impl_iterator: false, // DEPYLER-1076
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_depyler_date: false,
+            needs_depyler_datetime: false,
+            needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
+            needs_depyler_regex_match: false, // DEPYLER-1070
+            last_external_call_return_type: None, // DEPYLER-1113
         };
 
         let deps = extract_dependencies(&ctx);
