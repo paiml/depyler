@@ -546,6 +546,8 @@ mod tests {
             needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
             needs_depyler_regex_match: false, // DEPYLER-1070
+            #[cfg(feature = "sovereign-types")]
+            type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
         };
 
@@ -708,6 +710,8 @@ mod tests {
             needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
             needs_depyler_regex_match: false, // DEPYLER-1070
+            #[cfg(feature = "sovereign-types")]
+            type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
         };
 
@@ -867,6 +871,8 @@ mod tests {
             needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
             needs_depyler_regex_match: false, // DEPYLER-1070
+            #[cfg(feature = "sovereign-types")]
+            type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
         };
 
@@ -1273,6 +1279,8 @@ mod tests {
             needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
             needs_depyler_regex_match: false, // DEPYLER-1070
+            #[cfg(feature = "sovereign-types")]
+            type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
         };
 

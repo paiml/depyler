@@ -48,6 +48,7 @@ pub mod control_stmt_helpers; // DEPYLER-0140: Control statement codegen helpers
 pub mod type_conversion_helpers; // DEPYLER-0455: Type conversion helpers extracted
 pub mod borrowing_helpers; // DEPYLER-COVERAGE-95: Borrowing helpers extracted
 pub mod json_helpers; // DEPYLER-COVERAGE-95: JSON serialization helpers extracted
+mod binding_gen; // DEPYLER-1115: Phantom binding generation for external library types
 pub mod name_heuristics; // DEPYLER-COVERAGE-95: Name-based type heuristics extracted
 pub mod expr_type_helpers; // DEPYLER-COVERAGE-95: Expression type helpers extracted
 pub mod mutation_helpers; // DEPYLER-COVERAGE-95: Mutation analysis helpers extracted
@@ -3987,6 +3988,20 @@ pub fn generate_rust_file(
         items.push(depyler_regex_match_struct);
     }
 
+    // DEPYLER-1115: Generate phantom bindings for external library types
+    // This must come BEFORE classes so external type references resolve
+    #[cfg(feature = "sovereign-types")]
+    {
+        if let Some(ref tq) = ctx.type_query {
+            let mut type_query_guard = tq.lock().unwrap();
+            let mut binding_gen = binding_gen::BindingGenerator::new(&mut type_query_guard);
+            binding_gen.collect_symbols(module);
+            if let Ok(phantom_bindings) = binding_gen.generate_bindings() {
+                items.push(phantom_bindings);
+            }
+        }
+    }
+
     // Add classes
     items.extend(classes);
 
@@ -4458,6 +4473,8 @@ mod tests {
         needs_depyler_timedelta: false,
             module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
             needs_depyler_regex_match: false, // DEPYLER-1070: Track DepylerRegexMatch struct need
+            #[cfg(feature = "sovereign-types")]
+            type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
         }
     }
