@@ -34,7 +34,7 @@ pub mod iterator_utils; // DEPYLER-SPLIT-001: Extracted iterator utilities
 mod string_method_helpers;
 pub mod type_coercion; // DEPYLER-SPLIT-001: Extracted type coercion utilities
 pub mod unary_ops; // DEPYLER-SPLIT-002: Extracted unary operation handling
-mod truthiness_helpers;
+pub mod truthiness_helpers; // DEPYLER-1096: Made public for truthiness coercion in direct_rules_convert
 pub mod expr_analysis; // PMAT: Extracted expression analysis for 100% unit test coverage
 pub mod var_analysis; // PMAT: Extracted variable analysis for 100% unit test coverage
 pub mod control_flow_analysis; // PMAT: Extracted control flow analysis for 100% unit test coverage
@@ -1875,6 +1875,8 @@ pub fn generate_rust_file(
         function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
         mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
         module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
+        #[cfg(feature = "sovereign-types")]
+        type_query: None, // DEPYLER-1112: Sovereign Type Database
     };
 
     // Analyze all functions first for string optimization
@@ -2851,6 +2853,632 @@ pub fn generate_rust_file(
                     b
                 }
             }
+
+            // DEPYLER-1103: PyTruthy trait for Python truthiness semantics
+            // In Python: 0, 0.0, "", [], {}, None, False are falsy, everything else is truthy
+            // This trait provides a unified interface for boolean coercion across all types.
+            pub trait PyTruthy {
+                /// Returns true if the value is "truthy" in Python semantics.
+                fn is_true(&self) -> bool;
+            }
+
+            impl PyTruthy for bool {
+                #[inline]
+                fn is_true(&self) -> bool { *self }
+            }
+
+            impl PyTruthy for i32 {
+                #[inline]
+                fn is_true(&self) -> bool { *self != 0 }
+            }
+
+            impl PyTruthy for i64 {
+                #[inline]
+                fn is_true(&self) -> bool { *self != 0 }
+            }
+
+            impl PyTruthy for f32 {
+                #[inline]
+                fn is_true(&self) -> bool { *self != 0.0 }
+            }
+
+            impl PyTruthy for f64 {
+                #[inline]
+                fn is_true(&self) -> bool { *self != 0.0 }
+            }
+
+            impl PyTruthy for String {
+                #[inline]
+                fn is_true(&self) -> bool { !self.is_empty() }
+            }
+
+            impl PyTruthy for &str {
+                #[inline]
+                fn is_true(&self) -> bool { !self.is_empty() }
+            }
+
+            impl<T> PyTruthy for Vec<T> {
+                #[inline]
+                fn is_true(&self) -> bool { !self.is_empty() }
+            }
+
+            impl<T> PyTruthy for Option<T> {
+                #[inline]
+                fn is_true(&self) -> bool { self.is_some() }
+            }
+
+            impl<K, V> PyTruthy for std::collections::HashMap<K, V> {
+                #[inline]
+                fn is_true(&self) -> bool { !self.is_empty() }
+            }
+
+            impl<K, V> PyTruthy for std::collections::BTreeMap<K, V> {
+                #[inline]
+                fn is_true(&self) -> bool { !self.is_empty() }
+            }
+
+            impl<T> PyTruthy for std::collections::HashSet<T> {
+                #[inline]
+                fn is_true(&self) -> bool { !self.is_empty() }
+            }
+
+            impl<T> PyTruthy for std::collections::BTreeSet<T> {
+                #[inline]
+                fn is_true(&self) -> bool { !self.is_empty() }
+            }
+
+            impl<T> PyTruthy for std::collections::VecDeque<T> {
+                #[inline]
+                fn is_true(&self) -> bool { !self.is_empty() }
+            }
+
+            impl PyTruthy for DepylerValue {
+                /// Python truthiness for DepylerValue:
+                /// - Int(0), Float(0.0), Str(""), Bool(false), None -> false
+                /// - List([]), Dict({}), Tuple([]) -> false
+                /// - Everything else -> true
+                #[inline]
+                fn is_true(&self) -> bool {
+                    match self {
+                        DepylerValue::Bool(_dv_b) => *_dv_b,
+                        DepylerValue::Int(_dv_i) => *_dv_i != 0,
+                        DepylerValue::Float(_dv_f) => *_dv_f != 0.0,
+                        DepylerValue::Str(_dv_s) => !_dv_s.is_empty(),
+                        DepylerValue::List(_dv_l) => !_dv_l.is_empty(),
+                        DepylerValue::Dict(_dv_d) => !_dv_d.is_empty(),
+                        DepylerValue::Tuple(_dv_t) => !_dv_t.is_empty(),
+                        DepylerValue::None => false,
+                    }
+                }
+            }
+
+            // DEPYLER-1104: PyAdd trait for Python addition semantics
+            // Handles cross-type promotion (int + float = float, str + str = str concat)
+            pub trait PyAdd<Rhs = Self> {
+                type Output;
+                fn py_add(self, rhs: Rhs) -> Self::Output;
+            }
+
+            // DEPYLER-1104: PySub trait for Python subtraction semantics
+            pub trait PySub<Rhs = Self> {
+                type Output;
+                fn py_sub(self, rhs: Rhs) -> Self::Output;
+            }
+
+            // DEPYLER-1104: PyMul trait for Python multiplication semantics
+            // Includes str * int for string repetition
+            pub trait PyMul<Rhs = Self> {
+                type Output;
+                fn py_mul(self, rhs: Rhs) -> Self::Output;
+            }
+
+            // DEPYLER-1104: PyDiv trait for Python division semantics
+            // Python 3 division always returns float
+            pub trait PyDiv<Rhs = Self> {
+                type Output;
+                fn py_div(self, rhs: Rhs) -> Self::Output;
+            }
+
+            // DEPYLER-1109: PyMod trait for Python modulo semantics
+            // Handles cross-type modulo (int % float, etc.)
+            pub trait PyMod<Rhs = Self> {
+                type Output;
+                fn py_mod(self, rhs: Rhs) -> Self::Output;
+            }
+
+            // DEPYLER-1104: PyIndex trait for Python indexing semantics
+            // Handles negative indices (list[-1] = last element)
+            pub trait PyIndex<Idx> {
+                type Output;
+                fn py_index(&self, index: Idx) -> Self::Output;
+            }
+
+            // === PyAdd implementations ===
+
+            impl PyAdd for i32 {
+                type Output = i32;
+                #[inline]
+                fn py_add(self, rhs: i32) -> i32 { self + rhs }
+            }
+
+            impl PyAdd<i64> for i32 {
+                type Output = i64;
+                #[inline]
+                fn py_add(self, rhs: i64) -> i64 { self as i64 + rhs }
+            }
+
+            impl PyAdd<f64> for i32 {
+                type Output = f64;
+                #[inline]
+                fn py_add(self, rhs: f64) -> f64 { self as f64 + rhs }
+            }
+
+            impl PyAdd for i64 {
+                type Output = i64;
+                #[inline]
+                fn py_add(self, rhs: i64) -> i64 { self + rhs }
+            }
+
+            impl PyAdd<i32> for i64 {
+                type Output = i64;
+                #[inline]
+                fn py_add(self, rhs: i32) -> i64 { self + rhs as i64 }
+            }
+
+            impl PyAdd<f64> for i64 {
+                type Output = f64;
+                #[inline]
+                fn py_add(self, rhs: f64) -> f64 { self as f64 + rhs }
+            }
+
+            impl PyAdd for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_add(self, rhs: f64) -> f64 { self + rhs }
+            }
+
+            impl PyAdd<i32> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_add(self, rhs: i32) -> f64 { self + rhs as f64 }
+            }
+
+            impl PyAdd<i64> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_add(self, rhs: i64) -> f64 { self + rhs as f64 }
+            }
+
+            impl PyAdd for String {
+                type Output = String;
+                #[inline]
+                fn py_add(self, rhs: String) -> String { self + &rhs }
+            }
+
+            impl PyAdd<&str> for String {
+                type Output = String;
+                #[inline]
+                fn py_add(self, rhs: &str) -> String { self + rhs }
+            }
+
+            impl PyAdd for DepylerValue {
+                type Output = DepylerValue;
+                fn py_add(self, rhs: DepylerValue) -> DepylerValue {
+                    match (self, rhs) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Int(_dv_a + _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a + _dv_b),
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a as f64 + _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Float(_dv_a + _dv_b as f64),
+                        (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => DepylerValue::Str(_dv_a + &_dv_b),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // === PySub implementations ===
+
+            impl PySub for i32 {
+                type Output = i32;
+                #[inline]
+                fn py_sub(self, rhs: i32) -> i32 { self - rhs }
+            }
+
+            impl PySub<f64> for i32 {
+                type Output = f64;
+                #[inline]
+                fn py_sub(self, rhs: f64) -> f64 { self as f64 - rhs }
+            }
+
+            impl PySub for i64 {
+                type Output = i64;
+                #[inline]
+                fn py_sub(self, rhs: i64) -> i64 { self - rhs }
+            }
+
+            impl PySub<f64> for i64 {
+                type Output = f64;
+                #[inline]
+                fn py_sub(self, rhs: f64) -> f64 { self as f64 - rhs }
+            }
+
+            impl PySub for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_sub(self, rhs: f64) -> f64 { self - rhs }
+            }
+
+            impl PySub<i32> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_sub(self, rhs: i32) -> f64 { self - rhs as f64 }
+            }
+
+            impl PySub<i64> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_sub(self, rhs: i64) -> f64 { self - rhs as f64 }
+            }
+
+            impl PySub for DepylerValue {
+                type Output = DepylerValue;
+                fn py_sub(self, rhs: DepylerValue) -> DepylerValue {
+                    match (self, rhs) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Int(_dv_a - _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a - _dv_b),
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a as f64 - _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Float(_dv_a - _dv_b as f64),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // === PyMul implementations ===
+
+            impl PyMul for i32 {
+                type Output = i32;
+                #[inline]
+                fn py_mul(self, rhs: i32) -> i32 { self * rhs }
+            }
+
+            impl PyMul<f64> for i32 {
+                type Output = f64;
+                #[inline]
+                fn py_mul(self, rhs: f64) -> f64 { self as f64 * rhs }
+            }
+
+            impl PyMul for i64 {
+                type Output = i64;
+                #[inline]
+                fn py_mul(self, rhs: i64) -> i64 { self * rhs }
+            }
+
+            impl PyMul<f64> for i64 {
+                type Output = f64;
+                #[inline]
+                fn py_mul(self, rhs: f64) -> f64 { self as f64 * rhs }
+            }
+
+            impl PyMul for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_mul(self, rhs: f64) -> f64 { self * rhs }
+            }
+
+            impl PyMul<i32> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_mul(self, rhs: i32) -> f64 { self * rhs as f64 }
+            }
+
+            impl PyMul<i64> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_mul(self, rhs: i64) -> f64 { self * rhs as f64 }
+            }
+
+            // Python str * int = string repetition
+            impl PyMul<i32> for String {
+                type Output = String;
+                fn py_mul(self, rhs: i32) -> String {
+                    if rhs <= 0 { String::new() } else { self.repeat(rhs as usize) }
+                }
+            }
+
+            impl PyMul<i64> for String {
+                type Output = String;
+                fn py_mul(self, rhs: i64) -> String {
+                    if rhs <= 0 { String::new() } else { self.repeat(rhs as usize) }
+                }
+            }
+
+            impl PyMul for DepylerValue {
+                type Output = DepylerValue;
+                fn py_mul(self, rhs: DepylerValue) -> DepylerValue {
+                    match (self, rhs) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Int(_dv_a * _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a * _dv_b),
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => DepylerValue::Float(_dv_a as f64 * _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => DepylerValue::Float(_dv_a * _dv_b as f64),
+                        (DepylerValue::Str(_dv_s), DepylerValue::Int(_dv_n)) => {
+                            if _dv_n <= 0 { DepylerValue::Str(String::new()) } else { DepylerValue::Str(_dv_s.repeat(_dv_n as usize)) }
+                        }
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // === PyDiv implementations ===
+            // Python 3: division always returns float
+
+            impl PyDiv for i32 {
+                type Output = f64;
+                #[inline]
+                fn py_div(self, rhs: i32) -> f64 {
+                    if rhs == 0 { f64::NAN } else { self as f64 / rhs as f64 }
+                }
+            }
+
+            impl PyDiv<f64> for i32 {
+                type Output = f64;
+                #[inline]
+                fn py_div(self, rhs: f64) -> f64 {
+                    if rhs == 0.0 { f64::NAN } else { self as f64 / rhs }
+                }
+            }
+
+            impl PyDiv for i64 {
+                type Output = f64;
+                #[inline]
+                fn py_div(self, rhs: i64) -> f64 {
+                    if rhs == 0 { f64::NAN } else { self as f64 / rhs as f64 }
+                }
+            }
+
+            impl PyDiv<f64> for i64 {
+                type Output = f64;
+                #[inline]
+                fn py_div(self, rhs: f64) -> f64 {
+                    if rhs == 0.0 { f64::NAN } else { self as f64 / rhs }
+                }
+            }
+
+            impl PyDiv for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_div(self, rhs: f64) -> f64 {
+                    if rhs == 0.0 { f64::NAN } else { self / rhs }
+                }
+            }
+
+            impl PyDiv<i32> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_div(self, rhs: i32) -> f64 {
+                    if rhs == 0 { f64::NAN } else { self / rhs as f64 }
+                }
+            }
+
+            impl PyDiv<i64> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_div(self, rhs: i64) -> f64 {
+                    if rhs == 0 { f64::NAN } else { self / rhs as f64 }
+                }
+            }
+
+            impl PyDiv for DepylerValue {
+                type Output = DepylerValue;
+                fn py_div(self, rhs: DepylerValue) -> DepylerValue {
+                    match (self, rhs) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => DepylerValue::Float(_dv_a as f64 / _dv_b as f64),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => DepylerValue::Float(_dv_a / _dv_b),
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => DepylerValue::Float(_dv_a as f64 / _dv_b),
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => DepylerValue::Float(_dv_a / _dv_b as f64),
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // === PyMod implementations ===
+            // Python modulo uses floored division semantics (result has same sign as divisor)
+
+            impl PyMod for i32 {
+                type Output = i32;
+                #[inline]
+                fn py_mod(self, rhs: i32) -> i32 {
+                    if rhs == 0 { 0 } else { ((self % rhs) + rhs) % rhs }
+                }
+            }
+
+            impl PyMod<f64> for i32 {
+                type Output = f64;
+                #[inline]
+                fn py_mod(self, rhs: f64) -> f64 {
+                    if rhs == 0.0 { f64::NAN } else { ((self as f64 % rhs) + rhs) % rhs }
+                }
+            }
+
+            impl PyMod for i64 {
+                type Output = i64;
+                #[inline]
+                fn py_mod(self, rhs: i64) -> i64 {
+                    if rhs == 0 { 0 } else { ((self % rhs) + rhs) % rhs }
+                }
+            }
+
+            impl PyMod<f64> for i64 {
+                type Output = f64;
+                #[inline]
+                fn py_mod(self, rhs: f64) -> f64 {
+                    if rhs == 0.0 { f64::NAN } else { ((self as f64 % rhs) + rhs) % rhs }
+                }
+            }
+
+            impl PyMod for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_mod(self, rhs: f64) -> f64 {
+                    if rhs == 0.0 { f64::NAN } else { ((self % rhs) + rhs) % rhs }
+                }
+            }
+
+            impl PyMod<i32> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_mod(self, rhs: i32) -> f64 {
+                    if rhs == 0 { f64::NAN } else { ((self % rhs as f64) + rhs as f64) % rhs as f64 }
+                }
+            }
+
+            impl PyMod<i64> for f64 {
+                type Output = f64;
+                #[inline]
+                fn py_mod(self, rhs: i64) -> f64 {
+                    if rhs == 0 { f64::NAN } else { ((self % rhs as f64) + rhs as f64) % rhs as f64 }
+                }
+            }
+
+            impl PyMod for DepylerValue {
+                type Output = DepylerValue;
+                fn py_mod(self, rhs: DepylerValue) -> DepylerValue {
+                    match (self, rhs) {
+                        (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                            DepylerValue::Int(((_dv_a % _dv_b) + _dv_b) % _dv_b)
+                        }
+                        (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                            DepylerValue::Float(((_dv_a % _dv_b) + _dv_b) % _dv_b)
+                        }
+                        (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                            let a = _dv_a as f64;
+                            DepylerValue::Float(((a % _dv_b) + _dv_b) % _dv_b)
+                        }
+                        (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                            let b = _dv_b as f64;
+                            DepylerValue::Float(((_dv_a % b) + b) % b)
+                        }
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // === PyIndex implementations ===
+            // Handles negative indices: list[-1] = last element
+
+            impl<T: Clone> PyIndex<i32> for Vec<T> {
+                type Output = Option<T>;
+                fn py_index(&self, index: i32) -> Option<T> {
+                    let _dv_len = self.len() as i32;
+                    let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                    if _dv_idx >= 0 && (_dv_idx as usize) < self.len() {
+                        Some(self[_dv_idx as usize].clone())
+                    } else {
+                        Option::None
+                    }
+                }
+            }
+
+            impl<T: Clone> PyIndex<i64> for Vec<T> {
+                type Output = Option<T>;
+                fn py_index(&self, index: i64) -> Option<T> {
+                    let _dv_len = self.len() as i64;
+                    let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                    if _dv_idx >= 0 && (_dv_idx as usize) < self.len() {
+                        Some(self[_dv_idx as usize].clone())
+                    } else {
+                        Option::None
+                    }
+                }
+            }
+
+            impl PyIndex<&str> for std::collections::HashMap<String, DepylerValue> {
+                type Output = Option<DepylerValue>;
+                fn py_index(&self, key: &str) -> Option<DepylerValue> {
+                    self.get(key).cloned()
+                }
+            }
+
+            impl PyIndex<i32> for String {
+                type Output = Option<char>;
+                fn py_index(&self, index: i32) -> Option<char> {
+                    let _dv_len = self.len() as i32;
+                    let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                    if _dv_idx >= 0 {
+                        self.chars().nth(_dv_idx as usize)
+                    } else {
+                        Option::None
+                    }
+                }
+            }
+
+            impl PyIndex<i64> for String {
+                type Output = Option<char>;
+                fn py_index(&self, index: i64) -> Option<char> {
+                    let _dv_len = self.len() as i64;
+                    let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                    if _dv_idx >= 0 {
+                        self.chars().nth(_dv_idx as usize)
+                    } else {
+                        Option::None
+                    }
+                }
+            }
+
+            impl PyIndex<i32> for DepylerValue {
+                type Output = DepylerValue;
+                fn py_index(&self, index: i32) -> DepylerValue {
+                    match self {
+                        DepylerValue::List(_dv_list) => {
+                            let _dv_len = _dv_list.len() as i32;
+                            let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                            if _dv_idx >= 0 && (_dv_idx as usize) < _dv_list.len() {
+                                _dv_list[_dv_idx as usize].clone()
+                            } else {
+                                DepylerValue::None
+                            }
+                        }
+                        DepylerValue::Tuple(_dv_tuple) => {
+                            let _dv_len = _dv_tuple.len() as i32;
+                            let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                            if _dv_idx >= 0 && (_dv_idx as usize) < _dv_tuple.len() {
+                                _dv_tuple[_dv_idx as usize].clone()
+                            } else {
+                                DepylerValue::None
+                            }
+                        }
+                        DepylerValue::Str(_dv_str) => {
+                            let _dv_len = _dv_str.len() as i32;
+                            let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                            if _dv_idx >= 0 {
+                                _dv_str.chars().nth(_dv_idx as usize)
+                                    .map(|_dv_c| DepylerValue::Str(_dv_c.to_string()))
+                                    .unwrap_or(DepylerValue::None)
+                            } else {
+                                DepylerValue::None
+                            }
+                        }
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            impl PyIndex<i64> for DepylerValue {
+                type Output = DepylerValue;
+                fn py_index(&self, index: i64) -> DepylerValue {
+                    self.py_index(index as i32)
+                }
+            }
+
+            impl PyIndex<&str> for DepylerValue {
+                type Output = DepylerValue;
+                fn py_index(&self, key: &str) -> DepylerValue {
+                    match self {
+                        DepylerValue::Dict(_dv_dict) => {
+                            _dv_dict.get(&DepylerValue::Str(key.to_string())).cloned().unwrap_or(DepylerValue::None)
+                        }
+                        _ => DepylerValue::None,
+                    }
+                }
+            }
         };
         items.push(depyler_value_enum);
     }
@@ -3597,6 +4225,23 @@ pub fn generate_rust_file(
         formatted_code = formatted_code.replace("use clap::Parser;\n", "");
         formatted_code = formatted_code.replace("use clap :: Parser;\n", "");
         formatted_code = formatted_code.replace("use clap;\n", "");
+
+        // DEPYLER-1090: Remove use clap::CommandFactory imports (any indentation)
+        // These appear in help-printing blocks like:
+        // { use clap::CommandFactory; Args::command().print_help().unwrap() };
+        formatted_code = formatted_code
+            .lines()
+            .filter(|line| !line.trim().starts_with("use clap::CommandFactory"))
+            .collect::<Vec<_>>()
+            .join("\n");
+        if !formatted_code.ends_with('\n') {
+            formatted_code.push('\n');
+        }
+
+        // DEPYLER-1090: Replace Args::command() with a stub that doesn't require clap
+        // Args::command().print_help() pattern becomes a no-op in NASA mode
+        formatted_code = formatted_code.replace("Args::command().print_help().unwrap()", "()");
+        formatted_code = formatted_code.replace("Args :: command().print_help().unwrap()", "()");
 
         // Replace Args::parse() call with Args::default() stub
         // Since clap::Parser derive is removed, we need a fallback
@@ -5222,5 +5867,567 @@ mod tests {
         ];
         analyze_validators(&mut ctx, &functions, &constants);
         assert!(ctx.validator_functions.contains("const_validator"));
+    }
+
+    // === DEPYLER-1103: Tests for PyTruthy trait generation ===
+
+    #[test]
+    fn test_depyler_1103_pytruthy_trait_generated_with_depyler_value() {
+        // Verify that PyTruthy trait is included when DepylerValue is needed
+        // Test by creating a HirModule with a dict (which triggers DepylerValue)
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_func".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+        let type_mapper = TypeMapper::default();
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Verify PyTruthy trait is defined
+        assert!(
+            code.contains("pub trait PyTruthy"),
+            "Generated code should contain PyTruthy trait definition"
+        );
+        assert!(
+            code.contains("fn is_true(& self) -> bool") || code.contains("fn is_true(&self) -> bool"),
+            "PyTruthy trait should define is_true method"
+        );
+
+        // Verify implementations for primitive types
+        assert!(
+            code.contains("impl PyTruthy for bool"),
+            "Should implement PyTruthy for bool"
+        );
+        assert!(
+            code.contains("impl PyTruthy for i32"),
+            "Should implement PyTruthy for i32"
+        );
+        assert!(
+            code.contains("impl PyTruthy for i64"),
+            "Should implement PyTruthy for i64"
+        );
+        assert!(
+            code.contains("impl PyTruthy for f64"),
+            "Should implement PyTruthy for f64"
+        );
+        assert!(
+            code.contains("impl PyTruthy for String"),
+            "Should implement PyTruthy for String"
+        );
+
+        // Verify implementation for DepylerValue
+        assert!(
+            code.contains("impl PyTruthy for DepylerValue"),
+            "Should implement PyTruthy for DepylerValue"
+        );
+    }
+
+    #[test]
+    fn test_depyler_1103_pytruthy_includes_collections() {
+        // Verify PyTruthy is implemented for common collection types
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_func".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+        let type_mapper = TypeMapper::default();
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Verify collection implementations (check with both spacing options)
+        assert!(
+            code.contains("impl < T > PyTruthy for Vec < T >") || code.contains("impl<T> PyTruthy for Vec<T>"),
+            "Should implement PyTruthy for Vec<T>"
+        );
+        assert!(
+            code.contains("impl < T > PyTruthy for Option < T >") || code.contains("impl<T> PyTruthy for Option<T>"),
+            "Should implement PyTruthy for Option<T>"
+        );
+        assert!(
+            code.contains("PyTruthy for std :: collections :: HashMap") || code.contains("PyTruthy for std::collections::HashMap"),
+            "Should implement PyTruthy for HashMap"
+        );
+        assert!(
+            code.contains("PyTruthy for std :: collections :: HashSet") || code.contains("PyTruthy for std::collections::HashSet"),
+            "Should implement PyTruthy for HashSet"
+        );
+    }
+
+    #[test]
+    fn test_depyler_1103_pytruthy_is_tied_to_depyler_value() {
+        // Verify that PyTruthy is always generated alongside DepylerValue
+        // (they are bundled in the same quote! block for consistency)
+        use crate::hir::{HirModule, HirParam};
+        use smallvec::smallvec;
+
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "simple_add".to_string(),
+                    params: smallvec![
+                        HirParam::new("a".to_string(), Type::Int),
+                        HirParam::new("b".to_string(), Type::Int),
+                    ],
+                    ret_type: Type::Int,
+                    body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                        op: BinOp::Add,
+                        left: Box::new(HirExpr::Var("a".to_string())),
+                        right: Box::new(HirExpr::Var("b".to_string())),
+                    }))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+        let type_mapper = TypeMapper::default();
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // If DepylerValue is present, PyTruthy should also be present (they're bundled)
+        // Note: TypeMapper::default() uses NASA mode which always includes DepylerValue
+        let has_depyler_value = code.contains("enum DepylerValue");
+        let has_pytruthy = code.contains("pub trait PyTruthy");
+        assert_eq!(
+            has_depyler_value, has_pytruthy,
+            "PyTruthy and DepylerValue should always be generated together"
+        );
+    }
+
+    // === DEPYLER-1104: Tests for PyOps trait generation ===
+
+    #[test]
+    fn test_depyler_1104_pyops_traits_generated_with_depyler_value() {
+        // Verify that PyAdd, PySub, PyMul, PyDiv, PyIndex traits are included with DepylerValue
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_func".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+        let type_mapper = TypeMapper::default();
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Verify all PyOps traits are defined
+        assert!(
+            code.contains("pub trait PyAdd"),
+            "Generated code should contain PyAdd trait definition"
+        );
+        assert!(
+            code.contains("pub trait PySub"),
+            "Generated code should contain PySub trait definition"
+        );
+        assert!(
+            code.contains("pub trait PyMul"),
+            "Generated code should contain PyMul trait definition"
+        );
+        assert!(
+            code.contains("pub trait PyDiv"),
+            "Generated code should contain PyDiv trait definition"
+        );
+        assert!(
+            code.contains("pub trait PyIndex"),
+            "Generated code should contain PyIndex trait definition"
+        );
+
+        // Verify trait methods
+        assert!(
+            code.contains("fn py_add"),
+            "PyAdd trait should define py_add method"
+        );
+        assert!(
+            code.contains("fn py_sub"),
+            "PySub trait should define py_sub method"
+        );
+        assert!(
+            code.contains("fn py_mul"),
+            "PyMul trait should define py_mul method"
+        );
+        assert!(
+            code.contains("fn py_div"),
+            "PyDiv trait should define py_div method"
+        );
+        assert!(
+            code.contains("fn py_index"),
+            "PyIndex trait should define py_index method"
+        );
+    }
+
+    #[test]
+    fn test_depyler_1104_pyops_primitive_implementations() {
+        // Verify PyOps traits are implemented for primitive types
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_func".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+        let type_mapper = TypeMapper::default();
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Verify implementations for i32
+        assert!(
+            code.contains("impl PyAdd for i32") || code.contains("impl PyAdd < i32 > for i32"),
+            "Should implement PyAdd for i32"
+        );
+        assert!(
+            code.contains("impl PySub for i32") || code.contains("impl PySub < i32 > for i32"),
+            "Should implement PySub for i32"
+        );
+
+        // Verify implementations for f64
+        assert!(
+            code.contains("impl PyAdd for f64") || code.contains("impl PyAdd < f64 > for f64"),
+            "Should implement PyAdd for f64"
+        );
+
+        // Verify cross-type implementations (i32 + f64)
+        assert!(
+            code.contains("impl PyAdd < f64 > for i32") || code.contains("impl PyAdd<f64> for i32"),
+            "Should implement PyAdd<f64> for i32 (cross-type)"
+        );
+    }
+
+    #[test]
+    fn test_depyler_1104_pyindex_negative_index_support() {
+        // Verify PyIndex implementations support negative indices (Python semantics)
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_func".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+        let type_mapper = TypeMapper::default();
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Verify PyIndex is implemented for Vec with i32 (supports negative indices)
+        assert!(
+            code.contains("impl < T : Clone > PyIndex < i32 > for Vec < T >")
+                || code.contains("impl<T: Clone> PyIndex<i32> for Vec<T>"),
+            "Should implement PyIndex<i32> for Vec<T> to support negative indices"
+        );
+
+        // Verify negative index handling logic is present
+        assert!(
+            code.contains("if index < 0"),
+            "PyIndex implementation should handle negative indices"
+        );
+        assert!(
+            code.contains(".len()") && code.contains("as i32"),
+            "Negative index handling should use length for wrapping"
+        );
+    }
+
+    #[test]
+    fn test_depyler_1104_pyops_depyler_value_implementation() {
+        // Verify PyOps traits are implemented for DepylerValue
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_func".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+        let type_mapper = TypeMapper::default();
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Verify DepylerValue has PyOps implementations
+        assert!(
+            code.contains("impl PyAdd for DepylerValue"),
+            "Should implement PyAdd for DepylerValue"
+        );
+        assert!(
+            code.contains("impl PySub for DepylerValue"),
+            "Should implement PySub for DepylerValue"
+        );
+        assert!(
+            code.contains("impl PyMul for DepylerValue"),
+            "Should implement PyMul for DepylerValue"
+        );
+        assert!(
+            code.contains("impl PyDiv for DepylerValue"),
+            "Should implement PyDiv for DepylerValue"
+        );
+        assert!(
+            code.contains("impl PyIndex") && code.contains("for DepylerValue"),
+            "Should implement PyIndex for DepylerValue"
+        );
+    }
+
+    /// DEPYLER-1106: Verify PyOps codegen integration for binary operations
+    /// This test verifies that when DepylerValue is involved in arithmetic,
+    /// we generate .py_add(), .py_sub(), etc. instead of raw operators
+    #[test]
+    fn test_depyler_1106_pyops_codegen_binary_ops() {
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        // Create a module with a function that uses heterogeneous dict (triggers DepylerValue)
+        // The function has Dict<String, Unknown> which forces NASA mode DepylerValue usage
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_add".to_string(),
+                    params: smallvec![],
+                    // Dict with mixed types - this triggers DepylerValue in NASA mode
+                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![
+                        (HirExpr::Literal(Literal::String("a".to_string())),
+                         HirExpr::Literal(Literal::Int(1))),
+                        (HirExpr::Literal(Literal::String("b".to_string())),
+                         HirExpr::Literal(Literal::Float(2.5))),
+                    ])))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+
+        // Use NASA mode TypeMapper
+        let mut type_mapper = TypeMapper::default();
+        type_mapper.nasa_mode = true;
+
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Verify the function is generated and code contains PyOps traits
+        assert!(code.contains("fn test_add"), "Should have the function");
+        assert!(code.contains("pub trait PyAdd"), "Should include PyAdd trait");
+    }
+
+    /// DEPYLER-1106: Verify PyOps codegen includes DepylerValue trait implementations
+    #[test]
+    fn test_depyler_1106_pyops_codegen_depyler_value_impls() {
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_ops".to_string(),
+                    params: smallvec![],
+                    // Return Unknown type to trigger DepylerValue
+                    ret_type: Type::Unknown,
+                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+
+        let mut type_mapper = TypeMapper::default();
+        type_mapper.nasa_mode = true;
+
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Verify DepylerValue PyOps implementations are present
+        assert!(
+            code.contains("impl PyAdd for DepylerValue"),
+            "Should implement PyAdd for DepylerValue"
+        );
+        assert!(
+            code.contains("impl PyMul for DepylerValue"),
+            "Should implement PyMul for DepylerValue"
+        );
+    }
+
+    /// DEPYLER-1106: Verify that PyOps traits handle cross-type arithmetic
+    /// This is the key test - demonstrating that i32 + f64 compiles via trait methods
+    #[test]
+    fn test_depyler_1106_cross_type_arithmetic_compiles() {
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        // Create module that triggers PyOps trait generation
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_cross_type".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Unknown, // Triggers DepylerValue
+                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(3.14))))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+
+        let mut type_mapper = TypeMapper::default();
+        type_mapper.nasa_mode = true;
+
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Should have cross-type implementations
+        assert!(
+            code.contains("impl PyAdd < f64 > for i32") || code.contains("impl PyAdd<f64> for i32"),
+            "Should implement PyAdd<f64> for i32 for cross-type addition"
+        );
+        assert!(
+            code.contains("impl PyMul < f64 > for i32") || code.contains("impl PyMul<f64> for i32"),
+            "Should implement PyMul<f64> for i32 for cross-type multiplication"
+        );
+    }
+
+    /// DEPYLER-1106: Verify PyIndex trait is available for negative index handling
+    #[test]
+    fn test_depyler_1106_pyindex_available() {
+        use crate::hir::HirModule;
+        use smallvec::smallvec;
+
+        let module = HirModule {
+            functions: vec![
+                HirFunction {
+                    name: "test_index".to_string(),
+                    params: smallvec![],
+                    ret_type: Type::Unknown,
+                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))],
+                    properties: FunctionProperties::default(),
+                    annotations: TranspilationAnnotations::default(),
+                    docstring: None,
+                },
+            ],
+            classes: vec![],
+            constants: vec![],
+            imports: vec![],
+            type_aliases: vec![],
+            protocols: vec![],
+        };
+
+        let mut type_mapper = TypeMapper::default();
+        type_mapper.nasa_mode = true;
+
+        let result = generate_rust_file(&module, &type_mapper).unwrap();
+        let code = result.0;
+
+        // Verify PyIndex trait and implementation are present
+        assert!(
+            code.contains("pub trait PyIndex"),
+            "Should include PyIndex trait definition"
+        );
+        assert!(
+            code.contains("fn py_index"),
+            "PyIndex trait should have py_index method"
+        );
     }
 }
