@@ -6,6 +6,10 @@
 //!
 //! The "Phantom" pattern wraps external types around `serde_json::Value` without
 //! attempting to replicate internal layouts.
+//!
+//! This module is only active when the `sovereign-types` feature is enabled.
+
+// Note: This module is feature-gated at the module declaration in rust_gen.rs
 
 use crate::hir::{HirExpr, HirModule, HirStmt};
 use anyhow::Result;
@@ -13,11 +17,13 @@ use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use std::collections::{HashMap, HashSet};
 
-#[cfg(feature = "sovereign-types")]
 use depyler_knowledge::{TypeFact, TypeQuery};
 
 /// Collected external symbols from HIR analysis
+///
+/// Note: Some fields are reserved for future use in more sophisticated binding generation.
 #[derive(Debug, Default)]
+#[allow(dead_code)] // Fields reserved for future expansion
 pub struct UsedExternalSymbols {
     /// Module imports used (e.g., "requests")
     pub modules: HashSet<String>,
@@ -193,7 +199,9 @@ pub fn python_type_to_rust(py_type: &str) -> TokenStream {
         }
 
         // Any and unknown types - use serde_json::Value as universal fallback
-        "Any" | "object" | _ => quote! { serde_json::Value },
+        "Any" | "object" => quote! { serde_json::Value },
+        // Unknown types fall back to serde_json::Value
+        _ => quote! { serde_json::Value },
     }
 }
 
@@ -716,7 +724,7 @@ impl<'a> BindingGenerator<'a> {
             if let Ok(return_type) = self.type_query.find_return_type(module, function) {
                 // Parse the return type to get the class name
                 // e.g., "requests.models.Response" or just "Response"
-                let class_name = return_type.split('.').last().unwrap_or(&return_type);
+                let class_name = return_type.split('.').next_back().unwrap_or(&return_type);
 
                 // Skip if we've already generated this type
                 let full_type_name = format!("{}.{}", module, class_name);

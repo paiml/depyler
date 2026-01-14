@@ -48,6 +48,7 @@ pub mod control_stmt_helpers; // DEPYLER-0140: Control statement codegen helpers
 pub mod type_conversion_helpers; // DEPYLER-0455: Type conversion helpers extracted
 pub mod borrowing_helpers; // DEPYLER-COVERAGE-95: Borrowing helpers extracted
 pub mod json_helpers; // DEPYLER-COVERAGE-95: JSON serialization helpers extracted
+#[cfg(feature = "sovereign-types")]
 mod binding_gen; // DEPYLER-1115: Phantom binding generation for external library types
 pub mod name_heuristics; // DEPYLER-COVERAGE-95: Name-based type heuristics extracted
 pub mod expr_type_helpers; // DEPYLER-COVERAGE-95: Expression type helpers extracted
@@ -146,12 +147,6 @@ fn load_type_database() -> Option<std::sync::Arc<std::sync::Mutex<depyler_knowle
         }
     }
 
-    None
-}
-
-/// DEPYLER-1114: Stub for when sovereign-types feature is disabled
-#[cfg(not(feature = "sovereign-types"))]
-fn load_type_database() -> Option<()> {
     None
 }
 
