@@ -132,10 +132,18 @@ impl AnnotationAwareTypeMapper {
         //     depyler_annotations::HashStrategy::AHash => "AHashMap",
         // }
 
+        // DEPYLER-1073: Float keys don't implement Hash/Eq in Rust
+        // Use DepylerValue for float keys which has a custom Hash/Eq impl using total_cmp
+        let key_str = if matches!(key, PythonType::Float) {
+            "DepylerValue".to_string()
+        } else {
+            key_rust.to_rust_string()
+        };
+
         let base_type = RustType::Custom(format!(
             "{}<{}, {}>",
             hash_map_type,
-            key_rust.to_rust_string(),
+            key_str,
             value_rust.to_rust_string()
         ));
 

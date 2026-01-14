@@ -1184,8 +1184,9 @@ pub(crate) fn try_generate_subcommand_match(
             // - Pattern B: Fields accessed → { field1, field2, ... } (handler gets individual fields)
             if accessed_fields.is_empty() {
                 // Pattern A: No field access, use { .. }
+                // DEPYLER-1063: args.command is Option<Commands>, wrap pattern in Some()
                 quote! {
-                    Commands::#variant_name { .. } => {
+                    Some(Commands::#variant_name { .. }) => {
                         #(#body_stmts)*
                     }
                 }
@@ -1520,8 +1521,9 @@ pub(crate) fn try_generate_subcommand_match(
 
                 // DEPYLER-0578: Add `..` to pattern to ignore unmentioned fields (fixes E0027)
                 // The subcommand may have more fields than we extract from body statements
+                // DEPYLER-1063: args.command is Option<Commands>, wrap pattern in Some()
                 quote! {
-                    Commands::#variant_name { #(#ref_field_patterns,)* .. } => {
+                    Some(Commands::#variant_name { #(#ref_field_patterns,)* .. }) => {
                         #(#field_bindings)*
                         #(#body_stmts)*
                     }

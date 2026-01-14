@@ -2,7 +2,8 @@
 //!
 //! Coverage target: interpreter.rs from 62.84% to 95%+
 
-use depyler_ruchy::{RuchyConfig, RuchyInterpreter};
+use depyler_ruchy::interpreter::RuchyInterpreter;
+use depyler_ruchy::RuchyConfig;
 
 mod interpreter_creation {
     use super::*;
@@ -153,7 +154,7 @@ mod execution_without_interpreter_feature {
 }
 
 mod benchmark_results {
-    use depyler_ruchy::BenchmarkResults;
+    use depyler_ruchy::interpreter::BenchmarkResults;
 
     #[test]
     fn test_benchmark_results_display() {
@@ -344,6 +345,7 @@ mod integration_scenarios {
 
 mod property_tests {
     use super::*;
+    use depyler_ruchy::interpreter::BenchmarkResults;
     use proptest::prelude::*;
 
     proptest! {
@@ -388,7 +390,7 @@ mod property_tests {
                 0
             };
 
-            let results = depyler_ruchy::BenchmarkResults {
+            let results = BenchmarkResults {
                 iterations: iterations as usize,
                 total_time_ms,
                 avg_time_ms: avg,
@@ -396,7 +398,7 @@ mod property_tests {
             };
 
             let display = format!("{}", results);
-            prop_assert!(display.contains(&format!("{}", iterations)));
+            prop_assert!(display.contains(&iterations.to_string()));
         }
     }
 }

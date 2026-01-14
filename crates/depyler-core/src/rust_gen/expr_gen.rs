@@ -452,13 +452,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-1109: Universal PyOps Dispatch (NASA Mode)
         // Delegate arithmetic/indexing to PyOps traits to handle type coercion (i32+f64, etc.)
+        // Note: Wrap left_expr in parens to handle cast expressions (a as f64).method() is invalid
         if self.ctx.type_mapper.nasa_mode && !is_comparison {
             match op {
-                BinOp::Add => return Ok(parse_quote! { #left_expr.py_add(#right_expr) }),
-                BinOp::Sub => return Ok(parse_quote! { #left_expr.py_sub(#right_expr) }),
-                BinOp::Mul => return Ok(parse_quote! { #left_expr.py_mul(#right_expr) }),
-                BinOp::Div => return Ok(parse_quote! { #left_expr.py_div(#right_expr) }),
-                BinOp::Mod => return Ok(parse_quote! { #left_expr.py_mod(#right_expr) }),
+                BinOp::Add => return Ok(parse_quote! { (#left_expr).py_add(#right_expr) }),
+                BinOp::Sub => return Ok(parse_quote! { (#left_expr).py_sub(#right_expr) }),
+                BinOp::Mul => return Ok(parse_quote! { (#left_expr).py_mul(#right_expr) }),
+                BinOp::Div => return Ok(parse_quote! { (#left_expr).py_div(#right_expr) }),
+                BinOp::Mod => return Ok(parse_quote! { (#left_expr).py_mod(#right_expr) }),
                 _ => {}
             }
         }

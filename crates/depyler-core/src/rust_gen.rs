@@ -110,6 +110,50 @@ pub use type_gen::rust_type_to_syn;
 // Internal re-exports for cross-module access
 pub(crate) use func_gen::return_type_expects_float;
 
+/// DEPYLER-1114: Load the Sovereign Type Database from a well-known path
+///
+/// Searches for the type database parquet file in order of priority:
+/// 1. DEPYLER_TYPE_DB environment variable
+/// 2. ./crates/depyler-core/src/data/stdlib_types.parquet (dev path)
+/// 3. ./data/stdlib_types.parquet (relative to cwd)
+///
+/// Returns None if no database is found or if sovereign-types feature is disabled.
+#[cfg(feature = "sovereign-types")]
+fn load_type_database() -> Option<std::sync::Arc<std::sync::Mutex<depyler_knowledge::TypeQuery>>> {
+    use std::sync::{Arc, Mutex};
+
+    // Priority 1: Environment variable
+    if let Ok(path) = std::env::var("DEPYLER_TYPE_DB") {
+        if let Ok(query) = depyler_knowledge::TypeQuery::new(std::path::Path::new(&path)) {
+            return Some(Arc::new(Mutex::new(query)));
+        }
+    }
+
+    // Priority 2: Development path (relative to project root)
+    let dev_path = std::path::Path::new("crates/depyler-core/src/data/stdlib_types.parquet");
+    if dev_path.exists() {
+        if let Ok(query) = depyler_knowledge::TypeQuery::new(dev_path) {
+            return Some(Arc::new(Mutex::new(query)));
+        }
+    }
+
+    // Priority 3: Relative to current directory
+    let rel_path = std::path::Path::new("data/stdlib_types.parquet");
+    if rel_path.exists() {
+        if let Ok(query) = depyler_knowledge::TypeQuery::new(rel_path) {
+            return Some(Arc::new(Mutex::new(query)));
+        }
+    }
+
+    None
+}
+
+/// DEPYLER-1114: Stub for when sovereign-types feature is disabled
+#[cfg(not(feature = "sovereign-types"))]
+fn load_type_database() -> Option<()> {
+    None
+}
+
 /// Analyze functions for string optimization
 ///
 /// Performs string optimization analysis on all functions.
@@ -1876,7 +1920,7 @@ pub fn generate_rust_file(
         mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
         module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
         #[cfg(feature = "sovereign-types")]
-        type_query: None, // DEPYLER-1112: Sovereign Type Database
+        type_query: load_type_database(), // DEPYLER-1114: Auto-load Sovereign Type Database
         last_external_call_return_type: None, // DEPYLER-1113: External call return type
     };
 
@@ -4445,10 +4489,10 @@ mod tests {
         assert!(code.contains("pub fn add"));
         assert!(code.contains("i32"));
         // DEPYLER-0271: Final return statements use expression-based returns (no `return` keyword)
-        // The function body should contain the expression result without explicit `return`
+        // DEPYLER-1109: NASA mode uses PyOps traits, so check for either format
         assert!(
-            code.contains("a + b"),
-            "Function should contain expression 'a + b'"
+            code.contains("a + b") || code.contains("py_add"),
+            "Function should contain addition expression: got {code}"
         );
     }
 
@@ -5110,11 +5154,12 @@ mod tests {
         let result = divide_func.to_rust_tokens(&mut ctx).unwrap();
         let code = result.to_string();
 
-        // Should generate: (a as f64) / (b as f64)
+        // Should generate: (a as f64) / (b as f64) OR (a).py_div(b) in NASA mode
         // NOT: a / b (which would do integer division)
+        // DEPYLER-1109: NASA mode uses PyOps traits which handle coercion internally
         assert!(
-            code.contains("as f64") || code.contains("as f32"),
-            "Expected float cast for int/int division with float return, got: {}",
+            code.contains("as f64") || code.contains("as f32") || code.contains("py_div"),
+            "Expected float cast or py_div for int/int division with float return, got: {}",
             code
         );
         assert!(

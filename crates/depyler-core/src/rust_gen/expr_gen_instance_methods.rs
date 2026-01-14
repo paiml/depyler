@@ -3509,6 +3509,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-1106: Use PyOps trait methods for DepylerValue indexing
+        // This provides Python-semantic indexing with negative index support
+        let base_is_depyler = self.expr_returns_depyler_value(base);
+        if base_is_depyler && self.ctx.type_mapper.nasa_mode {
+            let index_expr = index.to_rust_expr(self.ctx)?;
+            // Use .py_index() for DepylerValue - handles negative indices and type coercion
+            let index_for_pyops = if matches!(index, HirExpr::Literal(Literal::Int(_))) {
+                parse_quote! { DepylerValue::Int(#index_expr as i64) }
+            } else if self.expr_returns_depyler_value(index) {
+                index_expr.clone()
+            } else {
+                parse_quote! { DepylerValue::Int(#index_expr as i64) }
+            };
+            return Ok(parse_quote! { #base_expr.clone().py_index(#index_for_pyops) });
+        }
+
         // DEPYLER-0422 Fix #3 & #4: Handle tuple indexing with actual type information
         // Python: tuple[0], tuple[1] → Rust: tuple.0, tuple.1
         // Also handles chained indexing: list_of_tuples[i][j] → list_of_tuples.get(i).0
@@ -7110,6 +7126,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-1085: Check if expression returns a concrete (non-DepylerValue) type
     /// Returns the concrete type if known, None if Unknown/DepylerValue
+    #[allow(dead_code)] // May be used for future value lifting optimizations
     pub(crate) fn expr_concrete_type(&self, expr: &HirExpr) -> Option<Type> {
         match expr {
             HirExpr::Literal(Literal::Int(_)) => Some(Type::Int),
