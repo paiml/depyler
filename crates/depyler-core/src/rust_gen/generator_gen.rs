@@ -223,14 +223,31 @@ fn generate_param_initializers(
             let field_name = safe_ident(&param.name);
 
             // DEPYLER-0498: Dereference Option parameters (&Option<T> -> Option<T>)
+            // DEPYLER-1078: Clone List/Dict/Set parameters (&Vec<T> -> Vec<T>)
+            // DEPYLER-1079: Box Iterator/Generator parameters for struct fields
             // Five-Whys Root Cause: Parameters are borrowed but struct fields are owned
-            // Solution: Dereference (*param) since Option<i32> implements Copy
-            let init_value = if matches!(param.ty, Type::Optional(_)) {
-                // Parameter is &Option<T>, field is Option<T> - dereference
-                quote! { *#field_name }
-            } else {
-                // Regular parameter - direct assignment
-                quote! { #field_name }
+            // Solution: Dereference, clone, or box based on type
+            let init_value = match &param.ty {
+                // Option<T> implements Copy for Copy inner types - dereference
+                Type::Optional(_) => quote! { *#field_name },
+                // List/Vec - clone the reference to get owned value
+                Type::List(_) => quote! { #field_name.clone() },
+                // Dict/HashMap - clone the reference
+                Type::Dict(_, _) => quote! { #field_name.clone() },
+                // Set - clone the reference
+                Type::Set(_) => quote! { #field_name.clone() },
+                // String - clone the reference
+                Type::String => quote! { #field_name.clone() },
+                // DEPYLER-1082: Box impl Iterator/Generator parameters for struct fields
+                // Struct fields are typed as Box<dyn Iterator> (via box_impl_trait_for_field)
+                // so we must wrap the impl Trait parameter with Box::new() for type erasure
+                Type::Generic { base, .. }
+                    if base == "Iterator" || base == "Generator" || base == "Iterable" =>
+                {
+                    quote! { Box::new(#field_name) as _ }
+                }
+                // Other types - direct assignment (primitives implement Copy)
+                _ => quote! { #field_name },
             };
 
             quote! { #field_name: #init_value }
@@ -323,15 +340,29 @@ fn generate_state_struct_name(name: &syn::Ident) -> syn::Ident {
 
 /// Populate generator state variables in context
 ///
-/// # Complexity: 3 (clear + 2 loops)
+/// # Complexity: 4 (clear + 2 loops + iterator check)
 #[inline]
-fn populate_generator_state_vars(ctx: &mut CodeGenContext, state_info: &GeneratorStateInfo) {
+fn populate_generator_state_vars(
+    ctx: &mut CodeGenContext,
+    state_info: &GeneratorStateInfo,
+    func: &HirFunction,
+) {
     ctx.generator_state_vars.clear();
+    ctx.generator_iterator_state_vars.clear();
     for var in &state_info.state_variables {
         ctx.generator_state_vars.insert(var.name.clone());
     }
     for param in &state_info.captured_params {
         ctx.generator_state_vars.insert(param.clone());
+    }
+    // DEPYLER-1082: Track which state vars have Iterator/Generator type
+    // These need while-let iteration because Box<dyn Iterator> doesn't impl IntoIterator
+    for param in &func.params {
+        if matches!(&param.ty, Type::Generic { base, .. }
+            if base == "Iterator" || base == "Generator" || base == "Iterable")
+        {
+            ctx.generator_iterator_state_vars.insert(param.name.clone());
+        }
     }
 }
 
@@ -353,6 +384,7 @@ fn generate_generator_body(
         .collect::<Result<Vec<_>>>()?;
     ctx.in_generator = false;
     ctx.generator_state_vars.clear();
+    ctx.generator_iterator_state_vars.clear();
 
     Ok(generator_body_stmts)
 }
@@ -614,6 +646,29 @@ pub fn codegen_generator_function(
     _rust_ret_type: &crate::type_mapper::RustType,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
+    // DEPYLER-1082: Add 'static bound to impl Iterator params that will be boxed
+    // When impl Iterator params are stored in struct fields as Box<dyn Iterator>,
+    // they require 'static lifetime for the unsized coercion
+    let params: Vec<proc_macro2::TokenStream> = params
+        .iter()
+        .map(|p| {
+            let p_str = p.to_string();
+            // Check if this param is impl Iterator without 'static
+            if p_str.contains("impl Iterator") && !p_str.contains("'static") {
+                // DEPYLER-1082: Add 'static bound for boxed iterator params
+                // impl Iterator<Item=T> -> impl Iterator<Item=T> + 'static
+                let modified = if p_str.contains(">") {
+                    p_str.replace(">", "> + 'static")
+                } else {
+                    p_str.clone()
+                };
+                syn::parse_str(&modified).unwrap_or_else(|_| p.clone())
+            } else {
+                p.clone()
+            }
+        })
+        .collect();
+
     // Analyze generator state requirements
     let state_info = GeneratorStateInfo::analyze(func);
 
@@ -647,7 +702,7 @@ pub fn codegen_generator_function(
 
     // DEPYLER-0494 FIX: Populate generator state variables BEFORE generating state machine
     // This ensures ctx.generator_state_vars is available when codegen_assign_tuple() is called
-    populate_generator_state_vars(ctx, &state_info);
+    populate_generator_state_vars(ctx, &state_info, func);
 
     // DEPYLER-0262 Phase 3B: Check if we have simple loop with yield pattern
     let has_while_loop = func
@@ -680,15 +735,46 @@ pub fn codegen_generator_function(
         }
     };
 
+    // DEPYLER-1082: Check if we need manual Debug impl (Box<dyn Iterator> doesn't impl Debug)
+    let has_iterator_fields = func.params.iter().any(|p| {
+        matches!(&p.ty, Type::Generic { base, .. }
+            if base == "Iterator" || base == "Generator" || base == "Iterable")
+    });
+
     // Generate the complete generator implementation
+    let debug_impl = if has_iterator_fields {
+        // DEPYLER-1082: Manual Debug impl for structs with Box<dyn Iterator> fields
+        // Box<dyn Iterator> doesn't implement Debug, so we print a placeholder
+        quote! {
+            impl std::fmt::Debug for #state_ident {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    f.debug_struct(stringify!(#state_ident))
+                        .field("state", &self.state)
+                        .finish_non_exhaustive()
+                }
+            }
+        }
+    } else {
+        // No iterator fields - can derive Debug normally
+        quote! {}
+    };
+
+    let derive_debug = if has_iterator_fields {
+        quote! {} // No derive, use manual impl
+    } else {
+        quote! { #[derive(Debug)] }
+    };
+
     Ok(quote! {
         #(#attrs)*
         #[doc = " Generator state struct"]
-        #[derive(Debug)]
+        #derive_debug
         struct #state_ident {
             #state_machine_field,
             #(#all_fields),*
         }
+
+        #debug_impl
 
         #[doc = " Generator function - returns Iterator"]
         pub fn #name #generic_params(#(#params),*) -> impl Iterator<Item = #item_type> #where_clause {
@@ -1096,6 +1182,22 @@ mod tests {
     // populate_generator_state_vars tests
     // ============================================================
 
+    // Helper function to create empty HirFunction for tests
+    fn empty_hir_function() -> HirFunction {
+        use crate::hir::FunctionProperties;
+        use depyler_annotations::TranspilationAnnotations;
+        use smallvec::smallvec;
+        HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            body: vec![],
+            ret_type: Type::Unknown,
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        }
+    }
+
     #[test]
     fn test_populate_generator_state_vars_empty() {
         let mut ctx = CodeGenContext::default();
@@ -1105,7 +1207,7 @@ mod tests {
             yield_count: 0,
             has_loops: false,
         };
-        populate_generator_state_vars(&mut ctx, &state_info);
+        populate_generator_state_vars(&mut ctx, &state_info, &empty_hir_function());
         assert!(ctx.generator_state_vars.is_empty());
     }
 
@@ -1122,7 +1224,7 @@ mod tests {
             yield_count: 1,
             has_loops: false,
         };
-        populate_generator_state_vars(&mut ctx, &state_info);
+        populate_generator_state_vars(&mut ctx, &state_info, &empty_hir_function());
         assert!(ctx.generator_state_vars.contains("counter"));
         assert_eq!(ctx.generator_state_vars.len(), 1);
     }
@@ -1136,7 +1238,7 @@ mod tests {
             yield_count: 1,
             has_loops: true,
         };
-        populate_generator_state_vars(&mut ctx, &state_info);
+        populate_generator_state_vars(&mut ctx, &state_info, &empty_hir_function());
         assert!(ctx.generator_state_vars.contains("n"));
         assert!(ctx.generator_state_vars.contains("limit"));
         assert_eq!(ctx.generator_state_vars.len(), 2);
@@ -1161,7 +1263,7 @@ mod tests {
             yield_count: 2,
             has_loops: true,
         };
-        populate_generator_state_vars(&mut ctx, &state_info);
+        populate_generator_state_vars(&mut ctx, &state_info, &empty_hir_function());
         assert!(ctx.generator_state_vars.contains("i"));
         assert!(ctx.generator_state_vars.contains("acc"));
         assert!(ctx.generator_state_vars.contains("start"));
@@ -1183,7 +1285,7 @@ mod tests {
             yield_count: 1,
             has_loops: false,
         };
-        populate_generator_state_vars(&mut ctx, &state_info);
+        populate_generator_state_vars(&mut ctx, &state_info, &empty_hir_function());
         assert!(!ctx.generator_state_vars.contains("old_var"));
         assert!(ctx.generator_state_vars.contains("new_var"));
         assert_eq!(ctx.generator_state_vars.len(), 1);

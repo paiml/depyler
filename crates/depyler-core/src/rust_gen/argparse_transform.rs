@@ -870,7 +870,7 @@ pub fn generate_args_struct(
     if tracker.has_subcommands() {
         fields.push(quote! {
             #[command(subcommand)]
-            command: Commands
+            command: Option<Commands>
         });
     }
 
@@ -1578,8 +1578,9 @@ pub fn wrap_body_with_subcommand_pattern(
     let args_ident = format_ident!("{}", args_param);
     let field_idents: Vec<syn::Ident> = fields.iter().map(|f| format_ident!("{}", f)).collect();
 
+    // DEPYLER-1063: args.command is Option<Commands>, wrap pattern in Some()
     vec![quote! {
-        if let Commands::#variant_ident { #(#field_idents),* } = &#args_ident.command {
+        if let Some(Commands::#variant_ident { #(#field_idents),* }) = &#args_ident.command {
             #(#body_stmts)*
         }
     }]

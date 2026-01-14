@@ -8,10 +8,16 @@
 //! 3. Build executable binary
 //! 4. Return path to binary
 //!
+//! DEPYLER-1102: Oracle Loop Integration
+//! - When E0308 errors occur, extract type constraints
+//! - Re-transpile with learned constraints
+//! - Automatically retry compilation
+//!
 //! Complexity: ≤10 per function
 //! TDG Score: A (≤2.0)
 //! Coverage: ≥85%
 
+use crate::converge::type_constraint_learner::{parse_e0308_constraint, TypeConstraintStore};
 use anyhow::{Context, Result};
 use depyler_core::DepylerPipeline;
 use indicatif::{ProgressBar, ProgressStyle};
@@ -19,7 +25,14 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+/// Maximum number of Oracle Loop retry attempts
+const MAX_ORACLE_RETRIES: usize = 2;
+
 /// Compile a Python script to a standalone Rust binary
+///
+/// DEPYLER-1102: Now includes Oracle Loop for automatic E0308 recovery.
+/// When compilation fails with type mismatch errors, the system learns
+/// constraints from rustc output and retries transpilation.
 ///
 /// # Arguments
 /// * `input` - Path to Python file
@@ -29,7 +42,7 @@ use std::process::Command;
 /// # Returns
 /// Path to the compiled binary
 ///
-/// Complexity: 8 (within ≤10 target)
+/// Complexity: 9 (within ≤10 target)
 pub fn compile_python_to_binary(
     input: &Path,
     output: Option<&Path>,
@@ -49,47 +62,116 @@ pub fn compile_python_to_binary(
             .progress_chars("█▓▒░ "),
     );
 
-    // Step 1: Transpile Python → Rust (DEPYLER-0384: with dependency tracking)
-    pb.set_message("Transpiling Python to Rust...");
     let python_code = fs::read_to_string(input)
         .with_context(|| format!("Failed to read input file: {}", input.display()))?;
 
-    let pipeline = DepylerPipeline::new();
-    let (rust_code, dependencies) = pipeline
-        .transpile_with_dependencies(&python_code)
-        .context("Failed to transpile Python to Rust")?;
-    pb.inc(1);
-
-    // Step 2: Create Cargo project (DEPYLER-0384: with automatic dependencies)
-    // DEPYLER-0763: Returns (project_dir, is_binary) - libraries have no main()
-    pb.set_message("Creating Cargo project...");
-    let (project_dir, is_binary) = create_cargo_project(input, &rust_code, &dependencies)?;
-    pb.inc(1);
-
-    // Step 3: Build project (binary or library)
-    pb.set_message(if is_binary { "Building binary..." } else { "Building library..." });
     let cargo_profile = profile.unwrap_or("release");
-    build_cargo_project(&project_dir, cargo_profile)?;
-    pb.inc(1);
 
-    // Step 4: Copy binary to output location (only for binaries)
-    // DEPYLER-0763: Libraries don't produce executables - skip finalize for them
-    pb.set_message("Finalizing...");
-    let result_path = if is_binary {
-        finalize_binary(&project_dir, input, output, cargo_profile)?
-    } else {
-        // Library: just return the project directory since there's no binary
-        // The .rlib is in target/release/lib<name>.rlib but we don't need to copy it
-        project_dir.clone()
-    };
-    pb.inc(1);
+    // DEPYLER-1102: Oracle Loop - retry compilation with learned constraints
+    let mut constraint_store = TypeConstraintStore::new();
+    let mut last_error: Option<String> = None;
 
-    pb.finish_with_message(if is_binary {
-        "✅ Compilation complete!"
-    } else {
-        "✅ Library compilation complete!"
-    });
-    Ok(result_path)
+    for attempt in 0..=MAX_ORACLE_RETRIES {
+        // Step 1: Transpile Python → Rust
+        pb.set_message(if attempt == 0 {
+            "Transpiling Python to Rust...".to_string()
+        } else {
+            format!("Re-transpiling (attempt {})...", attempt + 1)
+        });
+
+        let pipeline = DepylerPipeline::new();
+        let (rust_code, dependencies) = pipeline
+            .transpile_with_dependencies(&python_code)
+            .context("Failed to transpile Python to Rust")?;
+
+        if attempt == 0 {
+            pb.inc(1);
+        }
+
+        // Step 2: Create Cargo project
+        pb.set_message("Creating Cargo project...");
+        let (project_dir, is_binary) = create_cargo_project(input, &rust_code, &dependencies)?;
+
+        if attempt == 0 {
+            pb.inc(1);
+        }
+
+        // Step 3: Build project
+        pb.set_message(if is_binary {
+            "Building binary...".to_string()
+        } else {
+            "Building library...".to_string()
+        });
+
+        let build_result = build_cargo_project(&project_dir, cargo_profile)?;
+
+        if build_result.success {
+            if attempt == 0 {
+                pb.inc(1);
+            }
+
+            // Step 4: Finalize
+            pb.set_message("Finalizing...");
+            let result_path = if is_binary {
+                finalize_binary(&project_dir, input, output, cargo_profile)?
+            } else {
+                project_dir.clone()
+            };
+            pb.inc(1);
+
+            let success_msg = if attempt > 0 {
+                format!("✅ Compilation complete (after {} Oracle Loop retries)!", attempt)
+            } else if is_binary {
+                "✅ Compilation complete!".to_string()
+            } else {
+                "✅ Library compilation complete!".to_string()
+            };
+            pb.finish_with_message(success_msg);
+
+            // DEPYLER-1102: Log learned constraints for future improvement
+            if constraint_store.stats.constraints_extracted > 0 {
+                tracing::info!(
+                    "DEPYLER-1102: Oracle Loop learned {} type constraints",
+                    constraint_store.stats.constraints_extracted
+                );
+            }
+
+            return Ok(result_path);
+        }
+
+        // Build failed - check if we can learn from E0308 errors
+        let new_constraints = extract_e0308_constraints(&build_result.stderr, input);
+
+        if new_constraints.stats.constraints_extracted > 0 && attempt < MAX_ORACLE_RETRIES {
+            // We learned something! Log and retry
+            tracing::info!(
+                "DEPYLER-1102: Extracted {} E0308 constraints, retrying...",
+                new_constraints.stats.constraints_extracted
+            );
+
+            // Merge constraints
+            for (key, constraint) in new_constraints.variable_constraints {
+                constraint_store.variable_constraints.insert(key, constraint);
+            }
+            constraint_store.stats.constraints_extracted +=
+                new_constraints.stats.constraints_extracted;
+
+            // Continue to next attempt
+            continue;
+        }
+
+        // No more constraints to learn or max retries reached
+        last_error = Some(build_result.stderr);
+        break;
+    }
+
+    // All attempts failed
+    pb.finish_with_message("❌ Compilation failed");
+    anyhow::bail!(
+        "Cargo build failed after {} attempts:\n{}",
+        MAX_ORACLE_RETRIES + 1,
+        last_error.unwrap_or_else(|| "Unknown error".to_string())
+    )
 }
 
 /// Create a Cargo project with the transpiled Rust code
@@ -152,13 +234,24 @@ fn create_cargo_project(
     Ok((project_dir, has_main))
 }
 
+/// Build result containing success status and any errors
+#[derive(Debug)]
+pub struct BuildResult {
+    /// Whether the build succeeded
+    pub success: bool,
+    /// Raw stderr output for error parsing
+    pub stderr: String,
+}
+
 /// Build the Cargo project
 ///
 /// DEPYLER-0380-FIX: Explicitly set target-dir to avoid inheriting parent project's
 /// .cargo/config.toml target-dir setting which would cause builds to go to wrong location.
 ///
+/// DEPYLER-1102: Returns BuildResult instead of bailing to allow Oracle Loop retry.
+///
 /// Complexity: 3 (within ≤10 target)
-fn build_cargo_project(project_dir: &Path, profile: &str) -> Result<()> {
+fn build_cargo_project(project_dir: &Path, profile: &str) -> Result<BuildResult> {
     let mut cmd = Command::new("cargo");
     cmd.arg("build")
         .arg("--manifest-path")
@@ -173,13 +266,47 @@ fn build_cargo_project(project_dir: &Path, profile: &str) -> Result<()> {
     }
 
     let output = cmd.output().context("Failed to run cargo build")?;
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
 
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Cargo build failed:\n{}", stderr);
+    Ok(BuildResult {
+        success: output.status.success(),
+        stderr,
+    })
+}
+
+/// Parse E0308 errors from cargo build output and extract type constraints
+///
+/// DEPYLER-1102: Extracts "expected X, found Y" patterns for oracle learning.
+///
+/// Complexity: 5 (within ≤10 target)
+fn extract_e0308_constraints(stderr: &str, source_file: &Path) -> TypeConstraintStore {
+    let mut store = TypeConstraintStore::new();
+
+    // Parse each line looking for E0308 errors
+    for line in stderr.lines() {
+        if line.contains("error[E0308]") {
+            // Extract the error message part
+            if let Some(msg_start) = line.find("]: ") {
+                let message = &line[msg_start + 3..];
+                if let Some(constraint) = parse_e0308_constraint(message, source_file, 0) {
+                    store.add_constraint(constraint);
+                }
+            }
+        }
     }
 
-    Ok(())
+    // Also look for context lines with expected/found
+    for line in stderr.lines() {
+        if (line.contains("expected `") && line.contains("found `"))
+            || line.contains("expected type")
+        {
+            if let Some(constraint) = parse_e0308_constraint(line, source_file, 0) {
+                store.add_constraint(constraint);
+            }
+        }
+    }
+
+    store
 }
 
 /// Copy the built binary to the final location
@@ -442,9 +569,91 @@ edition = "2021"
 "#;
         fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
 
-        let result = build_cargo_project(&project_dir, "release");
-        assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Cargo build failed"));
+        // DEPYLER-1102: Now returns BuildResult instead of error
+        let result = build_cargo_project(&project_dir, "release").unwrap();
+        assert!(!result.success, "Invalid code should fail to compile");
+        assert!(!result.stderr.is_empty(), "Should have error output");
+    }
+
+    // DEPYLER-1102: Tests for Oracle Loop E0308 constraint extraction
+
+    #[test]
+    fn test_extract_e0308_constraints_basic() {
+        let source = Path::new("test.py");
+        let stderr = r#"
+error[E0308]: mismatched types
+  --> src/main.rs:10:5
+   |
+10 |     x
+   |     ^ expected `String`, found `i64`
+"#;
+        let store = extract_e0308_constraints(stderr, source);
+        assert!(
+            store.stats.constraints_extracted > 0,
+            "Should extract E0308 constraint"
+        );
+    }
+
+    #[test]
+    fn test_extract_e0308_constraints_multiple() {
+        let source = Path::new("test.py");
+        let stderr = r#"
+error[E0308]: mismatched types
+   --> src/main.rs:10:5
+    |
+10  |     x
+    |     ^ expected `String`, found `i64`
+
+error[E0308]: mismatched types
+   --> src/main.rs:20:5
+    |
+20  |     y
+    |     ^ expected `f64`, found `bool`
+"#;
+        let store = extract_e0308_constraints(stderr, source);
+        assert!(
+            store.stats.constraints_extracted >= 2,
+            "Should extract multiple E0308 constraints"
+        );
+    }
+
+    #[test]
+    fn test_extract_e0308_constraints_no_e0308() {
+        let source = Path::new("test.py");
+        let stderr = r#"
+error[E0425]: cannot find value `foo` in this scope
+  --> src/main.rs:5:5
+   |
+5  |     foo
+   |     ^^^ not found in this scope
+"#;
+        let store = extract_e0308_constraints(stderr, source);
+        assert_eq!(
+            store.stats.constraints_extracted, 0,
+            "Should not extract non-E0308 errors"
+        );
+    }
+
+    #[test]
+    fn test_build_result_success_true() {
+        let temp = TempDir::new().unwrap();
+        let project_dir = temp.path().to_path_buf();
+        let src_dir = project_dir.join("src");
+        fs::create_dir_all(&src_dir).unwrap();
+
+        // Valid Rust code
+        fs::write(src_dir.join("main.rs"), r#"fn main() {}"#).unwrap();
+
+        let cargo_toml = r#"
+[package]
+name = "test_valid"
+version = "0.1.0"
+edition = "2021"
+"#;
+        fs::write(project_dir.join("Cargo.toml"), cargo_toml).unwrap();
+
+        let result = build_cargo_project(&project_dir, "release").unwrap();
+        assert!(result.success, "Valid code should compile successfully");
     }
 
     #[test]

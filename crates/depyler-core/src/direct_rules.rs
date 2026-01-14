@@ -72,12 +72,24 @@ pub(crate) fn type_to_rust_type(ty: &Type, _type_mapper: &TypeMapper) -> proc_ma
             quote! { Vec<#inner_ty> }
         }
         Type::Dict(k, v) => {
-            let key_ty = type_to_rust_type(k, _type_mapper);
+            // DEPYLER-1073: Float keys don't implement Hash/Eq in Rust
+            // Use DepylerValue for float keys which has a custom Hash/Eq impl using total_cmp
+            let key_ty = if matches!(k.as_ref(), Type::Float) {
+                quote! { DepylerValue }
+            } else {
+                type_to_rust_type(k, _type_mapper)
+            };
             let val_ty = type_to_rust_type(v, _type_mapper);
             quote! { std::collections::HashMap<#key_ty, #val_ty> }
         }
         Type::Set(inner) => {
-            let inner_ty = type_to_rust_type(inner, _type_mapper);
+            // DEPYLER-1073: Float elements don't implement Hash/Eq in Rust
+            // Use DepylerValue for float elements which has a custom Hash/Eq impl
+            let inner_ty = if matches!(inner.as_ref(), Type::Float) {
+                quote! { DepylerValue }
+            } else {
+                type_to_rust_type(inner, _type_mapper)
+            };
             quote! { std::collections::HashSet<#inner_ty> }
         }
         Type::Optional(inner) => {
@@ -876,6 +888,8 @@ fn convert_init_to_new(
         .collect();
 
     // Convert parameters
+    // DEPYLER-1100: Track String params for impl Into<String> pattern
+    let mut string_param_names: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut inputs = syn::punctuated::Punctuated::new();
 
     for param in &init_method.params {
@@ -892,8 +906,20 @@ fn convert_init_to_new(
         } else {
             param.ty.clone()
         };
-        let rust_type = type_mapper.map_type(&effective_param_type);
-        let param_syn_type = rust_type_to_syn_type(&rust_type)?;
+
+        // DEPYLER-1100: Use impl Into<String> for String parameters to allow both String and &str
+        let is_string_param = effective_param_type == Type::String;
+        if is_string_param {
+            string_param_names.insert(param.name.clone());
+        }
+
+        let param_syn_type: syn::Type = if is_string_param {
+            // Use impl Into<String> for string parameters
+            parse_quote!(impl Into<String>)
+        } else {
+            let rust_type = type_mapper.map_type(&effective_param_type);
+            rust_type_to_syn_type(&rust_type)?
+        };
 
         inputs.push(syn::FnArg::Typed(syn::PatType {
             attrs: vec![],
@@ -927,8 +953,13 @@ fn convert_init_to_new(
             .iter()
             .any(|param| param.name == field.name)
         {
-            // Initialize from parameter
-            field_inits.push(quote! { #field_ident });
+            // DEPYLER-1100: For string parameters using impl Into<String>, call .into()
+            if string_param_names.contains(&field.name) {
+                field_inits.push(quote! { #field_ident: #field_ident.into() });
+            } else {
+                // Initialize from parameter (shorthand field init)
+                field_inits.push(quote! { #field_ident });
+            }
         } else {
             // Initialize with default value based on type
             let default_value = match &field.field_type {
@@ -1707,8 +1738,8 @@ fn resolve_union_enum_to_syn(variants: &[(String, RustType)]) -> syn::Type {
         return parse_quote! { #ident };
     }
 
-    // Case 6: Fallback to serde_json::Value
-    parse_quote! { serde_json::Value }
+    // Case 6: Fallback to DepylerValue (DEPYLER-1098: Use std-only type instead of serde_json::Value)
+    parse_quote! { DepylerValue }
 }
 
 /// Convert simple non-recursive types (Unit, String, Custom, TypeParam, Enum)
@@ -2640,7 +2671,9 @@ mod tests {
             index: Box::new(HirExpr::Literal(Literal::Int(0))),
         };
         let result = converter.convert(&index_expr).unwrap();
-        assert!(matches!(result, syn::Expr::Index(_)));
+        // DEPYLER-1095: Index expressions now generate runtime-safe blocks
+        // that handle negative indices, so we get a Block instead of simple Index
+        assert!(matches!(result, syn::Expr::Block(_)));
     }
 
     #[test]
@@ -4956,7 +4989,8 @@ mod tests {
         ];
         let result = resolve_union_enum_to_syn(&variants);
         let result_str = quote::quote!(#result).to_string();
-        assert!(result_str.contains("serde_json :: Value"));
+        // DEPYLER-1098: Changed fallback from serde_json::Value to DepylerValue (std-only)
+        assert!(result_str.contains("DepylerValue"));
     }
 
     // Tests for convert_simple_type

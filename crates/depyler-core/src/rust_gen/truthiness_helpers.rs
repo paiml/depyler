@@ -23,6 +23,7 @@ pub const COLLECTION_VAR_NAMES: &[&str] = &[
     "keys",
     "children",
     "neighbors",
+    "matches", // DEPYLER-1079: Common name for filtered collections
 ];
 
 /// Collection variable suffixes that indicate container types.
@@ -79,6 +80,22 @@ pub const DICT_VAR_NAMES: &[&str] = &[
 
 /// Dict-like variable suffixes.
 pub const DICT_VAR_SUFFIXES: &[&str] = &["_info", "_data", "_dict"];
+
+/// DEPYLER-1071: Option variable names that indicate regex match results or optional values.
+/// These need `.is_some()` for truthiness check.
+pub const OPTION_VAR_NAMES: &[&str] = &[
+    "m", "match_", "match_result", "match_obj", "found", "hit",
+];
+
+/// DEPYLER-1071: Option variable suffixes that indicate optional types.
+pub const OPTION_VAR_SUFFIXES: &[&str] = &["_match", "_result", "_found"];
+
+/// DEPYLER-1071: Check if a variable name suggests it's an Option type (regex match result).
+#[inline]
+pub fn is_option_var_name(name: &str) -> bool {
+    OPTION_VAR_NAMES.contains(&name)
+        || OPTION_VAR_SUFFIXES.iter().any(|s| name.ends_with(s))
+}
 
 /// Collection type names that need `.is_empty()` truthiness check.
 pub const COLLECTION_TYPE_NAMES: &[&str] = &[
@@ -264,6 +281,32 @@ mod tests {
     fn test_all_collection_attr_names_covered() {
         for name in COLLECTION_ATTR_NAMES {
             assert!(is_collection_attr_name(name), "Missing: {}", name);
+        }
+    }
+
+    #[test]
+    fn test_option_var_names() {
+        // DEPYLER-1071: Test Option variable names for regex match results
+        assert!(is_option_var_name("m"));
+        assert!(is_option_var_name("match_"));
+        assert!(is_option_var_name("match_result"));
+        assert!(is_option_var_name("match_obj"));
+        assert!(is_option_var_name("found"));
+        assert!(is_option_var_name("hit"));
+        // Suffix patterns
+        assert!(is_option_var_name("regex_match"));
+        assert!(is_option_var_name("pattern_result"));
+        assert!(is_option_var_name("is_found"));
+        // Negative cases
+        assert!(!is_option_var_name("x"));
+        assert!(!is_option_var_name("text"));
+        assert!(!is_option_var_name("pattern"));
+    }
+
+    #[test]
+    fn test_all_option_var_names_covered() {
+        for name in OPTION_VAR_NAMES {
+            assert!(is_option_var_name(name), "Missing: {}", name);
         }
     }
 }

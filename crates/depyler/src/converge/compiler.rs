@@ -80,9 +80,28 @@ impl BatchCompiler {
             println!("Compiling {} files...", total);
         }
 
+        use std::sync::Arc;
+        use tokio::sync::Semaphore;
+        use tokio::task::JoinSet;
+
+        let semaphore = Arc::new(Semaphore::new(self.parallel_jobs));
+        let mut join_set = JoinSet::new();
+
         for py_file in python_files {
-            let result = compile_single_file(&py_file).await?;
-            results.push(result);
+            let permit = Arc::clone(&semaphore).acquire_owned().await.unwrap();
+            let py_file = py_file.clone();
+            join_set.spawn(async move {
+                let _permit = permit;
+                compile_single_file(&py_file).await
+            });
+        }
+
+        while let Some(res) = join_set.join_next().await {
+            match res {
+                Ok(Ok(result)) => results.push(result),
+                Ok(Err(e)) => return Err(e),
+                Err(e) => return Err(anyhow::anyhow!("Task join error: {}", e)),
+            }
         }
 
         Ok(results)

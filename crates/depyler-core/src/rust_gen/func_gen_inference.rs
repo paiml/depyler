@@ -778,13 +778,13 @@ impl RustCodeGen for HirFunction {
         let (return_type, rust_ret_type, can_fail, error_type) =
             codegen_return_type(self, &lifetime_result, ctx)?;
 
-        // DEPYLER-0839: Fix E0700 "hidden type captures lifetime" for impl Fn returns
-        // When a function returns `impl Fn(...)` and captures reference parameters,
-        // the return type must include a lifetime bound: `impl Fn(...) + 'a`
+        // DEPYLER-0839/1075: Fix E0700 "hidden type captures lifetime" for impl Fn/Iterator returns
+        // When a function returns `impl Fn(...)` or `impl Iterator<...>` and captures reference parameters,
+        // the return type must include a lifetime bound: `impl Fn(...) + 'a` or `impl Iterator<...> + '_`
         // and the function must have the lifetime parameter: `fn foo<'a>(p: &'a str) -> impl Fn(...) + 'a`
         // Additionally, reference parameters must have the 'a lifetime: `&str` -> `&'a str`
         let (generic_params, return_type, params) = if let crate::type_mapper::RustType::Custom(ref type_str) = rust_ret_type {
-            if type_str.contains("impl Fn") {
+            if type_str.contains("impl Fn") || type_str.contains("impl Iterator") || type_str.contains("impl IntoIterator") {
                 // Check if any parameter is a reference (borrowed)
                 // Access from ctx since param_borrows was moved into function_param_borrows earlier
                 let has_ref_params = ctx.function_param_borrows
@@ -792,19 +792,28 @@ impl RustCodeGen for HirFunction {
                     .map(|borrows| borrows.iter().any(|&b| b))
                     .unwrap_or(false);
                 if has_ref_params {
-                    // Add 'a lifetime to generic params if not already present
+                    // DEPYLER-1080: Use single lifetime 'a for all reference params
+                    // When returning impl Iterator, all captured refs must share the same lifetime
+                    // Using separate lifetimes causes E0623 "lifetime may not live long enough"
                     let mut lifetime_params_with_a = lifetime_result.lifetime_params.clone();
                     if !lifetime_params_with_a.contains(&"'a".to_string()) {
                         lifetime_params_with_a.push("'a".to_string());
                     }
+                    // Remove any other lifetimes - use only 'a
+                    lifetime_params_with_a.retain(|lt| lt == "'a");
                     let new_generic_params = codegen_generic_params(&type_params, &lifetime_params_with_a);
 
                     // Modify return type to add + 'a bound
                     // The return type looks like "-> impl Fn(...) -> R" and we need "-> impl Fn(...) -> R + 'a"
+                    // DEPYLER-1075: Also handle impl Iterator<Item=T> -> impl Iterator<Item=T> + 'a
+                    // DEPYLER-1080: Use single 'a lifetime for all refs to avoid E0623
                     let return_str = return_type.to_string();
-                    let modified_return = if return_str.contains("impl Fn") {
-                        // Find the impl Fn type and add + 'a at the end
-                        // Handle both simple `impl Fn(T) -> R` and complex cases
+                    let modified_return = if return_str.contains("impl Fn")
+                        || return_str.contains("impl Iterator")
+                        || return_str.contains("impl IntoIterator")
+                    {
+                        // Find the impl type and add + 'a at the end
+                        // Handle both simple `impl Fn(T) -> R` and `impl Iterator<Item=T>`
                         let modified = format!("{} + 'a", return_str.trim());
                         syn::parse_str::<proc_macro2::TokenStream>(&modified)
                             .unwrap_or(return_type.clone())
@@ -812,18 +821,30 @@ impl RustCodeGen for HirFunction {
                         return_type.clone()
                     };
 
-                    // DEPYLER-0839: Also add 'a to reference parameter types
-                    // `&str` -> `&'a str`, `& mut T` -> `&'a mut T`
+                    // DEPYLER-0839/1075: Add 'a lifetime to reference parameter types
+                    // `&str` -> `&'a str`, `& mut T` -> `&'a mut T`, `& Vec<T>` -> `&'a Vec<T>`
+                    // DEPYLER-1080: Use SAME lifetime 'a for ALL ref params to avoid E0623
+                    // This includes REPLACING any existing lifetimes ('b, 'c, etc.) with 'a
                     let modified_params: Vec<proc_macro2::TokenStream> = params
                         .into_iter()
                         .map(|p| {
                             let param_str = p.to_string();
-                            // Add 'a lifetime to references that don't already have a lifetime
-                            // Pattern: `& ` (reference without lifetime) -> `& 'a `
-                            // Pattern: `& mut ` (mutable reference without lifetime) -> `& 'a mut `
+                            // DEPYLER-1080: Replace ANY lifetime with 'a for impl Iterator returns
+                            // First, replace existing lifetimes like 'b, 'c with 'a
                             let modified_param = param_str
-                                .replace("& str", "& 'a str")
-                                .replace("& mut ", "& 'a mut ");
+                                .replace("& 'b ", "& 'a ")
+                                .replace("& 'c ", "& 'a ")
+                                .replace("& 'd ", "& 'a ")
+                                .replace("& 'e ", "& 'a ");
+                            // Then add 'a to refs without any lifetime
+                            let modified_param = if modified_param.contains("& ") && !modified_param.contains("& '") {
+                                modified_param
+                                    .replace("& mut ", "& 'a mut ")
+                                    .replace("& Vec", "& 'a Vec")
+                                    .replace("& str", "& 'a str")
+                            } else {
+                                modified_param
+                            };
                             syn::parse_str::<proc_macro2::TokenStream>(&modified_param)
                                 .unwrap_or(p)
                         })

@@ -127,36 +127,44 @@ pub fn convert_abs_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 /// min(iterable) or min(a, b, c, ...)
+/// DEPYLER-1062: Updated to use depyler_min helper for safe f64/NaN handling
 pub fn convert_min_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.is_empty() {
         bail!("min() requires at least 1 argument");
     }
     if args.len() == 1 {
+        // Single iterable: use .min() which now works with DepylerValue (has Ord)
         let iterable = &args[0];
         Ok(parse_quote! { #iterable.into_iter().min().unwrap() })
     } else {
+        // Multiple args: use depyler_min helper for safe f64 comparison
+        // depyler_min(a, depyler_min(b, c)) for chained comparisons
         let first = &args[0];
-        let mut min_expr = parse_quote! { #first };
+        let mut min_expr: syn::Expr = parse_quote! { #first.clone() };
         for arg in &args[1..] {
-            min_expr = parse_quote! { #min_expr.min(#arg) };
+            min_expr = parse_quote! { depyler_min(#min_expr, #arg.clone()) };
         }
         Ok(min_expr)
     }
 }
 
 /// max(iterable) or max(a, b, c, ...)
+/// DEPYLER-1062: Updated to use depyler_max helper for safe f64/NaN handling
 pub fn convert_max_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.is_empty() {
         bail!("max() requires at least 1 argument");
     }
     if args.len() == 1 {
+        // Single iterable: use .max() which now works with DepylerValue (has Ord)
         let iterable = &args[0];
         Ok(parse_quote! { #iterable.into_iter().max().unwrap() })
     } else {
+        // Multiple args: use depyler_max helper for safe f64 comparison
+        // depyler_max(a, depyler_max(b, c)) for chained comparisons
         let first = &args[0];
-        let mut max_expr = parse_quote! { #first };
+        let mut max_expr: syn::Expr = parse_quote! { #first.clone() };
         for arg in &args[1..] {
-            max_expr = parse_quote! { #max_expr.max(#arg) };
+            max_expr = parse_quote! { depyler_max(#max_expr, #arg.clone()) };
         }
         Ok(max_expr)
     }
@@ -240,6 +248,7 @@ pub fn convert_repr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 /// next(iterator) or next(iterator, default)
+/// DEPYLER-1078: Handle next(iter, None) correctly - just return .next()
 pub fn convert_next_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     if args.is_empty() || args.len() > 2 {
         bail!("next() requires 1 or 2 arguments (iterator, optional default)");
@@ -247,9 +256,20 @@ pub fn convert_next_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     let iterator = &args[0];
     if args.len() == 2 {
         let default = &args[1];
-        Ok(parse_quote! {
-            #iterator.next().unwrap_or(#default)
-        })
+        // DEPYLER-1078: If default is None, just return .next() since it already returns Option<T>
+        let is_none = match default {
+            syn::Expr::Path(path) => {
+                path.path.is_ident("None")
+            }
+            _ => false,
+        };
+        if is_none {
+            Ok(parse_quote! { #iterator.next() })
+        } else {
+            Ok(parse_quote! {
+                #iterator.next().unwrap_or(#default)
+            })
+        }
     } else {
         Ok(parse_quote! {
             #iterator.next().expect("StopIteration: iterator is empty")

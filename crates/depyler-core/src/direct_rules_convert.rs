@@ -546,7 +546,8 @@ pub(crate) fn convert_stmt_with_context(
             then_body,
             else_body,
         } => {
-            let cond = convert_expr_with_param_types(condition, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            // DEPYLER-1096: Use convert_condition_expr for truthiness coercion
+            let cond = convert_condition_expr(condition, type_mapper, is_classmethod, vararg_functions, param_types)?;
             let then_block = convert_block_with_context(then_body, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
             let if_expr = if let Some(else_stmts) = else_body {
@@ -564,7 +565,8 @@ pub(crate) fn convert_stmt_with_context(
             Ok(syn::Stmt::Expr(if_expr, Some(Default::default())))
         }
         HirStmt::While { condition, body } => {
-            let cond = convert_expr_with_param_types(condition, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            // DEPYLER-1096: Use convert_condition_expr for truthiness coercion
+            let cond = convert_condition_expr(condition, type_mapper, is_classmethod, vararg_functions, param_types)?;
             let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions, param_types)?;
 
             let while_expr = parse_quote! {
@@ -1144,6 +1146,26 @@ pub(crate) fn convert_expr_with_class_fields(
     converter.convert(expr)
 }
 
+/// DEPYLER-1096: Convert condition expression with truthiness coercion
+/// Python allows any type in if/while conditions; Rust requires bool.
+/// This function converts the expression and applies appropriate truthiness checks.
+pub(crate) fn convert_condition_expr(
+    expr: &HirExpr,
+    type_mapper: &TypeMapper,
+    is_classmethod: bool,
+    vararg_functions: &std::collections::HashSet<String>,
+    param_types: &std::collections::HashMap<String, Type>,
+) -> Result<syn::Expr> {
+    let converter = ExprConverter::with_param_types(
+        type_mapper,
+        is_classmethod,
+        vararg_functions,
+        param_types.clone(),
+    );
+    let rust_expr = converter.convert(expr)?;
+    Ok(converter.apply_truthiness_coercion(expr, rust_expr))
+}
+
 /// Expression converter using strategy pattern to reduce complexity
 pub(crate) struct ExprConverter<'a> {
     #[allow(dead_code)]
@@ -1280,6 +1302,74 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    /// DEPYLER-1100: Infer the element type of an iterable expression.
+    /// Used to propagate types into generator expression loop variables.
+    /// Returns Some(Type::Float) if iterating over floats, None if unknown.
+    fn infer_iterable_element_type(&self, iter_expr: &HirExpr) -> Option<Type> {
+        match iter_expr {
+            // Direct variable reference - check if it's a known float collection
+            HirExpr::Var(name) => {
+                // Check if it's Vec<float>, List<float>, etc. in param types
+                if let Some(Type::List(elem_type) | Type::Set(elem_type)) =
+                    self.param_types.get(name)
+                {
+                    return Some((**elem_type).clone());
+                }
+                // Check class fields
+                if let Some(Type::List(elem_type) | Type::Set(elem_type)) =
+                    self.class_field_types.get(name)
+                {
+                    return Some((**elem_type).clone());
+                }
+                None
+            }
+            // Method call like data.values(), items.keys()
+            HirExpr::MethodCall { object, method, .. } => {
+                match method.as_str() {
+                    "values" | "items" | "keys" => {
+                        // Recursively check the dict type
+                        // For now, just check if the base is a known dict
+                        if let HirExpr::Var(name) = object.as_ref() {
+                            if let Some(Type::Dict(_, val_type)) = self.param_types.get(name) {
+                                if method == "values" {
+                                    return Some((**val_type).clone());
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                None
+            }
+            // Attribute access like self.data
+            HirExpr::Attribute { value, attr } => {
+                if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                    if let Some(Type::List(elem_type) | Type::Set(elem_type)) =
+                        self.class_field_types.get(attr)
+                    {
+                        return Some((**elem_type).clone());
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    /// DEPYLER-1100: Create a new converter with additional loop variable types.
+    /// Used when converting generator expressions to propagate element types.
+    fn with_additional_param(&self, var_name: String, var_type: Type) -> Self {
+        let mut new_params = self.param_types.clone();
+        new_params.insert(var_name, var_type);
+        Self {
+            type_mapper: self.type_mapper,
+            is_classmethod: self.is_classmethod,
+            vararg_functions: self.vararg_functions,
+            param_types: new_params,
+            class_field_types: self.class_field_types.clone(),
+        }
+    }
+
     pub(crate) fn convert(&self, expr: &HirExpr) -> Result<syn::Expr> {
         match expr {
             HirExpr::Literal(lit) => self.convert_literal(lit),
@@ -1375,6 +1465,7 @@ impl<'a> ExprConverter<'a> {
             }
             // DEPYLER-0764: GeneratorExp support for class methods
             // Python: (x for x in items) → Rust: items.iter().map(|x| x)
+            // DEPYLER-1100: Propagate element type to loop variable for proper literal coercion
             HirExpr::GeneratorExp { element, generators } => {
                 // Only support single generator for direct rules path
                 if generators.len() != 1 {
@@ -1382,14 +1473,30 @@ impl<'a> ExprConverter<'a> {
                 }
                 let gen = &generators[0];
                 let iter_expr = self.convert(&gen.iter)?;
-                let element_expr = self.convert(element)?;
                 let target_ident = make_ident(&gen.target);
+
+                // DEPYLER-1100: Infer element type and create converter with loop variable typed
+                let element_type = self.infer_iterable_element_type(&gen.iter);
+                let inner_converter = if let Some(elem_type) = element_type {
+                    self.with_additional_param(gen.target.clone(), elem_type)
+                } else {
+                    // No type info - use self
+                    Self {
+                        type_mapper: self.type_mapper,
+                        is_classmethod: self.is_classmethod,
+                        vararg_functions: self.vararg_functions,
+                        param_types: self.param_types.clone(),
+                        class_field_types: self.class_field_types.clone(),
+                    }
+                };
+
+                let element_expr = inner_converter.convert(element)?;
 
                 // Handle conditions
                 if gen.conditions.is_empty() {
                     Ok(parse_quote! { #iter_expr.iter().map(|#target_ident| #element_expr) })
                 } else if gen.conditions.len() == 1 {
-                    let cond_expr = self.convert(&gen.conditions[0])?;
+                    let cond_expr = inner_converter.convert(&gen.conditions[0])?;
                     Ok(parse_quote! {
                         #iter_expr.iter()
                             .filter(|#target_ident| #cond_expr)
@@ -1548,7 +1655,34 @@ impl<'a> ExprConverter<'a> {
                     Ok(parse_quote! { (#left_expr).saturating_sub(#right_expr) })
                 } else {
                     let rust_op = convert_binop(op)?;
-                    Ok(parse_quote! { #left_expr #rust_op #right_expr })
+
+                    // DEPYLER-1094: Handle mixed i32/f64 subtraction
+                    // Python promotes to float: int - float → float, float - int → float
+                    let left_is_float = self.expr_returns_float_direct(left);
+                    let right_is_float = self.expr_returns_float_direct(right);
+
+                    // DEPYLER-0824: Wrap cast expressions in parentheses
+                    let safe_left: syn::Expr = if matches!(left_expr, syn::Expr::Cast(_)) {
+                        parse_quote! { (#left_expr) }
+                    } else {
+                        left_expr.clone()
+                    };
+                    let safe_right: syn::Expr = if matches!(right_expr, syn::Expr::Cast(_)) {
+                        parse_quote! { (#right_expr) }
+                    } else {
+                        right_expr.clone()
+                    };
+
+                    if left_is_float && !right_is_float {
+                        // Float - Int: cast right to f64
+                        Ok(parse_quote! { #safe_left #rust_op (#safe_right as f64) })
+                    } else if right_is_float && !left_is_float {
+                        // Int - Float: cast left to f64
+                        Ok(parse_quote! { (#safe_left as f64) #rust_op #safe_right })
+                    } else {
+                        // Same types: no coercion needed
+                        Ok(parse_quote! { #safe_left #rust_op #safe_right })
+                    }
                 }
             }
             BinOp::FloorDiv => {
@@ -1776,6 +1910,130 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    /// DEPYLER-1096: Apply truthiness coercion to an expression for use in if/while conditions.
+    /// Python allows any type in conditions (truthy/falsy), Rust requires bool.
+    /// Returns: A boolean expression suitable for use as a condition.
+    fn apply_truthiness_coercion(&self, expr: &HirExpr, rust_expr: syn::Expr) -> syn::Expr {
+        // Check for already-boolean expressions (comparisons, boolean ops, bool literals)
+        let is_already_bool = matches!(
+            expr,
+            // Comparison operators return bool
+            HirExpr::Binary {
+                op: BinOp::Eq
+                    | BinOp::NotEq
+                    | BinOp::Lt
+                    | BinOp::LtEq
+                    | BinOp::Gt
+                    | BinOp::GtEq
+                    | BinOp::In
+                    | BinOp::NotIn
+                    | BinOp::And
+                    | BinOp::Or,
+                ..
+            } | HirExpr::Literal(Literal::Bool(_))
+        );
+
+        if is_already_bool {
+            return rust_expr;
+        }
+
+        // Check for Not unary - it already returns bool
+        if matches!(expr, HirExpr::Unary { op: UnaryOp::Not, .. }) {
+            return rust_expr;
+        }
+
+        // Check if this is a method call returning bool (e.g., .startswith(), .endswith())
+        let is_bool_method = if let HirExpr::MethodCall { method, .. } = expr {
+            matches!(
+                method.as_str(),
+                "startswith" | "endswith" | "contains" | "is_empty" | "is_some" | "is_none"
+                    | "is_ok" | "is_err" | "isalpha" | "isdigit" | "isalnum" | "isupper" | "islower"
+            )
+        } else {
+            false
+        };
+
+        if is_bool_method {
+            return rust_expr;
+        }
+
+        // Check for collection types (need !is_empty())
+        let is_collection = if let HirExpr::Attribute { value, attr } = expr {
+            if matches!(value.as_ref(), HirExpr::Var(v) if v == "self") {
+                if let Some(field_type) = self.class_field_types.get(attr) {
+                    matches!(
+                        field_type,
+                        Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::String
+                    )
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else if let HirExpr::Var(name) = expr {
+            // Check if variable name suggests it's a collection
+            crate::rust_gen::truthiness_helpers::is_collection_var_name(name)
+                || crate::rust_gen::truthiness_helpers::is_string_var_name(name)
+        } else {
+            false
+        };
+
+        if is_collection {
+            return parse_quote! { !#rust_expr.is_empty() };
+        }
+
+        // Check for Option types (need is_some())
+        let is_option = if let HirExpr::Attribute { value, attr } = expr {
+            if matches!(value.as_ref(), HirExpr::Var(v) if v == "self") {
+                if let Some(field_type) = self.class_field_types.get(attr) {
+                    matches!(field_type, Type::Optional(_))
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else if let HirExpr::Var(name) = expr {
+            crate::rust_gen::truthiness_helpers::is_option_var_name(name)
+        } else {
+            false
+        };
+
+        if is_option {
+            return parse_quote! { #rust_expr.is_some() };
+        }
+
+        // Check for numeric types (need != 0)
+        let is_numeric = if let HirExpr::Var(name) = expr {
+            if let Some(var_type) = self.param_types.get(name) {
+                matches!(var_type, Type::Int | Type::Float)
+            } else {
+                false
+            }
+        } else if let HirExpr::Attribute { value, attr } = expr {
+            if matches!(value.as_ref(), HirExpr::Var(v) if v == "self") {
+                if let Some(field_type) = self.class_field_types.get(attr) {
+                    matches!(field_type, Type::Int | Type::Float)
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+
+        if is_numeric {
+            return parse_quote! { #rust_expr != 0 };
+        }
+
+        // Default: assume the expression already evaluates to bool or use as-is
+        // This covers direct bool variables and method calls returning bool
+        rust_expr
+    }
+
     fn convert_unary(&self, op: UnaryOp, operand: &HirExpr) -> Result<syn::Expr> {
         let operand_expr = self.convert(operand)?;
         match op {
@@ -1899,6 +2157,12 @@ impl<'a> ExprConverter<'a> {
             // sum(iterable) → iterable.iter().sum::<T>()
             // sum(generator_expr) → generator_expr.sum::<T>()
             "sum" => self.convert_sum_call(args, &arg_exprs),
+            // DEPYLER-1097: all() builtin - Python all(iterable) → Rust iterable.iter().all(|x| *x)
+            "all" => self.convert_all_call(args, &arg_exprs),
+            // DEPYLER-1097: any() builtin - Python any(iterable) → Rust iterable.iter().any(|x| *x)
+            "any" => self.convert_any_call(args, &arg_exprs),
+            // DEPYLER-1097: dict() builtin - Python dict() → Rust HashMap::new()
+            "dict" => self.convert_dict_call(&arg_exprs),
             // DEPYLER-0780: Pass HIR args for auto-borrowing detection
             _ => self.convert_generic_call(func, args, &arg_exprs),
         }
@@ -2164,6 +2428,78 @@ impl<'a> ExprConverter<'a> {
         }
         // Default to f64 for floating point operations
         parse_quote! { f64 }
+    }
+
+    /// DEPYLER-1097: Convert Python all() builtin to Rust
+    ///
+    /// Python: all(iterable) → True if all elements are truthy
+    /// Rust: iterable.iter().all(|x| truthiness_check(x))
+    ///
+    /// For boolean iterables: iterable.iter().all(|&x| x)
+    /// For other types: iterable.iter().all(|x| !x.is_empty()) etc.
+    fn convert_all_call(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if hir_args.len() != 1 || arg_exprs.len() != 1 {
+            bail!("all() requires exactly one argument");
+        }
+
+        let arg_expr = &arg_exprs[0];
+
+        // Check if this is a generator expression
+        match &hir_args[0] {
+            // Generator expression: all(x > 0 for x in items) → items.iter().all(|x| x > 0)
+            // Already converted to .iter().map(), so transform to .all()
+            HirExpr::GeneratorExp { .. } => {
+                // Generator is converted to iterator chain, add .all(|x| x)
+                Ok(parse_quote! { #arg_expr.all(|x| x) })
+            }
+            _ => {
+                // Regular iterable: all(items) → items.iter().all(|&x| x)
+                // For bool slice: iter().all(|&x| x)
+                Ok(parse_quote! { #arg_expr.iter().all(|&x| x) })
+            }
+        }
+    }
+
+    /// DEPYLER-1097: Convert Python any() builtin to Rust
+    ///
+    /// Python: any(iterable) → True if any element is truthy
+    /// Rust: iterable.iter().any(|x| truthiness_check(x))
+    fn convert_any_call(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if hir_args.len() != 1 || arg_exprs.len() != 1 {
+            bail!("any() requires exactly one argument");
+        }
+
+        let arg_expr = &arg_exprs[0];
+
+        // Check if this is a generator expression
+        match &hir_args[0] {
+            // Generator expression: any(x > 0 for x in items) → items.iter().any(|x| x > 0)
+            HirExpr::GeneratorExp { .. } => {
+                Ok(parse_quote! { #arg_expr.any(|x| x) })
+            }
+            _ => {
+                // Regular iterable: any(items) → items.iter().any(|&x| x)
+                Ok(parse_quote! { #arg_expr.iter().any(|&x| x) })
+            }
+        }
+    }
+
+    /// DEPYLER-1097: Convert Python dict() builtin to Rust
+    ///
+    /// Python: dict() → {} (empty dict)
+    /// Python: dict(iterable) → dict from key-value pairs
+    /// Rust: HashMap::new() or HashMap::from_iter()
+    fn convert_dict_call(&self, arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+        if arg_exprs.is_empty() {
+            // Empty dict: dict() → HashMap::new()
+            Ok(parse_quote! { std::collections::HashMap::new() })
+        } else if arg_exprs.len() == 1 {
+            // Convert from iterable: dict(pairs) → pairs.into_iter().collect()
+            let arg = &arg_exprs[0];
+            Ok(parse_quote! { #arg.into_iter().collect::<std::collections::HashMap<_, _>>() })
+        } else {
+            bail!("dict() takes at most 1 argument")
+        }
     }
 
     fn convert_range_call(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
@@ -2485,23 +2821,39 @@ impl<'a> ExprConverter<'a> {
                 let arg = &args[0];
                 return Ok(parse_quote! { (#arg).abs() });
             }
+            "min" if args.len() == 1 => {
+                // DEPYLER-1094: min(iterable) → iterable.iter().cloned().min().unwrap()
+                // Single-arg min finds minimum element in iterable
+                let arg = &args[0];
+                return Ok(parse_quote! { #arg.iter().cloned().min().unwrap() });
+            }
             "min" if args.len() >= 2 => {
-                // min(a, b, ...) → a.min(b).min(c)...
+                // DEPYLER-1094: min(a, b, ...) → (a as f64).min(b as f64)
+                // Cast both to f64 to handle mixed i32/f64 types (Python promotes to float)
+                // Use f64::min which is well-defined for all finite floats
                 let first = &args[0];
                 let rest = &args[1..];
-                let mut result = parse_quote! { #first };
+                let mut result = parse_quote! { (#first as f64) };
                 for arg in rest {
-                    result = parse_quote! { (#result).min(#arg) };
+                    result = parse_quote! { (#result).min(#arg as f64) };
                 }
                 return Ok(result);
             }
+            "max" if args.len() == 1 => {
+                // DEPYLER-1094: max(iterable) → iterable.iter().cloned().max().unwrap()
+                // Single-arg max finds maximum element in iterable
+                let arg = &args[0];
+                return Ok(parse_quote! { #arg.iter().cloned().max().unwrap() });
+            }
             "max" if args.len() >= 2 => {
-                // max(a, b, ...) → a.max(b).max(c)...
+                // DEPYLER-1094: max(a, b, ...) → (a as f64).max(b as f64)
+                // Cast both to f64 to handle mixed i32/f64 types (Python promotes to float)
+                // Use f64::max which is well-defined for all finite floats
                 let first = &args[0];
                 let rest = &args[1..];
-                let mut result = parse_quote! { #first };
+                let mut result = parse_quote! { (#first as f64) };
                 for arg in rest {
-                    result = parse_quote! { (#result).max(#arg) };
+                    result = parse_quote! { (#result).max(#arg as f64) };
                 }
                 return Ok(result);
             }
@@ -2618,11 +2970,48 @@ impl<'a> ExprConverter<'a> {
                 #base_expr.get(&#index_expr).cloned().unwrap_or_default()
             })
         } else {
-            // Vec/List access with numeric index
+            // DEPYLER-1095: Vec/List access with numeric index - handle negative indices
+            // Python supports list[-1] to get last element, list[-2] for second-to-last, etc.
+            // Check if index is a negative literal
+            let is_negative_literal = match index {
+                HirExpr::Literal(Literal::Int(idx)) => *idx < 0,
+                HirExpr::Unary { op: UnaryOp::Neg, .. } => true,
+                _ => false,
+            };
+
             let index_expr = self.convert(index)?;
-            Ok(parse_quote! {
-                #base_expr[#index_expr as usize]
-            })
+
+            if is_negative_literal {
+                // For negative literals, use runtime-safe indexing:
+                // base.get(base.len().wrapping_add(idx as usize)).cloned().unwrap()
+                // This handles -1 → len-1, -2 → len-2, etc.
+                Ok(parse_quote! {
+                    {
+                        let _base = &#base_expr;
+                        let _idx = #index_expr;
+                        let _actual_idx = if _idx < 0 {
+                            _base.len().wrapping_sub((-_idx) as usize)
+                        } else {
+                            _idx as usize
+                        };
+                        _base[_actual_idx].clone()
+                    }
+                })
+            } else {
+                // For non-negative or variable indices, generate simpler code
+                // but still handle potential negatives at runtime
+                Ok(parse_quote! {
+                    {
+                        let _base = &#base_expr;
+                        let _idx = #index_expr;
+                        if _idx < 0 {
+                            _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
+                        } else {
+                            _base[_idx as usize].clone()
+                        }
+                    }
+                })
+            }
         }
     }
 
@@ -2982,6 +3371,53 @@ impl<'a> ExprConverter<'a> {
             if module_name == "os" {
                 if let Some(rust_expr) = self.try_convert_os_method(method, args)? {
                     return Ok(rust_expr);
+                }
+            }
+        }
+
+        // DEPYLER-1097: Handle sys module method calls and attribute access
+        // sys.exit(code) → std::process::exit(code)
+        // sys.argv → std::env::args().collect::<Vec<_>>()
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "sys" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| self.convert(arg))
+                    .collect::<Result<Vec<_>>>()?;
+                match method {
+                    "exit" => {
+                        let code = arg_exprs.first().map(|e| quote::quote!(#e)).unwrap_or_else(|| quote::quote!(0));
+                        return Ok(parse_quote! { std::process::exit(#code as i32) });
+                    }
+                    "argv" => {
+                        // sys.argv is an attribute, but might be called as method via wrapper
+                        return Ok(parse_quote! { std::env::args().collect::<Vec<String>>() });
+                    }
+                    "version" | "version_info" => {
+                        // Stub: return Rust version string
+                        return Ok(parse_quote! { env!("CARGO_PKG_VERSION").to_string() });
+                    }
+                    "platform" => {
+                        return Ok(parse_quote! { std::env::consts::OS.to_string() });
+                    }
+                    "path" => {
+                        // sys.path → empty vec (no Python module system in Rust)
+                        return Ok(parse_quote! { Vec::<String>::new() });
+                    }
+                    "stdin" | "stdout" | "stderr" => {
+                        // Return appropriate std::io handle
+                        match method {
+                            "stdin" => return Ok(parse_quote! { std::io::stdin() }),
+                            "stdout" => return Ok(parse_quote! { std::io::stdout() }),
+                            "stderr" => return Ok(parse_quote! { std::io::stderr() }),
+                            _ => {}
+                        }
+                    }
+                    "getsizeof" if arg_exprs.len() == 1 => {
+                        let obj = &arg_exprs[0];
+                        return Ok(parse_quote! { std::mem::size_of_val(&#obj) as i32 });
+                    }
+                    _ => {} // Fall through for unhandled sys methods
                 }
             }
         }
@@ -4179,13 +4615,28 @@ impl<'a> ExprConverter<'a> {
     ) -> Result<syn::Expr> {
         let target_pat = parse_target_pattern(target);
         let iter_expr = self.convert(iter)?;
-        let element_expr = self.convert(element)?;
+
+        // DEPYLER-1100: Infer element type and create converter with loop variable typed
+        let element_type = self.infer_iterable_element_type(iter);
+        let inner_converter = if let Some(elem_type) = element_type {
+            self.with_additional_param(target.to_string(), elem_type)
+        } else {
+            Self {
+                type_mapper: self.type_mapper,
+                is_classmethod: self.is_classmethod,
+                vararg_functions: self.vararg_functions,
+                param_types: self.param_types.clone(),
+                class_field_types: self.class_field_types.clone(),
+            }
+        };
+
+        let element_expr = inner_converter.convert(element)?;
 
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
             // DEPYLER-0833: Use |x| pattern (not |&x|) to avoid E0507 on non-Copy types
             // DEPYLER-1000: Clone loop variable inside filter to fix E0308 reference mismatch
-            let cond_expr = self.convert(cond)?;
+            let cond_expr = inner_converter.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
@@ -4213,14 +4664,29 @@ impl<'a> ExprConverter<'a> {
     ) -> Result<syn::Expr> {
         let target_pat = parse_target_pattern(target);
         let iter_expr = self.convert(iter)?;
-        let element_expr = self.convert(element)?;
+
+        // DEPYLER-1100: Infer element type and create converter with loop variable typed
+        let element_type = self.infer_iterable_element_type(iter);
+        let inner_converter = if let Some(elem_type) = element_type {
+            self.with_additional_param(target.to_string(), elem_type)
+        } else {
+            Self {
+                type_mapper: self.type_mapper,
+                is_classmethod: self.is_classmethod,
+                vararg_functions: self.vararg_functions,
+                param_types: self.param_types.clone(),
+                class_field_types: self.class_field_types.clone(),
+            }
+        };
+
+        let element_expr = inner_converter.convert(element)?;
 
         // DEPYLER-0831: Use fully-qualified path for E0412 resolution
         if let Some(cond) = condition {
             // With condition: iter().filter().map().collect()
             // DEPYLER-0833: Use |x| pattern (not |&x|) to avoid E0507 on non-Copy types
             // DEPYLER-1000: Clone loop variable inside filter to fix E0308 reference mismatch
-            let cond_expr = self.convert(cond)?;
+            let cond_expr = inner_converter.convert(cond)?;
             Ok(parse_quote! {
                 #iter_expr
                     .into_iter()
@@ -4426,13 +4892,23 @@ impl<'a> ExprConverter<'a> {
                 _ => None,
             },
             // DEPYLER-0950: json.loads/load need proper type annotation and borrowing
-            // serde_json::from_str expects &str, returns Result, needs type annotation
+            // DEPYLER-1098: NASA mode uses inline JSON parser, non-NASA uses serde_json
             "json" => match constructor {
                 "loads" | "load" => {
-                    arg_exprs.first().map(|arg| parse_quote! { serde_json::from_str::<serde_json::Value>(&#arg).unwrap() })
+                    if self.type_mapper.nasa_mode {
+                        // NASA mode: return empty HashMap stub
+                        arg_exprs.first().map(|_| parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() })
+                    } else {
+                        arg_exprs.first().map(|arg| parse_quote! { serde_json::from_str::<serde_json::Value>(&#arg).unwrap() })
+                    }
                 }
                 "dumps" | "dump" => {
-                    arg_exprs.first().map(|arg| parse_quote! { serde_json::to_string(&#arg).unwrap() })
+                    if self.type_mapper.nasa_mode {
+                        // NASA mode: simple string format
+                        arg_exprs.first().map(|arg| parse_quote! { format!("{:?}", #arg) })
+                    } else {
+                        arg_exprs.first().map(|arg| parse_quote! { serde_json::to_string(&#arg).unwrap() })
+                    }
                 }
                 _ => None,
             },
@@ -4452,8 +4928,8 @@ impl<'a> ExprConverter<'a> {
             },
             "re" => match constructor {
                 "compile" | "match" | "search" | "findall" => {
-                    // Return a placeholder that compiles
-                    Some(parse_quote! { serde_json::Value::Null })
+                    // DEPYLER-1098: Return NASA-mode compatible placeholder
+                    Some(parse_quote! { None::<String> })
                 }
                 _ => None,
             },
@@ -4862,6 +5338,93 @@ impl<'a> ExprConverter<'a> {
             if var_name == "cls" && self.is_classmethod {
                 let attr_ident = make_ident(attr);
                 return Ok(parse_quote! { Self::#attr_ident });
+            }
+
+            // DEPYLER-1069: Handle datetime class constants (min, max, resolution)
+            // date.min → DepylerDate::new(1, 1, 1)
+            // datetime.min → DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0)
+            // time.min → (0, 0, 0, 0)
+            let nasa_mode = self.type_mapper.nasa_mode;
+            if (var_name == "date" || var_name == "datetime" || var_name == "time")
+                && (attr == "min" || attr == "max")
+            {
+                if var_name == "date" {
+                    if nasa_mode {
+                        return Ok(if attr == "min" {
+                            parse_quote! { DepylerDate::new(1, 1, 1) }
+                        } else {
+                            parse_quote! { DepylerDate::new(9999, 12, 31) }
+                        });
+                    } else {
+                        return Ok(if attr == "min" {
+                            parse_quote! { chrono::NaiveDate::MIN }
+                        } else {
+                            parse_quote! { chrono::NaiveDate::MAX }
+                        });
+                    }
+                } else if var_name == "datetime" {
+                    if nasa_mode {
+                        return Ok(if attr == "min" {
+                            parse_quote! { DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0) }
+                        } else {
+                            parse_quote! { DepylerDateTime::new(9999, 12, 31, 23, 59, 59, 999999) }
+                        });
+                    } else {
+                        return Ok(if attr == "min" {
+                            parse_quote! { chrono::NaiveDateTime::MIN }
+                        } else {
+                            parse_quote! { chrono::NaiveDateTime::MAX }
+                        });
+                    }
+                } else if var_name == "time" {
+                    if nasa_mode {
+                        return Ok(if attr == "min" {
+                            parse_quote! { (0u32, 0u32, 0u32, 0u32) }
+                        } else {
+                            parse_quote! { (23u32, 59u32, 59u32, 999999u32) }
+                        });
+                    } else {
+                        return Ok(if attr == "min" {
+                            parse_quote! { chrono::NaiveTime::MIN }
+                        } else {
+                            parse_quote! { chrono::NaiveTime::from_hms_micro_opt(23, 59, 59, 999999).unwrap() }
+                        });
+                    }
+                }
+            }
+
+            // DEPYLER-1097: Handle sys module attribute access
+            // sys.argv → std::env::args().collect::<Vec<String>>()
+            // sys.version → Rust version string stub
+            // sys.platform → std::env::consts::OS
+            if var_name == "sys" {
+                match attr {
+                    "argv" => {
+                        return Ok(parse_quote! { std::env::args().collect::<Vec<String>>() });
+                    }
+                    "version" | "version_info" => {
+                        return Ok(parse_quote! { env!("CARGO_PKG_VERSION").to_string() });
+                    }
+                    "platform" => {
+                        return Ok(parse_quote! { std::env::consts::OS.to_string() });
+                    }
+                    "path" => {
+                        return Ok(parse_quote! { Vec::<String>::new() });
+                    }
+                    "stdin" => {
+                        return Ok(parse_quote! { std::io::stdin() });
+                    }
+                    "stdout" => {
+                        return Ok(parse_quote! { std::io::stdout() });
+                    }
+                    "stderr" => {
+                        return Ok(parse_quote! { std::io::stderr() });
+                    }
+                    "maxsize" => {
+                        return Ok(parse_quote! { i64::MAX });
+                    }
+                    _ => {} // Fall through for other sys attributes
+                }
             }
 
             // DEPYLER-0616: Detect enum/type constant access patterns

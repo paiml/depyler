@@ -102,7 +102,7 @@ pub fn is_numpy_value_expr(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
                 "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" | "clip" | "clamp" | "normalize"
             ) =>
         {
-            args.first().map_or(false, |arg| is_numpy_value_expr(arg, ctx))
+            args.first().is_some_and(|arg| is_numpy_value_expr(arg, ctx))
         }
         // DEPYLER-1044: Method calls preserve numpy nature of object
         HirExpr::MethodCall { object, method, .. }
@@ -182,6 +182,12 @@ pub fn looks_like_option_expr(expr: &HirExpr) -> bool {
             }
             // Collection methods that return Option
             if matches!(method.as_str(), "first" | "last" | "pop" | "next") {
+                return true;
+            }
+            // DEPYLER-1071: Regex methods that return Option<Match>
+            // Python: m = re.match(pattern, text) / pattern.match(text)
+            // Rust: Option<Match> or Option<DepylerRegexMatch>
+            if matches!(method.as_str(), "match_" | "search" | "fullmatch") {
                 return true;
             }
             // Recursively check if the object is an Option-returning expression
@@ -544,6 +550,149 @@ pub fn extract_divisor_from_floor_div(expr: &HirExpr) -> anyhow::Result<&HirExpr
         }
         HirExpr::Unary { operand, .. } => extract_divisor_from_floor_div(operand),
         _ => bail!("No floor division found in expression"),
+    }
+}
+
+/// DEPYLER-1054: Check if an expression produces a DepylerValue
+/// This occurs when:
+/// 1. Subscript access on a dict with Unknown value type (heterogeneous)
+/// 2. Variable typed as Type::Unknown in NASA mode
+/// 3. Arithmetic operations on DepylerValue operands
+pub fn expr_produces_depyler_value(
+    expr: &HirExpr,
+    ctx: &crate::rust_gen::context::CodeGenContext,
+) -> bool {
+    use crate::hir::Type;
+
+    // Not in NASA mode - DepylerValue is not used
+    if !ctx.type_mapper.nasa_mode {
+        return false;
+    }
+
+    match expr {
+        // Index/subscript on a dict with Unknown/Any value type produces DepylerValue
+        // DEPYLER-1054: Also check for Type::Custom("Any") after DEPYLER-0725 fix
+        HirExpr::Index { base, .. } => {
+            if let Some(Type::Dict(_, val_type)) = get_expr_type(base, ctx) {
+                return is_depyler_value_type(val_type.as_ref());
+            }
+            false
+        }
+        // Variable with Unknown/Any type is DepylerValue
+        HirExpr::Var(name) => ctx
+            .var_types
+            .get(name)
+            .is_some_and(is_depyler_value_type),
+        // Arithmetic on DepylerValue produces DepylerValue
+        HirExpr::Binary { left, right, op } => {
+            use crate::hir::BinOp;
+            // Skip comparison operators - they return bool
+            if matches!(
+                op,
+                BinOp::Eq
+                    | BinOp::NotEq
+                    | BinOp::Lt
+                    | BinOp::LtEq
+                    | BinOp::Gt
+                    | BinOp::GtEq
+                    | BinOp::In
+                    | BinOp::NotIn
+            ) {
+                return false;
+            }
+            expr_produces_depyler_value(left, ctx) || expr_produces_depyler_value(right, ctx)
+        }
+        HirExpr::Unary { operand, .. } => expr_produces_depyler_value(operand, ctx),
+        // DEPYLER-1064: Function call returning Unknown/Any produces DepylerValue
+        // Note: Tuple[Any, ...] produces a NATIVE tuple, not DepylerValue, so it's handled separately
+        // by is_native_depyler_tuple()
+        HirExpr::Call { func, .. } => {
+            // Check if function has a return type that is Unknown/Any
+            // Tuple types are NOT DepylerValue - they're native tuples of DepylerValue elements
+            if let Some(ret_type) = ctx.function_return_types.get(func) {
+                match ret_type {
+                    Type::Unknown => true,
+                    Type::Custom(name) if name == "Any" || name == "object" => true,
+                    // Tuple[Any, ...] produces native tuple (DepylerValue, ...), NOT DepylerValue
+                    // These are handled by is_native_depyler_tuple() instead
+                    Type::Tuple(_) => false,
+                    _ => false,
+                }
+            } else {
+                false
+            }
+        }
+        _ => false,
+    }
+}
+
+/// DEPYLER-1064: Check if expression produces a NATIVE tuple of DepylerValue elements
+///
+/// This is different from `expr_produces_depyler_value` which checks if the expression
+/// produces a DepylerValue directly. This checks specifically for Tuple[Any, ...] return types
+/// which become native Rust tuples `(DepylerValue, DepylerValue, ...)` rather than DepylerValue::Tuple.
+///
+/// For native tuples, we use positional access (.0, .1, .2) instead of get_tuple_elem().
+pub fn is_native_depyler_tuple(
+    expr: &HirExpr,
+    ctx: &crate::rust_gen::context::CodeGenContext,
+) -> bool {
+    use crate::hir::Type;
+
+    // Not in NASA mode - DepylerValue is not used
+    if !ctx.type_mapper.nasa_mode {
+        return false;
+    }
+
+    match expr {
+        // Function call returning Tuple[Any, ...] produces native tuple
+        HirExpr::Call { func, .. } => {
+            if let Some(Type::Tuple(elems)) = ctx.function_return_types.get(func) {
+                // Check if tuple contains DepylerValue types
+                return elems.iter().any(is_depyler_value_type);
+            }
+            false
+        }
+        // Variable with Tuple[Any, ...] type
+        HirExpr::Var(name) => {
+            if let Some(Type::Tuple(elems)) = ctx.var_types.get(name) {
+                return elems.iter().any(is_depyler_value_type);
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// DEPYLER-1054: Get expression type from context
+fn get_expr_type(
+    expr: &HirExpr,
+    ctx: &crate::rust_gen::context::CodeGenContext,
+) -> Option<crate::hir::Type> {
+    match expr {
+        HirExpr::Var(name) => ctx.var_types.get(name).cloned(),
+        _ => None,
+    }
+}
+
+/// DEPYLER-1054: Check if a type represents DepylerValue
+/// Matches Type::Unknown and Type::Custom("Any"/"object") which become DepylerValue in NASA mode
+fn is_depyler_value_type(ty: &crate::hir::Type) -> bool {
+    use crate::hir::Type;
+    matches!(ty, Type::Unknown)
+        || matches!(ty, Type::Custom(s) if s == "Any" || s == "object")
+}
+
+/// DEPYLER-1054: Get the extraction call for a target type
+/// Returns the method to call on DepylerValue to extract the concrete value
+pub fn get_depyler_extraction_for_type(target_type: &crate::hir::Type) -> Option<&'static str> {
+    use crate::hir::Type;
+    match target_type {
+        Type::Int => Some(".to_i64() as i32"),
+        Type::Float => Some(".to_f64()"),
+        Type::String => Some(".to_string()"),
+        Type::Bool => Some(".to_bool()"),
+        _ => None,
     }
 }
 
@@ -1670,7 +1819,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Call {
             func: "abs".to_string(),
-            args: vec![],
+            args: vec![HirExpr::Var("arr".to_string())],
             kwargs: vec![],
         };
         assert!(is_numpy_value_expr(&expr, &ctx));
@@ -1681,7 +1830,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Call {
             func: "sqrt".to_string(),
-            args: vec![],
+            args: vec![HirExpr::Var("arr".to_string())],
             kwargs: vec![],
         };
         assert!(is_numpy_value_expr(&expr, &ctx));
@@ -1692,7 +1841,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Call {
             func: "sin".to_string(),
-            args: vec![],
+            args: vec![HirExpr::Var("arr".to_string())],
             kwargs: vec![],
         };
         assert!(is_numpy_value_expr(&expr, &ctx));
@@ -1703,7 +1852,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Call {
             func: "cos".to_string(),
-            args: vec![],
+            args: vec![HirExpr::Var("arr".to_string())],
             kwargs: vec![],
         };
         assert!(is_numpy_value_expr(&expr, &ctx));
@@ -1714,7 +1863,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Call {
             func: "exp".to_string(),
-            args: vec![],
+            args: vec![HirExpr::Var("arr".to_string())],
             kwargs: vec![],
         };
         assert!(is_numpy_value_expr(&expr, &ctx));
@@ -1725,7 +1874,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Call {
             func: "log".to_string(),
-            args: vec![],
+            args: vec![HirExpr::Var("arr".to_string())],
             kwargs: vec![],
         };
         assert!(is_numpy_value_expr(&expr, &ctx));
@@ -1736,7 +1885,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Call {
             func: "clip".to_string(),
-            args: vec![],
+            args: vec![HirExpr::Var("arr".to_string())],
             kwargs: vec![],
         };
         assert!(is_numpy_value_expr(&expr, &ctx));
@@ -1747,7 +1896,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Call {
             func: "clamp".to_string(),
-            args: vec![],
+            args: vec![HirExpr::Var("arr".to_string())],
             kwargs: vec![],
         };
         assert!(is_numpy_value_expr(&expr, &ctx));
@@ -1758,7 +1907,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Call {
             func: "normalize".to_string(),
-            args: vec![],
+            args: vec![HirExpr::Var("arr".to_string())],
             kwargs: vec![],
         };
         assert!(is_numpy_value_expr(&expr, &ctx));
@@ -2712,5 +2861,48 @@ mod tests {
         let expr = HirExpr::Var("x".to_string());
         let result = extract_divisor_from_floor_div(&expr);
         assert!(result.is_err());
+    }
+
+    // ============ DEPYLER-1054: get_depyler_extraction_for_type tests ============
+
+    #[test]
+    fn test_depyler_1054_extraction_int() {
+        use crate::hir::Type;
+        let result = get_depyler_extraction_for_type(&Type::Int);
+        assert_eq!(result, Some(".to_i64() as i32"));
+    }
+
+    #[test]
+    fn test_depyler_1054_extraction_float() {
+        use crate::hir::Type;
+        let result = get_depyler_extraction_for_type(&Type::Float);
+        assert_eq!(result, Some(".to_f64()"));
+    }
+
+    #[test]
+    fn test_depyler_1054_extraction_string() {
+        use crate::hir::Type;
+        let result = get_depyler_extraction_for_type(&Type::String);
+        assert_eq!(result, Some(".to_string()"));
+    }
+
+    #[test]
+    fn test_depyler_1054_extraction_bool() {
+        use crate::hir::Type;
+        let result = get_depyler_extraction_for_type(&Type::Bool);
+        assert_eq!(result, Some(".to_bool()"));
+    }
+
+    #[test]
+    fn test_depyler_1054_extraction_unsupported() {
+        use crate::hir::Type;
+        // List type shouldn't have an extraction method
+        assert!(get_depyler_extraction_for_type(&Type::List(Box::new(Type::Int))).is_none());
+        // Dict type shouldn't have an extraction method
+        assert!(get_depyler_extraction_for_type(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int)
+        ))
+        .is_none());
     }
 }

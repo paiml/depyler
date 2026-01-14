@@ -469,9 +469,9 @@ security-audit: ## Run security audit
 # Pure logic is extracted to *_shim.rs files which have 97-100% coverage
 COVERAGE_IGNORE_REGEX := "alimentar|aprender|entrenar|verificar|trueno|interactive\\.rs|/main\\.rs|mcp_server\\.rs|repartir|training_monitor|agent/daemon|automl_tuning|differential\\.rs|compilation_trainer\\.rs|report_cmd/mod\\.rs|compile_cmd\\.rs|utol_cmd\\.rs|depyler/src/lib\\.rs|converge/compiler\\.rs|citl_fixer\\.rs|corpus_citl\\.rs|autofixer\\.rs"
 .PHONY: coverage
-coverage: ## Fast coverage report (~4 min)
+coverage: ## Fast coverage report (~4 min) - Uses cargo test (not nextest) to avoid profraw explosion
 	@echo "📊 Coverage (lib tests, target: <5 min)..."
-	@PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo llvm-cov nextest --profile fast --lib --workspace --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
+	@PROPTEST_CASES=5 QUICKCHECK_TESTS=5 cargo llvm-cov test --lib --workspace --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@echo ""
 coverage-summary: ## Display coverage summary (run 'make coverage' first)
 	@echo "📊 Coverage Summary:"
@@ -484,8 +484,8 @@ coverage-open: ## Open HTML coverage report in browser (run 'make coverage' firs
 coverage-check: ## Check coverage threshold (assumes coverage already collected)
 	@echo "Checking coverage threshold ($(COVERAGE_THRESHOLD)%)..."
 	@COVERAGE=$$($(CARGO) llvm-cov report --summary-only --ignore-filename-regex $(COVERAGE_IGNORE_REGEX) | grep "TOTAL" | awk '{print $$4}' | sed 's/%//'); if [ "$$COVERAGE" -lt "$(COVERAGE_THRESHOLD)" ]; then echo "❌ Coverage $$COVERAGE% below threshold $(COVERAGE_THRESHOLD)%"; exit 1; else echo "✅ Coverage $$COVERAGE% meets threshold $(COVERAGE_THRESHOLD)%"; fi
-coverage-ci: ## CI coverage with LCOV output (<5 min)
-	@PROPTEST_CASES=25 QUICKCHECK_TESTS=25 cargo llvm-cov nextest --profile fast --no-fail-fast --workspace --lcov --output-path lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
+coverage-ci: ## CI coverage with LCOV output (<5 min) - Uses cargo test (not nextest) to avoid profraw explosion
+	@PROPTEST_CASES=25 QUICKCHECK_TESTS=25 cargo llvm-cov test --no-fail-fast --workspace --lcov --output-path lcov.info --ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 coverage-clean: ## Clean coverage artifacts
 	@rm -f lcov.info coverage.xml target/coverage/lcov.info
 	@rm -rf target/llvm-cov target/coverage
@@ -1158,12 +1158,12 @@ else
     FAST_TARGET := /dev/shm/depyler-target
 endif
 
-coverage-fast: ## Ultra-fast coverage using tmpfs/ramdisk
+coverage-fast: ## Ultra-fast coverage using tmpfs/ramdisk - Uses cargo test (not nextest) to avoid profraw explosion
 	@echo "🚀 Fast coverage using $(FAST_TARGET)..."
 	@mkdir -p $(FAST_TARGET)
 	@echo "   Target dir: $(FAST_TARGET)"
 	@CARGO_TARGET_DIR=$(FAST_TARGET) PROPTEST_CASES=3 QUICKCHECK_TESTS=3 \
-		cargo llvm-cov nextest --profile fast --lib --workspace \
+		cargo llvm-cov test --lib --workspace \
 		--ignore-filename-regex $(COVERAGE_IGNORE_REGEX)
 	@echo ""
 	@CARGO_TARGET_DIR=$(FAST_TARGET) cargo llvm-cov report --summary-only \
