@@ -1,0 +1,41 @@
+[package]
+name = "depyler-knowledge"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Sovereign Type Database for Python library type extraction"
+keywords = ["python", "types", "stubs", "pyi", "parquet"]
+categories = ["development-tools", "parser-implementations"]
+
+[dependencies]
+# Core
+anyhow.workspace = true
+thiserror.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+
+# Python parsing (for .pyi stub files)
+rustpython-parser.workspace = true
+rustpython-ast.workspace = true
+
+# Parquet/Arrow for efficient storage
+arrow = { version = "54", default-features = false, features = ["ipc"] }
+parquet = { version = "54", default-features = false, features = ["arrow"] }
+
+# File system traversal
+walkdir = "2"
+
+# CLI
+clap.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+proptest.workspace = true
+
+[[bin]]
+name = "build-type-db"
+path = "src/bin/build_type_db.rs"

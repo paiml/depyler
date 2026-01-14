@@ -31,10 +31,15 @@ fnv.workspace = true
 tempfile.workspace = true
 toml.workspace = true
 
+# DEPYLER-1112: Sovereign Type Database integration (optional)
+depyler-knowledge = { path = "../depyler-knowledge", optional = true }
+
 [features]
 default = []
 deterministic = []
 ruchy = []
+# DEPYLER-1112: Sovereign Type Database for external library type resolution
+sovereign-types = ["depyler-knowledge"]
 # PHF compile-time perfect hash optimization (DEPYLER-O1MAP-001)
 phf-lookup = ["phf"]
 # Decision tracing for CITL (Compiler-in-the-Loop) training

@@ -1,7 +1,7 @@
 pub mod error;
 pub mod pmat_integration;
-mod server;
-mod tools;
+pub mod server;
+pub mod tools;
 pub mod transport;
 pub mod validator;
 
@@ -10,8 +10,11 @@ mod tests;
 
 pub use error::DepylerMcpError;
 pub use pmat_integration::{PmatIntegration, PmatQualityReport};
-pub use server::DepylerMcpServer;
-pub use tools::{AnalyzeRequest, TranspileRequest, VerifyRequest};
+pub use server::{AnalyzeTool, DepylerMcpServer, PmatQualityTool, TranspileTool, VerifyTool};
+pub use tools::{
+    AnalyzeRequest, CrateRecommendation, MigrationPhase, PerformanceComparison, SafetyGuarantees,
+    TestResults, TranspileMetrics, TranspileRequest, TranspileResponse, VerifyRequest,
+};
 pub use transport::TransportFactory;
 
 // Re-export pmcp types for convenience

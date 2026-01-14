@@ -113,6 +113,13 @@ pub struct CodeGenContext<'a> {
     pub is_classmethod: bool,
     pub in_generator: bool,
     pub generator_state_vars: HashSet<String>,
+    /// DEPYLER-1082: Track generator state vars with Iterator/Generator type
+    /// These need `while let Some(x) = self.g.next()` instead of `for x in self.g`
+    /// because Box<dyn Iterator> doesn't implement IntoIterator
+    pub generator_iterator_state_vars: HashSet<String>,
+    /// DEPYLER-1076: Track when function returns impl Iterator/IntoIterator
+    /// When true, closures in iterator chains that capture local variables need `move`
+    pub returns_impl_iterator: bool,
     pub var_types: HashMap<String, Type>,
     pub class_names: HashSet<String>,
     pub mutating_methods: HashMap<String, HashSet<String>>,
@@ -336,10 +343,20 @@ pub struct CodeGenContext<'a> {
     /// - Subscript: `memo[k] = v` → `memo.as_mut().unwrap().insert(k, v)`
     pub mut_option_dict_params: HashSet<String>, // DEPYLER-0964: Track &mut Option<Dict> params
     pub needs_depyler_value_enum: bool,          // DEPYLER-FIX-RC2: Track need for DepylerValue enum
+    pub needs_depyler_date: bool,                // DEPYLER-1066: Track need for DepylerDate struct
+    pub needs_depyler_datetime: bool,            // DEPYLER-1067: Track need for DepylerDateTime struct
+    pub needs_depyler_timedelta: bool,           // DEPYLER-1068: Track need for DepylerTimeDelta struct
+    pub needs_depyler_regex_match: bool,         // DEPYLER-1070: Track need for DepylerRegexMatch struct
     /// DEPYLER-1060: Track module-level constant types (dict, list, set)
     /// These persist across function boundaries and aren't cleared when processing functions.
     /// Used by is_dict_expr() to recognize module-level statics accessed from within functions.
     pub module_constant_types: HashMap<String, Type>,
+
+    /// DEPYLER-1112: Sovereign Type Database for external library type resolution
+    /// When enabled, provides O(1) lookup of external library function return types
+    /// to reduce E0308 type mismatch errors.
+    #[cfg(feature = "sovereign-types")]
+    pub type_query: Option<std::sync::Arc<std::sync::Mutex<depyler_knowledge::TypeQuery>>>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -505,6 +522,64 @@ impl<'a> CodeGenContext<'a> {
             quote::quote! { serde_json::Value }
         }
     }
+
+    /// DEPYLER-1112: Look up the return type for an external library function
+    ///
+    /// Uses the Sovereign Type Database (when available) to resolve return types
+    /// for external library calls like `requests.get()` -> `Response`.
+    ///
+    /// Returns None if:
+    /// - The `sovereign-types` feature is not enabled
+    /// - No TypeQuery is configured
+    /// - The symbol is not found in the database
+    ///
+    /// # Example
+    ///
+    /// ```ignore
+    /// if let Some(ret_type) = ctx.lookup_external_return_type("requests", "get") {
+    ///     // ret_type = "Response"
+    /// }
+    /// ```
+    ///
+    /// # Complexity
+    /// 3 (feature check + option check + mutex lock + query)
+    #[cfg(feature = "sovereign-types")]
+    pub fn lookup_external_return_type(&self, module: &str, symbol: &str) -> Option<String> {
+        self.type_query.as_ref().and_then(|tq| {
+            tq.lock()
+                .ok()
+                .and_then(|mut query| query.find_return_type(module, symbol).ok())
+        })
+    }
+
+    /// DEPYLER-1112: Stub for when sovereign-types feature is disabled
+    ///
+    /// Always returns None since the type database is not available.
+    #[cfg(not(feature = "sovereign-types"))]
+    pub fn lookup_external_return_type(&self, _module: &str, _symbol: &str) -> Option<String> {
+        None
+    }
+
+    /// DEPYLER-1112: Check if a symbol exists in the external type database
+    ///
+    /// Returns true if the symbol is known (feature enabled and found in DB).
+    ///
+    /// # Complexity
+    /// 3 (feature check + option check + mutex lock + query)
+    #[cfg(feature = "sovereign-types")]
+    pub fn has_external_symbol(&self, module: &str, symbol: &str) -> bool {
+        self.type_query.as_ref().map_or(false, |tq| {
+            tq.lock()
+                .ok()
+                .map_or(false, |mut query| query.has_symbol(module, symbol))
+        })
+    }
+
+    /// DEPYLER-1112: Stub for when sovereign-types feature is disabled
+    #[cfg(not(feature = "sovereign-types"))]
+    pub fn has_external_symbol(&self, _module: &str, _symbol: &str) -> bool {
+        false
+    }
 }
 
 /// Trait for converting HIR elements to Rust tokens
@@ -610,6 +685,8 @@ pub mod test_helpers {
             is_classmethod: false,
             in_generator: false,
             generator_state_vars: HashSet::new(),
+            generator_iterator_state_vars: HashSet::new(),
+            returns_impl_iterator: false,
             var_types: HashMap::new(),
             class_names: HashSet::new(),
             mutating_methods: HashMap::new(),
@@ -664,7 +741,13 @@ pub mod test_helpers {
             function_param_types: HashMap::new(),
             mut_option_dict_params: HashSet::new(),
             needs_depyler_value_enum: false,
+            needs_depyler_date: false,      // DEPYLER-1066
+            needs_depyler_datetime: false,  // DEPYLER-1067
+            needs_depyler_timedelta: false, // DEPYLER-1068
+            needs_depyler_regex_match: false, // DEPYLER-1070
             module_constant_types: HashMap::new(), // DEPYLER-1060
+            #[cfg(feature = "sovereign-types")]
+            type_query: None, // DEPYLER-1112
         }
     }
 }

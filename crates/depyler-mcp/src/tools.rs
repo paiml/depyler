@@ -10,7 +10,7 @@ pub struct TranspileRequest {
     pub options: TranspileOptions,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum Mode {
     Inline,
