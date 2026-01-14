@@ -11,6 +11,7 @@ members = [
     "crates/depyler-testing",
     "crates/depyler-oracle",
     "crates/depyler-corpus",
+    "crates/depyler-knowledge",
 ]
 exclude = [
     "examples",
