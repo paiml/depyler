@@ -9,9 +9,9 @@ use crate::hir::*;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen, ToRustExpr};
 use crate::rust_gen::exception_helpers::extract_exception_type;
 use crate::rust_gen::expr_analysis::{
-    expr_infers_float,
+    expr_infers_float, expr_produces_depyler_value, is_native_depyler_tuple,
     extract_kwarg_bool, extract_kwarg_string, extract_string_literal,
-    handler_ends_with_exit, is_dict_augassign_pattern,
+    get_depyler_extraction_for_type, handler_ends_with_exit, is_dict_augassign_pattern,
     is_dict_index_access, is_dict_with_value_type,
     is_iterator_producing_expr, is_numpy_value_expr,
     is_pure_expression, looks_like_option_expr, needs_type_conversion,
@@ -22,7 +22,7 @@ use crate::rust_gen::type_gen::rust_type_to_syn;
 use crate::rust_gen::type_conversion_helpers::apply_type_conversion; // DEPYLER-0455: Extracted
 use crate::rust_gen::truthiness_helpers::{
     is_collection_attr_name, is_collection_generic_base, is_collection_type_name,
-    is_collection_var_name, is_dict_var_name, is_string_var_name,
+    is_collection_var_name, is_dict_var_name, is_option_var_name, is_string_var_name,
 }; // DEPYLER-COVERAGE-95: Use centralized truthiness helpers
 use crate::rust_gen::var_analysis::{
     extract_toplevel_assigned_symbols, extract_walrus_from_condition,
@@ -551,6 +551,52 @@ pub(crate) fn codegen_return_stmt(
     );
 
     if let Some(e) = expr {
+        // DEPYLER-1064: Handle Tuple[Any, ...] returns - wrap elements in DepylerValue
+        // When return type is Tuple containing Any types, each element needs DepylerValue wrapping
+        if let (HirExpr::Tuple(elts), Some(Type::Tuple(elem_types))) =
+            (e, ctx.current_return_type.as_ref())
+        {
+            if ctx.type_mapper.nasa_mode
+                && elem_types.iter().any(|t| {
+                    matches!(t, Type::Unknown)
+                        || matches!(t, Type::Custom(name) if name == "Any" || name == "object")
+                })
+            {
+                // Generate tuple with each element wrapped in DepylerValue
+                let wrapped_elems: Vec<proc_macro2::TokenStream> = elts
+                    .iter()
+                    .map(|elem| {
+                        let elem_expr = elem.to_rust_expr(ctx)?;
+                        // Wrap based on expression type
+                        let wrapped = match elem {
+                            HirExpr::Literal(Literal::Int(_)) => {
+                                quote! { DepylerValue::Int(#elem_expr as i64) }
+                            }
+                            HirExpr::Literal(Literal::Float(_)) => {
+                                quote! { DepylerValue::Float(#elem_expr) }
+                            }
+                            HirExpr::Literal(Literal::String(_)) => {
+                                quote! { DepylerValue::Str(#elem_expr) }
+                            }
+                            HirExpr::Literal(Literal::Bool(_)) => {
+                                quote! { DepylerValue::Bool(#elem_expr) }
+                            }
+                            HirExpr::List(_) => {
+                                quote! { DepylerValue::List(#elem_expr.into_iter().map(DepylerValue::from).collect()) }
+                            }
+                            _ => {
+                                // For other expressions, try to wrap in from()
+                                quote! { DepylerValue::from(#elem_expr) }
+                            }
+                        };
+                        Ok(wrapped)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+
+                return Ok(quote! { return (#(#wrapped_elems),*); });
+            }
+        }
+
         // DEPYLER-1036: Set current_assign_type for Dict expressions in return statements
         // This ensures empty dicts use the function return type for type inference
         let prev_assign_type = ctx.current_assign_type.take();
@@ -678,7 +724,10 @@ pub(crate) fn codegen_return_stmt(
             let expr_str = quote!(#expr_tokens).to_string();
             // DEPYLER-1036: Check for unwrapping methods that convert Option<T> to T
             // If expression ends with .unwrap_or(...) or .unwrap_or_default(), it's NOT optional
-            let has_option_method = expr_str.ends_with(". ok ()") || expr_str.contains(". get (");
+            // DEPYLER-1078: .next() also returns Option<T>
+            let has_option_method = expr_str.ends_with(". ok ()")
+                || expr_str.ends_with(". next ()")
+                || expr_str.contains(". get (");
             let has_unwrap_method = expr_str.contains(". unwrap_or (")
                 || expr_str.contains(". unwrap_or_default (")
                 || expr_str.contains(". unwrap (")
@@ -711,12 +760,71 @@ pub(crate) fn codegen_return_stmt(
                 } else {
                     Ok(quote! { Ok(()) })
                 }
-            } else if is_optional_return && !is_none_literal && !is_already_optional {
+            } else if is_optional_return
+                && !is_none_literal
+                && !is_if_expr_with_none
+                && !is_already_optional
+            {
                 // Wrap value in Some() for Optional return types
+                // DEPYLER-1079: Skip wrapping if if-expr has None arm (handled separately below)
                 if use_return_keyword {
                     Ok(quote! { return Ok(Some(#expr_tokens)); })
                 } else {
                     Ok(quote! { Ok(Some(#expr_tokens)) })
+                }
+            } else if is_optional_return && is_if_expr_with_none {
+                // DEPYLER-1079: If-expr with None arm in Result context
+                // Pattern: `return x if cond else None` -> `Ok(if cond { Some(x) } else { None })`
+                if let HirExpr::IfExpr {
+                    test,
+                    body,
+                    orelse: _,
+                } = e
+                {
+                    // DEPYLER-1071: Check if test is an Option variable (regex match result)
+                    // Pattern: `return m.group(0) if m else None` where m is Option<Match>
+                    // Should generate: `Ok(m.as_ref().map(|m_val| m_val.group(0)))`
+                    if let HirExpr::Var(var_name) = test.as_ref() {
+                        let is_option = ctx
+                            .var_types
+                            .get(var_name)
+                            .is_some_and(|t| matches!(t, Type::Optional(_)))
+                            || is_option_var_name(var_name);
+
+                        if is_option && body_uses_option_var(body, var_name) {
+                            let var_ident = crate::rust_gen::keywords::safe_ident(var_name);
+                            let val_name = format!("{}_val", var_name);
+                            let val_ident = crate::rust_gen::keywords::safe_ident(&val_name);
+
+                            // Substitute variable in body
+                            let body_substituted = substitute_var_in_hir(body, var_name, &val_name);
+                            let body_tokens = body_substituted.to_rust_expr(ctx)?;
+
+                            if use_return_keyword {
+                                return Ok(
+                                    quote! { return Ok(#var_ident.as_ref().map(|#val_ident| #body_tokens)); },
+                                );
+                            } else {
+                                return Ok(
+                                    quote! { Ok(#var_ident.as_ref().map(|#val_ident| #body_tokens)) },
+                                );
+                            }
+                        }
+                    }
+
+                    let test_tokens = test.to_rust_expr(ctx)?;
+                    // DEPYLER-1079: Apply truthiness conversion for collection/string/optional conditions
+                    let test_tokens =
+                        apply_truthiness_conversion(test.as_ref(), test_tokens, ctx);
+                    let body_tokens = body.to_rust_expr(ctx)?;
+
+                    if use_return_keyword {
+                        Ok(quote! { return Ok(if #test_tokens { Some(#body_tokens) } else { None }); })
+                    } else {
+                        Ok(quote! { Ok(if #test_tokens { Some(#body_tokens) } else { None }) })
+                    }
+                } else {
+                    unreachable!("is_if_expr_with_none should only match IfExpr")
                 }
             } else if is_optional_return && is_already_optional {
                 // DEPYLER-0744: Expression is already Option<T>, just wrap in Ok()
@@ -813,7 +921,39 @@ pub(crate) fn codegen_return_stmt(
                 orelse: _,
             } = e
             {
+                // DEPYLER-1071: Check if test is an Option variable (regex match result)
+                // Pattern: `return m.group(0) if m else None` where m is Option<Match>
+                // Should generate: `m.as_ref().map(|m_val| m_val.group(0))`
+                if let HirExpr::Var(var_name) = test.as_ref() {
+                    let is_option = ctx
+                        .var_types
+                        .get(var_name)
+                        .is_some_and(|t| matches!(t, Type::Optional(_)))
+                        || is_option_var_name(var_name);
+
+                    if is_option && body_uses_option_var(body, var_name) {
+                        let var_ident = crate::rust_gen::keywords::safe_ident(var_name);
+                        let val_name = format!("{}_val", var_name);
+                        let val_ident = crate::rust_gen::keywords::safe_ident(&val_name);
+
+                        // Substitute variable in body
+                        let body_substituted = substitute_var_in_hir(body, var_name, &val_name);
+                        let body_tokens = body_substituted.to_rust_expr(ctx)?;
+
+                        if use_return_keyword {
+                            return Ok(
+                                quote! { return #var_ident.as_ref().map(|#val_ident| #body_tokens); },
+                            );
+                        } else {
+                            return Ok(quote! { #var_ident.as_ref().map(|#val_ident| #body_tokens) });
+                        }
+                    }
+                }
+
                 let test_tokens = test.to_rust_expr(ctx)?;
+                // DEPYLER-1079: Apply truthiness conversion for collection/string/optional conditions
+                let test_tokens =
+                    apply_truthiness_conversion(test.as_ref(), test_tokens, ctx);
                 let body_tokens = body.to_rust_expr(ctx)?;
 
                 if use_return_keyword {
@@ -1402,6 +1542,13 @@ fn apply_truthiness_conversion(
         if is_collection_var_name(var_name) {
             return parse_quote! { !#cond_expr.is_empty() };
         }
+
+        // DEPYLER-1071: Heuristic fallback for common Option variable names
+        // This handles regex match results and other optional values
+        // Pattern: `if m:` where m is a regex match result (Option<Match>)
+        if is_option_var_name(var_name) {
+            return parse_quote! { #cond_expr.is_some() };
+        }
     }
 
     // DEPYLER-0570: Handle dict index access in conditions
@@ -1642,6 +1789,71 @@ fn apply_truthiness_conversion(
 
     // Not a variable or no type info - use as-is
     cond_expr
+}
+
+/// DEPYLER-1071: Check if body expression uses the Option variable in a method call
+/// Pattern: `m.group(0)` where m is the Option variable
+fn body_uses_option_var(body: &HirExpr, var_name: &str) -> bool {
+    match body {
+        // Direct method call on the variable: m.group(0)
+        HirExpr::MethodCall { object, .. } => {
+            if let HirExpr::Var(obj_name) = object.as_ref() {
+                return obj_name == var_name;
+            }
+            body_uses_option_var(object, var_name)
+        }
+        // Attribute access on the variable
+        HirExpr::Attribute { value, .. } => {
+            if let HirExpr::Var(obj_name) = value.as_ref() {
+                return obj_name == var_name;
+            }
+            body_uses_option_var(value, var_name)
+        }
+        // Variable used directly
+        HirExpr::Var(name) => name == var_name,
+        _ => false,
+    }
+}
+
+/// DEPYLER-1071: Substitute a variable name in a HIR expression
+fn substitute_var_in_hir(expr: &HirExpr, old_name: &str, new_name: &str) -> HirExpr {
+    match expr {
+        HirExpr::Var(name) if name == old_name => HirExpr::Var(new_name.to_string()),
+        HirExpr::MethodCall {
+            object,
+            method,
+            args,
+            kwargs,
+        } => HirExpr::MethodCall {
+            object: Box::new(substitute_var_in_hir(object, old_name, new_name)),
+            method: method.clone(),
+            args: args
+                .iter()
+                .map(|a| substitute_var_in_hir(a, old_name, new_name))
+                .collect(),
+            kwargs: kwargs
+                .iter()
+                .map(|(k, v)| (k.clone(), substitute_var_in_hir(v, old_name, new_name)))
+                .collect(),
+        },
+        HirExpr::Attribute { value, attr } => HirExpr::Attribute {
+            value: Box::new(substitute_var_in_hir(value, old_name, new_name)),
+            attr: attr.clone(),
+        },
+        HirExpr::Call { func, args, kwargs } => HirExpr::Call {
+            func: func.clone(),
+            args: args
+                .iter()
+                .map(|a| substitute_var_in_hir(a, old_name, new_name))
+                .collect(),
+            kwargs: kwargs
+                .iter()
+                .map(|(k, v)| (k.clone(), substitute_var_in_hir(v, old_name, new_name)))
+                .collect(),
+        },
+        // For other expression types, return as-is
+        _ => expr.clone(),
+    }
 }
 
 // DEPYLER-0379: Extract all simple symbol assignments from a statement block
@@ -2221,6 +2433,34 @@ pub(crate) fn codegen_for_stmt(
     };
 
     let mut iter_expr = iter.to_rust_expr(ctx)?;
+
+    // DEPYLER-1082: Handle iteration over iterator-typed generator state vars
+    // Box<dyn Iterator> doesn't implement IntoIterator, so we need while-let loop
+    if ctx.in_generator {
+        if let HirExpr::Var(var_name) = iter {
+            if ctx.generator_iterator_state_vars.contains(var_name) {
+                // Generate: while let Some(x) = self.var_name.next() { body }
+                let var_ident = safe_ident(var_name);
+                ctx.enter_scope();
+                // Declare loop variable
+                if let AssignTarget::Symbol(name) = target {
+                    ctx.declare_var(name);
+                }
+                let body_stmts: Vec<_> = body
+                    .iter()
+                    .map(|s| s.to_rust_tokens(ctx))
+                    .collect::<Result<Vec<_>>>()?;
+                ctx.exit_scope();
+                ctx.is_final_statement = saved_is_final;
+
+                return Ok(quote! {
+                    while let Some(#target_pattern) = self.#var_ident.next() {
+                        #(#body_stmts)*
+                    }
+                });
+            }
+        }
+    }
 
     // DEPYLER-0388: Handle sys.stdin iteration
     // Python: for line in sys.stdin:
@@ -2822,8 +3062,9 @@ pub(crate) fn codegen_assign_stmt(
                         .insert(cse_var.clone(), cmd_name.clone());
 
                     // DEPYLER-0456 Bug #3 FIX: Always use "command" as Rust field name
+                    // DEPYLER-1063: args.command is Option<Commands>, wrap pattern in Some()
                     return Ok(quote! {
-                        let #var_ident = matches!(args.command, Commands::#variant_name { .. });
+                        let #var_ident = matches!(args.command, Some(Commands::#variant_name { .. }));
                     });
                 }
             }
@@ -2907,9 +3148,12 @@ pub(crate) fn codegen_assign_stmt(
     // DEPYLER-0520: Track variables assigned from iterator-producing expressions
     // Generator expressions and method chains ending in filter/map/etc produce iterators,
     // not collections. These variables should NOT have .iter().cloned() added in for loops.
+    // DEPYLER-1078: Also mark iterator variables as mutable since .next() requires &mut self
     if let AssignTarget::Symbol(var_name) = target {
         if is_iterator_producing_expr(value) {
             ctx.iterator_vars.insert(var_name.clone());
+            // DEPYLER-1078: Iterators need to be mutable for .next() calls
+            ctx.mutable_vars.insert(var_name.clone());
         }
     }
 
@@ -3645,6 +3889,18 @@ pub(crate) fn codegen_assign_stmt(
 
     let mut value_expr = value.to_rust_expr(ctx)?;
 
+    // DEPYLER-1113: Propagate external library return type to var_types
+    // When the expression was a MethodCall on an external module (e.g., requests.get),
+    // the TypeDB lookup stored the return type. Now propagate it to var_types so
+    // subsequent expressions (e.g., resp.json()) have type info.
+    if let AssignTarget::Symbol(var_name) = target {
+        if let Some(return_type_str) = ctx.last_external_call_return_type.take() {
+            // Map the external type string to a Type
+            // For now, use Type::Custom with the full qualified name
+            ctx.var_types.insert(var_name.clone(), Type::Custom(return_type_str));
+        }
+    }
+
     // DEPYLER-0727: Restore previous assignment type
     ctx.current_assign_type = prev_assign_type;
 
@@ -3731,6 +3987,19 @@ pub(crate) fn codegen_assign_stmt(
         // Pass the value expression to determine if cast is actually needed
         if needs_type_conversion(actual_type, value) {
             value_expr = apply_type_conversion(value_expr, actual_type);
+        }
+
+        // DEPYLER-1054: Assignment Coercion - extract concrete types from DepylerValue
+        // When RHS is a DepylerValue expression and LHS has a concrete type annotation,
+        // automatically inject .to_i64()/.to_f64()/.to_string()/.to_bool() extraction.
+        // Example: x: int = data["count"] → let x: i32 = data["count"].to_i64() as i32;
+        // DEPYLER-1064: Wrap in parentheses to ensure correct precedence for complex expressions
+        // Example: x: int = count + 1 → let x: i32 = (count + 1).to_i64() as i32;
+        if expr_produces_depyler_value(value, ctx) {
+            if let Some(extraction) = get_depyler_extraction_for_type(actual_type) {
+                let extraction_tokens: proc_macro2::TokenStream = extraction.parse().unwrap();
+                value_expr = parse_quote! { (#value_expr) #extraction_tokens };
+            }
         }
 
         // DEPYLER-0380 Bug #1: String literal to String conversion
@@ -3846,7 +4115,7 @@ pub(crate) fn codegen_assign_stmt(
             codegen_assign_attribute(value, attr, value_expr, ctx)
         }
         AssignTarget::Tuple(targets) => {
-            codegen_assign_tuple(targets, value_expr, type_annotation_tokens, ctx)
+            codegen_assign_tuple(targets, value, value_expr, type_annotation_tokens, ctx)
         }
     }
 }
@@ -3921,9 +4190,49 @@ pub(crate) fn codegen_assign_symbol(
         // DEPYLER-0604: Check if variable has Optional type and wrap value in Some()
         let final_value = if let Some(Type::Optional(inner_type)) = ctx.var_types.get(symbol) {
             // Check if the value is already wrapped in Some or is None
+            // DEPYLER-1093: Also check for expressions that already return Option<T>
             let value_str = quote!(#value_expr).to_string();
-            if value_str.starts_with("Some") || value_str == "None" {
-                value_expr
+
+            // DEPYLER-1093: Check if source variable is also Optional type
+            // When assigning from Option<T> variable to Option<T> target, don't wrap
+            // Extract variable name from simple path expression (e.g., "default" from syn::Expr)
+            let source_var_is_optional = if let syn::Expr::Path(ref path) = value_expr {
+                if path.path.segments.len() == 1 {
+                    let source_var = path.path.segments[0].ident.to_string();
+                    ctx.var_types
+                        .get(&source_var)
+                        .map(|ty| matches!(ty, Type::Optional(_)))
+                        .unwrap_or(false)
+                } else {
+                    false
+                }
+            } else {
+                false
+            };
+
+            // Expression patterns that already return Option<T>
+            let expr_returns_option = value_str.starts_with("Some")
+                || value_str == "None"
+                // .ok() converts Result<T, E> to Option<T>
+                || value_str.ends_with(".ok()")
+                || value_str.ends_with(". ok ()")
+                // .get(...) on HashMap/Vec returns Option
+                || value_str.contains(".get(")
+                || value_str.contains(". get (")
+                // .cloned() preserves Option
+                || value_str.ends_with(".cloned()")
+                || value_str.ends_with(". cloned ()")
+                // .as_ref() on Option preserves Option
+                || (value_str.contains(".as_ref()") && !value_str.contains(".unwrap()"));
+
+            if source_var_is_optional || expr_returns_option {
+                // DEPYLER-1093: If source is &Option<T> variable, need .clone() for owned Option<T>
+                // But if it's an expression like .ok() or .get(), it returns owned Option
+                if source_var_is_optional && !expr_returns_option {
+                    parse_quote! { #value_expr.clone() }
+                } else {
+                    value_expr
+                }
             } else {
                 // Wrap non-Optional value in Some()
                 // DEPYLER-0604: Handle string conversion for Optional<String>
@@ -4311,7 +4620,29 @@ pub(crate) fn codegen_assign_index(
         false
     };
 
-    let final_index = if !is_numeric_index && !dict_has_int_keys {
+    // DEPYLER-1073: Check if dict has float keys (uses DepylerValue)
+    let dict_has_float_keys = if let HirExpr::Var(base_name) = base {
+        ctx.var_types.get(base_name).is_some_and(|t| {
+            matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Float))
+        })
+    } else {
+        false
+    };
+
+    let final_index = if dict_has_float_keys {
+        // DEPYLER-1073: Float keys use DepylerValue for Hash/Eq support
+        ctx.needs_depyler_value_enum = true;
+        // Wrap float literal in DepylerValue::Float()
+        if matches!(index, HirExpr::Literal(crate::hir::Literal::Float(_))) {
+            parse_quote! { DepylerValue::Float(#final_index) }
+        } else if matches!(index, HirExpr::Literal(crate::hir::Literal::Int(_))) {
+            // Int literal used as float key - convert to float
+            parse_quote! { DepylerValue::Float(#final_index as f64) }
+        } else {
+            // Variable - use From trait
+            parse_quote! { DepylerValue::from(#final_index) }
+        }
+    } else if !is_numeric_index && !dict_has_int_keys {
         let idx_str = quote! { #final_index }.to_string();
         // Check if already has .to_string() - handle spaces from quote! macro
         // quote! produces ". to_string ( )" with spaces, not ".to_string()"
@@ -4406,11 +4737,16 @@ pub(crate) fn codegen_assign_attribute(
 /// When inside a generator, state variables must be assigned via self.field
 /// instead of local variable destructuring.
 ///
+/// DEPYLER-1064: Handle DepylerValue tuple unpacking
+/// When the value expression produces a DepylerValue (e.g., from dict access),
+/// inject get_tuple_elem() calls with type coercion for each target.
+///
 /// # Complexity: 9 (within ≤10 target)
 #[inline]
 #[allow(clippy::unnecessary_to_owned)] // HashSet<String> requires owned String for contains()
 pub(crate) fn codegen_assign_tuple(
     targets: &[AssignTarget],
+    value: &HirExpr,
     value_expr: syn::Expr,
     _type_annotation_tokens: Option<proc_macro2::TokenStream>,
     ctx: &mut CodeGenContext,
@@ -4423,6 +4759,154 @@ pub(crate) fn codegen_assign_tuple(
             _ => None,
         })
         .collect();
+
+    // DEPYLER-1064: Handle native tuples of DepylerValue elements (e.g., Tuple[Any, Any, Any])
+    // These become (DepylerValue, DepylerValue, DepylerValue) in Rust, use positional access .0, .1, .2
+    if is_native_depyler_tuple(value, ctx) {
+        if let Some(ref symbols) = all_symbols {
+            // Generate: let _tuple_tmp = <value_expr>;
+            //          let var0 = _tuple_tmp.0<extraction>;
+            //          let var1 = _tuple_tmp.1<extraction>;
+            let temp_var = syn::Ident::new("_tuple_tmp", proc_macro2::Span::call_site());
+
+            // Pre-collect type info and mutability before mutable borrows
+            let target_info: Vec<_> = symbols
+                .iter()
+                .map(|s| {
+                    let target_type = ctx.var_types.get(*s).cloned();
+                    let is_mutable = ctx.mutable_vars.contains(*s);
+                    (*s, target_type, is_mutable)
+                })
+                .collect();
+
+            // Declare all variables and register types for DepylerValue unpacking
+            for (s, target_type, _) in &target_info {
+                if !ctx.is_declared(s) {
+                    ctx.declare_var(s);
+                }
+                // DEPYLER-1064: Register unpacked variables with Unknown type if no annotation
+                // This ensures string method calls can detect DepylerValue variables later
+                if target_type.is_none() {
+                    ctx.var_types.insert(s.to_string(), Type::Unknown);
+                }
+            }
+
+            let assignments: Vec<proc_macro2::TokenStream> = target_info
+                .iter()
+                .enumerate()
+                .map(|(idx, (s, target_type, is_mutable))| {
+                    let ident = safe_ident(s);
+                    let index = syn::Index::from(idx);
+
+                    let mut_token = if *is_mutable {
+                        quote! { mut }
+                    } else {
+                        quote! {}
+                    };
+
+                    // Generate extraction with type coercion if target type is known
+                    // Use positional access (.0, .1, .2) for native tuples
+                    match target_type {
+                        Some(Type::Int) => {
+                            quote! { let #mut_token #ident: i32 = #temp_var.#index.to_i64() as i32; }
+                        }
+                        Some(Type::Float) => {
+                            quote! { let #mut_token #ident: f64 = #temp_var.#index.to_f64(); }
+                        }
+                        Some(Type::String) => {
+                            quote! { let #mut_token #ident: String = #temp_var.#index.to_string(); }
+                        }
+                        Some(Type::Bool) => {
+                            quote! { let #mut_token #ident: bool = #temp_var.#index.to_bool(); }
+                        }
+                        _ => {
+                            // No known type, keep as DepylerValue
+                            quote! { let #mut_token #ident = #temp_var.#index.clone(); }
+                        }
+                    }
+                })
+                .collect();
+
+            return Ok(quote! {
+                let #temp_var = #value_expr;
+                #(#assignments)*
+            });
+        }
+    }
+
+    // DEPYLER-1064: Check if value produces DepylerValue (e.g., from dict access)
+    // If so, inject get_tuple_elem() calls with type coercion for each target
+    if expr_produces_depyler_value(value, ctx) {
+        if let Some(ref symbols) = all_symbols {
+            // Generate: let _tuple_tmp = <value_expr>;
+            //          let var0 = _tuple_tmp.get_tuple_elem(0)<extraction>;
+            //          let var1 = _tuple_tmp.get_tuple_elem(1)<extraction>;
+            let temp_var = syn::Ident::new("_tuple_tmp", proc_macro2::Span::call_site());
+            let num_targets = symbols.len();
+
+            // Pre-collect type info and mutability before mutable borrows
+            let target_info: Vec<_> = symbols
+                .iter()
+                .map(|s| {
+                    let target_type = ctx.var_types.get(*s).cloned();
+                    let is_mutable = ctx.mutable_vars.contains(*s);
+                    (*s, target_type, is_mutable)
+                })
+                .collect();
+
+            // Declare all variables
+            for s in symbols.iter() {
+                if !ctx.is_declared(s) {
+                    ctx.declare_var(s);
+                }
+            }
+
+            let assignments: Vec<proc_macro2::TokenStream> = target_info
+                .iter()
+                .enumerate()
+                .map(|(idx, (s, target_type, is_mutable))| {
+                    let ident = safe_ident(s);
+                    let idx_lit = syn::LitInt::new(&idx.to_string(), proc_macro2::Span::call_site());
+
+                    let mut_token = if *is_mutable {
+                        quote! { mut }
+                    } else {
+                        quote! {}
+                    };
+
+                    // Generate extraction with type coercion if target type is known
+                    match target_type {
+                        Some(Type::Int) => {
+                            quote! { let #mut_token #ident: i32 = #temp_var.get_tuple_elem(#idx_lit).to_i64() as i32; }
+                        }
+                        Some(Type::Float) => {
+                            quote! { let #mut_token #ident: f64 = #temp_var.get_tuple_elem(#idx_lit).to_f64(); }
+                        }
+                        Some(Type::String) => {
+                            quote! { let #mut_token #ident: String = #temp_var.get_tuple_elem(#idx_lit).to_string(); }
+                        }
+                        Some(Type::Bool) => {
+                            quote! { let #mut_token #ident: bool = #temp_var.get_tuple_elem(#idx_lit).to_bool(); }
+                        }
+                        _ => {
+                            // No known type, keep as DepylerValue
+                            quote! { let #mut_token #ident = #temp_var.get_tuple_elem(#idx_lit); }
+                        }
+                    }
+                })
+                .collect();
+
+            // Add validation for tuple length at runtime
+            let num_lit = syn::LitInt::new(&num_targets.to_string(), proc_macro2::Span::call_site());
+
+            return Ok(quote! {
+                let #temp_var = #value_expr;
+                // Validate tuple has expected number of elements
+                let _ = #temp_var.extract_tuple(#num_lit);
+                #(#assignments)*
+            });
+        }
+    }
 
     match all_symbols {
         Some(symbols) => {

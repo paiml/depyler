@@ -357,6 +357,12 @@ pub struct CodeGenContext<'a> {
     /// to reduce E0308 type mismatch errors.
     #[cfg(feature = "sovereign-types")]
     pub type_query: Option<std::sync::Arc<std::sync::Mutex<depyler_knowledge::TypeQuery>>>,
+
+    /// DEPYLER-1113: Last external call return type for assignment propagation
+    /// When a MethodCall on an external module is encountered (e.g., requests.get),
+    /// stores the return type string for use when processing the assignment.
+    /// Reset to None after the assignment is processed.
+    pub last_external_call_return_type: Option<String>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -748,6 +754,7 @@ pub mod test_helpers {
             module_constant_types: HashMap::new(), // DEPYLER-1060
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
+            last_external_call_return_type: None, // DEPYLER-1113
         }
     }
 }
