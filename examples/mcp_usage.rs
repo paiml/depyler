@@ -5,8 +5,8 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::path::PathBuf;
-    const STR___2: &'static str = "\n";
     const STR___1: &'static str = "=";
+    const STR___2: &'static str = "\n";
     use std::collections::HashMap;
     #[derive(Debug, Clone)] pub struct ZeroDivisionError {
     message: String ,
@@ -274,6 +274,30 @@ impl std::ops::Index<i32>for DepylerValue {
     fn from(v: std::collections::HashMap<String, DepylerValue>) -> Self {
     let converted: std::collections::HashMap<DepylerValue, DepylerValue>= v.into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect();
     DepylerValue::Dict(converted)
+}
+} impl From<DepylerValue>for i64 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_i64()
+}
+} impl From<DepylerValue>for i32 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_i64() as i32
+}
+} impl From<DepylerValue>for f64 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_f64()
+}
+} impl From<DepylerValue>for f32 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_f64() as f32
+}
+} impl From<DepylerValue>for String {
+    fn from(v: DepylerValue) -> Self {
+    v.as_string()
+}
+} impl From<DepylerValue>for bool {
+    fn from(v: DepylerValue) -> Self {
+    v.to_bool()
 }
 } impl std::ops::Add for DepylerValue {
     type Output = DepylerValue;
@@ -726,6 +750,17 @@ impl PyAdd for i32 {
 } impl PyAdd<String>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: String) -> String {
+    format!("{}{}", self, rhs)
+}
+} impl PyAdd<char>for String {
+    type Output = String;
+    #[inline] fn py_add(mut self, rhs: char) -> String {
+    self.push(rhs);
+    self
+}
+} impl PyAdd<char>for & str {
+    type Output = String;
+    #[inline] fn py_add(self, rhs: char) -> String {
     format!("{}{}", self, rhs)
 }
 } impl PyAdd for DepylerValue {

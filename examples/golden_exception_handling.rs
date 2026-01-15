@@ -445,6 +445,36 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<DepylerValue> for i64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64()
+    }
+}
+impl From<DepylerValue> for i32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64() as i32
+    }
+}
+impl From<DepylerValue> for f64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64()
+    }
+}
+impl From<DepylerValue> for f32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64() as f32
+    }
+}
+impl From<DepylerValue> for String {
+    fn from(v: DepylerValue) -> Self {
+        v.as_string()
+    }
+}
+impl From<DepylerValue> for bool {
+    fn from(v: DepylerValue) -> Self {
+        v.to_bool()
+    }
+}
 impl std::ops::Add for DepylerValue {
     type Output = DepylerValue;
     fn add(self, rhs: Self) -> Self::Output {
@@ -1074,6 +1104,21 @@ impl PyAdd<String> for &str {
     type Output = String;
     #[inline]
     fn py_add(self, rhs: String) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
+impl PyAdd<char> for String {
+    type Output = String;
+    #[inline]
+    fn py_add(mut self, rhs: char) -> String {
+        self.push(rhs);
+        self
+    }
+}
+impl PyAdd<char> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: char) -> String {
         format!("{}{}", self, rhs)
     }
 }
@@ -2558,7 +2603,7 @@ pub fn divide_safe(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "try/except with KeyError.\n\n    Python: try d[key] except KeyError\n    Rust: d.get(&key).cloned().unwrap_or(-1)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_with_key_error<'b, 'a>(
+pub fn get_with_key_error<'a, 'b>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -2567,7 +2612,7 @@ pub fn get_with_key_error<'b, 'a>(
 #[doc = "try/except with exception variable binding.\n\n    Python: except KeyError as e → use e\n    Rust: Err(e) =>format!(\"Error: {}\", e)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_with_bound_exception<'b, 'a>(
+pub fn get_with_bound_exception<'a, 'b>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -2587,7 +2632,7 @@ pub fn get_with_bound_exception<'b, 'a>(
 #[doc = "Multiple exception type handlers.\n\n    Python: except ValueError, except KeyError\n    Rust: match with multiple Err patterns\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn multiple_handlers<'a, 'b>(
+pub fn multiple_handlers<'b, 'a>(
     s: &'a str,
     d: &'b std::collections::HashMap<String, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {

@@ -429,6 +429,36 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<DepylerValue> for i64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64()
+    }
+}
+impl From<DepylerValue> for i32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64() as i32
+    }
+}
+impl From<DepylerValue> for f64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64()
+    }
+}
+impl From<DepylerValue> for f32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64() as f32
+    }
+}
+impl From<DepylerValue> for String {
+    fn from(v: DepylerValue) -> Self {
+        v.as_string()
+    }
+}
+impl From<DepylerValue> for bool {
+    fn from(v: DepylerValue) -> Self {
+        v.to_bool()
+    }
+}
 impl std::ops::Add for DepylerValue {
     type Output = DepylerValue;
     fn add(self, rhs: Self) -> Self::Output {
@@ -1058,6 +1088,21 @@ impl PyAdd<String> for &str {
     type Output = String;
     #[inline]
     fn py_add(self, rhs: String) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
+impl PyAdd<char> for String {
+    type Output = String;
+    #[inline]
+    fn py_add(mut self, rhs: char) -> String {
+        self.push(rhs);
+        self
+    }
+}
+impl PyAdd<char> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: char) -> String {
         format!("{}{}", self, rhs)
     }
 }
@@ -2487,10 +2532,10 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
 pub fn calculate_statistics(
     data: &Vec<f64>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
+    let mut variance_sum: f64 = Default::default();
+    let mut min_val: f64 = Default::default();
     let mut total: f64 = Default::default();
     let mut max_val: f64 = Default::default();
-    let mut min_val: f64 = Default::default();
-    let mut variance_sum: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -2822,14 +2867,14 @@ pub fn bin_data(
 }
 #[doc = "Calculate Pearson correlation coefficient"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_correlation<'a, 'b>(
+pub fn calculate_correlation<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
     let mut x_sum: f64 = Default::default();
     let mut x_variance_sum: f64 = Default::default();
-    let mut numerator: f64 = Default::default();
     let mut y_sum: f64 = Default::default();
+    let mut numerator: f64 = Default::default();
     let mut y_variance_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
@@ -2920,12 +2965,12 @@ pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Er
     Ok(normalized)
 }
 #[doc = "Group data by ranges using collections"]
-pub fn group_by_range<'a, 'b>(
+pub fn group_by_range<'b, 'a>(
     data: &'a Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, Box<dyn std::error::Error>> {
-    let mut range_tuple: (f64, f64) = Default::default();
     let mut range_key: String = Default::default();
+    let mut range_tuple: (f64, f64) = Default::default();
     let mut groups: std::collections::HashMap<String, Vec<f64>> = {
         let map: HashMap<String, Vec<f64>> = HashMap::new();
         map

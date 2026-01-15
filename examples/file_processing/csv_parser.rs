@@ -272,6 +272,30 @@ impl std::ops::Index<i32>for DepylerValue {
     let converted: std::collections::HashMap<DepylerValue, DepylerValue>= v.into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect();
     DepylerValue::Dict(converted)
 }
+} impl From<DepylerValue>for i64 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_i64()
+}
+} impl From<DepylerValue>for i32 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_i64() as i32
+}
+} impl From<DepylerValue>for f64 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_f64()
+}
+} impl From<DepylerValue>for f32 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_f64() as f32
+}
+} impl From<DepylerValue>for String {
+    fn from(v: DepylerValue) -> Self {
+    v.as_string()
+}
+} impl From<DepylerValue>for bool {
+    fn from(v: DepylerValue) -> Self {
+    v.to_bool()
+}
 } impl std::ops::Add for DepylerValue {
     type Output = DepylerValue;
     fn add(self, rhs: Self) -> Self::Output {
@@ -723,6 +747,17 @@ impl PyAdd for i32 {
 } impl PyAdd<String>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: String) -> String {
+    format!("{}{}", self, rhs)
+}
+} impl PyAdd<char>for String {
+    type Output = String;
+    #[inline] fn py_add(mut self, rhs: char) -> String {
+    self.push(rhs);
+    self
+}
+} impl PyAdd<char>for & str {
+    type Output = String;
+    #[inline] fn py_add(self, rhs: char) -> String {
     format!("{}{}", self, rhs)
 }
 } impl PyAdd for DepylerValue {
@@ -2071,7 +2106,7 @@ let _cse_temp_2 = values.iter().sum::<i32>();
     map.insert("max".to_string(), DepylerValue::Int(max_val as i64));
     map })
 }
-#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'a, 'b>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
+#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'b, 'a>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let rows = parser.parse_string(csv_content);
     if! rows {
@@ -2113,7 +2148,7 @@ else {
 }
 Ok(result_lines.join ("\n"))
 }
-#[doc = "Group CSV rows by values in specified column"] pub fn group_by_column<'b, 'a>(csv_content: & 'a str, group_column: & 'b str) -> Result<HashMap<String, Vec<HashMap<String, String>>>, Box<dyn std::error::Error>>{
+#[doc = "Group CSV rows by values in specified column"] pub fn group_by_column<'a, 'b>(csv_content: & 'a str, group_column: & 'b str) -> Result<HashMap<String, Vec<HashMap<String, String>>>, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let dict_rows = parser.to_dict_list(csv_content);
     let mut groups: std::collections::HashMap<String, Vec<std::collections::HashMap<String, String>>>= {

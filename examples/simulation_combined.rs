@@ -429,6 +429,36 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<DepylerValue> for i64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64()
+    }
+}
+impl From<DepylerValue> for i32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64() as i32
+    }
+}
+impl From<DepylerValue> for f64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64()
+    }
+}
+impl From<DepylerValue> for f32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64() as f32
+    }
+}
+impl From<DepylerValue> for String {
+    fn from(v: DepylerValue) -> Self {
+        v.as_string()
+    }
+}
+impl From<DepylerValue> for bool {
+    fn from(v: DepylerValue) -> Self {
+        v.to_bool()
+    }
+}
 impl std::ops::Add for DepylerValue {
     type Output = DepylerValue;
     fn add(self, rhs: Self) -> Self::Output {
@@ -1058,6 +1088,21 @@ impl PyAdd<String> for &str {
     type Output = String;
     #[inline]
     fn py_add(self, rhs: String) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
+impl PyAdd<char> for String {
+    type Output = String;
+    #[inline]
+    fn py_add(mut self, rhs: char) -> String {
+        self.push(rhs);
+        self
+    }
+}
+impl PyAdd<char> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: char) -> String {
         format!("{}{}", self, rhs)
     }
 }
@@ -2529,10 +2574,10 @@ pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
 pub fn count_streaks(
     sequence: &Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let mut current_streak: i32 = Default::default();
-    let mut max_heads_streak: i32 = Default::default();
     let mut max_tails_streak: i32 = Default::default();
+    let mut max_heads_streak: i32 = Default::default();
     let mut current_type: String = Default::default();
+    let mut current_streak: i32 = Default::default();
     let _cse_temp_0 = sequence.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -2621,8 +2666,8 @@ pub fn monte_carlo_pi_estimation(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
-    let mut y: i32 = Default::default();
     let mut x: i32 = Default::default();
+    let mut y: i32 = Default::default();
     x = 0;
     y = 0;
     for _step in 0..(num_steps) {
@@ -2785,8 +2830,8 @@ pub fn simulate_population_growth(
 pub fn analyze_population_trend(
     populations: &Vec<i32>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut peak: i32 = Default::default();
     let mut total_growth: f64 = Default::default();
+    let mut peak: i32 = Default::default();
     let _cse_temp_0 = populations.len() as i32;
     let _cse_temp_1 = _cse_temp_0 < 2;
     if _cse_temp_1 {

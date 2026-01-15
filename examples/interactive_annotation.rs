@@ -6,9 +6,9 @@
 #![allow(dead_code)]
 use std::f64 as math;
     const STR_B: &'static str = "B";
+    const STR_C: &'static str = "C";
     const STR_A: &'static str = "A";
     const STR_D: &'static str = "D";
-    const STR_C: &'static str = "C";
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::io::Write;
@@ -278,6 +278,30 @@ impl std::ops::Index<i32>for DepylerValue {
     fn from(v: std::collections::HashMap<String, DepylerValue>) -> Self {
     let converted: std::collections::HashMap<DepylerValue, DepylerValue>= v.into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect();
     DepylerValue::Dict(converted)
+}
+} impl From<DepylerValue>for i64 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_i64()
+}
+} impl From<DepylerValue>for i32 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_i64() as i32
+}
+} impl From<DepylerValue>for f64 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_f64()
+}
+} impl From<DepylerValue>for f32 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_f64() as f32
+}
+} impl From<DepylerValue>for String {
+    fn from(v: DepylerValue) -> Self {
+    v.as_string()
+}
+} impl From<DepylerValue>for bool {
+    fn from(v: DepylerValue) -> Self {
+    v.to_bool()
 }
 } impl std::ops::Add for DepylerValue {
     type Output = DepylerValue;
@@ -730,6 +754,17 @@ impl PyAdd for i32 {
 } impl PyAdd<String>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: String) -> String {
+    format!("{}{}", self, rhs)
+}
+} impl PyAdd<char>for String {
+    type Output = String;
+    #[inline] fn py_add(mut self, rhs: char) -> String {
+    self.push(rhs);
+    self
+}
+} impl PyAdd<char>for & str {
+    type Output = String;
+    #[inline] fn py_add(self, rhs: char) -> String {
     format!("{}{}", self, rhs)
 }
 } impl PyAdd for DepylerValue {
@@ -1934,7 +1969,7 @@ else {
 };
    
 }
-} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'a, 'b>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
+} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'b, 'a>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
     let _cse_temp_0 = a.len() as i32;
     let n = _cse_temp_0;
     let _cse_temp_1 = b.get(0usize).cloned().expect("IndexError: list index out of range").len() as i32;
