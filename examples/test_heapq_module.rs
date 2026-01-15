@@ -207,8 +207,9 @@ impl DepylerValue {
             _ => EMPTY_MAP.values(),
         }
     }
-    #[doc = r" Convert to String"]
-    pub fn to_string(&self) -> String {
+    #[doc = r" Convert to String(renamed to avoid shadowing Display::to_string)"]
+    #[doc = r" DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display"]
+    pub fn as_string(&self) -> String {
         match self {
             DepylerValue::Str(_dv_str) => _dv_str.clone(),
             DepylerValue::Int(_dv_int) => _dv_int.to_string(),
@@ -425,6 +426,36 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
             .map(|(k, v)| (DepylerValue::Str(k), v))
             .collect();
         DepylerValue::Dict(converted)
+    }
+}
+impl From<DepylerValue> for i64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64()
+    }
+}
+impl From<DepylerValue> for i32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64() as i32
+    }
+}
+impl From<DepylerValue> for f64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64()
+    }
+}
+impl From<DepylerValue> for f32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64() as f32
+    }
+}
+impl From<DepylerValue> for String {
+    fn from(v: DepylerValue) -> Self {
+        v.as_string()
+    }
+}
+impl From<DepylerValue> for bool {
+    fn from(v: DepylerValue) -> Self {
+        v.to_bool()
     }
 }
 impl std::ops::Add for DepylerValue {
@@ -835,6 +866,1282 @@ pub fn depyler_max<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
         a
     } else {
         b
+    }
+}
+pub trait PyTruthy {
+    #[doc = r#" Returns true if the value is "truthy" in Python semantics."#]
+    fn is_true(&self) -> bool;
+}
+impl PyTruthy for bool {
+    #[inline]
+    fn is_true(&self) -> bool {
+        *self
+    }
+}
+impl PyTruthy for i32 {
+    #[inline]
+    fn is_true(&self) -> bool {
+        *self != 0
+    }
+}
+impl PyTruthy for i64 {
+    #[inline]
+    fn is_true(&self) -> bool {
+        *self != 0
+    }
+}
+impl PyTruthy for f32 {
+    #[inline]
+    fn is_true(&self) -> bool {
+        *self != 0.0
+    }
+}
+impl PyTruthy for f64 {
+    #[inline]
+    fn is_true(&self) -> bool {
+        *self != 0.0
+    }
+}
+impl PyTruthy for String {
+    #[inline]
+    fn is_true(&self) -> bool {
+        !self.is_empty()
+    }
+}
+impl PyTruthy for &str {
+    #[inline]
+    fn is_true(&self) -> bool {
+        !self.is_empty()
+    }
+}
+impl<T> PyTruthy for Vec<T> {
+    #[inline]
+    fn is_true(&self) -> bool {
+        !self.is_empty()
+    }
+}
+impl<T> PyTruthy for Option<T> {
+    #[inline]
+    fn is_true(&self) -> bool {
+        self.is_some()
+    }
+}
+impl<K, V> PyTruthy for std::collections::HashMap<K, V> {
+    #[inline]
+    fn is_true(&self) -> bool {
+        !self.is_empty()
+    }
+}
+impl<K, V> PyTruthy for std::collections::BTreeMap<K, V> {
+    #[inline]
+    fn is_true(&self) -> bool {
+        !self.is_empty()
+    }
+}
+impl<T> PyTruthy for std::collections::HashSet<T> {
+    #[inline]
+    fn is_true(&self) -> bool {
+        !self.is_empty()
+    }
+}
+impl<T> PyTruthy for std::collections::BTreeSet<T> {
+    #[inline]
+    fn is_true(&self) -> bool {
+        !self.is_empty()
+    }
+}
+impl<T> PyTruthy for std::collections::VecDeque<T> {
+    #[inline]
+    fn is_true(&self) -> bool {
+        !self.is_empty()
+    }
+}
+impl PyTruthy for DepylerValue {
+    #[doc = r" Python truthiness for DepylerValue:"]
+    #[doc = r#" - Int(0), Float(0.0), Str(""), Bool(false), None -> false"#]
+    #[doc = r" - List([]), Dict({}), Tuple([]) -> false"]
+    #[doc = r" - Everything else -> true"]
+    #[inline]
+    fn is_true(&self) -> bool {
+        match self {
+            DepylerValue::Bool(_dv_b) => *_dv_b,
+            DepylerValue::Int(_dv_i) => *_dv_i != 0,
+            DepylerValue::Float(_dv_f) => *_dv_f != 0.0,
+            DepylerValue::Str(_dv_s) => !_dv_s.is_empty(),
+            DepylerValue::List(_dv_l) => !_dv_l.is_empty(),
+            DepylerValue::Dict(_dv_d) => !_dv_d.is_empty(),
+            DepylerValue::Tuple(_dv_t) => !_dv_t.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+}
+pub trait PyAdd<Rhs = Self> {
+    type Output;
+    fn py_add(self, rhs: Rhs) -> Self::Output;
+}
+pub trait PySub<Rhs = Self> {
+    type Output;
+    fn py_sub(self, rhs: Rhs) -> Self::Output;
+}
+pub trait PyMul<Rhs = Self> {
+    type Output;
+    fn py_mul(self, rhs: Rhs) -> Self::Output;
+}
+pub trait PyDiv<Rhs = Self> {
+    type Output;
+    fn py_div(self, rhs: Rhs) -> Self::Output;
+}
+pub trait PyMod<Rhs = Self> {
+    type Output;
+    fn py_mod(self, rhs: Rhs) -> Self::Output;
+}
+pub trait PyIndex<Idx> {
+    type Output;
+    fn py_index(&self, index: Idx) -> Self::Output;
+}
+impl PyAdd for i32 {
+    type Output = i32;
+    #[inline]
+    fn py_add(self, rhs: i32) -> i32 {
+        self + rhs
+    }
+}
+impl PyAdd<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: i64) -> i64 {
+        self as i64 + rhs
+    }
+}
+impl PyAdd<f64> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: f64) -> f64 {
+        self as f64 + rhs
+    }
+}
+impl PyAdd for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: i64) -> i64 {
+        self + rhs
+    }
+}
+impl PyAdd<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: i32) -> i64 {
+        self + rhs as i64
+    }
+}
+impl PyAdd<f64> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: f64) -> f64 {
+        self as f64 + rhs
+    }
+}
+impl PyAdd for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: f64) -> f64 {
+        self + rhs
+    }
+}
+impl PyAdd<i32> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: i32) -> f64 {
+        self + rhs as f64
+    }
+}
+impl PyAdd<i64> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: i64) -> f64 {
+        self + rhs as f64
+    }
+}
+impl PyAdd for String {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: String) -> String {
+        self + &rhs
+    }
+}
+impl PyAdd<&str> for String {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: &str) -> String {
+        self + rhs
+    }
+}
+impl PyAdd<&str> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: &str) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
+impl PyAdd<String> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: String) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
+impl PyAdd<char> for String {
+    type Output = String;
+    #[inline]
+    fn py_add(mut self, rhs: char) -> String {
+        self.push(rhs);
+        self
+    }
+}
+impl PyAdd<char> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: char) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
+impl PyAdd for DepylerValue {
+    type Output = DepylerValue;
+    fn py_add(self, rhs: DepylerValue) -> DepylerValue {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Int(_dv_a + _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a + _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a as f64 + _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Float(_dv_a + _dv_b as f64)
+            }
+            (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => {
+                DepylerValue::Str(_dv_a + &_dv_b)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl PySub for i32 {
+    type Output = i32;
+    #[inline]
+    fn py_sub(self, rhs: i32) -> i32 {
+        self - rhs
+    }
+}
+impl PySub<f64> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: f64) -> f64 {
+        self as f64 - rhs
+    }
+}
+impl PySub for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: i64) -> i64 {
+        self - rhs
+    }
+}
+impl PySub<f64> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: f64) -> f64 {
+        self as f64 - rhs
+    }
+}
+impl PySub for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: f64) -> f64 {
+        self - rhs
+    }
+}
+impl PySub<i32> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: i32) -> f64 {
+        self - rhs as f64
+    }
+}
+impl PySub<i64> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: i64) -> f64 {
+        self - rhs as f64
+    }
+}
+impl PySub for DepylerValue {
+    type Output = DepylerValue;
+    fn py_sub(self, rhs: DepylerValue) -> DepylerValue {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Int(_dv_a - _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a - _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a as f64 - _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Float(_dv_a - _dv_b as f64)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl PyMul for i32 {
+    type Output = i32;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i32 {
+        self * rhs
+    }
+}
+impl PyMul<f64> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: f64) -> f64 {
+        self as f64 * rhs
+    }
+}
+impl PyMul for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self * rhs
+    }
+}
+impl PyMul<f64> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: f64) -> f64 {
+        self as f64 * rhs
+    }
+}
+impl PyMul for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: f64) -> f64 {
+        self * rhs
+    }
+}
+impl PyMul<i32> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> f64 {
+        self * rhs as f64
+    }
+}
+impl PyMul<i64> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> f64 {
+        self * rhs as f64
+    }
+}
+impl PyMul<i32> for String {
+    type Output = String;
+    fn py_mul(self, rhs: i32) -> String {
+        if rhs <= 0 {
+            String::new()
+        } else {
+            self.repeat(rhs as usize)
+        }
+    }
+}
+impl PyMul<i64> for String {
+    type Output = String;
+    fn py_mul(self, rhs: i64) -> String {
+        if rhs <= 0 {
+            String::new()
+        } else {
+            self.repeat(rhs as usize)
+        }
+    }
+}
+impl PyMul<i32> for &str {
+    type Output = String;
+    fn py_mul(self, rhs: i32) -> String {
+        if rhs <= 0 {
+            String::new()
+        } else {
+            self.repeat(rhs as usize)
+        }
+    }
+}
+impl PyMul<i64> for &str {
+    type Output = String;
+    fn py_mul(self, rhs: i64) -> String {
+        if rhs <= 0 {
+            String::new()
+        } else {
+            self.repeat(rhs as usize)
+        }
+    }
+}
+impl PyMul for DepylerValue {
+    type Output = DepylerValue;
+    fn py_mul(self, rhs: DepylerValue) -> DepylerValue {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Int(_dv_a * _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a * _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a as f64 * _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Float(_dv_a * _dv_b as f64)
+            }
+            (DepylerValue::Str(_dv_s), DepylerValue::Int(_dv_n)) => {
+                if _dv_n <= 0 {
+                    DepylerValue::Str(String::new())
+                } else {
+                    DepylerValue::Str(_dv_s.repeat(_dv_n as usize))
+                }
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+        self.extend(rhs);
+        self
+    }
+}
+impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+        self.extend(rhs.iter().cloned());
+        self
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+        let mut result = self.clone();
+        result.extend(rhs);
+        result
+    }
+}
+impl<T: Clone> PyMul<i32> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<i64> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<usize> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T> {
+        self.iter()
+            .cloned()
+            .cycle()
+            .take(self.len() * rhs)
+            .collect()
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl PyDiv for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: i32) -> f64 {
+        if rhs == 0 {
+            f64::NAN
+        } else {
+            self as f64 / rhs as f64
+        }
+    }
+}
+impl PyDiv<f64> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: f64) -> f64 {
+        if rhs == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / rhs
+        }
+    }
+}
+impl PyDiv for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: i64) -> f64 {
+        if rhs == 0 {
+            f64::NAN
+        } else {
+            self as f64 / rhs as f64
+        }
+    }
+}
+impl PyDiv<f64> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: f64) -> f64 {
+        if rhs == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / rhs
+        }
+    }
+}
+impl PyDiv for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: f64) -> f64 {
+        if rhs == 0.0 {
+            f64::NAN
+        } else {
+            self / rhs
+        }
+    }
+}
+impl PyDiv<i32> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: i32) -> f64 {
+        if rhs == 0 {
+            f64::NAN
+        } else {
+            self / rhs as f64
+        }
+    }
+}
+impl PyDiv<i64> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: i64) -> f64 {
+        if rhs == 0 {
+            f64::NAN
+        } else {
+            self / rhs as f64
+        }
+    }
+}
+impl PyDiv for DepylerValue {
+    type Output = DepylerValue;
+    fn py_div(self, rhs: DepylerValue) -> DepylerValue {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                DepylerValue::Float(_dv_a as f64 / _dv_b as f64)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                DepylerValue::Float(_dv_a / _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                DepylerValue::Float(_dv_a as f64 / _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                DepylerValue::Float(_dv_a / _dv_b as f64)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl PyMod for i32 {
+    type Output = i32;
+    #[inline]
+    fn py_mod(self, rhs: i32) -> i32 {
+        if rhs == 0 {
+            0
+        } else {
+            ((self % rhs) + rhs) % rhs
+        }
+    }
+}
+impl PyMod<f64> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_mod(self, rhs: f64) -> f64 {
+        if rhs == 0.0 {
+            f64::NAN
+        } else {
+            ((self as f64 % rhs) + rhs) % rhs
+        }
+    }
+}
+impl PyMod for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mod(self, rhs: i64) -> i64 {
+        if rhs == 0 {
+            0
+        } else {
+            ((self % rhs) + rhs) % rhs
+        }
+    }
+}
+impl PyMod<f64> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_mod(self, rhs: f64) -> f64 {
+        if rhs == 0.0 {
+            f64::NAN
+        } else {
+            ((self as f64 % rhs) + rhs) % rhs
+        }
+    }
+}
+impl PyMod for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mod(self, rhs: f64) -> f64 {
+        if rhs == 0.0 {
+            f64::NAN
+        } else {
+            ((self % rhs) + rhs) % rhs
+        }
+    }
+}
+impl PyMod<i32> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mod(self, rhs: i32) -> f64 {
+        if rhs == 0 {
+            f64::NAN
+        } else {
+            ((self % rhs as f64) + rhs as f64) % rhs as f64
+        }
+    }
+}
+impl PyMod<i64> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mod(self, rhs: i64) -> f64 {
+        if rhs == 0 {
+            f64::NAN
+        } else {
+            ((self % rhs as f64) + rhs as f64) % rhs as f64
+        }
+    }
+}
+impl PyMod for DepylerValue {
+    type Output = DepylerValue;
+    fn py_mod(self, rhs: DepylerValue) -> DepylerValue {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                DepylerValue::Int(((_dv_a % _dv_b) + _dv_b) % _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                DepylerValue::Float(((_dv_a % _dv_b) + _dv_b) % _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                let a = _dv_a as f64;
+                DepylerValue::Float(((a % _dv_b) + _dv_b) % _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                let b = _dv_b as f64;
+                DepylerValue::Float(((_dv_a % b) + b) % b)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl<T: Clone> PyIndex<i32> for Vec<T> {
+    type Output = Option<T>;
+    fn py_index(&self, index: i32) -> Option<T> {
+        let _dv_len = self.len() as i32;
+        let _dv_idx = if index < 0 { _dv_len + index } else { index };
+        if _dv_idx >= 0 && (_dv_idx as usize) < self.len() {
+            Some(self[_dv_idx as usize].clone())
+        } else {
+            Option::None
+        }
+    }
+}
+impl<T: Clone> PyIndex<i64> for Vec<T> {
+    type Output = Option<T>;
+    fn py_index(&self, index: i64) -> Option<T> {
+        let _dv_len = self.len() as i64;
+        let _dv_idx = if index < 0 { _dv_len + index } else { index };
+        if _dv_idx >= 0 && (_dv_idx as usize) < self.len() {
+            Some(self[_dv_idx as usize].clone())
+        } else {
+            Option::None
+        }
+    }
+}
+impl PyIndex<&str> for std::collections::HashMap<String, DepylerValue> {
+    type Output = Option<DepylerValue>;
+    fn py_index(&self, key: &str) -> Option<DepylerValue> {
+        self.get(key).cloned()
+    }
+}
+impl PyIndex<i32> for String {
+    type Output = Option<char>;
+    fn py_index(&self, index: i32) -> Option<char> {
+        let _dv_len = self.len() as i32;
+        let _dv_idx = if index < 0 { _dv_len + index } else { index };
+        if _dv_idx >= 0 {
+            self.chars().nth(_dv_idx as usize)
+        } else {
+            Option::None
+        }
+    }
+}
+impl PyIndex<i64> for String {
+    type Output = Option<char>;
+    fn py_index(&self, index: i64) -> Option<char> {
+        let _dv_len = self.len() as i64;
+        let _dv_idx = if index < 0 { _dv_len + index } else { index };
+        if _dv_idx >= 0 {
+            self.chars().nth(_dv_idx as usize)
+        } else {
+            Option::None
+        }
+    }
+}
+impl PyIndex<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn py_index(&self, index: i32) -> DepylerValue {
+        match self {
+            DepylerValue::List(_dv_list) => {
+                let _dv_len = _dv_list.len() as i32;
+                let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                if _dv_idx >= 0 && (_dv_idx as usize) < _dv_list.len() {
+                    _dv_list[_dv_idx as usize].clone()
+                } else {
+                    DepylerValue::None
+                }
+            }
+            DepylerValue::Tuple(_dv_tuple) => {
+                let _dv_len = _dv_tuple.len() as i32;
+                let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                if _dv_idx >= 0 && (_dv_idx as usize) < _dv_tuple.len() {
+                    _dv_tuple[_dv_idx as usize].clone()
+                } else {
+                    DepylerValue::None
+                }
+            }
+            DepylerValue::Str(_dv_str) => {
+                let _dv_len = _dv_str.len() as i32;
+                let _dv_idx = if index < 0 { _dv_len + index } else { index };
+                if _dv_idx >= 0 {
+                    _dv_str
+                        .chars()
+                        .nth(_dv_idx as usize)
+                        .map(|_dv_c| DepylerValue::Str(_dv_c.to_string()))
+                        .unwrap_or(DepylerValue::None)
+                } else {
+                    DepylerValue::None
+                }
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl PyIndex<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn py_index(&self, index: i64) -> DepylerValue {
+        self.py_index(index as i32)
+    }
+}
+impl PyIndex<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn py_index(&self, key: &str) -> DepylerValue {
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Str(key.to_string()))
+                .cloned()
+                .unwrap_or(DepylerValue::None),
+            _ => DepylerValue::None,
+        }
+    }
+}
+pub trait PyStringMethods {
+    fn lower(&self) -> String;
+    fn upper(&self) -> String;
+    fn strip(&self) -> String;
+    fn lstrip(&self) -> String;
+    fn rstrip(&self) -> String;
+    fn py_split(&self, sep: &str) -> Vec<String>;
+    fn py_replace(&self, old: &str, new: &str) -> String;
+    fn startswith(&self, prefix: &str) -> bool;
+    fn endswith(&self, suffix: &str) -> bool;
+    fn py_find(&self, sub: &str) -> i64;
+    fn capitalize(&self) -> String;
+    fn title(&self) -> String;
+    fn swapcase(&self) -> String;
+    fn isalpha(&self) -> bool;
+    fn isdigit(&self) -> bool;
+    fn isalnum(&self) -> bool;
+    fn isspace(&self) -> bool;
+    fn islower(&self) -> bool;
+    fn isupper(&self) -> bool;
+    fn center(&self, width: usize) -> String;
+    fn ljust(&self, width: usize) -> String;
+    fn rjust(&self, width: usize) -> String;
+    fn zfill(&self, width: usize) -> String;
+    fn count(&self, sub: &str) -> usize;
+}
+impl PyStringMethods for str {
+    #[inline]
+    fn lower(&self) -> String {
+        self.to_lowercase()
+    }
+    #[inline]
+    fn upper(&self) -> String {
+        self.to_uppercase()
+    }
+    #[inline]
+    fn strip(&self) -> String {
+        self.trim().to_string()
+    }
+    #[inline]
+    fn lstrip(&self) -> String {
+        self.trim_start().to_string()
+    }
+    #[inline]
+    fn rstrip(&self) -> String {
+        self.trim_end().to_string()
+    }
+    #[inline]
+    fn py_split(&self, sep: &str) -> Vec<String> {
+        self.split(sep).map(|s| s.to_string()).collect()
+    }
+    #[inline]
+    fn py_replace(&self, old: &str, new: &str) -> String {
+        self.replace(old, new)
+    }
+    #[inline]
+    fn startswith(&self, prefix: &str) -> bool {
+        self.starts_with(prefix)
+    }
+    #[inline]
+    fn endswith(&self, suffix: &str) -> bool {
+        self.ends_with(suffix)
+    }
+    #[inline]
+    fn py_find(&self, sub: &str) -> i64 {
+        self.find(sub).map(|i| i as i64).unwrap_or(-1)
+    }
+    #[inline]
+    fn capitalize(&self) -> String {
+        let mut chars = self.chars();
+        match chars.next() {
+            None => String::new(),
+            Some(c) => c
+                .to_uppercase()
+                .chain(chars.flat_map(|c| c.to_lowercase()))
+                .collect(),
+        }
+    }
+    #[inline]
+    fn title(&self) -> String {
+        let mut result = String::new();
+        let mut capitalize_next = true;
+        for c in self.chars() {
+            if c.is_whitespace() {
+                result.push(c);
+                capitalize_next = true;
+            } else if capitalize_next {
+                result.extend(c.to_uppercase());
+                capitalize_next = false;
+            } else {
+                result.extend(c.to_lowercase());
+            }
+        }
+        result
+    }
+    #[inline]
+    fn swapcase(&self) -> String {
+        self.chars()
+            .map(|c| {
+                if c.is_uppercase() {
+                    c.to_lowercase().collect::<String>()
+                } else {
+                    c.to_uppercase().collect::<String>()
+                }
+            })
+            .collect()
+    }
+    #[inline]
+    fn isalpha(&self) -> bool {
+        !self.is_empty() && self.chars().all(|c| c.is_alphabetic())
+    }
+    #[inline]
+    fn isdigit(&self) -> bool {
+        !self.is_empty() && self.chars().all(|c| c.is_ascii_digit())
+    }
+    #[inline]
+    fn isalnum(&self) -> bool {
+        !self.is_empty() && self.chars().all(|c| c.is_alphanumeric())
+    }
+    #[inline]
+    fn isspace(&self) -> bool {
+        !self.is_empty() && self.chars().all(|c| c.is_whitespace())
+    }
+    #[inline]
+    fn islower(&self) -> bool {
+        self.chars().any(|c| c.is_lowercase()) && !self.chars().any(|c| c.is_uppercase())
+    }
+    #[inline]
+    fn isupper(&self) -> bool {
+        self.chars().any(|c| c.is_uppercase()) && !self.chars().any(|c| c.is_lowercase())
+    }
+    #[inline]
+    fn center(&self, width: usize) -> String {
+        if self.len() >= width {
+            return self.to_string();
+        }
+        let padding = width - self.len();
+        let left = padding / 2;
+        let right = padding - left;
+        format!("{}{}{}", " ".repeat(left), self, " ".repeat(right))
+    }
+    #[inline]
+    fn ljust(&self, width: usize) -> String {
+        if self.len() >= width {
+            return self.to_string();
+        }
+        format!("{}{}", self, " ".repeat(width - self.len()))
+    }
+    #[inline]
+    fn rjust(&self, width: usize) -> String {
+        if self.len() >= width {
+            return self.to_string();
+        }
+        format!("{}{}", " ".repeat(width - self.len()), self)
+    }
+    #[inline]
+    fn zfill(&self, width: usize) -> String {
+        if self.len() >= width {
+            return self.to_string();
+        }
+        format!("{}{}", "0".repeat(width - self.len()), self)
+    }
+    #[inline]
+    fn count(&self, sub: &str) -> usize {
+        self.matches(sub).count()
+    }
+}
+impl PyStringMethods for String {
+    #[inline]
+    fn lower(&self) -> String {
+        self.as_str().lower()
+    }
+    #[inline]
+    fn upper(&self) -> String {
+        self.as_str().upper()
+    }
+    #[inline]
+    fn strip(&self) -> String {
+        self.as_str().strip()
+    }
+    #[inline]
+    fn lstrip(&self) -> String {
+        self.as_str().lstrip()
+    }
+    #[inline]
+    fn rstrip(&self) -> String {
+        self.as_str().rstrip()
+    }
+    #[inline]
+    fn py_split(&self, sep: &str) -> Vec<String> {
+        self.as_str().py_split(sep)
+    }
+    #[inline]
+    fn py_replace(&self, old: &str, new: &str) -> String {
+        self.as_str().py_replace(old, new)
+    }
+    #[inline]
+    fn startswith(&self, prefix: &str) -> bool {
+        self.as_str().startswith(prefix)
+    }
+    #[inline]
+    fn endswith(&self, suffix: &str) -> bool {
+        self.as_str().endswith(suffix)
+    }
+    #[inline]
+    fn py_find(&self, sub: &str) -> i64 {
+        self.as_str().py_find(sub)
+    }
+    #[inline]
+    fn capitalize(&self) -> String {
+        self.as_str().capitalize()
+    }
+    #[inline]
+    fn title(&self) -> String {
+        self.as_str().title()
+    }
+    #[inline]
+    fn swapcase(&self) -> String {
+        self.as_str().swapcase()
+    }
+    #[inline]
+    fn isalpha(&self) -> bool {
+        self.as_str().isalpha()
+    }
+    #[inline]
+    fn isdigit(&self) -> bool {
+        self.as_str().isdigit()
+    }
+    #[inline]
+    fn isalnum(&self) -> bool {
+        self.as_str().isalnum()
+    }
+    #[inline]
+    fn isspace(&self) -> bool {
+        self.as_str().isspace()
+    }
+    #[inline]
+    fn islower(&self) -> bool {
+        self.as_str().islower()
+    }
+    #[inline]
+    fn isupper(&self) -> bool {
+        self.as_str().isupper()
+    }
+    #[inline]
+    fn center(&self, width: usize) -> String {
+        self.as_str().center(width)
+    }
+    #[inline]
+    fn ljust(&self, width: usize) -> String {
+        self.as_str().ljust(width)
+    }
+    #[inline]
+    fn rjust(&self, width: usize) -> String {
+        self.as_str().rjust(width)
+    }
+    #[inline]
+    fn zfill(&self, width: usize) -> String {
+        self.as_str().zfill(width)
+    }
+    #[inline]
+    fn count(&self, sub: &str) -> usize {
+        self.as_str().count(sub)
+    }
+}
+impl PyStringMethods for DepylerValue {
+    #[inline]
+    fn lower(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.lower(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn upper(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.upper(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn strip(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.strip(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn lstrip(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.lstrip(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn rstrip(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.rstrip(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn py_split(&self, sep: &str) -> Vec<String> {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.py_split(sep),
+            _ => Vec::new(),
+        }
+    }
+    #[inline]
+    fn py_replace(&self, old: &str, new: &str) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.py_replace(old, new),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn startswith(&self, prefix: &str) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.startswith(prefix),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn endswith(&self, suffix: &str) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.endswith(suffix),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn py_find(&self, sub: &str) -> i64 {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.py_find(sub),
+            _ => -1,
+        }
+    }
+    #[inline]
+    fn capitalize(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.capitalize(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn title(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.title(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn swapcase(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.swapcase(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn isalpha(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isalpha(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn isdigit(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isdigit(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn isalnum(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isalnum(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn isspace(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isspace(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn islower(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.islower(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn isupper(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isupper(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn center(&self, width: usize) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.center(width),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn ljust(&self, width: usize) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.ljust(width),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn rjust(&self, width: usize) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.rjust(width),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn zfill(&self, width: usize) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.zfill(width),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn count(&self, sub: &str) -> usize {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.count(sub),
+            _ => 0,
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Check if string contains substring(Python's `in` operator for strings)"]
+    #[inline]
+    pub fn contains(&self, sub: &str) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.contains(sub),
+            DepylerValue::List(_dv_l) => _dv_l.iter().any(|v| {
+                if let DepylerValue::Str(s) = v {
+                    s == sub
+                } else {
+                    false
+                }
+            }),
+            _ => false,
+        }
     }
 }
 #[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"]
@@ -1286,10 +2593,10 @@ pub fn test_heap_push_pop() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut heap: Vec<i32> = vec![];
     let values: Vec<i32> = vec![5, 3, 7, 1, 9, 2];
     for val in values.iter().cloned() {
-        heap.push(val);
+        heap.push(val as i64);
     }
     for i in 0..(heap.len() as i32) {
-        for j in (i + 1)..(heap.len() as i32) {
+        for j in ((i).py_add(1))..(heap.len() as i32) {
             if heap
                 .get(j as usize)
                 .cloned()
@@ -1321,7 +2628,7 @@ pub fn test_heapify() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![5, 3, 7, 1, 9, 2, 4];
     let mut heap: Vec<i32> = data.clone();
     for i in 0..(heap.len() as i32) {
-        for j in (i + 1)..(heap.len() as i32) {
+        for j in ((i).py_add(1))..(heap.len() as i32) {
             if heap
                 .get(j as usize)
                 .cloned()
@@ -1363,7 +2670,7 @@ pub fn test_heap_pop_min() -> Result<i32, Box<dyn std::error::Error>> {
             new_heap.push(
                 heap.get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range"),
+                    .expect("IndexError: list index out of range") as i64,
             );
         }
         return Ok(min_val);
@@ -1391,7 +2698,7 @@ pub fn test_heap_peek() -> Result<i32, Box<dyn std::error::Error>> {
 pub fn test_nsmallest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut sorted_data: Vec<i32> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in (i + 1)..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -1422,7 +2729,7 @@ pub fn test_nsmallest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::
             sorted_data
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
     }
     Ok(result)
@@ -1432,7 +2739,7 @@ pub fn test_nsmallest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::
 pub fn test_nlargest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut sorted_data: Vec<i32> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in (i + 1)..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -1463,7 +2770,7 @@ pub fn test_nlargest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::e
             sorted_data
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
     }
     Ok(result)
@@ -1474,12 +2781,12 @@ pub fn manual_heap_insert(
     value: i32,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut new_heap: Vec<i32> = heap.clone();
-    new_heap.push(value);
+    new_heap.push(value as i64);
     let _cse_temp_0 = new_heap.len() as i32;
-    let mut index: i32 = _cse_temp_0 - 1;
+    let mut index: i32 = (_cse_temp_0).py_sub(1);
     while index > 0 {
         let parent: i32 = {
-            let a = index - 1;
+            let a = (index).py_sub(1);
             let b = 2;
             let q = a / b;
             let r = a % b;
@@ -1542,7 +2849,7 @@ pub fn manual_heap_extract_min(
     }
     let mut new_heap: Vec<i32> = vec![{
         let base = &heap;
-        let idx: i32 = (heap.len() as i32).saturating_sub(1);
+        let idx: i32 = (heap.len() as i32).py_sub(1);
         let actual_idx = if idx < 0 {
             base.len().saturating_sub(idx.abs() as usize)
         } else {
@@ -1552,17 +2859,17 @@ pub fn manual_heap_extract_min(
             .cloned()
             .expect("IndexError: list index out of range")
     }];
-    for i in (1)..((heap.len() as i32).saturating_sub(1)) {
+    for i in (1)..((heap.len() as i32).py_sub(1)) {
         new_heap.push(
             heap.get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
     }
     let mut index: i32 = 0;
     loop {
-        let left: i32 = 2 * index + 1;
-        let right: i32 = 2 * index + 2;
+        let left: i32 = ((2).py_mul(index)).py_add(1);
+        let right: i32 = ((2).py_mul(index)).py_add(2);
         smallest = index;
         if (left < new_heap.len() as i32)
             && (new_heap
@@ -1617,7 +2924,7 @@ pub fn priority_queue_simulation() -> Result<Vec<i32>, Box<dyn std::error::Error
     ];
     let mut sorted_tasks: Vec<()> = tasks.clone();
     for i in 0..(sorted_tasks.len() as i32) {
-        for j in (i + 1)..(sorted_tasks.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_tasks.len() as i32) {
             if sorted_tasks
                 .get(j as usize)
                 .cloned()
@@ -1646,7 +2953,7 @@ pub fn priority_queue_simulation() -> Result<Vec<i32>, Box<dyn std::error::Error
     }
     let mut priorities: Vec<i32> = vec![];
     for task in sorted_tasks.iter().cloned() {
-        priorities.push(task.0);
+        priorities.push(task.0 as i64);
     }
     Ok(priorities)
 }
@@ -1655,11 +2962,11 @@ pub fn merge_sorted_lists(lists: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std
     let mut result: Vec<i32> = vec![];
     for lst in lists.iter().cloned() {
         for item in lst.iter().cloned() {
-            result.push(item);
+            result.push(item as i64);
         }
     }
     for i in 0..(result.len() as i32) {
-        for j in (i + 1)..(result.len() as i32) {
+        for j in ((i).py_add(1))..(result.len() as i32) {
             if result
                 .get(j as usize)
                 .cloned()
@@ -1691,7 +2998,7 @@ pub fn merge_sorted_lists(lists: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std
 pub fn find_kth_smallest(data: &Vec<i32>, k: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut sorted_data: Vec<i32> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in (i + 1)..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -1723,7 +3030,7 @@ pub fn find_kth_smallest(data: &Vec<i32>, k: i32) -> Result<i32, Box<dyn std::er
     if _cse_temp_3 {
         return Ok({
             let base = &sorted_data;
-            let idx: i32 = k - 1;
+            let idx: i32 = (k).py_sub(1);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -1743,7 +3050,7 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
     let mut median: f64 = Default::default();
     let mut sorted_data: Vec<i32> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in (i + 1)..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -1770,7 +3077,7 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
     }
     let _cse_temp_0 = sorted_data.len() as i32;
     let n: i32 = _cse_temp_0;
-    let _cse_temp_1 = n % 2;
+    let _cse_temp_1 = (n).py_mod(2);
     let _cse_temp_2 = _cse_temp_1 == 1;
     if _cse_temp_2 {
         let _cse_temp_3 = ({
@@ -1804,7 +3111,7 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
     } else {
         let mid1: i32 = {
             let base = &sorted_data;
-            let idx: i32 = {
+            let idx: i32 = ({
                 let a = n;
                 let b = 2;
                 let q = a / b;
@@ -1819,7 +3126,8 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
                 } else {
                     q
                 }
-            } - 1;
+            })
+            .py_sub(1);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -1856,8 +3164,8 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
                 .cloned()
                 .expect("IndexError: list index out of range")
         };
-        let _cse_temp_4 = (mid1 + mid2) as f64;
-        let _cse_temp_5 = ((_cse_temp_4) as f64) / ((2.0) as f64);
+        let _cse_temp_4 = ((mid1).py_add(mid2)) as f64;
+        let _cse_temp_5 = (_cse_temp_4).py_div(2.0);
         median = _cse_temp_5;
     }
     Ok(median)

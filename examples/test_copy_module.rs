@@ -1297,6 +1297,78 @@ impl PyMul for DepylerValue {
         }
     }
 }
+impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+        self.extend(rhs);
+        self
+    }
+}
+impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+        self.extend(rhs.iter().cloned());
+        self
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+        let mut result = self.clone();
+        result.extend(rhs);
+        result
+    }
+}
+impl<T: Clone> PyMul<i32> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<i64> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<usize> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T> {
+        self.iter()
+            .cloned()
+            .cycle()
+            .take(self.len() * rhs)
+            .collect()
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2506,7 +2578,7 @@ impl DepylerRegexMatch {
 pub fn test_shallow_copy_list() -> Vec<i32> {
     let original: Vec<i32> = vec![1, 2, 3, 4, 5];
     let mut copied: Vec<i32> = (original).clone();
-    copied.push(6);
+    copied.push(6 as i64);
     copied
 }
 #[doc = "Test shallow copy of dictionary"]
@@ -2615,7 +2687,7 @@ pub fn test_deep_copy_nested_dict() -> HashMap<String, HashMap<String, i32>> {
 pub fn manual_shallow_copy_list(original: &Vec<i32>) -> Vec<i32> {
     let mut copied: Vec<i32> = vec![];
     for item in original.iter().cloned() {
-        copied.push(item);
+        copied.push(item as i64);
     }
     copied
 }
@@ -2642,7 +2714,7 @@ pub fn manual_deep_copy_nested_list(original: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
     for sublist in original.iter().cloned() {
         let mut new_sublist: Vec<i32> = vec![];
         for item in sublist.iter().cloned() {
-            new_sublist.push(item);
+            new_sublist.push(item as i64);
         }
         copied.push(new_sublist);
     }
@@ -2654,7 +2726,7 @@ pub fn manual_deep_copy_nested_list(original: &Vec<Vec<i32>>) -> Vec<Vec<i32>> {
 pub fn test_copy_with_modification() -> bool {
     let mut original: Vec<i32> = vec![1, 2, 3];
     let copied: Vec<i32> = (original).clone();
-    original.push(4);
+    original.push(4 as i64);
     let _cse_temp_0 = copied.len() as i32;
     let _cse_temp_1 = original.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -2668,7 +2740,7 @@ pub fn test_reference_vs_copy() -> bool {
     let mut original: Vec<i32> = vec![1, 2, 3];
     let copied: Vec<i32> = (original).clone();
     let reference: Vec<i32> = original;
-    original.push(4);
+    original.push(4 as i64);
     let _cse_temp_0 = copied.len() as i32;
     let _cse_temp_1 = original.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -2683,7 +2755,7 @@ pub fn test_reference_vs_copy() -> bool {
 pub fn clone_list_with_transform(original: &Vec<i32>, multiplier: i32) -> Vec<i32> {
     let mut cloned: Vec<i32> = vec![];
     for item in original.iter().cloned() {
-        cloned.push((item).py_mul(multiplier));
+        cloned.push((item).py_mul(multiplier) as i64);
     }
     cloned
 }

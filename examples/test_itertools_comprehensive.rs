@@ -1312,6 +1312,78 @@ impl PyMul for DepylerValue {
         }
     }
 }
+impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+        self.extend(rhs);
+        self
+    }
+}
+impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+        self.extend(rhs.iter().cloned());
+        self
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+        let mut result = self.clone();
+        result.extend(rhs);
+        result
+    }
+}
+impl<T: Clone> PyMul<i32> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<i64> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<usize> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T> {
+        self.iter()
+            .cloned()
+            .cycle()
+            .take(self.len() * rhs)
+            .collect()
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2570,7 +2642,7 @@ pub fn test_filter() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut evens: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
         if (num).py_mod(2) == 0 {
-            evens.push(num);
+            evens.push(num as i64);
         }
     }
     Ok(evens)
@@ -2581,7 +2653,7 @@ pub fn test_map() -> Vec<i32> {
     let numbers: Vec<i32> = vec![1, 2, 3, 4, 5];
     let mut squared: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
-        squared.push((num).py_mul(num));
+        squared.push((num).py_mul(num) as i64);
     }
     squared
 }
@@ -2592,7 +2664,7 @@ pub fn test_count(start: i32, step: i32, limit: i32) -> Vec<i32> {
     let mut current: i32 = start.clone();
     let mut count: i32 = 0;
     while count < limit {
-        result.push(current);
+        result.push(current as i64);
         current = (current).py_add(step);
         count = (count).py_add(1);
     }
@@ -2623,7 +2695,7 @@ pub fn test_cycle(
 pub fn test_repeat(value: i32, times: i32) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for _i in 0..(times) {
-        result.push(value);
+        result.push(value as i64);
     }
     result
 }
@@ -2659,7 +2731,7 @@ pub fn test_takewhile(numbers: &Vec<i32>, threshold: i32) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
         if num < threshold {
-            result.push(num);
+            result.push(num as i64);
         } else {
             break;
         }
@@ -2676,7 +2748,7 @@ pub fn test_dropwhile(numbers: &Vec<i32>, threshold: i32) -> Vec<i32> {
             continue;
         }
         dropping = false;
-        result.push(num);
+        result.push(num as i64);
     }
     result
 }
@@ -2687,7 +2759,7 @@ pub fn test_accumulate(numbers: &Vec<i32>) -> Vec<i32> {
     let mut total: i32 = 0;
     for num in numbers.iter().cloned() {
         total = (total).py_add(num);
-        result.push(total);
+        result.push(total as i64);
     }
     result
 }
@@ -2724,8 +2796,8 @@ pub fn test_pairwise(items: &Vec<i32>) -> Vec<(i32, i32)> {
 pub fn test_groupby_manual(
     items: &Vec<i32>,
 ) -> Result<Vec<(bool, Vec<i32>)>, Box<dyn std::error::Error>> {
-    let mut current_group: Vec<i32> = Default::default();
     let mut current_is_even: bool = Default::default();
+    let mut current_group: Vec<i32> = Default::default();
     let mut groups: Vec<(bool, Vec<i32>)> = vec![];
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -2755,7 +2827,7 @@ pub fn test_groupby_manual(
                 items
                     .get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range"),
+                    .expect("IndexError: list index out of range") as i64,
             );
         } else {
             groups.push((current_is_even, current_group));
@@ -2771,7 +2843,7 @@ pub fn test_groupby_manual(
 }
 #[doc = "Test compress() to filter data by selectors"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_compress<'b, 'a>(
+pub fn test_compress<'a, 'b>(
     data: &'a Vec<String>,
     selectors: &'b Vec<bool>,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -2800,7 +2872,7 @@ pub fn test_chain_from_iterable(lists: &Vec<Vec<i32>>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for sublist in lists.iter().cloned() {
         for item in sublist.iter().cloned() {
-            result.push(item);
+            result.push(item as i64);
         }
     }
     result
@@ -2811,7 +2883,7 @@ pub fn flatten_nested_lists(nested: &Vec<Vec<i32>>) -> Vec<i32> {
     let mut flattened: Vec<i32> = vec![];
     for sublist in nested.iter().cloned() {
         for item in sublist.iter().cloned() {
-            flattened.push(item);
+            flattened.push(item as i64);
         }
     }
     flattened
@@ -2838,8 +2910,8 @@ pub fn test_zip_longest<'b, 'a>(
     list2: &'b Vec<i32>,
     fillvalue: i32,
 ) -> Result<Vec<(i32, i32)>, Box<dyn std::error::Error>> {
-    let mut val1: i32 = Default::default();
     let mut val2: i32 = Default::default();
+    let mut val1: i32 = Default::default();
     let mut result: Vec<(i32, i32)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -2872,7 +2944,7 @@ pub fn test_batching(items: &Vec<i32>, batch_size: i32) -> Vec<Vec<i32>> {
     let mut batches: Vec<Vec<i32>> = vec![];
     current_batch = vec![];
     for item in items.iter().cloned() {
-        current_batch.push(item);
+        current_batch.push(item as i64);
         if current_batch.len() as i32 == batch_size {
             batches.push(current_batch);
             current_batch = vec![];
@@ -2949,7 +3021,7 @@ pub fn test_unique_justseen(items: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::e
                 items
                     .get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range"),
+                    .expect("IndexError: list index out of range") as i64,
             );
         }
     }

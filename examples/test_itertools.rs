@@ -1278,6 +1278,78 @@ impl PyMul for DepylerValue {
         }
     }
 }
+impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+        self.extend(rhs);
+        self
+    }
+}
+impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+        self.extend(rhs.iter().cloned());
+        self
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+        let mut result = self.clone();
+        result.extend(rhs);
+        result
+    }
+}
+impl<T: Clone> PyMul<i32> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<i64> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<usize> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T> {
+        self.iter()
+            .cloned()
+            .cycle()
+            .take(self.len() * rhs)
+            .collect()
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2484,7 +2556,7 @@ impl DepylerRegexMatch {
 #[doc = "Chain two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn chain_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<i32> {
+pub fn chain_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<i32> {
     {
         let a = list1;
         let b = list2;
@@ -2528,16 +2600,16 @@ pub fn group_consecutive(numbers: &Vec<i32>) -> Vec<Vec<i32>> {
                 )
             })
     } {
-        groups.push(DepylerValue::Str(format!(
-            "{:?}",
+        groups.push(
             g.iter()
                 .cloned()
-                .map(|x| x
-                    .get(1usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"))
-                .collect::<Vec<_>>()
-        )));
+                .map(|x| {
+                    x.get(1usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                })
+                .collect::<Vec<_>>(),
+        );
     }
     groups
 }

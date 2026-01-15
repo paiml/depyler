@@ -905,7 +905,63 @@ else {
 }
 }
 }
-impl PyDiv for i32 {
+impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T>{
+    self.extend(rhs);
+    self
+}
+} impl<T: Clone>PyAdd<& Vec<T>>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: & Vec<T>) -> Vec<T>{
+    self.extend(rhs.iter().cloned());
+    self
+}
+} impl<T: Clone>PyAdd<Vec<T>>for & Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T>{
+    let mut result = self.clone();
+    result.extend(rhs);
+    result
+}
+} impl<T: Clone>PyMul<i32>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T>{
+    if rhs <= 0 {
+    Vec::new()
+}
+else {
+    self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+}
+}
+}
+impl<T: Clone>PyMul<i64>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T>{
+    if rhs <= 0 {
+    Vec::new()
+}
+else {
+    self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+}
+}
+}
+impl<T: Clone>PyMul<usize>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T>{
+    self.iter().cloned().cycle().take(self.len() * rhs).collect()
+}
+} impl<T: Clone>PyMul<Vec<T>>for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
+    rhs.py_mul(self)
+}
+} impl<T: Clone>PyMul<Vec<T>>for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
+    rhs.py_mul(self)
+}
+} impl PyDiv for i32 {
     type Output = f64;
     #[inline] fn py_div(self, rhs: i32) -> f64 {
     if rhs == 0 {
@@ -2067,7 +2123,7 @@ let mut values: Vec<f64>= vec! [];
     let mut value: f64 = Default::default();
     match(|| -> Result <(), Box<dyn std::error::Error>>{
     value = row.get(column_name).cloned().unwrap_or_default().parse::<f64>().unwrap();
-    values.push(value);
+    values.push(value as f64);
     Ok(()) })() {
     Ok(()) =>{
    
@@ -2106,7 +2162,7 @@ let _cse_temp_2 = values.iter().sum::<i32>();
     map.insert("max".to_string(), DepylerValue::Int(max_val as i64));
     map })
 }
-#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'b, 'a>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
+#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'a, 'b>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let rows = parser.parse_string(csv_content);
     if! rows {
@@ -2137,7 +2193,7 @@ else {
 }
 } {
     if(column_index<row.len() as i32) &&([row.0, row.1] [column_index as usize] = = (* condition_value)) {
-    filtered_rows.push(row);
+    filtered_rows.push(row as i64);
    
 }
 } let mut result_lines: Vec<String>= vec! [];

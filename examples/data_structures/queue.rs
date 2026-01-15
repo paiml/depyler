@@ -1295,6 +1295,78 @@ impl PyMul for DepylerValue {
         }
     }
 }
+impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+        self.extend(rhs);
+        self
+    }
+}
+impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+        self.extend(rhs.iter().cloned());
+        self
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+        let mut result = self.clone();
+        result.extend(rhs);
+        result
+    }
+}
+impl<T: Clone> PyMul<i32> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<i64> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<usize> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T> {
+        self.iter()
+            .cloned()
+            .cycle()
+            .take(self.len() * rhs)
+            .collect()
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2605,7 +2677,7 @@ pub fn level_order_values(
             .cloned()
             .expect("IndexError: list index out of range");
         if value.is_some() {
-            result.push(value);
+            result.push(value as i64);
             let left_child = ((2).py_mul(index)).py_add(1);
             let right_child = ((2).py_mul(index)).py_add(2);
             if left_child < tree_values.len() as i32 {
