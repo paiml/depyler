@@ -1227,6 +1227,7 @@ fn infer_lazy_constant_type(
 
     // DEPYLER-1016/1060: Handle Dict/List properly in NASA mode using DepylerValue
     // DEPYLER-1060: Use DepylerValue for keys to support non-string keys like {1: "a"}
+    // DEPYLER-1128: For homogeneous lists, use concrete types instead of DepylerValue
     if ctx.type_mapper.nasa_mode {
         match value {
             HirExpr::Dict(_) => {
@@ -1234,11 +1235,21 @@ fn infer_lazy_constant_type(
                 ctx.needs_depyler_value_enum = true;
                 return quote! { std::collections::HashMap<DepylerValue, DepylerValue> };
             }
-            HirExpr::List(_) => {
+            HirExpr::List(elems) => {
+                // DEPYLER-1128: Check if list is homogeneous - if so, use concrete type
+                if let Some(elem_type) = infer_homogeneous_list_type(elems) {
+                    return elem_type;
+                }
+                // Heterogeneous list - use DepylerValue
                 ctx.needs_depyler_value_enum = true;
                 return quote! { Vec<DepylerValue> };
             }
-            HirExpr::Set(_) => {
+            HirExpr::Set(elems) => {
+                // DEPYLER-1128: Check if set is homogeneous - if so, use concrete type
+                if let Some(elem_type) = infer_homogeneous_set_type(elems) {
+                    ctx.needs_hashset = true;
+                    return elem_type;
+                }
                 ctx.needs_hashset = true;
                 ctx.needs_depyler_value_enum = true;
                 return quote! { std::collections::HashSet<DepylerValue> };
@@ -1247,6 +1258,26 @@ fn infer_lazy_constant_type(
             HirExpr::Index { .. } => {
                 ctx.needs_depyler_value_enum = true;
                 return quote! { DepylerValue };
+            }
+            // DEPYLER-1128: Handle tuple literals with proper tuple types
+            HirExpr::Tuple(elems) => {
+                if let Some(tuple_type) = infer_tuple_type(elems) {
+                    return tuple_type;
+                }
+                // Fall through to default if cannot infer
+            }
+            // DEPYLER-1128: Handle binary expressions - infer from operand types
+            HirExpr::Binary { op, left, .. } => {
+                if let Some(result_type) = infer_binary_expr_type(op, left) {
+                    return result_type;
+                }
+                // Fall through to default if cannot infer
+            }
+            // DEPYLER-1128: Handle unary expressions
+            HirExpr::Unary { op, operand } => {
+                if let Some(result_type) = infer_unary_expr_type(op, operand) {
+                    return result_type;
+                }
             }
             _ => {}
         }
@@ -1259,6 +1290,191 @@ fn infer_lazy_constant_type(
     } else {
         ctx.needs_serde_json = true;
         quote! { serde_json::Value }
+    }
+}
+
+/// DEPYLER-1128: Infer type for homogeneous list literals
+///
+/// Returns `Some(type)` if all elements are the same primitive type,
+/// `None` if heterogeneous (requires DepylerValue).
+fn infer_homogeneous_list_type(elems: &[HirExpr]) -> Option<proc_macro2::TokenStream> {
+    if elems.is_empty() {
+        // Empty list defaults to Vec<i32> for simplicity
+        return Some(quote! { Vec<i32> });
+    }
+
+    // Check first element type
+    let first_type = match &elems[0] {
+        HirExpr::Literal(Literal::Int(_)) => "int",
+        HirExpr::Literal(Literal::Float(_)) => "float",
+        HirExpr::Literal(Literal::String(_)) => "string",
+        HirExpr::Literal(Literal::Bool(_)) => "bool",
+        _ => return None, // Non-literal or complex expression - use DepylerValue
+    };
+
+    // Verify all elements match
+    let all_same = elems.iter().all(|e| match (first_type, e) {
+        ("int", HirExpr::Literal(Literal::Int(_))) => true,
+        ("float", HirExpr::Literal(Literal::Float(_))) => true,
+        ("string", HirExpr::Literal(Literal::String(_))) => true,
+        ("bool", HirExpr::Literal(Literal::Bool(_))) => true,
+        _ => false,
+    });
+
+    if all_same {
+        Some(match first_type {
+            "int" => quote! { Vec<i32> },
+            "float" => quote! { Vec<f64> },
+            "string" => quote! { Vec<String> },
+            "bool" => quote! { Vec<bool> },
+            _ => return None,
+        })
+    } else {
+        None // Heterogeneous - needs DepylerValue
+    }
+}
+
+/// DEPYLER-1128: Infer type for binary expressions
+fn infer_binary_expr_type(
+    op: &crate::hir::BinOp,
+    left: &HirExpr,
+) -> Option<proc_macro2::TokenStream> {
+    use crate::hir::BinOp;
+
+    // Determine result type from operator and left operand
+    match op {
+        // Comparison operators always return bool
+        BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
+        | BinOp::In | BinOp::NotIn => Some(quote! { bool }),
+
+        // Logical operators return bool
+        BinOp::And | BinOp::Or => Some(quote! { bool }),
+
+        // Division always returns f64 in Python semantics (true division)
+        BinOp::Div => Some(quote! { f64 }),
+
+        // Arithmetic operators - infer from left operand
+        BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::Pow
+        | BinOp::FloorDiv | BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor
+        | BinOp::LShift | BinOp::RShift => {
+            match left {
+                HirExpr::Literal(Literal::Int(_)) => Some(quote! { i32 }),
+                HirExpr::Literal(Literal::Float(_)) => Some(quote! { f64 }),
+                HirExpr::Literal(Literal::String(_)) => Some(quote! { String }),
+                HirExpr::Binary { op: inner_op, left: inner_left, .. } => {
+                    // Recursively infer from nested binary expr
+                    infer_binary_expr_type(inner_op, inner_left)
+                }
+                _ => None,
+            }
+        }
+    }
+}
+
+/// DEPYLER-1128: Infer type for unary expressions
+fn infer_unary_expr_type(
+    op: &crate::hir::UnaryOp,
+    operand: &HirExpr,
+) -> Option<proc_macro2::TokenStream> {
+    use crate::hir::UnaryOp;
+
+    match op {
+        UnaryOp::Not => Some(quote! { bool }),
+        UnaryOp::Neg | UnaryOp::Pos => {
+            match operand {
+                HirExpr::Literal(Literal::Int(_)) => Some(quote! { i32 }),
+                HirExpr::Literal(Literal::Float(_)) => Some(quote! { f64 }),
+                _ => None,
+            }
+        }
+        UnaryOp::BitNot => Some(quote! { i32 }), // Bitwise NOT returns int
+    }
+}
+
+/// DEPYLER-1128: Infer type for tuple literals
+fn infer_tuple_type(elems: &[HirExpr]) -> Option<proc_macro2::TokenStream> {
+    if elems.is_empty() {
+        return Some(quote! { () });
+    }
+
+    // Generate tuple type based on element types
+    let elem_types: Vec<_> = elems
+        .iter()
+        .map(|e| match e {
+            HirExpr::Literal(Literal::Int(_)) => Some(quote! { i32 }),
+            HirExpr::Literal(Literal::Float(_)) => Some(quote! { f64 }),
+            HirExpr::Literal(Literal::String(_)) => Some(quote! { String }),
+            HirExpr::Literal(Literal::Bool(_)) => Some(quote! { bool }),
+            HirExpr::Literal(Literal::None) => Some(quote! { Option<()> }),
+            _ => None, // Complex expression - cannot infer
+        })
+        .collect();
+
+    // If all elements have known types, return the tuple type
+    if elem_types.iter().all(|t| t.is_some()) {
+        let types: Vec<_> = elem_types.into_iter().map(|t| t.unwrap()).collect();
+        Some(quote! { (#(#types),*) })
+    } else {
+        None
+    }
+}
+
+/// DEPYLER-1128: Infer type for homogeneous set literals
+fn infer_homogeneous_set_type(elems: &[HirExpr]) -> Option<proc_macro2::TokenStream> {
+    if elems.is_empty() {
+        return Some(quote! { std::collections::HashSet<i32> });
+    }
+
+    // Check first element type
+    let first_type = match &elems[0] {
+        HirExpr::Literal(Literal::Int(_)) => "int",
+        HirExpr::Literal(Literal::String(_)) => "string",
+        _ => return None,
+    };
+
+    // Verify all elements match
+    let all_same = elems.iter().all(|e| match (first_type, e) {
+        ("int", HirExpr::Literal(Literal::Int(_))) => true,
+        ("string", HirExpr::Literal(Literal::String(_))) => true,
+        _ => false,
+    });
+
+    if all_same {
+        Some(match first_type {
+            "int" => quote! { std::collections::HashSet<i32> },
+            "string" => quote! { std::collections::HashSet<String> },
+            _ => return None,
+        })
+    } else {
+        None
+    }
+}
+
+/// DEPYLER-1128: Check if expression contains operations that can't be const-evaluated
+///
+/// Returns true if expression uses methods like .to_string() or comparisons
+/// that generate non-const code.
+fn expr_contains_non_const_ops(expr: &HirExpr) -> bool {
+    match expr {
+        // String comparisons with != or == generate .to_string() calls
+        HirExpr::Binary { op, left, right } => {
+            let is_string_comparison = matches!(
+                (&**left, &**right),
+                (HirExpr::Literal(Literal::String(_)), _)
+                | (_, HirExpr::Literal(Literal::String(_)))
+            ) && matches!(op, crate::hir::BinOp::Eq | crate::hir::BinOp::NotEq);
+
+            is_string_comparison
+                || expr_contains_non_const_ops(left)
+                || expr_contains_non_const_ops(right)
+        }
+        // Unary operations might contain non-const ops
+        HirExpr::Unary { operand, .. } => expr_contains_non_const_ops(operand),
+        // Method calls are generally not const
+        HirExpr::MethodCall { .. } => true,
+        // Function calls generally not const
+        HirExpr::Call { .. } => true,
+        _ => false,
     }
 }
 
@@ -1556,10 +1772,13 @@ fn generate_constant_tokens(
         // DEPYLER-0188: PathBuf expressions also need runtime init (not const-evaluable)
         // DEPYLER-0714: Function calls also need runtime init - can't be const
         // DEPYLER-1060: Index expressions into statics need runtime init
+        // DEPYLER-1128: Binary expressions use PyOps traits which aren't const - need LazyLock
         let needs_runtime_init = matches!(
             &constant.value,
-            HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_) | HirExpr::Call { .. } | HirExpr::Index { .. }
-        ) || is_path_constant_expr(&constant.value);
+            HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_)
+            | HirExpr::Call { .. } | HirExpr::Index { .. } | HirExpr::Binary { .. }
+        ) || is_path_constant_expr(&constant.value)
+          || expr_contains_non_const_ops(&constant.value);
 
         let token = if needs_runtime_init {
             generate_lazy_constant(constant, name_ident, value_expr, ctx)?
