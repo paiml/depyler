@@ -21,6 +21,7 @@ use crate::converge::type_constraint_learner::{parse_e0308_constraint, TypeConst
 use anyhow::{Context, Result};
 use depyler_core::DepylerPipeline;
 use indicatif::{ProgressBar, ProgressStyle};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -80,9 +81,26 @@ pub fn compile_python_to_binary(
         });
 
         let pipeline = DepylerPipeline::new();
-        let (rust_code, dependencies) = pipeline
-            .transpile_with_dependencies(&python_code)
-            .context("Failed to transpile Python to Rust")?;
+        
+        // DEPYLER-1102: If we have constraints, apply them
+        let (rust_code, dependencies) = if constraint_store.stats.constraints_extracted > 0 {
+            // Convert constraint store to simple map for the current file
+            let input_str = input.to_string_lossy().to_string();
+            let constraints_map: HashMap<String, String> = constraint_store
+                .variable_constraints
+                .iter()
+                .filter(|((file, _), _)| file == &input_str)
+                .map(|((_, var), constraint)| (var.clone(), constraint.expected_type.clone()))
+                .collect();
+            
+            pipeline
+                .transpile_with_constraints_and_dependencies(&python_code, &constraints_map)
+                .context("Failed to transpile with constraints")?
+        } else {
+            pipeline
+                .transpile_with_dependencies(&python_code)
+                .context("Failed to transpile Python to Rust")?
+        };
 
         if attempt == 0 {
             pb.inc(1);
