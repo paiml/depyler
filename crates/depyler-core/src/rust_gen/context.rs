@@ -345,6 +345,10 @@ pub struct CodeGenContext<'a> {
     /// - Method calls: `memo.get(k)` → `memo.as_ref().unwrap().get(&k)`
     /// - Subscript: `memo[k] = v` → `memo.as_mut().unwrap().insert(k, v)`
     pub mut_option_dict_params: HashSet<String>, // DEPYLER-0964: Track &mut Option<Dict> params
+    /// DEPYLER-1126: Track ALL parameters that are `&mut Option<T>` (any T, not just Dict)
+    /// When a parameter has Optional<T> type and is mutated in the function body,
+    /// it becomes &mut Option<T>. Assignments need dereferencing: `*param = value`
+    pub mut_option_params: HashSet<String>,
     pub needs_depyler_value_enum: bool,          // DEPYLER-FIX-RC2: Track need for DepylerValue enum
     pub needs_depyler_date: bool,                // DEPYLER-1066: Track need for DepylerDate struct
     pub needs_depyler_datetime: bool,            // DEPYLER-1067: Track need for DepylerDateTime struct
@@ -756,6 +760,7 @@ pub mod test_helpers {
             adt_child_to_parent: HashMap::new(),
             function_param_types: HashMap::new(),
             mut_option_dict_params: HashSet::new(),
+            mut_option_params: HashSet::new(), // DEPYLER-1126
             needs_depyler_value_enum: false,
             needs_depyler_date: false,      // DEPYLER-1066
             needs_depyler_datetime: false,  // DEPYLER-1067

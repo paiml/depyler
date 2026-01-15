@@ -541,6 +541,7 @@ mod tests {
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
+            mut_option_params: std::collections::HashSet::new(), // DEPYLER-1126
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
             needs_depyler_date: false,
             needs_depyler_datetime: false,
@@ -707,6 +708,7 @@ mod tests {
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
+            mut_option_params: std::collections::HashSet::new(), // DEPYLER-1126
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
             needs_depyler_date: false,
             needs_depyler_datetime: false,
@@ -870,6 +872,7 @@ mod tests {
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
+            mut_option_params: std::collections::HashSet::new(), // DEPYLER-1126
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
             needs_depyler_date: false,
             needs_depyler_datetime: false,
@@ -1280,6 +1283,7 @@ mod tests {
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
+            mut_option_params: std::collections::HashSet::new(), // DEPYLER-1126
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
             needs_depyler_date: false,
             needs_depyler_datetime: false,

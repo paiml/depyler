@@ -4199,6 +4199,22 @@ pub(crate) fn codegen_assign_symbol(
             }
         }
 
+        // DEPYLER-1126: Handle &mut Option<T> parameter assignments (any T, not just Dict)
+        // When assigning to a parameter that is `&mut Option<T>`,
+        // we need to dereference and wrap in Some:
+        // - Python: `as_of = date.today()` → Rust: `*as_of = Some(DepylerDate::today())`
+        // This handles the common "optional with default None" pattern
+        if ctx.mut_option_params.contains(symbol) {
+            let value_str = quote!(#value_expr).to_string();
+            if value_str.starts_with("Some") || value_str == "None" {
+                // Already wrapped, just dereference
+                return Ok(quote! { *#target_ident = #value_expr; });
+            } else {
+                // Wrap in Some and dereference
+                return Ok(quote! { *#target_ident = Some(#value_expr); });
+            }
+        }
+
         // DEPYLER-0604: Check if variable has Optional type and wrap value in Some()
         let final_value = if let Some(Type::Optional(inner_type)) = ctx.var_types.get(symbol) {
             // Check if the value is already wrapped in Some or is None
