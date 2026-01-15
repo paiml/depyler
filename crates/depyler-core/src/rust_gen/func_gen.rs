@@ -2368,36 +2368,23 @@ pub(crate) fn infer_expr_type_with_env(
                 return Type::Bool;
             }
 
-            // DEPYLER-0420: Detect array repeat patterns: [elem] * n or n * [elem]
+            // DEPYLER-0420/1132: Detect list repeat patterns: [elem] * n or n * [elem]
+            // DEPYLER-1132: Always return List (Vec) since py_mul trait returns Vec<T>
             if matches!(op, BinOp::Mul) {
                 match (left.as_ref(), right.as_ref()) {
-                    // Pattern: [elem] * n
-                    (HirExpr::List(elems), &HirExpr::Literal(Literal::Int(size)))
-                        if elems.len() == 1 && size > 0 =>
+                    // Pattern: [elem] * n → Vec<T>
+                    (HirExpr::List(elems), HirExpr::Literal(Literal::Int(n)))
+                        if elems.len() == 1 && *n > 0 =>
                     {
                         let elem_type = infer_expr_type_with_env(&elems[0], var_types);
-                        return if size <= 32 {
-                            Type::Array {
-                                element_type: Box::new(elem_type),
-                                size: ConstGeneric::Literal(size as usize),
-                            }
-                        } else {
-                            Type::List(Box::new(elem_type))
-                        };
+                        return Type::List(Box::new(elem_type));
                     }
-                    // Pattern: n * [elem]
-                    (&HirExpr::Literal(Literal::Int(size)), HirExpr::List(elems))
-                        if elems.len() == 1 && size > 0 =>
+                    // Pattern: n * [elem] → Vec<T>
+                    (HirExpr::Literal(Literal::Int(n)), HirExpr::List(elems))
+                        if elems.len() == 1 && *n > 0 =>
                     {
                         let elem_type = infer_expr_type_with_env(&elems[0], var_types);
-                        return if size <= 32 {
-                            Type::Array {
-                                element_type: Box::new(elem_type),
-                                size: ConstGeneric::Literal(size as usize),
-                            }
-                        } else {
-                            Type::List(Box::new(elem_type))
-                        };
+                        return Type::List(Box::new(elem_type));
                     }
                     _ => {}
                 }
@@ -2776,36 +2763,23 @@ pub(crate) fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 return Type::Bool;
             }
 
-            // DEPYLER-0420: Detect array repeat patterns: [elem] * n or n * [elem]
+            // DEPYLER-0420/1132: Detect list repeat patterns: [elem] * n or n * [elem]
+            // DEPYLER-1132: Always return List (Vec) since py_mul trait returns Vec<T>
             if matches!(op, BinOp::Mul) {
                 match (left.as_ref(), right.as_ref()) {
-                    // Pattern: [elem] * n
-                    (HirExpr::List(elems), &HirExpr::Literal(Literal::Int(size)))
-                        if elems.len() == 1 && size > 0 =>
+                    // Pattern: [elem] * n → Vec<T>
+                    (HirExpr::List(elems), HirExpr::Literal(Literal::Int(n)))
+                        if elems.len() == 1 && *n > 0 =>
                     {
                         let elem_type = infer_expr_type_simple(&elems[0]);
-                        return if size <= 32 {
-                            Type::Array {
-                                element_type: Box::new(elem_type),
-                                size: ConstGeneric::Literal(size as usize),
-                            }
-                        } else {
-                            Type::List(Box::new(elem_type))
-                        };
+                        return Type::List(Box::new(elem_type));
                     }
-                    // Pattern: n * [elem]
-                    (&HirExpr::Literal(Literal::Int(size)), HirExpr::List(elems))
-                        if elems.len() == 1 && size > 0 =>
+                    // Pattern: n * [elem] → Vec<T>
+                    (HirExpr::Literal(Literal::Int(n)), HirExpr::List(elems))
+                        if elems.len() == 1 && *n > 0 =>
                     {
                         let elem_type = infer_expr_type_simple(&elems[0]);
-                        return if size <= 32 {
-                            Type::Array {
-                                element_type: Box::new(elem_type),
-                                size: ConstGeneric::Literal(size as usize),
-                            }
-                        } else {
-                            Type::List(Box::new(elem_type))
-                        };
+                        return Type::List(Box::new(elem_type));
                     }
                     _ => {}
                 }
