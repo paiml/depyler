@@ -2499,6 +2499,27 @@ pub fn generate_rust_file(
                 }
             }
 
+            // DEPYLER-1123: From<DepylerValue> for basic types - enables type extraction from dict values
+            // Used when accessing bare dict (HashMap<DepylerValue, DepylerValue>) and need typed value
+            impl From<DepylerValue> for i64 {
+                fn from(v: DepylerValue) -> Self { v.to_i64() }
+            }
+            impl From<DepylerValue> for i32 {
+                fn from(v: DepylerValue) -> Self { v.to_i64() as i32 }
+            }
+            impl From<DepylerValue> for f64 {
+                fn from(v: DepylerValue) -> Self { v.to_f64() }
+            }
+            impl From<DepylerValue> for f32 {
+                fn from(v: DepylerValue) -> Self { v.to_f64() as f32 }
+            }
+            impl From<DepylerValue> for String {
+                fn from(v: DepylerValue) -> Self { v.as_string() }
+            }
+            impl From<DepylerValue> for bool {
+                fn from(v: DepylerValue) -> Self { v.to_bool() }
+            }
+
             // DEPYLER-1051: Arithmetic operations for DepylerValue
             // Enables: let result = x + y; where x, y are DepylerValue
             // DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables
