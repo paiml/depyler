@@ -772,6 +772,22 @@ impl RustCodeGen for HirFunction {
             if (is_dict && has_none_default) || is_optional_dict {
                 ctx.mut_option_dict_params.insert(param.name.clone());
             }
+
+            // DEPYLER-1126: Track ALL parameters that are &mut Option<T> (any T)
+            // When param type is Optional<T> (or T | None) and the param is mutated,
+            // it becomes &mut Option<T>. Assignments need dereferencing: *param = value
+            let is_optional = matches!(&param.ty, Type::Optional(_))
+                || matches!(&param.ty, Type::Union(types) if types.iter().any(|t| matches!(t, Type::None)));
+            // Check if parameter is in the "needs_mut" set from lifetime analysis
+            let inferred_needs_mut = lifetime_result
+                .param_lifetimes
+                .get(&param.name)
+                .map(|ip| ip.needs_mut)
+                .unwrap_or(false);
+
+            if (is_optional || has_none_default) && inferred_needs_mut {
+                ctx.mut_option_params.insert(param.name.clone());
+            }
         }
 
         // Generate return type with Result wrapper and lifetime handling

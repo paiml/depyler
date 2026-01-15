@@ -1924,6 +1924,7 @@ pub fn generate_rust_file(
         adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
         function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
         mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
+        mut_option_params: HashSet::new(), // DEPYLER-1126: Track ALL &mut Option<T> params
         module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
         #[cfg(feature = "sovereign-types")]
         type_query: load_type_database(), // DEPYLER-1114: Auto-load Sovereign Type Database
@@ -5007,6 +5008,7 @@ mod tests {
             adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
             function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
             mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
+            mut_option_params: HashSet::new(), // DEPYLER-1126: Track ALL &mut Option<T> params
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
             needs_depyler_date: false,
         needs_depyler_datetime: false,
