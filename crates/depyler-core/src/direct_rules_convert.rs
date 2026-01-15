@@ -2985,9 +2985,36 @@ impl<'a> ExprConverter<'a> {
             _ => false,
         };
 
+        // DEPYLER-1123: Check if base has bare dict type (HashMap<DepylerValue, DepylerValue>)
+        // This happens when a parameter has type annotation `dict` without type params
+        let is_depyler_value_dict = if let HirExpr::Var(var_name) = base {
+            match self.param_types.get(var_name) {
+                // Bare dict type: Dict(Unknown, Unknown) or Custom("dict")
+                Some(Type::Dict(k, v)) => {
+                    matches!((k.as_ref(), v.as_ref()), (Type::Unknown, Type::Unknown))
+                }
+                Some(Type::Custom(name)) => name == "dict" || name == "Dict",
+                _ => false,
+            }
+        } else {
+            false
+        };
+
         if is_dict_access || base_is_dict {
-            // HashMap access with string key
             let index_expr = self.convert(index)?;
+
+            // DEPYLER-1123: For bare dict types (HashMap<DepylerValue, DepylerValue>),
+            // wrap key in DepylerValue::Str and add .into() for type conversion
+            if is_depyler_value_dict {
+                // String literal key - wrap in DepylerValue::Str
+                if let HirExpr::Literal(Literal::String(_)) = index {
+                    return Ok(parse_quote! {
+                        #base_expr.get(&DepylerValue::Str(#index_expr)).cloned().unwrap_or_default().into()
+                    });
+                }
+            }
+
+            // Standard dict access (HashMap<String, T> or HashMap<K, V> with known types)
             Ok(parse_quote! {
                 #base_expr.get(&#index_expr).cloned().unwrap_or_default()
             })
