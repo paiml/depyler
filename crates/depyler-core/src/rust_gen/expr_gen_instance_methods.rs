@@ -43,6 +43,45 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let arg = &arg_exprs[0];
 
+                // DEPYLER-1134: Constraint-Aware Coercion
+                // Check for CONCRETE element type FIRST (from Oracle or type annotations)
+                // Only fall back to DepylerValue wrapping if type is truly Unknown
+                let concrete_element_type = if let HirExpr::Attribute { value: _, attr } = object {
+                    self.ctx.class_field_types.get(attr).and_then(|t| {
+                        if let Type::List(elem) = t {
+                            if !matches!(elem.as_ref(), Type::Unknown) {
+                                Some(elem.as_ref().clone())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                } else if let HirExpr::Var(var_name) = object {
+                    self.ctx.var_types.get(var_name).and_then(|t| {
+                        if let Type::List(elem) = t {
+                            if !matches!(elem.as_ref(), Type::Unknown) {
+                                Some(elem.as_ref().clone())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                } else {
+                    None
+                };
+
+                // DEPYLER-1134: If we have a concrete element type, generate type-aware push
+                // This is the "bridge" that respects Oracle/annotation types
+                if let Some(elem_type) = concrete_element_type {
+                    // Generate the appropriate push based on element type
+                    let push_expr = self.generate_typed_push(object_expr, arg, &elem_type, hir_args)?;
+                    return Ok(push_expr);
+                }
+
                 // DEPYLER-1051: Check if target is Vec<DepylerValue> (e.g., untyped class field)
                 // If so, wrap the argument in appropriate DepylerValue variant
                 let is_vec_depyler_value = if let HirExpr::Attribute { value: _, attr } = object {
@@ -366,6 +405,69 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             _ => bail!("Unknown list method: {}", method),
+        }
+    }
+
+    /// DEPYLER-1134: Generate type-aware push for concrete element types
+    /// This is the "bridge" that ensures the generator respects Oracle/annotation constraints
+    fn generate_typed_push(
+        &mut self,
+        object_expr: &syn::Expr,
+        arg: &syn::Expr,
+        elem_type: &Type,
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
+        match elem_type {
+            // For Vec<String>, ensure string conversion
+            Type::String => {
+                // Check if arg is already a String or needs conversion
+                let is_str_literal = !hir_args.is_empty()
+                    && matches!(&hir_args[0], HirExpr::Literal(Literal::String(_)));
+                if is_str_literal {
+                    Ok(parse_quote! { #object_expr.push(#arg.to_string()) })
+                } else {
+                    // Assume arg is already String type
+                    Ok(parse_quote! { #object_expr.push(#arg) })
+                }
+            }
+            // For Vec<i64>, ensure integer type
+            Type::Int => {
+                Ok(parse_quote! { #object_expr.push(#arg as i64) })
+            }
+            // For Vec<f64>, ensure float type
+            Type::Float => {
+                Ok(parse_quote! { #object_expr.push(#arg as f64) })
+            }
+            // For Vec<bool>, direct push
+            Type::Bool => {
+                Ok(parse_quote! { #object_expr.push(#arg) })
+            }
+            // For nested Vec<Vec<T>>, push directly (arg should already be Vec<T>)
+            Type::List(_inner) => {
+                // The arg should be the inner list type already
+                Ok(parse_quote! { #object_expr.push(#arg) })
+            }
+            // For Vec<HashMap<K, V>>, push directly
+            Type::Dict(_k, _v) => {
+                Ok(parse_quote! { #object_expr.push(#arg) })
+            }
+            // For custom types, use try_into for safe conversion
+            Type::Custom(type_name) => {
+                let type_ident: syn::Type = syn::parse_str(type_name)?;
+                Ok(parse_quote! { #object_expr.push(<#type_ident>::try_from(#arg).expect("Type conversion failed")) })
+            }
+            // For Optional types, push directly
+            Type::Optional(_inner) => {
+                Ok(parse_quote! { #object_expr.push(#arg) })
+            }
+            // For Tuple types, push directly
+            Type::Tuple(_) => {
+                Ok(parse_quote! { #object_expr.push(#arg) })
+            }
+            // Fallback: direct push (trust the type system)
+            _ => {
+                Ok(parse_quote! { #object_expr.push(#arg) })
+            }
         }
     }
 

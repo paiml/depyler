@@ -3593,8 +3593,24 @@ pub(crate) fn codegen_assign_stmt(
                 } else {
                     Type::Unknown
                 };
-                ctx.var_types
-                    .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+
+                // DEPYLER-1134: Guard against overwriting Oracle-seeded types
+                // If var_types already has a CONCRETE type (from Oracle or return type propagation),
+                // don't overwrite it with Unknown. This protects the Oracle's wisdom from local inference.
+                let should_update = match ctx.var_types.get(var_name) {
+                    None => true, // No existing type, safe to insert
+                    Some(Type::Unknown) => true, // Unknown can be overwritten
+                    Some(Type::List(existing_elem)) => {
+                        // Only overwrite if existing element type is Unknown AND new type is concrete
+                        matches!(existing_elem.as_ref(), Type::Unknown) && !matches!(elem_type, Type::Unknown)
+                    }
+                    _ => false, // Don't overwrite any other concrete type with a list type
+                };
+
+                if should_update {
+                    ctx.var_types
+                        .insert(var_name.clone(), Type::List(Box::new(elem_type)));
+                }
             }
             HirExpr::Dict(items) => {
                 // DEPYLER-0269: Track dict type from literal for auto-borrowing
