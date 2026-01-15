@@ -679,6 +679,13 @@ pub(crate) fn codegen_function_body(
     // and other type-based code generation decisions
     build_var_type_env(&func.body, &mut ctx.var_types);
 
+    // DEPYLER-1134: Propagate return type annotation to returned variables
+    // This enables Constraint-Aware Coercion - if function returns List[List[str]],
+    // the variable being returned (e.g., `rows`) gets that concrete type
+    if let Some(ref ret_type) = ctx.current_return_type {
+        propagate_return_type_to_vars(&func.body, &mut ctx.var_types, ret_type);
+    }
+
     // DEPYLER-0312 NOTE: analyze_mutable_vars is now called in impl RustCodeGen BEFORE
     // codegen_function_params, so ctx.mutable_vars is already populated here
 
@@ -2317,6 +2324,66 @@ pub(crate) fn collect_return_types_with_env(
             }
             HirStmt::With { body, .. } => {
                 collect_return_types_with_env(body, types, var_types);
+            }
+            _ => {}
+        }
+    }
+}
+
+/// DEPYLER-1134: Propagate return type annotation to returned variables
+/// This enables Constraint-Aware Coercion by ensuring variables like `rows`
+/// get their type from `-> List[List[str]]` return annotation
+pub(crate) fn propagate_return_type_to_vars(
+    stmts: &[HirStmt],
+    var_types: &mut std::collections::HashMap<String, Type>,
+    return_type: &Type,
+) {
+    // Only propagate if we have a concrete return type
+    if matches!(return_type, Type::Unknown | Type::None) {
+        return;
+    }
+
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Return(Some(expr)) => {
+                // If returning a simple variable, propagate return type to it
+                if let HirExpr::Var(var_name) = expr {
+                    // Check if the variable has an Unknown or weaker type
+                    let should_update = match var_types.get(var_name) {
+                        None => true,
+                        Some(Type::Unknown) => true,
+                        Some(Type::List(elem)) if matches!(elem.as_ref(), Type::Unknown) => true,
+                        Some(Type::Dict(k, v)) if matches!(k.as_ref(), Type::Unknown) || matches!(v.as_ref(), Type::Unknown) => true,
+                        _ => false,
+                    };
+                    if should_update {
+                        var_types.insert(var_name.clone(), return_type.clone());
+                    }
+                }
+            }
+            HirStmt::If { then_body, else_body, .. } => {
+                propagate_return_type_to_vars(then_body, var_types, return_type);
+                if let Some(else_stmts) = else_body {
+                    propagate_return_type_to_vars(else_stmts, var_types, return_type);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                propagate_return_type_to_vars(body, var_types, return_type);
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                propagate_return_type_to_vars(body, var_types, return_type);
+                for handler in handlers {
+                    propagate_return_type_to_vars(&handler.body, var_types, return_type);
+                }
+                if let Some(orelse_stmts) = orelse {
+                    propagate_return_type_to_vars(orelse_stmts, var_types, return_type);
+                }
+                if let Some(finally_stmts) = finalbody {
+                    propagate_return_type_to_vars(finally_stmts, var_types, return_type);
+                }
+            }
+            HirStmt::With { body, .. } => {
+                propagate_return_type_to_vars(body, var_types, return_type);
             }
             _ => {}
         }
