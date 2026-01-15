@@ -5423,6 +5423,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(None);
         }
 
+        // DEPYLER-1121: In NASA mode, generate std-only numpy emulation
+        // NASA mode requires single-shot rustc compilation without external crates
+        if self.ctx.type_mapper.nasa_mode {
+            return self.try_convert_numpy_call_nasa_mode(method, args);
+        }
+
         // Mark that we need trueno dependency
         self.ctx.needs_trueno = true;
 
@@ -5630,6 +5636,237 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0667: Wrap arg in parens so `a - b` becomes `(a - b).norm_l2()`
                     // Without parens, `a - b.norm_l2()` parses as `a - (b.norm_l2())`
                     parse_quote! { (#arr).norm_l2().unwrap() }
+                } else {
+                    bail!("np.norm() requires 1 argument");
+                }
+            }
+            _ => return Ok(None),
+        };
+
+        Ok(Some(result))
+    }
+
+    /// DEPYLER-1121: NASA mode numpy conversion using std-only types
+    /// Maps numpy operations to Vec<f64> operations without external crates.
+    ///
+    /// # Mappings (NASA mode):
+    /// | NumPy | Rust std-only |
+    /// |-------|---------------|
+    /// | `np.array([1.0, 2.0])` | `vec![1.0, 2.0]` |
+    /// | `np.exp(a)` | `a.iter().map(\|x\| x.exp()).collect()` |
+    /// | `np.sum(a)` | `a.iter().sum::<f64>()` |
+    /// | `np.dot(a, b)` | `a.iter().zip(b.iter()).map(\|(x, y)\| x * y).sum::<f64>()` |
+    fn try_convert_numpy_call_nasa_mode(
+        &mut self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
+        // Convert arguments to syn::Expr
+        let arg_exprs: Vec<syn::Expr> = args
+            .iter()
+            .map(|arg| arg.to_rust_expr(self.ctx))
+            .collect::<Result<Vec<_>>>()?;
+
+        let result: syn::Expr = match method {
+            "array" => {
+                // np.array([1.0, 2.0, 3.0]) → vec![1.0, 2.0, 3.0]
+                if let Some(HirExpr::List(elements)) = args.first() {
+                    let element_exprs: Vec<syn::Expr> = elements
+                        .iter()
+                        .map(|e| e.to_rust_expr(self.ctx))
+                        .collect::<Result<Vec<_>>>()?;
+                    parse_quote! { vec![#(#element_exprs),*] }
+                } else if let Some(arg) = arg_exprs.first() {
+                    // Fallback: pass through as vec!
+                    parse_quote! { #arg.to_vec() }
+                } else {
+                    parse_quote! { Vec::<f64>::new() }
+                }
+            }
+            "dot" => {
+                // np.dot(a, b) → a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f64>()
+                if arg_exprs.len() >= 2 {
+                    let a = &arg_exprs[0];
+                    let b = &arg_exprs[1];
+                    parse_quote! {
+                        #a.iter().zip(#b.iter()).map(|(x, y)| x * y).sum::<f64>()
+                    }
+                } else {
+                    bail!("np.dot() requires 2 arguments");
+                }
+            }
+            "sum" => {
+                // np.sum(a) → a.iter().sum::<f64>()
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! { #arr.iter().sum::<f64>() }
+                } else {
+                    bail!("np.sum() requires 1 argument");
+                }
+            }
+            "mean" => {
+                // np.mean(a) → a.iter().sum::<f64>() / a.len() as f64
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! {
+                        (#arr.iter().sum::<f64>() / #arr.len() as f64)
+                    }
+                } else {
+                    bail!("np.mean() requires 1 argument");
+                }
+            }
+            "sqrt" => {
+                if args.is_empty() {
+                    bail!("np.sqrt() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
+                    // Vector: map sqrt over elements
+                    parse_quote! { #arr.iter().map(|x| x.sqrt()).collect::<Vec<_>>() }
+                } else {
+                    // Scalar
+                    parse_quote! { #arr.sqrt() }
+                }
+            }
+            "abs" => {
+                if args.is_empty() {
+                    bail!("np.abs() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
+                    parse_quote! { #arr.iter().map(|x| x.abs()).collect::<Vec<_>>() }
+                } else {
+                    parse_quote! { #arr.abs() }
+                }
+            }
+            "min" | "amin" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! {
+                        #arr.iter().cloned().fold(f64::INFINITY, f64::min)
+                    }
+                } else {
+                    bail!("np.min() requires 1 argument");
+                }
+            }
+            "max" | "amax" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! {
+                        #arr.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+                    }
+                } else {
+                    bail!("np.max() requires 1 argument");
+                }
+            }
+            "exp" => {
+                if args.is_empty() {
+                    bail!("np.exp() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
+                    parse_quote! { #arr.iter().map(|x| x.exp()).collect::<Vec<_>>() }
+                } else {
+                    parse_quote! { #arr.exp() }
+                }
+            }
+            "log" => {
+                if args.is_empty() {
+                    bail!("np.log() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
+                    parse_quote! { #arr.iter().map(|x| x.ln()).collect::<Vec<_>>() }
+                } else {
+                    parse_quote! { #arr.ln() }
+                }
+            }
+            "sin" => {
+                if args.is_empty() {
+                    bail!("np.sin() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
+                    parse_quote! { #arr.iter().map(|x| x.sin()).collect::<Vec<_>>() }
+                } else {
+                    parse_quote! { #arr.sin() }
+                }
+            }
+            "cos" => {
+                if args.is_empty() {
+                    bail!("np.cos() requires 1 argument");
+                }
+                let arr = &arg_exprs[0];
+                if self.is_numpy_array_expr(&args[0]) {
+                    parse_quote! { #arr.iter().map(|x| x.cos()).collect::<Vec<_>>() }
+                } else {
+                    parse_quote! { #arr.cos() }
+                }
+            }
+            "argmax" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! {
+                        #arr.iter().enumerate()
+                            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                            .map(|(i, _)| i as i64)
+                            .unwrap_or(0)
+                    }
+                } else {
+                    bail!("np.argmax() requires 1 argument");
+                }
+            }
+            "argmin" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! {
+                        #arr.iter().enumerate()
+                            .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
+                            .map(|(i, _)| i as i64)
+                            .unwrap_or(0)
+                    }
+                } else {
+                    bail!("np.argmin() requires 1 argument");
+                }
+            }
+            "std" => {
+                // std = sqrt(variance)
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! {{
+                        let data = &#arr;
+                        let mean = data.iter().sum::<f64>() / data.len() as f64;
+                        let variance = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64;
+                        variance.sqrt()
+                    }}
+                } else {
+                    bail!("np.std() requires 1 argument");
+                }
+            }
+            "var" => {
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! {{
+                        let data = &#arr;
+                        let mean = data.iter().sum::<f64>() / data.len() as f64;
+                        data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64
+                    }}
+                } else {
+                    bail!("np.var() requires 1 argument");
+                }
+            }
+            "zeros" => {
+                if let Some(size) = arg_exprs.first() {
+                    parse_quote! { vec![0.0f64; #size as usize] }
+                } else {
+                    bail!("np.zeros() requires 1 argument");
+                }
+            }
+            "ones" => {
+                if let Some(size) = arg_exprs.first() {
+                    parse_quote! { vec![1.0f64; #size as usize] }
+                } else {
+                    bail!("np.ones() requires 1 argument");
+                }
+            }
+            "norm" => {
+                // L2 norm: sqrt(sum of squares)
+                if let Some(arr) = arg_exprs.first() {
+                    parse_quote! {
+                        (#arr.iter().map(|x| x * x).sum::<f64>()).sqrt()
+                    }
                 } else {
                     bail!("np.norm() requires 1 argument");
                 }

@@ -35,9 +35,13 @@ def create_from_lists(keys: list[str], values: list[int]) -> dict[str, int]:
 
     // Verify it compiles by checking for owned type
     // The result should be HashMap<String, i32>, not HashMap<&String, &i32>
+    // Check the function definition specifically, not the entire file (which includes DepylerValue runtime)
+    let fn_start = rust_code.find("fn create_from_lists").expect("Function not found");
+    let fn_end = rust_code[fn_start..].find('}').map(|i| fn_start + i).unwrap_or(rust_code.len());
+    let fn_code = &rust_code[fn_start..fn_end];
     assert!(
-        !rust_code.contains("&&"),
-        "Should not have double references (&&) from .iter()"
+        !fn_code.contains("&&"),
+        "Should not have double references (&&) from .iter() in function body"
     );
 
     println!("Generated Rust code:\n{}", rust_code);
