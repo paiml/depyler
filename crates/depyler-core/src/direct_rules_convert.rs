@@ -4700,6 +4700,24 @@ impl<'a> ExprConverter<'a> {
                 Ok(parse_quote! { #object_expr.contains(&#key) })
             }
 
+            // DEPYLER-1125: Dict get(key, default) - Python's dict.get with 2 args
+            // Python: d.get(key, default) returns value at key or default
+            // Rust: HashMap doesn't have 2-arg get, use .get(&key).cloned().unwrap_or(default)
+            "get" => {
+                if arg_exprs.len() == 1 {
+                    // Single arg: dict.get(key) → Option<&V>
+                    let key = &arg_exprs[0];
+                    Ok(parse_quote! { #object_expr.get(&#key).cloned() })
+                } else if arg_exprs.len() == 2 {
+                    // Two args: dict.get(key, default) → V
+                    let key = &arg_exprs[0];
+                    let default = &arg_exprs[1];
+                    Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| #default) })
+                } else {
+                    bail!("get() requires 1 or 2 arguments");
+                }
+            }
+
             // Generic method call fallback
             _ => {
                 // DEPYLER-0596: Validate method name before creating identifier
