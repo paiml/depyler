@@ -3542,6 +3542,32 @@ pub fn generate_rust_file(
                 }
             }
 
+            // DEPYLER-1131: Vec list concatenation - [1,2] + [3,4] = [1,2,3,4]
+            impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+                type Output = Vec<T>;
+                fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+                    self.extend(rhs);
+                    self
+                }
+            }
+
+            impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+                type Output = Vec<T>;
+                fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+                    self.extend(rhs.iter().cloned());
+                    self
+                }
+            }
+
+            impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+                type Output = Vec<T>;
+                fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+                    let mut result = self.clone();
+                    result.extend(rhs);
+                    result
+                }
+            }
+
             // DEPYLER-1129: Vec list repetition - [0] * 10 creates vec of 10 zeros
             impl<T: Clone> PyMul<i32> for Vec<T> {
                 type Output = Vec<T>;
