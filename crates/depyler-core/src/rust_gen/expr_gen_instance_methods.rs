@@ -7684,6 +7684,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Some(parse_quote! { Vec<i64> });
         }
 
+        // DEPYLER-1130: Check if parameter is used as a boolean condition
+        // Pattern: `lambda is_add: (expr) if is_add else (expr)` → is_add: bool
+        if self.param_used_as_condition(param, body) {
+            return Some(parse_quote! { bool });
+        }
+
         // Check if parameter is used directly in PyOps (not in nested lambdas)
         if self.param_directly_in_pyops(param, body) {
             return Some(parse_quote! { i64 });
@@ -7692,6 +7698,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Default to i64 for standalone lambdas to resolve E0282
         // This is safe because PyOps traits are implemented for i64
         Some(parse_quote! { i64 })
+    }
+
+    /// DEPYLER-1130: Check if parameter is used as a boolean condition
+    /// Detects patterns like `if param:` or `if param else` in lambda body
+    fn param_used_as_condition(&self, param: &str, body: &HirExpr) -> bool {
+        match body {
+            // Direct use as condition: `(expr) if param else (expr)`
+            HirExpr::IfExpr { test, body, orelse } => {
+                // Check if param IS the test condition (not just contained in it)
+                if self.is_direct_var(param, test) {
+                    return true;
+                }
+                // Also recurse to check nested conditionals
+                self.param_used_as_condition(param, body)
+                    || self.param_used_as_condition(param, orelse)
+            }
+            // Check in nested expressions
+            HirExpr::Binary { left, right, .. } => {
+                self.param_used_as_condition(param, left)
+                    || self.param_used_as_condition(param, right)
+            }
+            HirExpr::Call { args, .. } => args
+                .iter()
+                .any(|arg| self.param_used_as_condition(param, arg)),
+            HirExpr::MethodCall { object, args, .. } => {
+                self.param_used_as_condition(param, object)
+                    || args
+                        .iter()
+                        .any(|arg| self.param_used_as_condition(param, arg))
+            }
+            _ => false,
+        }
     }
 
     /// Check if parameter is used DIRECTLY in a binary operation (not nested in closures)
