@@ -430,6 +430,36 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<DepylerValue> for i64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64()
+    }
+}
+impl From<DepylerValue> for i32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64() as i32
+    }
+}
+impl From<DepylerValue> for f64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64()
+    }
+}
+impl From<DepylerValue> for f32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64() as f32
+    }
+}
+impl From<DepylerValue> for String {
+    fn from(v: DepylerValue) -> Self {
+        v.as_string()
+    }
+}
+impl From<DepylerValue> for bool {
+    fn from(v: DepylerValue) -> Self {
+        v.to_bool()
+    }
+}
 impl std::ops::Add for DepylerValue {
     type Output = DepylerValue;
     fn add(self, rhs: Self) -> Self::Output {
@@ -1059,6 +1089,21 @@ impl PyAdd<String> for &str {
     type Output = String;
     #[inline]
     fn py_add(self, rhs: String) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
+impl PyAdd<char> for String {
+    type Output = String;
+    #[inline]
+    fn py_add(mut self, rhs: char) -> String {
+        self.push(rhs);
+        self
+    }
+}
+impl PyAdd<char> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: char) -> String {
         format!("{}{}", self, rhs)
     }
 }
@@ -2477,7 +2522,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 pub fn tokenize_text(text: &str) -> Vec<String> {
     let mut cleaned: String = Default::default();
-    cleaned = STR_EMPTY.to_string();
+    cleaned = STR_EMPTY.to_string().to_string();
     let punctuation: String = ".,!?;:\"'()[]{}—-".to_string();
     for char in text.chars() {
         let mut is_punct: bool = false;
@@ -2628,7 +2673,7 @@ pub fn analyze_character_distribution(
 pub fn extract_sentences(text: &str) -> Vec<String> {
     let mut current_sentence: String = Default::default();
     let mut sentences: Vec<String> = vec![];
-    current_sentence = STR_EMPTY.to_string();
+    current_sentence = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
         current_sentence = (current_sentence).py_add(char);
         if ((char.to_string() == ".") || (char.to_string() == "!")) || (char.to_string() == "?") {
@@ -2636,7 +2681,7 @@ pub fn extract_sentences(text: &str) -> Vec<String> {
             if trimmed.len() as i32 > 0 {
                 sentences.push(trimmed);
             }
-            current_sentence = STR_EMPTY;
+            current_sentence = STR_EMPTY.to_string();
         }
     }
     let _cse_temp_0 = current_sentence.trim().to_string().len() as i32;
@@ -2860,8 +2905,8 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, Box<dyn std:
 pub fn analyze_vowel_consonant_ratio(
     text: &str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut vowel_count: i32 = Default::default();
     let mut consonant_count: i32 = Default::default();
+    let mut vowel_count: i32 = Default::default();
     let vowels: String = "aeiouAEIOU".to_string();
     vowel_count = 0;
     consonant_count = 0;

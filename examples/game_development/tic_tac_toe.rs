@@ -254,6 +254,30 @@ impl std::ops::Index<i32>for DepylerValue {
     let converted: std::collections::HashMap<DepylerValue, DepylerValue>= v.into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect();
     DepylerValue::Dict(converted)
 }
+} impl From<DepylerValue>for i64 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_i64()
+}
+} impl From<DepylerValue>for i32 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_i64() as i32
+}
+} impl From<DepylerValue>for f64 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_f64()
+}
+} impl From<DepylerValue>for f32 {
+    fn from(v: DepylerValue) -> Self {
+    v.to_f64() as f32
+}
+} impl From<DepylerValue>for String {
+    fn from(v: DepylerValue) -> Self {
+    v.as_string()
+}
+} impl From<DepylerValue>for bool {
+    fn from(v: DepylerValue) -> Self {
+    v.to_bool()
+}
 } impl std::ops::Add for DepylerValue {
     type Output = DepylerValue;
     fn add(self, rhs: Self) -> Self::Output {
@@ -705,6 +729,17 @@ impl PyAdd for i32 {
 } impl PyAdd<String>for & str {
     type Output = String;
     #[inline] fn py_add(self, rhs: String) -> String {
+    format!("{}{}", self, rhs)
+}
+} impl PyAdd<char>for String {
+    type Output = String;
+    #[inline] fn py_add(mut self, rhs: char) -> String {
+    self.push(rhs);
+    self
+}
+} impl PyAdd<char>for & str {
+    type Output = String;
+    #[inline] fn py_add(self, rhs: char) -> String {
     format!("{}{}", self, rhs)
 }
 } impl PyAdd for DepylerValue {
@@ -2458,8 +2493,8 @@ else {
     let ai = AIPlayer::new("O".to_string());
     let mut moves_log: Vec<String>= vec! [];
     while! game.is_game_over() {
-    let mut col;
     let mut row;
+    let mut col;
     if game.current_player == "X" {
     let empty_positions = game.get_empty_positions();
     if empty_positions {
@@ -2485,7 +2520,7 @@ else {
 }
 Ok(moves_log.join ("\n"))
 }
-#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'a, 'b>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
+#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'b, 'a>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
     let mut count: i32 = Default::default();
     let winning_positions = vec! [vec! [(0, 0) ,(0, 1) ,(0, 2)], vec! [(1, 0) ,(1, 1) ,(1, 2)], vec! [(2, 0) ,(2, 1) ,(2, 2)], vec! [(0, 0) ,(1, 0) ,(2, 0)], vec! [(0, 1) ,(1, 1) ,(2, 1)], vec! [(0, 2) ,(1, 2) ,(2, 2)], vec! [(0, 0) ,(1, 1) ,(2, 2)], vec! [(0, 2) ,(1, 1) ,(2, 0)]];
     count = 0;

@@ -428,6 +428,36 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<DepylerValue> for i64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64()
+    }
+}
+impl From<DepylerValue> for i32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_i64() as i32
+    }
+}
+impl From<DepylerValue> for f64 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64()
+    }
+}
+impl From<DepylerValue> for f32 {
+    fn from(v: DepylerValue) -> Self {
+        v.to_f64() as f32
+    }
+}
+impl From<DepylerValue> for String {
+    fn from(v: DepylerValue) -> Self {
+        v.as_string()
+    }
+}
+impl From<DepylerValue> for bool {
+    fn from(v: DepylerValue) -> Self {
+        v.to_bool()
+    }
+}
 impl std::ops::Add for DepylerValue {
     type Output = DepylerValue;
     fn add(self, rhs: Self) -> Self::Output {
@@ -1057,6 +1087,21 @@ impl PyAdd<String> for &str {
     type Output = String;
     #[inline]
     fn py_add(self, rhs: String) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
+impl PyAdd<char> for String {
+    type Output = String;
+    #[inline]
+    fn py_add(mut self, rhs: char) -> String {
+        self.push(rhs);
+        self
+    }
+}
+impl PyAdd<char> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: char) -> String {
         format!("{}{}", self, rhs)
     }
 }
@@ -2529,7 +2574,7 @@ pub fn chain_operations(data: &Vec<i32>) -> i32 {
 #[doc = "Zip two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
+pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
     let mut result: Vec<(i32, String)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -2623,7 +2668,7 @@ pub fn flatten_nested_list(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Compute Cartesian product of two lists"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
+pub fn cartesian_product<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<(i32, i32)> {
     let mut result: Vec<(i32, i32)> = vec![];
     for item1 in list1.iter().cloned() {
         for item2 in list2.iter().cloned() {
@@ -2724,7 +2769,7 @@ pub fn compose_two_functions(data: &Vec<i32>) -> Vec<i32> {
 }
 #[doc = "Apply multiple operations in sequence"]
 #[doc = " Depyler: verified panic-free"]
-pub fn apply_multiple_operations<'b, 'a>(
+pub fn apply_multiple_operations<'a, 'b>(
     data: &'a Vec<i32>,
     operations: &'b Vec<String>,
 ) -> Vec<i32> {
