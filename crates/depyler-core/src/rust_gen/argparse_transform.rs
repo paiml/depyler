@@ -658,8 +658,8 @@ pub fn generate_args_struct(
         .arguments
         .iter()
         .map(|arg| {
-            let field_name =
-                syn::Ident::new(&arg.rust_field_name(), proc_macro2::Span::call_site());
+            // DEPYLER-1120: Use safe_ident to escape Rust keywords like 'type'
+            let field_name = safe_ident(&arg.rust_field_name());
 
             // DEPYLER-0367: Determine if field should be Option<T>
             let base_type_str = arg.rust_type();
@@ -1552,7 +1552,8 @@ pub fn generate_option_precompute(parser_info: &ArgParserInfo) -> Vec<proc_macro
         .filter(|arg| arg.rust_type().starts_with("Option<"))
         .map(|arg| {
             let field_name = arg.rust_field_name();
-            let field_ident = format_ident!("{}", field_name);
+            // DEPYLER-1120: Use safe_ident to escape Rust keywords like 'type'
+            let field_ident = safe_ident(&field_name);
             let has_ident = format_ident!("has_{}", field_name);
             quote! {
                 // DEPYLER-0108: Pre-compute before Option is moved

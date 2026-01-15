@@ -924,16 +924,38 @@ pub(crate) fn convert_method_stmt(
             // DEPYLER-1037: Check if return type is Optional for proper wrapping
             let is_optional_return = matches!(ret_type, Type::Optional(_));
 
+            // DEPYLER-1122: Check if return type is bare dict (HashMap<DepylerValue, DepylerValue>)
+            let is_bare_dict_return = matches!(
+                ret_type,
+                Type::Dict(k, v) if matches!((k.as_ref(), v.as_ref()), (Type::Unknown, Type::Unknown))
+            ) || matches!(
+                ret_type,
+                Type::Custom(name) if name == "dict" || name == "Dict"
+            );
+
             let ret_expr = if let Some(e) = expr {
                 // Check if expression is None literal
                 let is_none_literal = matches!(e, HirExpr::Literal(Literal::None));
-                let converted = convert_expr_with_class_fields(e, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
 
-                if is_optional_return && !is_none_literal {
-                    // Wrap non-None values in Some() for Optional return types
-                    parse_quote! { Some(#converted) }
+                // DEPYLER-1122: If returning dict literal with bare dict return type,
+                // use specialized converter with DepylerValue wrapping
+                if is_bare_dict_return {
+                    if let HirExpr::Dict(items) = e {
+                        let converter = ExprConverter::new(type_mapper);
+                        converter.convert_dict_to_depyler_value(items, class_field_types)?
+                    } else {
+                        // Not a dict literal, use normal conversion
+                        convert_expr_with_class_fields(e, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?
+                    }
                 } else {
-                    converted
+                    let converted = convert_expr_with_class_fields(e, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+
+                    if is_optional_return && !is_none_literal {
+                        // Wrap non-None values in Some() for Optional return types
+                        parse_quote! { Some(#converted) }
+                    } else {
+                        converted
+                    }
                 }
             } else {
                 // Bare return statement
@@ -3125,6 +3147,86 @@ impl<'a> ExprConverter<'a> {
             .collect::<Result<Vec<_>>>()?;
 
         // DEPYLER-0623: Use fully qualified path to avoid missing import
+        Ok(parse_quote! {
+            {
+                let mut map = std::collections::HashMap::new();
+                #(#insert_exprs;)*
+                map
+            }
+        })
+    }
+
+    /// DEPYLER-1122: Convert dict literal with DepylerValue wrapping
+    /// Used when returning a dict from a method with bare `dict` return type,
+    /// which maps to HashMap<DepylerValue, DepylerValue>
+    fn convert_dict_to_depyler_value(
+        &self,
+        items: &[(HirExpr, HirExpr)],
+        class_field_types: &std::collections::HashMap<String, Type>,
+    ) -> Result<syn::Expr> {
+        let insert_exprs: Vec<syn::Expr> = items
+            .iter()
+            .map(|(k, v)| {
+                let key_raw = self.convert(k)?;
+                let val_raw = self.convert(v)?;
+
+                // Wrap key in DepylerValue
+                // Note: String literals already have .to_string() from convert(), so wrap directly
+                let key: syn::Expr = match k {
+                    HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#key_raw as i64) },
+                    HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#key_raw as f64) },
+                    HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#key_raw) },
+                    HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#key_raw) },
+                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #key_raw)) },
+                };
+
+                // Wrap value in DepylerValue based on its type
+                // Note: String literals already have .to_string() from convert(), so wrap directly
+                let val: syn::Expr = match v {
+                    HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#val_raw as i64) },
+                    HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#val_raw as f64) },
+                    HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#val_raw) },
+                    HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#val_raw) },
+                    HirExpr::Literal(Literal::None) => parse_quote! { DepylerValue::None },
+                    HirExpr::Attribute { value, attr } => {
+                        // self.field access - check field type
+                        if let HirExpr::Var(name) = value.as_ref() {
+                            if name == "self" {
+                                if let Some(field_type) = class_field_types.get(attr) {
+                                    return Ok(match field_type {
+                                        Type::Int => parse_quote! { map.insert(#key, DepylerValue::Int(#val_raw as i64)) },
+                                        Type::Float => parse_quote! { map.insert(#key, DepylerValue::Float(#val_raw as f64)) },
+                                        Type::String => parse_quote! { map.insert(#key, DepylerValue::Str(#val_raw.to_string())) },
+                                        Type::Bool => parse_quote! { map.insert(#key, DepylerValue::Bool(#val_raw)) },
+                                        Type::List(_) => parse_quote! { map.insert(#key, DepylerValue::List(#val_raw.iter().map(|x| DepylerValue::from(x.clone())).collect())) },
+                                        _ => parse_quote! { map.insert(#key, DepylerValue::Str(format!("{:?}", #val_raw))) },
+                                    });
+                                }
+                            }
+                        }
+                        parse_quote! { DepylerValue::Str(format!("{:?}", #val_raw)) }
+                    }
+                    HirExpr::Var(name) => {
+                        // Check if we know the variable type from class fields
+                        if let Some(field_type) = class_field_types.get(name) {
+                            match field_type {
+                                Type::Int => parse_quote! { DepylerValue::Int(#val_raw as i64) },
+                                Type::Float => parse_quote! { DepylerValue::Float(#val_raw as f64) },
+                                Type::String => parse_quote! { DepylerValue::Str(#val_raw.to_string()) },
+                                Type::Bool => parse_quote! { DepylerValue::Bool(#val_raw) },
+                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_raw)) },
+                            }
+                        } else {
+                            parse_quote! { DepylerValue::Str(format!("{:?}", #val_raw)) }
+                        }
+                    }
+                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_raw)) },
+                };
+
+                Ok(parse_quote! { map.insert(#key, #val) })
+            })
+            .collect::<Result<Vec<_>>>()?;
+
         Ok(parse_quote! {
             {
                 let mut map = std::collections::HashMap::new();
