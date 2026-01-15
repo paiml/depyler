@@ -1314,6 +1314,78 @@ impl PyMul for DepylerValue {
         }
     }
 }
+impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+        self.extend(rhs);
+        self
+    }
+}
+impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+        self.extend(rhs.iter().cloned());
+        self
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+        let mut result = self.clone();
+        result.extend(rhs);
+        result
+    }
+}
+impl<T: Clone> PyMul<i32> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<i64> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<usize> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T> {
+        self.iter()
+            .cloned()
+            .cycle()
+            .take(self.len() * rhs)
+            .collect()
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2633,18 +2705,18 @@ pub fn insort_left(arr: &Vec<i32>, value: i32) -> Result<Vec<i32>, Box<dyn std::
     let mut new_arr: Vec<i32> = vec![];
     for i in 0..(arr.len() as i32) {
         if i == position {
-            new_arr.push(value);
+            new_arr.push(value as i64);
         }
         new_arr.push(
             arr.get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
     }
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = position == _cse_temp_0;
     if _cse_temp_1 {
-        new_arr.push(value);
+        new_arr.push(value as i64);
     }
     Ok(new_arr)
 }
@@ -2656,18 +2728,18 @@ pub fn insort_right(arr: &Vec<i32>, value: i32) -> Result<Vec<i32>, Box<dyn std:
     let mut new_arr: Vec<i32> = vec![];
     for i in 0..(arr.len() as i32) {
         if i == position {
-            new_arr.push(value);
+            new_arr.push(value as i64);
         }
         new_arr.push(
             arr.get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
     }
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = position == _cse_temp_0;
     if _cse_temp_1 {
-        new_arr.push(value);
+        new_arr.push(value as i64);
     }
     Ok(new_arr)
 }
@@ -2840,14 +2912,14 @@ pub fn merge_sorted_arrays<'b, 'a>(
             result.push(
                 arr1.get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range"),
+                    .expect("IndexError: list index out of range") as i64,
             );
             i = (i).py_add(1);
         } else {
             result.push(
                 arr2.get(j as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range"),
+                    .expect("IndexError: list index out of range") as i64,
             );
             j = (j).py_add(1);
         }
@@ -2856,7 +2928,7 @@ pub fn merge_sorted_arrays<'b, 'a>(
         result.push(
             arr1.get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
         i = (i).py_add(1);
     }
@@ -2864,7 +2936,7 @@ pub fn merge_sorted_arrays<'b, 'a>(
         result.push(
             arr2.get(j as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
         j = (j).py_add(1);
     }
@@ -2908,8 +2980,8 @@ pub fn find_floor_ceiling(
     arr: &Vec<i32>,
     target: i32,
 ) -> Result<(i32, i32), Box<dyn std::error::Error>> {
-    let mut floor_val: i32 = Default::default();
     let mut ceiling_val: i32 = Default::default();
+    let mut floor_val: i32 = Default::default();
     let position: i32 = binary_search_left(&arr, target)?;
     floor_val = -1;
     ceiling_val = -1;

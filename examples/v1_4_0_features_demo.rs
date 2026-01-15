@@ -871,7 +871,63 @@ else {
 }
 }
 }
-impl PyDiv for i32 {
+impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T>{
+    self.extend(rhs);
+    self
+}
+} impl<T: Clone>PyAdd<& Vec<T>>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: & Vec<T>) -> Vec<T>{
+    self.extend(rhs.iter().cloned());
+    self
+}
+} impl<T: Clone>PyAdd<Vec<T>>for & Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T>{
+    let mut result = self.clone();
+    result.extend(rhs);
+    result
+}
+} impl<T: Clone>PyMul<i32>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T>{
+    if rhs <= 0 {
+    Vec::new()
+}
+else {
+    self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+}
+}
+}
+impl<T: Clone>PyMul<i64>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T>{
+    if rhs <= 0 {
+    Vec::new()
+}
+else {
+    self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+}
+}
+}
+impl<T: Clone>PyMul<usize>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T>{
+    self.iter().cloned().cycle().take(self.len() * rhs).collect()
+}
+} impl<T: Clone>PyMul<Vec<T>>for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
+    rhs.py_mul(self)
+}
+} impl<T: Clone>PyMul<Vec<T>>for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
+    rhs.py_mul(self)
+}
+} impl PyDiv for i32 {
     type Output = f64;
     #[inline] fn py_div(self, rhs: i32) -> f64 {
     if rhs == 0 {
@@ -1923,7 +1979,7 @@ pub async fn _process(&self, request_id: i32) -> String {
     for item in items.iter().cloned() {
     let user = fetch_user(item);
     let result = format!("Processed {}", user.get("name").cloned().unwrap_or_default());
-    results.push(DepylerValue::Str(result.to_string()));
+    results.push(result);
    
 }
 results

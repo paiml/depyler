@@ -5,8 +5,8 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::path::PathBuf;
-    const STR___1: &'static str = "=";
-    const STR___2: &'static str = "\n";
+    const STR___1: &'static str = "\n";
+    const STR___2: &'static str = "=";
     use std::collections::HashMap;
     #[derive(Debug, Clone)] pub struct ZeroDivisionError {
     message: String ,
@@ -908,7 +908,63 @@ else {
 }
 }
 }
-impl PyDiv for i32 {
+impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T>{
+    self.extend(rhs);
+    self
+}
+} impl<T: Clone>PyAdd<& Vec<T>>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: & Vec<T>) -> Vec<T>{
+    self.extend(rhs.iter().cloned());
+    self
+}
+} impl<T: Clone>PyAdd<Vec<T>>for & Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T>{
+    let mut result = self.clone();
+    result.extend(rhs);
+    result
+}
+} impl<T: Clone>PyMul<i32>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T>{
+    if rhs <= 0 {
+    Vec::new()
+}
+else {
+    self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+}
+}
+}
+impl<T: Clone>PyMul<i64>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T>{
+    if rhs <= 0 {
+    Vec::new()
+}
+else {
+    self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+}
+}
+}
+impl<T: Clone>PyMul<usize>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T>{
+    self.iter().cloned().cycle().take(self.len() * rhs).collect()
+}
+} impl<T: Clone>PyMul<Vec<T>>for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
+    rhs.py_mul(self)
+}
+} impl<T: Clone>PyMul<Vec<T>>for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
+    rhs.py_mul(self)
+}
+} impl PyDiv for i32 {
     type Output = f64;
     #[inline] fn py_div(self, rhs: i32) -> f64 {
     if rhs == 0 {
@@ -2059,7 +2115,7 @@ else {
 }
 } #[doc = "Example 1: Simple function transpilation with MCP."] pub fn example_1_simple_transpilation() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 1: Simple Function Transpilation");
-    println!("{}" ,(STR___1).py_mul(50));
+    println!("{}" ,(STR___2).py_mul(50));
     let client = DepylerMCPClient::new();
     let python_code = "\ndef add_numbers(a: int, b: int) -> int:\n    \"\"\"Add two numbers together.\"\"\"\n    return a + b\n\nif __name__ == \"__main__\":\n    result = add_numbers(5, 3)\n    print(f\"Result: {result}\")\n";
     println!("{}", "🐍 Python Source:");
@@ -2092,7 +2148,7 @@ println!();
 }
 #[doc = "Example 2: Analyze migration complexity for a project."] pub fn example_2_project_analysis() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 2: Project Migration Analysis");
-    println!("{}" ,(STR___1).py_mul(50));
+    println!("{}" ,(STR___2).py_mul(50));
     let client = DepylerMCPClient::new();
     let result = client.call_tool("analyze_migration_complexity", {
     let mut map = HashMap::new();
@@ -2134,7 +2190,7 @@ println!();
 }
 #[doc = "Example 3: Verify transpilation correctness."] pub fn example_3_verification() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 3: Transpilation Verification");
-    println!("{}" ,(STR___1).py_mul(50));
+    println!("{}" ,(STR___2).py_mul(50));
     let client = DepylerMCPClient::new();
     let python_source = "\ndef factorial(n: int) -> int:\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n";
     let rust_source = "\nfn factorial(n: i32) -> i32 {\n    if n <= 1 {\n        1\n   
@@ -2200,17 +2256,17 @@ println!();
 }
 #[doc = "Example 4: Batch processing multiple files."] pub fn example_4_batch_processing() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 4: Batch Processing Workflow");
-    println!("{}" ,(STR___1).py_mul(50));
+    println!("{}" ,(STR___2).py_mul(50));
     let client = DepylerMCPClient::new();
     let python_files = vec! [("binary_search.py".to_string(), "def binary_search(arr, target):...".to_string()) ,("calculate_sum.py".to_string(), "def calculate_sum(numbers):...".to_string()) ,("classify_number.py".to_string(), "def classify_number(n):...".to_string())];
     println!("{}", "🔄 Processing multiple files with MCP...");
     println!();
     let mut results = vec! [];
     for(filename, code_snippet) in python_files.iter().cloned() {
-    println!("{}", format!("📄 Processing {:?}...", filename));
+    println!("{}", format!("📄 Processing {}...", filename));
     let transpile_result = client.call_tool("transpile_python", {
     let mut map = HashMap::new();
-    map.insert(DepylerValue::Str("source".to_string()), DepylerValue::Str(format!("{:?}", code_snippet)));
+    map.insert(DepylerValue::Str("source".to_string()), DepylerValue::Str(code_snippet.to_string()));
     map.insert(DepylerValue::Str("mode".to_string()), DepylerValue::Str("file".to_string()));
     map.insert(DepylerValue::Str("options".to_string()), DepylerValue::Str(format!("{:?}", {
     let mut map = HashMap::new();
@@ -2231,7 +2287,7 @@ println!();
     map.insert("verification_passed".to_string().to_string(), verify_result.get("verification_passed").cloned().unwrap_or_default());
     map.insert("performance_gain".to_string().to_string(), verify_result.get("performance_comparison").cloned().unwrap_or_default().get("rust_faster_by").cloned().unwrap_or_default());
     map })));
-    println!("{}", format!("  ✅ {:?} processed successfully", filename));
+    println!("{}", format!("  ✅ {} processed successfully", filename));
    
 }
 println!();
@@ -2252,7 +2308,7 @@ println!();
 }
 #[doc = "Example 5: Integration pattern for AI assistants."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn example_5_ai_assistant_integration() {
     println!("{}", "🔬 Example 5: AI Assistant Integration Pattern");
-    println!("{}" ,(STR___1).py_mul(50));
+    println!("{}" ,(STR___2).py_mul(50));
     println!("{}", "🤖 AI Assistant Workflow:");
     println!();
     println!("{}", "1\u{fe0f}\u{20e3}  Analyze Python project complexity...");
@@ -2307,7 +2363,7 @@ println!();
 }
 #[doc = "Run all MCP usage examples."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn main () {
     println!("{}", "🚀 Depyler MCP Integration Examples");
-    println!("{}" ,(STR___1).py_mul(60));
+    println!("{}" ,(STR___2).py_mul(60));
     println!();
     println!("{}", "This script demonstrates various ways to use Depyler's");
     println!("{}", "Model Context Protocol(MCP) integration for AI-powered");
@@ -2320,16 +2376,16 @@ println!();
     println!("{}", "  4. Batch processing workflow");
     println!("{}", "  5. AI assistant integration patterns");
     println!();
-    println!("{}" ,(STR___1).py_mul(60));
+    println!("{}" ,(STR___2).py_mul(60));
     println!();
     example_1_simple_transpilation();
-    println!("{}" ,((STR___2).py_add((STR___1).py_mul(60))).py_add(STR___2));
+    println!("{}" ,((STR___1).py_add((STR___2).py_mul(60))).py_add(STR___1));
     example_2_project_analysis();
-    println!("{}" ,((STR___2).py_add((STR___1).py_mul(60))).py_add(STR___2));
+    println!("{}" ,((STR___1).py_add((STR___2).py_mul(60))).py_add(STR___1));
     example_3_verification();
-    println!("{}" ,((STR___2).py_add((STR___1).py_mul(60))).py_add(STR___2));
+    println!("{}" ,((STR___1).py_add((STR___2).py_mul(60))).py_add(STR___1));
     example_4_batch_processing();
-    println!("{}" ,((STR___2).py_add((STR___1).py_mul(60))).py_add(STR___2));
+    println!("{}" ,((STR___1).py_add((STR___2).py_mul(60))).py_add(STR___1));
     example_5_ai_assistant_integration();
     println!("{}", "🎉 All examples completed!");
     println!();

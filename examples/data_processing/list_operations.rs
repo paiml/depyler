@@ -1312,6 +1312,78 @@ impl PyMul for DepylerValue {
         }
     }
 }
+impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+        self.extend(rhs);
+        self
+    }
+}
+impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+        self.extend(rhs.iter().cloned());
+        self
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+        let mut result = self.clone();
+        result.extend(rhs);
+        result
+    }
+}
+impl<T: Clone> PyMul<i32> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<i64> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<usize> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T> {
+        self.iter()
+            .cloned()
+            .cycle()
+            .take(self.len() * rhs)
+            .collect()
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2520,7 +2592,7 @@ pub fn filter_even_numbers(numbers: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::
     let mut result: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
         if (num).py_mod(2) == 0 {
-            result.push(num);
+            result.push(num as i64);
         }
     }
     Ok(result)
@@ -2533,16 +2605,16 @@ pub fn find_duplicates(numbers: &Vec<i32>) -> Vec<i32> {
     for num in numbers.iter().cloned() {
         if seen.contains(&num) {
             if !duplicates.contains(&num) {
-                duplicates.push(num);
+                duplicates.push(num as i64);
             }
         } else {
-            seen.push(num);
+            seen.push(num as i64);
         }
     }
     duplicates
 }
 #[doc = "Merge two sorted lists into one sorted list"]
-pub fn merge_sorted_lists<'b, 'a>(
+pub fn merge_sorted_lists<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
@@ -2565,7 +2637,7 @@ pub fn merge_sorted_lists<'b, 'a>(
                 list1
                     .get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range"),
+                    .expect("IndexError: list index out of range") as i64,
             );
             i = (i).py_add(1);
         } else {
@@ -2573,7 +2645,7 @@ pub fn merge_sorted_lists<'b, 'a>(
                 list2
                     .get(j as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range"),
+                    .expect("IndexError: list index out of range") as i64,
             );
             j = (j).py_add(1);
         }
@@ -2583,7 +2655,7 @@ pub fn merge_sorted_lists<'b, 'a>(
             list1
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
         i = (i).py_add(1);
     }
@@ -2592,7 +2664,7 @@ pub fn merge_sorted_lists<'b, 'a>(
             list2
                 .get(j as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
         j = (j).py_add(1);
     }
@@ -2608,7 +2680,7 @@ pub fn calculate_running_sum(numbers: &Vec<i32>) -> Vec<i32> {
     let mut running_total = 0;
     for num in numbers.iter().cloned() {
         running_total = (running_total).py_add(num);
-        result.push(running_total);
+        result.push(running_total as i64);
     }
     result
 }
@@ -2633,7 +2705,7 @@ pub fn rotate_list_left(
             numbers
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
     }
     for i in 0..(positions) {
@@ -2641,7 +2713,7 @@ pub fn rotate_list_left(
             numbers
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range"),
+                .expect("IndexError: list index out of range") as i64,
         );
     }
     Ok(result)

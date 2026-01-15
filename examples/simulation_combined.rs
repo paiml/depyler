@@ -1314,6 +1314,78 @@ impl PyMul for DepylerValue {
         }
     }
 }
+impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+        self.extend(rhs);
+        self
+    }
+}
+impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+        self.extend(rhs.iter().cloned());
+        self
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+        let mut result = self.clone();
+        result.extend(rhs);
+        result
+    }
+}
+impl<T: Clone> PyMul<i32> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<i64> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<usize> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T> {
+        self.iter()
+            .cloned()
+            .cycle()
+            .take(self.len() * rhs)
+            .collect()
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2574,10 +2646,10 @@ pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
 pub fn count_streaks(
     sequence: &Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let mut max_tails_streak: i32 = Default::default();
-    let mut max_heads_streak: i32 = Default::default();
-    let mut current_type: String = Default::default();
     let mut current_streak: i32 = Default::default();
+    let mut current_type: String = Default::default();
+    let mut max_heads_streak: i32 = Default::default();
+    let mut max_tails_streak: i32 = Default::default();
     let _cse_temp_0 = sequence.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -2666,8 +2738,8 @@ pub fn monte_carlo_pi_estimation(
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
-    let mut x: i32 = Default::default();
     let mut y: i32 = Default::default();
+    let mut x: i32 = Default::default();
     x = 0;
     y = 0;
     for _step in 0..(num_steps) {
@@ -2711,7 +2783,7 @@ pub fn simulate_queue_system(
         let arrival_time: i32 = current_time;
         let service_time: i32 = service_time_range.0;
         let wait_time: i32 = queue_length;
-        wait_times.push(wait_time);
+        wait_times.push(wait_time as i64);
         queue_length = (queue_length).py_add(service_time);
         current_time = (arrival_time).py_add(service_time);
         if queue_length > 0 {
@@ -2822,7 +2894,7 @@ pub fn simulate_population_growth(
         if current_population < 0 {
             current_population = 0;
         }
-        populations.push(current_population);
+        populations.push(current_population as i64);
     }
     populations
 }
@@ -2830,8 +2902,8 @@ pub fn simulate_population_growth(
 pub fn analyze_population_trend(
     populations: &Vec<i32>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut total_growth: f64 = Default::default();
     let mut peak: i32 = Default::default();
+    let mut total_growth: f64 = Default::default();
     let _cse_temp_0 = populations.len() as i32;
     let _cse_temp_1 = _cse_temp_0 < 2;
     if _cse_temp_1 {
