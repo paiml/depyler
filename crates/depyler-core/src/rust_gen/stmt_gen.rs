@@ -625,6 +625,15 @@ pub(crate) fn codegen_return_stmt(
             expr_tokens = parse_quote! { Box::new(#expr_tokens) };
         }
 
+        // DEPYLER-1124: Convert concrete type to Union type via .into()
+        // When return type is Union[A, B] and expression is concrete A or B,
+        // add .into() to let Rust's From trait handle the conversion.
+        // Union types generate enum with From impls for each variant.
+        let is_union_return = matches!(ctx.current_return_type.as_ref(), Some(Type::Union(_)));
+        if is_union_return {
+            expr_tokens = parse_quote! { #expr_tokens.into() };
+        }
+
         // DEPYLER-0241: Apply type conversion if needed (e.g., usize -> i32 from enumerate())
         if let Some(return_type) = &ctx.current_return_type {
             // Unwrap Optional to get the underlying type
