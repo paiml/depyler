@@ -724,6 +724,144 @@ impl DepylerPipeline {
         Ok(rust_code)
     }
 
+    /// DEPYLER-1102: Transpile with oracle-learned type constraints and return dependencies
+    ///
+    /// This method is the constraint-aware version of `transpile_with_dependencies`.
+    /// It is used by the Oracle Loop in `compile_cmd.rs` to re-transpile code with
+    /// learned type corrections while still generating the necessary Cargo dependencies.
+    pub fn transpile_with_constraints_and_dependencies(
+        &self,
+        python_source: &str,
+        type_constraints: &std::collections::HashMap<String, String>,
+    ) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
+        // Convert string type constraints to HIR Types
+        let type_overrides: std::collections::HashMap<String, hir::Type> = type_constraints
+            .iter()
+            .map(|(var, ty_str)| {
+                (var.clone(), rust_gen::rust_type_string_to_hir(ty_str))
+            })
+            .collect();
+
+        // Parse Python source
+        let ast = self.parse_python(python_source)?;
+
+        // Convert to HIR with annotation support
+        let (mut hir, _type_env) = ast_bridge::AstBridge::new()
+            .with_source(python_source.to_string())
+            .python_to_hir(ast)?;
+
+        // DEPYLER-1101: Apply type overrides to HIR
+        // Override function return types and variable types based on constraints
+        for func in &mut hir.functions {
+            // Check if function name is in overrides
+            if let Some(override_type) = type_overrides.get(&func.name) {
+                if !matches!(override_type, hir::Type::Unknown) {
+                    eprintln!(
+                        "DEPYLER-1101: Overriding return type of {} to {:?}",
+                        func.name, override_type
+                    );
+                    func.ret_type = override_type.clone();
+                }
+            }
+
+            // Override parameter types
+            for param in func.params.iter_mut() {
+                if let Some(override_type) = type_overrides.get(&param.name) {
+                    if !matches!(override_type, hir::Type::Unknown) {
+                        eprintln!(
+                            "DEPYLER-1101: Overriding param {} type to {:?}",
+                            param.name, override_type
+                        );
+                        param.ty = override_type.clone();
+                    }
+                }
+            }
+        }
+
+        // Apply standard type inference and optimization passes
+        let mut const_inferencer = const_generic_inference::ConstGenericInferencer::new();
+        const_inferencer.analyze_module(&mut hir)?;
+
+        // Apply type inference hints (same as transpile)
+        if self.analyzer.type_inference_enabled {
+            let mut type_hint_provider = type_hints::TypeHintProvider::new();
+
+            // Collect hints first (immutable borrow)
+            let mut function_hints: Vec<(usize, Vec<type_hints::TypeHint>)> = Vec::new();
+            for (idx, func) in hir.functions.iter().enumerate() {
+                if let Ok(hints) = type_hint_provider.analyze_function(func) {
+                    if !hints.is_empty() {
+                        function_hints.push((idx, hints));
+                    }
+                }
+            }
+
+            // Apply hints (mutable borrow)
+            for (func_idx, hints) in function_hints {
+                let func = &mut hir.functions[func_idx];
+                for param in &mut func.params {
+                    if matches!(param.ty, hir::Type::Unknown)
+                        && !type_overrides.contains_key(&param.name)
+                    {
+                        for hint in &hints {
+                            if let type_hints::HintTarget::Parameter(hint_param) = &hint.target {
+                                if hint_param == &param.name
+                                    && matches!(
+                                        hint.confidence,
+                                        type_hints::Confidence::High
+                                            | type_hints::Confidence::Certain
+                                    )
+                                {
+                                    param.ty = hint.suggested_type.clone();
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Cross-function type propagation
+        type_propagation::propagate_call_site_types(&mut hir);
+
+        // Hindley-Milner type inference
+        {
+            use type_system::{ConstraintCollector, TypeConstraintSolver};
+
+            let mut collector = ConstraintCollector::new();
+            collector.collect_module(&hir);
+
+            let constraints = collector.constraints();
+            if !constraints.is_empty() {
+                let mut solver = TypeConstraintSolver::new();
+                for constraint in constraints {
+                    solver.add_constraint(constraint.clone());
+                }
+
+                if let Ok(solution) = solver.solve() {
+                    let _applied = collector.apply_substitutions(&mut hir, &solution);
+                }
+            }
+        }
+
+        // Inter-procedural type unification
+        if let Err(e) = type_system::unify_module_types(&mut hir) {
+            eprintln!("Type unification warning: {:?}", e);
+        }
+
+        // Apply optimization passes
+        optimization::optimize_module(&mut hir);
+
+        // Generate Rust code with type overrides
+        // DEPYLER-1102: Uses generate_rust_file_with_overrides which returns (code, deps)
+        rust_gen::generate_rust_file_with_overrides(
+            &hir,
+            &self.transpiler.type_mapper,
+            type_overrides,
+        )
+    }
+
     /// DEPYLER-1101: Transpile with oracle-learned type constraints
     ///
     /// This method accepts a map of variable names to their corrected types,
