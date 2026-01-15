@@ -1923,6 +1923,19 @@ pub fn generate_rust_file(
     module: &HirModule,
     type_mapper: &crate::type_mapper::TypeMapper,
 ) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
+    // DEPYLER-1133: Delegate to internal implementation with empty var_types
+    generate_rust_file_internal(module, type_mapper, std::collections::HashMap::new())
+}
+
+/// DEPYLER-1133: Internal implementation that accepts pre-seeded var_types
+///
+/// This is the "Restoration of Truth" - when called with Oracle-learned types,
+/// those types are used during code generation instead of being inferred fresh.
+fn generate_rust_file_internal(
+    module: &HirModule,
+    type_mapper: &crate::type_mapper::TypeMapper,
+    initial_var_types: std::collections::HashMap<String, Type>,
+) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
     let module_mapper = crate::module_mapper::ModuleMapper::new();
 
     // Process imports to populate the context
@@ -2092,7 +2105,10 @@ pub fn generate_rust_file(
         generator_state_vars: HashSet::new(),
         generator_iterator_state_vars: HashSet::new(),
         returns_impl_iterator: false,
-        var_types: std::collections::HashMap::new(),
+        // DEPYLER-1133: THE RESTORATION OF TRUTH
+        // Pre-seed var_types with Oracle-learned types if provided.
+        // This ensures the generator obeys the Oracle's constraints.
+        var_types: initial_var_types,
         class_names,
         mutating_methods,
         property_methods, // DEPYLER-0737: Track @property methods for parenthesis insertion
@@ -5080,22 +5096,28 @@ pub fn generate_rust_file_with_overrides(
     type_mapper: &crate::type_mapper::TypeMapper,
     type_overrides: std::collections::HashMap<String, Type>,
 ) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
-    // Call the main generator
-    let result = generate_rust_file(module, type_mapper);
+    // DEPYLER-1133: RESTORATION OF TRUTH
+    // The Oracle has learned the correct types. We MUST obey.
+    // Pre-seed var_types with the overrides before code generation.
 
-    // If successful and we have overrides, we need to regenerate with overrides applied
-    // For now, we log the overrides for observability
-    if !type_overrides.is_empty() {
-        eprintln!(
-            "DEPYLER-1101: Applied {} type overrides from oracle",
-            type_overrides.len()
-        );
-        for (var, ty) in &type_overrides {
-            eprintln!("  {} → {:?}", var, ty);
-        }
+    if type_overrides.is_empty() {
+        // No overrides - use standard generator
+        return generate_rust_file(module, type_mapper);
     }
 
-    result
+    // Log the overrides for observability
+    eprintln!(
+        "DEPYLER-1133: Restoring {} type constraints from Oracle",
+        type_overrides.len()
+    );
+    for (var, ty) in &type_overrides {
+        eprintln!("  {} → {:?}", var, ty);
+    }
+
+    // DEPYLER-1133: THE RESTORATION OF TRUTH
+    // Call the internal generator with Oracle's pre-seeded var_types.
+    // This ensures the generator obeys the Oracle's constraints.
+    generate_rust_file_internal(module, type_mapper, type_overrides)
 }
 
 /// DEPYLER-1101: Convert Rust type string from E0308 error to HIR Type
