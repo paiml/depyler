@@ -1314,6 +1314,78 @@ impl PyMul for DepylerValue {
         }
     }
 }
+impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T> {
+        self.extend(rhs);
+        self
+    }
+}
+impl<T: Clone> PyAdd<&Vec<T>> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: &Vec<T>) -> Vec<T> {
+        self.extend(rhs.iter().cloned());
+        self
+    }
+}
+impl<T: Clone> PyAdd<Vec<T>> for &Vec<T> {
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T> {
+        let mut result = self.clone();
+        result.extend(rhs);
+        result
+    }
+}
+impl<T: Clone> PyMul<i32> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<i64> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T> {
+        if rhs <= 0 {
+            Vec::new()
+        } else {
+            self.iter()
+                .cloned()
+                .cycle()
+                .take(self.len() * rhs as usize)
+                .collect()
+        }
+    }
+}
+impl<T: Clone> PyMul<usize> for Vec<T> {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T> {
+        self.iter()
+            .cloned()
+            .cycle()
+            .take(self.len() * rhs)
+            .collect()
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
+impl<T: Clone> PyMul<Vec<T>> for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+        rhs.py_mul(self)
+    }
+}
 impl PyDiv for i32 {
     type Output = f64;
     #[inline]
@@ -2524,7 +2596,7 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
     let mut data: Vec<f64> = vec![];
     for _i in 0..(size) {
         let value: f64 = ((0.5_f64).py_mul(stddev)).py_add(mean);
-        data.push(value);
+        data.push(value as f64);
     }
     data
 }
@@ -2532,10 +2604,10 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
 pub fn calculate_statistics(
     data: &Vec<f64>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut variance_sum: f64 = Default::default();
     let mut min_val: f64 = Default::default();
     let mut total: f64 = Default::default();
     let mut max_val: f64 = Default::default();
+    let mut variance_sum: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -2803,7 +2875,7 @@ pub fn detect_outliers(data: &Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
     let mut outliers: Vec<f64> = vec![];
     for value in data.iter().cloned() {
         if (value < lower_bound) || (value > upper_bound) {
-            outliers.push(value);
+            outliers.push(value as f64);
         }
     }
     Ok(outliers)
@@ -2871,11 +2943,11 @@ pub fn calculate_correlation<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut x_sum: f64 = Default::default();
-    let mut x_variance_sum: f64 = Default::default();
-    let mut y_sum: f64 = Default::default();
     let mut numerator: f64 = Default::default();
+    let mut x_variance_sum: f64 = Default::default();
+    let mut x_sum: f64 = Default::default();
     let mut y_variance_sum: f64 = Default::default();
+    let mut y_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -2933,8 +3005,8 @@ pub fn calculate_correlation<'b, 'a>(
 }
 #[doc = "Z-score normalization using statistics"]
 pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
-    let mut variance_sum: f64 = Default::default();
     let mut total: f64 = Default::default();
+    let mut variance_sum: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -2960,17 +3032,17 @@ pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Er
     let mut normalized: Vec<f64> = vec![];
     for value in data.iter().cloned() {
         let z_score: f64 = ((value).py_sub(mean)).py_div(stddev);
-        normalized.push(z_score);
+        normalized.push(z_score as f64);
     }
     Ok(normalized)
 }
 #[doc = "Group data by ranges using collections"]
-pub fn group_by_range<'b, 'a>(
+pub fn group_by_range<'a, 'b>(
     data: &'a Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, Box<dyn std::error::Error>> {
-    let mut range_key: String = Default::default();
     let mut range_tuple: (f64, f64) = Default::default();
+    let mut range_key: String = Default::default();
     let mut groups: std::collections::HashMap<String, Vec<f64>> = {
         let map: HashMap<String, Vec<f64>> = HashMap::new();
         map
@@ -3013,7 +3085,7 @@ pub fn monte_carlo_simulation(
         let x: f64 = (0.5_f64).py_mul(10.0);
         let y: f64 = (0.5_f64).py_mul(10.0);
         let distance: f64 = (((x).py_mul(x)).py_add((y).py_mul(y)) as f64).sqrt();
-        results.push(distance);
+        results.push(distance as f64);
     }
     let stats: std::collections::HashMap<String, f64> = calculate_statistics(&results)?;
     Ok(stats)

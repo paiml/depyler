@@ -887,7 +887,63 @@ else {
 }
 }
 }
-impl PyDiv for i32 {
+impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: Vec<T>) -> Vec<T>{
+    self.extend(rhs);
+    self
+}
+} impl<T: Clone>PyAdd<& Vec<T>>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(mut self, rhs: & Vec<T>) -> Vec<T>{
+    self.extend(rhs.iter().cloned());
+    self
+}
+} impl<T: Clone>PyAdd<Vec<T>>for & Vec<T>{
+    type Output = Vec<T>;
+    fn py_add(self, rhs: Vec<T>) -> Vec<T>{
+    let mut result = self.clone();
+    result.extend(rhs);
+    result
+}
+} impl<T: Clone>PyMul<i32>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i32) -> Vec<T>{
+    if rhs <= 0 {
+    Vec::new()
+}
+else {
+    self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+}
+}
+}
+impl<T: Clone>PyMul<i64>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: i64) -> Vec<T>{
+    if rhs <= 0 {
+    Vec::new()
+}
+else {
+    self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+}
+}
+}
+impl<T: Clone>PyMul<usize>for Vec<T>{
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: usize) -> Vec<T>{
+    self.iter().cloned().cycle().take(self.len() * rhs).collect()
+}
+} impl<T: Clone>PyMul<Vec<T>>for i32 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
+    rhs.py_mul(self)
+}
+} impl<T: Clone>PyMul<Vec<T>>for i64 {
+    type Output = Vec<T>;
+    fn py_mul(self, rhs: Vec<T>) -> Vec<T>{
+    rhs.py_mul(self)
+}
+} impl PyDiv for i32 {
     type Output = f64;
     #[inline] fn py_div(self, rhs: i32) -> f64 {
     if rhs == 0 {
@@ -2493,8 +2549,8 @@ else {
     let ai = AIPlayer::new("O".to_string());
     let mut moves_log: Vec<String>= vec! [];
     while! game.is_game_over() {
-    let mut row;
     let mut col;
+    let mut row;
     if game.current_player == "X" {
     let empty_positions = game.get_empty_positions();
     if empty_positions {
@@ -2520,7 +2576,7 @@ else {
 }
 Ok(moves_log.join ("\n"))
 }
-#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'b, 'a>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
+#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'a, 'b>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
     let mut count: i32 = Default::default();
     let winning_positions = vec! [vec! [(0, 0) ,(0, 1) ,(0, 2)], vec! [(1, 0) ,(1, 1) ,(1, 2)], vec! [(2, 0) ,(2, 1) ,(2, 2)], vec! [(0, 0) ,(1, 0) ,(2, 0)], vec! [(0, 1) ,(1, 1) ,(2, 1)], vec! [(0, 2) ,(1, 2) ,(2, 2)], vec! [(0, 0) ,(1, 1) ,(2, 2)], vec! [(0, 2) ,(1, 1) ,(2, 0)]];
     count = 0;
