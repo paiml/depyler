@@ -891,7 +891,117 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 }
 
-                // Apply truthiness conversion to both operands
+                // DEPYLER-1127: Python `or`/`and` are VALUE-RETURNING, not boolean operators
+                // Python: x or y → returns x if truthy, else y (not True/False!)
+                // Python: x and y → returns x if falsy, else y (not True/False!)
+                // This is fundamentally different from Rust's || and && which return bool.
+                //
+                // Pattern: `wait = get_time() or 0.1` should return the time or 0.1, not bool
+                // Pattern: `result = data and process(data)` should return data or process result
+                //
+                // We detect non-boolean operands and generate value-returning if-else:
+                // x or y → { let _v = x; if _v.is_true() { _v } else { y } }
+                // x and y → { let _v = x; if !_v.is_true() { _v } else { y } }
+                let left_is_bool_expr = self.expr_is_boolean_expr(left);
+                let right_is_bool_expr = self.expr_is_boolean_expr(right);
+
+                // If BOTH operands are boolean expressions, use standard && / ||
+                // Otherwise, generate value-returning pattern
+                if !left_is_bool_expr || !right_is_bool_expr {
+                    // Check if either operand is DepylerValue (needs special handling)
+                    let left_is_depyler = self.expr_is_depyler_value(left);
+                    let right_is_depyler = self.expr_is_depyler_value(right);
+                    let right_is_int_literal = matches!(right, HirExpr::Literal(Literal::Int(_)));
+                    let right_is_float_literal =
+                        matches!(right, HirExpr::Literal(Literal::Float(_)));
+
+                    // When either side is DepylerValue, wrap the other side too
+                    if left_is_depyler || right_is_depyler {
+                        // Wrap right-hand side if it's a literal and left is DepylerValue
+                        let right_wrapped: syn::Expr = if left_is_depyler && !right_is_depyler {
+                            if right_is_int_literal {
+                                parse_quote! { DepylerValue::Int(#right_expr as i64) }
+                            } else if right_is_float_literal {
+                                parse_quote! { DepylerValue::Float(#right_expr as f64) }
+                            } else {
+                                // Try .into() conversion for other types
+                                parse_quote! { DepylerValue::from(#right_expr) }
+                            }
+                        } else {
+                            right_expr.clone()
+                        };
+
+                        // Wrap left-hand side if right is DepylerValue and left is not
+                        let left_wrapped: syn::Expr = if right_is_depyler && !left_is_depyler {
+                            let left_is_int = matches!(left, HirExpr::Literal(Literal::Int(_)));
+                            let left_is_float = matches!(left, HirExpr::Literal(Literal::Float(_)));
+                            if left_is_int {
+                                parse_quote! { DepylerValue::Int(#left_expr as i64) }
+                            } else if left_is_float {
+                                parse_quote! { DepylerValue::Float(#left_expr as f64) }
+                            } else {
+                                parse_quote! { DepylerValue::from(#left_expr) }
+                            }
+                        } else {
+                            left_expr.clone()
+                        };
+
+                        // Generate value-returning pattern with PyTruthy
+                        return match op {
+                            BinOp::Or => Ok(parse_quote! {
+                                {
+                                    let _or_lhs = #left_wrapped;
+                                    if _or_lhs.is_true() { _or_lhs } else { #right_wrapped }
+                                }
+                            }),
+                            BinOp::And => Ok(parse_quote! {
+                                {
+                                    let _and_lhs = #left_wrapped;
+                                    if !_and_lhs.is_true() { _and_lhs } else { #right_wrapped }
+                                }
+                            }),
+                            _ => unreachable!(),
+                        };
+                    }
+
+                    // For non-DepylerValue, non-boolean expressions:
+                    // Generate value-returning pattern only for numeric defaults
+                    // DEPYLER-1127: If left could be DepylerValue (e.g., from dict.get chain),
+                    // we need to wrap the literal in DepylerValue to ensure type match.
+                    // Detection of dict chains: .get(), .cloned(), .unwrap_or() patterns
+                    let left_might_be_depyler = self.expr_might_be_depyler_value(left);
+
+                    if right_is_int_literal || right_is_float_literal {
+                        // If left might be DepylerValue, wrap the literal
+                        let right_safe: syn::Expr = if left_might_be_depyler {
+                            if right_is_int_literal {
+                                parse_quote! { DepylerValue::Int(#right_expr as i64) }
+                            } else {
+                                parse_quote! { DepylerValue::Float(#right_expr as f64) }
+                            }
+                        } else {
+                            right_expr.clone()
+                        };
+
+                        return match op {
+                            BinOp::Or => Ok(parse_quote! {
+                                {
+                                    let _or_lhs = #left_expr;
+                                    if _or_lhs.is_true() { _or_lhs } else { #right_safe }
+                                }
+                            }),
+                            BinOp::And => Ok(parse_quote! {
+                                {
+                                    let _and_lhs = #left_expr;
+                                    if !_and_lhs.is_true() { _and_lhs } else { #right_safe }
+                                }
+                            }),
+                            _ => unreachable!(),
+                        };
+                    }
+                }
+
+                // Fall through: Apply truthiness conversion to both operands for bool context
                 let left_converted = Self::apply_truthiness_conversion(left, left_expr, self.ctx);
                 let right_converted =
                     Self::apply_truthiness_conversion(right, right_expr, self.ctx);

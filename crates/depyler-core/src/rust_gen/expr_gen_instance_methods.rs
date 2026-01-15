@@ -7235,6 +7235,164 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
+    /// DEPYLER-1127: Check if expression is a boolean-returning expression
+    /// Used to determine if `or`/`and` should return bool or value
+    ///
+    /// Returns true for:
+    /// - Boolean literals: True, False
+    /// - Comparison expressions: a > b, a == b, etc.
+    /// - Logical not: not x
+    /// - Type checks: isinstance(), hasattr()
+    /// - in/not in expressions
+    ///
+    /// Returns false for expressions that return non-boolean values
+    pub(crate) fn expr_is_boolean_expr(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Boolean literals always return bool
+            HirExpr::Literal(Literal::Bool(_)) => true,
+            // Comparison operators return bool
+            HirExpr::Binary { op, .. } => matches!(
+                op,
+                BinOp::Eq
+                    | BinOp::NotEq
+                    | BinOp::Lt
+                    | BinOp::LtEq
+                    | BinOp::Gt
+                    | BinOp::GtEq
+                    | BinOp::In
+                    | BinOp::NotIn
+            ),
+            // not x returns bool
+            HirExpr::Unary {
+                op: UnaryOp::Not, ..
+            } => true,
+            // isinstance, hasattr, callable return bool
+            HirExpr::Call { func, .. } => {
+                matches!(
+                    func.as_str(),
+                    "isinstance"
+                        | "hasattr"
+                        | "callable"
+                        | "issubclass"
+                        | "all"
+                        | "any"
+                        | "bool"
+                )
+            }
+            // Method calls that return bool
+            HirExpr::MethodCall { method, .. } => {
+                matches!(
+                    method.as_str(),
+                    "startswith"
+                        | "endswith"
+                        | "isalpha"
+                        | "isdigit"
+                        | "isalnum"
+                        | "isspace"
+                        | "islower"
+                        | "isupper"
+                        | "istitle"
+                        | "isidentifier"
+                        | "isnumeric"
+                        | "isdecimal"
+                        | "isascii"
+                        | "is_empty"
+                        | "is_some"
+                        | "is_none"
+                        | "is_ok"
+                        | "is_err"
+                        | "contains"
+                        | "exists"
+                )
+            }
+            // Variables with Bool type
+            HirExpr::Var(name) => matches!(self.ctx.var_types.get(name), Some(Type::Bool)),
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-1127: Check if expression is DepylerValue type
+    /// Used to determine if `or`/`and` needs DepylerValue wrapping
+    pub(crate) fn expr_is_depyler_value(&self, expr: &HirExpr) -> bool {
+        match expr {
+            // Variables with Unknown type default to DepylerValue
+            HirExpr::Var(name) => {
+                matches!(self.ctx.var_types.get(name), Some(Type::Unknown))
+            }
+            // Dict/List subscript often returns DepylerValue
+            HirExpr::Index { base, .. } => {
+                if let HirExpr::Var(name) = base.as_ref() {
+                    // Dict access returns DepylerValue for heterogeneous dicts
+                    matches!(
+                        self.ctx.var_types.get(name),
+                        Some(Type::Dict(_, _)) | Some(Type::Unknown)
+                    )
+                } else {
+                    false
+                }
+            }
+            // Method calls on collections that return DepylerValue
+            HirExpr::MethodCall { object, method, .. } => {
+                if method == "get" || method == "pop" || method == "cloned" {
+                    // Check if object is a dict with DepylerValue values
+                    if let HirExpr::Var(name) = object.as_ref() {
+                        matches!(
+                            self.ctx.var_types.get(name),
+                            Some(Type::Dict(_, _)) | Some(Type::Unknown)
+                        )
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-1127: Heuristic check if expression MIGHT return DepylerValue
+    /// More permissive than expr_is_depyler_value - used to safely wrap literals
+    /// in DepylerValue when there's uncertainty.
+    ///
+    /// Returns true for:
+    /// - All cases from expr_is_depyler_value
+    /// - Method chains with .get(), .cloned(), .unwrap_or() patterns
+    /// - Variables not in var_types (unknown type)
+    pub(crate) fn expr_might_be_depyler_value(&self, expr: &HirExpr) -> bool {
+        // First check the strict version
+        if self.expr_is_depyler_value(expr) {
+            return true;
+        }
+
+        match expr {
+            // Method chains that commonly return DepylerValue
+            HirExpr::MethodCall { method, object, .. } => {
+                // Check if this method typically returns uncertain types
+                let uncertain_methods = matches!(
+                    method.as_str(),
+                    "get" | "cloned" | "unwrap_or" | "unwrap_or_default" | "pop" | "to_string"
+                );
+                if uncertain_methods {
+                    return true;
+                }
+                // Recursively check the object
+                self.expr_might_be_depyler_value(object)
+            }
+            // Variables not tracked in var_types - could be anything
+            HirExpr::Var(name) => {
+                !self.ctx.var_types.contains_key(name)
+            }
+            // Any subscript access could return DepylerValue
+            HirExpr::Index { .. } => true,
+            // Any attribute access on unknown objects
+            HirExpr::Attribute { value, .. } => {
+                self.expr_might_be_depyler_value(value)
+            }
+            _ => false,
+        }
+    }
+
     /// DEPYLER-0303 Phase 3 Fix #6: Check if expression is an owned collection
     /// Used to determine if zip() should use .into_iter() (owned) vs .iter() (borrowed)
     ///
