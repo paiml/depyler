@@ -3542,6 +3542,51 @@ pub fn generate_rust_file(
                 }
             }
 
+            // DEPYLER-1129: Vec list repetition - [0] * 10 creates vec of 10 zeros
+            impl<T: Clone> PyMul<i32> for Vec<T> {
+                type Output = Vec<T>;
+                fn py_mul(self, rhs: i32) -> Vec<T> {
+                    if rhs <= 0 {
+                        Vec::new()
+                    } else {
+                        self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+                    }
+                }
+            }
+
+            impl<T: Clone> PyMul<i64> for Vec<T> {
+                type Output = Vec<T>;
+                fn py_mul(self, rhs: i64) -> Vec<T> {
+                    if rhs <= 0 {
+                        Vec::new()
+                    } else {
+                        self.iter().cloned().cycle().take(self.len() * rhs as usize).collect()
+                    }
+                }
+            }
+
+            impl<T: Clone> PyMul<usize> for Vec<T> {
+                type Output = Vec<T>;
+                fn py_mul(self, rhs: usize) -> Vec<T> {
+                    self.iter().cloned().cycle().take(self.len() * rhs).collect()
+                }
+            }
+
+            // Reverse: 10 * [0] also works in Python
+            impl<T: Clone> PyMul<Vec<T>> for i32 {
+                type Output = Vec<T>;
+                fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+                    rhs.py_mul(self)
+                }
+            }
+
+            impl<T: Clone> PyMul<Vec<T>> for i64 {
+                type Output = Vec<T>;
+                fn py_mul(self, rhs: Vec<T>) -> Vec<T> {
+                    rhs.py_mul(self)
+                }
+            }
+
             // === PyDiv implementations ===
             // Python 3: division always returns float
 

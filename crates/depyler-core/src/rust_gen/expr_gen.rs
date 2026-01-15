@@ -1291,34 +1291,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Array creation: [value] * n or n * [value]
+        // DEPYLER-1129: Always use Vec for consistency with PyMul trait
         match (left, right) {
-            // Pattern: [x] * n (small arrays ≤32)
+            // Pattern: [x] * n (any size → Vec)
             (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
-                if elts.len() == 1 && *size > 0 && *size <= 32 =>
-            {
-                let elem = elts[0].to_rust_expr(self.ctx)?;
-                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                Ok(parse_quote! { [#elem; #size_lit] })
-            }
-            // DEPYLER-0420: Pattern: [x] * n (large arrays → Vec)
-            (HirExpr::List(elts), HirExpr::Literal(Literal::Int(size)))
-                if elts.len() == 1 && *size > 32 =>
+                if elts.len() == 1 && *size > 0 =>
             {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
                 let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
                 Ok(parse_quote! { vec![#elem; #size_lit] })
             }
-            // Pattern: n * [x] (small arrays ≤32)
+            // Pattern: n * [x] (any size → Vec)
             (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
-                if elts.len() == 1 && *size > 0 && *size <= 32 =>
-            {
-                let elem = elts[0].to_rust_expr(self.ctx)?;
-                let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
-                Ok(parse_quote! { [#elem; #size_lit] })
-            }
-            // DEPYLER-0420: Pattern: n * [x] (large arrays → Vec)
-            (HirExpr::Literal(Literal::Int(size)), HirExpr::List(elts))
-                if elts.len() == 1 && *size > 32 =>
+                if elts.len() == 1 && *size > 0 =>
             {
                 let elem = elts[0].to_rust_expr(self.ctx)?;
                 let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
