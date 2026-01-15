@@ -5,7 +5,7 @@
 use anyhow::Result;
 use clap::Parser;
 use depyler::{
-    analyze_command, check_command, compile_command, converge,
+    analyze_command, check_command, compile_command, converge, repair_command,
     report_cmd::{handle_report_command, ReportArgs},
     transpile_command, utol_cmd::handle_utol_command, CacheCommands, Cli, Commands,
 };
@@ -301,6 +301,12 @@ async fn handle_command(command: Commands) -> Result<()> {
             false,   // watch
             500,     // watch_debounce
         ),
+        Commands::Repair {
+            input,
+            output,
+            max_iterations,
+            verbose,
+        } => repair_command(input, output, max_iterations, verbose),
     }
 }
 

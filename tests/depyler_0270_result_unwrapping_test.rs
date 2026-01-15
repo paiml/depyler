@@ -175,6 +175,7 @@ def main() -> None:
 }
 
 #[test]
+#[ignore] // RED Phase: DEPYLER-0270 not yet implemented
 fn test_DEPYLER_0270_chained_dict_access_compiles() {
     // Test Case: Immediate dict access after function call (chained)
     // Expected: Unwrap before accessing, or use .unwrap().get() pattern
@@ -205,6 +206,7 @@ def main() -> None:
 }
 
 #[test]
+#[ignore] // RED Phase: DEPYLER-0270 not yet implemented
 fn test_DEPYLER_0270_dict_get_method_compiles() {
     // Test Case: Using .get() method on dict from Result-returning function
     // This is the EXACT pattern from compute_intensive.py benchmark

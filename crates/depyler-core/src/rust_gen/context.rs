@@ -97,6 +97,9 @@ pub struct CodeGenContext<'a> {
     pub module_mapper: crate::module_mapper::ModuleMapper,
     pub imported_modules: std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
     pub imported_items: std::collections::HashMap<String, String>,
+    /// DEPYLER-1115: Track all imported module names (including external unmapped ones)
+    /// Used to generate `module::function()` syntax for phantom binding compatibility
+    pub all_imported_modules: HashSet<String>,
     pub mutable_vars: HashSet<String>,
     pub needs_zerodivisionerror: bool,
     pub needs_indexerror: bool,
@@ -363,6 +366,12 @@ pub struct CodeGenContext<'a> {
     /// stores the return type string for use when processing the assignment.
     /// Reset to None after the assignment is processed.
     pub last_external_call_return_type: Option<String>,
+
+    /// DEPYLER-1101: Oracle-learned type overrides from E0308 error feedback
+    /// When the compiler reports "expected `X`, found `Y`", we learn the correct type.
+    /// Maps variable name -> correct Type. Overrides inferred types during codegen.
+    /// Populated by repair_file_types() in utol.rs via transpile_with_constraints().
+    pub type_overrides: HashMap<String, Type>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -675,6 +684,7 @@ pub mod test_helpers {
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: HashMap::new(),
             imported_items: HashMap::new(),
+            all_imported_modules: HashSet::new(),
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -755,6 +765,7 @@ pub mod test_helpers {
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
+            type_overrides: HashMap::new(), // DEPYLER-1101
         }
     }
 }

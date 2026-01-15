@@ -2124,7 +2124,7 @@ pub fn test_dict_values() -> i32 {
     let values = data.values().cloned().collect::<Vec<_>>();
     total = 0;
     for v in values.iter().cloned() {
-        total = total.py_add(v);
+        total = (total).py_add(v);
     }
     total
 }

@@ -46,6 +46,8 @@ impl TypeQuery {
 
     /// Look up a function signature by fully qualified name.
     ///
+    /// DEPYLER-1115: Also tries common submodule paths for re-exported symbols.
+    ///
     /// # Example
     ///
     /// ```ignore
@@ -55,42 +57,81 @@ impl TypeQuery {
     pub fn find_signature(&mut self, module: &str, symbol: &str) -> Result<String> {
         self.warm_cache()?;
 
+        // Try direct lookup first
         let key = format!("{module}.{symbol}");
-        self.cache
-            .get(&key)
-            .map(|f| f.signature.clone())
-            .ok_or_else(|| KnowledgeError::SymbolNotFound {
-                module: module.to_string(),
-                symbol: symbol.to_string(),
-            })
+        if let Some(fact) = self.cache.get(&key) {
+            return Ok(fact.signature.clone());
+        }
+
+        // DEPYLER-1115: Try common submodule patterns for re-exported symbols
+        let submodule_patterns = ["api", "core", "_api", "main", "base"];
+        for submod in &submodule_patterns {
+            let alt_key = format!("{module}.{submod}.{symbol}");
+            if let Some(fact) = self.cache.get(&alt_key) {
+                return Ok(fact.signature.clone());
+            }
+        }
+
+        Err(KnowledgeError::SymbolNotFound {
+            module: module.to_string(),
+            symbol: symbol.to_string(),
+        })
     }
 
     /// Look up a return type by fully qualified name.
+    ///
+    /// DEPYLER-1115: Also tries common submodule paths for re-exported symbols.
+    /// For example, `requests.get` may actually be defined in `requests.api.get`.
     pub fn find_return_type(&mut self, module: &str, symbol: &str) -> Result<String> {
         self.warm_cache()?;
 
+        // Try direct lookup first
         let key = format!("{module}.{symbol}");
-        self.cache
-            .get(&key)
-            .map(|f| f.return_type.clone())
-            .ok_or_else(|| KnowledgeError::SymbolNotFound {
-                module: module.to_string(),
-                symbol: symbol.to_string(),
-            })
+        if let Some(fact) = self.cache.get(&key) {
+            return Ok(fact.return_type.clone());
+        }
+
+        // DEPYLER-1115: Try common submodule patterns for re-exported symbols
+        // Many packages re-export from submodules (e.g., requests.get from requests.api.get)
+        let submodule_patterns = ["api", "core", "_api", "main", "base"];
+        for submod in &submodule_patterns {
+            let alt_key = format!("{module}.{submod}.{symbol}");
+            if let Some(fact) = self.cache.get(&alt_key) {
+                return Ok(fact.return_type.clone());
+            }
+        }
+
+        Err(KnowledgeError::SymbolNotFound {
+            module: module.to_string(),
+            symbol: symbol.to_string(),
+        })
     }
 
     /// Look up a complete TypeFact by fully qualified name.
+    ///
+    /// DEPYLER-1115: Also tries common submodule paths for re-exported symbols.
     pub fn find_fact(&mut self, module: &str, symbol: &str) -> Result<TypeFact> {
         self.warm_cache()?;
 
+        // Try direct lookup first
         let key = format!("{module}.{symbol}");
-        self.cache
-            .get(&key)
-            .cloned()
-            .ok_or_else(|| KnowledgeError::SymbolNotFound {
-                module: module.to_string(),
-                symbol: symbol.to_string(),
-            })
+        if let Some(fact) = self.cache.get(&key) {
+            return Ok(fact.clone());
+        }
+
+        // DEPYLER-1115: Try common submodule patterns for re-exported symbols
+        let submodule_patterns = ["api", "core", "_api", "main", "base"];
+        for submod in &submodule_patterns {
+            let alt_key = format!("{module}.{submod}.{symbol}");
+            if let Some(fact) = self.cache.get(&alt_key) {
+                return Ok(fact.clone());
+            }
+        }
+
+        Err(KnowledgeError::SymbolNotFound {
+            module: module.to_string(),
+            symbol: symbol.to_string(),
+        })
     }
 
     /// Find all functions in a module.
@@ -131,8 +172,29 @@ impl TypeQuery {
     }
 
     /// Check if a symbol exists in the database.
+    ///
+    /// DEPYLER-1115: Also tries common submodule paths for re-exported symbols.
     pub fn has_symbol(&mut self, module: &str, symbol: &str) -> bool {
-        self.warm_cache().is_ok() && self.cache.contains_key(&format!("{module}.{symbol}"))
+        if self.warm_cache().is_err() {
+            return false;
+        }
+
+        // Try direct lookup first
+        let key = format!("{module}.{symbol}");
+        if self.cache.contains_key(&key) {
+            return true;
+        }
+
+        // DEPYLER-1115: Try common submodule patterns for re-exported symbols
+        let submodule_patterns = ["api", "core", "_api", "main", "base"];
+        for submod in &submodule_patterns {
+            let alt_key = format!("{module}.{submod}.{symbol}");
+            if self.cache.contains_key(&alt_key) {
+                return true;
+            }
+        }
+
+        false
     }
 
     /// Get the total number of facts in the database.

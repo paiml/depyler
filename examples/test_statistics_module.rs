@@ -1990,11 +1990,11 @@ pub fn test_mean() -> Result<f64, Box<dyn std::error::Error>> {
     let data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0, 5.0];
     total = 0.0;
     for value in data.iter().cloned() {
-        total = total.py_add(value);
+        total = (total).py_add(value);
     }
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = (_cse_temp_0) as f64;
-    let _cse_temp_2 = total.py_div(_cse_temp_1);
+    let _cse_temp_2 = (total).py_div(_cse_temp_1);
     let mean: f64 = _cse_temp_2;
     Ok(mean)
 }
@@ -2004,7 +2004,7 @@ pub fn test_median_odd() -> Result<f64, Box<dyn std::error::Error>> {
     let data: Vec<f64> = vec![1.0, 3.0, 5.0, 7.0, 9.0];
     let mut sorted_data: Vec<f64> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in (i.py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -2059,7 +2059,7 @@ pub fn test_median_even() -> Result<f64, Box<dyn std::error::Error>> {
     let data: Vec<f64> = vec![1.0, 2.0, 3.0, 4.0];
     let mut sorted_data: Vec<f64> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in (i.py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -2102,9 +2102,9 @@ pub fn test_median_even() -> Result<f64, Box<dyn std::error::Error>> {
         }
     };
     let mid: i32 = _cse_temp_1;
-    let _cse_temp_2 = {
+    let _cse_temp_2 = ({
         let base = &sorted_data;
-        let idx: i32 = mid.py_sub(1);
+        let idx: i32 = (mid).py_sub(1);
         let actual_idx = if idx < 0 {
             base.len().saturating_sub(idx.abs() as usize)
         } else {
@@ -2113,14 +2113,14 @@ pub fn test_median_even() -> Result<f64, Box<dyn std::error::Error>> {
         base.get(actual_idx)
             .cloned()
             .expect("IndexError: list index out of range")
-    }
+    })
     .py_add(
         sorted_data
             .get(mid as usize)
             .cloned()
             .expect("IndexError: list index out of range"),
     );
-    let _cse_temp_3 = _cse_temp_2.py_div(2.0);
+    let _cse_temp_3 = (_cse_temp_2).py_div(2.0);
     let median: f64 = _cse_temp_3;
     Ok(median)
 }
@@ -2146,7 +2146,7 @@ pub fn test_mode() -> Result<i32, Box<dyn std::error::Error>> {
                     .cloned()
                     .expect("IndexError: list index out of range")
             {
-                count = count.py_add(1);
+                count = (count).py_add(1);
             }
         }
         if count > max_count {
@@ -2161,53 +2161,53 @@ pub fn test_mode() -> Result<i32, Box<dyn std::error::Error>> {
 }
 #[doc = "Test calculating variance"]
 pub fn test_variance() -> Result<f64, Box<dyn std::error::Error>> {
-    let mut variance_sum: f64 = Default::default();
     let mut total: f64 = Default::default();
+    let mut variance_sum: f64 = Default::default();
     let data: Vec<f64> = vec![2.0, 4.0, 6.0, 8.0, 10.0];
     total = 0.0;
     for value in data.iter().cloned() {
-        total = total.py_add(value);
+        total = (total).py_add(value);
     }
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = (_cse_temp_0) as f64;
-    let _cse_temp_2 = total.py_div(_cse_temp_1);
+    let _cse_temp_2 = (total).py_div(_cse_temp_1);
     let mean: f64 = _cse_temp_2;
     variance_sum = 0.0;
     for value in data.iter().cloned() {
-        let diff: f64 = value.py_sub(mean);
-        variance_sum = variance_sum.py_add(diff.py_mul(diff));
+        let diff: f64 = (value).py_sub(mean);
+        variance_sum = (variance_sum).py_add((diff).py_mul(diff));
     }
-    let _cse_temp_3 = variance_sum.py_div(_cse_temp_1);
+    let _cse_temp_3 = (variance_sum).py_div(_cse_temp_1);
     let variance: f64 = _cse_temp_3;
     Ok(variance)
 }
 #[doc = "Test calculating standard deviation"]
 pub fn test_stdev() -> Result<f64, Box<dyn std::error::Error>> {
-    let mut total: f64 = Default::default();
     let mut variance_sum: f64 = Default::default();
+    let mut total: f64 = Default::default();
     let data: Vec<f64> = vec![2.0, 4.0, 6.0, 8.0, 10.0];
     total = 0.0;
     for value in data.iter().cloned() {
-        total = total.py_add(value);
+        total = (total).py_add(value);
     }
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = (_cse_temp_0) as f64;
-    let _cse_temp_2 = total.py_div(_cse_temp_1);
+    let _cse_temp_2 = (total).py_div(_cse_temp_1);
     let mean: f64 = _cse_temp_2;
     variance_sum = 0.0;
     for value in data.iter().cloned() {
-        let diff: f64 = value.py_sub(mean);
-        variance_sum = variance_sum.py_add(diff.py_mul(diff));
+        let diff: f64 = (value).py_sub(mean);
+        variance_sum = (variance_sum).py_add((diff).py_mul(diff));
     }
-    let _cse_temp_3 = variance_sum.py_div(_cse_temp_1);
+    let _cse_temp_3 = (variance_sum).py_div(_cse_temp_1);
     let variance: f64 = _cse_temp_3;
     let stdev: f64 = (variance as f64).sqrt();
     Ok(stdev)
 }
 #[doc = "Test finding min and max"]
 pub fn test_min_max() -> Result<(f64, f64), Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let data: Vec<f64> = vec![3.5, 1.2, 7.8, 2.4, 9.1];
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -2234,8 +2234,8 @@ pub fn test_min_max() -> Result<(f64, f64), Box<dyn std::error::Error>> {
 }
 #[doc = "Test calculating range(max - min)"]
 pub fn test_range() -> Result<f64, Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let data: Vec<f64> = vec![1.0, 5.0, 3.0, 9.0, 2.0];
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -2258,7 +2258,7 @@ pub fn test_range() -> Result<f64, Box<dyn std::error::Error>> {
             max_val = value;
         }
     }
-    let data_range: f64 = max_val.py_sub(min_val);
+    let data_range: f64 = (max_val).py_sub(min_val);
     Ok(data_range)
 }
 #[doc = "Test sum calculation"]
@@ -2268,7 +2268,7 @@ pub fn test_sum() -> f64 {
     let data: Vec<f64> = vec![1.5, 2.5, 3.5, 4.5];
     total = 0.0;
     for value in data.iter().cloned() {
-        total = total.py_add(value);
+        total = (total).py_add(value);
     }
     total
 }
@@ -2281,7 +2281,7 @@ pub fn calculate_percentile(
     let mut index: i32 = Default::default();
     let mut sorted_data: Vec<f64> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in (i.py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -2307,7 +2307,7 @@ pub fn calculate_percentile(
         }
     }
     let _cse_temp_0 = sorted_data.len() as i32;
-    let _cse_temp_1 = percentile.py_mul(_cse_temp_0);
+    let _cse_temp_1 = (percentile).py_mul(_cse_temp_0);
     let _cse_temp_2 = {
         let a = _cse_temp_1;
         let b = 100;
@@ -2327,7 +2327,7 @@ pub fn calculate_percentile(
     index = _cse_temp_2;
     let _cse_temp_3 = index >= _cse_temp_0;
     if _cse_temp_3 {
-        index = _cse_temp_0.py_sub(1);
+        index = (_cse_temp_0).py_sub(1);
     }
     Ok(sorted_data
         .get(index as usize)
@@ -2349,7 +2349,7 @@ pub fn calculate_iqr(data: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>>
     let quartiles: (f64, f64, f64) = calculate_quartiles(&data)?;
     let q1: f64 = quartiles.0;
     let q3: f64 = quartiles.2;
-    let iqr: f64 = q3.py_sub(q1);
+    let iqr: f64 = (q3).py_sub(q1);
     Ok(iqr)
 }
 #[doc = "Detect outliers using IQR method"]
@@ -2357,10 +2357,10 @@ pub fn detect_outliers(data: &Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
     let quartiles: (f64, f64, f64) = calculate_quartiles(&data)?;
     let q1: f64 = quartiles.0;
     let q3: f64 = quartiles.2;
-    let iqr: f64 = q3.py_sub(q1);
-    let _cse_temp_0 = 1.5.py_mul(iqr);
-    let lower_bound: f64 = q1.py_sub(_cse_temp_0);
-    let upper_bound: f64 = q3.py_add(_cse_temp_0);
+    let iqr: f64 = (q3).py_sub(q1);
+    let _cse_temp_0 = (1.5).py_mul(iqr);
+    let lower_bound: f64 = (q1).py_sub(_cse_temp_0);
+    let upper_bound: f64 = (q3).py_add(_cse_temp_0);
     let mut outliers: Vec<f64> = vec![];
     for value in data.iter().cloned() {
         if (value < lower_bound) || (value > upper_bound) {
@@ -2394,14 +2394,14 @@ pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Er
             max_val = value;
         }
     }
-    let data_range: f64 = max_val.py_sub(min_val);
+    let data_range: f64 = (max_val).py_sub(min_val);
     let _cse_temp_2 = data_range == 0.0;
     if _cse_temp_2 {
         return Ok(data);
     }
     let mut normalized: Vec<f64> = vec![];
     for value in data.iter().cloned() {
-        let norm_value: f64 = value.py_sub(min_val).py_div(data_range);
+        let norm_value: f64 = ((value).py_sub(min_val)).py_div(data_range);
         normalized.push(norm_value);
     }
     Ok(normalized)
@@ -2412,18 +2412,18 @@ pub fn standardize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
     let mut variance_sum: f64 = Default::default();
     total = 0.0;
     for value in data.iter().cloned() {
-        total = total.py_add(value);
+        total = (total).py_add(value);
     }
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = (_cse_temp_0) as f64;
-    let _cse_temp_2 = total.py_div(_cse_temp_1);
+    let _cse_temp_2 = (total).py_div(_cse_temp_1);
     let mean: f64 = _cse_temp_2;
     variance_sum = 0.0;
     for value in data.iter().cloned() {
-        let diff: f64 = value.py_sub(mean);
-        variance_sum = variance_sum.py_add(diff.py_mul(diff));
+        let diff: f64 = (value).py_sub(mean);
+        variance_sum = (variance_sum).py_add((diff).py_mul(diff));
     }
-    let _cse_temp_3 = variance_sum.py_div(_cse_temp_1);
+    let _cse_temp_3 = (variance_sum).py_div(_cse_temp_1);
     let variance: f64 = _cse_temp_3;
     let stdev: f64 = (variance as f64).sqrt();
     let _cse_temp_4 = stdev == 0.0;
@@ -2432,20 +2432,20 @@ pub fn standardize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
     }
     let mut standardized: Vec<f64> = vec![];
     for value in data.iter().cloned() {
-        let z_score: f64 = value.py_sub(mean).py_div(stdev);
+        let z_score: f64 = ((value).py_sub(mean)).py_div(stdev);
         standardized.push(z_score);
     }
     Ok(standardized)
 }
 #[doc = "Calculate covariance between two datasets"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_covariance<'a, 'b>(
+pub fn calculate_covariance<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut x_total: f64 = Default::default();
     let mut y_total: f64 = Default::default();
     let mut cov_sum: f64 = Default::default();
+    let mut x_total: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -2457,38 +2457,38 @@ pub fn calculate_covariance<'a, 'b>(
     x_total = 0.0;
     y_total = 0.0;
     for i in 0..(x.len() as i32) {
-        x_total = x_total.py_add(
+        x_total = (x_total).py_add(
             x.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
-        y_total = y_total.py_add(
+        y_total = (y_total).py_add(
             y.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
     }
     let _cse_temp_5 = (_cse_temp_0) as f64;
-    let _cse_temp_6 = x_total.py_div(_cse_temp_5);
+    let _cse_temp_6 = (x_total).py_div(_cse_temp_5);
     let x_mean: f64 = _cse_temp_6;
     let _cse_temp_7 = (_cse_temp_1) as f64;
-    let _cse_temp_8 = y_total.py_div(_cse_temp_7);
+    let _cse_temp_8 = (y_total).py_div(_cse_temp_7);
     let y_mean: f64 = _cse_temp_8;
     cov_sum = 0.0;
     for i in 0..(x.len() as i32) {
-        let x_diff: f64 = x
+        let x_diff: f64 = (x
             .get(i as usize)
             .cloned()
-            .expect("IndexError: list index out of range")
-            .py_sub(x_mean);
-        let y_diff: f64 = y
+            .expect("IndexError: list index out of range"))
+        .py_sub(x_mean);
+        let y_diff: f64 = (y
             .get(i as usize)
             .cloned()
-            .expect("IndexError: list index out of range")
-            .py_sub(y_mean);
-        cov_sum = cov_sum.py_add(x_diff.py_mul(y_diff));
+            .expect("IndexError: list index out of range"))
+        .py_sub(y_mean);
+        cov_sum = (cov_sum).py_add((x_diff).py_mul(y_diff));
     }
-    let _cse_temp_9 = cov_sum.py_div(_cse_temp_5);
+    let _cse_temp_9 = (cov_sum).py_div(_cse_temp_5);
     let covariance: f64 = _cse_temp_9;
     Ok(covariance)
 }
@@ -2498,10 +2498,10 @@ pub fn calculate_correlation<'a, 'b>(
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
     let mut y_total: f64 = Default::default();
-    let mut x_var_sum: f64 = Default::default();
     let mut diff: f64 = Default::default();
-    let mut y_var_sum: f64 = Default::default();
+    let mut x_var_sum: f64 = Default::default();
     let mut x_total: f64 = Default::default();
+    let mut y_var_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -2513,38 +2513,38 @@ pub fn calculate_correlation<'a, 'b>(
     let cov: f64 = calculate_covariance(&x, &y)?;
     x_total = 0.0;
     for val in x.iter().cloned() {
-        x_total = x_total.py_add(val);
+        x_total = (x_total).py_add(val);
     }
     let _cse_temp_5 = (_cse_temp_0) as f64;
-    let _cse_temp_6 = x_total.py_div(_cse_temp_5);
+    let _cse_temp_6 = (x_total).py_div(_cse_temp_5);
     let x_mean: f64 = _cse_temp_6;
     x_var_sum = 0.0;
     for val in x.iter().cloned() {
-        diff = val.py_sub(x_mean);
-        x_var_sum = x_var_sum.py_add(diff.py_mul(diff));
+        diff = (val).py_sub(x_mean);
+        x_var_sum = (x_var_sum).py_add((diff).py_mul(diff));
     }
-    let x_stdev: f64 = (x_var_sum.py_div((x.len() as i32) as f64) as f64).sqrt();
+    let x_stdev: f64 = ((x_var_sum).py_div((x.len() as i32) as f64) as f64).sqrt();
     y_total = 0.0;
     for val in y.iter().cloned() {
-        y_total = y_total.py_add(val);
+        y_total = (y_total).py_add(val);
     }
     let _cse_temp_7 = (_cse_temp_1) as f64;
-    let _cse_temp_8 = y_total.py_div(_cse_temp_7);
+    let _cse_temp_8 = (y_total).py_div(_cse_temp_7);
     let y_mean: f64 = _cse_temp_8;
     y_var_sum = 0.0;
     for val in y.iter().cloned() {
-        diff = val.py_sub(y_mean);
-        y_var_sum = y_var_sum.py_add(diff.py_mul(diff));
+        diff = (val).py_sub(y_mean);
+        y_var_sum = (y_var_sum).py_add((diff).py_mul(diff));
     }
-    let y_stdev: f64 = (y_var_sum.py_div((y.len() as i32) as f64) as f64).sqrt();
+    let y_stdev: f64 = ((y_var_sum).py_div((y.len() as i32) as f64) as f64).sqrt();
     let _cse_temp_9 = x_stdev == 0.0;
     let _cse_temp_10 = y_stdev == 0.0;
     let _cse_temp_11 = (_cse_temp_9) || (_cse_temp_10);
     if _cse_temp_11 {
         return Ok(0.0);
     }
-    let _cse_temp_12 = x_stdev.py_mul(y_stdev);
-    let _cse_temp_13 = cov.py_div(_cse_temp_12);
+    let _cse_temp_12 = (x_stdev).py_mul(y_stdev);
+    let _cse_temp_13 = (cov).py_div(_cse_temp_12);
     let correlation: f64 = _cse_temp_13;
     Ok(correlation)
 }

@@ -273,16 +273,22 @@ def merge_and_get(d1: dict[str, int], d2: dict[str, int], key: str) -> int | Non
         .transpile(python_code)
         .expect("Transpilation failed");
 
-    // Fix #5: String param should not use Cow
+    // DEPYLER-1131: Check only the merge_and_get function, not entire file
+    // (PyMatch trait implementation has legitimate .cloned().unwrap_or_default() usage)
+    let fn_start = rust_code.find("fn merge_and_get").expect("Should have merge_and_get function");
+    let fn_end = rust_code[fn_start..].find("\n}\n").unwrap_or(1000) + fn_start + 2;
+    let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
+
+    // Fix #5: String param should not use Cow (in function signature)
     assert!(
-        !rust_code.contains("Cow<"),
-        "Should NOT use Cow for string parameter"
+        !fn_section.contains("Cow<"),
+        "Should NOT use Cow for string parameter\nFunction:\n{}", fn_section
     );
 
-    // Fix #3: Optional return should not unwrap unnecessarily
+    // Fix #3: Optional return should not unwrap unnecessarily (in function body)
     assert!(
-        rust_code.contains(".cloned()") && !rust_code.contains(".cloned().unwrap_or_default()"),
-        "Should return Option directly, not unwrap"
+        fn_section.contains(".cloned()") && !fn_section.contains(".cloned().unwrap_or_default()"),
+        "Should return Option directly, not unwrap\nFunction:\n{}", fn_section
     );
 
     // Fix #4: For loop should use (k, v) not (_k, v) when k is used

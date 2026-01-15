@@ -257,6 +257,7 @@ mod tests {
     /// Note: This test is marked SLOW because random code generation can produce
     /// complex modules that exceed typical performance thresholds
     #[test]
+    #[ignore] // DEPYLER-1120: Ignore slow test by default, run with --ignored
     fn test_weighted_generators_SLOW() {
         println!("=== Weighted Generators Test ===");
 

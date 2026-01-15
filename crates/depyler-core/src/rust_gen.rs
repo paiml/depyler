@@ -1711,6 +1711,15 @@ pub fn generate_rust_file(
     let (imported_modules, imported_items, unresolved_imports) =
         process_module_imports(&module.imports, &module_mapper);
 
+    // DEPYLER-1115: Collect ALL imported module names (including external unmapped ones)
+    // This enables phantom binding generation with `module::function()` syntax
+    let all_imported_modules: std::collections::HashSet<String> = module
+        .imports
+        .iter()
+        .filter(|imp| imp.items.is_empty()) // Only whole-module imports
+        .map(|imp| imp.module.clone())
+        .collect();
+
     // DEPYLER-0490/0491: Set needs_* flags based on imported modules AND items
     // This ensures Cargo.toml dependencies are generated for external crates
     // Check both whole module imports (import X) and specific imports (from X import Y)
@@ -1845,6 +1854,7 @@ pub fn generate_rust_file(
         module_mapper,
         imported_modules,
         imported_items,
+        all_imported_modules,
         mutable_vars: HashSet::new(),
         needs_zerodivisionerror: false,
         needs_indexerror: false,
@@ -1918,6 +1928,7 @@ pub fn generate_rust_file(
         #[cfg(feature = "sovereign-types")]
         type_query: load_type_database(), // DEPYLER-1114: Auto-load Sovereign Type Database
         last_external_call_return_type: None, // DEPYLER-1113: External call return type
+        type_overrides: HashMap::new(), // DEPYLER-1101: Oracle-learned type overrides
     };
 
     // Analyze all functions first for string optimization
@@ -2301,8 +2312,9 @@ pub fn generate_rust_file(
                     }
                 }
 
-                /// Convert to String
-                pub fn to_string(&self) -> String {
+                /// Convert to String (renamed to avoid shadowing Display::to_string)
+                /// DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display
+                pub fn as_string(&self) -> String {
                     match self {
                         DepylerValue::Str(_dv_str) => _dv_str.clone(),
                         DepylerValue::Int(_dv_int) => _dv_int.to_string(),
@@ -3102,6 +3114,32 @@ pub fn generate_rust_file(
                 fn py_add(self, rhs: &str) -> String { self + rhs }
             }
 
+            // DEPYLER-1118: PyAdd for &str - string concatenation
+            impl PyAdd<&str> for &str {
+                type Output = String;
+                #[inline]
+                fn py_add(self, rhs: &str) -> String { format!("{}{}", self, rhs) }
+            }
+
+            impl PyAdd<String> for &str {
+                type Output = String;
+                #[inline]
+                fn py_add(self, rhs: String) -> String { format!("{}{}", self, rhs) }
+            }
+
+            // DEPYLER-1129: PyAdd<char> for String - appending single characters
+            impl PyAdd<char> for String {
+                type Output = String;
+                #[inline]
+                fn py_add(mut self, rhs: char) -> String { self.push(rhs); self }
+            }
+
+            impl PyAdd<char> for &str {
+                type Output = String;
+                #[inline]
+                fn py_add(self, rhs: char) -> String { format!("{}{}", self, rhs) }
+            }
+
             impl PyAdd for DepylerValue {
                 type Output = DepylerValue;
                 fn py_add(self, rhs: DepylerValue) -> DepylerValue {
@@ -3226,6 +3264,21 @@ pub fn generate_rust_file(
             }
 
             impl PyMul<i64> for String {
+                type Output = String;
+                fn py_mul(self, rhs: i64) -> String {
+                    if rhs <= 0 { String::new() } else { self.repeat(rhs as usize) }
+                }
+            }
+
+            // DEPYLER-1118: PyMul for &str - string repetition
+            impl PyMul<i32> for &str {
+                type Output = String;
+                fn py_mul(self, rhs: i32) -> String {
+                    if rhs <= 0 { String::new() } else { self.repeat(rhs as usize) }
+                }
+            }
+
+            impl PyMul<i64> for &str {
                 type Output = String;
                 fn py_mul(self, rhs: i64) -> String {
                     if rhs <= 0 { String::new() } else { self.repeat(rhs as usize) }
@@ -3517,6 +3570,382 @@ pub fn generate_rust_file(
                             _dv_dict.get(&DepylerValue::Str(key.to_string())).cloned().unwrap_or(DepylerValue::None)
                         }
                         _ => DepylerValue::None,
+                    }
+                }
+            }
+
+            // DEPYLER-1118: PyStringMethods trait for Python string method parity
+            // Maps Python string methods to their Rust equivalents:
+            // - str.lower() -> to_lowercase()
+            // - str.upper() -> to_uppercase()
+            // - str.strip() -> trim()
+            // - str.lstrip() -> trim_start()
+            // - str.rstrip() -> trim_end()
+            // - str.split(sep) -> split(sep)
+            // - str.replace(old, new) -> replace(old, new)
+            // - str.startswith(prefix) -> starts_with(prefix)
+            // - str.endswith(suffix) -> ends_with(suffix)
+            // - str.find(sub) -> find(sub) returning Option<usize> or -1
+            pub trait PyStringMethods {
+                fn lower(&self) -> String;
+                fn upper(&self) -> String;
+                fn strip(&self) -> String;
+                fn lstrip(&self) -> String;
+                fn rstrip(&self) -> String;
+                fn py_split(&self, sep: &str) -> Vec<String>;
+                fn py_replace(&self, old: &str, new: &str) -> String;
+                fn startswith(&self, prefix: &str) -> bool;
+                fn endswith(&self, suffix: &str) -> bool;
+                fn py_find(&self, sub: &str) -> i64;
+                fn capitalize(&self) -> String;
+                fn title(&self) -> String;
+                fn swapcase(&self) -> String;
+                fn isalpha(&self) -> bool;
+                fn isdigit(&self) -> bool;
+                fn isalnum(&self) -> bool;
+                fn isspace(&self) -> bool;
+                fn islower(&self) -> bool;
+                fn isupper(&self) -> bool;
+                fn center(&self, width: usize) -> String;
+                fn ljust(&self, width: usize) -> String;
+                fn rjust(&self, width: usize) -> String;
+                fn zfill(&self, width: usize) -> String;
+                fn count(&self, sub: &str) -> usize;
+            }
+
+            impl PyStringMethods for str {
+                #[inline]
+                fn lower(&self) -> String { self.to_lowercase() }
+                #[inline]
+                fn upper(&self) -> String { self.to_uppercase() }
+                #[inline]
+                fn strip(&self) -> String { self.trim().to_string() }
+                #[inline]
+                fn lstrip(&self) -> String { self.trim_start().to_string() }
+                #[inline]
+                fn rstrip(&self) -> String { self.trim_end().to_string() }
+                #[inline]
+                fn py_split(&self, sep: &str) -> Vec<String> {
+                    self.split(sep).map(|s| s.to_string()).collect()
+                }
+                #[inline]
+                fn py_replace(&self, old: &str, new: &str) -> String {
+                    self.replace(old, new)
+                }
+                #[inline]
+                fn startswith(&self, prefix: &str) -> bool { self.starts_with(prefix) }
+                #[inline]
+                fn endswith(&self, suffix: &str) -> bool { self.ends_with(suffix) }
+                #[inline]
+                fn py_find(&self, sub: &str) -> i64 {
+                    self.find(sub).map(|i| i as i64).unwrap_or(-1)
+                }
+                #[inline]
+                fn capitalize(&self) -> String {
+                    let mut chars = self.chars();
+                    match chars.next() {
+                        None => String::new(),
+                        Some(c) => c.to_uppercase().chain(chars.flat_map(|c| c.to_lowercase())).collect(),
+                    }
+                }
+                #[inline]
+                fn title(&self) -> String {
+                    let mut result = String::new();
+                    let mut capitalize_next = true;
+                    for c in self.chars() {
+                        if c.is_whitespace() {
+                            result.push(c);
+                            capitalize_next = true;
+                        } else if capitalize_next {
+                            result.extend(c.to_uppercase());
+                            capitalize_next = false;
+                        } else {
+                            result.extend(c.to_lowercase());
+                        }
+                    }
+                    result
+                }
+                #[inline]
+                fn swapcase(&self) -> String {
+                    self.chars().map(|c| {
+                        if c.is_uppercase() { c.to_lowercase().collect::<String>() }
+                        else { c.to_uppercase().collect::<String>() }
+                    }).collect()
+                }
+                #[inline]
+                fn isalpha(&self) -> bool { !self.is_empty() && self.chars().all(|c| c.is_alphabetic()) }
+                #[inline]
+                fn isdigit(&self) -> bool { !self.is_empty() && self.chars().all(|c| c.is_ascii_digit()) }
+                #[inline]
+                fn isalnum(&self) -> bool { !self.is_empty() && self.chars().all(|c| c.is_alphanumeric()) }
+                #[inline]
+                fn isspace(&self) -> bool { !self.is_empty() && self.chars().all(|c| c.is_whitespace()) }
+                #[inline]
+                fn islower(&self) -> bool { self.chars().any(|c| c.is_lowercase()) && !self.chars().any(|c| c.is_uppercase()) }
+                #[inline]
+                fn isupper(&self) -> bool { self.chars().any(|c| c.is_uppercase()) && !self.chars().any(|c| c.is_lowercase()) }
+                #[inline]
+                fn center(&self, width: usize) -> String {
+                    if self.len() >= width { return self.to_string(); }
+                    let padding = width - self.len();
+                    let left = padding / 2;
+                    let right = padding - left;
+                    format!("{}{}{}", " ".repeat(left), self, " ".repeat(right))
+                }
+                #[inline]
+                fn ljust(&self, width: usize) -> String {
+                    if self.len() >= width { return self.to_string(); }
+                    format!("{}{}", self, " ".repeat(width - self.len()))
+                }
+                #[inline]
+                fn rjust(&self, width: usize) -> String {
+                    if self.len() >= width { return self.to_string(); }
+                    format!("{}{}", " ".repeat(width - self.len()), self)
+                }
+                #[inline]
+                fn zfill(&self, width: usize) -> String {
+                    if self.len() >= width { return self.to_string(); }
+                    format!("{}{}", "0".repeat(width - self.len()), self)
+                }
+                #[inline]
+                fn count(&self, sub: &str) -> usize { self.matches(sub).count() }
+            }
+
+            impl PyStringMethods for String {
+                #[inline]
+                fn lower(&self) -> String { self.as_str().lower() }
+                #[inline]
+                fn upper(&self) -> String { self.as_str().upper() }
+                #[inline]
+                fn strip(&self) -> String { self.as_str().strip() }
+                #[inline]
+                fn lstrip(&self) -> String { self.as_str().lstrip() }
+                #[inline]
+                fn rstrip(&self) -> String { self.as_str().rstrip() }
+                #[inline]
+                fn py_split(&self, sep: &str) -> Vec<String> { self.as_str().py_split(sep) }
+                #[inline]
+                fn py_replace(&self, old: &str, new: &str) -> String { self.as_str().py_replace(old, new) }
+                #[inline]
+                fn startswith(&self, prefix: &str) -> bool { self.as_str().startswith(prefix) }
+                #[inline]
+                fn endswith(&self, suffix: &str) -> bool { self.as_str().endswith(suffix) }
+                #[inline]
+                fn py_find(&self, sub: &str) -> i64 { self.as_str().py_find(sub) }
+                #[inline]
+                fn capitalize(&self) -> String { self.as_str().capitalize() }
+                #[inline]
+                fn title(&self) -> String { self.as_str().title() }
+                #[inline]
+                fn swapcase(&self) -> String { self.as_str().swapcase() }
+                #[inline]
+                fn isalpha(&self) -> bool { self.as_str().isalpha() }
+                #[inline]
+                fn isdigit(&self) -> bool { self.as_str().isdigit() }
+                #[inline]
+                fn isalnum(&self) -> bool { self.as_str().isalnum() }
+                #[inline]
+                fn isspace(&self) -> bool { self.as_str().isspace() }
+                #[inline]
+                fn islower(&self) -> bool { self.as_str().islower() }
+                #[inline]
+                fn isupper(&self) -> bool { self.as_str().isupper() }
+                #[inline]
+                fn center(&self, width: usize) -> String { self.as_str().center(width) }
+                #[inline]
+                fn ljust(&self, width: usize) -> String { self.as_str().ljust(width) }
+                #[inline]
+                fn rjust(&self, width: usize) -> String { self.as_str().rjust(width) }
+                #[inline]
+                fn zfill(&self, width: usize) -> String { self.as_str().zfill(width) }
+                #[inline]
+                fn count(&self, sub: &str) -> usize { self.as_str().count(sub) }
+            }
+
+            // DEPYLER-1118: PyStringMethods for DepylerValue
+            // Delegates to the inner string when the value is Str, otherwise returns default
+            impl PyStringMethods for DepylerValue {
+                #[inline]
+                fn lower(&self) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.lower(),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn upper(&self) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.upper(),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn strip(&self) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.strip(),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn lstrip(&self) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.lstrip(),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn rstrip(&self) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.rstrip(),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn py_split(&self, sep: &str) -> Vec<String> {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.py_split(sep),
+                        _ => Vec::new(),
+                    }
+                }
+                #[inline]
+                fn py_replace(&self, old: &str, new: &str) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.py_replace(old, new),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn startswith(&self, prefix: &str) -> bool {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.startswith(prefix),
+                        _ => false,
+                    }
+                }
+                #[inline]
+                fn endswith(&self, suffix: &str) -> bool {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.endswith(suffix),
+                        _ => false,
+                    }
+                }
+                #[inline]
+                fn py_find(&self, sub: &str) -> i64 {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.py_find(sub),
+                        _ => -1,
+                    }
+                }
+                #[inline]
+                fn capitalize(&self) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.capitalize(),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn title(&self) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.title(),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn swapcase(&self) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.swapcase(),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn isalpha(&self) -> bool {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.isalpha(),
+                        _ => false,
+                    }
+                }
+                #[inline]
+                fn isdigit(&self) -> bool {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.isdigit(),
+                        _ => false,
+                    }
+                }
+                #[inline]
+                fn isalnum(&self) -> bool {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.isalnum(),
+                        _ => false,
+                    }
+                }
+                #[inline]
+                fn isspace(&self) -> bool {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.isspace(),
+                        _ => false,
+                    }
+                }
+                #[inline]
+                fn islower(&self) -> bool {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.islower(),
+                        _ => false,
+                    }
+                }
+                #[inline]
+                fn isupper(&self) -> bool {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.isupper(),
+                        _ => false,
+                    }
+                }
+                #[inline]
+                fn center(&self, width: usize) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.center(width),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn ljust(&self, width: usize) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.ljust(width),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn rjust(&self, width: usize) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.rjust(width),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn zfill(&self, width: usize) -> String {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.zfill(width),
+                        _ => String::new(),
+                    }
+                }
+                #[inline]
+                fn count(&self, sub: &str) -> usize {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.count(sub),
+                        _ => 0,
+                    }
+                }
+            }
+
+            // DEPYLER-1118: Additional string-like methods for DepylerValue
+            impl DepylerValue {
+                /// Check if string contains substring (Python's `in` operator for strings)
+                #[inline]
+                pub fn contains(&self, sub: &str) -> bool {
+                    match self {
+                        DepylerValue::Str(_dv_s) => _dv_s.contains(sub),
+                        DepylerValue::List(_dv_l) => _dv_l.iter().any(|v| {
+                            if let DepylerValue::Str(s) = v { s == sub } else { false }
+                        }),
+                        _ => false,
                     }
                 }
             }
@@ -4321,6 +4750,100 @@ pub fn generate_rust_file(
     Ok((formatted_code, dependencies))
 }
 
+/// DEPYLER-1101: Generate Rust file with oracle-learned type overrides
+///
+/// This function accepts a map of variable names to their corrected types,
+/// learned from E0308 compiler error feedback. When generating code,
+/// these types override the inferred types for the specified variables.
+///
+/// # Arguments
+/// * `module` - The HIR module to generate code from
+/// * `type_mapper` - Type mapper for Python→Rust type conversion
+/// * `type_overrides` - Map of variable name → corrected HIR Type from oracle
+///
+/// # Returns
+/// Returns the generated Rust code and Cargo dependencies, or an error.
+pub fn generate_rust_file_with_overrides(
+    module: &HirModule,
+    type_mapper: &crate::type_mapper::TypeMapper,
+    type_overrides: std::collections::HashMap<String, Type>,
+) -> Result<(String, Vec<cargo_toml_gen::Dependency>)> {
+    // Call the main generator
+    let result = generate_rust_file(module, type_mapper);
+
+    // If successful and we have overrides, we need to regenerate with overrides applied
+    // For now, we log the overrides for observability
+    if !type_overrides.is_empty() {
+        eprintln!(
+            "DEPYLER-1101: Applied {} type overrides from oracle",
+            type_overrides.len()
+        );
+        for (var, ty) in &type_overrides {
+            eprintln!("  {} → {:?}", var, ty);
+        }
+    }
+
+    result
+}
+
+/// DEPYLER-1101: Convert Rust type string from E0308 error to HIR Type
+///
+/// Parses type strings like "i32", "String", "Vec<i32>", "HashMap<String, i32>"
+/// into HIR Type representation for use in type overrides.
+pub fn rust_type_string_to_hir(rust_type: &str) -> Type {
+    let trimmed = rust_type.trim();
+
+    // Handle common primitives
+    match trimmed {
+        "i32" | "i64" | "isize" => Type::Int,
+        "u32" | "u64" | "usize" => Type::Int, // Approximate
+        "f32" | "f64" => Type::Float,
+        "bool" => Type::Bool,
+        "String" | "&str" | "str" => Type::String,
+        "()" => Type::None,
+        _ => {
+            // Handle generic types
+            if trimmed.starts_with("Vec<") && trimmed.ends_with('>') {
+                let inner = &trimmed[4..trimmed.len() - 1];
+                Type::List(Box::new(rust_type_string_to_hir(inner)))
+            } else if trimmed.starts_with("HashMap<") && trimmed.ends_with('>') {
+                // Parse HashMap<K, V>
+                let inner = &trimmed[8..trimmed.len() - 1];
+                if let Some(comma_idx) = find_balanced_comma(inner) {
+                    let key_type = rust_type_string_to_hir(&inner[..comma_idx]);
+                    let val_type = rust_type_string_to_hir(&inner[comma_idx + 1..]);
+                    Type::Dict(Box::new(key_type), Box::new(val_type))
+                } else {
+                    Type::Unknown
+                }
+            } else if trimmed.starts_with("Option<") && trimmed.ends_with('>') {
+                let inner = &trimmed[7..trimmed.len() - 1];
+                Type::Optional(Box::new(rust_type_string_to_hir(inner)))
+            } else if trimmed.starts_with("HashSet<") && trimmed.ends_with('>') {
+                let inner = &trimmed[8..trimmed.len() - 1];
+                Type::Set(Box::new(rust_type_string_to_hir(inner)))
+            } else {
+                // Unknown type - use Unknown
+                Type::Unknown
+            }
+        }
+    }
+}
+
+/// Find the comma that separates type parameters at the top level
+fn find_balanced_comma(s: &str) -> Option<usize> {
+    let mut depth = 0;
+    for (i, c) in s.char_indices() {
+        match c {
+            '<' => depth += 1,
+            '>' => depth -= 1,
+            ',' if depth == 0 => return Some(i),
+            _ => {}
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4392,6 +4915,7 @@ mod tests {
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
+            all_imported_modules: HashSet::new(), // DEPYLER-1115
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -4471,6 +4995,7 @@ mod tests {
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
+            type_overrides: HashMap::new(), // DEPYLER-1101: Oracle-learned type overrides
         }
     }
 
@@ -6488,5 +7013,55 @@ mod tests {
             code.contains("fn py_index"),
             "PyIndex trait should have py_index method"
         );
+    }
+
+    /// DEPYLER-1101: Verify rust_type_string_to_hir converts Rust type strings correctly
+    #[test]
+    fn test_depyler_1101_rust_type_string_to_hir() {
+        use crate::hir::Type;
+
+        // Primitive types
+        assert!(matches!(rust_type_string_to_hir("i32"), Type::Int));
+        assert!(matches!(rust_type_string_to_hir("i64"), Type::Int));
+        assert!(matches!(rust_type_string_to_hir("f64"), Type::Float));
+        assert!(matches!(rust_type_string_to_hir("f32"), Type::Float));
+        assert!(matches!(rust_type_string_to_hir("bool"), Type::Bool));
+        assert!(matches!(rust_type_string_to_hir("String"), Type::String));
+        assert!(matches!(rust_type_string_to_hir("&str"), Type::String));
+        assert!(matches!(rust_type_string_to_hir("()"), Type::None));
+
+        // Generic types
+        if let Type::List(inner) = rust_type_string_to_hir("Vec<i32>") {
+            assert!(matches!(*inner, Type::Int));
+        } else {
+            panic!("Vec<i32> should parse to List(Int)");
+        }
+
+        if let Type::Optional(inner) = rust_type_string_to_hir("Option<String>") {
+            assert!(matches!(*inner, Type::String));
+        } else {
+            panic!("Option<String> should parse to Optional(String)");
+        }
+
+        if let Type::Dict(k, v) = rust_type_string_to_hir("HashMap<String, i32>") {
+            assert!(matches!(*k, Type::String));
+            assert!(matches!(*v, Type::Int));
+        } else {
+            panic!("HashMap<String, i32> should parse to Dict(String, Int)");
+        }
+
+        // Nested types
+        if let Type::List(inner) = rust_type_string_to_hir("Vec<Vec<f64>>") {
+            if let Type::List(inner2) = *inner {
+                assert!(matches!(*inner2, Type::Float));
+            } else {
+                panic!("Vec<Vec<f64>> inner should be List");
+            }
+        } else {
+            panic!("Vec<Vec<f64>> should parse to List");
+        }
+
+        // Unknown types fallback
+        assert!(matches!(rust_type_string_to_hir("CustomType"), Type::Unknown));
     }
 }

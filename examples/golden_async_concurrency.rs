@@ -135,7 +135,7 @@ else {
     match self {
     DepylerValue::Dict(_dv_dict) =>_dv_dict.values(), _ =>EMPTY_MAP.values() ,
 }
-} #[doc = r" Convert to String"] pub fn to_string(&self) -> String {
+} #[doc = r" Convert to String(renamed to avoid shadowing Display::to_string)"] #[doc = r" DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display"] pub fn as_string(&self) -> String {
     match self {
     DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format!("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format!("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format!("{:?}", _dv_tuple) ,
 }
@@ -716,6 +716,16 @@ impl PyAdd for i32 {
     #[inline] fn py_add(self, rhs: & str) -> String {
     self + rhs
 }
+} impl PyAdd<& str>for & str {
+    type Output = String;
+    #[inline] fn py_add(self, rhs: & str) -> String {
+    format!("{}{}", self, rhs)
+}
+} impl PyAdd<String>for & str {
+    type Output = String;
+    #[inline] fn py_add(self, rhs: String) -> String {
+    format!("{}{}", self, rhs)
+}
 } impl PyAdd for DepylerValue {
     type Output = DepylerValue;
     fn py_add(self, rhs: DepylerValue) -> DepylerValue {
@@ -814,6 +824,28 @@ else {
 }
 }
 impl PyMul<i64>for String {
+    type Output = String;
+    fn py_mul(self, rhs: i64) -> String {
+    if rhs <= 0 {
+    String::new()
+}
+else {
+    self.repeat(rhs as usize)
+}
+}
+}
+impl PyMul<i32>for & str {
+    type Output = String;
+    fn py_mul(self, rhs: i32) -> String {
+    if rhs <= 0 {
+    String::new()
+}
+else {
+    self.repeat(rhs as usize)
+}
+}
+}
+impl PyMul<i64>for & str {
     type Output = String;
     fn py_mul(self, rhs: i64) -> String {
     if rhs <= 0 {
@@ -1156,6 +1188,337 @@ impl PyIndex<i64>for DepylerValue {
     _dv_dict.get(& DepylerValue::Str(key.to_string())).cloned().unwrap_or(DepylerValue::None)
 }
 _ =>DepylerValue::None ,
+}
+}
+}
+pub trait PyStringMethods {
+    fn lower(&self) -> String;
+    fn upper(&self) -> String;
+    fn strip(&self) -> String;
+    fn lstrip(&self) -> String;
+    fn rstrip(&self) -> String;
+    fn py_split(&self, sep: & str) -> Vec<String>;
+    fn py_replace(&self, old: & str, new: & str) -> String;
+    fn startswith(&self, prefix: & str) -> bool;
+    fn endswith(&self, suffix: & str) -> bool;
+    fn py_find(&self, sub: & str) -> i64;
+    fn capitalize(&self) -> String;
+    fn title(&self) -> String;
+    fn swapcase(&self) -> String;
+    fn isalpha(&self) -> bool;
+    fn isdigit(&self) -> bool;
+    fn isalnum(&self) -> bool;
+    fn isspace(&self) -> bool;
+    fn islower(&self) -> bool;
+    fn isupper(&self) -> bool;
+    fn center(&self, width: usize) -> String;
+    fn ljust(&self, width: usize) -> String;
+    fn rjust(&self, width: usize) -> String;
+    fn zfill(&self, width: usize) -> String;
+    fn count(&self, sub: & str) -> usize;
+   
+}
+impl PyStringMethods for str {
+    #[inline] fn lower(&self) -> String {
+    self.to_lowercase()
+}
+#[inline] fn upper(&self) -> String {
+    self.to_uppercase()
+}
+#[inline] fn strip(&self) -> String {
+    self.trim().to_string()
+}
+#[inline] fn lstrip(&self) -> String {
+    self.trim_start().to_string()
+}
+#[inline] fn rstrip(&self) -> String {
+    self.trim_end().to_string()
+}
+#[inline] fn py_split(&self, sep: & str) -> Vec<String>{
+    self.split(sep).map(| s | s.to_string()).collect()
+}
+#[inline] fn py_replace(&self, old: & str, new: & str) -> String {
+    self.replace(old, new)
+}
+#[inline] fn startswith(&self, prefix: & str) -> bool {
+    self.starts_with(prefix)
+}
+#[inline] fn endswith(&self, suffix: & str) -> bool {
+    self.ends_with(suffix)
+}
+#[inline] fn py_find(&self, sub: & str) -> i64 {
+    self.find(sub).map(| i | i as i64).unwrap_or(- 1)
+}
+#[inline] fn capitalize(&self) -> String {
+    let mut chars = self.chars();
+    match chars.next() {
+    None =>String::new(), Some(c) =>c.to_uppercase().chain (chars.flat_map(| c | c.to_lowercase())).collect() ,
+}
+} #[inline] fn title(&self) -> String {
+    let mut result = String::new();
+    let mut capitalize_next = true;
+    for c in self.chars() {
+    if c.is_whitespace() {
+    result.push(c);
+    capitalize_next = true;
+   
+}
+else if capitalize_next {
+    result.extend(c.to_uppercase());
+    capitalize_next = false;
+   
+}
+else {
+    result.extend(c.to_lowercase());
+   
+}
+} result
+}
+#[inline] fn swapcase(&self) -> String {
+    self.chars().map(| c | {
+    if c.is_uppercase() {
+    c.to_lowercase().collect::<String>()
+}
+else {
+    c.to_uppercase().collect::<String>()
+}
+}).collect()
+}
+#[inline] fn isalpha(&self) -> bool {
+   ! self.is_empty() &&self.chars().all(| c | c.is_alphabetic())
+}
+#[inline] fn isdigit(&self) -> bool {
+   ! self.is_empty() &&self.chars().all(| c | c.is_ascii_digit())
+}
+#[inline] fn isalnum(&self) -> bool {
+   ! self.is_empty() &&self.chars().all(| c | c.is_alphanumeric())
+}
+#[inline] fn isspace(&self) -> bool {
+   ! self.is_empty() &&self.chars().all(| c | c.is_whitespace())
+}
+#[inline] fn islower(&self) -> bool {
+    self.chars().any(| c | c.is_lowercase()) &&! self.chars().any(| c | c.is_uppercase())
+}
+#[inline] fn isupper(&self) -> bool {
+    self.chars().any(| c | c.is_uppercase()) &&! self.chars().any(| c | c.is_lowercase())
+}
+#[inline] fn center(&self, width: usize) -> String {
+    if self.len()>= width {
+    return self.to_string();
+   
+}
+let padding = width - self.len();
+    let left = padding / 2;
+    let right = padding - left;
+    format!("{}{}{}", " ".repeat(left), self, " ".repeat(right))
+}
+#[inline] fn ljust(&self, width: usize) -> String {
+    if self.len()>= width {
+    return self.to_string();
+   
+}
+format!("{}{}", self, " ".repeat(width - self.len()))
+}
+#[inline] fn rjust(&self, width: usize) -> String {
+    if self.len()>= width {
+    return self.to_string();
+   
+}
+format!("{}{}", " ".repeat(width - self.len()), self)
+}
+#[inline] fn zfill(&self, width: usize) -> String {
+    if self.len()>= width {
+    return self.to_string();
+   
+}
+format!("{}{}", "0".repeat(width - self.len()), self)
+}
+#[inline] fn count(&self, sub: & str) -> usize {
+    self.matches(sub).count()
+}
+} impl PyStringMethods for String {
+    #[inline] fn lower(&self) -> String {
+    self.as_str().lower()
+}
+#[inline] fn upper(&self) -> String {
+    self.as_str().upper()
+}
+#[inline] fn strip(&self) -> String {
+    self.as_str().strip()
+}
+#[inline] fn lstrip(&self) -> String {
+    self.as_str().lstrip()
+}
+#[inline] fn rstrip(&self) -> String {
+    self.as_str().rstrip()
+}
+#[inline] fn py_split(&self, sep: & str) -> Vec<String>{
+    self.as_str().py_split(sep)
+}
+#[inline] fn py_replace(&self, old: & str, new: & str) -> String {
+    self.as_str().py_replace(old, new)
+}
+#[inline] fn startswith(&self, prefix: & str) -> bool {
+    self.as_str().startswith(prefix)
+}
+#[inline] fn endswith(&self, suffix: & str) -> bool {
+    self.as_str().endswith(suffix)
+}
+#[inline] fn py_find(&self, sub: & str) -> i64 {
+    self.as_str().py_find(sub)
+}
+#[inline] fn capitalize(&self) -> String {
+    self.as_str().capitalize()
+}
+#[inline] fn title(&self) -> String {
+    self.as_str().title()
+}
+#[inline] fn swapcase(&self) -> String {
+    self.as_str().swapcase()
+}
+#[inline] fn isalpha(&self) -> bool {
+    self.as_str().isalpha()
+}
+#[inline] fn isdigit(&self) -> bool {
+    self.as_str().isdigit()
+}
+#[inline] fn isalnum(&self) -> bool {
+    self.as_str().isalnum()
+}
+#[inline] fn isspace(&self) -> bool {
+    self.as_str().isspace()
+}
+#[inline] fn islower(&self) -> bool {
+    self.as_str().islower()
+}
+#[inline] fn isupper(&self) -> bool {
+    self.as_str().isupper()
+}
+#[inline] fn center(&self, width: usize) -> String {
+    self.as_str().center(width)
+}
+#[inline] fn ljust(&self, width: usize) -> String {
+    self.as_str().ljust(width)
+}
+#[inline] fn rjust(&self, width: usize) -> String {
+    self.as_str().rjust(width)
+}
+#[inline] fn zfill(&self, width: usize) -> String {
+    self.as_str().zfill(width)
+}
+#[inline] fn count(&self, sub: & str) -> usize {
+    self.as_str().count(sub)
+}
+} impl PyStringMethods for DepylerValue {
+    #[inline] fn lower(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.lower(), _ =>String::new() ,
+}
+} #[inline] fn upper(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.upper(), _ =>String::new() ,
+}
+} #[inline] fn strip(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.strip(), _ =>String::new() ,
+}
+} #[inline] fn lstrip(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.lstrip(), _ =>String::new() ,
+}
+} #[inline] fn rstrip(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.rstrip(), _ =>String::new() ,
+}
+} #[inline] fn py_split(&self, sep: & str) -> Vec<String>{
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.py_split(sep), _ =>Vec::new() ,
+}
+} #[inline] fn py_replace(&self, old: & str, new: & str) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.py_replace(old, new), _ =>String::new() ,
+}
+} #[inline] fn startswith(&self, prefix: & str) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.startswith(prefix), _ =>false ,
+}
+} #[inline] fn endswith(&self, suffix: & str) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.endswith(suffix), _ =>false ,
+}
+} #[inline] fn py_find(&self, sub: & str) -> i64 {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.py_find(sub), _ =>- 1 ,
+}
+} #[inline] fn capitalize(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.capitalize(), _ =>String::new() ,
+}
+} #[inline] fn title(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.title(), _ =>String::new() ,
+}
+} #[inline] fn swapcase(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.swapcase(), _ =>String::new() ,
+}
+} #[inline] fn isalpha(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isalpha(), _ =>false ,
+}
+} #[inline] fn isdigit(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isdigit(), _ =>false ,
+}
+} #[inline] fn isalnum(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isalnum(), _ =>false ,
+}
+} #[inline] fn isspace(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isspace(), _ =>false ,
+}
+} #[inline] fn islower(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.islower(), _ =>false ,
+}
+} #[inline] fn isupper(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isupper(), _ =>false ,
+}
+} #[inline] fn center(&self, width: usize) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.center(width), _ =>String::new() ,
+}
+} #[inline] fn ljust(&self, width: usize) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.ljust(width), _ =>String::new() ,
+}
+} #[inline] fn rjust(&self, width: usize) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.rjust(width), _ =>String::new() ,
+}
+} #[inline] fn zfill(&self, width: usize) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.zfill(width), _ =>String::new() ,
+}
+} #[inline] fn count(&self, sub: & str) -> usize {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.count(sub), _ =>0 ,
+}
+}
+}
+impl DepylerValue {
+    #[doc = r" Check if string contains substring(Python's `in` operator for strings)"] #[inline] pub fn contains(&self, sub: & str) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.contains(sub), DepylerValue::List(_dv_l) =>_dv_l.iter().any(| v | {
+    if let DepylerValue::Str(s) = v {
+    s == sub
+}
+else {
+    false
+}
+}), _ =>false ,
 }
 }
 }
@@ -1565,7 +1928,7 @@ impl AsyncCounter {
 }
 #[doc = "Async function that awaits another.\n\n    Python: await simple_async()\n    Rust: simple_async().await\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_with_await() -> i32 {
     let result: i32 = simple_async();
-    result.py_mul(2)
+   (result).py_mul(2)
 }
 #[doc = "Async function with sleep.\n\n    Python: await asyncio.sleep(seconds)\n    Rust: std::thread::sleep(Duration::from_secs_f64(seconds)).await\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_with_sleep(seconds: f64) -> String {
     std::thread::sleep(std::time::Duration::from_secs_f64(seconds as f64));
@@ -1573,15 +1936,15 @@ impl AsyncCounter {
 }
 #[doc = "First step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn compute_step1(x: i32) -> i32 {
     std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
-    x.py_add(10)
+   (x).py_add(10)
 }
 #[doc = "Second step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn compute_step2(x: i32) -> i32 {
     std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
-    x.py_mul(2)
+   (x).py_mul(2)
 }
 #[doc = "Third step in async computation chain."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn compute_step3(x: i32) -> i32 {
     std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
-    x.py_sub(5)
+   (x).py_sub(5)
 }
 #[doc = "Chain of async function calls.\n\n    Python: Sequential awaits\n    Rust: Sequential .await calls\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_computation_chain (start: i32) -> i32 {
     let step1: i32 = compute_step1(start);
@@ -1597,7 +1960,7 @@ impl AsyncCounter {
     result = resource.data;
     result.to_string()
 }
-#[doc = "Nested async context managers.\n\n    Python: Nested async with statements\n    Rust: Nested async blocks\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn nested_async_context_managers<'b, 'a>(name1: & 'a str, name2: & 'b str) -> String {
+#[doc = "Nested async context managers.\n\n    Python: Nested async with statements\n    Rust: Nested async blocks\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn nested_async_context_managers<'a, 'b>(name1: & 'a str, name2: & 'b str) -> String {
     let mut results: Vec<String>= vec! [];
     let mut _context = AsyncResource::new(name1);
     let r1 = _context.__aenter__().await;
@@ -1611,7 +1974,7 @@ impl AsyncCounter {
     let mut total: i32 = Default::default();
     total = 0;
     for value in AsyncCounter::new(limit) {
-    total = total.py_add(value);
+    total  = (total).py_add(value);
    
 }
 total
@@ -1624,7 +1987,7 @@ total
     break;
    
 }
-total = total.py_add(value);
+total  = (total).py_add(value);
    
 }
 total
@@ -1642,12 +2005,12 @@ total
     "C".to_string()
 }
 #[doc = "Run tasks concurrently with gather.\n\n    Python: asyncio.gather(task_a(), task_b(), task_c())\n    Rust: (task_a(), task_b(), task_c())\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn concurrent_gather() -> Vec<String>{
-    let results: Vec<String>= asyncio.gather(task_a(), task_b(), task_c());
+    let results: Vec<String>= asyncio::gather(task_a(), task_b(), task_c());
     results
 }
 #[doc = "Process multiple values concurrently.\n\n    Python: asyncio.gather(*[process(v) for v in values])\n    Rust: futures::future::join_all or tokio::join!\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn concurrent_with_results(values: & Vec<i32>) -> Vec<i32>{
     let tasks = values.as_slice().iter().cloned().map(| v | process(v)).collect::<Vec<_>>();
-    let results: Vec<i32>= asyncio.gather(tasks);
+    let results: Vec<i32>= asyncio::gather(tasks);
     results
 }
 #[doc = "Concurrent execution with timeout.\n\n    Python: asyncio.wait_for with timeout\n    Rust: tokio::time::timeout\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn concurrent_with_timeout(timeout_secs: f64) -> Option<String>{
@@ -1667,19 +2030,19 @@ total
 }
 }
 #[doc = "Synchronous helper function."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn sync_helper(x: i32) -> i32 {
-    x.py_mul(3)
+   (x).py_mul(3)
 }
 #[doc = "Async function calling sync function.\n\n    Python: Call regular function from async\n    Rust: Direct call(sync functions can be called from async)\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_calling_sync(x: i32) -> i32 {
     let intermediate: i32 = sync_helper(x);
     std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
-    intermediate.py_add(1)
+   (intermediate).py_add(1)
 }
 #[doc = "Mix of async and sync operations.\n\n    Python: Sync operations between await points\n    Rust: Regular Rust code between .await points\n    "] #[doc = " Depyler: verified panic-free"] pub fn async_with_sync_computation(values: & Vec<i32>) -> Result<i32, Box<dyn std::error::Error>>{
     let mut total: i32 = Default::default();
     total = 0;
     for v in values.iter().cloned() {
-    let doubled: i32 = v.py_mul(2);
-    total = total.py_add(doubled);
+    let doubled: i32  = (v).py_mul(2);
+    total  = (total).py_add(doubled);
    
 }
 std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
@@ -1712,7 +2075,7 @@ else {
    
 }
 std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
-    return Ok(x.py_mul(2));
+    return Ok((x).py_mul(2));
     })() {
     Ok(_result) =>{
     return Ok(_result);
@@ -1769,7 +2132,7 @@ Some(x)
 }
 #[doc = "Async function returning tuple.\n\n    Python: async def -> Tuple[int, int]\n    Rust: async fn...-> (i64, i64)\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_return_tuple(a: i32, b: i32) -> (i32, i32) {
     std::thread::sleep(std::time::Duration::from_secs_f64(0.001 as f64));
-   (a.py_add(b), a.py_mul(b))
+   ((a).py_add(b) ,(a).py_mul(b))
 }
 #[doc = "Async function returning dict.\n\n    Python: async def -> Dict[str, int]\n    Rust: async fn...-> HashMap<String, i64>\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn async_return_dict(keys: & Vec<String>) -> HashMap<String, i32>{
     let mut result: std::collections::HashMap<String, i32>= {

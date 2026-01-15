@@ -2058,7 +2058,7 @@ pub fn demo_all_features() {
         checking.withdraw(transaction.amount);
     }
     let future_value = BankAccount::calculate_interest(checking.balance, 0.03, 5);
-    let _ = checking.balance.py_add(future_value);
+    let _ = (checking.balance).py_add(future_value);
 }
 #[doc = "Run all demonstrations"]
 #[doc = " Depyler: verified panic-free"]
