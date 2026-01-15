@@ -3394,6 +3394,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
         }
 
+        // DEPYLER-1115: Handle external module function calls with Rust path syntax
+        // When calling module functions like requests.get(url), use requests::get(url)
+        // This enables phantom binding generation to provide type-safe stubs
+        if let HirExpr::Var(module_name) = object {
+            // Check if this is an imported module (not a local variable)
+            // Use all_imported_modules which includes external unmapped modules like requests
+            if self.ctx.all_imported_modules.contains(module_name) {
+                // Generate module::function() syntax instead of module.function()
+                let module_ident = crate::rust_gen::keywords::safe_ident(module_name);
+                let method_ident = crate::rust_gen::keywords::safe_ident(method);
+
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| arg.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()?;
+
+                return Ok(parse_quote! { #module_ident::#method_ident(#(#arg_exprs),*) });
+            }
+        }
+
         // DEPYLER-1064: Handle method calls on DepylerValue variables
         // When calling string methods on a DepylerValue, extract the string first
         let is_depyler_value_var = if let HirExpr::Var(var_name) = object {
@@ -7493,6 +7513,142 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(chain)
     }
 
+    /// DEPYLER-1117: Infer lambda parameter type from body expression
+    ///
+    /// Analyzes the body to determine what type a parameter should be:
+    /// - If parameter.iter() is called -> Vec<i64> (iterable)
+    /// - If parameter is used directly in PyOps (py_add, py_mul, etc.) -> i64
+    /// - Default -> i64 (most common in Python numeric code)
+    fn infer_lambda_param_type(&self, param: &str, body: &HirExpr) -> Option<syn::Type> {
+        // DEPYLER-1117: Check iterator methods FIRST - if param.iter() is called,
+        // it's a collection, not a scalar
+        if self.body_uses_iter_on_param(param, body) {
+            return Some(parse_quote! { Vec<i64> });
+        }
+
+        // Check if parameter is used directly in PyOps (not in nested lambdas)
+        if self.param_directly_in_pyops(param, body) {
+            return Some(parse_quote! { i64 });
+        }
+
+        // Default to i64 for standalone lambdas to resolve E0282
+        // This is safe because PyOps traits are implemented for i64
+        Some(parse_quote! { i64 })
+    }
+
+    /// Check if parameter is used DIRECTLY in a binary operation (not nested in closures)
+    fn param_directly_in_pyops(&self, param: &str, body: &HirExpr) -> bool {
+        match body {
+            // Direct binary operation with the parameter
+            HirExpr::Binary { left, right, .. } => {
+                self.is_direct_var(param, left) || self.is_direct_var(param, right)
+            }
+            // Direct method call on the parameter (but not iter/map/filter)
+            HirExpr::MethodCall { object, method, .. } => {
+                // Skip iterator methods - those indicate collection type
+                if matches!(method.as_str(), "iter" | "into_iter" | "map" | "filter" | "cloned") {
+                    return false;
+                }
+                self.is_direct_var(param, object)
+            }
+            // Ternary expression - check all branches
+            HirExpr::IfExpr {
+                test,
+                body: if_body,
+                orelse,
+            } => {
+                self.param_directly_in_pyops(param, test)
+                    || self.param_directly_in_pyops(param, if_body)
+                    || self.param_directly_in_pyops(param, orelse)
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if expr is directly the variable (not nested)
+    fn is_direct_var(&self, var_name: &str, expr: &HirExpr) -> bool {
+        matches!(expr, HirExpr::Var(name) if name == var_name)
+    }
+
+    /// Check if body uses the parameter as an iterable (list comprehension, for loop, iter() call)
+    fn body_uses_iter_on_param(&self, param: &str, body: &HirExpr) -> bool {
+        match body {
+            // DEPYLER-1117: List comprehension `[x for x in param]` - param is iterable
+            HirExpr::ListComp { generators, .. } => {
+                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
+            }
+            // Set comprehension `{x for x in param}` - param is iterable
+            HirExpr::SetComp { generators, .. } => {
+                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
+            }
+            // Dict comprehension `{k: v for k, v in param}` - param is iterable
+            HirExpr::DictComp { generators, .. } => {
+                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
+            }
+            // Generator expression `(x for x in param)` - param is iterable
+            HirExpr::GeneratorExp { generators, .. } => {
+                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
+            }
+            // Method call - check for iter() or chained iterator methods
+            HirExpr::MethodCall { object, method, .. } => {
+                // Check if this is an iterator method call directly on the parameter
+                if matches!(method.as_str(), "iter" | "into_iter") {
+                    return self.is_direct_var(param, object);
+                }
+                // Also check if this is a chained call like param.iter().map()...
+                if let HirExpr::MethodCall {
+                    object: inner_obj,
+                    method: inner_method,
+                    ..
+                } = object.as_ref()
+                {
+                    if matches!(inner_method.as_str(), "iter" | "into_iter") {
+                        return self.is_direct_var(param, inner_obj);
+                    }
+                }
+                false
+            }
+            // Check in nested expressions
+            HirExpr::Call { args, .. } => {
+                args.iter().any(|arg| self.body_uses_iter_on_param(param, arg))
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if expression contains a variable reference
+    fn expr_contains_var(&self, var_name: &str, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Var(name) => name == var_name,
+            HirExpr::Binary { left, right, .. } => {
+                self.expr_contains_var(var_name, left) || self.expr_contains_var(var_name, right)
+            }
+            HirExpr::Unary { operand, .. } => self.expr_contains_var(var_name, operand),
+            HirExpr::Call { args, .. } => {
+                args.iter().any(|arg| self.expr_contains_var(var_name, arg))
+            }
+            HirExpr::MethodCall { object, args, .. } => {
+                self.expr_contains_var(var_name, object)
+                    || args.iter().any(|arg| self.expr_contains_var(var_name, arg))
+            }
+            HirExpr::Index { base, index, .. } => {
+                self.expr_contains_var(var_name, base) || self.expr_contains_var(var_name, index)
+            }
+            HirExpr::Attribute { value, .. } => self.expr_contains_var(var_name, value),
+            HirExpr::IfExpr {
+                test, body, orelse, ..
+            } => {
+                self.expr_contains_var(var_name, test)
+                    || self.expr_contains_var(var_name, body)
+                    || self.expr_contains_var(var_name, orelse)
+            }
+            HirExpr::Tuple(elems) | HirExpr::List(elems) => {
+                elems.iter().any(|e| self.expr_contains_var(var_name, e))
+            }
+            _ => false,
+        }
+    }
+
     pub(crate) fn convert_lambda(&mut self, params: &[String], body: &HirExpr) -> Result<syn::Expr> {
         // CITL: Trace lambda/closure conversion decision
         trace_decision!(
@@ -7504,17 +7660,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         );
 
         // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
-        // Parameters named 'fn', 'match', 'type', etc. need to use raw identifier syntax
-        // NOTE (DEPYLER-1061): Lambda parameters are intentionally NOT typed with DepylerValue.
-        // Adding DepylerValue type annotations breaks call sites that pass raw literals.
-        // E0282 "type annotations needed" errors occur for lambdas stored in variables
-        // that use iterator methods like .iter(). This is a known limitation requiring
-        // bidirectional type inference (from usage context to lambda definition).
-        let param_pats: Vec<syn::Pat> = params
+        // DEPYLER-1117: Add type annotations to fix E0282 errors
+        // Parameters are typed based on body expression analysis
+        let param_tokens: Vec<proc_macro2::TokenStream> = params
             .iter()
             .map(|p| {
                 let ident = crate::rust_gen::keywords::safe_ident(p);
-                parse_quote! { #ident }
+                // DEPYLER-1117: Infer type from body usage
+                if let Some(ty) = self.infer_lambda_param_type(p, body) {
+                    quote::quote! { #ident: #ty }
+                } else {
+                    quote::quote! { #ident }
+                }
             })
             .collect();
 
@@ -7529,12 +7686,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // No parameters
             Ok(parse_quote! { move || #body_expr })
         } else if params.len() == 1 {
-            // Single parameter
-            let param = &param_pats[0];
+            // Single parameter with type annotation
+            let param = &param_tokens[0];
             Ok(parse_quote! { move |#param| #body_expr })
         } else {
-            // Multiple parameters
-            Ok(parse_quote! { move |#(#param_pats),*| #body_expr })
+            // Multiple parameters with type annotations
+            Ok(parse_quote! { move |#(#param_tokens),*| #body_expr })
         }
     }
 

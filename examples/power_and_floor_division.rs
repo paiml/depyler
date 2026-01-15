@@ -1994,7 +1994,7 @@ pub fn power_examples(base: i32, exponent: i32) -> i32 {
         }
     };
     let result3 = _cse_temp_2;
-    result1.py_add(result2).py_add(result3)
+    ((result1).py_add(result2)).py_add(result3)
 }
 #[doc = "Demonstrate floor division with Python semantics"]
 #[doc = " Depyler: proven to terminate"]
@@ -2087,11 +2087,7 @@ pub fn floor_division_examples(
         }
     };
     let result5 = _cse_temp_4;
-    Ok(result1
-        .py_add(result2)
-        .py_add(result3)
-        .py_add(result4)
-        .py_add(result5))
+    Ok(((((result1).py_add(result2)).py_add(result3)).py_add(result4)).py_add(result5))
 }
 #[doc = "Combine power and floor division"]
 #[doc = " Depyler: proven to terminate"]
@@ -2150,7 +2146,7 @@ pub fn combined_operations(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Er
         }
     };
     let result2 = _cse_temp_3;
-    Ok(result1.py_add(result2))
+    Ok((result1).py_add(result2))
 }
 #[doc = "Calculate sum of squares using both operators"]
 pub fn mathematical_sequence(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
@@ -2183,8 +2179,8 @@ pub fn mathematical_sequence(n: i32) -> Result<i32, Box<dyn std::error::Error>> 
                 q
             }
         };
-        total = total.py_add(contribution);
-        i = i.py_add(1);
+        total = (total).py_add(contribution);
+        i = (i).py_add(1);
     }
     Ok(total)
 }

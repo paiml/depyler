@@ -1953,13 +1953,13 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn add_numbers(a: i32, b: i32) -> i32 {
-    a.py_add(b)
+    (a).py_add(b)
 }
 #[doc = "Multiply two numbers."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn multiply(x: i32, y: i32) -> i32 {
-    let _cse_temp_0 = x.py_mul(y);
+    let _cse_temp_0 = (x).py_mul(y);
     let result = _cse_temp_0;
     result
 }

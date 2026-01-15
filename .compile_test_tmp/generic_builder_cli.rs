@@ -1,0 +1,1899 @@
+#![allow(unused_imports)]
+#![allow(unused_mut)]
+#![allow(unused_variables)]
+#![allow(unreachable_patterns)]
+#![allow(unused_assignments)]
+#![allow(dead_code)]
+#[doc = "// NOTE: Map Python module 'dataclasses'(tracked in DEPYLER-0424)"]
+#[derive(Debug, Clone)]
+pub struct IndexError {
+    message: String,
+}
+impl std::fmt::Display for IndexError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "index out of range: {}", self.message)
+    }
+}
+impl std::error::Error for IndexError {}
+impl IndexError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct ValueError {
+    message: String,
+}
+impl std::fmt::Display for ValueError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "value error: {}", self.message)
+    }
+}
+impl std::error::Error for ValueError {}
+impl ValueError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+#[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
+#[doc = r" DEPYLER-1040b: Now implements Hash + Eq to support non-string dict keys"]
+#[derive(Debug, Clone, Default)]
+pub enum DepylerValue {
+    Int(i64),
+    Float(f64),
+    Str(String),
+    Bool(bool),
+    #[default]
+    None,
+    List(Vec<DepylerValue>),
+    Dict(std::collections::HashMap<DepylerValue, DepylerValue>),
+    #[doc = r" DEPYLER-1050: Tuple variant for Python tuple support"]
+    Tuple(Vec<DepylerValue>),
+}
+impl PartialEq for DepylerValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => _dv_a == _dv_b,
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                _dv_a.to_bits() == _dv_b.to_bits()
+            }
+            (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => _dv_a == _dv_b,
+            (DepylerValue::Bool(_dv_a), DepylerValue::Bool(_dv_b)) => _dv_a == _dv_b,
+            (DepylerValue::None, DepylerValue::None) => true,
+            (DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) => _dv_a == _dv_b,
+            (DepylerValue::Dict(_dv_a), DepylerValue::Dict(_dv_b)) => _dv_a == _dv_b,
+            (DepylerValue::Tuple(_dv_a), DepylerValue::Tuple(_dv_b)) => _dv_a == _dv_b,
+            _ => false,
+        }
+    }
+}
+impl Eq for DepylerValue {}
+impl std::hash::Hash for DepylerValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        std::mem::discriminant(self).hash(state);
+        match self {
+            DepylerValue::Int(_dv_int) => _dv_int.hash(state),
+            DepylerValue::Float(_dv_float) => _dv_float.to_bits().hash(state),
+            DepylerValue::Str(_dv_str) => _dv_str.hash(state),
+            DepylerValue::Bool(_dv_bool) => _dv_bool.hash(state),
+            DepylerValue::None => {}
+            DepylerValue::List(_dv_list) => _dv_list.hash(state),
+            DepylerValue::Dict(_) => {
+                0u8.hash(state);
+            }
+            DepylerValue::Tuple(_dv_tuple) => _dv_tuple.hash(state),
+        }
+    }
+}
+impl std::fmt::Display for DepylerValue {
+    fn fmt(&self, _dv_fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DepylerValue::Int(_dv_int) => write!(_dv_fmt, "{}", _dv_int),
+            DepylerValue::Float(_dv_float) => write!(_dv_fmt, "{}", _dv_float),
+            DepylerValue::Str(_dv_str) => write!(_dv_fmt, "{}", _dv_str),
+            DepylerValue::Bool(_dv_bool) => write!(_dv_fmt, "{}", _dv_bool),
+            DepylerValue::None => write!(_dv_fmt, "None"),
+            DepylerValue::List(_dv_list) => write!(_dv_fmt, "{:?}", _dv_list),
+            DepylerValue::Dict(_dv_dict) => write!(_dv_fmt, "{:?}", _dv_dict),
+            DepylerValue::Tuple(_dv_tuple) => write!(_dv_fmt, "{:?}", _dv_tuple),
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Get length of string, list, or dict"]
+    #[doc = r" DEPYLER-1060: Use _dv_ prefix to avoid shadowing user variables"]
+    pub fn len(&self) -> usize {
+        match self {
+            DepylerValue::Str(_dv_str) => _dv_str.len(),
+            DepylerValue::List(_dv_list) => _dv_list.len(),
+            DepylerValue::Dict(_dv_dict) => _dv_dict.len(),
+            DepylerValue::Tuple(_dv_tuple) => _dv_tuple.len(),
+            _ => 0,
+        }
+    }
+    #[doc = r" Check if empty"]
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    #[doc = r" Get chars iterator for string values"]
+    pub fn chars(&self) -> std::str::Chars<'_> {
+        match self {
+            DepylerValue::Str(_dv_str) => _dv_str.chars(),
+            _ => "".chars(),
+        }
+    }
+    #[doc = r" Insert into dict(mutates self if Dict variant)"]
+    #[doc = r" DEPYLER-1040b: Now accepts DepylerValue keys for non-string dict keys"]
+    pub fn insert(&mut self, key: impl Into<DepylerValue>, value: impl Into<DepylerValue>) {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.insert(key.into(), value.into());
+        }
+    }
+    #[doc = r" Get value from dict by key"]
+    #[doc = r" DEPYLER-1040b: Now accepts DepylerValue keys"]
+    pub fn get(&self, key: &DepylerValue) -> Option<&DepylerValue> {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.get(key)
+        } else {
+            Option::None
+        }
+    }
+    #[doc = r" Get value from dict by string key(convenience method)"]
+    pub fn get_str(&self, key: &str) -> Option<&DepylerValue> {
+        self.get(&DepylerValue::Str(key.to_string()))
+    }
+    #[doc = r" Check if dict contains key"]
+    #[doc = r" DEPYLER-1040b: Now accepts DepylerValue keys"]
+    pub fn contains_key(&self, key: &DepylerValue) -> bool {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.contains_key(key)
+        } else {
+            false
+        }
+    }
+    #[doc = r" Check if dict contains string key(convenience method)"]
+    pub fn contains_key_str(&self, key: &str) -> bool {
+        self.contains_key(&DepylerValue::Str(key.to_string()))
+    }
+    #[doc = r" DEPYLER-1051: Get iterator over list values"]
+    #[doc = r" Returns an empty iterator for non-list types"]
+    pub fn iter(&self) -> std::slice::Iter<'_, DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.iter(),
+            _ => [].iter(),
+        }
+    }
+    #[doc = r" DEPYLER-1051: Get mutable iterator over list values"]
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<'_, DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.iter_mut(),
+            _ => [].iter_mut(),
+        }
+    }
+    #[doc = r" DEPYLER-1051: Get iterator over dict key-value pairs"]
+    #[doc = r" DEPYLER-1040b: Now uses DepylerValue keys"]
+    pub fn items(&self) -> std::collections::hash_map::Iter<'_, DepylerValue, DepylerValue> {
+        static EMPTY_MAP: std::sync::LazyLock<
+            std::collections::HashMap<DepylerValue, DepylerValue>,
+        > = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict.iter(),
+            _ => EMPTY_MAP.iter(),
+        }
+    }
+    #[doc = r" DEPYLER-1051: Get iterator over dict keys"]
+    #[doc = r" DEPYLER-1040b: Now returns DepylerValue keys"]
+    pub fn keys(&self) -> std::collections::hash_map::Keys<'_, DepylerValue, DepylerValue> {
+        static EMPTY_MAP: std::sync::LazyLock<
+            std::collections::HashMap<DepylerValue, DepylerValue>,
+        > = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict.keys(),
+            _ => EMPTY_MAP.keys(),
+        }
+    }
+    #[doc = r" DEPYLER-1051: Get iterator over dict values"]
+    #[doc = r" DEPYLER-1040b: Now uses DepylerValue keys internally"]
+    pub fn values(&self) -> std::collections::hash_map::Values<'_, DepylerValue, DepylerValue> {
+        static EMPTY_MAP: std::sync::LazyLock<
+            std::collections::HashMap<DepylerValue, DepylerValue>,
+        > = std::sync::LazyLock::new(|| std::collections::HashMap::new());
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict.values(),
+            _ => EMPTY_MAP.values(),
+        }
+    }
+    #[doc = r" Convert to String"]
+    pub fn to_string(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_str) => _dv_str.clone(),
+            DepylerValue::Int(_dv_int) => _dv_int.to_string(),
+            DepylerValue::Float(_dv_float) => _dv_float.to_string(),
+            DepylerValue::Bool(_dv_bool) => _dv_bool.to_string(),
+            DepylerValue::None => "None".to_string(),
+            DepylerValue::List(_dv_list) => format!("{:?}", _dv_list),
+            DepylerValue::Dict(_dv_dict) => format!("{:?}", _dv_dict),
+            DepylerValue::Tuple(_dv_tuple) => format!("{:?}", _dv_tuple),
+        }
+    }
+    #[doc = r" Convert to i64"]
+    pub fn to_i64(&self) -> i64 {
+        match self {
+            DepylerValue::Int(_dv_int) => *_dv_int,
+            DepylerValue::Float(_dv_float) => *_dv_float as i64,
+            DepylerValue::Bool(_dv_bool) => {
+                if *_dv_bool {
+                    1
+                } else {
+                    0
+                }
+            }
+            DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0),
+            _ => 0,
+        }
+    }
+    #[doc = r" Convert to f64"]
+    pub fn to_f64(&self) -> f64 {
+        match self {
+            DepylerValue::Float(_dv_float) => *_dv_float,
+            DepylerValue::Int(_dv_int) => *_dv_int as f64,
+            DepylerValue::Bool(_dv_bool) => {
+                if *_dv_bool {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+            DepylerValue::Str(_dv_str) => _dv_str.parse().unwrap_or(0.0),
+            _ => 0.0,
+        }
+    }
+    #[doc = r" Convert to bool"]
+    pub fn to_bool(&self) -> bool {
+        match self {
+            DepylerValue::Bool(_dv_bool) => *_dv_bool,
+            DepylerValue::Int(_dv_int) => *_dv_int != 0,
+            DepylerValue::Float(_dv_float) => *_dv_float != 0.0,
+            DepylerValue::Str(_dv_str) => !_dv_str.is_empty(),
+            DepylerValue::List(_dv_list) => !_dv_list.is_empty(),
+            DepylerValue::Dict(_dv_dict) => !_dv_dict.is_empty(),
+            DepylerValue::Tuple(_dv_tuple) => !_dv_tuple.is_empty(),
+            DepylerValue::None => false,
+        }
+    }
+    #[doc = r" DEPYLER-1064: Get tuple element by index for tuple unpacking"]
+    #[doc = r" Returns the element at the given index, or panics with a readable error"]
+    #[doc = r" Works on both Tuple and List variants(Python treats them similarly for unpacking)"]
+    pub fn get_tuple_elem(&self, _dv_idx: usize) -> DepylerValue {
+        match self {
+            DepylerValue::Tuple(_dv_tuple) => {
+                if _dv_idx < _dv_tuple.len() {
+                    _dv_tuple[_dv_idx].clone()
+                } else {
+                    panic!(
+                        "Tuple index {} out of bounds(length {})",
+                        _dv_idx,
+                        _dv_tuple.len()
+                    )
+                }
+            }
+            DepylerValue::List(_dv_list) => {
+                if _dv_idx < _dv_list.len() {
+                    _dv_list[_dv_idx].clone()
+                } else {
+                    panic!(
+                        "List index {} out of bounds(length {})",
+                        _dv_idx,
+                        _dv_list.len()
+                    )
+                }
+            }
+            _dv_other => panic!(
+                "Expected tuple or list for unpacking, found {:?}",
+                _dv_other
+            ),
+        }
+    }
+    #[doc = r" DEPYLER-1064: Extract tuple as Vec for multiple assignment"]
+    #[doc = r" Validates that the value is a tuple/list with the expected number of elements"]
+    pub fn extract_tuple(&self, _dv_expected_len: usize) -> Vec<DepylerValue> {
+        match self {
+            DepylerValue::Tuple(_dv_tuple) => {
+                if _dv_tuple.len() != _dv_expected_len {
+                    panic!(
+                        "Expected tuple of length {}, got length {}",
+                        _dv_expected_len,
+                        _dv_tuple.len()
+                    )
+                }
+                _dv_tuple.clone()
+            }
+            DepylerValue::List(_dv_list) => {
+                if _dv_list.len() != _dv_expected_len {
+                    panic!(
+                        "Expected list of length {}, got length {}",
+                        _dv_expected_len,
+                        _dv_list.len()
+                    )
+                }
+                _dv_list.clone()
+            }
+            _dv_other => panic!(
+                "Expected tuple or list for unpacking, found {:?}",
+                _dv_other
+            ),
+        }
+    }
+}
+impl std::ops::Index<usize> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, _dv_idx: usize) -> &Self::Output {
+        match self {
+            DepylerValue::List(_dv_list) => &_dv_list[_dv_idx],
+            DepylerValue::Tuple(_dv_tuple) => &_dv_tuple[_dv_idx],
+            _ => panic!("Cannot index non-list/tuple DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<&str> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, _dv_key: &str) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Str(_dv_key.to_string()))
+                .unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue with string key"),
+        }
+    }
+}
+impl std::ops::Index<DepylerValue> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, _dv_key: DepylerValue) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict.get(&_dv_key).unwrap_or(&DepylerValue::None),
+            _ => panic!("Cannot index non-dict DepylerValue"),
+        }
+    }
+}
+impl std::ops::Index<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, _dv_key: i64) -> &Self::Output {
+        match self {
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Int(_dv_key))
+                .unwrap_or(&DepylerValue::None),
+            DepylerValue::List(_dv_list) => &_dv_list[_dv_key as usize],
+            DepylerValue::Tuple(_dv_tuple) => &_dv_tuple[_dv_key as usize],
+            _ => panic!("Cannot index DepylerValue with integer"),
+        }
+    }
+}
+impl std::ops::Index<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn index(&self, _dv_key: i32) -> &Self::Output {
+        &self[_dv_key as i64]
+    }
+}
+impl From<i64> for DepylerValue {
+    fn from(v: i64) -> Self {
+        DepylerValue::Int(v)
+    }
+}
+impl From<i32> for DepylerValue {
+    fn from(v: i32) -> Self {
+        DepylerValue::Int(v as i64)
+    }
+}
+impl From<f64> for DepylerValue {
+    fn from(v: f64) -> Self {
+        DepylerValue::Float(v)
+    }
+}
+impl From<String> for DepylerValue {
+    fn from(v: String) -> Self {
+        DepylerValue::Str(v)
+    }
+}
+impl From<&str> for DepylerValue {
+    fn from(v: &str) -> Self {
+        DepylerValue::Str(v.to_string())
+    }
+}
+impl From<bool> for DepylerValue {
+    fn from(v: bool) -> Self {
+        DepylerValue::Bool(v)
+    }
+}
+impl From<Vec<DepylerValue>> for DepylerValue {
+    fn from(v: Vec<DepylerValue>) -> Self {
+        DepylerValue::List(v)
+    }
+}
+impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
+        DepylerValue::Dict(v)
+    }
+}
+impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashMap<String, DepylerValue>) -> Self {
+        let converted: std::collections::HashMap<DepylerValue, DepylerValue> = v
+            .into_iter()
+            .map(|(k, v)| (DepylerValue::Str(k), v))
+            .collect();
+        DepylerValue::Dict(converted)
+    }
+}
+impl std::ops::Add for DepylerValue {
+    type Output = DepylerValue;
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Int(_dv_a + _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a + _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a as f64 + _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Float(_dv_a + _dv_b as f64)
+            }
+            (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => {
+                DepylerValue::Str(_dv_a + &_dv_b)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Sub for DepylerValue {
+    type Output = DepylerValue;
+    fn sub(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Int(_dv_a - _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a - _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a as f64 - _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Float(_dv_a - _dv_b as f64)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Mul for DepylerValue {
+    type Output = DepylerValue;
+    fn mul(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Int(_dv_a * _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a * _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                DepylerValue::Float(_dv_a as f64 * _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                DepylerValue::Float(_dv_a * _dv_b as f64)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Div for DepylerValue {
+    type Output = DepylerValue;
+    fn div(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                DepylerValue::Int(_dv_a / _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                DepylerValue::Float(_dv_a / _dv_b)
+            }
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b != 0.0 => {
+                DepylerValue::Float(_dv_a as f64 / _dv_b)
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b != 0 => {
+                DepylerValue::Float(_dv_a / _dv_b as f64)
+            }
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Add<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn add(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int + rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float + rhs as f64),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Add<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn add(self, rhs: i32) -> Self::Output {
+        self + (rhs as i64)
+    }
+}
+impl std::ops::Add<DepylerValue> for i32 {
+    type Output = i32;
+    fn add(self, rhs: DepylerValue) -> Self::Output {
+        self + rhs.to_i64() as i32
+    }
+}
+impl std::ops::Add<DepylerValue> for i64 {
+    type Output = i64;
+    fn add(self, rhs: DepylerValue) -> Self::Output {
+        self + rhs.to_i64()
+    }
+}
+impl std::ops::Add<DepylerValue> for f64 {
+    type Output = f64;
+    fn add(self, rhs: DepylerValue) -> Self::Output {
+        self + rhs.to_f64()
+    }
+}
+impl std::ops::Sub<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn sub(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int - rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float - rhs as f64),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Sub<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn sub(self, rhs: i32) -> Self::Output {
+        self - (rhs as i64)
+    }
+}
+impl std::ops::Sub<f64> for DepylerValue {
+    type Output = DepylerValue;
+    fn sub(self, rhs: f64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 - rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float - rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Sub<DepylerValue> for i32 {
+    type Output = i32;
+    fn sub(self, rhs: DepylerValue) -> Self::Output {
+        self - rhs.to_i64() as i32
+    }
+}
+impl std::ops::Sub<DepylerValue> for i64 {
+    type Output = i64;
+    fn sub(self, rhs: DepylerValue) -> Self::Output {
+        self - rhs.to_i64()
+    }
+}
+impl std::ops::Sub<DepylerValue> for f64 {
+    type Output = f64;
+    fn sub(self, rhs: DepylerValue) -> Self::Output {
+        self - rhs.to_f64()
+    }
+}
+impl std::ops::Mul<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn mul(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int * rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float * rhs as f64),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Mul<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn mul(self, rhs: i32) -> Self::Output {
+        self * (rhs as i64)
+    }
+}
+impl std::ops::Mul<f64> for DepylerValue {
+    type Output = DepylerValue;
+    fn mul(self, rhs: f64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 * rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float * rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Mul<DepylerValue> for i32 {
+    type Output = i32;
+    fn mul(self, rhs: DepylerValue) -> Self::Output {
+        self * rhs.to_i64() as i32
+    }
+}
+impl std::ops::Mul<DepylerValue> for i64 {
+    type Output = i64;
+    fn mul(self, rhs: DepylerValue) -> Self::Output {
+        self * rhs.to_i64()
+    }
+}
+impl std::ops::Mul<DepylerValue> for f64 {
+    type Output = f64;
+    fn mul(self, rhs: DepylerValue) -> Self::Output {
+        self * rhs.to_f64()
+    }
+}
+impl std::ops::Div<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn div(self, rhs: i64) -> Self::Output {
+        if rhs == 0 {
+            return DepylerValue::None;
+        }
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int / rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float / rhs as f64),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Div<i32> for DepylerValue {
+    type Output = DepylerValue;
+    fn div(self, rhs: i32) -> Self::Output {
+        self / (rhs as i64)
+    }
+}
+impl std::ops::Div<f64> for DepylerValue {
+    type Output = DepylerValue;
+    fn div(self, rhs: f64) -> Self::Output {
+        if rhs == 0.0 {
+            return DepylerValue::None;
+        }
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 / rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float / rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Div<DepylerValue> for i32 {
+    type Output = i32;
+    fn div(self, rhs: DepylerValue) -> Self::Output {
+        let divisor = rhs.to_i64() as i32;
+        if divisor == 0 {
+            0
+        } else {
+            self / divisor
+        }
+    }
+}
+impl std::ops::Div<DepylerValue> for i64 {
+    type Output = i64;
+    fn div(self, rhs: DepylerValue) -> Self::Output {
+        let divisor = rhs.to_i64();
+        if divisor == 0 {
+            0
+        } else {
+            self / divisor
+        }
+    }
+}
+impl std::ops::Div<DepylerValue> for f64 {
+    type Output = f64;
+    fn div(self, rhs: DepylerValue) -> Self::Output {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            0.0
+        } else {
+            self / divisor
+        }
+    }
+}
+impl std::ops::Add<f64> for DepylerValue {
+    type Output = DepylerValue;
+    fn add(self, rhs: f64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Float(_dv_int as f64 + rhs),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(_dv_float + rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Neg for DepylerValue {
+    type Output = DepylerValue;
+    fn neg(self) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(-_dv_int),
+            DepylerValue::Float(_dv_float) => DepylerValue::Float(-_dv_float),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::Not for DepylerValue {
+    type Output = bool;
+    fn not(self) -> Self::Output {
+        !self.to_bool()
+    }
+}
+impl std::ops::BitXor<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn bitxor(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int ^ rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::BitAnd<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn bitand(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int & rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl std::ops::BitOr<i64> for DepylerValue {
+    type Output = DepylerValue;
+    fn bitor(self, rhs: i64) -> Self::Output {
+        match self {
+            DepylerValue::Int(_dv_int) => DepylerValue::Int(_dv_int | rhs),
+            _ => DepylerValue::None,
+        }
+    }
+}
+impl IntoIterator for DepylerValue {
+    type Item = DepylerValue;
+    type IntoIter = std::vec::IntoIter<DepylerValue>;
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.into_iter(),
+            DepylerValue::Tuple(_dv_tuple) => _dv_tuple.into_iter(),
+            DepylerValue::Dict(_dv_dict) => _dv_dict.into_keys().collect::<Vec<_>>().into_iter(),
+            DepylerValue::Str(_dv_str) => _dv_str
+                .chars()
+                .map(|_dv_c| DepylerValue::Str(_dv_c.to_string()))
+                .collect::<Vec<_>>()
+                .into_iter(),
+            _ => Vec::new().into_iter(),
+        }
+    }
+}
+impl<'_dv_a> IntoIterator for &'_dv_a DepylerValue {
+    type Item = DepylerValue;
+    type IntoIter = std::vec::IntoIter<DepylerValue>;
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            DepylerValue::List(_dv_list) => {
+                _dv_list.iter().cloned().collect::<Vec<_>>().into_iter()
+            }
+            DepylerValue::Tuple(_dv_tuple) => {
+                _dv_tuple.iter().cloned().collect::<Vec<_>>().into_iter()
+            }
+            DepylerValue::Dict(_dv_dict) => {
+                _dv_dict.keys().cloned().collect::<Vec<_>>().into_iter()
+            }
+            DepylerValue::Str(_dv_str) => _dv_str
+                .chars()
+                .map(|_dv_c| DepylerValue::Str(_dv_c.to_string()))
+                .collect::<Vec<_>>()
+                .into_iter(),
+            _ => Vec::new().into_iter(),
+        }
+    }
+}
+impl std::cmp::PartialOrd for DepylerValue {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) => Some(_dv_a.cmp(_dv_b)),
+            (DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) => {
+                Some(_dv_a.total_cmp(_dv_b))
+            }
+            (DepylerValue::Str(_dv_a), DepylerValue::Str(_dv_b)) => Some(_dv_a.cmp(_dv_b)),
+            (DepylerValue::Bool(_dv_a), DepylerValue::Bool(_dv_b)) => Some(_dv_a.cmp(_dv_b)),
+            (DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) => {
+                Some((*_dv_a as f64).total_cmp(_dv_b))
+            }
+            (DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) => {
+                Some(_dv_a.total_cmp(&(*_dv_b as f64)))
+            }
+            (DepylerValue::None, DepylerValue::None) => Some(std::cmp::Ordering::Equal),
+            (DepylerValue::None, _) => Some(std::cmp::Ordering::Less),
+            (_, DepylerValue::None) => Some(std::cmp::Ordering::Greater),
+            (DepylerValue::List(_dv_a), DepylerValue::List(_dv_b)) => _dv_a.partial_cmp(_dv_b),
+            (DepylerValue::Tuple(_dv_a), DepylerValue::Tuple(_dv_b)) => _dv_a.partial_cmp(_dv_b),
+            _ => Option::None,
+        }
+    }
+}
+impl std::cmp::Ord for DepylerValue {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.partial_cmp(other).unwrap_or(std::cmp::Ordering::Equal)
+    }
+}
+pub fn depyler_min<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
+    if a.partial_cmp(&b).map_or(true, |c| {
+        c == std::cmp::Ordering::Less || c == std::cmp::Ordering::Equal
+    }) {
+        a
+    } else {
+        b
+    }
+}
+pub fn depyler_max<T: std::cmp::PartialOrd>(a: T, b: T) -> T {
+    if a.partial_cmp(&b).map_or(true, |c| {
+        c == std::cmp::Ordering::Greater || c == std::cmp::Ordering::Equal
+    }) {
+        a
+    } else {
+        b
+    }
+}
+#[doc = r" DEPYLER-1066: Wrapper for Python datetime.date"]
+#[doc = r" Provides .day(), .month(), .year() methods matching Python's API"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+pub struct DepylerDate(pub u32, pub u32, pub u32);
+impl DepylerDate {
+    #[doc = r" Create a new date from year, month, day"]
+    pub fn new(year: u32, month: u32, day: u32) -> Self {
+        DepylerDate(year, month, day)
+    }
+    #[doc = r" Get today's date(NASA mode: computed from SystemTime)"]
+    pub fn today() -> Self {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let days = (secs / 86400) as i64;
+        let z = days + 719468;
+        let era = if z >= 0 { z } else { z - 146096 } / 146097;
+        let doe = (z - era * 146097) as u32;
+        let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        let y = yoe as i64 + era * 400;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let d = doy - (153 * mp + 2) / 5 + 1;
+        let m = if mp < 10 { mp + 3 } else { mp - 9 };
+        let y = if m <= 2 { y + 1 } else { y };
+        DepylerDate(y as u32, m, d)
+    }
+    #[doc = r" Get the year component"]
+    pub fn year(&self) -> u32 {
+        self.0
+    }
+    #[doc = r" Get the month component(1-12)"]
+    pub fn month(&self) -> u32 {
+        self.1
+    }
+    #[doc = r" Get the day component(1-31)"]
+    pub fn day(&self) -> u32 {
+        self.2
+    }
+    #[doc = r" Convert to tuple(year, month, day) for interop"]
+    pub fn to_tuple(&self) -> (u32, u32, u32) {
+        (self.0, self.1, self.2)
+    }
+    #[doc = r" Get weekday(0 = Monday, 6 = Sunday) - Python datetime.date.weekday()"]
+    pub fn weekday(&self) -> u32 {
+        let (mut y, mut m, d) = (self.0 as i32, self.1 as i32, self.2 as i32);
+        if m < 3 {
+            m += 12;
+            y -= 1;
+        }
+        let q = d;
+        let k = y % 100;
+        let j = y / 100;
+        let h = (q + (13 * (m + 1)) / 5 + k + k / 4 + j / 4 - 2 * j) % 7;
+        ((h + 5) % 7) as u32
+    }
+    #[doc = r" Get ISO weekday(1 = Monday, 7 = Sunday) - Python datetime.date.isoweekday()"]
+    pub fn isoweekday(&self) -> u32 {
+        self.weekday() + 1
+    }
+    #[doc = r" Create date from ordinal(days since year 1, January 1 = ordinal 1)"]
+    #[doc = r" Python: date.fromordinal(730120) -> date(2000, 1, 1)"]
+    pub fn from_ordinal(ordinal: i64) -> Self {
+        let days = ordinal - 719163 - 1;
+        let z = days + 719468;
+        let era = if z >= 0 { z } else { z - 146096 } / 146097;
+        let doe = (z - era * 146097) as u32;
+        let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        let y = yoe as i64 + era * 400;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let d = doy - (153 * mp + 2) / 5 + 1;
+        let m = if mp < 10 { mp + 3 } else { mp - 9 };
+        let y = if m <= 2 { y + 1 } else { y };
+        DepylerDate(y as u32, m, d)
+    }
+}
+impl std::fmt::Display for DepylerDate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:04}-{:02}-{:02}", self.0, self.1, self.2)
+    }
+}
+#[doc = r" DEPYLER-1067: Wrapper for Python datetime.datetime"]
+#[doc = r" Provides .year(), .month(), .day(), .hour(), .minute(), .second(), .microsecond() methods"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+pub struct DepylerDateTime {
+    pub year: u32,
+    pub month: u32,
+    pub day: u32,
+    pub hour: u32,
+    pub minute: u32,
+    pub second: u32,
+    pub microsecond: u32,
+}
+impl DepylerDateTime {
+    #[doc = r" Create a new datetime from components"]
+    pub fn new(
+        year: u32,
+        month: u32,
+        day: u32,
+        hour: u32,
+        minute: u32,
+        second: u32,
+        microsecond: u32,
+    ) -> Self {
+        DepylerDateTime {
+            year,
+            month,
+            day,
+            hour,
+            minute,
+            second,
+            microsecond,
+        }
+    }
+    #[doc = r" Get current datetime(NASA mode: computed from SystemTime)"]
+    pub fn now() -> Self {
+        use std::time::{SystemTime, UNIX_EPOCH};
+        let secs = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.subsec_nanos())
+            .unwrap_or(0);
+        let days = (secs / 86400) as i64;
+        let day_secs = (secs % 86400) as u32;
+        let z = days + 719468;
+        let era = if z >= 0 { z } else { z - 146096 } / 146097;
+        let doe = (z - era * 146097) as u32;
+        let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        let y = yoe as i64 + era * 400;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let d = doy - (153 * mp + 2) / 5 + 1;
+        let m = if mp < 10 { mp + 3 } else { mp - 9 };
+        let y = if m <= 2 { y + 1 } else { y };
+        let hour = day_secs / 3600;
+        let minute = (day_secs % 3600) / 60;
+        let second = day_secs % 60;
+        let microsecond = nanos / 1000;
+        DepylerDateTime {
+            year: y as u32,
+            month: m,
+            day: d,
+            hour,
+            minute,
+            second,
+            microsecond,
+        }
+    }
+    #[doc = r" Alias for now() - Python datetime.datetime.today()"]
+    pub fn today() -> Self {
+        Self::now()
+    }
+    pub fn year(&self) -> u32 {
+        self.year
+    }
+    pub fn month(&self) -> u32 {
+        self.month
+    }
+    pub fn day(&self) -> u32 {
+        self.day
+    }
+    pub fn hour(&self) -> u32 {
+        self.hour
+    }
+    pub fn minute(&self) -> u32 {
+        self.minute
+    }
+    pub fn second(&self) -> u32 {
+        self.second
+    }
+    pub fn microsecond(&self) -> u32 {
+        self.microsecond
+    }
+    #[doc = r" Get weekday(0 = Monday, 6 = Sunday)"]
+    pub fn weekday(&self) -> u32 {
+        DepylerDate::new(self.year, self.month, self.day).weekday()
+    }
+    #[doc = r" Get ISO weekday(1 = Monday, 7 = Sunday)"]
+    pub fn isoweekday(&self) -> u32 {
+        self.weekday() + 1
+    }
+    #[doc = r" Extract date component"]
+    pub fn date(&self) -> DepylerDate {
+        DepylerDate::new(self.year, self.month, self.day)
+    }
+    #[doc = r" Get Unix timestamp"]
+    pub fn timestamp(&self) -> f64 {
+        let days = self.days_since_epoch();
+        let secs = days as f64 * 86400.0
+            + self.hour as f64 * 3600.0
+            + self.minute as f64 * 60.0
+            + self.second as f64
+            + self.microsecond as f64 / 1_000_000.0;
+        secs
+    }
+    fn days_since_epoch(&self) -> i64 {
+        let (mut y, mut m) = (self.year as i64, self.month as i64);
+        if m <= 2 {
+            y -= 1;
+            m += 12;
+        }
+        let era = if y >= 0 { y } else { y - 399 } / 400;
+        let yoe = (y - era * 400) as u32;
+        let doy = (153 * (m as u32 - 3) + 2) / 5 + self.day - 1;
+        let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+        era * 146097 + doe as i64 - 719468
+    }
+    #[doc = r" Create from Unix timestamp"]
+    pub fn fromtimestamp(ts: f64) -> Self {
+        let secs = ts as u64;
+        let microsecond = ((ts - secs as f64) * 1_000_000.0) as u32;
+        let days = (secs / 86400) as i64;
+        let day_secs = (secs % 86400) as u32;
+        let z = days + 719468;
+        let era = if z >= 0 { z } else { z - 146096 } / 146097;
+        let doe = (z - era * 146097) as u32;
+        let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        let y = yoe as i64 + era * 400;
+        let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+        let mp = (5 * doy + 2) / 153;
+        let d = doy - (153 * mp + 2) / 5 + 1;
+        let m = if mp < 10 { mp + 3 } else { mp - 9 };
+        let y = if m <= 2 { y + 1 } else { y };
+        let hour = day_secs / 3600;
+        let minute = (day_secs % 3600) / 60;
+        let second = day_secs % 60;
+        DepylerDateTime {
+            year: y as u32,
+            month: m,
+            day: d,
+            hour,
+            minute,
+            second,
+            microsecond,
+        }
+    }
+    #[doc = r" ISO format string"]
+    pub fn isoformat(&self) -> String {
+        format!(
+            "{:04}-{:02}-{:02}T{:02}:{:02}:{:02}",
+            self.year, self.month, self.day, self.hour, self.minute, self.second
+        )
+    }
+}
+impl std::fmt::Display for DepylerDateTime {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
+            self.year, self.month, self.day, self.hour, self.minute, self.second
+        )
+    }
+}
+#[doc = r" DEPYLER-1068: Wrapper for Python datetime.timedelta"]
+#[doc = r" Provides .days, .seconds, .microseconds, .total_seconds() methods"]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash)]
+pub struct DepylerTimeDelta {
+    pub days: i64,
+    pub seconds: i64,
+    pub microseconds: i64,
+}
+impl DepylerTimeDelta {
+    #[doc = r" Create a new timedelta from components"]
+    pub fn new(days: i64, seconds: i64, microseconds: i64) -> Self {
+        let total_us = days * 86400 * 1_000_000 + seconds * 1_000_000 + microseconds;
+        let total_secs = total_us / 1_000_000;
+        let us = total_us % 1_000_000;
+        let d = total_secs / 86400;
+        let s = total_secs % 86400;
+        DepylerTimeDelta {
+            days: d,
+            seconds: s,
+            microseconds: us,
+        }
+    }
+    #[doc = r" Create from keyword-style arguments(hours, minutes, etc.)"]
+    pub fn from_components(
+        days: i64,
+        seconds: i64,
+        microseconds: i64,
+        milliseconds: i64,
+        minutes: i64,
+        hours: i64,
+        weeks: i64,
+    ) -> Self {
+        let total_days = days + weeks * 7;
+        let total_secs = seconds + minutes * 60 + hours * 3600;
+        let total_us = microseconds + milliseconds * 1000;
+        Self::new(total_days, total_secs, total_us)
+    }
+    #[doc = r" Get total seconds as f64"]
+    pub fn total_seconds(&self) -> f64 {
+        self.days as f64 * 86400.0 + self.seconds as f64 + self.microseconds as f64 / 1_000_000.0
+    }
+    #[doc = r" Get days component"]
+    pub fn days(&self) -> i64 {
+        self.days
+    }
+    #[doc = r" Get seconds component(0-86399)"]
+    pub fn seconds(&self) -> i64 {
+        self.seconds
+    }
+    #[doc = r" Get microseconds component(0-999999)"]
+    pub fn microseconds(&self) -> i64 {
+        self.microseconds
+    }
+}
+impl std::ops::Add for DepylerTimeDelta {
+    type Output = Self;
+    fn add(self, other: Self) -> Self {
+        Self::new(
+            self.days + other.days,
+            self.seconds + other.seconds,
+            self.microseconds + other.microseconds,
+        )
+    }
+}
+impl std::ops::Sub for DepylerTimeDelta {
+    type Output = Self;
+    fn sub(self, other: Self) -> Self {
+        Self::new(
+            self.days - other.days,
+            self.seconds - other.seconds,
+            self.microseconds - other.microseconds,
+        )
+    }
+}
+impl std::fmt::Display for DepylerTimeDelta {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hours = self.seconds / 3600;
+        let mins = (self.seconds % 3600) / 60;
+        let secs = self.seconds % 60;
+        if self.days != 0 {
+            write!(
+                f,
+                "{} day{}, {:02}:{:02}:{:02}",
+                self.days,
+                if self.days == 1 { "" } else { "s" },
+                hours,
+                mins,
+                secs
+            )
+        } else {
+            write!(f, "{:02}:{:02}:{:02}", hours, mins, secs)
+        }
+    }
+}
+#[doc = r" DEPYLER-1070: Wrapper for Python re.Match object"]
+#[doc = r" Provides .group(), .groups(), .start(), .end(), .span() methods"]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct DepylerRegexMatch {
+    pub matched: String,
+    pub start: usize,
+    pub end: usize,
+    pub groups: Vec<String>,
+}
+impl DepylerRegexMatch {
+    #[doc = r" Create a new match from a string slice match"]
+    pub fn new(text: &str, start: usize, end: usize) -> Self {
+        DepylerRegexMatch {
+            matched: text[start..end].to_string(),
+            start,
+            end,
+            groups: vec![text[start..end].to_string()],
+        }
+    }
+    #[doc = r" Create a match with capture groups"]
+    pub fn with_groups(text: &str, start: usize, end: usize, groups: Vec<String>) -> Self {
+        DepylerRegexMatch {
+            matched: text[start..end].to_string(),
+            start,
+            end,
+            groups,
+        }
+    }
+    #[doc = r" Get the matched string(group 0)"]
+    pub fn group(&self, n: usize) -> String {
+        self.groups.get(n).cloned().unwrap_or_default()
+    }
+    #[doc = r" Get all capture groups as a tuple-like Vec"]
+    pub fn groups(&self) -> Vec<String> {
+        if self.groups.len() > 1 {
+            self.groups[1..].to_vec()
+        } else {
+            vec![]
+        }
+    }
+    #[doc = r" Get the start position"]
+    pub fn start(&self) -> usize {
+        self.start
+    }
+    #[doc = r" Get the end position"]
+    pub fn end(&self) -> usize {
+        self.end
+    }
+    #[doc = r" Get(start, end) tuple"]
+    pub fn span(&self) -> (usize, usize) {
+        (self.start, self.end)
+    }
+    #[doc = r" Get the matched string(equivalent to group(0))"]
+    pub fn as_str(&self) -> &str {
+        &self.matched
+    }
+    #[doc = r" Simple pattern search(NASA mode alternative to regex)"]
+    #[doc = r" Searches for literal string pattern in text"]
+    pub fn search(pattern: &str, text: &str) -> Option<Self> {
+        text.find(pattern).map(|start| {
+            let end = start + pattern.len();
+            DepylerRegexMatch::new(text, start, end)
+        })
+    }
+    #[doc = r" Simple pattern match at start(NASA mode alternative to regex)"]
+    pub fn match_start(pattern: &str, text: &str) -> Option<Self> {
+        if text.starts_with(pattern) {
+            Some(DepylerRegexMatch::new(text, 0, pattern.len()))
+        } else {
+            None
+        }
+    }
+    #[doc = r" Find all occurrences(NASA mode alternative to regex findall)"]
+    pub fn findall(pattern: &str, text: &str) -> Vec<String> {
+        let mut results = Vec::new();
+        let mut start = 0;
+        while let Some(pos) = text[start..].find(pattern) {
+            results.push(pattern.to_string());
+            start += pos + pattern.len();
+        }
+        results
+    }
+    #[doc = r" Simple string replacement(NASA mode alternative to regex sub)"]
+    pub fn sub(pattern: &str, repl: &str, text: &str) -> String {
+        text.replace(pattern, repl)
+    }
+    #[doc = r" Simple string split(NASA mode alternative to regex split)"]
+    pub fn split(pattern: &str, text: &str) -> Vec<String> {
+        text.split(pattern).map(|s| s.to_string()).collect()
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct HttpRequest {
+    pub method: String,
+    pub url: String,
+    pub headers: std::collections::HashMap<String, String>,
+    pub body: Option<String>,
+    pub timeout: i32,
+    pub follow_redirects: bool,
+}
+impl HttpRequest {
+    pub fn new(
+        method: String,
+        url: String,
+        headers: std::collections::HashMap<String, String>,
+        body: Option<String>,
+        timeout: i32,
+        follow_redirects: bool,
+    ) -> Self {
+        Self {
+            method,
+            url,
+            headers,
+            body,
+            timeout,
+            follow_redirects,
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct HttpRequestBuilder {
+    pub _method: String,
+    pub _url: String,
+    pub _headers: std::collections::HashMap<String, String>,
+    pub _body: Option<String>,
+    pub _timeout: i32,
+    pub _follow_redirects: bool,
+}
+impl HttpRequestBuilder {
+    pub fn new() -> Self {
+        Self {
+            _method: String::new(),
+            _url: String::new(),
+            _headers: std::collections::HashMap::new(),
+            _body: Default::default(),
+            _timeout: 0,
+            _follow_redirects: false,
+        }
+    }
+    pub fn method(&mut self, method: String) -> HttpRequestBuilder {
+        self._method = method;
+        return self;
+    }
+    pub fn url(&mut self, url: String) -> HttpRequestBuilder {
+        self._url = url;
+        return self;
+    }
+    pub fn header(&self, key: String, value: String) -> HttpRequestBuilder {
+        self._headers.clone().insert(key, value);
+        return self;
+    }
+    pub fn body(&mut self, body: String) -> HttpRequestBuilder {
+        self._body = body;
+        return self;
+    }
+    pub fn timeout(&mut self, timeout: i32) -> HttpRequestBuilder {
+        self._timeout = timeout;
+        return self;
+    }
+    pub fn follow_redirects(&mut self, follow: bool) -> HttpRequestBuilder {
+        self._follow_redirects = follow;
+        return self;
+    }
+    pub fn build(&self) -> HttpRequest {
+        if self._url.clone().is_empty() {
+            panic!(
+                "Exception: {}",
+                ValueError::new("URL is required".to_string())
+            );
+        };
+        return HttpRequest::new();
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct Query {
+    pub table: String,
+    pub columns: Vec<String>,
+    pub conditions: Vec<String>,
+    pub order_by: Option<String>,
+    pub order_desc: bool,
+    pub limit: Option<i32>,
+    pub offset: Option<i32>,
+}
+impl Query {
+    pub fn new(
+        table: String,
+        columns: Vec<String>,
+        conditions: Vec<String>,
+        order_by: Option<String>,
+        order_desc: bool,
+        limit: Option<i32>,
+        offset: Option<i32>,
+    ) -> Self {
+        Self {
+            table,
+            columns,
+            conditions,
+            order_by,
+            order_desc,
+            limit,
+            offset,
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct QueryBuilder {
+    pub _table: String,
+    pub _columns: Vec<String>,
+    pub _conditions: Vec<String>,
+    pub _order_by: Option<String>,
+    pub _order_desc: bool,
+    pub _limit: Option<i32>,
+    pub _offset: Option<i32>,
+}
+impl QueryBuilder {
+    pub fn new() -> Self {
+        Self {
+            _table: String::new(),
+            _columns: Vec::new(),
+            _conditions: Vec::new(),
+            _order_by: Default::default(),
+            _order_desc: false,
+            _limit: Default::default(),
+            _offset: Default::default(),
+        }
+    }
+    pub fn table(&mut self, table: String) -> QueryBuilder {
+        self._table = table;
+        return self;
+    }
+    pub fn select(&mut self, columns: Vec<String>) -> QueryBuilder {
+        self._columns.extend(columns);
+        return self;
+    }
+    pub fn r#where(&mut self, condition: String) -> QueryBuilder {
+        self._conditions.push(condition);
+        return self;
+    }
+    pub fn order_by(&mut self, column: String, desc: bool) -> QueryBuilder {
+        self._order_by = column;
+        self._order_desc = desc;
+        return self;
+    }
+    pub fn limit(&mut self, limit: i32) -> QueryBuilder {
+        self._limit = limit;
+        return self;
+    }
+    pub fn offset(&mut self, offset: i32) -> QueryBuilder {
+        self._offset = offset;
+        return self;
+    }
+    pub fn build(&self) -> Query {
+        if self._table.clone().is_empty() {
+            panic!(
+                "Exception: {}",
+                ValueError::new("Table is required".to_string())
+            );
+        };
+        return Query::new();
+    }
+    pub fn to_sql(&self) -> String {
+        let query = self.build();
+        let mut sql = format!(
+            "SELECT {} FROM {}",
+            query.columns.join(", ".to_string()),
+            query.table
+        );
+        if query.conditions {
+            let sql = sql + format!(" WHERE {}", query.conditions.join(" AND ".to_string()));
+        };
+        if query.order_by {
+            let direction = if query.order_desc {
+                "DESC".to_string()
+            } else {
+                "ASC".to_string()
+            };
+            let sql = sql + format!(" ORDER BY {} {}", query.order_by, direction);
+        };
+        if query.limit.is_some() {
+            let sql = sql + format!(" LIMIT {}", query.limit);
+        };
+        if query.offset.is_some() {
+            let sql = sql + format!(" OFFSET {}", query.offset);
+        };
+        return sql;
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct Config {
+    pub values: std::collections::HashMap<String, DepylerValue>,
+}
+impl Config {
+    pub fn new(values: std::collections::HashMap<String, DepylerValue>) -> Self {
+        Self { values }
+    }
+    pub fn get(&self, key: String, default: &DepylerValue) -> DepylerValue {
+        return self.values.clone().get(key, default);
+    }
+    pub fn get_str(&self, key: String, default: String) -> String {
+        return self.values.clone().get(key, default).to_string();
+    }
+    pub fn get_int(&self, key: String, default: i32) -> i32 {
+        let value = self.values.clone().get(key, default);
+        return if value.is_some() {
+            value.parse::<i32>().unwrap_or(0)
+        } else {
+            default
+        };
+    }
+    pub fn get_bool(&self, key: String, default: bool) -> bool {
+        let value = self.values.clone().get(key);
+        if value.is_none() {
+            return default;
+        };
+        if true {
+            return value;
+        };
+        return ["true".to_string(), "yes".to_string(), "1".to_string()]
+            .contains(&value.to_string().to_lowercase());
+    }
+}
+#[derive(Debug, Clone)]
+pub struct ConfigBuilder {
+    pub _values: std::collections::HashMap<String, DepylerValue>,
+}
+impl ConfigBuilder {
+    pub fn new() -> Self {
+        Self {
+            _values: std::collections::HashMap::new(),
+        }
+    }
+    pub fn set(&self, key: String, value: &DepylerValue) -> ConfigBuilder {
+        self._values.clone().insert(key, value);
+        return self;
+    }
+    pub fn set_if_absent(&self, key: String, value: &DepylerValue) -> ConfigBuilder {
+        if !self._values.clone().contains_key(&key) {
+            self._values.clone().insert(key, value);
+        };
+        return self;
+    }
+    pub fn merge(
+        &mut self,
+        other: std::collections::HashMap<String, DepylerValue>,
+    ) -> ConfigBuilder {
+        self._values.update(other);
+        return self;
+    }
+    pub fn build(&self) -> Config {
+        return Config::new();
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct Email {
+    pub from_addr: String,
+    pub to_addrs: Vec<String>,
+    pub cc_addrs: Vec<String>,
+    pub bcc_addrs: Vec<String>,
+    pub subject: String,
+    pub body: String,
+    pub html_body: Option<String>,
+    pub attachments: Vec<String>,
+    pub priority: i32,
+}
+impl Email {
+    pub fn new(
+        from_addr: String,
+        to_addrs: Vec<String>,
+        cc_addrs: Vec<String>,
+        bcc_addrs: Vec<String>,
+        subject: String,
+        body: String,
+        html_body: Option<String>,
+        attachments: Vec<String>,
+        priority: i32,
+    ) -> Self {
+        Self {
+            from_addr,
+            to_addrs,
+            cc_addrs,
+            bcc_addrs,
+            subject,
+            body,
+            html_body,
+            attachments,
+            priority,
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct EmailBuilder {
+    pub _from: String,
+    pub _to: Vec<String>,
+    pub _cc: Vec<String>,
+    pub _bcc: Vec<String>,
+    pub _subject: String,
+    pub _body: String,
+    pub _html_body: Option<String>,
+    pub _attachments: Vec<String>,
+    pub _priority: i32,
+}
+impl EmailBuilder {
+    pub fn new() -> Self {
+        Self {
+            _from: String::new(),
+            _to: Vec::new(),
+            _cc: Vec::new(),
+            _bcc: Vec::new(),
+            _subject: String::new(),
+            _body: String::new(),
+            _html_body: Default::default(),
+            _attachments: Vec::new(),
+            _priority: 0,
+        }
+    }
+    pub fn from_addr(&mut self, addr: String) -> EmailBuilder {
+        self._from = addr;
+        return self;
+    }
+    pub fn to(&mut self, addr: String) -> EmailBuilder {
+        self._to.push(addr);
+        return self;
+    }
+    pub fn cc(&mut self, addr: String) -> EmailBuilder {
+        self._cc.push(addr);
+        return self;
+    }
+    pub fn bcc(&mut self, addr: String) -> EmailBuilder {
+        self._bcc.push(addr);
+        return self;
+    }
+    pub fn subject(&mut self, subject: String) -> EmailBuilder {
+        self._subject = subject;
+        return self;
+    }
+    pub fn body(&mut self, body: String) -> EmailBuilder {
+        self._body = body;
+        return self;
+    }
+    pub fn html_body(&mut self, html: String) -> EmailBuilder {
+        self._html_body = html;
+        return self;
+    }
+    pub fn attachment(&mut self, path: String) -> EmailBuilder {
+        self._attachments.push(path);
+        return self;
+    }
+    pub fn priority(&mut self, priority: i32) -> EmailBuilder {
+        self._priority = (1 as f64).max((5 as f64).min(priority as f64) as f64);
+        return self;
+    }
+    pub fn build(&self) -> Email {
+        if self._from.clone().is_empty() {
+            panic!(
+                "Exception: {}",
+                ValueError::new("From address is required".to_string())
+            );
+        };
+        if self._to.clone().is_empty() {
+            panic!(
+                "Exception: {}",
+                ValueError::new("At least one recipient is required".to_string())
+            );
+        };
+        return Email::new();
+    }
+}
+#[derive(Debug, Clone)]
+pub struct GenericBuilder<T: Clone> {
+    pub _class: std::marker::PhantomData<T>,
+    pub _values: std::collections::HashMap<String, DepylerValue>,
+}
+impl<T: Clone> GenericBuilder<T> {
+    pub fn new(_target_class: std::marker::PhantomData<T>) -> Self {
+        Self {
+            _class: Default::default(),
+            _values: std::collections::HashMap::new(),
+        }
+    }
+    pub fn set(&self, name: String, value: &DepylerValue) -> GenericBuilder<T> {
+        self._values.clone().insert(name, value);
+        return self;
+    }
+    pub fn build(&self) -> T {
+        return self._class();
+    }
+}
+#[derive(Debug, Clone, PartialEq)]
+pub struct Person {
+    pub name: String,
+    pub age: i32,
+    pub email: String,
+}
+impl Person {
+    pub fn new(name: String, age: i32, email: String) -> Self {
+        Self { name, age, email }
+    }
+}
+#[doc = r" Stub for local import from module: #module_name"]
+#[doc = r" DEPYLER-0615: Generated to allow standalone compilation"]
+#[allow(dead_code, unused_variables)]
+pub fn dataclass<T: Default>(_args: impl std::any::Any) -> T {
+    Default::default()
+}
+#[doc = r" Stub for local import from module: #module_name"]
+#[doc = r" DEPYLER-0615: Generated to allow standalone compilation"]
+#[allow(dead_code, unused_variables)]
+pub fn field<T: Default>(_args: impl std::any::Any) -> T {
+    Default::default()
+}
+#[doc = "Simulate builder operations."]
+pub fn simulate_builder(
+    operations: &Vec<String>,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut results = vec![];
+    let mut http_builder = HttpRequestBuilder::new();
+    let mut query_builder = QueryBuilder::new();
+    for op in operations.iter().cloned() {
+        let parts = op
+            .splitn((1 + 1) as usize, ":")
+            .map(|s| s.to_string())
+            .collect::<Vec<String>>();
+        let cmd = parts
+            .get(0usize)
+            .cloned()
+            .expect("IndexError: list index out of range");
+        if cmd == "http_url" {
+            http_builder.url(
+                parts
+                    .get(1usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range"),
+            );
+            results.push(DepylerValue::Str("ok".to_string().to_string()));
+        } else {
+            if cmd == "http_method" {
+                http_builder.method(
+                    parts
+                        .get(1usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range"),
+                );
+                results.push(DepylerValue::Str("ok".to_string().to_string()));
+            } else {
+                if cmd == "http_header" {
+                    let _split_parts = parts
+                        .get(1usize)
+                        .cloned()
+                        .expect("IndexError: list index out of range")
+                        .splitn((1 + 1) as usize, "=")
+                        .map(|s| s.to_string())
+                        .collect::<Vec<String>>();
+                    let k = _split_parts.get(0).cloned().unwrap_or_default();
+                    let v = _split_parts.get(1).cloned().unwrap_or_default();
+                    http_builder.header(k, v);
+                    results.push(DepylerValue::Str("ok".to_string().to_string()));
+                } else {
+                    if cmd == "http_build" {
+                        let mut req: Option<String> = None;
+                        match (|| -> Result<(), Box<dyn std::error::Error>> {
+                            req = Some(http_builder.build());
+                            results.push(DepylerValue::Str(format!(
+                                "{:?}",
+                                format!("{} {}", req.method, req.url)
+                            )));
+                            Ok(())
+                        })() {
+                            Ok(()) => {}
+                            Err(e) => {
+                                results.push(DepylerValue::Str(format!(
+                                    "{:?}",
+                                    format!("error:{:?}", e)
+                                )));
+                            }
+                        }
+                    } else {
+                        if cmd == "query_table" {
+                            query_builder.table(
+                                parts
+                                    .get(1usize)
+                                    .cloned()
+                                    .expect("IndexError: list index out of range"),
+                            );
+                            results.push(DepylerValue::Str("ok".to_string().to_string()));
+                        } else {
+                            if cmd == "query_select" {
+                                query_builder.select(
+                                    parts
+                                        .get(1usize)
+                                        .cloned()
+                                        .expect("IndexError: list index out of range")
+                                        .split(",")
+                                        .map(|s| s.to_string())
+                                        .collect::<Vec<String>>(),
+                                );
+                                results.push(DepylerValue::Str("ok".to_string().to_string()));
+                            } else {
+                                if cmd == "query_where" {
+                                    query_builder.r#where(
+                                        parts
+                                            .get(1usize)
+                                            .cloned()
+                                            .expect("IndexError: list index out of range"),
+                                    );
+                                    results.push(DepylerValue::Str("ok".to_string().to_string()));
+                                } else {
+                                    if cmd == "query_sql" {
+                                        match (|| -> Result<(), Box<dyn std::error::Error>> {
+                                            results.push(DepylerValue::Str(format!(
+                                                "{:?}",
+                                                query_builder.to_sql()
+                                            )));
+                                            Ok(())
+                                        })() {
+                                            Ok(()) => {}
+                                            Err(e) => {
+                                                results.push(DepylerValue::Str(format!(
+                                                    "{:?}",
+                                                    format!("error:{:?}", e)
+                                                )));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Ok(results)
+}
+#[doc = "CLI entry point."]
+#[doc = " Depyler: proven to terminate"]
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let _cse_temp_0 = std::env::args().collect::<Vec<String>>().len() as i32;
+    let _cse_temp_1 = _cse_temp_0 < 2;
+    if _cse_temp_1 {
+        println!("{}", "Usage: generic_builder_cli.py <command>[args...]");
+        println!("{}", "Commands: http, query, email, config");
+        std::process::exit(1i32)
+    }
+    let cmd = std::env::args()
+        .collect::<Vec<String>>()
+        .get(1usize)
+        .cloned()
+        .expect("IndexError: list index out of range");
+    let _cse_temp_2 = cmd == "http";
+    if _cse_temp_2 {
+        let mut builder = HttpRequestBuilder::new();
+        builder.url("https://example.com".to_string());
+        builder.method("GET".to_string());
+        let req = builder.build();
+        println!("{}", format!("{} {}", req.method, req.url));
+    } else {
+        let _cse_temp_3 = cmd == "query";
+        if _cse_temp_3 {
+            let sql = QueryBuilder::new()
+                .table("users".to_string())
+                .select("id".to_string(), "name".to_string())
+                .r#where("active = 1".to_string())
+                .limit(10)
+                .to_sql();
+            println!("{}", sql);
+        } else {
+            let _cse_temp_4 = cmd == "email";
+            if _cse_temp_4 {
+                let email = EmailBuilder::new()
+                    .from_addr("sender@example.com".to_string())
+                    .to("recipient@example.com".to_string())
+                    .subject("Hello".to_string())
+                    .body("Test message".to_string())
+                    .build();
+                println!("{}", format!("From: {}", email.from_addr));
+                println!("{}", format!("To: {}", email.to_addrs.join(", ").display()));
+                println!("{}", format!("Subject: {}", email.subject));
+            } else {
+                let _cse_temp_5 = cmd == "config";
+                if _cse_temp_5 {
+                    let config = ConfigBuilder::new()
+                        .set("host".to_string(), "localhost".to_string())
+                        .set("port".to_string(), 8080)
+                        .set("debug".to_string(), true)
+                        .build();
+                    println!("{}", format!("host={}", config.get_str("host".to_string())));
+                    println!("{}", format!("port={}", config.get_int("port".to_string())));
+                    println!(
+                        "{}",
+                        format!("debug={}", config.get_bool("debug".to_string()))
+                    );
+                }
+            }
+        }
+    }
+    Ok(())
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_simulate_builder_examples() {
+        assert_eq!(simulate_builder(vec![]), vec![]);
+        assert_eq!(simulate_builder(vec![1]), vec![1]);
+    }
+}

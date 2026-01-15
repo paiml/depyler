@@ -4163,8 +4163,11 @@ pub(crate) fn codegen_assign_symbol(
             let is_str_param = ctx.fn_str_params.contains(&value_str);
             // Check if it's a ref-pattern binding from match arm (gives &String)
             let is_ref_binding = ctx.subcommand_match_fields.contains(&value_str);
+            // DEPYLER-1130: Check if it's an interned string constant (e.g., STR_EMPTY)
+            // These are &'static str constants that need .to_string() when assigned to String variables
+            let is_interned_const = value_str.starts_with("STR_");
 
-            if is_string_literal || is_str_param || is_ref_binding {
+            if is_string_literal || is_str_param || is_ref_binding || is_interned_const {
                 parse_quote! { #value_expr.to_string() }
             } else {
                 value_expr

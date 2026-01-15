@@ -3467,3 +3467,19 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-1115
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1115'
+  status: completed
+  priority: medium
+  assigned_to: null
+  created: 2026-01-14T10:09:36.965710+00:00
+  updated: 2026-01-14T11:20:21.662800+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

@@ -51,12 +51,21 @@ class Person:
         rust_code
     );
 
-    // Should NOT have &self or cls parameter
-    let has_self_param = rust_code.contains("&self") || rust_code.contains("cls:");
+    // Should NOT have &self or cls parameter in create_john
+    // DEPYLER-1123: Check only the Person impl block, not entire file
+    // (DepylerValue has methods with &self which is correct)
+    let person_impl_start = rust_code.find("impl Person").unwrap_or(0);
+    let person_impl = &rust_code[person_impl_start..];
+    let person_impl_end = person_impl.find("\n}\n").unwrap_or(person_impl.len()) + 2;
+    let person_impl_block = &person_impl[..person_impl_end];
+
+    let create_john_start = person_impl_block.find("fn create_john").unwrap_or(0);
+    let create_john_section = &person_impl_block[create_john_start..];
+    let has_self_in_create_john = create_john_section.contains("&self)") || create_john_section.contains("cls:");
     assert!(
-        !has_self_param,
-        "Classmethod should not have &self or cls parameter.\nGot:\n{}",
-        rust_code
+        !has_self_in_create_john,
+        "Classmethod create_john should not have &self or cls parameter.\nGot:\n{}",
+        create_john_section
     );
 
     // Should call Self::new or constructor pattern
