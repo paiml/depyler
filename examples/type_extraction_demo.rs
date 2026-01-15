@@ -2202,7 +2202,7 @@ pub fn complex_generics<T: Clone>(
 #[doc = "Function using type aliases."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn custom_types<'a, 'b>(
+pub fn custom_types<'b, 'a>(
     user_id: &'a UserId,
     _username: Username,
     all_users: &'b UserData,
@@ -2226,7 +2226,7 @@ pub fn higher_order(func: impl Fn(i32, i32) -> i32, a: i32, b: i32) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn demo_all_types() {
     println!("{}", "Type Extraction Examples");
-    println!("{}", "=".py_mul(40));
+    println!("{}", ("=").py_mul(40));
     let result1 = simple_types(1, 2.0, "hello".to_string(), true, None);
     println!("{}", format!("Simple types result: {:?}", result1));
     let result2 = container_types(

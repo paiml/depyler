@@ -1957,7 +1957,7 @@ pub fn fibonacci_recursive(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    fibonacci_recursive(n.py_sub(1)).py_add(fibonacci_recursive(n.py_sub(2)))
+    (fibonacci_recursive((n).py_sub(1))).py_add(fibonacci_recursive((n).py_sub(2)))
 }
 #[doc = "Process a list with nested loops - O(n²) complexity."]
 #[doc = " Depyler: verified panic-free"]
@@ -1967,7 +1967,7 @@ pub fn process_list(items: &Vec<i32>) -> i32 {
     for i in items.iter().cloned() {
         for j in items.iter().cloned() {
             if i < j {
-                total = total.py_add(i.py_mul(j));
+                total = (total).py_add((i).py_mul(j));
             }
         }
     }
@@ -1980,8 +1980,8 @@ pub fn string_concatenation_in_loop(n: i32) -> String {
     let mut result: String = Default::default();
     result = "".to_string();
     for i in 0..(n) {
-        result = result.py_add((i).to_string());
-        result = result.py_add(", ");
+        result = (result).py_add((i).to_string());
+        result = (result).py_add(", ");
     }
     result.to_string()
 }
@@ -1992,10 +1992,10 @@ pub fn type_check_heavy(values: &Vec<DepylerValue>) -> i32 {
     count = 0;
     for value in values.iter().cloned() {
         if true {
-            count = count.py_add(value);
+            count = (count).py_add(value);
         } else {
             if true {
-                count = count.py_add(value.len() as i32);
+                count = (count).py_add(value.len() as i32);
             }
         }
     }
@@ -2005,7 +2005,7 @@ pub fn type_check_heavy(values: &Vec<DepylerValue>) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn simple_function(x: i32, y: i32) -> i32 {
-    x.py_add(y)
+    (x).py_add(y)
 }
 #[doc = "Function with hot nested loops."]
 #[doc = " Depyler: verified panic-free"]
@@ -2015,7 +2015,7 @@ pub fn hot_loop() -> i32 {
     total = 0;
     for i in 0..(100) {
         for j in 0..(100) {
-            total = total.py_add(i.py_mul(j));
+            total = (total).py_add((i).py_mul(j));
         }
     }
     total

@@ -1,0 +1,7 @@
+Corpus Analysis Report
+======================
+Corpus: /Users/noahgift/src/reprorusted-python-cli/examples
+Target: 8000%
+Format: text
+
+Use 'depyler converge' for full compilation analysis.

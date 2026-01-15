@@ -468,6 +468,7 @@ mod tests {
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
+            all_imported_modules: std::collections::HashSet::new(),
             mutable_vars: std::collections::HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -549,6 +550,7 @@ mod tests {
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
+            type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -632,6 +634,7 @@ mod tests {
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
+            all_imported_modules: std::collections::HashSet::new(), // DEPYLER-1115
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -713,6 +716,7 @@ mod tests {
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
+            type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
         };
 
         let deps = extract_dependencies(&ctx);
@@ -793,6 +797,7 @@ mod tests {
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
+            all_imported_modules: std::collections::HashSet::new(), // DEPYLER-1115
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -874,6 +879,7 @@ mod tests {
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
+            type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
         };
 
         let deps = extract_dependencies(&ctx);
@@ -1201,6 +1207,7 @@ mod tests {
             module_mapper: crate::module_mapper::ModuleMapper::new(),
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
+            all_imported_modules: std::collections::HashSet::new(), // DEPYLER-1115
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -1282,6 +1289,7 @@ mod tests {
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
+            type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
         };
 
         let deps = extract_dependencies(&ctx);

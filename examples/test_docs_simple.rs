@@ -1983,8 +1983,8 @@ pub fn fibonacci(n: i32) -> i32 {
     }
     let mut a = 0;
     b = 1;
-    for _i in (2)..(n.py_add(1)) {
-        let temp = a.py_add(b);
+    for _i in (2)..((n).py_add(1)) {
+        let temp = (a).py_add(b);
         a = b;
         b = temp;
     }

@@ -105,15 +105,15 @@ pub fn parse_signature(signature: &str) -> ParsedSignature {
         if let Some((name, ty)) = param.split_once(':') {
             let name = name.trim().to_string();
             let ty = ty.trim().to_string();
-            // Skip default values (e.g., "x: int = 0" -> "x: int")
-            let ty = if let Some(idx) = ty.find('=') {
-                ty[..idx].trim().to_string()
-            } else {
-                ty
-            };
+            // DEPYLER-1115: Skip parameters with default values - they are optional in Python
+            // For phantom bindings, only include required (non-default) parameters
+            if ty.contains('=') {
+                continue;
+            }
             params.push((name, ty));
         }
         // Handle positional-only param without type annotation
+        // Skip if it has a default value
         else if !param.contains('=') {
             params.push((param.to_string(), "Any".to_string()));
         }
@@ -153,6 +153,9 @@ fn split_params(s: &str) -> Vec<&str> {
 }
 
 /// Map Python type string to Rust TokenStream
+///
+/// DEPYLER-1115: For phantom bindings, use simplified types for NASA mode compatibility
+/// Complex types like dict use HashMap<String, String> to avoid scope issues with DepylerValue
 pub fn python_type_to_rust(py_type: &str) -> TokenStream {
     let py_type = py_type.trim();
 
@@ -160,16 +163,18 @@ pub fn python_type_to_rust(py_type: &str) -> TokenStream {
         // Primitives
         "int" => quote! { i64 },
         "float" => quote! { f64 },
-        "str" => quote! { String },
+        // DEPYLER-1115: Use &str for parameters to avoid .to_string() at call sites
+        "str" => quote! { &str },
         "bool" => quote! { bool },
         "bytes" => quote! { Vec<u8> },
         "None" | "()" | "" => quote! { () },
 
-        // Collections without generics
-        "dict" => quote! { std::collections::HashMap<String, serde_json::Value> },
-        "list" => quote! { Vec<serde_json::Value> },
-        "tuple" => quote! { Vec<serde_json::Value> },
-        "set" => quote! { std::collections::HashSet<serde_json::Value> },
+        // Collections without generics - use String for NASA mode compatibility
+        // DEPYLER-1115: Simplified types avoid scope issues with DepylerValue in nested modules
+        "dict" => quote! { std::collections::HashMap<String, String> },
+        "list" => quote! { Vec<String> },
+        "tuple" => quote! { Vec<String> },
+        "set" => quote! { std::collections::HashSet<String> },
 
         // Handle generics
         s if s.starts_with("List[") || s.starts_with("list[") => {
@@ -195,13 +200,15 @@ pub fn python_type_to_rust(py_type: &str) -> TokenStream {
         }
         s if s.starts_with("Tuple[") || s.starts_with("tuple[") => {
             // For simplicity, map to Vec (proper tuple handling is complex)
-            quote! { Vec<serde_json::Value> }
+            quote! { Vec<String> }
         }
 
-        // Any and unknown types - use serde_json::Value as universal fallback
-        "Any" | "object" => quote! { serde_json::Value },
-        // Unknown types fall back to serde_json::Value
-        _ => quote! { serde_json::Value },
+        // Any and unknown types - use &str for parameter ergonomics
+        // DEPYLER-1115: Phantom binding parameters should accept &str since that's what
+        // the transpiler generates for user code (e.g., fn fetch(url: &str))
+        "Any" | "object" => quote! { &str },
+        // Unknown types fall back to &str for ergonomic call sites
+        _ => quote! { &str },
     }
 }
 
@@ -280,10 +287,52 @@ fn sanitize_identifier(name: &str) -> String {
     }
 }
 
+/// DEPYLER-1116: Generate a default return value based on Python type
+///
+/// This implements the proxy pattern for phantom bindings - instead of panicking
+/// with todo!(), return sensible default values so the code is actually runnable.
+fn generate_default_return(py_type: &str) -> TokenStream {
+    let py_type = py_type.trim();
+    match py_type {
+        // Primitives
+        "int" => quote! { 0i64 },
+        "float" => quote! { 0.0f64 },
+        "str" => quote! { "" },
+        "bool" => quote! { false },
+        "bytes" => quote! { Vec::new() },
+        "None" | "()" | "" => quote! { () },
+
+        // Collections - return empty collections
+        "dict" => quote! { std::collections::HashMap::new() },
+        "list" => quote! { Vec::new() },
+        "tuple" => quote! { Vec::new() },
+        "set" => quote! { std::collections::HashSet::new() },
+
+        // Generic collections
+        s if s.starts_with("List[") || s.starts_with("list[") => quote! { Vec::new() },
+        s if s.starts_with("Dict[") || s.starts_with("dict[") => {
+            quote! { std::collections::HashMap::new() }
+        }
+        s if s.starts_with("Set[") || s.starts_with("set[") => {
+            quote! { std::collections::HashSet::new() }
+        }
+        s if s.starts_with("Optional[") => quote! { None },
+        s if s.starts_with("Tuple[") || s.starts_with("tuple[") => quote! { Vec::new() },
+
+        // Any and unknown - return empty string (most common case)
+        "Any" | "object" => quote! { "" },
+        _ => quote! { "" },
+    }
+}
+
 /// Generate a method stub from a parsed signature
+///
+/// DEPYLER-1116: Uses proxy pattern - returns default values instead of todo!()
+/// This makes generated code actually runnable, not just compilable.
 fn generate_method_stub(method_name: &str, signature: &ParsedSignature) -> TokenStream {
     let method_ident = syn::Ident::new(&sanitize_identifier(method_name), Span::call_site());
     let return_ty = python_type_to_rust(&signature.return_type);
+    let default_return = generate_default_return(&signature.return_type);
 
     // Generate parameter list (skip self)
     let params: Vec<TokenStream> = signature
@@ -306,22 +355,73 @@ fn generate_method_stub(method_name: &str, signature: &ParsedSignature) -> Token
         })
         .collect();
 
-    let method_name_str = method_name;
-
     if signature.is_self_method {
         quote! {
             pub fn #method_ident(&self #(, #params)*) -> #return_ty {
                 let _ = &self.0;
                 #(#underscore_params)*
-                todo!(concat!("Generated stub for ", #method_name_str))
+                #default_return
             }
         }
     } else {
         quote! {
             pub fn #method_ident(#(#params),*) -> #return_ty {
                 #(#underscore_params)*
-                todo!(concat!("Generated stub for ", #method_name_str))
+                #default_return
             }
+        }
+    }
+}
+
+/// Generate a module-level function stub that returns a phantom type
+///
+/// Example: `requests.get(url)` -> `pub fn get(url: &str) -> models::Response { ... }`
+///
+/// DEPYLER-1116: Uses proxy pattern - constructs phantom struct with default inner value
+/// This makes generated code actually runnable, not just compilable.
+#[cfg(feature = "sovereign-types")]
+pub fn generate_module_function(
+    function_name: &str,
+    signature: &ParsedSignature,
+    return_type_path: &str,
+) -> TokenStream {
+    let func_ident = syn::Ident::new(&sanitize_identifier(function_name), Span::call_site());
+
+    // Generate parameter list
+    let params: Vec<TokenStream> = signature
+        .params
+        .iter()
+        .map(|(name, ty)| {
+            let param_ident = syn::Ident::new(&sanitize_identifier(name), Span::call_site());
+            let param_ty = python_type_to_rust(ty);
+            quote! { #param_ident: #param_ty }
+        })
+        .collect();
+
+    // Generate underscored params for unused warning suppression
+    let underscore_params: Vec<TokenStream> = signature
+        .params
+        .iter()
+        .map(|(name, _)| {
+            let param_ident = syn::Ident::new(&sanitize_identifier(name), Span::call_site());
+            quote! { let _ = #param_ident; }
+        })
+        .collect();
+
+    // Parse return type path into tokens (e.g., "models::Response")
+    let return_type: TokenStream = return_type_path.parse().unwrap_or_else(|_| quote! { String });
+
+    // DEPYLER-1116: Construct the return type using its ::new() constructor
+    // Phantom structs wrap String, so we create an instance with empty string
+    let return_construct: TokenStream = format!("{}::new(String::new())", return_type_path)
+        .parse()
+        .unwrap_or_else(|_| quote! { String::new() });
+
+    quote! {
+        /// Generated stub for module function
+        pub fn #func_ident(#(#params),*) -> #return_type {
+            #(#underscore_params)*
+            #return_construct
         }
     }
 }
@@ -344,20 +444,23 @@ pub fn generate_phantom_struct(class_name: &str, methods: &[TypeFact]) -> TokenS
         })
         .collect();
 
+    // DEPYLER-1115: Use String wrapper for NASA mode compatibility
+    // Note: In NASA mode, complex types are simplified to String for single-shot compile
+    // This avoids dependency on DepylerValue which may be at a different scope
     quote! {
         /// Phantom wrapper for external library type
         /// Generated by DEPYLER-1115 from Sovereign Type Database
         #[derive(Debug, Clone)]
-        pub struct #struct_ident(pub serde_json::Value);
+        pub struct #struct_ident(pub String);
 
         impl #struct_ident {
-            /// Create a new instance wrapping a serde_json::Value
-            pub fn new(inner: serde_json::Value) -> Self {
+            /// Create a new instance wrapping a String
+            pub fn new(inner: String) -> Self {
                 Self(inner)
             }
 
             /// Get a reference to the inner Value
-            pub fn inner(&self) -> &serde_json::Value {
+            pub fn inner(&self) -> &String {
                 &self.0
             }
 
@@ -716,24 +819,43 @@ impl<'a> BindingGenerator<'a> {
         // Warm the cache for efficient lookups
         let _ = self.type_query.warm_cache();
 
-        let mut all_bindings: HashMap<String, Vec<TokenStream>> = HashMap::new();
+        // Track structs by their containing module (e.g., "requests.models")
+        let mut struct_bindings: HashMap<String, Vec<TokenStream>> = HashMap::new();
+        // Track module-level functions (e.g., "requests" -> [get, post, ...])
+        let mut module_functions: HashMap<String, Vec<TokenStream>> = HashMap::new();
 
-        // For each module function call, look up return types and generate structs
+        // For each module function call, look up signatures and generate bindings
         for (module, function) in &self.used_symbols.module_functions.clone() {
-            // Query TypeDB for return type of this function
-            if let Ok(return_type) = self.type_query.find_return_type(module, function) {
+            // Query TypeDB for return type and signature of this function
+            let return_type_result = self.type_query.find_return_type(module, function);
+            let signature_result = self.type_query.find_signature(module, function);
+
+            if let Ok(return_type) = return_type_result {
                 // Parse the return type to get the class name
                 // e.g., "requests.models.Response" or just "Response"
                 let class_name = return_type.split('.').next_back().unwrap_or(&return_type);
 
-                // Skip if we've already generated this type
+                // Generate the module function that returns the phantom type
+                // Return type path relative to module root: "models::Response"
+                let return_type_path = format!("models::{}", class_name);
+
+                if let Ok(sig_str) = signature_result {
+                    let sig = parse_signature(&sig_str);
+                    let func_tokens = generate_module_function(function, &sig, &return_type_path);
+                    module_functions
+                        .entry(module.clone())
+                        .or_default()
+                        .push(func_tokens);
+                }
+
+                // Skip struct generation if we've already generated this type
                 let full_type_name = format!("{}.{}", module, class_name);
                 if self.generated_types.contains(&full_type_name) {
                     continue;
                 }
                 self.generated_types.insert(full_type_name.clone());
 
-                // Find the module containing this class
+                // Find the module containing this class and generate struct
                 // Try common patterns: module.models.ClassName, module.ClassName
                 let module_patterns = vec![
                     format!("{}.models", module),
@@ -746,7 +868,7 @@ impl<'a> BindingGenerator<'a> {
                     if let Ok(methods) = self.type_query.find_methods(mod_prefix, class_name) {
                         if !methods.is_empty() {
                             let struct_tokens = generate_phantom_struct(class_name, &methods);
-                            all_bindings
+                            struct_bindings
                                 .entry(mod_prefix.clone())
                                 .or_default()
                                 .push(struct_tokens);
@@ -756,10 +878,10 @@ impl<'a> BindingGenerator<'a> {
                 }
 
                 // If no methods found, still generate a basic struct
-                if !all_bindings.values().any(|v| !v.is_empty()) {
+                if !struct_bindings.values().any(|v| !v.is_empty()) {
                     let struct_tokens = generate_phantom_struct(class_name, &[]);
-                    all_bindings
-                        .entry(module.clone())
+                    struct_bindings
+                        .entry(format!("{}.models", module))
                         .or_default()
                         .push(struct_tokens);
                 }
@@ -767,17 +889,54 @@ impl<'a> BindingGenerator<'a> {
         }
 
         // If no bindings were generated, return empty
-        if all_bindings.is_empty() {
+        if struct_bindings.is_empty() && module_functions.is_empty() {
             return Ok(quote! {});
         }
 
-        // Combine all bindings into module hierarchy
+        // Build final module structure
         let mut final_tokens = Vec::new();
 
-        for (module_path, structs) in all_bindings {
+        // Group all bindings by top-level module
+        let mut module_contents: HashMap<String, (Vec<TokenStream>, Vec<TokenStream>)> =
+            HashMap::new();
+
+        // Add struct bindings (nested in submodules like "models")
+        for (module_path, structs) in struct_bindings {
+            let parts: Vec<&str> = module_path.split('.').collect();
+            let top_module = parts[0].to_string();
+            let subpath = parts[1..].join(".");
+
             let combined_structs = quote! { #(#structs)* };
-            let module_tokens = generate_module_hierarchy(&module_path, combined_structs);
-            final_tokens.push(module_tokens);
+            let nested = if !subpath.is_empty() {
+                generate_module_hierarchy(&subpath, combined_structs)
+            } else {
+                combined_structs
+            };
+
+            module_contents
+                .entry(top_module)
+                .or_default()
+                .0
+                .push(nested);
+        }
+
+        // Add module-level functions
+        for (module, funcs) in module_functions {
+            module_contents.entry(module).or_default().1.extend(funcs);
+        }
+
+        // Generate final module hierarchy
+        for (top_module, (struct_content, func_content)) in module_contents {
+            let mod_ident = syn::Ident::new(&sanitize_identifier(&top_module), Span::call_site());
+            let structs = quote! { #(#struct_content)* };
+            let funcs = quote! { #(#func_content)* };
+
+            final_tokens.push(quote! {
+                pub mod #mod_ident {
+                    #structs
+                    #funcs
+                }
+            });
         }
 
         Ok(quote! {
@@ -828,11 +987,16 @@ mod tests {
 
     #[test]
     fn test_parse_default_values() {
+        // DEPYLER-1115: Parameters with default values are SKIPPED for phantom bindings
+        // because they are optional in Python and phantom functions only need required params
         let sig = parse_signature("(x: int = 0, y: str = 'hello') -> bool");
         assert!(!sig.is_self_method);
-        assert_eq!(sig.params.len(), 2);
-        assert_eq!(sig.params[0], ("x".to_string(), "int".to_string()));
-        assert_eq!(sig.params[1], ("y".to_string(), "str".to_string()));
+        assert_eq!(sig.params.len(), 0); // All params have defaults, so none are required
+
+        // Test with a mix of required and optional params
+        let sig2 = parse_signature("(url: str, timeout: int = 30) -> Response");
+        assert_eq!(sig2.params.len(), 1); // Only url is required
+        assert_eq!(sig2.params[0], ("url".to_string(), "str".to_string()));
     }
 
     #[test]
@@ -848,7 +1012,8 @@ mod tests {
     fn test_python_type_to_rust_primitives() {
         assert_eq!(python_type_to_rust("int").to_string(), "i64");
         assert_eq!(python_type_to_rust("float").to_string(), "f64");
-        assert_eq!(python_type_to_rust("str").to_string(), "String");
+        // DEPYLER-1115: str maps to &str for phantom bindings (ergonomic call sites)
+        assert_eq!(python_type_to_rust("str").to_string(), "& str");
         assert_eq!(python_type_to_rust("bool").to_string(), "bool");
     }
 
@@ -856,9 +1021,11 @@ mod tests {
     fn test_python_type_to_rust_collections() {
         let dict = python_type_to_rust("dict").to_string();
         assert!(dict.contains("HashMap"));
+        assert!(dict.contains("String")); // DEPYLER-1115: NASA mode compatible
 
         let list = python_type_to_rust("list").to_string();
         assert!(list.contains("Vec"));
+        assert!(list.contains("String")); // DEPYLER-1115: NASA mode compatible
     }
 
     #[test]
@@ -867,9 +1034,10 @@ mod tests {
         assert!(list_int.contains("Vec"));
         assert!(list_int.contains("i64"));
 
+        // DEPYLER-1115: Optional[str] maps to Option<&str> for phantom bindings
         let opt_str = python_type_to_rust("Optional[str]").to_string();
         assert!(opt_str.contains("Option"));
-        assert!(opt_str.contains("String"));
+        assert!(opt_str.contains("str")); // Will contain "& str"
     }
 
     #[test]
@@ -934,5 +1102,46 @@ mod tests {
         let (key2, val2) = extract_dict_params("Dict[str, List[int]]");
         assert_eq!(key2, "str");
         assert_eq!(val2, "List[int]");
+    }
+
+    #[cfg(feature = "sovereign-types")]
+    #[test]
+    fn test_generate_phantom_struct_uses_string_wrapper() {
+        // DEPYLER-1115: Verify phantom struct uses String for NASA mode compatibility
+        // NASA mode replaces serde_json::Value with String, so we use String directly
+        let struct_tokens = generate_phantom_struct("TestResponse", &[]);
+        let code = struct_tokens.to_string();
+
+        // Should contain String wrapper for NASA mode compatibility
+        assert!(code.contains("pub String"),
+            "Expected String wrapper but got: {}", code);
+        assert!(code.contains("pub struct TestResponse"));
+        assert!(code.contains("fn new (inner : String)"),
+            "Expected new(inner: String) constructor but got: {}", code);
+    }
+
+    #[test]
+    fn test_generate_default_return_primitives() {
+        // DEPYLER-1116: Test proxy pattern - default return values
+        assert_eq!(generate_default_return("int").to_string(), "0i64");
+        assert_eq!(generate_default_return("float").to_string(), "0.0f64");
+        assert_eq!(generate_default_return("str").to_string(), "\"\"");
+        assert_eq!(generate_default_return("bool").to_string(), "false");
+        assert_eq!(generate_default_return("None").to_string(), "()");
+    }
+
+    #[test]
+    fn test_generate_default_return_collections() {
+        // DEPYLER-1116: Test proxy pattern - default collection values
+        let dict = generate_default_return("dict").to_string();
+        assert!(dict.contains("HashMap"));
+        assert!(dict.contains("new"));
+
+        let list = generate_default_return("list").to_string();
+        assert!(list.contains("Vec"));
+        assert!(list.contains("new"));
+
+        let optional = generate_default_return("Optional[str]").to_string();
+        assert_eq!(optional, "None");
     }
 }

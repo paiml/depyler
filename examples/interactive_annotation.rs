@@ -5,10 +5,10 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::f64 as math;
-    const STR_D: &'static str = "D";
-    const STR_A: &'static str = "A";
-    const STR_C: &'static str = "C";
     const STR_B: &'static str = "B";
+    const STR_A: &'static str = "A";
+    const STR_D: &'static str = "D";
+    const STR_C: &'static str = "C";
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::io::Write;
@@ -141,7 +141,7 @@ else {
     match self {
     DepylerValue::Dict(_dv_dict) =>_dv_dict.values(), _ =>EMPTY_MAP.values() ,
 }
-} #[doc = r" Convert to String"] pub fn to_string(&self) -> String {
+} #[doc = r" Convert to String(renamed to avoid shadowing Display::to_string)"] #[doc = r" DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display"] pub fn as_string(&self) -> String {
     match self {
     DepylerValue::Str(_dv_str) =>_dv_str.clone(), DepylerValue::Int(_dv_int) =>_dv_int.to_string(), DepylerValue::Float(_dv_float) =>_dv_float.to_string(), DepylerValue::Bool(_dv_bool) =>_dv_bool.to_string(), DepylerValue::None =>"None".to_string(), DepylerValue::List(_dv_list) =>format!("{:?}", _dv_list), DepylerValue::Dict(_dv_dict) =>format!("{:?}", _dv_dict), DepylerValue::Tuple(_dv_tuple) =>format!("{:?}", _dv_tuple) ,
 }
@@ -722,6 +722,16 @@ impl PyAdd for i32 {
     #[inline] fn py_add(self, rhs: & str) -> String {
     self + rhs
 }
+} impl PyAdd<& str>for & str {
+    type Output = String;
+    #[inline] fn py_add(self, rhs: & str) -> String {
+    format!("{}{}", self, rhs)
+}
+} impl PyAdd<String>for & str {
+    type Output = String;
+    #[inline] fn py_add(self, rhs: String) -> String {
+    format!("{}{}", self, rhs)
+}
 } impl PyAdd for DepylerValue {
     type Output = DepylerValue;
     fn py_add(self, rhs: DepylerValue) -> DepylerValue {
@@ -820,6 +830,28 @@ else {
 }
 }
 impl PyMul<i64>for String {
+    type Output = String;
+    fn py_mul(self, rhs: i64) -> String {
+    if rhs <= 0 {
+    String::new()
+}
+else {
+    self.repeat(rhs as usize)
+}
+}
+}
+impl PyMul<i32>for & str {
+    type Output = String;
+    fn py_mul(self, rhs: i32) -> String {
+    if rhs <= 0 {
+    String::new()
+}
+else {
+    self.repeat(rhs as usize)
+}
+}
+}
+impl PyMul<i64>for & str {
     type Output = String;
     fn py_mul(self, rhs: i64) -> String {
     if rhs <= 0 {
@@ -1162,6 +1194,337 @@ impl PyIndex<i64>for DepylerValue {
     _dv_dict.get(& DepylerValue::Str(key.to_string())).cloned().unwrap_or(DepylerValue::None)
 }
 _ =>DepylerValue::None ,
+}
+}
+}
+pub trait PyStringMethods {
+    fn lower(&self) -> String;
+    fn upper(&self) -> String;
+    fn strip(&self) -> String;
+    fn lstrip(&self) -> String;
+    fn rstrip(&self) -> String;
+    fn py_split(&self, sep: & str) -> Vec<String>;
+    fn py_replace(&self, old: & str, new: & str) -> String;
+    fn startswith(&self, prefix: & str) -> bool;
+    fn endswith(&self, suffix: & str) -> bool;
+    fn py_find(&self, sub: & str) -> i64;
+    fn capitalize(&self) -> String;
+    fn title(&self) -> String;
+    fn swapcase(&self) -> String;
+    fn isalpha(&self) -> bool;
+    fn isdigit(&self) -> bool;
+    fn isalnum(&self) -> bool;
+    fn isspace(&self) -> bool;
+    fn islower(&self) -> bool;
+    fn isupper(&self) -> bool;
+    fn center(&self, width: usize) -> String;
+    fn ljust(&self, width: usize) -> String;
+    fn rjust(&self, width: usize) -> String;
+    fn zfill(&self, width: usize) -> String;
+    fn count(&self, sub: & str) -> usize;
+   
+}
+impl PyStringMethods for str {
+    #[inline] fn lower(&self) -> String {
+    self.to_lowercase()
+}
+#[inline] fn upper(&self) -> String {
+    self.to_uppercase()
+}
+#[inline] fn strip(&self) -> String {
+    self.trim().to_string()
+}
+#[inline] fn lstrip(&self) -> String {
+    self.trim_start().to_string()
+}
+#[inline] fn rstrip(&self) -> String {
+    self.trim_end().to_string()
+}
+#[inline] fn py_split(&self, sep: & str) -> Vec<String>{
+    self.split(sep).map(| s | s.to_string()).collect()
+}
+#[inline] fn py_replace(&self, old: & str, new: & str) -> String {
+    self.replace(old, new)
+}
+#[inline] fn startswith(&self, prefix: & str) -> bool {
+    self.starts_with(prefix)
+}
+#[inline] fn endswith(&self, suffix: & str) -> bool {
+    self.ends_with(suffix)
+}
+#[inline] fn py_find(&self, sub: & str) -> i64 {
+    self.find(sub).map(| i | i as i64).unwrap_or(- 1)
+}
+#[inline] fn capitalize(&self) -> String {
+    let mut chars = self.chars();
+    match chars.next() {
+    None =>String::new(), Some(c) =>c.to_uppercase().chain (chars.flat_map(| c | c.to_lowercase())).collect() ,
+}
+} #[inline] fn title(&self) -> String {
+    let mut result = String::new();
+    let mut capitalize_next = true;
+    for c in self.chars() {
+    if c.is_whitespace() {
+    result.push(c);
+    capitalize_next = true;
+   
+}
+else if capitalize_next {
+    result.extend(c.to_uppercase());
+    capitalize_next = false;
+   
+}
+else {
+    result.extend(c.to_lowercase());
+   
+}
+} result
+}
+#[inline] fn swapcase(&self) -> String {
+    self.chars().map(| c | {
+    if c.is_uppercase() {
+    c.to_lowercase().collect::<String>()
+}
+else {
+    c.to_uppercase().collect::<String>()
+}
+}).collect()
+}
+#[inline] fn isalpha(&self) -> bool {
+   ! self.is_empty() &&self.chars().all(| c | c.is_alphabetic())
+}
+#[inline] fn isdigit(&self) -> bool {
+   ! self.is_empty() &&self.chars().all(| c | c.is_ascii_digit())
+}
+#[inline] fn isalnum(&self) -> bool {
+   ! self.is_empty() &&self.chars().all(| c | c.is_alphanumeric())
+}
+#[inline] fn isspace(&self) -> bool {
+   ! self.is_empty() &&self.chars().all(| c | c.is_whitespace())
+}
+#[inline] fn islower(&self) -> bool {
+    self.chars().any(| c | c.is_lowercase()) &&! self.chars().any(| c | c.is_uppercase())
+}
+#[inline] fn isupper(&self) -> bool {
+    self.chars().any(| c | c.is_uppercase()) &&! self.chars().any(| c | c.is_lowercase())
+}
+#[inline] fn center(&self, width: usize) -> String {
+    if self.len()>= width {
+    return self.to_string();
+   
+}
+let padding = width - self.len();
+    let left = padding / 2;
+    let right = padding - left;
+    format!("{}{}{}", " ".repeat(left), self, " ".repeat(right))
+}
+#[inline] fn ljust(&self, width: usize) -> String {
+    if self.len()>= width {
+    return self.to_string();
+   
+}
+format!("{}{}", self, " ".repeat(width - self.len()))
+}
+#[inline] fn rjust(&self, width: usize) -> String {
+    if self.len()>= width {
+    return self.to_string();
+   
+}
+format!("{}{}", " ".repeat(width - self.len()), self)
+}
+#[inline] fn zfill(&self, width: usize) -> String {
+    if self.len()>= width {
+    return self.to_string();
+   
+}
+format!("{}{}", "0".repeat(width - self.len()), self)
+}
+#[inline] fn count(&self, sub: & str) -> usize {
+    self.matches(sub).count()
+}
+} impl PyStringMethods for String {
+    #[inline] fn lower(&self) -> String {
+    self.as_str().lower()
+}
+#[inline] fn upper(&self) -> String {
+    self.as_str().upper()
+}
+#[inline] fn strip(&self) -> String {
+    self.as_str().strip()
+}
+#[inline] fn lstrip(&self) -> String {
+    self.as_str().lstrip()
+}
+#[inline] fn rstrip(&self) -> String {
+    self.as_str().rstrip()
+}
+#[inline] fn py_split(&self, sep: & str) -> Vec<String>{
+    self.as_str().py_split(sep)
+}
+#[inline] fn py_replace(&self, old: & str, new: & str) -> String {
+    self.as_str().py_replace(old, new)
+}
+#[inline] fn startswith(&self, prefix: & str) -> bool {
+    self.as_str().startswith(prefix)
+}
+#[inline] fn endswith(&self, suffix: & str) -> bool {
+    self.as_str().endswith(suffix)
+}
+#[inline] fn py_find(&self, sub: & str) -> i64 {
+    self.as_str().py_find(sub)
+}
+#[inline] fn capitalize(&self) -> String {
+    self.as_str().capitalize()
+}
+#[inline] fn title(&self) -> String {
+    self.as_str().title()
+}
+#[inline] fn swapcase(&self) -> String {
+    self.as_str().swapcase()
+}
+#[inline] fn isalpha(&self) -> bool {
+    self.as_str().isalpha()
+}
+#[inline] fn isdigit(&self) -> bool {
+    self.as_str().isdigit()
+}
+#[inline] fn isalnum(&self) -> bool {
+    self.as_str().isalnum()
+}
+#[inline] fn isspace(&self) -> bool {
+    self.as_str().isspace()
+}
+#[inline] fn islower(&self) -> bool {
+    self.as_str().islower()
+}
+#[inline] fn isupper(&self) -> bool {
+    self.as_str().isupper()
+}
+#[inline] fn center(&self, width: usize) -> String {
+    self.as_str().center(width)
+}
+#[inline] fn ljust(&self, width: usize) -> String {
+    self.as_str().ljust(width)
+}
+#[inline] fn rjust(&self, width: usize) -> String {
+    self.as_str().rjust(width)
+}
+#[inline] fn zfill(&self, width: usize) -> String {
+    self.as_str().zfill(width)
+}
+#[inline] fn count(&self, sub: & str) -> usize {
+    self.as_str().count(sub)
+}
+} impl PyStringMethods for DepylerValue {
+    #[inline] fn lower(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.lower(), _ =>String::new() ,
+}
+} #[inline] fn upper(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.upper(), _ =>String::new() ,
+}
+} #[inline] fn strip(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.strip(), _ =>String::new() ,
+}
+} #[inline] fn lstrip(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.lstrip(), _ =>String::new() ,
+}
+} #[inline] fn rstrip(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.rstrip(), _ =>String::new() ,
+}
+} #[inline] fn py_split(&self, sep: & str) -> Vec<String>{
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.py_split(sep), _ =>Vec::new() ,
+}
+} #[inline] fn py_replace(&self, old: & str, new: & str) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.py_replace(old, new), _ =>String::new() ,
+}
+} #[inline] fn startswith(&self, prefix: & str) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.startswith(prefix), _ =>false ,
+}
+} #[inline] fn endswith(&self, suffix: & str) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.endswith(suffix), _ =>false ,
+}
+} #[inline] fn py_find(&self, sub: & str) -> i64 {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.py_find(sub), _ =>- 1 ,
+}
+} #[inline] fn capitalize(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.capitalize(), _ =>String::new() ,
+}
+} #[inline] fn title(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.title(), _ =>String::new() ,
+}
+} #[inline] fn swapcase(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.swapcase(), _ =>String::new() ,
+}
+} #[inline] fn isalpha(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isalpha(), _ =>false ,
+}
+} #[inline] fn isdigit(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isdigit(), _ =>false ,
+}
+} #[inline] fn isalnum(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isalnum(), _ =>false ,
+}
+} #[inline] fn isspace(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isspace(), _ =>false ,
+}
+} #[inline] fn islower(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.islower(), _ =>false ,
+}
+} #[inline] fn isupper(&self) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.isupper(), _ =>false ,
+}
+} #[inline] fn center(&self, width: usize) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.center(width), _ =>String::new() ,
+}
+} #[inline] fn ljust(&self, width: usize) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.ljust(width), _ =>String::new() ,
+}
+} #[inline] fn rjust(&self, width: usize) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.rjust(width), _ =>String::new() ,
+}
+} #[inline] fn zfill(&self, width: usize) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.zfill(width), _ =>String::new() ,
+}
+} #[inline] fn count(&self, sub: & str) -> usize {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.count(sub), _ =>0 ,
+}
+}
+}
+impl DepylerValue {
+    #[doc = r" Check if string contains substring(Python's `in` operator for strings)"] #[inline] pub fn contains(&self, sub: & str) -> bool {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.contains(sub), DepylerValue::List(_dv_l) =>_dv_l.iter().any(| v | {
+    if let DepylerValue::Str(s) = v {
+    s == sub
+}
+else {
+    false
+}
+}), _ =>false ,
 }
 }
 }
@@ -1582,14 +1945,14 @@ else {
     for i in 0..(n) {
     for j in 0..(m) {
     for p in 0..(k) {
-    result.get_mut(& i).unwrap().insert((j) as usize, result.get(i as usize).cloned().expect("IndexError: list index out of range").get(j as usize).cloned().expect("IndexError: list index out of range").py_add(a.get(i as usize).cloned().expect("IndexError: list index out of range").get(p as usize).cloned().expect("IndexError: list index out of range").py_mul(b.get(p as usize).cloned().expect("IndexError: list index out of range").get(j as usize).cloned().expect("IndexError: list index out of range"))));
+    result.get_mut(& i).unwrap().insert((j) as usize ,(result.get(i as usize).cloned().expect("IndexError: list index out of range").get(j as usize).cloned().expect("IndexError: list index out of range")).py_add((a.get(i as usize).cloned().expect("IndexError: list index out of range").get(p as usize).cloned().expect("IndexError: list index out of range")).py_mul(b.get(p as usize).cloned().expect("IndexError: list index out of range").get(j as usize).cloned().expect("IndexError: list index out of range"))));
    
 }
 }
 }
 Ok(result)
 }
-#[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "] pub fn process_text_data<'a, 'b>(texts: & 'a Vec<String>, keywords: & 'b Vec<String>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>>{
+#[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "] pub fn process_text_data<'b, 'a>(texts: & 'a Vec<String>, keywords: & 'b Vec<String>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>>{
     let mut keyword_counts = keywords.iter().cloned().map(| kw | {
     let _v = 0;
    (kw, _v) }).collect::<std::collections::HashMap<_, _>>();
@@ -1647,13 +2010,13 @@ else {
     let right = arr.as_slice().iter().cloned().filter(| x | {
     let x = x.clone();
     x>pivot }).map(| x | x).collect::<Vec<_>>();
-    Ok(quicksort(left) ?.py_add(middle).py_add(quicksort(right) ?))
+    Ok(((quicksort(left) ?).py_add(middle)).py_add(quicksort(right) ?))
 }
-#[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "] #[doc = " Depyler: proven to terminate"] pub fn safe_divide<'b, 'a>(numbers: & 'a Vec<f64>, divisors: & 'b Vec<f64>) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "] #[doc = " Depyler: proven to terminate"] pub fn safe_divide<'a, 'b>(numbers: & 'a Vec<f64>, divisors: & 'b Vec<f64>) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>>{
     let mut results = vec! [];
     for i in 0..(depyler_min ((numbers.len() as i32).clone() ,(divisors.len() as i32).clone())) {
     if divisors.get(i as usize).cloned().expect("IndexError: list index out of range")!= 0 {
-    results.push(DepylerValue::Str(format!("{:?}", numbers.get(i as usize).cloned().expect("IndexError: list index out of range").py_div(divisors.get(i as usize).cloned().expect("IndexError: list index out of range")))));
+    results.push(DepylerValue::Str(format!("{:?}" ,(numbers.get(i as usize).cloned().expect("IndexError: list index out of range")).py_div(divisors.get(i as usize).cloned().expect("IndexError: list index out of range")))));
    
 }
 else {
@@ -1667,7 +2030,7 @@ else {
     for item in data.iter().cloned() {
     let mut result = func(item);
     for __sanitized in 0..(1000) {
-    result = result.py_mul(7).py_add(13).py_mod(1000000);
+    result  = (((result).py_mul(7)).py_add(13)).py_mod(1000000);
    
 }
 results.push(DepylerValue::Int(result as i64));
@@ -1675,7 +2038,7 @@ results.push(DepylerValue::Int(result as i64));
 }
 Ok(results)
 }
-#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'c, 'a, 'b>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'c, 'b, 'a>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
     let mut current: String = Default::default();
     let mut visited = std::collections::HashSet::<i32>::new();
     let mut distances_from_start = {
@@ -1703,7 +2066,7 @@ if current.is_none() {
 visited.insert(current);
     for neighbor in distances.get(& current).cloned().unwrap_or_default() {
     if! visited.contains(& neighbor) {
-    let new_distance = distances_from_start.get(& current).cloned().unwrap_or_default().py_add(distances.get(& current).cloned().unwrap_or_default().get(neighbor as usize).cloned().expect("IndexError: list index out of range"));
+    let new_distance  = (distances_from_start.get(& current).cloned().unwrap_or_default()).py_add(distances.get(& current).cloned().unwrap_or_default().get(neighbor as usize).cloned().expect("IndexError: list index out of range"));
     if(distances_from_start.get(& neighbor).is_none()) ||(new_distance <(distances_from_start.get(& DepylerValue::Int(neighbor as i64)).cloned().unwrap_or_default() as f64)) {
     distances_from_start.insert(neighbor.to_string().clone(), new_distance);
     previous.insert(neighbor.to_string().clone(), DepylerValue::Str(format!("{:?}", current)));
@@ -1729,7 +2092,7 @@ path.push(DepylerValue::Str(start.to_string()));
 }
 #[doc = "\n    Demonstration of functions that benefit from interactive annotation.\n    \n    When run with --interactive --annotate, Depyler will:\n    1. Analyze each function's characteristics\n    2. Suggest appropriate annotations\n    3. Guide you through the annotation process\n    4. Show before/after transpilation results\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn main () -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "Interactive Annotation Examples");
-    println!("{}", "=".py_mul(40));
+    println!("{}" ,("=").py_mul(40));
     let a = vec! [vec! [1, 2], vec! [3, 4]];
     let b = vec! [vec! [5, 6], vec! [7, 8]];
     let result = matrix_multiply(& a, & b) ?;
@@ -1746,7 +2109,7 @@ path.push(DepylerValue::Str(start.to_string()));
     let results = safe_divide(& nums, & divs) ?;
     println!("{}", format!("Division results: {:?}", results));
     let data  = (0..(10)).collect::<Vec<_>>();
-    let mapped = parallel_map(move | x | x.py_mul(x), & data) ?;
+    let mapped = parallel_map(move | x: i64 |(x).py_mul(x), & data) ?;
     println!("{}", format!("Mapped data: {:?}", mapped));
     let mut buffer = DataBuffer::new(100);
     buffer.write_all(vec! [1, 2, 3, 4, 5].as_bytes()).unwrap();

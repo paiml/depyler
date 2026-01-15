@@ -1953,56 +1953,56 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn repeated_complex_expressions(a: i32, b: i32, c: i32) -> i32 {
-    let _cse_temp_0 = a.py_add(b).py_mul(c);
-    let x = _cse_temp_0.py_add(10);
-    let y = _cse_temp_0.py_sub(5);
-    let _cse_temp_1 = _cse_temp_0.py_mul(2);
+    let _cse_temp_0 = ((a).py_add(b)).py_mul(c);
+    let x = (_cse_temp_0).py_add(10);
+    let y = (_cse_temp_0).py_sub(5);
+    let _cse_temp_1 = (_cse_temp_0).py_mul(2);
     let z = _cse_temp_1;
-    x.py_add(y).py_add(z)
+    ((x).py_add(y)).py_add(z)
 }
 #[doc = "Repeated calls to pure functions."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn repeated_function_calls(n: i32) -> i32 {
     let mut result: i32 = Default::default();
-    let _cse_temp_0 = (n.py_sub(10)).abs();
+    let _cse_temp_0 = ((n).py_sub(10)).abs();
     let _cse_temp_1 = _cse_temp_0 > 5;
     if _cse_temp_1 {
-        let _cse_temp_2 = _cse_temp_0.py_mul(2);
+        let _cse_temp_2 = (_cse_temp_0).py_mul(2);
         result = _cse_temp_2;
     } else {
-        result = _cse_temp_0.py_add(100);
+        result = (_cse_temp_0).py_add(100);
     }
-    result.py_add((n.py_sub(10)).abs())
+    (result).py_add(((n).py_sub(10)).abs())
 }
 #[doc = "Nested common subexpressions."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn nested_expressions(x: i32, y: i32) -> i32 {
-    let _cse_temp_0 = x.py_mul(y);
-    let _cse_temp_1 = _cse_temp_0.py_mul(2);
-    let a = _cse_temp_0.py_add(_cse_temp_1);
-    let _cse_temp_2 = _cse_temp_0.py_mul(_cse_temp_0);
+    let _cse_temp_0 = (x).py_mul(y);
+    let _cse_temp_1 = (_cse_temp_0).py_mul(2);
+    let a = (_cse_temp_0).py_add(_cse_temp_1);
+    let _cse_temp_2 = (_cse_temp_0).py_mul(_cse_temp_0);
     let b = _cse_temp_2;
-    let _cse_temp_3 = x.py_add(1).py_mul(y.py_add(1));
-    let c = _cse_temp_3.py_add(10);
-    let d = _cse_temp_3.py_sub(20);
-    a.py_add(b).py_add(c).py_add(d)
+    let _cse_temp_3 = ((x).py_add(1)).py_mul((y).py_add(1));
+    let c = (_cse_temp_3).py_add(10);
+    let d = (_cse_temp_3).py_sub(20);
+    (((a).py_add(b)).py_add(c)).py_add(d)
 }
 #[doc = "CSE across conditional branches."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn conditional_cse(flag: bool, a: i32, b: i32) -> i32 {
     let mut result: i32 = Default::default();
-    let _cse_temp_0 = a.py_mul(b);
-    let _cse_temp_1 = _cse_temp_0.py_add(a.py_sub(b));
+    let _cse_temp_0 = (a).py_mul(b);
+    let _cse_temp_1 = (_cse_temp_0).py_add((a).py_sub(b));
     let base = _cse_temp_1;
     if flag {
-        result = _cse_temp_1.py_add(10);
+        result = (_cse_temp_1).py_add(10);
     } else {
-        result = _cse_temp_1.py_sub(10);
+        result = (_cse_temp_1).py_sub(10);
     }
-    result.py_add(base)
+    (result).py_add(base)
 }
 #[doc = "Expressions that don't change in loops."]
 #[doc = " Depyler: verified panic-free"]
@@ -2012,7 +2012,7 @@ pub fn loop_invariant_expressions(items: &Vec<DepylerValue>) -> i32 {
     let y = 20;
     total = 0;
     for item in items.iter().cloned() {
-        total = total.py_add(item.py_add(x.py_add(y).py_mul(2)));
+        total = (total).py_add((item).py_add(((x).py_add(y)).py_mul(2)));
     }
     total
 }

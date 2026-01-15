@@ -1,0 +1,96 @@
+# bashrs playbook test for extract_training_data.sh
+# NASA quality unit tests
+
+name: extract_training_data_tests
+description: Unit tests for Oracle training data extraction script
+
+# Environment setup
+setup:
+  - mkdir -p /tmp/test_reprorusted/examples/example_test
+  - |
+    cat > /tmp/test_reprorusted/examples/example_test/test_tool.py << 'PYTEST'
+    def main() -> int:
+        """Simple test function."""
+        return 42
+    PYTEST
+
+# Test scenarios
+scenarios:
+  - name: test_script_exists
+    description: Script file should exist
+    steps:
+      - run: test -f scripts/extract_training_data.sh
+    expect:
+      exit_code: 0
+
+  - name: test_script_executable
+    description: Script should be executable
+    steps:
+      - run: test -x scripts/extract_training_data.sh || chmod +x scripts/extract_training_data.sh
+    expect:
+      exit_code: 0
+
+  - name: test_script_syntax
+    description: Script should have valid bash syntax
+    steps:
+      - run: bash -n scripts/extract_training_data.sh
+    expect:
+      exit_code: 0
+
+  - name: test_bashrs_lint_no_errors
+    description: Script should pass bashrs lint with no errors
+    steps:
+      - run: bashrs lint scripts/extract_training_data.sh 2>&1 | grep -c "0 error(s)"
+    expect:
+      exit_code: 0
+      stdout_contains: "1"
+
+  - name: test_bashrs_lint_no_warnings
+    description: Script should pass bashrs lint with no warnings
+    steps:
+      - run: bashrs lint scripts/extract_training_data.sh 2>&1 | grep -c "0 warning(s)"
+    expect:
+      exit_code: 0
+      stdout_contains: "1"
+
+  - name: test_output_dir_creation
+    description: Script should create training_corpus directory
+    steps:
+      - run: |
+          rm -rf training_corpus
+          REPRORUSTED_DIR=/tmp/test_reprorusted timeout 30 bash -c 'source scripts/extract_training_data.sh' 2>&1 || true
+          test -d training_corpus
+    expect:
+      exit_code: 0
+
+  - name: test_errors_file_creation
+    description: Script should create errors.jsonl file
+    steps:
+      - run: test -f training_corpus/errors.jsonl
+    expect:
+      exit_code: 0
+
+  - name: test_helper_compute_hash
+    description: compute_hash function should work
+    steps:
+      - run: |
+          source <(sed -n '/^compute_hash()/,/^}/p' scripts/extract_training_data.sh)
+          result=$(compute_hash "test input")
+          [[ ${#result} -eq 16 ]]
+    expect:
+      exit_code: 0
+
+  - name: test_helper_escape_json
+    description: escape_json function should escape quotes
+    steps:
+      - run: |
+          source <(sed -n '/^escape_json()/,/^}/p' scripts/extract_training_data.sh)
+          result=$(escape_json 'test "quotes"')
+          [[ "${result}" == 'test \"quotes\"' ]]
+    expect:
+      exit_code: 0
+
+# Cleanup
+teardown:
+  - rm -rf /tmp/test_reprorusted
+  - rm -rf training_corpus

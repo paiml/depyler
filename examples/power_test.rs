@@ -2043,7 +2043,7 @@ pub fn test_mixed_operations() -> (i32, i32, i32, i32) {
     let _cse_temp_0 = ({ 3 } as i32)
         .checked_pow({ 2 } as u32)
         .expect("Power operation overflowed");
-    let a = 2.py_add(_cse_temp_0);
+    let a = (2).py_add(_cse_temp_0);
     let _cse_temp_1 = ({ 5 } as i32)
         .checked_pow({ 2 } as u32)
         .expect("Power operation overflowed");
@@ -2051,7 +2051,7 @@ pub fn test_mixed_operations() -> (i32, i32, i32, i32) {
     let _cse_temp_2 = ({ 2 } as i32)
         .checked_pow({ 3 } as u32)
         .expect("Power operation overflowed");
-    let _cse_temp_3 = _cse_temp_2.py_mul(4);
+    let _cse_temp_3 = (_cse_temp_2).py_mul(4);
     let c = _cse_temp_3;
     let _cse_temp_4 = ({ 2 } as i32)
         .checked_pow({ 6 } as u32)

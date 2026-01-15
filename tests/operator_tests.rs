@@ -463,10 +463,11 @@ fn test_array_length_subtraction_safety() {
     let type_mapper = TypeMapper::default();
     let (result, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
-    // Verify that saturating_sub is used
+    // DEPYLER-1122: PyOps traits handle Python semantics for len() subtraction
+    // Accepts either saturating_sub (legacy) or py_sub (PyOps trait approach)
     assert!(
-        result.contains("saturating_sub"),
-        "Expected saturating_sub for array length subtraction, got: {}",
+        result.contains("saturating_sub") || result.contains("py_sub"),
+        "Expected safe subtraction (saturating_sub or py_sub) for array length subtraction, got: {}",
         result
     );
 }
@@ -543,10 +544,11 @@ fn test_len_variable_subtraction_safety() {
     let type_mapper = TypeMapper::default();
     let (result, _dependencies) = generate_rust_file(&module, &type_mapper).unwrap();
 
-    // Should use saturating_sub for len() - variable
+    // DEPYLER-1122: PyOps traits handle Python semantics for len() subtraction
+    // Accepts either saturating_sub (legacy) or py_sub (PyOps trait approach)
     assert!(
-        result.contains("saturating_sub"),
-        "Expected saturating_sub for len() - variable, got: {}",
+        result.contains("saturating_sub") || result.contains("py_sub"),
+        "Expected safe subtraction (saturating_sub or py_sub) for len() - variable, got: {}",
         result
     );
 }

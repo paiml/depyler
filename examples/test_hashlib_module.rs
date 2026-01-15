@@ -2060,7 +2060,7 @@ pub fn test_sha256_binary_data() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_sha256_large_data() {
-    let _cse_temp_0 = b"A".py_mul(10000);
+    let _cse_temp_0 = (b"A").py_mul(10000);
     let data = _cse_temp_0;
     let mut hash_obj = {
                         let mut hasher = Box::new(std::collections::hash_map::DefaultHasher::new()) as Box<dyn DynDigest>;
@@ -2157,9 +2157,9 @@ pub fn test_sha256_text() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main() {
-    println!("{}", STR__.py_mul(60));
+    println!("{}", (STR__).py_mul(60));
     println!("{}", "HASHLIB MODULE TESTS");
-    println!("{}", STR__.py_mul(60));
+    println!("{}", (STR__).py_mul(60));
     test_sha256_basic();
     test_sha256_empty();
     test_sha256_update();
@@ -2170,8 +2170,8 @@ pub fn main() {
     test_hash_different_data();
     test_hash_deterministic();
     test_sha256_text();
-    println!("{}", STR__.py_mul(60));
+    println!("{}", (STR__).py_mul(60));
     println!("{}", "ALL HASHLIB TESTS PASSED!");
     println!("{}", "Total tests: 10");
-    println!("{}", STR__.py_mul(60));
+    println!("{}", (STR__).py_mul(60));
 }

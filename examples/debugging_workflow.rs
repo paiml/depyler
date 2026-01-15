@@ -1974,7 +1974,7 @@ pub fn fibonacci(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    fibonacci(n.py_sub(1)).py_add(fibonacci(n.py_sub(2)))
+    (fibonacci((n).py_sub(1))).py_add(fibonacci((n).py_sub(2)))
 }
 #[doc = "Calculate factorial iteratively"]
 #[doc = " Depyler: verified panic-free"]
@@ -1982,8 +1982,8 @@ pub fn fibonacci(n: i32) -> i32 {
 pub fn factorial(n: i32) -> i32 {
     let mut result: i32 = Default::default();
     result = 1;
-    for i in (2)..(n.py_add(1)) {
-        result = result.py_mul(i);
+    for i in (2)..((n).py_add(1)) {
+        result = (result).py_mul(i);
     }
     result
 }

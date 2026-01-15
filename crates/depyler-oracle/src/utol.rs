@@ -859,9 +859,13 @@ fn compile_single_file(
 fn try_compile_rust(rust_code: &str) -> Result<(), String> {
     use std::io::Write;
 
-    // Create temp file
+    // Create temp files for source and output
     let temp_dir = std::env::temp_dir();
-    let temp_file = temp_dir.join(format!("utol_check_{}.rs", std::process::id()));
+    let pid = std::process::id();
+    let temp_file = temp_dir.join(format!("utol_check_{}.rs", pid));
+    // DEPYLER-1119: Use proper temp file for output, not /dev/null
+    // Using /dev/null causes rustc to try creating temp dirs in /dev/ which fails
+    let temp_output = temp_dir.join(format!("utol_out_{}", pid));
 
     // Write Rust code
     let mut file = std::fs::File::create(&temp_file).map_err(|e| e.to_string())?;
@@ -870,19 +874,23 @@ fn try_compile_rust(rust_code: &str) -> Result<(), String> {
     drop(file);
 
     // Run rustc --emit=metadata (fastest check without codegen)
+    // DEPYLER-1119: Added --edition 2021 for proper Rust 2021 syntax
     let output = Command::new("rustc")
         .args([
+            "--edition",
+            "2021",
             "--emit=metadata",
             "--crate-type=lib",
             "-o",
-            "/dev/null",
+            temp_output.to_str().unwrap(),
             temp_file.to_str().unwrap(),
         ])
         .output()
         .map_err(|e| e.to_string())?;
 
-    // Clean up
+    // Clean up both temp files
     let _ = std::fs::remove_file(&temp_file);
+    let _ = std::fs::remove_file(&temp_output);
 
     if output.status.success() {
         Ok(())
@@ -890,6 +898,288 @@ fn try_compile_rust(rust_code: &str) -> Result<(), String> {
         let stderr = String::from_utf8_lossy(&output.stderr);
         Err(stderr.to_string())
     }
+}
+
+// ============================================================================
+// DEPYLER-1101: Type Constraint Learner (Oracle Type Repair)
+// ============================================================================
+
+/// A learned type constraint from E0308 errors
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TypeConstraint {
+    /// Variable name or expression location
+    pub location: String,
+    /// Expected Rust type (from compiler)
+    pub expected_type: String,
+    /// Found Rust type (what we generated)
+    pub found_type: String,
+    /// Source file
+    pub source_file: PathBuf,
+    /// Line number in generated Rust
+    pub line: usize,
+}
+
+/// Type constraint learner that extracts type information from E0308 errors
+pub struct TypeConstraintLearner {
+    /// Learned constraints
+    pub constraints: Vec<TypeConstraint>,
+    /// Pattern for extracting expected/found types
+    e0308_pattern: regex::Regex,
+    /// Pattern for extracting line numbers
+    location_pattern: regex::Regex,
+}
+
+impl TypeConstraintLearner {
+    /// Create a new type constraint learner
+    pub fn new() -> Self {
+        Self {
+            constraints: Vec::new(),
+            // Pattern: "expected `Type1`, found `Type2`"
+            e0308_pattern: regex::Regex::new(
+                r"expected `([^`]+)`, found `([^`]+)`"
+            ).unwrap(),
+            // Pattern: "--> file.rs:123:45"
+            location_pattern: regex::Regex::new(
+                r"--> ([^:]+):(\d+):\d+"
+            ).unwrap(),
+        }
+    }
+
+    /// Learn type constraints from compiler error output
+    pub fn learn_from_errors(&mut self, errors: &str, source_file: &std::path::Path) {
+        let lines: Vec<&str> = errors.lines().collect();
+        let mut current_line = 0usize;
+
+        for (i, line) in lines.iter().enumerate() {
+            // Extract line number from location
+            if let Some(caps) = self.location_pattern.captures(line) {
+                current_line = caps.get(2)
+                    .and_then(|m| m.as_str().parse().ok())
+                    .unwrap_or(0);
+            }
+
+            // Look for E0308 type mismatch
+            if line.contains("E0308") || line.contains("mismatched types") {
+                // Search nearby lines for expected/found
+                for check_line in &lines[i..std::cmp::min(i + 10, lines.len())] {
+                    if let Some(caps) = self.e0308_pattern.captures(check_line) {
+                        let expected = caps.get(1).map(|m| m.as_str()).unwrap_or("");
+                        let found = caps.get(2).map(|m| m.as_str()).unwrap_or("");
+
+                        if !expected.is_empty() && !found.is_empty() {
+                            self.constraints.push(TypeConstraint {
+                                location: format!("line_{}", current_line),
+                                expected_type: expected.to_string(),
+                                found_type: found.to_string(),
+                                source_file: source_file.to_path_buf(),
+                                line: current_line,
+                            });
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    /// Convert Rust type string to HIR Type (best-effort mapping)
+    pub fn rust_type_to_hir(rust_type: &str) -> Option<depyler_core::hir::Type> {
+        use depyler_core::hir::Type;
+
+        let normalized = rust_type.trim();
+        Some(match normalized {
+            "i32" | "i64" | "isize" | "usize" => Type::Int,
+            "f32" | "f64" => Type::Float,
+            "String" | "&str" | "&String" => Type::String,
+            "bool" => Type::Bool,
+            "()" => Type::None,
+            s if s.starts_with("Vec<") => {
+                let inner = s.trim_start_matches("Vec<").trim_end_matches('>');
+                Type::List(Box::new(Self::rust_type_to_hir(inner)?))
+            }
+            s if s.starts_with("HashMap<") => {
+                // HashMap<K, V>
+                let inner = s.trim_start_matches("HashMap<").trim_end_matches('>');
+                let parts: Vec<&str> = inner.splitn(2, ", ").collect();
+                if parts.len() == 2 {
+                    Type::Dict(
+                        Box::new(Self::rust_type_to_hir(parts[0])?),
+                        Box::new(Self::rust_type_to_hir(parts[1])?),
+                    )
+                } else {
+                    Type::Dict(Box::new(Type::String), Box::new(Type::Unknown))
+                }
+            }
+            s if s.starts_with("Option<") => {
+                let inner = s.trim_start_matches("Option<").trim_end_matches('>');
+                Type::Optional(Box::new(Self::rust_type_to_hir(inner)?))
+            }
+            s if s.starts_with("HashSet<") => {
+                let inner = s.trim_start_matches("HashSet<").trim_end_matches('>');
+                Type::Set(Box::new(Self::rust_type_to_hir(inner)?))
+            }
+            _ => Type::Custom(normalized.to_string()),
+        })
+    }
+
+    /// Get summary of learned constraints
+    pub fn summary(&self) -> String {
+        if self.constraints.is_empty() {
+            return "No type constraints learned".to_string();
+        }
+
+        let mut type_pairs: HashMap<(String, String), usize> = HashMap::new();
+        for c in &self.constraints {
+            *type_pairs.entry((c.expected_type.clone(), c.found_type.clone())).or_insert(0) += 1;
+        }
+
+        let mut lines = vec![format!("Learned {} type constraints:", self.constraints.len())];
+        let mut pairs: Vec<_> = type_pairs.into_iter().collect();
+        pairs.sort_by(|a, b| b.1.cmp(&a.1));
+
+        for ((expected, found), count) in pairs.iter().take(10) {
+            lines.push(format!("  {} × expected `{}`, found `{}`", count, expected, found));
+        }
+
+        lines.join("\n")
+    }
+}
+
+impl Default for TypeConstraintLearner {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Result of type repair operation
+#[derive(Debug, Clone)]
+pub struct TypeRepairResult {
+    /// Whether repair was successful
+    pub success: bool,
+    /// Number of iterations used
+    pub iterations: usize,
+    /// Final compile rate
+    pub final_rate: f64,
+    /// Constraints learned
+    pub constraints_learned: usize,
+    /// Constraints applied
+    pub constraints_applied: usize,
+}
+
+/// DEPYLER-1101: Run automated type repair loop on a single file
+///
+/// This function implements the "Compile → Learn → Fix" cycle:
+/// 1. Transpile Python to Rust
+/// 2. Attempt compilation
+/// 3. Learn type constraints from E0308 errors
+/// 4. Re-transpile with learned constraints injected
+/// 5. Repeat until success or max iterations
+///
+/// Returns the repaired Rust code if successful.
+pub fn repair_file_types(
+    python_path: &std::path::Path,
+    max_iterations: usize,
+) -> anyhow::Result<TypeRepairResult> {
+    use depyler_core::DepylerPipeline;
+
+    let python_code = std::fs::read_to_string(python_path)?;
+    let pipeline = DepylerPipeline::new();
+    let mut learner = TypeConstraintLearner::new();
+    let mut iterations = 0;
+    let mut constraints_applied = 0;
+
+    // Convert learned constraints to HashMap for transpile_with_constraints
+    let mut type_constraints: std::collections::HashMap<String, String> =
+        std::collections::HashMap::new();
+
+    for _iteration in 0..max_iterations {
+        iterations += 1;
+
+        // DEPYLER-1101: Transpile with learned constraints
+        // First iteration uses empty constraints, subsequent iterations use learned ones
+        let rust_code = if type_constraints.is_empty() {
+            match pipeline.transpile(&python_code) {
+                Ok(code) => code,
+                Err(_e) => {
+                    return Ok(TypeRepairResult {
+                        success: false,
+                        iterations,
+                        final_rate: 0.0,
+                        constraints_learned: learner.constraints.len(),
+                        constraints_applied: 0,
+                    });
+                }
+            }
+        } else {
+            // Use transpile_with_constraints for subsequent iterations
+            match pipeline.transpile_with_constraints(&python_code, &type_constraints) {
+                Ok(code) => code,
+                Err(_e) => {
+                    return Ok(TypeRepairResult {
+                        success: false,
+                        iterations,
+                        final_rate: 0.0,
+                        constraints_learned: learner.constraints.len(),
+                        constraints_applied,
+                    });
+                }
+            }
+        };
+
+        // Try to compile
+        match try_compile_rust(&rust_code) {
+            Ok(()) => {
+                // Success!
+                return Ok(TypeRepairResult {
+                    success: true,
+                    iterations,
+                    final_rate: 1.0,
+                    constraints_learned: learner.constraints.len(),
+                    constraints_applied,
+                });
+            }
+            Err(errors) => {
+                // Learn from errors
+                let prev_count = learner.constraints.len();
+                learner.learn_from_errors(&errors, python_path);
+                let new_count = learner.constraints.len();
+
+                // If no new constraints learned, we're stuck
+                if new_count == prev_count {
+                    eprintln!(
+                        "DEPYLER-1101: No new constraints learned after {} iterations",
+                        iterations
+                    );
+                    break;
+                }
+
+                // DEPYLER-1101: Inject constraints for next iteration
+                // Convert TypeConstraint.location → TypeConstraint.expected_type
+                for constraint in &learner.constraints {
+                    // Only add if not already present (don't overwrite)
+                    if !type_constraints.contains_key(&constraint.location) {
+                        type_constraints.insert(
+                            constraint.location.clone(),
+                            constraint.expected_type.clone(),
+                        );
+                        constraints_applied += 1;
+                        eprintln!(
+                            "DEPYLER-1101: Learned constraint: {} → {}",
+                            constraint.location, constraint.expected_type
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(TypeRepairResult {
+        success: false,
+        iterations,
+        final_rate: 0.0,
+        constraints_learned: learner.constraints.len(),
+        constraints_applied,
+    })
 }
 
 // ============================================================================

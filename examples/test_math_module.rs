@@ -1993,21 +1993,18 @@ pub fn test_basic_math_functions() -> f64 {
     let floor_result: f64 = (3.7 as f64).floor();
     let ceil_result: f64 = (3.2 as f64).ceil();
     let abs_result: f64 = (-5.5 as f64).abs();
-    sqrt_result
-        .py_add(pow_result)
-        .py_add(floor_result)
-        .py_add(ceil_result)
+    ((((sqrt_result).py_add(pow_result)).py_add(floor_result)).py_add(ceil_result))
         .py_add(abs_result)
 }
 #[doc = "Test trigonometric functions"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_trigonometric_functions() -> Result<f64, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = std::f64::consts::PI.py_div(4.0);
+    let _cse_temp_0 = (std::f64::consts::PI).py_div(4.0);
     let angle: f64 = _cse_temp_0;
     let sin_result: f64 = (angle as f64).sin();
     let cos_result: f64 = (angle as f64).cos();
     let tan_result: f64 = (angle as f64).tan();
-    Ok(sin_result.py_add(cos_result).py_add(tan_result))
+    Ok(((sin_result).py_add(cos_result)).py_add(tan_result))
 }
 #[doc = "Test logarithmic and exponential functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -2016,7 +2013,7 @@ pub fn test_logarithmic_functions() -> f64 {
     let ln_result: f64 = (std::f64::consts::E as f64).ln();
     let log10_result: f64 = (100.0 as f64).log10();
     let exp_result: f64 = (1.0 as f64).exp();
-    ln_result.py_add(log10_result).py_add(exp_result)
+    ((ln_result).py_add(log10_result)).py_add(exp_result)
 }
 #[doc = "Test various rounding operations"]
 #[doc = " Depyler: verified panic-free"]
@@ -2026,7 +2023,7 @@ pub fn test_rounding_functions() -> f64 {
     let floored: f64 = (value as f64).floor();
     let ceiled: f64 = (value as f64).ceil();
     let truncated: f64 = (value as f64).trunc();
-    floored.py_add(ceiled).py_add(truncated)
+    ((floored).py_add(ceiled)).py_add(truncated)
 }
 #[doc = "Test mathematical constants"]
 #[doc = " Depyler: verified panic-free"]
@@ -2034,12 +2031,12 @@ pub fn test_rounding_functions() -> f64 {
 pub fn test_constants() -> f64 {
     let pi_value: f64 = std::f64::consts::PI;
     let e_value: f64 = std::f64::consts::E;
-    let _cse_temp_0 = pi_value.py_mul(5.0);
-    let _cse_temp_1 = _cse_temp_0.py_mul(5.0);
+    let _cse_temp_0 = (pi_value).py_mul(5.0);
+    let _cse_temp_1 = (_cse_temp_0).py_mul(5.0);
     let circle_area: f64 = _cse_temp_1;
-    let _cse_temp_2 = e_value.py_mul(2.0);
+    let _cse_temp_2 = (e_value).py_mul(2.0);
     let exponential_growth: f64 = _cse_temp_2;
-    circle_area.py_add(exponential_growth)
+    (circle_area).py_add(exponential_growth)
 }
 #[doc = "Test hyperbolic functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -2049,7 +2046,7 @@ pub fn test_hyperbolic_functions() -> f64 {
     let sinh_result: f64 = (x as f64).sinh();
     let cosh_result: f64 = (x as f64).cosh();
     let tanh_result: f64 = (x as f64).tanh();
-    sinh_result.py_add(cosh_result).py_add(tanh_result)
+    ((sinh_result).py_add(cosh_result)).py_add(tanh_result)
 }
 #[doc = "Test special mathematical functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -2073,7 +2070,7 @@ pub fn test_special_functions() -> f64 {
         }
         a as i32
     };
-    (fact_5.py_add(gcd_result)) as f64
+    ((fact_5).py_add(gcd_result)) as f64
 }
 #[doc = "Test degree/radian conversions"]
 #[doc = " Depyler: verified panic-free"]
@@ -2083,22 +2080,22 @@ pub fn test_angle_conversions() -> f64 {
     let radians: f64 = std::f64::consts::PI;
     let deg_to_rad: f64 = (degrees as f64).to_radians();
     let rad_to_deg: f64 = (radians as f64).to_degrees();
-    deg_to_rad.py_add(rad_to_deg)
+    (deg_to_rad).py_add(rad_to_deg)
 }
 #[doc = "Calculate Euclidean distance between two points"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_distance(x1: f64, y1: f64, x2: f64, y2: f64) -> f64 {
-    let dx: f64 = x2.py_sub(x1);
-    let dy: f64 = y2.py_sub(y1);
-    let distance: f64 = (dx.py_mul(dx).py_add(dy.py_mul(dy)) as f64).sqrt();
+    let dx: f64 = (x2).py_sub(x1);
+    let dy: f64 = (y2).py_sub(y1);
+    let distance: f64 = (((dx).py_mul(dx)).py_add((dy).py_mul(dy)) as f64).sqrt();
     distance
 }
 #[doc = "Calculate hypotenuse using Pythagorean theorem"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn calculate_hypotenuse(a: f64, b: f64) -> f64 {
-    (a.py_mul(a).py_add(b.py_mul(b)) as f64).sqrt()
+    (((a).py_mul(a)).py_add((b).py_mul(b)) as f64).sqrt()
 }
 #[doc = "Test various power operations"]
 #[doc = " Depyler: verified panic-free"]
@@ -2107,7 +2104,7 @@ pub fn test_power_operations() -> f64 {
     let basic_pow: f64 = (2.0 as f64).powf(8.0 as f64);
     let sqrt_as_pow: f64 = (25.0 as f64).powf(0.5 as f64);
     let cube_root: f64 = (27.0 as f64).powf(0.3333333333333333 as f64);
-    basic_pow.py_add(sqrt_as_pow).py_add(cube_root)
+    ((basic_pow).py_add(sqrt_as_pow)).py_add(cube_root)
 }
 #[doc = "Test min/max with math operations"]
 pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
@@ -2134,9 +2131,9 @@ pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, Box<dyn std::
             max_val = val;
         }
     }
-    let value_range: f64 = max_val.py_sub(min_val);
-    let geometric_mean: f64 = (min_val.py_mul(max_val) as f64).sqrt();
-    Ok(value_range.py_add(geometric_mean))
+    let value_range: f64 = (max_val).py_sub(min_val);
+    let geometric_mean: f64 = ((min_val).py_mul(max_val) as f64).sqrt();
+    Ok((value_range).py_add(geometric_mean))
 }
 #[doc = "Calculate statistical values using math operations"]
 pub fn test_statistical_math(numbers: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
@@ -2149,20 +2146,20 @@ pub fn test_statistical_math(numbers: &Vec<f64>) -> Result<f64, Box<dyn std::err
     }
     total = 0.0;
     for num in numbers.iter().cloned() {
-        total = total.py_add(num);
+        total = (total).py_add(num);
     }
     let _cse_temp_2 = (_cse_temp_0) as f64;
-    let _cse_temp_3 = total.py_div(_cse_temp_2);
+    let _cse_temp_3 = (total).py_div(_cse_temp_2);
     let mean: f64 = _cse_temp_3;
     variance_sum = 0.0;
     for num in numbers.iter().cloned() {
-        let diff: f64 = num.py_sub(mean);
-        variance_sum = variance_sum.py_add(diff.py_mul(diff));
+        let diff: f64 = (num).py_sub(mean);
+        variance_sum = (variance_sum).py_add((diff).py_mul(diff));
     }
-    let _cse_temp_4 = variance_sum.py_div(_cse_temp_2);
+    let _cse_temp_4 = (variance_sum).py_div(_cse_temp_2);
     let variance: f64 = _cse_temp_4;
     let std_dev: f64 = (variance as f64).sqrt();
-    Ok(mean.py_add(std_dev))
+    Ok((mean).py_add(std_dev))
 }
 #[doc = "Test sign-related functions"]
 #[doc = " Depyler: verified panic-free"]
@@ -2172,7 +2169,7 @@ pub fn test_sign_and_copysign() -> f64 {
     let abs2: f64 = (7.3 as f64).abs();
     let result1: f64 = (5.0 as f64).copysign(-1.0 as f64);
     let result2: f64 = (5.0 as f64).copysign(1.0 as f64);
-    abs1.py_add(abs2).py_add(result1).py_add(result2)
+    (((abs1).py_add(abs2)).py_add(result1)).py_add(result2)
 }
 #[doc = "Test modulo and remainder operations"]
 #[doc = " Depyler: verified panic-free"]
@@ -2185,7 +2182,7 @@ pub fn test_remainder_operations() -> f64 {
         let n = (x / y).round();
         x - n * y
     };
-    mod_result.py_add(remainder)
+    (mod_result).py_add(remainder)
 }
 #[doc = "Test integer-specific math operations"]
 #[doc = " Depyler: proven to terminate"]
@@ -2230,7 +2227,7 @@ pub fn test_integer_operations() -> Result<i32, Box<dyn std::error::Error>> {
     };
     let a: i32 = 12;
     let b: i32 = 18;
-    let _cse_temp_0 = a.py_mul(b);
+    let _cse_temp_0 = (a).py_mul(b);
     let _cse_temp_1 = (_cse_temp_0).abs();
     let _cse_temp_2 = {
         let a = _cse_temp_1;
@@ -2258,7 +2255,7 @@ pub fn test_integer_operations() -> Result<i32, Box<dyn std::error::Error>> {
         }
     };
     let lcm: i32 = _cse_temp_2;
-    Ok(fact.py_add(gcd1).py_add(gcd2).py_add(lcm))
+    Ok((((fact).py_add(gcd1)).py_add(gcd2)).py_add(lcm))
 }
 #[doc = "Run all math module tests"]
 #[doc = " Depyler: verified panic-free"]

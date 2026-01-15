@@ -1957,7 +1957,7 @@ pub fn fibonacci(n: i32) -> i32 {
     if _cse_temp_0 {
         return n;
     }
-    fibonacci(n.py_sub(1)).py_add(fibonacci(n.py_sub(2)))
+    (fibonacci((n).py_sub(1))).py_add(fibonacci((n).py_sub(2)))
 }
 #[doc = "Process list with performance hints"]
 #[doc = " Depyler: verified panic-free"]
@@ -1965,7 +1965,7 @@ pub fn process_list(items: &Vec<i32>) -> Vec<i32> {
     let mut result = vec![];
     for item in items.iter().cloned() {
         if item > 0 {
-            result.push(DepylerValue::Str(format!("{:?}", item.py_mul(2))));
+            result.push(DepylerValue::Str(format!("{:?}", (item).py_mul(2))));
         }
     }
     result

@@ -208,8 +208,9 @@ impl DepylerValue {
             _ => EMPTY_MAP.values(),
         }
     }
-    #[doc = r" Convert to String"]
-    pub fn to_string(&self) -> String {
+    #[doc = r" Convert to String(renamed to avoid shadowing Display::to_string)"]
+    #[doc = r" DEPYLER-1121: Renamed from to_string to as_string to fix clippy::inherent_to_string_shadow_display"]
+    pub fn as_string(&self) -> String {
         match self {
             DepylerValue::Str(_dv_str) => _dv_str.clone(),
             DepylerValue::Int(_dv_int) => _dv_int.to_string(),
@@ -1046,6 +1047,20 @@ impl PyAdd<&str> for String {
         self + rhs
     }
 }
+impl PyAdd<&str> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: &str) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
+impl PyAdd<String> for &str {
+    type Output = String;
+    #[inline]
+    fn py_add(self, rhs: String) -> String {
+        format!("{}{}", self, rhs)
+    }
+}
 impl PyAdd for DepylerValue {
     type Output = DepylerValue;
     fn py_add(self, rhs: DepylerValue) -> DepylerValue {
@@ -1198,6 +1213,26 @@ impl PyMul<i32> for String {
     }
 }
 impl PyMul<i64> for String {
+    type Output = String;
+    fn py_mul(self, rhs: i64) -> String {
+        if rhs <= 0 {
+            String::new()
+        } else {
+            self.repeat(rhs as usize)
+        }
+    }
+}
+impl PyMul<i32> for &str {
+    type Output = String;
+    fn py_mul(self, rhs: i32) -> String {
+        if rhs <= 0 {
+            String::new()
+        } else {
+            self.repeat(rhs as usize)
+        }
+    }
+}
+impl PyMul<i64> for &str {
     type Output = String;
     fn py_mul(self, rhs: i64) -> String {
         if rhs <= 0 {
@@ -1538,6 +1573,458 @@ impl PyIndex<&str> for DepylerValue {
                 .cloned()
                 .unwrap_or(DepylerValue::None),
             _ => DepylerValue::None,
+        }
+    }
+}
+pub trait PyStringMethods {
+    fn lower(&self) -> String;
+    fn upper(&self) -> String;
+    fn strip(&self) -> String;
+    fn lstrip(&self) -> String;
+    fn rstrip(&self) -> String;
+    fn py_split(&self, sep: &str) -> Vec<String>;
+    fn py_replace(&self, old: &str, new: &str) -> String;
+    fn startswith(&self, prefix: &str) -> bool;
+    fn endswith(&self, suffix: &str) -> bool;
+    fn py_find(&self, sub: &str) -> i64;
+    fn capitalize(&self) -> String;
+    fn title(&self) -> String;
+    fn swapcase(&self) -> String;
+    fn isalpha(&self) -> bool;
+    fn isdigit(&self) -> bool;
+    fn isalnum(&self) -> bool;
+    fn isspace(&self) -> bool;
+    fn islower(&self) -> bool;
+    fn isupper(&self) -> bool;
+    fn center(&self, width: usize) -> String;
+    fn ljust(&self, width: usize) -> String;
+    fn rjust(&self, width: usize) -> String;
+    fn zfill(&self, width: usize) -> String;
+    fn count(&self, sub: &str) -> usize;
+}
+impl PyStringMethods for str {
+    #[inline]
+    fn lower(&self) -> String {
+        self.to_lowercase()
+    }
+    #[inline]
+    fn upper(&self) -> String {
+        self.to_uppercase()
+    }
+    #[inline]
+    fn strip(&self) -> String {
+        self.trim().to_string()
+    }
+    #[inline]
+    fn lstrip(&self) -> String {
+        self.trim_start().to_string()
+    }
+    #[inline]
+    fn rstrip(&self) -> String {
+        self.trim_end().to_string()
+    }
+    #[inline]
+    fn py_split(&self, sep: &str) -> Vec<String> {
+        self.split(sep).map(|s| s.to_string()).collect()
+    }
+    #[inline]
+    fn py_replace(&self, old: &str, new: &str) -> String {
+        self.replace(old, new)
+    }
+    #[inline]
+    fn startswith(&self, prefix: &str) -> bool {
+        self.starts_with(prefix)
+    }
+    #[inline]
+    fn endswith(&self, suffix: &str) -> bool {
+        self.ends_with(suffix)
+    }
+    #[inline]
+    fn py_find(&self, sub: &str) -> i64 {
+        self.find(sub).map(|i| i as i64).unwrap_or(-1)
+    }
+    #[inline]
+    fn capitalize(&self) -> String {
+        let mut chars = self.chars();
+        match chars.next() {
+            None => String::new(),
+            Some(c) => c
+                .to_uppercase()
+                .chain(chars.flat_map(|c| c.to_lowercase()))
+                .collect(),
+        }
+    }
+    #[inline]
+    fn title(&self) -> String {
+        let mut result = String::new();
+        let mut capitalize_next = true;
+        for c in self.chars() {
+            if c.is_whitespace() {
+                result.push(c);
+                capitalize_next = true;
+            } else if capitalize_next {
+                result.extend(c.to_uppercase());
+                capitalize_next = false;
+            } else {
+                result.extend(c.to_lowercase());
+            }
+        }
+        result
+    }
+    #[inline]
+    fn swapcase(&self) -> String {
+        self.chars()
+            .map(|c| {
+                if c.is_uppercase() {
+                    c.to_lowercase().collect::<String>()
+                } else {
+                    c.to_uppercase().collect::<String>()
+                }
+            })
+            .collect()
+    }
+    #[inline]
+    fn isalpha(&self) -> bool {
+        !self.is_empty() && self.chars().all(|c| c.is_alphabetic())
+    }
+    #[inline]
+    fn isdigit(&self) -> bool {
+        !self.is_empty() && self.chars().all(|c| c.is_ascii_digit())
+    }
+    #[inline]
+    fn isalnum(&self) -> bool {
+        !self.is_empty() && self.chars().all(|c| c.is_alphanumeric())
+    }
+    #[inline]
+    fn isspace(&self) -> bool {
+        !self.is_empty() && self.chars().all(|c| c.is_whitespace())
+    }
+    #[inline]
+    fn islower(&self) -> bool {
+        self.chars().any(|c| c.is_lowercase()) && !self.chars().any(|c| c.is_uppercase())
+    }
+    #[inline]
+    fn isupper(&self) -> bool {
+        self.chars().any(|c| c.is_uppercase()) && !self.chars().any(|c| c.is_lowercase())
+    }
+    #[inline]
+    fn center(&self, width: usize) -> String {
+        if self.len() >= width {
+            return self.to_string();
+        }
+        let padding = width - self.len();
+        let left = padding / 2;
+        let right = padding - left;
+        format!("{}{}{}", " ".repeat(left), self, " ".repeat(right))
+    }
+    #[inline]
+    fn ljust(&self, width: usize) -> String {
+        if self.len() >= width {
+            return self.to_string();
+        }
+        format!("{}{}", self, " ".repeat(width - self.len()))
+    }
+    #[inline]
+    fn rjust(&self, width: usize) -> String {
+        if self.len() >= width {
+            return self.to_string();
+        }
+        format!("{}{}", " ".repeat(width - self.len()), self)
+    }
+    #[inline]
+    fn zfill(&self, width: usize) -> String {
+        if self.len() >= width {
+            return self.to_string();
+        }
+        format!("{}{}", "0".repeat(width - self.len()), self)
+    }
+    #[inline]
+    fn count(&self, sub: &str) -> usize {
+        self.matches(sub).count()
+    }
+}
+impl PyStringMethods for String {
+    #[inline]
+    fn lower(&self) -> String {
+        self.as_str().lower()
+    }
+    #[inline]
+    fn upper(&self) -> String {
+        self.as_str().upper()
+    }
+    #[inline]
+    fn strip(&self) -> String {
+        self.as_str().strip()
+    }
+    #[inline]
+    fn lstrip(&self) -> String {
+        self.as_str().lstrip()
+    }
+    #[inline]
+    fn rstrip(&self) -> String {
+        self.as_str().rstrip()
+    }
+    #[inline]
+    fn py_split(&self, sep: &str) -> Vec<String> {
+        self.as_str().py_split(sep)
+    }
+    #[inline]
+    fn py_replace(&self, old: &str, new: &str) -> String {
+        self.as_str().py_replace(old, new)
+    }
+    #[inline]
+    fn startswith(&self, prefix: &str) -> bool {
+        self.as_str().startswith(prefix)
+    }
+    #[inline]
+    fn endswith(&self, suffix: &str) -> bool {
+        self.as_str().endswith(suffix)
+    }
+    #[inline]
+    fn py_find(&self, sub: &str) -> i64 {
+        self.as_str().py_find(sub)
+    }
+    #[inline]
+    fn capitalize(&self) -> String {
+        self.as_str().capitalize()
+    }
+    #[inline]
+    fn title(&self) -> String {
+        self.as_str().title()
+    }
+    #[inline]
+    fn swapcase(&self) -> String {
+        self.as_str().swapcase()
+    }
+    #[inline]
+    fn isalpha(&self) -> bool {
+        self.as_str().isalpha()
+    }
+    #[inline]
+    fn isdigit(&self) -> bool {
+        self.as_str().isdigit()
+    }
+    #[inline]
+    fn isalnum(&self) -> bool {
+        self.as_str().isalnum()
+    }
+    #[inline]
+    fn isspace(&self) -> bool {
+        self.as_str().isspace()
+    }
+    #[inline]
+    fn islower(&self) -> bool {
+        self.as_str().islower()
+    }
+    #[inline]
+    fn isupper(&self) -> bool {
+        self.as_str().isupper()
+    }
+    #[inline]
+    fn center(&self, width: usize) -> String {
+        self.as_str().center(width)
+    }
+    #[inline]
+    fn ljust(&self, width: usize) -> String {
+        self.as_str().ljust(width)
+    }
+    #[inline]
+    fn rjust(&self, width: usize) -> String {
+        self.as_str().rjust(width)
+    }
+    #[inline]
+    fn zfill(&self, width: usize) -> String {
+        self.as_str().zfill(width)
+    }
+    #[inline]
+    fn count(&self, sub: &str) -> usize {
+        self.as_str().count(sub)
+    }
+}
+impl PyStringMethods for DepylerValue {
+    #[inline]
+    fn lower(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.lower(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn upper(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.upper(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn strip(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.strip(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn lstrip(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.lstrip(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn rstrip(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.rstrip(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn py_split(&self, sep: &str) -> Vec<String> {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.py_split(sep),
+            _ => Vec::new(),
+        }
+    }
+    #[inline]
+    fn py_replace(&self, old: &str, new: &str) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.py_replace(old, new),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn startswith(&self, prefix: &str) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.startswith(prefix),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn endswith(&self, suffix: &str) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.endswith(suffix),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn py_find(&self, sub: &str) -> i64 {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.py_find(sub),
+            _ => -1,
+        }
+    }
+    #[inline]
+    fn capitalize(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.capitalize(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn title(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.title(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn swapcase(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.swapcase(),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn isalpha(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isalpha(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn isdigit(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isdigit(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn isalnum(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isalnum(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn isspace(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isspace(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn islower(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.islower(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn isupper(&self) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.isupper(),
+            _ => false,
+        }
+    }
+    #[inline]
+    fn center(&self, width: usize) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.center(width),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn ljust(&self, width: usize) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.ljust(width),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn rjust(&self, width: usize) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.rjust(width),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn zfill(&self, width: usize) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.zfill(width),
+            _ => String::new(),
+        }
+    }
+    #[inline]
+    fn count(&self, sub: &str) -> usize {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.count(sub),
+            _ => 0,
+        }
+    }
+}
+impl DepylerValue {
+    #[doc = r" Check if string contains substring(Python's `in` operator for strings)"]
+    #[inline]
+    pub fn contains(&self, sub: &str) -> bool {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.contains(sub),
+            DepylerValue::List(_dv_l) => _dv_l.iter().any(|v| {
+                if let DepylerValue::Str(s) = v {
+                    s == sub
+                } else {
+                    false
+                }
+            }),
+            _ => false,
         }
     }
 }
@@ -1991,7 +2478,7 @@ impl DepylerRegexMatch {
 pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
     let mut data: Vec<f64> = vec![];
     for _i in 0..(size) {
-        let value: f64 = 0.5_f64.py_mul(stddev).py_add(mean);
+        let value: f64 = ((0.5_f64).py_mul(stddev)).py_add(mean);
         data.push(value);
     }
     data
@@ -2000,10 +2487,10 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
 pub fn calculate_statistics(
     data: &Vec<f64>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut variance_sum: f64 = Default::default();
-    let mut min_val: f64 = Default::default();
-    let mut max_val: f64 = Default::default();
     let mut total: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
+    let mut min_val: f64 = Default::default();
+    let mut variance_sum: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -2018,18 +2505,18 @@ pub fn calculate_statistics(
     };
     total = 0.0;
     for value in data.iter().cloned() {
-        total = total.py_add(value);
+        total = (total).py_add(value);
     }
     let _cse_temp_2 = (_cse_temp_0) as f64;
-    let _cse_temp_3 = total.py_div(_cse_temp_2);
+    let _cse_temp_3 = (total).py_div(_cse_temp_2);
     let mean: f64 = _cse_temp_3;
     stats.insert("mean".to_string(), mean);
     variance_sum = 0.0;
     for value in data.iter().cloned() {
-        let diff: f64 = value.py_sub(mean);
-        variance_sum = variance_sum.py_add(diff.py_mul(diff));
+        let diff: f64 = (value).py_sub(mean);
+        variance_sum = (variance_sum).py_add((diff).py_mul(diff));
     }
-    let _cse_temp_4 = variance_sum.py_div(_cse_temp_2);
+    let _cse_temp_4 = (variance_sum).py_div(_cse_temp_2);
     let variance: f64 = _cse_temp_4;
     stats.insert("variance".to_string(), variance);
     stats.insert("std_dev".to_string(), (variance as f64).sqrt());
@@ -2051,10 +2538,10 @@ pub fn calculate_statistics(
     }
     stats.insert("min".to_string(), min_val);
     stats.insert("max".to_string(), max_val);
-    stats.insert("range".to_string(), max_val.py_sub(min_val));
+    stats.insert("range".to_string(), (max_val).py_sub(min_val));
     let mut sorted_data: Vec<f64> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in (i.py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -2097,7 +2584,7 @@ pub fn calculate_statistics(
         }
     };
     let mid: i32 = _cse_temp_6;
-    let _cse_temp_7 = _cse_temp_5.py_mod(2);
+    let _cse_temp_7 = (_cse_temp_5).py_mod(2);
     let _cse_temp_8 = _cse_temp_7 == 1;
     if _cse_temp_8 {
         stats.insert(
@@ -2108,9 +2595,9 @@ pub fn calculate_statistics(
                 .expect("IndexError: list index out of range"),
         );
     } else {
-        let _cse_temp_9 = {
+        let _cse_temp_9 = ({
             let base = &sorted_data;
-            let idx: i32 = mid.py_sub(1);
+            let idx: i32 = (mid).py_sub(1);
             let actual_idx = if idx < 0 {
                 base.len().saturating_sub(idx.abs() as usize)
             } else {
@@ -2119,14 +2606,14 @@ pub fn calculate_statistics(
             base.get(actual_idx)
                 .cloned()
                 .expect("IndexError: list index out of range")
-        }
+        })
         .py_add(
             sorted_data
                 .get(mid as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
-        let _cse_temp_10 = _cse_temp_9.py_div(2.0);
+        let _cse_temp_10 = (_cse_temp_9).py_div(2.0);
         stats.insert("median".to_string(), _cse_temp_10);
     }
     Ok(stats)
@@ -2146,7 +2633,7 @@ pub fn calculate_percentiles(
     }
     let mut sorted_data: Vec<f64> = data.clone();
     for i in 0..(sorted_data.len() as i32) {
-        for j in (i.py_add(1))..(sorted_data.len() as i32) {
+        for j in ((i).py_add(1))..(sorted_data.len() as i32) {
             if sorted_data
                 .get(j as usize)
                 .cloned()
@@ -2224,7 +2711,7 @@ pub fn calculate_percentiles(
             .cloned()
             .expect("IndexError: list index out of range"),
     );
-    let _cse_temp_5 = 3.py_mul(_cse_temp_2);
+    let _cse_temp_5 = (3).py_mul(_cse_temp_2);
     let _cse_temp_6 = {
         let a = _cse_temp_5;
         let b = 4;
@@ -2249,10 +2736,7 @@ pub fn calculate_percentiles(
             .cloned()
             .expect("IndexError: list index out of range"),
     );
-    let _cse_temp_7 = percentiles
-        .get("q3")
-        .cloned()
-        .unwrap_or_default()
+    let _cse_temp_7 = (percentiles.get("q3").cloned().unwrap_or_default())
         .py_sub(percentiles.get("q1").cloned().unwrap_or_default());
     percentiles.insert("iqr".to_string(), _cse_temp_7);
     Ok(percentiles)
@@ -2268,9 +2752,9 @@ pub fn detect_outliers(data: &Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
     let q1: f64 = percentiles.get("q1").cloned().unwrap_or_default();
     let q3: f64 = percentiles.get("q3").cloned().unwrap_or_default();
     let iqr: f64 = percentiles.get("iqr").cloned().unwrap_or_default();
-    let _cse_temp_2 = 1.5.py_mul(iqr);
-    let lower_bound: f64 = q1.py_sub(_cse_temp_2);
-    let upper_bound: f64 = q3.py_add(_cse_temp_2);
+    let _cse_temp_2 = (1.5).py_mul(iqr);
+    let lower_bound: f64 = (q1).py_sub(_cse_temp_2);
+    let upper_bound: f64 = (q3).py_add(_cse_temp_2);
     let mut outliers: Vec<f64> = vec![];
     for value in data.iter().cloned() {
         if (value < lower_bound) || (value > upper_bound) {
@@ -2284,8 +2768,8 @@ pub fn bin_data(
     data: &Vec<f64>,
     num_bins: i32,
 ) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
-    let mut min_val: f64 = Default::default();
     let mut max_val: f64 = Default::default();
+    let mut min_val: f64 = Default::default();
     let mut bin_index: i32 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -2314,7 +2798,7 @@ pub fn bin_data(
         }
     }
     let _cse_temp_4 = (num_bins) as f64;
-    let _cse_temp_5 = max_val.py_sub(min_val).py_div(_cse_temp_4);
+    let _cse_temp_5 = ((max_val).py_sub(min_val)).py_div(_cse_temp_4);
     let bin_width: f64 = _cse_temp_5;
     let mut bins: std::collections::HashMap<i32, i32> = {
         let map: HashMap<i32, i32> = HashMap::new();
@@ -2324,9 +2808,9 @@ pub fn bin_data(
         bins.insert(i.clone(), 0);
     }
     for value in data.iter().cloned() {
-        bin_index = (value.py_sub(min_val).py_div(bin_width)) as i32;
+        bin_index = (((value).py_sub(min_val)).py_div(bin_width)) as i32;
         if bin_index >= num_bins {
-            bin_index = num_bins.py_sub(1);
+            bin_index = (num_bins).py_sub(1);
         }
         {
             let _key = bin_index;
@@ -2342,11 +2826,11 @@ pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut y_sum: f64 = Default::default();
-    let mut x_variance_sum: f64 = Default::default();
-    let mut y_variance_sum: f64 = Default::default();
-    let mut numerator: f64 = Default::default();
     let mut x_sum: f64 = Default::default();
+    let mut x_variance_sum: f64 = Default::default();
+    let mut numerator: f64 = Default::default();
+    let mut y_sum: f64 = Default::default();
+    let mut y_variance_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -2358,47 +2842,47 @@ pub fn calculate_correlation<'a, 'b>(
     x_sum = 0.0;
     y_sum = 0.0;
     for i in 0..(x.len() as i32) {
-        x_sum = x_sum.py_add(
+        x_sum = (x_sum).py_add(
             x.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
-        y_sum = y_sum.py_add(
+        y_sum = (y_sum).py_add(
             y.get(i as usize)
                 .cloned()
                 .expect("IndexError: list index out of range"),
         );
     }
     let _cse_temp_5 = (_cse_temp_0) as f64;
-    let _cse_temp_6 = x_sum.py_div(_cse_temp_5);
+    let _cse_temp_6 = (x_sum).py_div(_cse_temp_5);
     let x_mean: f64 = _cse_temp_6;
     let _cse_temp_7 = (_cse_temp_1) as f64;
-    let _cse_temp_8 = y_sum.py_div(_cse_temp_7);
+    let _cse_temp_8 = (y_sum).py_div(_cse_temp_7);
     let y_mean: f64 = _cse_temp_8;
     numerator = 0.0;
     x_variance_sum = 0.0;
     y_variance_sum = 0.0;
     for i in 0..(x.len() as i32) {
-        let x_diff: f64 = x
+        let x_diff: f64 = (x
             .get(i as usize)
             .cloned()
-            .expect("IndexError: list index out of range")
-            .py_sub(x_mean);
-        let y_diff: f64 = y
+            .expect("IndexError: list index out of range"))
+        .py_sub(x_mean);
+        let y_diff: f64 = (y
             .get(i as usize)
             .cloned()
-            .expect("IndexError: list index out of range")
-            .py_sub(y_mean);
-        numerator = numerator.py_add(x_diff.py_mul(y_diff));
-        x_variance_sum = x_variance_sum.py_add(x_diff.py_mul(x_diff));
-        y_variance_sum = y_variance_sum.py_add(y_diff.py_mul(y_diff));
+            .expect("IndexError: list index out of range"))
+        .py_sub(y_mean);
+        numerator = (numerator).py_add((x_diff).py_mul(y_diff));
+        x_variance_sum = (x_variance_sum).py_add((x_diff).py_mul(x_diff));
+        y_variance_sum = (y_variance_sum).py_add((y_diff).py_mul(y_diff));
     }
-    let denominator: f64 = (x_variance_sum.py_mul(y_variance_sum) as f64).sqrt();
+    let denominator: f64 = ((x_variance_sum).py_mul(y_variance_sum) as f64).sqrt();
     let _cse_temp_9 = denominator == 0.0;
     if _cse_temp_9 {
         return Ok(0.0);
     }
-    let _cse_temp_10 = numerator.py_div(denominator);
+    let _cse_temp_10 = (numerator).py_div(denominator);
     let correlation: f64 = _cse_temp_10;
     Ok(correlation)
 }
@@ -2413,24 +2897,24 @@ pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Er
     }
     total = 0.0;
     for value in data.iter().cloned() {
-        total = total.py_add(value);
+        total = (total).py_add(value);
     }
     let _cse_temp_2 = (_cse_temp_0) as f64;
-    let _cse_temp_3 = total.py_div(_cse_temp_2);
+    let _cse_temp_3 = (total).py_div(_cse_temp_2);
     let mean: f64 = _cse_temp_3;
     variance_sum = 0.0;
     for value in data.iter().cloned() {
-        let diff: f64 = value.py_sub(mean);
-        variance_sum = variance_sum.py_add(diff.py_mul(diff));
+        let diff: f64 = (value).py_sub(mean);
+        variance_sum = (variance_sum).py_add((diff).py_mul(diff));
     }
-    let stddev: f64 = (variance_sum.py_div((data.len() as i32) as f64) as f64).sqrt();
+    let stddev: f64 = ((variance_sum).py_div((data.len() as i32) as f64) as f64).sqrt();
     let _cse_temp_4 = stddev == 0.0;
     if _cse_temp_4 {
         return Ok(data);
     }
     let mut normalized: Vec<f64> = vec![];
     for value in data.iter().cloned() {
-        let z_score: f64 = value.py_sub(mean).py_div(stddev);
+        let z_score: f64 = ((value).py_sub(mean)).py_div(stddev);
         normalized.push(z_score);
     }
     Ok(normalized)
@@ -2481,9 +2965,9 @@ pub fn monte_carlo_simulation(
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
     let mut results: Vec<f64> = vec![];
     for _trial in 0..(num_trials) {
-        let x: f64 = 0.5_f64.py_mul(10.0);
-        let y: f64 = 0.5_f64.py_mul(10.0);
-        let distance: f64 = (x.py_mul(x).py_add(y.py_mul(y)) as f64).sqrt();
+        let x: f64 = (0.5_f64).py_mul(10.0);
+        let y: f64 = (0.5_f64).py_mul(10.0);
+        let distance: f64 = (((x).py_mul(x)).py_add((y).py_mul(y)) as f64).sqrt();
         results.push(distance);
     }
     let stats: std::collections::HashMap<String, f64> = calculate_statistics(&results)?;
