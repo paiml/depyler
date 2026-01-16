@@ -5779,30 +5779,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "dot" => {
-                // np.dot(a, b) → a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f64>()
+                // DEPYLER-1135: np.dot(a, b) → numeric coercion for mixed int/float arrays
+                // Convert elements to f64 before multiplication to handle integer arrays
                 if arg_exprs.len() >= 2 {
                     let a = &arg_exprs[0];
                     let b = &arg_exprs[1];
                     parse_quote! {
-                        #a.iter().zip(#b.iter()).map(|(x, y)| x * y).sum::<f64>()
+                        #a.iter().zip(#b.iter()).map(|(x, y)| (*x as f64) * (*y as f64)).sum::<f64>()
                     }
                 } else {
                     bail!("np.dot() requires 2 arguments");
                 }
             }
             "sum" => {
-                // np.sum(a) → a.iter().sum::<f64>()
+                // DEPYLER-1135: np.sum(a) → coerce elements to f64 for universal numeric promotion
+                // This handles both Vec<i32> and Vec<f64> by converting to f64
                 if let Some(arr) = arg_exprs.first() {
-                    parse_quote! { #arr.iter().sum::<f64>() }
+                    parse_quote! { #arr.iter().map(|&x| x as f64).sum::<f64>() }
                 } else {
                     bail!("np.sum() requires 1 argument");
                 }
             }
             "mean" => {
-                // np.mean(a) → a.iter().sum::<f64>() / a.len() as f64
+                // DEPYLER-1135: np.mean(a) → coerce elements to f64 for proper averaging
                 if let Some(arr) = arg_exprs.first() {
                     parse_quote! {
-                        (#arr.iter().sum::<f64>() / #arr.len() as f64)
+                        (#arr.iter().map(|&x| x as f64).sum::<f64>() / #arr.len() as f64)
                     }
                 } else {
                     bail!("np.mean() requires 1 argument");
@@ -5833,18 +5835,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "min" | "amin" => {
+                // DEPYLER-1135: Coerce to f64 for numeric promotion
                 if let Some(arr) = arg_exprs.first() {
                     parse_quote! {
-                        #arr.iter().cloned().fold(f64::INFINITY, f64::min)
+                        #arr.iter().map(|&x| x as f64).fold(f64::INFINITY, f64::min)
                     }
                 } else {
                     bail!("np.min() requires 1 argument");
                 }
             }
             "max" | "amax" => {
+                // DEPYLER-1135: Coerce to f64 for numeric promotion
                 if let Some(arr) = arg_exprs.first() {
                     parse_quote! {
-                        #arr.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+                        #arr.iter().map(|&x| x as f64).fold(f64::NEG_INFINITY, f64::max)
                     }
                 } else {
                     bail!("np.max() requires 1 argument");
@@ -5919,10 +5923,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "std" => {
-                // std = sqrt(variance)
+                // DEPYLER-1135: std = sqrt(variance) with numeric coercion
                 if let Some(arr) = arg_exprs.first() {
                     parse_quote! {{
-                        let data = &#arr;
+                        let data: Vec<f64> = #arr.iter().map(|&x| x as f64).collect();
                         let mean = data.iter().sum::<f64>() / data.len() as f64;
                         let variance = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64;
                         variance.sqrt()
@@ -5932,9 +5936,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "var" => {
+                // DEPYLER-1135: variance with numeric coercion
                 if let Some(arr) = arg_exprs.first() {
                     parse_quote! {{
-                        let data = &#arr;
+                        let data: Vec<f64> = #arr.iter().map(|&x| x as f64).collect();
                         let mean = data.iter().sum::<f64>() / data.len() as f64;
                         data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64
                     }}
@@ -5957,10 +5962,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
             }
             "norm" => {
-                // L2 norm: sqrt(sum of squares)
+                // DEPYLER-1135: L2 norm with numeric coercion
                 if let Some(arr) = arg_exprs.first() {
                     parse_quote! {
-                        (#arr.iter().map(|x| x * x).sum::<f64>()).sqrt()
+                        (#arr.iter().map(|&x| { let v = x as f64; v * v }).sum::<f64>()).sqrt()
                     }
                 } else {
                     bail!("np.norm() requires 1 argument");

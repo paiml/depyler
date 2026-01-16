@@ -134,10 +134,54 @@ pub fn is_numpy_value_expr(expr: &HirExpr, ctx: &CodeGenContext) -> bool {
     }
 }
 
+/// DEPYLER-1135: Check if expression returns f64 (needs cast to i32 when target is Int)
+/// Detects numpy operations that always return f64 after numeric promotion
+pub fn expr_returns_f64(expr: &HirExpr) -> bool {
+    match expr {
+        HirExpr::MethodCall { method, object, .. } => {
+            // DEPYLER-1135: Numpy array aggregation methods return f64
+            let is_numpy_agg = matches!(
+                method.as_str(),
+                "sum" | "mean" | "std" | "var" | "min" | "max" | "prod" | "dot" | "norm"
+            );
+            // Check for iterator methods that produce f64
+            let is_f64_iter = method == "sum" && {
+                // Check if chain includes map to f64
+                match object.as_ref() {
+                    HirExpr::MethodCall { method: inner_method, .. } => {
+                        inner_method == "map" || inner_method == "iter"
+                    }
+                    _ => false,
+                }
+            };
+            is_numpy_agg || is_f64_iter
+        }
+        HirExpr::Call { func, .. } => {
+            // DEPYLER-1135: Module-qualified numpy calls that return f64
+            let func_parts: Vec<&str> = func.split('.').collect();
+            if func_parts.len() >= 2 {
+                let module = func_parts[0];
+                let method = func_parts[func_parts.len() - 1];
+                if matches!(module, "np" | "numpy") {
+                    return matches!(
+                        method,
+                        "sum" | "mean" | "std" | "var" | "min" | "max" | "prod" | "dot" | "norm"
+                    );
+                }
+            }
+            false
+        }
+        // Propagate through parenthesized expressions
+        HirExpr::Unary { operand, .. } => expr_returns_f64(operand),
+        _ => false,
+    }
+}
+
 /// Check if a type annotation requires explicit conversion
 pub fn needs_type_conversion(target_type: &Type, expr: &HirExpr) -> bool {
     match target_type {
-        Type::Int => expr_returns_usize(expr),
+        // DEPYLER-1135: Extended to check f64-returning numpy operations
+        Type::Int => expr_returns_usize(expr) || expr_returns_f64(expr),
         Type::String => matches!(expr, HirExpr::Var(_)),
         _ => false,
     }
