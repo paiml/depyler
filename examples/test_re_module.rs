@@ -4,9 +4,9 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_HELLO: &'static str = "Hello";
-    const STR_HELLO_WORLD: &'static str = "Hello World";
+const STR_HELLO_WORLD: &'static str = "Hello World";
     const STR_EMPTY: &'static str = "";
+    const STR_HELLO: &'static str = "Hello";
     #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
 }
@@ -180,6 +180,33 @@ DepylerValue::List(_dv_list) =>{
 _dv_list.clone()
 }
 _dv_other =>panic!("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
+}
+} #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"] #[doc = r" Returns empty string for non-element types"] pub fn tag(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.clone(), _ =>String::new() ,
+}
+} #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"] #[doc = r" Returns None for non-string types"] pub fn text(&self) -> Option<String>{
+    match self {
+    DepylerValue::Str(_dv_s) =>Some(_dv_s.clone()), DepylerValue::None =>Option::None, _ =>Option::None ,
+}
+} #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"] #[doc = r" Returns DepylerValue::None for non-matching/non-container types"] pub fn find(&self, _tag: & str) -> DepylerValue {
+    match self {
+    DepylerValue::List(_dv_list) =>{
+    _dv_list.first().cloned().unwrap_or(DepylerValue::None)
+}
+DepylerValue::Dict(_dv_dict) =>{
+    _dv_dict.get(& DepylerValue::Str(_tag.to_string())).cloned().unwrap_or(DepylerValue::None)
+}
+_ =>DepylerValue::None ,
+}
+} #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"] #[doc = r" Returns empty Vec for non-container types"] pub fn findall(&self, _tag: & str) -> Vec<DepylerValue>{
+    match self {
+    DepylerValue::List(_dv_list) =>_dv_list.clone(), _ =>Vec::new() ,
+}
+} #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"] #[doc = r" No-op for non-dict types"] pub fn set(&mut self, key: & str, value: & str) {
+    if let DepylerValue::Dict(_dv_dict) = self {
+    _dv_dict.insert(DepylerValue::Str(key.to_string()), DepylerValue::Str(value.to_string()));
+   
 }
 }
 }
@@ -2149,20 +2176,20 @@ domain.to_string()
     let normalized: String = words.join (" ");
     normalized.to_string()
 }
-#[doc = "Check if text starts with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn starts_with_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Check if text starts with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn starts_with_pattern<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
     text.starts_with(pattern)
 }
 #[doc = "Check if text ends with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn ends_with_pattern<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
     text.ends_with(pattern)
 }
-#[doc = "Case-insensitive pattern matching"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn case_insensitive_match<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Case-insensitive pattern matching"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn case_insensitive_match<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
     let text_lower: String = text.to_lowercase();
     let pattern_lower: String = pattern.to_lowercase();
     let _cse_temp_0 = text_lower.contains(& * pattern_lower);
     let matches: bool = _cse_temp_0;
     matches
 }
-#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'a, 'c, 'b>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
+#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'b, 'a, 'c>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
     let mut start_pos: i32 = text.find(start_marker).map(| i | i as i32).unwrap_or(- 1);
     let _cse_temp_0 = start_pos.unwrap_or_default()<0;
     if _cse_temp_0 {
@@ -2201,7 +2228,7 @@ else {
 };
     result.to_string()
 }
-#[doc = "Replace multiple patterns"] pub fn replace_multiple<'b, 'a>(text: & 'a str, replacements: & 'b Vec <()>) -> Result<String, Box<dyn std::error::Error>>{
+#[doc = "Replace multiple patterns"] pub fn replace_multiple<'a, 'b>(text: & 'a str, replacements: & 'b Vec <()>) -> Result<String, Box<dyn std::error::Error>>{
     let mut result: String = Default::default();
     result = text.to_string();
     for replacement in replacements.iter().cloned() {
@@ -2212,7 +2239,7 @@ else {
 }
 Ok(result.to_string())
 }
-#[doc = "Count occurrences of a word"] #[doc = " Depyler: verified panic-free"] pub fn count_word_occurrences<'b, 'a>(text: & 'a str, word: & 'b str) -> i32 {
+#[doc = "Count occurrences of a word"] #[doc = " Depyler: verified panic-free"] pub fn count_word_occurrences<'a, 'b>(text: & 'a str, word: & 'b str) -> i32 {
     let mut count: i32 = Default::default();
     let words: Vec<String>= text.split_whitespace().map(| s | s.to_string()).collect::<Vec<String>>();
     count = 0;
@@ -2224,8 +2251,8 @@ Ok(result.to_string())
 } count
 }
 #[doc = "Extract numbers from text"] #[doc = " Depyler: verified panic-free"] pub fn extract_numbers_from_text(text: & str) -> Vec<i32>{
-    let mut current_num: String = Default::default();
     let mut num: i32 = Default::default();
+    let mut current_num: String = Default::default();
     let mut numbers: Vec<i32>= vec! [];
     current_num = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
@@ -2252,9 +2279,9 @@ let _cse_temp_0 = current_num.len() as i32;
 }
 numbers
 }
-#[doc = "Simple wildcard matching(* means any sequence)"] #[doc = " Depyler: proven to terminate"] pub fn wildcard_match_simple<'b, 'a>(text: & 'a str, pattern: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
-    let mut has_prefix: bool = Default::default();
+#[doc = "Simple wildcard matching(* means any sequence)"] #[doc = " Depyler: proven to terminate"] pub fn wildcard_match_simple<'a, 'b>(text: & 'a str, pattern: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
     let mut has_suffix: bool = Default::default();
+    let mut has_prefix: bool = Default::default();
     let _cse_temp_0 =! pattern.contains("*");
     if _cse_temp_0 {
     return Ok(text == pattern);
