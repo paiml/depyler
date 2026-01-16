@@ -93,7 +93,7 @@ fn test_map_simple_import() {
     let mapper = ModuleMapper::new();
 
     // Test import with named items
-    let import = Import {
+    let import = Import { alias: None,
         module: "os".to_string(),
         items: vec![ImportItem::Named("getcwd".to_string())],
     };
@@ -109,7 +109,7 @@ fn test_map_simple_import() {
 fn test_map_aliased_import() {
     let mapper = ModuleMapper::new();
 
-    let import = Import {
+    let import = Import { alias: None,
         module: "json".to_string(),
         items: vec![ImportItem::Aliased {
             name: "loads".to_string(),
@@ -130,7 +130,7 @@ fn test_map_whole_module_import() {
 
     // Test "import os" style
     // DEPYLER-0363: Now generates actual use statement with alias
-    let import = Import {
+    let import = Import { alias: None,
         module: "os".to_string(),
         items: vec![],
     };
@@ -146,7 +146,7 @@ fn test_map_whole_module_import() {
 fn test_map_unknown_module() {
     let mapper = ModuleMapper::new();
 
-    let import = Import {
+    let import = Import { alias: None,
         module: "unknown_module".to_string(),
         items: vec![ImportItem::Named("something".to_string())],
     };
@@ -160,7 +160,7 @@ fn test_map_unknown_module() {
 fn test_map_multiple_items() {
     let mapper = ModuleMapper::new();
 
-    let import = Import {
+    let import = Import { alias: None,
         module: "os".to_string(),
         items: vec![
             ImportItem::Named("getcwd".to_string()),
@@ -185,19 +185,19 @@ fn test_get_dependencies() {
     let mapper = ModuleMapper::new();
 
     let imports = vec![
-        Import {
+        Import { alias: None,
             module: "json".to_string(),
             items: vec![ImportItem::Named("loads".to_string())],
         },
-        Import {
+        Import { alias: None,
             module: "re".to_string(),
             items: vec![ImportItem::Named("compile".to_string())],
         },
-        Import {
+        Import { alias: None,
             module: "os".to_string(),
             items: vec![ImportItem::Named("getcwd".to_string())],
         },
-        Import {
+        Import { alias: None,
             module: "json".to_string(), // Duplicate, should be deduped
             items: vec![ImportItem::Named("dumps".to_string())],
         },
@@ -262,7 +262,7 @@ fn test_unmapped_item_fallback() {
     let mapper = ModuleMapper::new();
 
     // Test an item that's not in the item_map
-    let import = Import {
+    let import = Import { alias: None,
         module: "os".to_string(),
         items: vec![ImportItem::Named("unmapped_function".to_string())],
     };
@@ -355,7 +355,7 @@ fn test_collections_hashmap_import_path() {
     // DEPYLER-0170: HashMap should be imported as a type, not HashMap::new
     let mapper = ModuleMapper::new();
 
-    let import = Import {
+    let import = Import { alias: None,
         module: "collections".to_string(),
         items: vec![
             ImportItem::Named("Counter".to_string()),
@@ -384,7 +384,7 @@ fn test_collections_deque_import_path() {
     // DEPYLER-0173: VecDeque should be imported correctly
     let mapper = ModuleMapper::new();
 
-    let import = Import {
+    let import = Import { alias: None,
         module: "collections".to_string(),
         items: vec![ImportItem::Named("deque".to_string())],
     };
@@ -650,7 +650,7 @@ fn test_constructor_pattern_eq() {
 #[test]
 fn test_map_argparse_import_whole_module() {
     let mapper = ModuleMapper::new();
-    let import = Import {
+    let import = Import { alias: None,
         module: "argparse".to_string(),
         items: vec![],
     };
@@ -663,7 +663,7 @@ fn test_map_argparse_import_whole_module() {
 #[test]
 fn test_map_typing_whole_module() {
     let mapper = ModuleMapper::new();
-    let import = Import {
+    let import = Import { alias: None,
         module: "typing".to_string(),
         items: vec![],
     };
@@ -712,15 +712,15 @@ fn test_rust_import_clone() {
 fn test_multiple_sklearn_imports_dependencies() {
     let mapper = ModuleMapper::new();
     let imports = vec![
-        Import {
+        Import { alias: None,
             module: "sklearn.linear_model".to_string(),
             items: vec![ImportItem::Named("LinearRegression".to_string())],
         },
-        Import {
+        Import { alias: None,
             module: "sklearn.cluster".to_string(),
             items: vec![ImportItem::Named("KMeans".to_string())],
         },
-        Import {
+        Import { alias: None,
             module: "sklearn.metrics".to_string(),
             items: vec![ImportItem::Named("accuracy_score".to_string())],
         },

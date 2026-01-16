@@ -2729,7 +2729,7 @@ pub fn test_partial_application() -> Vec<i32> {
     let mut results: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
         let result: i32 = multiply_by(multiplier, num);
-        results.push(result as i64);
+        results.push(result);
     }
     results
 }
@@ -2766,7 +2766,7 @@ pub fn test_map_reduce_pattern(numbers: &Vec<i32>) -> i32 {
     let mut total: i32 = Default::default();
     let mut squared: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
-        squared.push((num).py_mul(num) as i64);
+        squared.push((num).py_mul(num));
     }
     total = 0;
     for sq in squared.iter().cloned() {
@@ -2780,7 +2780,7 @@ pub fn test_filter_reduce_pattern(numbers: &Vec<i32>) -> Result<i32, Box<dyn std
     let mut evens: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
         if (num).py_mod(2) == 0 {
-            evens.push(num as i64);
+            evens.push(num);
         }
     }
     let _cse_temp_0 = evens.len() as i32;
@@ -2822,7 +2822,7 @@ pub fn accumulate_with_function(numbers: &Vec<i32>) -> Vec<i32> {
     let mut acc: i32 = 0;
     for num in numbers.iter().cloned() {
         acc = (acc).py_add(num);
-        results.push(acc as i64);
+        results.push(acc);
     }
     results
 }
@@ -2868,7 +2868,7 @@ pub fn test_reduce_flatten(nested: &Vec<Vec<i32>>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for sublist in nested.iter().cloned() {
         for item in sublist.iter().cloned() {
-            result.push(item as i64);
+            result.push(item);
         }
     }
     result
@@ -2879,9 +2879,9 @@ pub fn test_reduce_group_by(items: &Vec<i32>) -> Result<Vec<Vec<i32>>, Box<dyn s
     let mut odds: Vec<i32> = vec![];
     for item in items.iter().cloned() {
         if (item).py_mod(2) == 0 {
-            evens.push(item as i64);
+            evens.push(item);
         } else {
-            odds.push(item as i64);
+            odds.push(item);
         }
     }
     let result: Vec<Vec<i32>> = vec![evens, odds];

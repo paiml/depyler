@@ -2603,7 +2603,7 @@ impl DepylerRegexMatch {
 #[doc = "Build a file path from components"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn build_file_path<'b, 'a>(base_dir: &'a str, components: &[String]) -> String {
+pub fn build_file_path<'a, 'b>(base_dir: &'a str, components: &[String]) -> String {
     {
         let mut __path = std::path::PathBuf::from(base_dir);
         for __part in components {

@@ -4,9 +4,9 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_HELLO_WORLD: &'static str = "Hello World";
-    const STR_EMPTY: &'static str = "";
+const STR_EMPTY: &'static str = "";
     const STR_HELLO: &'static str = "Hello";
+    const STR_HELLO_WORLD: &'static str = "Hello World";
     #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
 }
@@ -2176,20 +2176,20 @@ domain.to_string()
     let normalized: String = words.join (" ");
     normalized.to_string()
 }
-#[doc = "Check if text starts with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn starts_with_pattern<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Check if text starts with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn starts_with_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
     text.starts_with(pattern)
 }
-#[doc = "Check if text ends with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn ends_with_pattern<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Check if text ends with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn ends_with_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
     text.ends_with(pattern)
 }
-#[doc = "Case-insensitive pattern matching"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn case_insensitive_match<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Case-insensitive pattern matching"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn case_insensitive_match<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
     let text_lower: String = text.to_lowercase();
     let pattern_lower: String = pattern.to_lowercase();
     let _cse_temp_0 = text_lower.contains(& * pattern_lower);
     let matches: bool = _cse_temp_0;
     matches
 }
-#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'b, 'a, 'c>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
+#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'b, 'c, 'a>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
     let mut start_pos: i32 = text.find(start_marker).map(| i | i as i32).unwrap_or(- 1);
     let _cse_temp_0 = start_pos.unwrap_or_default()<0;
     if _cse_temp_0 {
@@ -2239,7 +2239,7 @@ else {
 }
 Ok(result.to_string())
 }
-#[doc = "Count occurrences of a word"] #[doc = " Depyler: verified panic-free"] pub fn count_word_occurrences<'a, 'b>(text: & 'a str, word: & 'b str) -> i32 {
+#[doc = "Count occurrences of a word"] #[doc = " Depyler: verified panic-free"] pub fn count_word_occurrences<'b, 'a>(text: & 'a str, word: & 'b str) -> i32 {
     let mut count: i32 = Default::default();
     let words: Vec<String>= text.split_whitespace().map(| s | s.to_string()).collect::<Vec<String>>();
     count = 0;
@@ -2263,7 +2263,7 @@ Ok(result.to_string())
 else {
     if current_num.len() as i32>0 {
     num = current_num.parse::<i32>().unwrap_or_default();
-    numbers.push(num as i64);
+    numbers.push(num);
     current_num = STR_EMPTY.to_string();
    
 }
@@ -2274,14 +2274,14 @@ let _cse_temp_0 = current_num.len() as i32;
     if _cse_temp_1 {
     let _cse_temp_2 = current_num.parse::<i32>().unwrap_or_default();
     num = _cse_temp_2;
-    numbers.push(num as i64);
+    numbers.push(num);
    
 }
 numbers
 }
 #[doc = "Simple wildcard matching(* means any sequence)"] #[doc = " Depyler: proven to terminate"] pub fn wildcard_match_simple<'a, 'b>(text: & 'a str, pattern: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
-    let mut has_suffix: bool = Default::default();
     let mut has_prefix: bool = Default::default();
+    let mut has_suffix: bool = Default::default();
     let _cse_temp_0 =! pattern.contains("*");
     if _cse_temp_0 {
     return Ok(text == pattern);

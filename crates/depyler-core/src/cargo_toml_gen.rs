@@ -469,6 +469,7 @@ mod tests {
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
             all_imported_modules: std::collections::HashSet::new(),
+            module_aliases: std::collections::HashMap::new(), // DEPYLER-1136
             mutable_vars: std::collections::HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -636,6 +637,7 @@ mod tests {
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
             all_imported_modules: std::collections::HashSet::new(), // DEPYLER-1115
+            module_aliases: std::collections::HashMap::new(), // DEPYLER-1136
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -800,6 +802,7 @@ mod tests {
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
             all_imported_modules: std::collections::HashSet::new(), // DEPYLER-1115
+            module_aliases: std::collections::HashMap::new(), // DEPYLER-1136
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -1211,6 +1214,7 @@ mod tests {
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
             all_imported_modules: std::collections::HashSet::new(), // DEPYLER-1115
+            module_aliases: std::collections::HashMap::new(), // DEPYLER-1136
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,

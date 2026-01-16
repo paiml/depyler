@@ -6,8 +6,8 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 use std::collections::VecDeque;
-const STR_B: &'static str = "b";
 const STR_A: &'static str = "a";
+const STR_B: &'static str = "b";
 const STR_APPLE: &'static str = "apple";
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -2878,7 +2878,7 @@ pub fn test_ordereddict_move_to_end() -> Vec<String> {
 }
 #[doc = "Test ChainMap-like lookup(manual)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_chainmap<'b, 'a>(
+pub fn test_chainmap<'a, 'b>(
     dict1: &'a std::collections::HashMap<String, i32>,
     dict2: &'b std::collections::HashMap<String, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -2966,7 +2966,7 @@ pub fn test_deque_as_stack() -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     while stack.len() as i32 > 0 {
         let item: i32 = stack.pop_back().unwrap_or_default();
-        result.push(item as i64);
+        result.push(item);
     }
     result
 }
@@ -2980,7 +2980,7 @@ pub fn test_deque_as_queue() -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     while queue.len() as i32 > 0 {
         let item: i32 = queue.pop_front();
-        result.push(item as i64);
+        result.push(item);
     }
     result
 }
@@ -3005,7 +3005,7 @@ pub fn test_lru_cache_manual(cache_size: i32) -> Vec<i32> {
                 let evicted: i32 = cache.pop_front();
             }
         }
-        result.push(item as i64);
+        result.push(item);
     }
     result
 }

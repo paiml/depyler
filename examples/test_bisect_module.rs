@@ -2752,18 +2752,18 @@ pub fn insort_left(arr: &Vec<i32>, value: i32) -> Result<Vec<i32>, Box<dyn std::
     let mut new_arr: Vec<i32> = vec![];
     for i in 0..(arr.len() as i32) {
         if i == position {
-            new_arr.push(value as i64);
+            new_arr.push(value);
         }
         new_arr.push(
             arr.get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
     }
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = position == _cse_temp_0;
     if _cse_temp_1 {
-        new_arr.push(value as i64);
+        new_arr.push(value);
     }
     Ok(new_arr)
 }
@@ -2775,18 +2775,18 @@ pub fn insort_right(arr: &Vec<i32>, value: i32) -> Result<Vec<i32>, Box<dyn std:
     let mut new_arr: Vec<i32> = vec![];
     for i in 0..(arr.len() as i32) {
         if i == position {
-            new_arr.push(value as i64);
+            new_arr.push(value);
         }
         new_arr.push(
             arr.get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
     }
     let _cse_temp_0 = arr.len() as i32;
     let _cse_temp_1 = position == _cse_temp_0;
     if _cse_temp_1 {
-        new_arr.push(value as i64);
+        new_arr.push(value);
     }
     Ok(new_arr)
 }
@@ -2937,12 +2937,12 @@ pub fn find_closest_value(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn st
     }
 }
 #[doc = "Merge two sorted arrays"]
-pub fn merge_sorted_arrays<'b, 'a>(
+pub fn merge_sorted_arrays<'a, 'b>(
     arr1: &'a Vec<i32>,
     arr2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut j: i32 = Default::default();
     let mut i: i32 = Default::default();
+    let mut j: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     i = 0;
     j = 0;
@@ -2959,14 +2959,14 @@ pub fn merge_sorted_arrays<'b, 'a>(
             result.push(
                 arr1.get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range") as i64,
+                    .expect("IndexError: list index out of range"),
             );
             i = (i).py_add(1);
         } else {
             result.push(
                 arr2.get(j as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range") as i64,
+                    .expect("IndexError: list index out of range"),
             );
             j = (j).py_add(1);
         }
@@ -2975,7 +2975,7 @@ pub fn merge_sorted_arrays<'b, 'a>(
         result.push(
             arr1.get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
         i = (i).py_add(1);
     }
@@ -2983,7 +2983,7 @@ pub fn merge_sorted_arrays<'b, 'a>(
         result.push(
             arr2.get(j as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
         j = (j).py_add(1);
     }

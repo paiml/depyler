@@ -2650,7 +2650,7 @@ pub fn find_prime_factors(mut n: i32) -> Result<Vec<i32>, Box<dyn std::error::Er
     let mut d = 2;
     while (d).py_mul(d) <= n {
         while (n).py_mod(d) == 0 {
-            factors.push(d as i64);
+            factors.push(d);
             n = {
                 let a = n;
                 let b = d;
@@ -2672,7 +2672,7 @@ pub fn find_prime_factors(mut n: i32) -> Result<Vec<i32>, Box<dyn std::error::Er
     }
     let _cse_temp_0 = n > 1;
     if _cse_temp_0 {
-        factors.push(n as i64);
+        factors.push(n);
     }
     Ok(factors)
 }
