@@ -1254,8 +1254,37 @@ fn infer_lazy_constant_type(
                 ctx.needs_depyler_value_enum = true;
                 return quote! { std::collections::HashSet<DepylerValue> };
             }
-            // DEPYLER-1060: Index into DepylerValue dict returns DepylerValue
-            HirExpr::Index { .. } => {
+            // DEPYLER-1060/DEPYLER-1145: Index into collections - infer element type
+            // DEPYLER-1145: For homogeneous lists, return the concrete element type, not DepylerValue
+            // This fixes: `list_index = list_example[0]` where list_example is Vec<i32>
+            // Previously returned DepylerValue causing "expected DepylerValue, found i32" errors
+            HirExpr::Index { base, .. } => {
+                // Check if base is a variable we can look up
+                if let HirExpr::Var(base_name) = base.as_ref() {
+                    // Check module-level constants for the base type
+                    if let Some(base_type) = ctx.var_types.get(base_name) {
+                        match base_type {
+                            // Homogeneous list: return element type
+                            Type::List(elem_type) => {
+                                if let Ok(syn_type) = type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type)) {
+                                    return quote! { #syn_type };
+                                }
+                            }
+                            // Dict: return value type (may be DepylerValue for heterogeneous dicts)
+                            Type::Dict(_, val_type) => {
+                                if let Ok(syn_type) = type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(val_type)) {
+                                    return quote! { #syn_type };
+                                }
+                            }
+                            // Tuple: return Unknown for now (tuple indexing is complex)
+                            Type::Tuple(_) => {
+                                // Fall through to default handling
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                // Default: use DepylerValue for unknown bases or dicts with unknown value types
                 ctx.needs_depyler_value_enum = true;
                 return quote! { DepylerValue };
             }
@@ -1388,6 +1417,54 @@ fn infer_unary_expr_type(
             }
         }
         UnaryOp::BitNot => Some(quote! { i32 }), // Bitwise NOT returns int
+    }
+}
+
+/// DEPYLER-1145: Infer element type from list/set literal for module-level constant tracking
+///
+/// Returns the HIR Type of list elements, used to track concrete types in var_types.
+/// This enables proper type inference when indexing into homogeneous lists.
+fn infer_list_element_type(elems: &[HirExpr]) -> Type {
+    if elems.is_empty() {
+        // Empty list defaults to Int for simplicity
+        return Type::Int;
+    }
+
+    // Check first element type
+    match &elems[0] {
+        HirExpr::Literal(Literal::Int(_)) => {
+            // Verify all elements are integers
+            if elems.iter().all(|e| matches!(e, HirExpr::Literal(Literal::Int(_)))) {
+                Type::Int
+            } else {
+                Type::Unknown // Heterogeneous
+            }
+        }
+        HirExpr::Literal(Literal::Float(_)) => {
+            // Verify all elements are floats (or ints - promote to float)
+            if elems.iter().all(|e| {
+                matches!(e, HirExpr::Literal(Literal::Float(_)) | HirExpr::Literal(Literal::Int(_)))
+            }) {
+                Type::Float
+            } else {
+                Type::Unknown
+            }
+        }
+        HirExpr::Literal(Literal::String(_)) => {
+            if elems.iter().all(|e| matches!(e, HirExpr::Literal(Literal::String(_)))) {
+                Type::String
+            } else {
+                Type::Unknown
+            }
+        }
+        HirExpr::Literal(Literal::Bool(_)) => {
+            if elems.iter().all(|e| matches!(e, HirExpr::Literal(Literal::Bool(_)))) {
+                Type::Bool
+            } else {
+                Type::Unknown
+            }
+        }
+        _ => Type::Unknown, // Non-literal or complex expression
     }
 }
 
@@ -1711,16 +1788,25 @@ fn generate_constant_tokens(
         last_by_name.insert(&constant.name, constant);
     }
 
-    // DEPYLER-1060: Pre-register module-level constants in var_types
+    // DEPYLER-1060/DEPYLER-1145: Pre-register module-level constants in var_types
     // This enables is_dict_expr() to work for module-level statics like `d = {1: "a"}`
+    // DEPYLER-1145: Use concrete element types (e.g., List(Int) not List(Unknown))
+    // so that `list_index = list_example[0]` gets typed as i32, not DepylerValue
     for constant in constants {
         let const_type = match &constant.value {
             HirExpr::Dict(_) => Some(crate::hir::Type::Dict(
                 Box::new(crate::hir::Type::Unknown),
                 Box::new(crate::hir::Type::Unknown),
             )),
-            HirExpr::List(_) => Some(crate::hir::Type::List(Box::new(crate::hir::Type::Unknown))),
-            HirExpr::Set(_) => Some(crate::hir::Type::Set(Box::new(crate::hir::Type::Unknown))),
+            // DEPYLER-1145: Infer concrete element type from list literal
+            HirExpr::List(elems) => {
+                let elem_type = infer_list_element_type(elems);
+                Some(crate::hir::Type::List(Box::new(elem_type)))
+            }
+            HirExpr::Set(elems) => {
+                let elem_type = infer_list_element_type(elems);
+                Some(crate::hir::Type::Set(Box::new(elem_type)))
+            }
             _ => None,
         };
         if let Some(t) = const_type {
