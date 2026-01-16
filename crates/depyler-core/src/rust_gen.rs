@@ -1254,6 +1254,30 @@ fn infer_lazy_constant_type(
                 ctx.needs_depyler_value_enum = true;
                 return quote! { std::collections::HashSet<DepylerValue> };
             }
+            // DEPYLER-1148: Slice into collections - infer slice type from base
+            // A slice of a list is still a list: base[start:stop] where base is Vec<T> → Vec<T>
+            // A slice of a string is still a string: base[start:stop] where base is String → String
+            HirExpr::Slice { base, .. } => {
+                if let HirExpr::Var(base_name) = base.as_ref() {
+                    if let Some(base_type) = ctx.var_types.get(base_name) {
+                        match base_type {
+                            // List slice: return Vec<T> (same type as the list)
+                            Type::List(elem_type) => {
+                                if let Ok(syn_type) = type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type)) {
+                                    return quote! { Vec<#syn_type> };
+                                }
+                            }
+                            // String slice: return String
+                            Type::String => {
+                                return quote! { String };
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                // Default for unknown base types: use String (common case)
+                return quote! { String };
+            }
             // DEPYLER-1060/DEPYLER-1145: Index into collections - infer element type
             // DEPYLER-1145: For homogeneous lists, return the concrete element type, not DepylerValue
             // This fixes: `list_index = list_example[0]` where list_example is Vec<i32>
@@ -1859,10 +1883,12 @@ fn generate_constant_tokens(
         // DEPYLER-0714: Function calls also need runtime init - can't be const
         // DEPYLER-1060: Index expressions into statics need runtime init
         // DEPYLER-1128: Binary expressions use PyOps traits which aren't const - need LazyLock
+        // DEPYLER-1148: Slice expressions need runtime init for proper type inference
         let needs_runtime_init = matches!(
             &constant.value,
             HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_)
             | HirExpr::Call { .. } | HirExpr::Index { .. } | HirExpr::Binary { .. }
+            | HirExpr::Slice { .. }
         ) || is_path_constant_expr(&constant.value)
           || expr_contains_non_const_ops(&constant.value);
 

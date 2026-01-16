@@ -317,5 +317,11 @@ async fn main() -> Result<()> {
     let level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt().with_env_filter(level).init();
 
+    // DEPYLER-1148: Initialize CITL Flight Recorder for decision tracing
+    // When enabled, captures transpiler decisions to /tmp/depyler_decisions.msgpack
+    if let Err(e) = depyler_core::decision_trace::init_decision_tracing() {
+        tracing::warn!("Failed to initialize decision tracing: {}", e);
+    }
+
     handle_command(cli.command).await
 }
