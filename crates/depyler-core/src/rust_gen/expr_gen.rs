@@ -3121,9 +3121,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0234: For user-defined class constructors, convert string literals to String
         // This fixes "expected String, found &str" errors when calling constructors
+        // DEPYLER-1144: Also coerce list literals when class has Vec<f64> field
+        let class_has_vec_f64_field = self.ctx.class_field_types.values().any(|t| {
+            matches!(t, Type::List(elem) if matches!(elem.as_ref(), Type::Float))
+        });
         let arg_exprs: Vec<syn::Expr> = if is_user_class {
             args.iter()
                 .map(|arg| {
+                    // DEPYLER-1144: For list literals when class expects Vec<f64>, coerce integers
+                    if class_has_vec_f64_field {
+                        if let HirExpr::List(elems) = arg {
+                            return self.convert_list_with_float_coercion(elems);
+                        }
+                    }
                     let expr = arg.to_rust_expr(self.ctx)?;
                     // Wrap string literals with .to_string()
                     if matches!(arg, HirExpr::Literal(Literal::String(_))) {
@@ -3160,9 +3170,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let kwarg_exprs: Vec<syn::Expr> = if is_user_class {
             // For user-defined classes, convert string literals to String
             // This prevents "expected String, found &str" errors in constructors
+            // DEPYLER-1144: Also coerce list literals to match field types (e.g., [0] → vec![0.0] for Vec<f64>)
             kwargs
                 .iter()
-                .map(|(_name, value)| {
+                .map(|(name, value)| {
+                    // DEPYLER-1144: Check if field expects Vec<f64> and value is list of integers
+                    if let Some(field_type) = self.ctx.class_field_types.get(name) {
+                        if let Type::List(elem_type) = field_type {
+                            if matches!(elem_type.as_ref(), Type::Float) {
+                                if let HirExpr::List(elems) = value {
+                                    // Convert list with integer coercion to f64
+                                    return self.convert_list_with_float_coercion(elems);
+                                }
+                            }
+                        }
+                    }
                     let expr = value.to_rust_expr(self.ctx)?;
                     if matches!(value, HirExpr::Literal(Literal::String(_))) {
                         Ok(parse_quote! { #expr.to_string() })
