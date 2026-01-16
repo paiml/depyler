@@ -4276,7 +4276,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             (None, None, Some(step)) => {
                 Ok(parse_quote! {
                     {
-                        let base = #base_expr;
+                        // DEPYLER-1148: Deref LazyLock and borrow inner value
+                        let base = &*#base_expr;
                         // DEPYLER-0812: Use i32 for step to support negative values
                         let step: i32 = #step;
                         if step == 1 {
@@ -4297,8 +4298,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Start and stop: base[start:stop]
             (Some(start), Some(stop), None) => Ok(parse_quote! {
                 {
-                    // DEPYLER-0473: Borrow to avoid moving base (allows reuse later)
-                    let base = &#base_expr;
+                    // DEPYLER-1148: Deref LazyLock and borrow inner value
+                    let base = &*#base_expr;
                     // DEPYLER-0459: Cast to isize first to handle negative indices
                     // DEPYLER-1083: Parenthesize to avoid cast precedence issues (i + size as isize parses as i + (size as isize))
                     let start_idx = (#start) as isize;
@@ -4324,8 +4325,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Start only: base[start:]
             (Some(start), None, None) => Ok(parse_quote! {
                 {
-                    // DEPYLER-0473: Borrow to avoid moving base (allows reuse later)
-                    let base = &#base_expr;
+                    // DEPYLER-1148: Deref LazyLock and borrow inner value
+                    let base = &*#base_expr;
                     // DEPYLER-0459: Cast to isize first to handle negative indices
                     // DEPYLER-1083: Parenthesize to avoid cast precedence issues
                     let start_idx = (#start) as isize;
@@ -4345,8 +4346,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Stop only: base[:stop]
             (None, Some(stop), None) => Ok(parse_quote! {
                 {
-                    // DEPYLER-0473: Borrow to avoid moving base (allows reuse later)
-                    let base = &#base_expr;
+                    // DEPYLER-1148: Deref LazyLock and borrow inner value
+                    let base = &*#base_expr;
                     // DEPYLER-0459: Cast to isize first to handle negative indices
                     // DEPYLER-1083: Parenthesize to avoid cast precedence issues
                     let stop_idx = (#stop) as isize;
@@ -4366,7 +4367,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             (Some(start), Some(stop), Some(step)) => {
                 Ok(parse_quote! {
                     {
-                        let base = #base_expr;
+                        // DEPYLER-1148: Deref LazyLock and borrow inner value
+                        let base = &*#base_expr;
                         // DEPYLER-0459: Cast to isize first to handle negative indices
                         // DEPYLER-1083: Parenthesize to avoid cast precedence issues
                         let start_idx = (#start) as isize;
@@ -4417,7 +4419,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Start and step: base[start::step]
             (Some(start), None, Some(step)) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
+                    // DEPYLER-1148: Deref LazyLock and borrow inner value
+                    let base = &*#base_expr;
                     // DEPYLER-0459: Cast to isize first to handle negative indices
                     // DEPYLER-1083: Parenthesize to avoid cast precedence issues
                     let start_idx = (#start) as isize;
@@ -4462,7 +4465,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Stop and step: base[:stop:step]
             (None, Some(stop), Some(step)) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
+                    // DEPYLER-1148: Deref LazyLock and borrow inner value
+                    let base = &*#base_expr;
                     let stop = (#stop).max(0) as usize;
                     // DEPYLER-0812: Use i32 for step to support negative values
                     let step: i32 = #step;
