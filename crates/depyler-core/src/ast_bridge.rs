@@ -1930,15 +1930,22 @@ pub(crate) fn convert_cmpop(op: &ast::CmpOp) -> Result<BinOp> {
     })
 }
 
+/// DEPYLER-1136: Capture module-level alias for `import X as Y` patterns
 fn convert_import(import: ast::StmtImport) -> Result<Vec<Import>> {
     import
         .names
         .into_iter()
         .map(|alias| {
             let module = alias.name.to_string();
+            // DEPYLER-1136: Capture the "as Y" alias for module-level imports
+            let module_alias = alias.asname.map(|a| a.to_string());
             // For "import module" or "import module as alias", we import the whole module
             let items = vec![];
-            Ok(Import { module, items })
+            Ok(Import {
+                module,
+                alias: module_alias,
+                items,
+            })
         })
         .collect()
 }
@@ -1962,7 +1969,12 @@ fn convert_import_from(import: ast::StmtImportFrom) -> Result<Vec<Import>> {
         })
         .collect();
 
-    Ok(vec![Import { module, items }])
+    // DEPYLER-1136: `from X import Y` has no module-level alias
+    Ok(vec![Import {
+        module,
+        alias: None,
+        items,
+    }])
 }
 
 fn extract_docstring_and_body(body: Vec<ast::Stmt>) -> Result<(Option<String>, Vec<HirStmt>)> {

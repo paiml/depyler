@@ -100,6 +100,9 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-1115: Track all imported module names (including external unmapped ones)
     /// Used to generate `module::function()` syntax for phantom binding compatibility
     pub all_imported_modules: HashSet<String>,
+    /// DEPYLER-1136: Map module aliases to their original module paths
+    /// For `import xml.etree.ElementTree as ET`: maps "ET" -> "xml.etree.ElementTree"
+    pub module_aliases: HashMap<String, String>,
     pub mutable_vars: HashSet<String>,
     pub needs_zerodivisionerror: bool,
     pub needs_indexerror: bool,
@@ -689,6 +692,7 @@ pub mod test_helpers {
             imported_modules: HashMap::new(),
             imported_items: HashMap::new(),
             all_imported_modules: HashSet::new(),
+            module_aliases: HashMap::new(),
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
