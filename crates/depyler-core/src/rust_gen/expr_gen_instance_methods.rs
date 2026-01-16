@@ -3685,7 +3685,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                      parse_quote! { &DepylerValue::Str(format!("{:?}", #index_expr)) }
                 }
             };
-            return Ok(parse_quote! { #base_expr.get(#wrapped_index).cloned() });
+            // DEPYLER-1146: Add unwrap_or_default() to match Python's dict["key"] semantics
+            // Python raises KeyError for missing keys, but in Rust we use Default (DepylerValue::None)
+            // to avoid panics. This matches the string-key case at line 3752.
+            return Ok(parse_quote! { #base_expr.get(#wrapped_index).cloned().unwrap_or_default() });
         }
 
         // DEPYLER-0422 Fix #3 & #4: Handle tuple indexing with actual type information
