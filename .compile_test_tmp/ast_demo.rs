@@ -4,6 +4,245 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
+use std::f64 as math;
+pub const int_literal: i32 = 42;
+pub const float_literal: f64 = 3.14;
+pub const string_literal: &str = "hello world";
+pub const bool_literal: bool = true;
+pub const none_literal: Option<()> = None;
+pub static addition: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (10).py_add(20));
+pub static subtraction: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (50).py_sub(15));
+pub static multiplication: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (7).py_mul(8));
+pub static division: std::sync::LazyLock<f64> = std::sync::LazyLock::new(|| (100).py_div(4));
+pub static modulo: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| (17).py_mod(5));
+pub static power: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| {
+    ({ 2 } as i32)
+        .checked_pow({ 8 } as u32)
+        .expect("Power operation overflowed")
+});
+pub static greater_than: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 10 > 5);
+pub static less_than: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 3 < 7);
+pub static equal_to: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 42 == 42);
+pub static not_equal: std::sync::LazyLock<bool> =
+    std::sync::LazyLock::new(|| "a".to_string() != "b".to_string());
+pub static greater_equal: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 100 >= 100);
+pub static less_equal: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| 50 <= 60);
+pub static and_op: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| (true) && (false));
+pub static or_op: std::sync::LazyLock<bool> = std::sync::LazyLock::new(|| (true) || (false));
+pub const not_op: bool = !true;
+pub const negation: i32 = -42;
+pub const positive: i32 = 42;
+pub const bitwise_not: i32 = !255;
+pub static list_example: std::sync::LazyLock<Vec<i32>> =
+    std::sync::LazyLock::new(|| vec![1, 2, 3, 4, 5]);
+pub static tuple_example: std::sync::LazyLock<(i32, String, f64, bool)> =
+    std::sync::LazyLock::new(|| (1, "hello".to_string().to_string(), 3.14, true));
+pub static dict_example: std::sync::LazyLock<
+    std::collections::HashMap<DepylerValue, DepylerValue>,
+> = std::sync::LazyLock::new(|| {
+    let mut map = HashMap::new();
+    map.insert(
+        DepylerValue::Str("name".to_string().to_string()),
+        DepylerValue::Str("John".to_string().to_string()),
+    );
+    map.insert(
+        DepylerValue::Str("age".to_string().to_string()),
+        DepylerValue::Int(30 as i64),
+    );
+    map.insert(
+        DepylerValue::Str("city".to_string().to_string()),
+        DepylerValue::Str("NYC".to_string().to_string()),
+    );
+    map
+});
+pub static set_example: std::sync::LazyLock<std::collections::HashSet<i32>> =
+    std::sync::LazyLock::new(|| {
+        let mut set = std::collections::HashSet::new();
+        set.insert(1);
+        set.insert(2);
+        set.insert(3);
+        set.insert(4);
+        set.insert(5);
+        set
+    });
+pub static list_index: std::sync::LazyLock<DepylerValue> = std::sync::LazyLock::new(|| {
+    list_example
+        .get(0usize)
+        .cloned()
+        .expect("IndexError: list index out of range")
+});
+pub static dict_access: std::sync::LazyLock<DepylerValue> =
+    std::sync::LazyLock::new(|| dict_example.get("name").cloned().unwrap_or_default());
+pub const slice_example: String = {
+    let base = &list_example;
+    let start_idx = (1) as isize;
+    let stop_idx = (4) as isize;
+    let start = if start_idx < 0 {
+        (base.len() as isize + start_idx).max(0) as usize
+    } else {
+        start_idx as usize
+    };
+    let stop = if stop_idx < 0 {
+        (base.len() as isize + stop_idx).max(0) as usize
+    } else {
+        stop_idx as usize
+    };
+    if start < base.len() {
+        base[start..stop.min(base.len())].to_vec()
+    } else {
+        Vec::new()
+    }
+};
+pub const slice_with_step: String = {
+    let base = list_example;
+    let step: i32 = 2;
+    if step == 1 {
+        base.clone()
+    } else if step > 0 {
+        base.iter()
+            .step_by(step as usize)
+            .cloned()
+            .collect::<Vec<_>>()
+    } else if step == -1 {
+        base.iter().rev().cloned().collect::<Vec<_>>()
+    } else {
+        let abs_step = (-step) as usize;
+        base.iter()
+            .rev()
+            .step_by(abs_step)
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+};
+pub const slice_reverse: String = {
+    let base = list_example;
+    let step: i32 = -1;
+    if step == 1 {
+        base.clone()
+    } else if step > 0 {
+        base.iter()
+            .step_by(step as usize)
+            .cloned()
+            .collect::<Vec<_>>()
+    } else if step == -1 {
+        base.iter().rev().cloned().collect::<Vec<_>>()
+    } else {
+        let abs_step = (-step) as usize;
+        base.iter()
+            .rev()
+            .step_by(abs_step)
+            .cloned()
+            .collect::<Vec<_>>()
+    }
+};
+pub const list_comp: Vec<i32> = (0..(10))
+    .into_iter()
+    .map(|x| (x).py_mul(2))
+    .collect::<Vec<_>>();
+pub const list_comp_filtered: Vec<DepylerValue> = (0..(20))
+    .into_iter()
+    .filter(|x| {
+        let x = x.clone();
+        (x).py_mod(2) == 0
+    })
+    .map(|x| x)
+    .collect::<Vec<_>>();
+pub const set_comp: std::collections::HashSet<i32> = (0..(5))
+    .into_iter()
+    .map(|x| {
+        if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
+            ({ x } as i32)
+                .checked_pow({ 2 } as u32)
+                .expect("Power operation overflowed")
+        } else {
+            ({ x } as f64).powf({ 2 } as f64) as i32
+        }
+    })
+    .collect::<std::collections::HashSet<_>>();
+pub const dict_comp: std::collections::HashMap<DepylerValue, i32> = (0..(5))
+    .into_iter()
+    .map(|x| {
+        let _v = {
+            if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
+                ({ x } as i32)
+                    .checked_pow({ 2 } as u32)
+                    .expect("Power operation overflowed")
+            } else {
+                ({ x } as f64).powf({ 2 } as f64) as i32
+            }
+        };
+        (x, _v)
+    })
+    .collect::<std::collections::HashMap<_, _>>();
+pub static simple_call: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| println!("{}", "Hello".to_string()).unwrap());
+pub static method_call: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| "hello".to_string().to_uppercase());
+pub static chained_calls: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| "  hello  ".to_string().trim().to_string().to_uppercase());
+pub const pi_value: String = std::f64::consts::PI;
+pub static module_function: std::sync::LazyLock<String> =
+    std::sync::LazyLock::new(|| (16 as f64).sqrt());
+pub fn square(x: i32) -> i32 {
+    {
+        if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
+            ({ x } as i32)
+                .checked_pow({ 2 } as u32)
+                .expect("Power operation overflowed")
+        } else {
+            ({ x } as f64).powf({ 2 } as f64) as i32
+        }
+    }
+}
+pub fn add(x: i32, y: i32) -> i32 {
+    (x).py_add(y)
+}
+pub fn conditional_lambda(x: i32) -> i32 {
+    if x > 0 {
+        x
+    } else {
+        -x
+    }
+}
+use std::collections::HashMap;
+use std::collections::HashSet;
+use std::io::Read;
+use std::io::Write;
+use std::sync::LazyLock;
+#[derive(Debug, Clone)]
+pub struct ZeroDivisionError {
+    message: String,
+}
+impl std::fmt::Display for ZeroDivisionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "division by zero: {}", self.message)
+    }
+}
+impl std::error::Error for ZeroDivisionError {}
+impl ZeroDivisionError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
+#[derive(Debug, Clone)]
+pub struct ValueError {
+    message: String,
+}
+impl std::fmt::Display for ValueError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "value error: {}", self.message)
+    }
+}
+impl std::error::Error for ValueError {}
+impl ValueError {
+    pub fn new(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+        }
+    }
+}
 #[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
 #[doc = r" DEPYLER-1040b: Now implements Hash + Eq to support non-string dict keys"]
 #[derive(Debug, Clone, Default)]
@@ -2635,345 +2874,148 @@ impl DepylerRegexMatch {
     }
 }
 #[derive(Debug, Clone)]
-pub struct URL {
-    pub original: String,
-    pub scheme: String,
-    pub host: String,
-    pub port: Option<i32>,
-    pub path: String,
-    pub query_params: std::collections::HashMap<String, String>,
-    pub fragment: String,
+pub struct DemoClass {
+    pub value: DepylerValue,
+    pub data: Vec<DepylerValue>,
 }
-impl URL {
-    pub fn new(_url: impl Into<String>) -> Self {
+impl DemoClass {
+    pub fn new(value: DepylerValue) -> Self {
         Self {
-            original: String::new(),
-            scheme: String::new(),
-            host: String::new(),
-            port: Default::default(),
-            path: String::new(),
-            query_params: std::collections::HashMap::new(),
-            fragment: String::new(),
+            value,
+            data: Vec::new(),
         }
     }
-    pub fn _parse(&mut self, url: String) {
-        let mut remaining = url;
-        if remaining.contains("://") {
-            let scheme_end = remaining.find("://").map(|i| i as i64).unwrap_or(-1);
-            self.scheme = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let stop_idx = (scheme_end) as isize;
-                let stop = if stop_idx < 0 {
-                    (len + stop_idx).max(0) as usize
-                } else {
-                    stop_idx as usize
-                };
-                s.chars().take(stop).collect::<String>()
-            };
-            let remaining = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let start_idx = (scheme_end + 3) as isize;
-                let start = if start_idx < 0 {
-                    (len + start_idx).max(0) as usize
-                } else {
-                    start_idx as usize
-                };
-                s.chars().skip(start).collect::<String>()
-            };
-        };
-        if remaining.contains("#") {
-            let fragment_start = remaining.find("#").map(|i| i as i64).unwrap_or(-1);
-            self.fragment = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let start_idx = (fragment_start + 1) as isize;
-                let start = if start_idx < 0 {
-                    (len + start_idx).max(0) as usize
-                } else {
-                    start_idx as usize
-                };
-                s.chars().skip(start).collect::<String>()
-            };
-            let remaining = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let stop_idx = (fragment_start) as isize;
-                let stop = if stop_idx < 0 {
-                    (len + stop_idx).max(0) as usize
-                } else {
-                    stop_idx as usize
-                };
-                s.chars().take(stop).collect::<String>()
-            };
-        };
-        if remaining.contains("?") {
-            let query_start = remaining.find("?").map(|i| i as i64).unwrap_or(-1);
-            let query_string = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let start_idx = (query_start + 1) as isize;
-                let start = if start_idx < 0 {
-                    (len + start_idx).max(0) as usize
-                } else {
-                    start_idx as usize
-                };
-                s.chars().skip(start).collect::<String>()
-            };
-            let remaining = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let stop_idx = (query_start) as isize;
-                let stop = if stop_idx < 0 {
-                    (len + stop_idx).max(0) as usize
-                } else {
-                    stop_idx as usize
-                };
-                s.chars().take(stop).collect::<String>()
-            };
-            self._parse_query(query_string);
-        };
-        if remaining.contains("/") {
-            let path_start = remaining.find("/").map(|i| i as i64).unwrap_or(-1);
-            self.path = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let start_idx = (path_start) as isize;
-                let start = if start_idx < 0 {
-                    (len + start_idx).max(0) as usize
-                } else {
-                    start_idx as usize
-                };
-                s.chars().skip(start).collect::<String>()
-            };
-            let remaining = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let stop_idx = (path_start) as isize;
-                let stop = if stop_idx < 0 {
-                    (len + stop_idx).max(0) as usize
-                } else {
-                    stop_idx as usize
-                };
-                s.chars().take(stop).collect::<String>()
-            };
-        } else {
-            self.path = "/".to_string();
-        };
-        if remaining.contains(":") {
-            let colon_pos = remaining.find(":").map(|i| i as i64).unwrap_or(-1);
-            self.host = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let stop_idx = (colon_pos) as isize;
-                let stop = if stop_idx < 0 {
-                    (len + stop_idx).max(0) as usize
-                } else {
-                    stop_idx as usize
-                };
-                s.chars().take(stop).collect::<String>()
-            };
-            let port_str = {
-                let s = &remaining;
-                let len = s.chars().count() as isize;
-                let start_idx = (colon_pos + 1) as isize;
-                let start = if start_idx < 0 {
-                    (len + start_idx).max(0) as usize
-                } else {
-                    start_idx as usize
-                };
-                s.chars().skip(start).collect::<String>()
-            };
-            {
-                let _result = (|| -> Result<(), Box<dyn std::error::Error>> {
-                    {
-                        self.port = port_str.parse::<i32>().unwrap_or(0);
-                    }
-                    Ok(())
-                })();
-                if let Err(_) = _result {
-                    {
-                        self.port = None;
-                    }
-                }
-            }
-        } else {
-            self.host = remaining;
-        };
+    pub fn method(&self) -> i32 {
+        return self.value.clone() * 2;
     }
-    pub fn _parse_query(&self, query_string: String) {
-        if !query_string {
-            return ();
-        };
-        let pairs = query_string
-            .split("&")
-            .map(|s| s.to_string())
-            .collect::<Vec<String>>();
-        for pair in pairs {
-            if pair.contains("=") {
-                let eq_pos = pair.find("=").map(|i| i as i64).unwrap_or(-1);
-                let key = {
-                    let s = &pair;
-                    let len = s.chars().count() as isize;
-                    let stop_idx = (eq_pos) as isize;
-                    let stop = if stop_idx < 0 {
-                        (len + stop_idx).max(0) as usize
-                    } else {
-                        stop_idx as usize
-                    };
-                    s.chars().take(stop).collect::<String>()
-                };
-                let value = {
-                    let s = &pair;
-                    let len = s.chars().count() as isize;
-                    let start_idx = (eq_pos + 1) as isize;
-                    let start = if start_idx < 0 {
-                        (len + start_idx).max(0) as usize
-                    } else {
-                        start_idx as usize
-                    };
-                    s.chars().skip(start).collect::<String>()
-                };
-                self.query_params.clone().insert(key, value);
-            } else {
-                self.query_params.clone().insert(pair, "".to_string());
-            };
+    pub fn chain_example(&self) -> i32 {
+        return self.method() + 10;
+    }
+}
+#[doc = "Show various statement types."]
+pub fn demonstrate_statements() -> Result<Option<i32>, Box<dyn std::error::Error>> {
+    let mut x = 10;
+    let mut y = 20;
+    x = (x).py_add(5);
+    let _cse_temp_0 = (y).py_mul(2);
+    y = _cse_temp_0;
+    let _cse_temp_1 = {
+        let a = x;
+        let b = 3;
+        let q = a / b;
+        let r = a % b;
+        let r_negative = r < 0;
+        let b_negative = b < 0;
+        let r_nonzero = r != 0;
+        let signs_differ = r_negative != b_negative;
+        let needs_adjustment = r_nonzero && signs_differ;
+        if needs_adjustment {
+            q - 1
+        } else {
+            q
         }
-    }
-    pub fn get_query_param(&self, key: String) -> Option<String> {
-        if self.query_params.clone().contains_key(&key) {
-            return Some(
-                self.query_params
-                    .clone()
-                    .get(&key)
-                    .cloned()
-                    .unwrap_or_default(),
-            );
-        };
-        return None;
-    }
-    pub fn is_secure(&self) -> bool {
-        return self.scheme.clone().to_lowercase() == "https".to_string();
-    }
-    pub fn get_base_url(&self) -> String {
-        let mut result = "".to_string();
-        if self.scheme.clone() {
-            let result = result + self.scheme.clone() + "://".to_string();
-        };
-        let mut result = result + self.host.clone();
-        if self.port.clone().is_some() {
-            let result = result + ":".to_string() + self.port.clone().to_string();
-        };
-        return result;
-    }
-}
-#[doc = "Extract domain from URL string"]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn extract_domain(url: &str) -> String {
-    let parsed = URL::new(url);
-    parsed.host
-}
-#[doc = "Basic email validation"]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn is_valid_email(email: &str) -> bool {
-    let _cse_temp_0 = !email.contains("@");
-    let _cse_temp_1 = email.matches("@").count() as i32 != 1;
-    let _cse_temp_2 = (_cse_temp_0) || (_cse_temp_1);
-    if _cse_temp_2 {
-        return false;
-    }
-    let at_pos = email.find("@").map(|i| i as i32).unwrap_or(-1);
-    let local_part = {
-        let base = email;
-        let stop_idx: i32 = at_pos;
-        let len = base.chars().count() as i32;
-        let actual_stop = if stop_idx < 0 {
-            (len + stop_idx).max(0) as usize
-        } else {
-            stop_idx.min(len) as usize
-        };
-        base.chars().take(actual_stop).collect::<String>()
     };
-    let domain_part = {
-        let base = email;
-        let start_idx: i32 = (at_pos).py_add(1);
-        let len = base.chars().count() as i32;
-        let actual_start = if start_idx < 0 {
-            (len + start_idx).max(0) as usize
-        } else {
-            start_idx.min(len) as usize
-        };
-        base.chars().skip(actual_start).collect::<String>()
-    };
-    let _cse_temp_3 = local_part.len() as i32;
-    let _cse_temp_4 = _cse_temp_3 == 0;
-    let _cse_temp_5 = domain_part.len() as i32;
-    let _cse_temp_6 = _cse_temp_5 == 0;
-    let _cse_temp_7 = (_cse_temp_4) || (_cse_temp_6);
-    if _cse_temp_7 {
-        return false;
-    }
-    let _cse_temp_8 = !domain_part.contains(".");
-    if _cse_temp_8 {
-        return false;
-    }
-    let _cse_temp_9 = email.contains("..");
-    if _cse_temp_9 {
-        return false;
-    }
-    let _cse_temp_10 = (email.starts_with(".")) || (email.ends_with("."));
-    if _cse_temp_10 {
-        return false;
-    }
-    true
-}
-#[doc = "Normalize URL by removing trailing slash, converting to lowercase"]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn normalize_url(url: &str) -> String {
-    let mut normalized: String = Default::default();
-    normalized = url.trim().to_string().to_lowercase();
-    let _cse_temp_0 = normalized.len() as i32;
-    let _cse_temp_1 = _cse_temp_0 > 1;
-    let _cse_temp_2 = (normalized.ends_with("/")) && (_cse_temp_1);
+    x = _cse_temp_1;
+    let _cse_temp_2 = x > 0;
     if _cse_temp_2 {
-        let _cse_temp_3 = normalized.matches("/").count() as i32 > 2;
+        println!("{}", "Positive");
+    } else {
+        let _cse_temp_3 = x < 0;
         if _cse_temp_3 {
-            normalized = {
-                let base = &*normalized;
-                let stop_idx = (-1) as isize;
-                let stop = if stop_idx < 0 {
-                    (base.len() as isize + stop_idx).max(0) as usize
-                } else {
-                    stop_idx as usize
-                };
-                base[..stop.min(base.len())].to_vec()
-            };
+            println!("{}", "Negative");
+        } else {
+            println!("{}", "Zero");
         }
     }
-    normalized.to_string()
+    if _cse_temp_2 {
+        let _cse_temp_4 = x > 10;
+        if _cse_temp_4 {
+            println!("{}", "Greater than 10");
+        } else {
+            println!("{}", "Between 1 and 10");
+        }
+    }
+    let mut counter = 0;
+    while counter < 5 {
+        println!("{}", counter);
+        counter = (counter).py_add(1);
+    }
+    for i in 0..(10) {
+        if i == 5 {
+            continue;
+        }
+        if i == 8 {
+            break;
+        }
+        println!("{}", i);
+    }
+    for i in 0..(3) {
+        println!("{}", i);
+    }
+    for i in 0..(3) {
+        for j in 0..(3) {
+            println!("{}", format!("({}, {})", i, j));
+        }
+    }
+    let _cse_temp_5 = x > 100;
+    if _cse_temp_5 {
+        return Ok(Some(x));
+    } else {
+        let _cse_temp_6 = x > 50;
+        if _cse_temp_6 {
+            return Ok(Some((x).py_mul(2)));
+        } else {
+            return Ok(None);
+        }
+    }
 }
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{quickcheck, TestResult};
-    #[test]
-    fn test_is_valid_email_examples() {
-        let _ = is_valid_email(Default::default());
+#[doc = "Show advanced statement types."]
+#[doc = " Depyler: proven to terminate"]
+pub fn demonstrate_advanced() -> Result<String, Box<dyn std::error::Error>> {
+    let mut f = std::fs::File::create("file.txt".to_string())?;
+    f.write_all("Hello, World!".to_string().as_bytes()).unwrap();
+    if false {
+        return Err(Box::new(ValueError::new(
+            "Something went wrong".to_string(),
+        )));
     }
-    #[test]
-    fn quickcheck_normalize_url() {
-        fn prop(url: String) -> TestResult {
-            let once = normalize_url((&*url).into());
-            let twice = normalize_url(once.clone());
-            if once != twice {
-                return TestResult::failed();
-            }
-            TestResult::passed()
-        }
-        quickcheck(prop as fn(String) -> TestResult);
-    }
+    let result = "  Hello World  "
+        .to_string()
+        .trim()
+        .to_string()
+        .to_lowercase()
+        .replace(" ", "_");
+    Ok(result.to_string())
+}
+#[doc = "Show various comprehension types."]
+#[doc = " Depyler: verified panic-free"]
+#[doc = " Depyler: proven to terminate"]
+pub fn demonstrate_comprehensions() -> Vec<(i32, i32, i32)> {
+    let transformed = (0..(5))
+        .into_iter()
+        .map(|x| {
+            (
+                x,
+                {
+                    if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
+                        ({ x } as i32)
+                            .checked_pow({ 2 } as u32)
+                            .expect("Power operation overflowed")
+                    } else {
+                        ({ x } as f64).powf({ 2 } as f64) as i32
+                    }
+                },
+                {
+                    if 3 >= 0 && (3 as i64) <= (u32::MAX as i64) {
+                        ({ x } as i32)
+                            .checked_pow({ 3 } as u32)
+                            .expect("Power operation overflowed")
+                    } else {
+                        ({ x } as f64).powf({ 3 } as f64) as i32
+                    }
+                },
+            )
+        })
+        .collect::<Vec<_>>();
+    transformed
 }

@@ -370,6 +370,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #ident });
         }
 
+        // DEPYLER-1151: Check if variable has been narrowed after a None check
+        // Pattern: `if x.is_none() { return }` narrows x to the inner type
+        // So we can safely unwrap it in subsequent code
+        if self.ctx.narrowed_option_vars.contains(name) {
+            // Check if variable is actually an Option type
+            if let Some(var_type) = self.ctx.var_types.get(name) {
+                if matches!(var_type, Type::Optional(_)) {
+                    let ident = if keywords::is_rust_keyword(name) {
+                        syn::Ident::new_raw(name, proc_macro2::Span::call_site())
+                    } else {
+                        syn::Ident::new(name, proc_macro2::Span::call_site())
+                    };
+                    return Ok(parse_quote! { #ident.unwrap() });
+                }
+            }
+        }
+
         // DEPYLER-0624: Handle Python's magic dunder variables
         // __file__ gives the path to the current file → file!() macro
         // __name__ gives the module name → "__main__" for main module

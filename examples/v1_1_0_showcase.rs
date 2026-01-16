@@ -2670,14 +2670,20 @@ pub fn showcase_dictionary_assignment() -> (
     d.insert("key".to_string(), DepylerValue::Str("value".to_string()));
     let nested = {
         let mut map = HashMap::new();
-        map.insert("level1".to_string(), {
-            let mut map = HashMap::new();
-            map.insert("level2".to_string(), {
-                let map: HashMap<String, i32> = HashMap::new();
+        map.insert(
+            "level1".to_string(),
+            DepylerValue::Str(format!("{:?}", {
+                let mut map = HashMap::new();
+                map.insert(
+                    "level2".to_string(),
+                    DepylerValue::Str(format!("{:?}", {
+                        let mut map = HashMap::new();
+                        map
+                    })),
+                );
                 map
-            });
-            map
-        });
+            })),
+        );
         map
     };
     nested
@@ -2807,8 +2813,14 @@ pub fn showcase_frozen_sets() -> (
     let result = _cse_temp_0;
     let frozen_dict = {
         let mut map = HashMap::new();
-        map.insert(immutable1, "first set".to_string());
-        map.insert(immutable2, "second set".to_string());
+        map.insert(
+            DepylerValue::from(immutable1),
+            DepylerValue::Str("first set".to_string()),
+        );
+        map.insert(
+            DepylerValue::from(immutable2),
+            DepylerValue::Str("second set".to_string()),
+        );
         map
     };
     return (DepylerValue::from(result), DepylerValue::from(frozen_dict));

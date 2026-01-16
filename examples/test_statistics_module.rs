@@ -2868,8 +2868,8 @@ pub fn test_variance() -> Result<f64, Box<dyn std::error::Error>> {
 }
 #[doc = "Test calculating standard deviation"]
 pub fn test_stdev() -> Result<f64, Box<dyn std::error::Error>> {
-    let mut variance_sum: f64 = Default::default();
     let mut total: f64 = Default::default();
+    let mut variance_sum: f64 = Default::default();
     let data: Vec<f64> = vec![2.0, 4.0, 6.0, 8.0, 10.0];
     total = 0.0;
     for value in data.iter().cloned() {
@@ -2891,8 +2891,8 @@ pub fn test_stdev() -> Result<f64, Box<dyn std::error::Error>> {
 }
 #[doc = "Test finding min and max"]
 pub fn test_min_max() -> Result<(f64, f64), Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let data: Vec<f64> = vec![3.5, 1.2, 7.8, 2.4, 9.1];
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -3129,8 +3129,8 @@ pub fn calculate_covariance<'b, 'a>(
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
     let mut y_total: f64 = Default::default();
-    let mut cov_sum: f64 = Default::default();
     let mut x_total: f64 = Default::default();
+    let mut cov_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3178,15 +3178,15 @@ pub fn calculate_covariance<'b, 'a>(
     Ok(covariance)
 }
 #[doc = "Calculate Pearson correlation coefficient"]
-pub fn calculate_correlation<'b, 'a>(
+pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut x_total: f64 = Default::default();
-    let mut x_var_sum: f64 = Default::default();
     let mut diff: f64 = Default::default();
     let mut y_total: f64 = Default::default();
+    let mut x_total: f64 = Default::default();
     let mut y_var_sum: f64 = Default::default();
+    let mut x_var_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;

@@ -3024,11 +3024,11 @@ pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut x_variance_sum: f64 = Default::default();
     let mut y_variance_sum: f64 = Default::default();
+    let mut x_variance_sum: f64 = Default::default();
     let mut y_sum: f64 = Default::default();
-    let mut x_sum: f64 = Default::default();
     let mut numerator: f64 = Default::default();
+    let mut x_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3118,7 +3118,7 @@ pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Er
     Ok(normalized)
 }
 #[doc = "Group data by ranges using collections"]
-pub fn group_by_range<'a, 'b>(
+pub fn group_by_range<'b, 'a>(
     data: &'a Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, Box<dyn std::error::Error>> {

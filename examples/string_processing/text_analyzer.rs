@@ -462,6 +462,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2702,8 +2736,8 @@ pub fn find_anagrams(words: &Vec<String>) -> Vec<Vec<String>> {
 }
 #[doc = "Find the longest common prefix among strings"]
 pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
-    let mut min_length: i32 = Default::default();
     let mut prefix: String = Default::default();
+    let mut min_length: i32 = Default::default();
     if strings.is_empty() {
         return Ok(STR_EMPTY);
     }
@@ -2722,7 +2756,7 @@ pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, Box<dyn st
         .len() as i32;
     min_length = _cse_temp_2;
     for s in {
-        let base = &strings;
+        let base = &*strings;
         let start_idx = (1) as isize;
         let start = if start_idx < 0 {
             (base.len() as isize + start_idx).max(0) as usize
@@ -2750,7 +2784,7 @@ pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, Box<dyn st
             .expect("IndexError: list index out of range");
         let mut all_match = true;
         for s in {
-            let base = &strings;
+            let base = &*strings;
             let start_idx = (1) as isize;
             let start = if start_idx < 0 {
                 (base.len() as isize + start_idx).max(0) as usize

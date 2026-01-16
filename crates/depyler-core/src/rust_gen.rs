@@ -2352,6 +2352,7 @@ fn generate_rust_file_internal(
         boxed_dyn_write_vars: HashSet::new(), // DEPYLER-0625: Track vars needing Box<dyn Write>
         function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
         option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
+        narrowed_option_vars: HashSet::new(), // DEPYLER-1151: Track narrowed Options after None check
         type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions for generic inference
         current_assign_type: None, // DEPYLER-0727: Track assignment target type for dict Value wrapping
         force_dict_value_option_wrap: false, // DEPYLER-0741: Force dict values to use Option wrapping
@@ -5670,6 +5671,7 @@ mod tests {
             boxed_dyn_write_vars: HashSet::new(), // DEPYLER-0625: Track vars needing Box<dyn Write>
             function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
             option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
+            narrowed_option_vars: HashSet::new(), // DEPYLER-1151: Track narrowed Options after None check
             function_param_defaults: HashMap::new(), // Track function parameter defaults
             class_field_defaults: HashMap::new(), // DEPYLER-0932: Dataclass field defaults
             function_param_optionals: HashMap::new(), // DEPYLER-0737: Track Optional params

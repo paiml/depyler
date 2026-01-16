@@ -2744,7 +2744,7 @@ pub fn large_list_in_loop(n: &DepylerValue) -> Vec<DepylerValue> {
 }
 #[doc = "Linear search in nested loop - O(n²)."]
 #[doc = " Depyler: verified panic-free"]
-pub fn linear_search_in_loop<'b, 'a>(
+pub fn linear_search_in_loop<'a, 'b>(
     items: &'a str,
     targets: &'b DepylerValue,
 ) -> Vec<DepylerValue> {

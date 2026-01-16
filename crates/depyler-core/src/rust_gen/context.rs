@@ -293,6 +293,11 @@ pub struct CodeGenContext<'a> {
     /// Used inside if-let blocks to substitute variable references
     pub option_unwrap_map: HashMap<String, String>,
 
+    /// DEPYLER-1151: Track Option variables narrowed after None check with early return
+    /// Pattern: `if x.is_none() { return }` narrows x to the inner type
+    /// When x is used after this guard, we automatically unwrap it
+    pub narrowed_option_vars: HashSet<String>,
+
     /// DEPYLER-0627: Track if subprocess.run is used (needs CompletedProcess struct)
     /// When True, generate a CompletedProcess struct in the output
     pub needs_completed_process: bool,
@@ -753,6 +758,7 @@ pub mod test_helpers {
             is_main_function: false,
             function_returns_boxed_write: false,
             option_unwrap_map: HashMap::new(),
+            narrowed_option_vars: HashSet::new(),
             needs_completed_process: false,
             vararg_functions: HashSet::new(),
             type_substitutions: HashMap::new(),

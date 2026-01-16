@@ -6,9 +6,9 @@
 #![allow(dead_code)]
 #[doc = "// NOTE: Map Python module 'operator'(tracked in DEPYLER-0424)"]
 use std::iter::Iterator::fold;
-const STR_ID: &'static str = "id";
-const STR_AGE: &'static str = "age";
 const STR_CITY: &'static str = "city";
+const STR_AGE: &'static str = "age";
+const STR_ID: &'static str = "id";
 const STR_NAME: &'static str = "name";
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -449,6 +449,40 @@ impl From<bool> for DepylerValue {
 impl From<Vec<DepylerValue>> for DepylerValue {
     fn from(v: Vec<DepylerValue>) -> Self {
         DepylerValue::List(v)
+    }
+}
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
     }
 }
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {

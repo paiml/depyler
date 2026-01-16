@@ -2696,7 +2696,7 @@ pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> 
         .cloned()
         .expect("IndexError: list index out of range");
     let less = {
-        let base = &arr;
+        let base = &*arr;
         let start_idx = (1) as isize;
         let start = if start_idx < 0 {
             (base.len() as isize + start_idx).max(0) as usize
@@ -2717,7 +2717,7 @@ pub fn quicksort(arr: Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>> 
     .map(|x| x)
     .collect::<Vec<_>>();
     let greater = {
-        let base = &arr;
+        let base = &*arr;
         let start_idx = (1) as isize;
         let start = if start_idx < 0 {
             (base.len() as isize + start_idx).max(0) as usize

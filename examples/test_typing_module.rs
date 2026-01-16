@@ -498,6 +498,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2685,9 +2719,9 @@ pub fn test_list_typing() -> Vec<i32> {
 pub fn test_dict_typing() -> HashMap<String, i32> {
     let ages: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert(STR_ALICE.to_string(), 30);
-        map.insert("Bob".to_string(), 25);
-        map.insert("Charlie".to_string(), 35);
+        map.insert(STR_ALICE.to_string(), (30) as i32);
+        map.insert("Bob".to_string(), (25) as i32);
+        map.insert("Charlie".to_string(), (35) as i32);
         map
     };
     ages
@@ -2728,7 +2762,7 @@ pub fn test_optional_return(value: i32) -> Option<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_optional_parameter(value: &Option<i32>) -> i32 {
     if value.is_some() {
-        return value;
+        return (*value).unwrap();
     } else {
         return 0;
     }
@@ -2824,7 +2858,7 @@ pub fn process_user_data(
     Ok((result, avg_score))
 }
 #[doc = "Test Dict parameters and return"]
-pub fn merge_data<'b, 'a>(
+pub fn merge_data<'a, 'b>(
     dict1: &'a std::collections::HashMap<String, i32>,
     dict2: &'b std::collections::HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
@@ -2923,7 +2957,7 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, Box<dyn std::error::Er
 }
 #[doc = "Safe dict access"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_value<'a, 'b>(
+pub fn get_value<'b, 'a>(
     data: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<Option<i32>, Box<dyn std::error::Error>> {
@@ -3038,14 +3072,14 @@ pub fn test_all_typing_features() -> Result<(), Box<dyn std::error::Error>> {
     let user_result: (String, f64) = process_user_data(STR_ALICE.to_string(), 30, &scores, None)?;
     let d1: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("a".to_string(), 1);
-        map.insert("b".to_string(), 2);
+        map.insert("a".to_string(), (1) as i32);
+        map.insert("b".to_string(), (2) as i32);
         map
     };
     let d2: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("c".to_string(), 3);
-        map.insert("d".to_string(), 4);
+        map.insert("c".to_string(), (3) as i32);
+        map.insert("d".to_string(), (4) as i32);
         map
     };
     let merged: std::collections::HashMap<String, i32> = merge_data(&d1, &d2)?;
@@ -3056,8 +3090,8 @@ pub fn test_all_typing_features() -> Result<(), Box<dyn std::error::Error>> {
     let division: Option<f64> = safe_divide(10, 3)?;
     let data: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("x".to_string(), 10);
-        map.insert("y".to_string(), 20);
+        map.insert("x".to_string(), (10) as i32);
+        map.insert("y".to_string(), (20) as i32);
         map
     };
     let value: Option<i32> = get_value(&data, &"x")?;
