@@ -2848,11 +2848,11 @@ pub fn build_query_string(params: &std::collections::HashMap<String, String>) ->
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn parse_url_components(url: &str) -> (String, String, String, String) {
-    let mut query: String = Default::default();
-    let mut host: String = Default::default();
-    let mut path: String = Default::default();
-    let mut scheme: String = Default::default();
     let mut remaining: String = Default::default();
+    let mut host: String = Default::default();
+    let mut query: String = Default::default();
+    let mut scheme: String = Default::default();
+    let mut path: String = Default::default();
     scheme = STR_EMPTY.to_string();
     host = STR_EMPTY.to_string();
     path = "/".to_string();

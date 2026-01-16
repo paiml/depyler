@@ -961,6 +961,7 @@ mod tests {
     fn test_import_and_import_item() {
         let import = Import {
             module: "os".to_string(),
+            alias: None,
             items: vec![ImportItem::Named("path".to_string())],
         };
         assert_eq!(import.module, "os");

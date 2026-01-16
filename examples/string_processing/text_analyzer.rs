@@ -2702,8 +2702,8 @@ pub fn find_anagrams(words: &Vec<String>) -> Vec<Vec<String>> {
 }
 #[doc = "Find the longest common prefix among strings"]
 pub fn longest_common_prefix(strings: &Vec<String>) -> Result<String, Box<dyn std::error::Error>> {
-    let mut prefix: String = Default::default();
     let mut min_length: i32 = Default::default();
+    let mut prefix: String = Default::default();
     if strings.is_empty() {
         return Ok(STR_EMPTY);
     }

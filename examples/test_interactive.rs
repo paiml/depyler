@@ -2701,16 +2701,16 @@ pub fn process_strings(strings: &Vec<String>) -> String {
 }
 #[doc = "Function with frequent dictionary lookups."]
 #[doc = " Depyler: verified panic-free"]
-pub fn lookup_values<'b, 'a>(
+pub fn lookup_values<'a, 'b>(
     data: &'a std::collections::HashMap<String, i32>,
     keys: &'b Vec<String>,
 ) -> Vec<i32> {
     let mut results = vec![];
     for key in keys.iter().cloned() {
         if data.get(&key).is_some() {
-            results.push(data.get(&key).cloned().unwrap_or_default() as i64);
+            results.push(data.get(&key).cloned().unwrap_or_default());
         } else {
-            results.push(0 as i64);
+            results.push(0);
         }
     }
     results

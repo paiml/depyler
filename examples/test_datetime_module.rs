@@ -2742,7 +2742,7 @@ pub fn calculate_age<'a, 'b>(
 #[doc = "Calculate days until a future event"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn days_until_event<'a, 'b>(event_date: &'a DepylerDate, current_date: &'b DepylerDate) -> i32 {
+pub fn days_until_event<'b, 'a>(event_date: &'a DepylerDate, current_date: &'b DepylerDate) -> i32 {
     let _cse_temp_0 = event_date < current_date;
     if _cse_temp_0 {
         return 0;
@@ -2932,7 +2932,7 @@ pub fn test_datetime_formatting() -> String {
 }
 #[doc = "Generate list of dates in range"]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_date_range<'b, 'a>(start: &'a DepylerDate, end: &'b DepylerDate) -> Vec<DepylerDate> {
+pub fn test_date_range<'a, 'b>(start: &'a DepylerDate, end: &'b DepylerDate) -> Vec<DepylerDate> {
     let mut dates: Vec<DepylerDate> = vec![];
     let mut current: DepylerDate = start.clone();
     let one_day: DepylerTimeDelta = DepylerTimeDelta::new(0, 0, 0);

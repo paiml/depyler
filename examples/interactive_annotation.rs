@@ -5,10 +5,10 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::f64 as math;
-    const STR_A: &'static str = "A";
-    const STR_C: &'static str = "C";
-    const STR_B: &'static str = "B";
     const STR_D: &'static str = "D";
+    const STR_B: &'static str = "B";
+    const STR_C: &'static str = "C";
+    const STR_A: &'static str = "A";
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::io::Write;
@@ -2070,7 +2070,7 @@ else {
 }
 Ok(result)
 }
-#[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "] pub fn process_text_data<'b, 'a>(texts: & 'a Vec<String>, keywords: & 'b Vec<String>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>>{
+#[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "] pub fn process_text_data<'a, 'b>(texts: & 'a Vec<String>, keywords: & 'b Vec<String>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>>{
     let mut keyword_counts = keywords.iter().cloned().map(| kw | {
     let _v = 0;
    (kw, _v) }).collect::<std::collections::HashMap<_, _>>();
@@ -2151,12 +2151,12 @@ else {
     result  = (((result).py_mul(7)).py_add(13)).py_mod(1000000);
    
 }
-results.push(result as i64);
+results.push(result);
    
 }
 Ok(results)
 }
-#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'b, 'c, 'a>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'c, 'a, 'b>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
     let mut current: String = Default::default();
     let mut visited = std::collections::HashSet::<i32>::new();
     let mut distances_from_start = {

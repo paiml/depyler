@@ -2666,9 +2666,9 @@ pub fn process_queue(items: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::E
     let mut results = vec![];
     while !queue.is_empty() {
         if (queue.len() as i32).py_mod(2) == 0 {
-            results.push(queue.pop_front() as i64);
+            results.push(queue.pop_front());
         } else {
-            results.push(queue.pop_back().unwrap_or_default() as i64);
+            results.push(queue.pop_back().unwrap_or_default());
         }
     }
     Ok(results)

@@ -2641,7 +2641,7 @@ pub fn map_transform(data: &Vec<i32>, multiplier: i32) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for item in data.iter().cloned() {
         let transformed: i32 = (item).py_mul(multiplier);
-        result.push(transformed as i64);
+        result.push(transformed);
     }
     result
 }
@@ -2651,7 +2651,7 @@ pub fn filter_predicate(data: &Vec<i32>, threshold: i32) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for item in data.iter().cloned() {
         if item > threshold {
-            result.push(item as i64);
+            result.push(item);
         }
     }
     result
@@ -2693,7 +2693,7 @@ pub fn chain_operations(data: &Vec<i32>) -> i32 {
 #[doc = "Zip two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
+pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
     let mut result: Vec<(i32, String)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -2756,9 +2756,9 @@ pub fn partition_by_predicate(items: &Vec<i32>, threshold: i32) -> (Vec<i32>, Ve
     let mut failed: Vec<i32> = vec![];
     for item in items.iter().cloned() {
         if item >= threshold {
-            passed.push(item as i64);
+            passed.push(item);
         } else {
-            failed.push(item as i64);
+            failed.push(item);
         }
     }
     (passed, failed)
@@ -2770,7 +2770,7 @@ pub fn accumulate_running_sum(data: &Vec<i32>) -> Vec<i32> {
     let mut total: i32 = 0;
     for item in data.iter().cloned() {
         total = (total).py_add(item);
-        result.push(total as i64);
+        result.push(total);
     }
     result
 }
@@ -2780,7 +2780,7 @@ pub fn flatten_nested_list(nested: &Vec<Vec<i32>>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for sublist in nested.iter().cloned() {
         for item in sublist.iter().cloned() {
-            result.push(item as i64);
+            result.push(item);
         }
     }
     result
@@ -2803,7 +2803,7 @@ pub fn take_while_condition(data: &Vec<i32>, threshold: i32) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for item in data.iter().cloned() {
         if item < threshold {
-            result.push(item as i64);
+            result.push(item);
         } else {
             break;
         }
@@ -2820,7 +2820,7 @@ pub fn drop_while_condition(data: &Vec<i32>, threshold: i32) -> Vec<i32> {
             continue;
         }
         dropping = false;
-        result.push(item as i64);
+        result.push(item);
     }
     result
 }
@@ -2870,7 +2870,7 @@ pub fn sliding_window(data: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
                 base.get(actual_idx)
                     .cloned()
                     .expect("IndexError: list index out of range")
-            } as i64);
+            });
         }
         result.push(window);
     }
@@ -2882,7 +2882,7 @@ pub fn compose_two_functions(data: &Vec<i32>) -> Vec<i32> {
     let step1: Vec<i32> = map_transform(&data, 2);
     let mut step2: Vec<i32> = vec![];
     for item in step1.iter().cloned() {
-        step2.push((item).py_add(1) as i64);
+        step2.push((item).py_add(1));
     }
     step2
 }
@@ -2899,17 +2899,17 @@ pub fn apply_multiple_operations<'a, 'b>(
         new_result = vec![];
         if op == "double" {
             for item in result.iter().cloned() {
-                new_result.push((item).py_mul(2) as i64);
+                new_result.push((item).py_mul(2));
             }
         } else {
             if op == "increment" {
                 for item in result.iter().cloned() {
-                    new_result.push((item).py_add(1) as i64);
+                    new_result.push((item).py_add(1));
                 }
             } else {
                 if op == "square" {
                     for item in result.iter().cloned() {
-                        new_result.push((item).py_mul(item) as i64);
+                        new_result.push((item).py_mul(item));
                     }
                 } else {
                     new_result = result;
@@ -2925,7 +2925,7 @@ pub fn apply_multiple_operations<'a, 'b>(
 pub fn map_reduce_pattern(data: &Vec<i32>) -> i32 {
     let mut mapped: Vec<i32> = vec![];
     for item in data.iter().cloned() {
-        mapped.push((item).py_mul(item) as i64);
+        mapped.push((item).py_mul(item));
     }
     let reduced: i32 = reduce_sum(&mapped);
     reduced
@@ -2950,7 +2950,7 @@ pub fn unique_elements(data: &Vec<i32>) -> Vec<i32> {
     for item in data.iter().cloned() {
         if seen.get(&item).is_none() {
             seen.insert(item.clone(), true);
-            result.push(item as i64);
+            result.push(item);
         }
     }
     result

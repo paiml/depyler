@@ -2632,9 +2632,9 @@ struct Args {
 #[doc = " Depyler: proven to terminate"]
 pub fn count_file(filepath: &std::path::PathBuf) -> Stats {
     let mut lines: i32 = Default::default();
-    let mut chars: i32 = Default::default();
-    let mut words: i32 = Default::default();
     let mut content: Option<String> = None;
+    let mut words: i32 = Default::default();
+    let mut chars: i32 = Default::default();
     match (|| -> Result<(), Box<dyn std::error::Error>> {
         content = Some(std::fs::read_to_string(&filepath).unwrap());
         lines = content
@@ -2682,8 +2682,8 @@ pub fn format_stats(stats: Stats, show_filename: bool) -> String {
 #[doc = "Main entry point"]
 #[doc = " Depyler: verified panic-free"]
 pub fn main() {
-    let mut total_chars: i32 = Default::default();
     let mut total_words: i32 = Default::default();
+    let mut total_chars: i32 = Default::default();
     let mut total_lines: i32 = Default::default();
     let args = Args::default();
     total_lines = 0;
