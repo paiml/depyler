@@ -2804,8 +2804,8 @@ pub fn test_array_creation() -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_array_append() -> Vec<i32> {
     let mut arr: Vec<i32> = vec![1, 2, 3];
-    arr.push(4 as i64);
-    arr.push(5 as i64);
+    arr.push(4);
+    arr.push(5);
     arr
 }
 #[doc = "Test extending array"]
@@ -2890,7 +2890,7 @@ pub fn test_queue_fifo() -> Vec<i32> {
     let mut results: Vec<i32> = vec![];
     while !q.empty() {
         let item: i32 = q.get();
-        results.push(item as i64);
+        results.push(item);
     }
     results
 }
@@ -2904,7 +2904,7 @@ pub fn test_stack_lifo() -> Vec<i32> {
     let mut results: Vec<i32> = vec![];
     while !s.empty() {
         let item: i32 = s.pop();
-        results.push(item as i64);
+        results.push(item);
     }
     results
 }
@@ -2952,7 +2952,7 @@ pub fn test_circular_buffer(size: i32) -> Vec<i32> {
     let max_size: i32 = size;
     let values: Vec<i32> = vec![1, 2, 3, 4, 5, 6, 7, 8];
     for val in values.iter().cloned() {
-        buffer.push(val as i64);
+        buffer.push(val);
         if buffer.len() as i32 > max_size {
             let mut new_buffer: Vec<i32> = vec![];
             for i in (1)..(buffer.len() as i32) {
@@ -2960,7 +2960,7 @@ pub fn test_circular_buffer(size: i32) -> Vec<i32> {
                     buffer
                         .get(i as usize)
                         .cloned()
-                        .expect("IndexError: list index out of range") as i64,
+                        .expect("IndexError: list index out of range"),
                 );
             }
             buffer = new_buffer;
@@ -2974,9 +2974,9 @@ pub fn test_circular_buffer(size: i32) -> Vec<i32> {
 pub fn test_deque_simulation() -> Vec<i32> {
     let mut deque: Vec<i32> = Default::default();
     deque = vec![];
-    deque.push(1 as i64);
-    deque.push(2 as i64);
-    deque.push(3 as i64);
+    deque.push(1);
+    deque.push(2);
+    deque.push(3);
     deque.insert(0 as usize, 0);
     deque.pop().unwrap_or_default();
     let _cse_temp_0 = deque.len() as i32;
@@ -2988,7 +2988,7 @@ pub fn test_deque_simulation() -> Vec<i32> {
                 deque
                     .get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range") as i64,
+                    .expect("IndexError: list index out of range"),
             );
         }
         deque = new_deque;

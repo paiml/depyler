@@ -2852,7 +2852,7 @@ pub fn filter_positive(numbers: &Vec<i32>) -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
         if num > 0 {
-            result.push(num as i64);
+            result.push(num);
         }
     }
     result
@@ -2860,8 +2860,8 @@ pub fn filter_positive(numbers: &Vec<i32>) -> Vec<i32> {
 #[doc = "Test Union types in collections"]
 #[doc = " Depyler: verified panic-free"]
 pub fn count_by_type(items: &Vec<String>) -> (i32, i32) {
-    let mut int_count: i32 = Default::default();
     let mut str_count: i32 = Default::default();
+    let mut int_count: i32 = Default::default();
     int_count = 0;
     str_count = 0;
     for item in items.iter().cloned() {

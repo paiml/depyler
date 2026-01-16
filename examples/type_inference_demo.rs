@@ -2620,7 +2620,7 @@ pub fn handle_text(message: &str) -> String {
 #[doc = " Depyler: verified panic-free"]
 pub fn work_with_list(data: &mut Vec<i32>) -> i32 {
     let mut total: i32 = Default::default();
-    data.push(100 as i64);
+    data.push(100);
     total = 0;
     for item in data.iter().cloned() {
         total = (total).py_add(item);

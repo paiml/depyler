@@ -6,9 +6,9 @@
 #![allow(dead_code)]
 #[doc = "// NOTE: Map Python module 'operator'(tracked in DEPYLER-0424)"]
 use std::iter::Iterator::fold;
-const STR_CITY: &'static str = "city";
-const STR_AGE: &'static str = "age";
 const STR_ID: &'static str = "id";
+const STR_AGE: &'static str = "age";
+const STR_CITY: &'static str = "city";
 const STR_NAME: &'static str = "name";
 use std::collections::HashMap;
 use std::collections::HashSet;

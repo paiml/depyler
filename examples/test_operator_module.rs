@@ -2793,10 +2793,10 @@ pub fn test_concat_operator() -> Vec<i32> {
     let list2: Vec<i32> = vec![4, 5, 6];
     let mut result: Vec<i32> = vec![];
     for item in list1.iter().cloned() {
-        result.push(item as i64);
+        result.push(item);
     }
     for item in list2.iter().cloned() {
-        result.push(item as i64);
+        result.push(item);
     }
     result
 }
@@ -2809,7 +2809,7 @@ pub fn test_repeat_operator() -> Vec<i32> {
     let mut result: Vec<i32> = vec![];
     for _i in 0..(times) {
         for item in base.iter().cloned() {
-            result.push(item as i64);
+            result.push(item);
         }
     }
     result
@@ -2846,7 +2846,7 @@ pub fn test_delitem_operator() -> Vec<i32> {
             new_data.push(
                 data.get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range") as i64,
+                    .expect("IndexError: list index out of range"),
             );
         }
     }

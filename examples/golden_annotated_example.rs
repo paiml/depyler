@@ -2748,7 +2748,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'a, 'b>(
+pub fn confidence_levels_demo<'b, 'a>(
     certain_str: &'a str,
     probable_num: i32,
     possible_container: &'b Vec<i32>,

@@ -2626,7 +2626,7 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_list_append() -> i32 {
     let mut numbers = vec![1, 2, 3];
-    numbers.push(4 as i64);
+    numbers.push(4);
     numbers.len() as i32 as i32
 }
 #[doc = "Test list.extend() method"]

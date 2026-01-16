@@ -4,8 +4,8 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_EMPTY: &'static str = "";
-    const STR__: &'static str = "/";
+const STR__: &'static str = "/";
+    const STR_EMPTY: &'static str = "";
     use std::collections::HashMap;
     #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,

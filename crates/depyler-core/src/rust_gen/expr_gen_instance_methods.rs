@@ -430,13 +430,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #object_expr.push(#arg) })
                 }
             }
-            // For Vec<i64>, ensure integer type
+            // DEPYLER-1135: For Vec<int>, push directly without cast
+            // The argument should already be typed correctly (i32 by default, or whatever
+            // width was inferred). Casting to i64 causes E0308 when the Vec is Vec<i32>.
+            // Trust the type system - if there's a mismatch, it's a type inference issue
+            // that should be fixed at the source, not papered over with casts.
             Type::Int => {
-                Ok(parse_quote! { #object_expr.push(#arg as i64) })
+                Ok(parse_quote! { #object_expr.push(#arg) })
             }
-            // For Vec<f64>, ensure float type
+            // DEPYLER-1135: For Vec<f64>, push directly without cast
+            // Same reasoning - trust the type system
             Type::Float => {
-                Ok(parse_quote! { #object_expr.push(#arg as f64) })
+                Ok(parse_quote! { #object_expr.push(#arg) })
             }
             // For Vec<bool>, direct push
             Type::Bool => {

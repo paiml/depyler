@@ -2639,7 +2639,7 @@ pub fn filter_even_numbers(numbers: &Vec<i32>) -> Result<Vec<i32>, Box<dyn std::
     let mut result: Vec<i32> = vec![];
     for num in numbers.iter().cloned() {
         if (num).py_mod(2) == 0 {
-            result.push(num as i64);
+            result.push(num);
         }
     }
     Ok(result)
@@ -2652,10 +2652,10 @@ pub fn find_duplicates(numbers: &Vec<i32>) -> Vec<i32> {
     for num in numbers.iter().cloned() {
         if seen.contains(&num) {
             if !duplicates.contains(&num) {
-                duplicates.push(num as i64);
+                duplicates.push(num);
             }
         } else {
-            seen.push(num as i64);
+            seen.push(num);
         }
     }
     duplicates
@@ -2665,8 +2665,8 @@ pub fn merge_sorted_lists<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
-    let mut i: i32 = Default::default();
     let mut j: i32 = Default::default();
+    let mut i: i32 = Default::default();
     let mut result: Vec<i32> = vec![];
     i = 0;
     j = 0;
@@ -2684,7 +2684,7 @@ pub fn merge_sorted_lists<'a, 'b>(
                 list1
                     .get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range") as i64,
+                    .expect("IndexError: list index out of range"),
             );
             i = (i).py_add(1);
         } else {
@@ -2692,7 +2692,7 @@ pub fn merge_sorted_lists<'a, 'b>(
                 list2
                     .get(j as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range") as i64,
+                    .expect("IndexError: list index out of range"),
             );
             j = (j).py_add(1);
         }
@@ -2702,7 +2702,7 @@ pub fn merge_sorted_lists<'a, 'b>(
             list1
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
         i = (i).py_add(1);
     }
@@ -2711,7 +2711,7 @@ pub fn merge_sorted_lists<'a, 'b>(
             list2
                 .get(j as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
         j = (j).py_add(1);
     }
@@ -2727,7 +2727,7 @@ pub fn calculate_running_sum(numbers: &Vec<i32>) -> Vec<i32> {
     let mut running_total = 0;
     for num in numbers.iter().cloned() {
         running_total = (running_total).py_add(num);
-        result.push(running_total as i64);
+        result.push(running_total);
     }
     result
 }
@@ -2752,7 +2752,7 @@ pub fn rotate_list_left(
             numbers
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
     }
     for i in 0..(positions) {
@@ -2760,7 +2760,7 @@ pub fn rotate_list_left(
             numbers
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
     }
     Ok(result)

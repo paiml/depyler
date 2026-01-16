@@ -2632,7 +2632,7 @@ pub fn get_python_files(directory: &str) -> Vec<String> {
         .collect::<Vec<_>>()
 }
 #[doc = "Create a nested path from parts"]
-pub fn create_nested_path<'a, 'b>(
+pub fn create_nested_path<'b, 'a>(
     base: &'a str,
     parts: &[String],
 ) -> Result<String, Box<dyn std::error::Error>> {

@@ -2643,7 +2643,7 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
     let mut data: Vec<f64> = vec![];
     for _i in 0..(size) {
         let value: f64 = ((0.5_f64).py_mul(stddev)).py_add(mean);
-        data.push(value as f64);
+        data.push(value);
     }
     data
 }
@@ -2651,8 +2651,8 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
 pub fn calculate_statistics(
     data: &Vec<f64>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut variance_sum: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut variance_sum: f64 = Default::default();
     let mut total: f64 = Default::default();
     let mut max_val: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
@@ -2922,7 +2922,7 @@ pub fn detect_outliers(data: &Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
     let mut outliers: Vec<f64> = vec![];
     for value in data.iter().cloned() {
         if (value < lower_bound) || (value > upper_bound) {
-            outliers.push(value as f64);
+            outliers.push(value);
         }
     }
     Ok(outliers)
@@ -2990,10 +2990,10 @@ pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut numerator: f64 = Default::default();
+    let mut x_sum: f64 = Default::default();
     let mut y_variance_sum: f64 = Default::default();
     let mut x_variance_sum: f64 = Default::default();
-    let mut x_sum: f64 = Default::default();
+    let mut numerator: f64 = Default::default();
     let mut y_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
@@ -3079,17 +3079,17 @@ pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Er
     let mut normalized: Vec<f64> = vec![];
     for value in data.iter().cloned() {
         let z_score: f64 = ((value).py_sub(mean)).py_div(stddev);
-        normalized.push(z_score as f64);
+        normalized.push(z_score);
     }
     Ok(normalized)
 }
 #[doc = "Group data by ranges using collections"]
-pub fn group_by_range<'b, 'a>(
+pub fn group_by_range<'a, 'b>(
     data: &'a Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, Box<dyn std::error::Error>> {
-    let mut range_key: String = Default::default();
     let mut range_tuple: (f64, f64) = Default::default();
+    let mut range_key: String = Default::default();
     let mut groups: std::collections::HashMap<String, Vec<f64>> = {
         let map: HashMap<String, Vec<f64>> = HashMap::new();
         map
@@ -3132,7 +3132,7 @@ pub fn monte_carlo_simulation(
         let x: f64 = (0.5_f64).py_mul(10.0);
         let y: f64 = (0.5_f64).py_mul(10.0);
         let distance: f64 = (((x).py_mul(x)).py_add((y).py_mul(y)) as f64).sqrt();
-        results.push(distance as f64);
+        results.push(distance);
     }
     let stats: std::collections::HashMap<String, f64> = calculate_statistics(&results)?;
     Ok(stats)

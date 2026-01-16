@@ -2616,7 +2616,7 @@ pub fn process_list(items: &Vec<i32>) -> Vec<i32> {
     let mut result = vec![];
     for item in items.iter().cloned() {
         if item > 0 {
-            result.push((item).py_mul(2) as i64);
+            result.push((item).py_mul(2));
         }
     }
     result

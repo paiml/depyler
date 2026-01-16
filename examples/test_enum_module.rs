@@ -2906,7 +2906,7 @@ pub fn test_enum_flags() -> bool {
 pub fn test_enum_range() -> Vec<i32> {
     let mut directions: Vec<i32> = vec![];
     for i in 0..(4) {
-        directions.push(i as i64);
+        directions.push(i);
     }
     directions
 }

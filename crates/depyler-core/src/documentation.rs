@@ -983,10 +983,12 @@ mod tests {
             imports: vec![
                 Import {
                     module: "std".to_string(),
+                    alias: None,
                     items: vec![],
                 },
                 Import {
                     module: "json".to_string(),
+                    alias: None,
                     items: vec![],
                 },
             ],

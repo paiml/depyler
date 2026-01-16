@@ -2632,8 +2632,8 @@ pub fn process_text(text: &str) -> String {
 }
 #[doc = "Calculate average - should infer list of numbers."]
 pub fn calculate_average(numbers: &Vec<i32>) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut total: i32 = Default::default();
     let mut count: i32 = Default::default();
+    let mut total: i32 = Default::default();
     total = 0;
     count = 0;
     for num in numbers.iter().cloned() {

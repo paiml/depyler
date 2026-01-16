@@ -2640,7 +2640,7 @@ pub fn test_heap_push_pop() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut heap: Vec<i32> = vec![];
     let values: Vec<i32> = vec![5, 3, 7, 1, 9, 2];
     for val in values.iter().cloned() {
-        heap.push(val as i64);
+        heap.push(val);
     }
     for i in 0..(heap.len() as i32) {
         for j in ((i).py_add(1))..(heap.len() as i32) {
@@ -2717,7 +2717,7 @@ pub fn test_heap_pop_min() -> Result<i32, Box<dyn std::error::Error>> {
             new_heap.push(
                 heap.get(i as usize)
                     .cloned()
-                    .expect("IndexError: list index out of range") as i64,
+                    .expect("IndexError: list index out of range"),
             );
         }
         return Ok(min_val);
@@ -2776,7 +2776,7 @@ pub fn test_nsmallest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::
             sorted_data
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
     }
     Ok(result)
@@ -2817,7 +2817,7 @@ pub fn test_nlargest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::e
             sorted_data
                 .get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
     }
     Ok(result)
@@ -2828,7 +2828,7 @@ pub fn manual_heap_insert(
     value: i32,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
     let mut new_heap: Vec<i32> = heap.clone();
-    new_heap.push(value as i64);
+    new_heap.push(value);
     let _cse_temp_0 = new_heap.len() as i32;
     let mut index: i32 = (_cse_temp_0).py_sub(1);
     while index > 0 {
@@ -2910,7 +2910,7 @@ pub fn manual_heap_extract_min(
         new_heap.push(
             heap.get(i as usize)
                 .cloned()
-                .expect("IndexError: list index out of range") as i64,
+                .expect("IndexError: list index out of range"),
         );
     }
     let mut index: i32 = 0;
@@ -3000,7 +3000,7 @@ pub fn priority_queue_simulation() -> Result<Vec<i32>, Box<dyn std::error::Error
     }
     let mut priorities: Vec<i32> = vec![];
     for task in sorted_tasks.iter().cloned() {
-        priorities.push(task.0 as i64);
+        priorities.push(task.0);
     }
     Ok(priorities)
 }
@@ -3009,7 +3009,7 @@ pub fn merge_sorted_lists(lists: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std
     let mut result: Vec<i32> = vec![];
     for lst in lists.iter().cloned() {
         for item in lst.iter().cloned() {
-            result.push(item as i64);
+            result.push(item);
         }
     }
     for i in 0..(result.len() as i32) {

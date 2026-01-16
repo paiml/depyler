@@ -2724,7 +2724,7 @@ pub fn level_order_values(
             .cloned()
             .expect("IndexError: list index out of range");
         if value.is_some() {
-            result.push(value as i64);
+            result.push(value);
             let left_child = ((2).py_mul(index)).py_add(1);
             let right_child = ((2).py_mul(index)).py_add(2);
             if left_child < tree_values.len() as i32 {
