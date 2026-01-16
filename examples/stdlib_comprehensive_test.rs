@@ -4,8 +4,8 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_A: &'static str = "a";
 const STR_B: &'static str = "b";
+const STR_A: &'static str = "a";
 use std::collections::HashMap;
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
@@ -2763,12 +2763,12 @@ pub fn test_list_sort() -> Result<i32, Box<dyn std::error::Error>> {
 pub fn test_dict_get() -> i32 {
     let data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
-        map.insert(STR_B.to_string(), 2);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
+        map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
     };
     let value = data.get("a").cloned();
-    value
+    (*value).unwrap()
 }
 #[doc = "Test dict.get() with default"]
 #[doc = " Depyler: verified panic-free"]
@@ -2776,11 +2776,11 @@ pub fn test_dict_get() -> i32 {
 pub fn test_dict_get_default() -> i32 {
     let data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map
     };
     let value = data.get("b").cloned().unwrap_or(0);
-    value
+    (*value).unwrap()
 }
 #[doc = "Test dict.keys() method"]
 #[doc = " Depyler: verified panic-free"]
@@ -2788,9 +2788,9 @@ pub fn test_dict_get_default() -> i32 {
 pub fn test_dict_keys() -> i32 {
     let data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
-        map.insert(STR_B.to_string(), 2);
-        map.insert("c".to_string(), 3);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
+        map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
+        map.insert("c".to_string(), DepylerValue::Int(3 as i64));
         map
     };
     let keys = data.keys().cloned().collect::<Vec<_>>();
@@ -2802,8 +2802,8 @@ pub fn test_dict_values() -> i32 {
     let mut total: i32 = Default::default();
     let data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 10);
-        map.insert(STR_B.to_string(), 20);
+        map.insert(STR_A.to_string(), DepylerValue::Int(10 as i64));
+        map.insert(STR_B.to_string(), DepylerValue::Int(20 as i64));
         map
     };
     let values = data.values().cloned().collect::<Vec<_>>();
@@ -2819,8 +2819,8 @@ pub fn test_dict_values() -> i32 {
 pub fn test_dict_items() -> i32 {
     let data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
-        map.insert(STR_B.to_string(), 2);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
+        map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
     };
     let items = data
@@ -2835,8 +2835,8 @@ pub fn test_dict_items() -> i32 {
 pub fn test_dict_pop() -> i32 {
     let mut data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
-        map.insert(STR_B.to_string(), 2);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
+        map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
     };
     let value = data.remove(STR_A).expect("KeyError: key not found");
@@ -2848,8 +2848,8 @@ pub fn test_dict_pop() -> i32 {
 pub fn test_dict_clear() -> i32 {
     let mut data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
-        map.insert(STR_B.to_string(), 2);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
+        map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
     };
     data.clear();
@@ -2861,7 +2861,7 @@ pub fn test_dict_clear() -> i32 {
 pub fn test_dict_update() -> i32 {
     let mut data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map
     };
     for (k, v) in ({
@@ -2881,8 +2881,8 @@ pub fn test_dict_update() -> i32 {
 pub fn test_dict_setdefault() -> i32 {
     let mut data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
-        map.insert(STR_B.to_string(), 2);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
+        map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
     };
     let value = data.entry(STR_A).or_insert(999).clone();
@@ -2894,7 +2894,7 @@ pub fn test_dict_setdefault() -> i32 {
 pub fn test_dict_setdefault_new() -> i32 {
     let mut data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map
     };
     let value = data.entry(STR_B).or_insert(42).clone();
@@ -2906,9 +2906,9 @@ pub fn test_dict_setdefault_new() -> i32 {
 pub fn test_dict_popitem() -> i32 {
     let mut data = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
-        map.insert(STR_B.to_string(), 2);
-        map.insert("c".to_string(), 3);
+        map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
+        map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
+        map.insert("c".to_string(), DepylerValue::Int(3 as i64));
         map
     };
     {

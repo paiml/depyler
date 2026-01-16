@@ -429,6 +429,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2619,7 +2653,7 @@ pub fn read_csv_rows(filename: &str) -> Result<Vec<Vec<String>>, std::io::Error>
 #[doc = "Write data to CSV file"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn write_csv_data<'a, 'b>(
+pub fn write_csv_data<'b, 'a>(
     filename: &'a str,
     data: &'b Vec<Vec<String>>,
 ) -> Result<(), std::io::Error> {

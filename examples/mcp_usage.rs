@@ -5,8 +5,8 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::path::PathBuf;
-    const STR___2: &'static str = "=";
     const STR___1: &'static str = "\n";
+    const STR___2: &'static str = "=";
     use std::collections::HashMap;
     #[derive(Debug, Clone)] pub struct ZeroDivisionError {
     message: String ,
@@ -2365,42 +2365,42 @@ println!();
     println!("{}", "1\u{fe0f}\u{20e3}  Analyze Python project complexity...");
     let analysis_request = {
     let mut map = HashMap::new();
-    map.insert("tool".to_string(), "analyze_migration_complexity".to_string());
-    map.insert("arguments".to_string(), {
+    map.insert("tool".to_string(), DepylerValue::Str("analyze_migration_complexity".to_string()));
+    map.insert("arguments".to_string(), DepylerValue::Str(format!("{:?}", {
     let mut map = HashMap::new();
-    map.insert("project_path".to_string(), "/path/to/python/project".to_string());
-    map.insert("analysis_depth".to_string(), "deep".to_string());
-    map });
+    map.insert("project_path".to_string(), DepylerValue::Str("/path/to/python/project".to_string()));
+    map.insert("analysis_depth".to_string(), DepylerValue::Str("deep".to_string()));
+    map })));
     map };
     println!("{}", format!("   Request: {}", format!("{:?}", analysis_request)));
     println!();
     println!("{}", "2\u{fe0f}\u{20e3}  Transpile files in priority order...");
     let transpile_request = {
     let mut map = HashMap::new();
-    map.insert("tool".to_string(), "transpile_python".to_string());
-    map.insert("arguments".to_string(), {
+    map.insert("tool".to_string(), DepylerValue::Str("transpile_python".to_string()));
+    map.insert("arguments".to_string(), DepylerValue::Str(format!("{:?}", {
     let mut map = HashMap::new();
-    map.insert("source".to_string(), "# Python code from high-priority file".to_string());
-    map.insert("mode".to_string(), "file".to_string());
-    map.insert("options".to_string(), {
+    map.insert("source".to_string(), DepylerValue::Str("# Python code from high-priority file".to_string()));
+    map.insert("mode".to_string(), DepylerValue::Str("file".to_string()));
+    map.insert("options".to_string(), DepylerValue::Str(format!("{:?}", {
     let mut map = HashMap::new();
-    map.insert("optimization_level".to_string(), "energy".to_string());
-    map.insert("verification_level".to_string(), "comprehensive".to_string());
-    map });
-    map });
+    map.insert("optimization_level".to_string(), DepylerValue::Str("energy".to_string()));
+    map.insert("verification_level".to_string(), DepylerValue::Str("comprehensive".to_string()));
+    map })));
+    map })));
     map };
     println!("{}", format!("   Request: {}", format!("{:?}", transpile_request)));
     println!();
     println!("{}", "3\u{fe0f}\u{20e3}  Verify each transpilation...");
     let verify_request = {
     let mut map = HashMap::new();
-    map.insert("tool".to_string(), "verify_transpilation".to_string());
-    map.insert("arguments".to_string(), {
+    map.insert("tool".to_string(), DepylerValue::Str("verify_transpilation".to_string()));
+    map.insert("arguments".to_string(), DepylerValue::Str(format!("{:?}", {
     let mut map = HashMap::new();
-    map.insert("python_source".to_string(), "# Original Python".to_string());
-    map.insert("rust_source".to_string(), "# Generated Rust".to_string());
-    map.insert("verification_level".to_string(), "comprehensive".to_string());
-    map });
+    map.insert("python_source".to_string(), DepylerValue::Str("# Original Python".to_string()));
+    map.insert("rust_source".to_string(), DepylerValue::Str("# Generated Rust".to_string()));
+    map.insert("verification_level".to_string(), DepylerValue::Str("comprehensive".to_string()));
+    map })));
     map };
     println!("{}", format!("   Request: {}", format!("{:?}", verify_request)));
     println!();

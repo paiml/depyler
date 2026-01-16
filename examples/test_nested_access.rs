@@ -444,6 +444,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2623,19 +2657,21 @@ impl DepylerRegexMatch {
 pub fn test_nested_access() -> Result<String, Box<dyn std::error::Error>> {
     let d = {
         let mut map = HashMap::new();
-        map.insert("outer".to_string(), {
-            let mut map = HashMap::new();
-            map.insert("inner".to_string(), "value".to_string());
-            map
-        });
+        map.insert(
+            "outer".to_string(),
+            DepylerValue::Str(format!("{:?}", {
+                let mut map = HashMap::new();
+                map.insert("inner".to_string(), DepylerValue::Str("value".to_string()));
+                map
+            })),
+        );
         map
     };
     let val = d
         .get("outer")
         .cloned()
         .unwrap_or_default()
-        .get("inner")
-        .cloned()
-        .unwrap_or_default();
+        .clone()
+        .py_index(DepylerValue::Int("inner" as i64));
     Ok(val.to_string())
 }

@@ -2727,7 +2727,7 @@ pub fn chain_operations(data: &Vec<i32>) -> i32 {
 #[doc = "Zip two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn zip_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
+pub fn zip_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<String>) -> Vec<(i32, String)> {
     let mut result: Vec<(i32, String)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
@@ -2922,7 +2922,7 @@ pub fn compose_two_functions(data: &Vec<i32>) -> Vec<i32> {
 }
 #[doc = "Apply multiple operations in sequence"]
 #[doc = " Depyler: verified panic-free"]
-pub fn apply_multiple_operations<'a, 'b>(
+pub fn apply_multiple_operations<'b, 'a>(
     data: &'a Vec<i32>,
     operations: &'b Vec<String>,
 ) -> Vec<i32> {
@@ -3078,7 +3078,7 @@ pub fn demonstrate_functional_patterns() -> Result<(), Box<dyn std::error::Error
     ];
     let zipped: Vec<(i32, String)> = zip_lists(
         &{
-            let base = &data;
+            let base = &*data;
             let stop_idx = (5) as isize;
             let stop = if stop_idx < 0 {
                 (base.len() as isize + stop_idx).max(0) as usize

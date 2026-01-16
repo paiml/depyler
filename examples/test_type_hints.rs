@@ -460,6 +460,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2672,7 +2706,7 @@ pub fn mixed_operations<'a, 'b>(x: i32, y: i32) {
 #[doc = " Depyler: proven to terminate"]
 pub fn container_operations(
     items: &mut Vec<DepylerValue>,
-) -> Result<Option<DepylerValue>, Box<dyn std::error::Error>> {
+) -> Result<String, Box<dyn std::error::Error>> {
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     if _cse_temp_1 {
@@ -2681,7 +2715,7 @@ pub fn container_operations(
             .cloned()
             .expect("IndexError: list index out of range");
         items.push(DepylerValue::Int(42 as i64));
-        return Ok(first);
+        return Ok(first.to_string());
     }
     Ok(None)
 }
@@ -2741,19 +2775,4 @@ pub fn partial_annotations<'a, 'b>(
         )));
     }
     result
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{quickcheck, TestResult};
-    #[test]
-    fn test_process_numbers_examples() {
-        assert_eq!(process_numbers(&vec![]), 0);
-        assert_eq!(process_numbers(&vec![1]), 1);
-        assert_eq!(process_numbers(&vec![1, 2, 3]), 3);
-    }
-    #[test]
-    fn test_inferred_return_types_examples() {
-        let _ = inferred_return_types();
-    }
 }

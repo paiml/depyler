@@ -2722,7 +2722,7 @@ pub fn fibonacci(n: i32) -> i32 {
 #[doc = "Process a list of integers and return statistics.\n    \n    This function analyzes a list of integers and returns various\n    statistics about the data.\n    \n    Args:\n        items: List of integers to process\n        threshold: Optional threshold for filtering(default: None)\n        \n    Returns:\n        Dictionary containing statistics:\n        - 'count': Total number of items\n        - 'sum': Sum of all items\n        - 'max': Maximum value\n        - 'min': Minimum value\n        - 'above_threshold': Count of items above threshold\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process_data<'b, 'a>(
+pub fn process_data<'a, 'b>(
     items: &'a Vec<i32>,
     threshold: &'b Option<i32>,
 ) -> HashMap<String, i32> {

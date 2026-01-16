@@ -2600,8 +2600,8 @@ else {
     let ai = AIPlayer::new("O".to_string());
     let mut moves_log: Vec<String>= vec! [];
     while! game.is_game_over() {
-    let mut col;
     let mut row;
+    let mut col;
     if game.current_player == "X" {
     let empty_positions = game.get_empty_positions();
     if empty_positions {
@@ -2627,7 +2627,7 @@ else {
 }
 Ok(moves_log.join ("\n"))
 }
-#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'b, 'a>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
+#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'a, 'b>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
     let mut count: i32 = Default::default();
     let winning_positions = vec! [vec! [(0, 0) ,(0, 1) ,(0, 2)], vec! [(1, 0) ,(1, 1) ,(1, 2)], vec! [(2, 0) ,(2, 1) ,(2, 2)], vec! [(0, 0) ,(1, 0) ,(2, 0)], vec! [(0, 1) ,(1, 1) ,(2, 1)], vec! [(0, 2) ,(1, 2) ,(2, 2)], vec! [(0, 0) ,(1, 1) ,(2, 2)], vec! [(0, 2) ,(1, 1) ,(2, 0)]];
     count = 0;

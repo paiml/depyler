@@ -428,6 +428,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2706,7 +2740,7 @@ pub fn test_str_join_space() -> String {
 pub fn test_str_find_found() -> i32 {
     let text = STR_HELLO_WORLD;
     let pos = text.find("world").map(|i| i as i32).unwrap_or(-1);
-    pos
+    (*pos).unwrap()
 }
 #[doc = "Test str.find() when substring doesn't exist"]
 #[doc = " Depyler: verified panic-free"]
@@ -2714,7 +2748,7 @@ pub fn test_str_find_found() -> i32 {
 pub fn test_str_find_not_found() -> i32 {
     let text = STR_HELLO_WORLD;
     let pos = text.find("xyz").map(|i| i as i32).unwrap_or(-1);
-    pos
+    (*pos).unwrap()
 }
 #[doc = "Test str.replace() method"]
 #[doc = " Depyler: verified panic-free"]

@@ -2887,7 +2887,7 @@ pub fn complex_generics<T: Clone>(
 #[doc = "Function using type aliases."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn custom_types<'a, 'b>(
+pub fn custom_types<'b, 'a>(
     user_id: &'a UserId,
     _username: Username,
     all_users: &'b UserData,

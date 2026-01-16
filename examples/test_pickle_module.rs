@@ -2674,9 +2674,9 @@ pub fn test_pickle_list() {
 pub fn test_pickle_dict() {
     let data = {
         let mut map = HashMap::new();
-        map.insert("name".to_string(), "Alice".to_string());
-        map.insert("age".to_string(), (30) as i32);
-        map.insert("city".to_string(), "NYC".to_string());
+        map.insert("name".to_string(), DepylerValue::Str("Alice".to_string()));
+        map.insert("age".to_string(), DepylerValue::Int(30 as i64));
+        map.insert("city".to_string(), DepylerValue::Str("NYC".to_string()));
         map
     };
     let pickled = { format!("{:?}", data).into_bytes() };
@@ -2708,22 +2708,31 @@ pub fn test_pickle_nested_structure() {
         let mut map = HashMap::new();
         map.insert(
             "users".to_string(),
-            vec![
-                {
-                    let mut map = HashMap::new();
-                    map.insert("name".to_string(), "Alice".to_string());
-                    map.insert("scores".to_string(), vec![90, 85, 88]);
-                    map
-                },
-                {
-                    let mut map = HashMap::new();
-                    map.insert("name".to_string(), "Bob".to_string());
-                    map.insert("scores".to_string(), vec![78, 82, 91]);
-                    map
-                },
-            ],
+            DepylerValue::Str(format!(
+                "{:?}",
+                vec![
+                    {
+                        let mut map = HashMap::new();
+                        map.insert("name".to_string(), DepylerValue::Str("Alice".to_string()));
+                        map.insert(
+                            "scores".to_string(),
+                            DepylerValue::Str(format!("{:?}", vec![90, 85, 88])),
+                        );
+                        map
+                    },
+                    {
+                        let mut map = HashMap::new();
+                        map.insert("name".to_string(), DepylerValue::Str("Bob".to_string()));
+                        map.insert(
+                            "scores".to_string(),
+                            DepylerValue::Str(format!("{:?}", vec![78, 82, 91])),
+                        );
+                        map
+                    }
+                ]
+            )),
         );
-        map.insert("count".to_string(), (2) as i32);
+        map.insert("count".to_string(), DepylerValue::Int(2 as i64));
         map
     };
     let pickled = { format!("{:?}", data).into_bytes() };

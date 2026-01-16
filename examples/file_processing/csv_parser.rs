@@ -2154,7 +2154,7 @@ else {
     return result;
    
 }
-} #[doc = "Calculate basic statistics for a numeric column in CSV"] pub fn calculate_column_stats<'a, 'b>(csv_content: & 'a str, column_name: & 'b str) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>>{
+} #[doc = "Calculate basic statistics for a numeric column in CSV"] pub fn calculate_column_stats<'b, 'a>(csv_content: & 'a str, column_name: & 'b str) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let dict_rows = parser.to_dict_list(csv_content);
     let _cse_temp_0 =! dict_rows.get(0usize).cloned().expect("IndexError: list index out of range").contains(& * column_name);
@@ -2229,7 +2229,7 @@ let headers = rows.get(0usize).cloned().expect("IndexError: list index out of ra
 let column_index = headers.iter().position(| x | x == & column_name).map(| i | i as i32).expect("ValueError: value is not in list");
     let mut filtered_rows = vec! [headers];
     for row in {
-    let base = & rows;
+    let base = & * rows;
     let start_idx  = (1) as isize;
     let start = if start_idx<0 {
    (base.len() as isize + start_idx).max(0) as usize

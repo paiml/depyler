@@ -2882,11 +2882,11 @@ pub fn build_query_string(params: &std::collections::HashMap<String, String>) ->
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn parse_url_components(url: &str) -> (String, String, String, String) {
+    let mut query: String = Default::default();
     let mut path: String = Default::default();
-    let mut host: String = Default::default();
     let mut scheme: String = Default::default();
     let mut remaining: String = Default::default();
-    let mut query: String = Default::default();
+    let mut host: String = Default::default();
     scheme = STR_EMPTY.to_string();
     host = STR_EMPTY.to_string();
     path = "/".to_string();
@@ -2907,7 +2907,7 @@ pub fn parse_url_components(url: &str) -> (String, String, String, String) {
             base.chars().take(actual_stop).collect::<String>()
         };
         remaining = {
-            let base = &remaining;
+            let base = &*remaining;
             let start_idx = ((scheme_end).py_add(3)) as isize;
             let start = if start_idx < 0 {
                 (base.len() as isize + start_idx).max(0) as usize
@@ -2925,7 +2925,7 @@ pub fn parse_url_components(url: &str) -> (String, String, String, String) {
     if _cse_temp_1 {
         let query_start = remaining.find("?").map(|i| i as i32).unwrap_or(-1);
         query = {
-            let base = &remaining;
+            let base = &*remaining;
             let start_idx = ((query_start).py_add(1)) as isize;
             let start = if start_idx < 0 {
                 (base.len() as isize + start_idx).max(0) as usize
@@ -2939,7 +2939,7 @@ pub fn parse_url_components(url: &str) -> (String, String, String, String) {
             }
         };
         remaining = {
-            let base = &remaining;
+            let base = &*remaining;
             let stop_idx = (query_start) as isize;
             let stop = if stop_idx < 0 {
                 (base.len() as isize + stop_idx).max(0) as usize
@@ -2953,7 +2953,7 @@ pub fn parse_url_components(url: &str) -> (String, String, String, String) {
     if _cse_temp_2 {
         let path_start = remaining.find("/").map(|i| i as i32).unwrap_or(-1);
         path = {
-            let base = &remaining;
+            let base = &*remaining;
             let start_idx = (path_start) as isize;
             let start = if start_idx < 0 {
                 (base.len() as isize + start_idx).max(0) as usize
@@ -2967,7 +2967,7 @@ pub fn parse_url_components(url: &str) -> (String, String, String, String) {
             }
         };
         host = {
-            let base = &remaining;
+            let base = &*remaining;
             let stop_idx = (path_start) as isize;
             let stop = if stop_idx < 0 {
                 (base.len() as isize + stop_idx).max(0) as usize

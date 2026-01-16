@@ -2698,9 +2698,9 @@ pub fn balanced_parentheses(expression: &str) -> Result<bool, Box<dyn std::error
     let closing = ")}]";
     let pairs = {
         let mut map = HashMap::new();
-        map.insert("(".to_string(), ")".to_string());
-        map.insert("{".to_string(), "}".to_string());
-        map.insert("[".to_string(), "]".to_string());
+        map.insert("(".to_string(), DepylerValue::Str(")".to_string()));
+        map.insert("{".to_string(), DepylerValue::Str("}".to_string()));
+        map.insert("[".to_string(), DepylerValue::Str("]".to_string()));
         map
     };
     for char in expression.chars() {
@@ -2716,9 +2716,7 @@ pub fn balanced_parentheses(expression: &str) -> Result<bool, Box<dyn std::error
                     return Ok(false);
                 }
                 let expected = pairs
-                    .get(&DepylerValue::Int(
-                        char::from_u32((last) as u32).unwrap().to_string() as i64,
-                    ))
+                    .get(&char::from_u32((last) as u32).unwrap().to_string())
                     .cloned()
                     .unwrap_or_default()
                     .chars()

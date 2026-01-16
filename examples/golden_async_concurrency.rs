@@ -2102,7 +2102,7 @@ impl AsyncCounter {
     result = resource.data;
     result.to_string()
 }
-#[doc = "Nested async context managers.\n\n    Python: Nested async with statements\n    Rust: Nested async blocks\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn nested_async_context_managers<'b, 'a>(name1: & 'a str, name2: & 'b str) -> String {
+#[doc = "Nested async context managers.\n\n    Python: Nested async with statements\n    Rust: Nested async blocks\n    "] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn nested_async_context_managers<'a, 'b>(name1: & 'a str, name2: & 'b str) -> String {
     let mut results: Vec<String>= vec! [];
     let mut _context = AsyncResource::new(name1);
     let r1 = _context.__aenter__().await;

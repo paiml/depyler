@@ -65,16 +65,20 @@ pub static set_example: std::sync::LazyLock<std::collections::HashSet<i32>> =
         set.insert(5);
         set
     });
-pub static list_index: std::sync::LazyLock<DepylerValue> = std::sync::LazyLock::new(|| {
+pub static list_index: std::sync::LazyLock<i32> = std::sync::LazyLock::new(|| {
     list_example
         .get(0usize)
         .cloned()
         .expect("IndexError: list index out of range")
 });
-pub static dict_access: std::sync::LazyLock<DepylerValue> =
-    std::sync::LazyLock::new(|| dict_example.get("name").cloned().unwrap_or_default());
-pub const slice_example: String = {
-    let base = &list_example;
+pub static dict_access: std::sync::LazyLock<DepylerValue> = std::sync::LazyLock::new(|| {
+    dict_example
+        .get(&DepylerValue::Str("name".to_string()))
+        .cloned()
+        .unwrap_or_default()
+});
+pub static slice_example: std::sync::LazyLock<Vec<i32>> = std::sync::LazyLock::new(|| {
+    let base = &*list_example;
     let start_idx = (1) as isize;
     let stop_idx = (4) as isize;
     let start = if start_idx < 0 {
@@ -92,9 +96,9 @@ pub const slice_example: String = {
     } else {
         Vec::new()
     }
-};
-pub const slice_with_step: String = {
-    let base = list_example;
+});
+pub static slice_with_step: std::sync::LazyLock<Vec<i32>> = std::sync::LazyLock::new(|| {
+    let base = &*list_example;
     let step: i32 = 2;
     if step == 1 {
         base.clone()
@@ -113,9 +117,9 @@ pub const slice_with_step: String = {
             .cloned()
             .collect::<Vec<_>>()
     }
-};
-pub const slice_reverse: String = {
-    let base = list_example;
+});
+pub static slice_reverse: std::sync::LazyLock<Vec<i32>> = std::sync::LazyLock::new(|| {
+    let base = &*list_example;
     let step: i32 = -1;
     if step == 1 {
         base.clone()
@@ -134,46 +138,56 @@ pub const slice_reverse: String = {
             .cloned()
             .collect::<Vec<_>>()
     }
-};
-pub const list_comp: Vec<i32> = (0..(10))
-    .into_iter()
-    .map(|x| (x).py_mul(2))
-    .collect::<Vec<_>>();
-pub const list_comp_filtered: Vec<DepylerValue> = (0..(20))
-    .into_iter()
-    .filter(|x| {
-        let x = x.clone();
-        (x).py_mod(2) == 0
-    })
-    .map(|x| x)
-    .collect::<Vec<_>>();
-pub const set_comp: std::collections::HashSet<i32> = (0..(5))
-    .into_iter()
-    .map(|x| {
-        if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-            ({ x } as i32)
-                .checked_pow({ 2 } as u32)
-                .expect("Power operation overflowed")
-        } else {
-            ({ x } as f64).powf({ 2 } as f64) as i32
-        }
-    })
-    .collect::<std::collections::HashSet<_>>();
-pub const dict_comp: std::collections::HashMap<DepylerValue, i32> = (0..(5))
-    .into_iter()
-    .map(|x| {
-        let _v = {
-            if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
-                ({ x } as i32)
-                    .checked_pow({ 2 } as u32)
-                    .expect("Power operation overflowed")
-            } else {
-                ({ x } as f64).powf({ 2 } as f64) as i32
-            }
-        };
-        (x, _v)
-    })
-    .collect::<std::collections::HashMap<_, _>>();
+});
+pub static list_comp: std::sync::LazyLock<Vec<i32>> = std::sync::LazyLock::new(|| {
+    (0..(10))
+        .into_iter()
+        .map(|x| (x).py_mul(2))
+        .collect::<Vec<_>>()
+});
+pub static list_comp_filtered: std::sync::LazyLock<Vec<i32>> = std::sync::LazyLock::new(|| {
+    (0..(20))
+        .into_iter()
+        .filter(|x| {
+            let x = x.clone();
+            (x).py_mod(2) == 0
+        })
+        .map(|x| x)
+        .collect::<Vec<_>>()
+});
+pub static set_comp: std::sync::LazyLock<std::collections::HashSet<i32>> =
+    std::sync::LazyLock::new(|| {
+        (0..(5))
+            .into_iter()
+            .map(|x| {
+                if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
+                    ({ x } as i32)
+                        .checked_pow({ 2 } as u32)
+                        .expect("Power operation overflowed")
+                } else {
+                    ({ x } as f64).powf({ 2 } as f64) as i32
+                }
+            })
+            .collect::<std::collections::HashSet<_>>()
+    });
+pub static dict_comp: std::sync::LazyLock<std::collections::HashMap<i32, i32>> =
+    std::sync::LazyLock::new(|| {
+        (0..(5))
+            .into_iter()
+            .map(|x| {
+                let _v = {
+                    if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
+                        ({ x } as i32)
+                            .checked_pow({ 2 } as u32)
+                            .expect("Power operation overflowed")
+                    } else {
+                        ({ x } as f64).powf({ 2 } as f64) as i32
+                    }
+                };
+                (x, _v)
+            })
+            .collect::<std::collections::HashMap<_, _>>()
+    });
 pub static simple_call: std::sync::LazyLock<String> =
     std::sync::LazyLock::new(|| println!("{}", "Hello".to_string()).unwrap());
 pub static method_call: std::sync::LazyLock<String> =
@@ -663,6 +677,40 @@ impl From<bool> for DepylerValue {
 impl From<Vec<DepylerValue>> for DepylerValue {
     fn from(v: Vec<DepylerValue>) -> Self {
         DepylerValue::List(v)
+    }
+}
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
     }
 }
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
@@ -2859,7 +2907,7 @@ impl DemoClass {
     }
 }
 #[doc = "Show various statement types."]
-pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
+pub fn demonstrate_statements() -> Result<Option<i32>, Box<dyn std::error::Error>> {
     let mut x = 10;
     let mut y = 20;
     x = (x).py_add(5);
@@ -2925,11 +2973,11 @@ pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
     }
     let _cse_temp_5 = x > 100;
     if _cse_temp_5 {
-        return Ok(x);
+        return Ok(Some(x));
     } else {
         let _cse_temp_6 = x > 50;
         if _cse_temp_6 {
-            return Ok((x).py_mul(2));
+            return Ok(Some((x).py_mul(2)));
         } else {
             return Ok(None);
         }

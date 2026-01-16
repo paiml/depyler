@@ -444,6 +444,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2748,7 +2782,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'b, 'a>(
+pub fn confidence_levels_demo<'a, 'b>(
     certain_str: &'a str,
     probable_num: i32,
     possible_container: &'b Vec<i32>,
@@ -2805,7 +2839,7 @@ pub fn optional_handling(maybe_value: &Option<i32>) -> i32 {
     if maybe_value.is_none() {
         return 0;
     }
-    maybe_value
+    (*maybe_value.unwrap()).unwrap()
 }
 #[doc = "Unpack a tuple."]
 #[doc = " Depyler: verified panic-free"]
