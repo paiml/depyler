@@ -761,6 +761,26 @@ pub(crate) fn codegen_return_stmt(
         // Python `-> None` maps to Rust `()`, not `Option<T>`
         let is_void_return = matches!(ctx.current_return_type.as_ref(), Some(Type::None));
 
+        // DEPYLER-1147: Unwrap Optional parameters when return type is the inner type
+        // Pattern: `def foo(x: Optional[int]) -> int: ... return x`
+        // The parameter is &Option<T> and return type is T, so we need to unwrap
+        // This is safe when preceded by `if x is None: return default` pattern
+        if is_already_optional && !is_optional_return && !is_void_return {
+            if let HirExpr::Var(var_name) = e {
+                // Check if this variable is typed as Optional in var_types
+                // (function parameters with Optional type are tracked there)
+                let is_optional_typed = ctx
+                    .var_types
+                    .get(var_name)
+                    .is_some_and(|t| matches!(t, Type::Optional(_)));
+                if is_optional_typed {
+                    // For &Option<T> parameters, need (*var).unwrap() to get T
+                    // Since optional params are passed by reference: &Option<T>
+                    expr_tokens = parse_quote! { (*#expr_tokens).unwrap() };
+                }
+            }
+        }
+
         if ctx.current_function_can_fail {
             if is_void_return && is_none_literal {
                 // Void function with can_fail: return Ok(()) for `return None`
