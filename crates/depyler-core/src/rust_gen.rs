@@ -1332,6 +1332,33 @@ fn infer_lazy_constant_type(
                     return result_type;
                 }
             }
+            // DEPYLER-1149: Handle list comprehensions - infer element type from expression
+            // `[x*2 for x in range(10)]` produces Vec<i32> (integer arithmetic)
+            // `[str(x) for x in items]` produces Vec<String> (string conversion)
+            HirExpr::ListComp { element, .. } => {
+                if let Some(elem_type) = infer_comprehension_element_type(element) {
+                    return quote! { Vec<#elem_type> };
+                }
+                // Default to Vec<i32> for numeric comprehensions
+                return quote! { Vec<i32> };
+            }
+            // DEPYLER-1149: Handle set comprehensions
+            HirExpr::SetComp { element, .. } => {
+                ctx.needs_hashset = true;
+                if let Some(elem_type) = infer_comprehension_element_type(element) {
+                    return quote! { std::collections::HashSet<#elem_type> };
+                }
+                return quote! { std::collections::HashSet<i32> };
+            }
+            // DEPYLER-1149: Handle dict comprehensions
+            HirExpr::DictComp { key, value, .. } => {
+                ctx.needs_hashmap = true;
+                let key_type = infer_comprehension_element_type(key)
+                    .unwrap_or_else(|| quote! { i32 });
+                let val_type = infer_comprehension_element_type(value)
+                    .unwrap_or_else(|| quote! { i32 });
+                return quote! { std::collections::HashMap<#key_type, #val_type> };
+            }
             _ => {}
         }
     }
@@ -1441,6 +1468,64 @@ fn infer_unary_expr_type(
             }
         }
         UnaryOp::BitNot => Some(quote! { i32 }), // Bitwise NOT returns int
+    }
+}
+
+/// DEPYLER-1149: Infer element type from comprehension expression
+///
+/// Analyzes the comprehension element expression to determine output type.
+/// `[x*2 for x in range(10)]` → i32 (integer arithmetic on loop variable)
+/// `[str(x) for x in items]` → String (string conversion)
+fn infer_comprehension_element_type(element: &HirExpr) -> Option<proc_macro2::TokenStream> {
+    match element {
+        // Direct literals
+        HirExpr::Literal(Literal::Int(_)) => Some(quote! { i32 }),
+        HirExpr::Literal(Literal::Float(_)) => Some(quote! { f64 }),
+        HirExpr::Literal(Literal::String(_)) => Some(quote! { String }),
+        HirExpr::Literal(Literal::Bool(_)) => Some(quote! { bool }),
+
+        // Binary expressions - infer from operator and operands
+        HirExpr::Binary { op, left, .. } => {
+            infer_binary_expr_type(op, left)
+        }
+
+        // Variable reference - assume i32 for loop variables (most common case)
+        // e.g., `[x for x in range(10)]` where x is the loop variable
+        HirExpr::Var(_) => Some(quote! { i32 }),
+
+        // Function/method calls that produce known types
+        HirExpr::Call { func, .. } => {
+            match func.as_str() {
+                "str" | "repr" | "chr" => Some(quote! { String }),
+                "int" | "len" | "ord" | "hash" => Some(quote! { i32 }),
+                "float" => Some(quote! { f64 }),
+                "bool" => Some(quote! { bool }),
+                "abs" => Some(quote! { i32 }), // Commonly used with integers
+                "round" => Some(quote! { i32 }),
+                "min" | "max" | "sum" => Some(quote! { i32 }),
+                _ => None,
+            }
+        }
+
+        // Method calls
+        HirExpr::MethodCall { method, .. } => {
+            match method.as_str() {
+                "upper" | "lower" | "strip" | "lstrip" | "rstrip"
+                | "replace" | "join" | "format" => Some(quote! { String }),
+                "count" | "index" | "find" | "rfind" => Some(quote! { i32 }),
+                _ => None,
+            }
+        }
+
+        // Unary expressions
+        HirExpr::Unary { op, operand } => {
+            infer_unary_expr_type(op, operand)
+        }
+
+        // Tuple - use tuple type
+        HirExpr::Tuple(_) => None, // Complex, fall through to default
+
+        _ => None,
     }
 }
 
@@ -1884,11 +1969,13 @@ fn generate_constant_tokens(
         // DEPYLER-1060: Index expressions into statics need runtime init
         // DEPYLER-1128: Binary expressions use PyOps traits which aren't const - need LazyLock
         // DEPYLER-1148: Slice expressions need runtime init for proper type inference
+        // DEPYLER-1149: Comprehensions use iterator methods which aren't const
         let needs_runtime_init = matches!(
             &constant.value,
             HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_)
             | HirExpr::Call { .. } | HirExpr::Index { .. } | HirExpr::Binary { .. }
             | HirExpr::Slice { .. }
+            | HirExpr::ListComp { .. } | HirExpr::SetComp { .. } | HirExpr::DictComp { .. }
         ) || is_path_constant_expr(&constant.value)
           || expr_contains_non_const_ops(&constant.value);
 
