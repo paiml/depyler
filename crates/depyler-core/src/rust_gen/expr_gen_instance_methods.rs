@@ -3995,7 +3995,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(false)
     }
 
-    /// Check if expression is likely a string variable (heuristic)
+    /// Check if expression is likely a string variable or string-returning expression
+    /// DEPYLER-1150: Also recognizes string-returning function calls like chr(), str(), etc.
     pub(crate) fn is_string_variable(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Var(sym) => {
@@ -4019,6 +4020,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     || name == "text"
                     || name.ends_with("_key")
                     || name.ends_with("_name")
+            }
+            // DEPYLER-1150: Recognize string-returning function calls
+            HirExpr::Call { func, .. } => {
+                // Python built-in functions that always return strings
+                matches!(
+                    func.as_str(),
+                    "chr" | "str" | "repr" | "format" | "input" | "hex" | "oct" | "bin" | "ascii"
+                )
+            }
+            // DEPYLER-1150: String method calls return strings
+            HirExpr::MethodCall { method, .. } => {
+                matches!(
+                    method.as_str(),
+                    "upper"
+                        | "lower"
+                        | "strip"
+                        | "lstrip"
+                        | "rstrip"
+                        | "replace"
+                        | "format"
+                        | "join"
+                        | "capitalize"
+                        | "title"
+                        | "swapcase"
+                        | "center"
+                        | "ljust"
+                        | "rjust"
+                        | "zfill"
+                        | "encode"
+                        | "decode"
+                )
             }
             _ => false,
         }
