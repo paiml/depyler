@@ -5214,18 +5214,33 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-1141: Coerce values to target type when annotation specifies concrete type
             // This handles Python's implicit int→float coercion in Dict[str, float] = {"key": int_var}
+            // IMPORTANT: Only coerce NUMERIC values - strings/bools must NOT be cast
             if let Some(ref target_type) = target_value_type {
-                match target_type {
-                    Type::Float => {
-                        // Coerce to f64 - handles int→float coercion
-                        val_expr = parse_quote! { (#val_expr) as f64 };
+                // Check if value is a numeric type that can be coerced
+                let value_is_numeric = matches!(
+                    value,
+                    HirExpr::Literal(Literal::Int(_)) | HirExpr::Literal(Literal::Float(_))
+                ) || {
+                    if let HirExpr::Var(name) = value {
+                        matches!(self.ctx.var_types.get(name), Some(Type::Int | Type::Float))
+                    } else {
+                        false
                     }
-                    Type::Int => {
-                        // Coerce to i32
-                        val_expr = parse_quote! { (#val_expr) as i32 };
+                };
+
+                if value_is_numeric {
+                    match target_type {
+                        Type::Float => {
+                            // Coerce to f64 - handles int→float coercion
+                            val_expr = parse_quote! { (#val_expr) as f64 };
+                        }
+                        Type::Int => {
+                            // Coerce to i32
+                            val_expr = parse_quote! { (#val_expr) as i32 };
+                        }
+                        // String and Bool don't need coercion
+                        _ => {}
                     }
-                    // String and Bool don't need coercion
-                    _ => {}
                 }
             }
 
