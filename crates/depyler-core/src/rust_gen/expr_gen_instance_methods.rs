@@ -6099,6 +6099,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             syn::Ident::new(attr, proc_macro2::Span::call_site())
         };
 
+        // DEPYLER-1138: DepylerValue proxy methods require () for property-like access
+        // When accessing .tag, .text, .find, .findall on module alias values (e.g., ET.Element()),
+        // these are methods not fields, so we need method call syntax
+        // This promotes Python property access (root.tag) to Rust method call (root.tag())
+        let depyler_value_properties = ["tag", "text", "find", "findall", "set"];
+        if depyler_value_properties.contains(&attr) && !self.ctx.module_aliases.is_empty() {
+            return Ok(parse_quote! { #value_expr.#attr_ident() });
+        }
+
         // DEPYLER-0737: Check if this is a @property method access
         // In Python, @property allows method access without (), but Rust requires ()
         if self.ctx.property_methods.contains(attr) {

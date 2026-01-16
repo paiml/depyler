@@ -95,17 +95,18 @@ pub struct UnresolvedImport {
 /// Process module imports and populate import mappings
 ///
 /// This is the main entry point for import processing. It processes all imports
-/// in a module and returns three maps:
+/// in a module and returns four maps:
 /// - imported_modules: Full module imports (e.g., `import math`)
 /// - imported_items: Specific item imports (e.g., `from typing import List`)
 /// - unresolved_imports: Local imports that need stub functions (DEPYLER-0615)
+/// - module_aliases: Module-level aliases (DEPYLER-1136)
 ///
 /// # Arguments
 /// * `imports` - List of all imports in the module
 /// * `module_mapper` - Module mapper for Python->Rust mappings
 ///
 /// # Returns
-/// Tuple of (imported_modules, imported_items, unresolved_imports)
+/// Tuple of (imported_modules, imported_items, unresolved_imports, module_aliases)
 ///
 /// # Complexity
 /// 4 (loop + if/else + inner loop for unresolved)
@@ -116,12 +117,19 @@ pub fn process_module_imports(
     std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
     std::collections::HashMap<String, String>,
     Vec<UnresolvedImport>,
+    std::collections::HashMap<String, String>,
 ) {
     let mut imported_modules = std::collections::HashMap::new();
     let mut imported_items = std::collections::HashMap::new();
     let mut unresolved_imports = Vec::new();
+    let mut module_aliases = std::collections::HashMap::new();
 
     for import in imports {
+        // DEPYLER-1136: Track module-level aliases (e.g., `import X as Y`)
+        if let Some(ref alias) = import.alias {
+            module_aliases.insert(alias.clone(), import.module.clone());
+        }
+
         if import.items.is_empty() {
             process_whole_module_import(import, module_mapper, &mut imported_modules);
         } else {
@@ -143,7 +151,7 @@ pub fn process_module_imports(
         }
     }
 
-    (imported_modules, imported_items, unresolved_imports)
+    (imported_modules, imported_items, unresolved_imports, module_aliases)
 }
 
 #[cfg(test)]
@@ -160,10 +168,11 @@ mod tests {
     fn test_empty_imports_list() {
         let mapper = create_test_mapper();
         let imports: Vec<Import> = vec![];
-        let (modules, items, unresolved) = process_module_imports(&imports, &mapper);
+        let (modules, items, unresolved, aliases) = process_module_imports(&imports, &mapper);
         assert!(modules.is_empty());
         assert!(items.is_empty());
         assert!(unresolved.is_empty());
+        assert!(aliases.is_empty());
     }
 
     #[test]
@@ -171,9 +180,10 @@ mod tests {
         let mapper = create_test_mapper();
         let imports = vec![Import {
             module: "typing".to_string(),
+            alias: None,
             items: vec![ImportItem::Named("List".to_string())],
         }];
-        let (_, items, _) = process_module_imports(&imports, &mapper);
+        let (_, items, _, _) = process_module_imports(&imports, &mapper);
         // typing module items are mapped if present in module mapper
         // Just verify no panic occurs
         assert!(items.is_empty() || items.contains_key("List"));
@@ -184,9 +194,10 @@ mod tests {
         let mapper = create_test_mapper();
         let imports = vec![Import {
             module: "math".to_string(),
+            alias: None,
             items: vec![],
         }];
-        let (modules, items, unresolved) = process_module_imports(&imports, &mapper);
+        let (modules, items, unresolved, _) = process_module_imports(&imports, &mapper);
         // math is a known module, should be in imported_modules if mapped
         assert!(items.is_empty());
         assert!(unresolved.is_empty());
@@ -199,9 +210,10 @@ mod tests {
         let mapper = create_test_mapper();
         let imports = vec![Import {
             module: "typing".to_string(),
+            alias: None,
             items: vec![ImportItem::Named("Dict".to_string())],
         }];
-        let (_, items, _) = process_module_imports(&imports, &mapper);
+        let (_, items, _, _) = process_module_imports(&imports, &mapper);
         // Just verify no panic
         let _ = items;
     }
@@ -211,12 +223,13 @@ mod tests {
         let mapper = create_test_mapper();
         let imports = vec![Import {
             module: "typing".to_string(),
+            alias: None,
             items: vec![ImportItem::Aliased {
                 name: "Optional".to_string(),
                 alias: "Opt".to_string(),
             }],
         }];
-        let (_, items, _) = process_module_imports(&imports, &mapper);
+        let (_, items, _, _) = process_module_imports(&imports, &mapper);
         // If mapped, should use alias as key
         if !items.is_empty() {
             assert!(items.contains_key("Opt") || items.contains_key("Optional"));
@@ -228,9 +241,10 @@ mod tests {
         let mapper = create_test_mapper();
         let imports = vec![Import {
             module: "my_local_module".to_string(),
+            alias: None,
             items: vec![ImportItem::Named("my_func".to_string())],
         }];
-        let (_, _, unresolved) = process_module_imports(&imports, &mapper);
+        let (_, _, unresolved, _) = process_module_imports(&imports, &mapper);
         assert_eq!(unresolved.len(), 1);
         assert_eq!(unresolved[0].module, "my_local_module");
         assert_eq!(unresolved[0].item_name, "my_func");
@@ -241,6 +255,7 @@ mod tests {
         let mapper = create_test_mapper();
         let imports = vec![Import {
             module: "local_utils".to_string(),
+            alias: None,
             items: vec![
                 ImportItem::Named("helper1".to_string()),
                 ImportItem::Named("helper2".to_string()),
@@ -250,7 +265,7 @@ mod tests {
                 },
             ],
         }];
-        let (_, _, unresolved) = process_module_imports(&imports, &mapper);
+        let (_, _, unresolved, _) = process_module_imports(&imports, &mapper);
         assert_eq!(unresolved.len(), 3);
     }
 
@@ -260,14 +275,16 @@ mod tests {
         let imports = vec![
             Import {
                 module: "typing".to_string(),
+                alias: None,
                 items: vec![ImportItem::Named("List".to_string())],
             },
             Import {
                 module: "my_module".to_string(),
+                alias: None,
                 items: vec![ImportItem::Named("my_func".to_string())],
             },
         ];
-        let (_, _, unresolved) = process_module_imports(&imports, &mapper);
+        let (_, _, unresolved, _) = process_module_imports(&imports, &mapper);
         // Only my_module should be unresolved
         assert_eq!(unresolved.len(), 1);
         assert_eq!(unresolved[0].module, "my_module");
@@ -311,9 +328,10 @@ mod tests {
         let mapper = create_test_mapper();
         let imports = vec![Import {
             module: "json".to_string(),
+            alias: None,
             items: vec![],
         }];
-        let (modules, items, unresolved) = process_module_imports(&imports, &mapper);
+        let (modules, items, unresolved, _) = process_module_imports(&imports, &mapper);
         // No specific items imported, no unresolved for whole module imports
         assert!(items.is_empty());
         assert!(unresolved.is_empty());
@@ -326,14 +344,16 @@ mod tests {
         let imports = vec![
             Import {
                 module: "json".to_string(),
+                alias: None,
                 items: vec![],
             },
             Import {
                 module: "os".to_string(),
+                alias: None,
                 items: vec![],
             },
         ];
-        let (_, _, unresolved) = process_module_imports(&imports, &mapper);
+        let (_, _, unresolved, _) = process_module_imports(&imports, &mapper);
         // Whole module imports don't create unresolved entries
         assert!(unresolved.is_empty());
     }
@@ -344,10 +364,24 @@ mod tests {
         // functools.partial has empty rust_name in mapper
         let imports = vec![Import {
             module: "functools".to_string(),
+            alias: None,
             items: vec![ImportItem::Named("partial".to_string())],
         }];
-        let (_, items, _) = process_module_imports(&imports, &mapper);
+        let (_, items, _, _) = process_module_imports(&imports, &mapper);
         // partial should NOT be in items due to empty rust_name check (DEPYLER-0825)
         assert!(!items.contains_key("partial"));
+    }
+
+    // DEPYLER-1136: Test module-level alias tracking
+    #[test]
+    fn test_module_level_alias() {
+        let mapper = create_test_mapper();
+        let imports = vec![Import {
+            module: "xml.etree.ElementTree".to_string(),
+            alias: Some("ET".to_string()),
+            items: vec![],
+        }];
+        let (_, _, _, aliases) = process_module_imports(&imports, &mapper);
+        assert_eq!(aliases.get("ET"), Some(&"xml.etree.ElementTree".to_string()));
     }
 }

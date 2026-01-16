@@ -10192,6 +10192,18 @@ impl ToRustExpr for HirExpr {
                         // This enables: resp = requests.get(url) → resp: Response
                         converter.ctx.last_external_call_return_type = Some(return_type);
                     }
+
+                    // DEPYLER-1136: Handle module alias calls (e.g., ET.fromstring() → ET::fromstring())
+                    // When the object is a module alias, generate path notation instead of method notation
+                    if converter.ctx.module_aliases.contains_key(module_name) {
+                        let module_ident = syn::Ident::new(module_name, proc_macro2::Span::call_site());
+                        let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
+                        let arg_exprs: Vec<syn::Expr> = args
+                            .iter()
+                            .map(|arg| arg.to_rust_expr(converter.ctx))
+                            .collect::<Result<Vec<_>>>()?;
+                        return Ok(parse_quote! { #module_ident::#method_ident(#(#arg_exprs),*) });
+                    }
                 }
 
                 // DEPYLER-0426: Pass kwargs to convert_method_call
