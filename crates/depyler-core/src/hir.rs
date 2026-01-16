@@ -139,9 +139,16 @@ pub struct HirProgram {
     pub imports: Vec<Import>,
 }
 
+/// DEPYLER-1136: Import with optional module-level alias
+/// For `import xml.etree.ElementTree as ET`:
+/// - module = "xml.etree.ElementTree"
+/// - alias = Some("ET")
+/// - items = []
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Import {
     pub module: String,
+    /// Module-level alias for `import X as Y` patterns
+    pub alias: Option<String>,
     pub items: Vec<ImportItem>,
 }
 
