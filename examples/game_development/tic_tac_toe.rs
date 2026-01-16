@@ -272,6 +272,30 @@ impl std::ops::Index<i32>for DepylerValue {
     fn from(v: Vec<DepylerValue>) -> Self {
     DepylerValue::List(v)
 }
+} impl From<Vec<String>>for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+}
+} impl From<Vec<i32>>for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+    DepylerValue::List(v.into_iter().map(| x | DepylerValue::Int(x as i64)).collect())
+}
+} impl From<Vec<i64>>for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+}
+} impl From<Vec<f64>>for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+}
+} impl From<Vec<bool>>for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+}
+} impl From<Vec<& str>>for DepylerValue {
+    fn from(v: Vec<& str>) -> Self {
+    DepylerValue::List(v.into_iter().map(| s | DepylerValue::Str(s.to_string())).collect())
+}
 } impl From<std::collections::HashMap<DepylerValue, DepylerValue>>for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
     DepylerValue::Dict(v)
@@ -2012,7 +2036,7 @@ pub fn is_valid_move(&self, row: i32, col: i32) -> bool {
     return {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = row;
+    let _idx  = (row) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2020,7 +2044,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = col;
+    let _idx  = (col) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2034,7 +2058,7 @@ pub fn check_winner(&self) -> Option<String>{
     for row in self.board.clone() {
     if {
     let _base = & row;
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2043,7 +2067,7 @@ else {
 }
 } == {
     let _base = & row;
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2052,7 +2076,7 @@ else {
 }
 } && {
     let _base = & row;
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2061,7 +2085,7 @@ else {
 }
 } == {
     let _base = & row;
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2070,7 +2094,7 @@ else {
 }
 } && {
     let _base = & row;
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2079,7 +2103,7 @@ else {
 }
 }!= " ".to_string() {
     return Some({ let _base = & row;
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2093,7 +2117,7 @@ else {
     if {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2101,7 +2125,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = col;
+    let _idx  = (col) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2111,7 +2135,7 @@ else {
 } == {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2119,7 +2143,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = col;
+    let _idx  = (col) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2129,7 +2153,7 @@ else {
 } && {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2137,7 +2161,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = col;
+    let _idx  = (col) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2147,7 +2171,7 @@ else {
 } == {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2155,7 +2179,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = col;
+    let _idx  = (col) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2165,7 +2189,7 @@ else {
 } && {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2173,7 +2197,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = col;
+    let _idx  = (col) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2183,7 +2207,7 @@ else {
 }!= " ".to_string() {
     return Some({ let _base = & {
     let _base = &self.board.clone();
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2191,7 +2215,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = col;
+    let _idx  = (col) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2204,7 +2228,7 @@ else {
     if {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2212,7 +2236,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2222,7 +2246,7 @@ else {
 } == {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2230,7 +2254,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2240,7 +2264,7 @@ else {
 } && {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2248,7 +2272,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2258,7 +2282,7 @@ else {
 } == {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2266,7 +2290,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2276,7 +2300,7 @@ else {
 } && {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2284,7 +2308,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2294,7 +2318,7 @@ else {
 }!= " ".to_string() {
     return Some({ let _base = & {
     let _base = &self.board.clone();
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2302,7 +2326,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2314,7 +2338,7 @@ else {
     if {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2322,7 +2346,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2332,7 +2356,7 @@ else {
 } == {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2340,7 +2364,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2350,7 +2374,7 @@ else {
 } && {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2358,7 +2382,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2368,7 +2392,7 @@ else {
 } == {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2376,7 +2400,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2386,7 +2410,7 @@ else {
 } && {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2394,7 +2418,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2404,7 +2428,7 @@ else {
 }!= " ".to_string() {
     return Some({ let _base = & {
     let _base = &self.board.clone();
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2412,7 +2436,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2446,7 +2470,7 @@ pub fn get_empty_positions(&self) -> Vec <(i32, i32)>{
     if {
     let _base = & {
     let _base = &self.board.clone();
-    let _idx = row;
+    let _idx  = (row) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2454,7 +2478,7 @@ else {
     _base [_idx as usize].clone()
 }
 };
-    let _idx = col;
+    let _idx  = (col) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2474,7 +2498,7 @@ pub fn board_to_string(&self) -> String {
     for(i, row) in self.board.clone().iter().cloned().enumerate().map(|(i, x) |(i as i32, x)) {
     let line = format!(" {} | {} | {} ", {
     let _base = & row;
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2483,7 +2507,7 @@ else {
 }
 }, {
     let _base = & row;
-    let _idx = 1;
+    let _idx  = (1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2492,7 +2516,7 @@ else {
 }
 }, {
     let _base = & row;
-    let _idx = 2;
+    let _idx  = (2) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2576,8 +2600,8 @@ else {
     let ai = AIPlayer::new("O".to_string());
     let mut moves_log: Vec<String>= vec! [];
     while! game.is_game_over() {
-    let mut row;
     let mut col;
+    let mut row;
     if game.current_player == "X" {
     let empty_positions = game.get_empty_positions();
     if empty_positions {
@@ -2603,7 +2627,7 @@ else {
 }
 Ok(moves_log.join ("\n"))
 }
-#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'a, 'b>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
+#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'b, 'a>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
     let mut count: i32 = Default::default();
     let winning_positions = vec! [vec! [(0, 0) ,(0, 1) ,(0, 2)], vec! [(1, 0) ,(1, 1) ,(1, 2)], vec! [(2, 0) ,(2, 1) ,(2, 2)], vec! [(0, 0) ,(1, 0) ,(2, 0)], vec! [(0, 1) ,(1, 1) ,(2, 1)], vec! [(0, 2) ,(1, 2) ,(2, 2)], vec! [(0, 0) ,(1, 1) ,(2, 2)], vec! [(0, 2) ,(1, 1) ,(2, 0)]];
     count = 0;

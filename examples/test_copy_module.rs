@@ -445,6 +445,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2634,9 +2668,9 @@ pub fn test_shallow_copy_list() -> Vec<i32> {
 pub fn test_shallow_copy_dict() -> HashMap<String, i32> {
     let original: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("a".to_string(), 1);
-        map.insert("b".to_string(), 2);
-        map.insert("c".to_string(), 3);
+        map.insert("a".to_string(), (1) as i32);
+        map.insert("b".to_string(), (2) as i32);
+        map.insert("c".to_string(), (3) as i32);
         map
     };
     let mut copied: std::collections::HashMap<String, i32> = (original).clone();
@@ -2857,7 +2891,7 @@ pub fn test_copy_single_element() -> (i32, i32) {
     let single_list: Vec<i32> = vec![42];
     let single_dict: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("answer".to_string(), 42);
+        map.insert("answer".to_string(), (42) as i32);
         map
     };
     let copied_list: Vec<i32> = (single_list).clone();
@@ -2887,8 +2921,8 @@ pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
     let manual_list: Vec<i32> = manual_shallow_copy_list(&vec![1, 2, 3]);
     let manual_dict: std::collections::HashMap<String, i32> = manual_shallow_copy_dict(&{
         let mut map = HashMap::new();
-        map.insert("x".to_string(), 10);
-        map.insert("y".to_string(), 20);
+        map.insert("x".to_string(), (10) as i32);
+        map.insert("y".to_string(), (20) as i32);
         map
     })?;
     let manual_deep: Vec<Vec<i32>> = manual_deep_copy_nested_list(&vec![vec![1, 2], vec![3, 4]]);
@@ -2898,22 +2932,22 @@ pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
     let transformed: Vec<i32> = clone_list_with_transform(&data, 2);
     let scores: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("alice".to_string(), 85);
-        map.insert("bob".to_string(), 72);
-        map.insert("charlie".to_string(), 95);
+        map.insert("alice".to_string(), (85) as i32);
+        map.insert("bob".to_string(), (72) as i32);
+        map.insert("charlie".to_string(), (95) as i32);
         map
     };
     let filtered: std::collections::HashMap<String, i32> = clone_dict_with_filter(&scores, 80)?;
     let d1: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("a".to_string(), 1);
-        map.insert("b".to_string(), 2);
+        map.insert("a".to_string(), (1) as i32);
+        map.insert("b".to_string(), (2) as i32);
         map
     };
     let d2: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("c".to_string(), 3);
-        map.insert("d".to_string(), 4);
+        map.insert("c".to_string(), (3) as i32);
+        map.insert("d".to_string(), (4) as i32);
         map
     };
     let merged: std::collections::HashMap<String, i32> = merge_copied_dicts(&d1, &d2)?;

@@ -428,6 +428,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2701,7 +2735,7 @@ impl HTTPClient {
         };
         let status_line = {
             let _base = &lines;
-            let _idx = 0;
+            let _idx = (0) as isize;
             if _idx < 0 {
                 _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
             } else {
@@ -2720,7 +2754,7 @@ impl HTTPClient {
                 {
                     let status_code = {
                         let _base = &status_parts;
-                        let _idx = 1;
+                        let _idx = (1) as isize;
                         if _idx < 0 {
                             _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                         } else {
@@ -2741,7 +2775,7 @@ impl HTTPClient {
         let reason = if (status_parts.len() as i32) > 2 {
             {
                 let _base = &status_parts;
-                let _idx = 2;
+                let _idx = (2) as isize;
                 if _idx < 0 {
                     _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                 } else {
@@ -2755,7 +2789,7 @@ impl HTTPClient {
         let mut i = 1;
         while i < (lines.len() as i32) && {
             let _base = &lines;
-            let _idx = i;
+            let _idx = (i) as isize;
             if _idx < 0 {
                 _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
             } else {
@@ -2767,7 +2801,7 @@ impl HTTPClient {
         {
             let header_line = {
                 let _base = &lines;
-                let _idx = i;
+                let _idx = (i) as isize;
                 if _idx < 0 {
                     _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                 } else {
@@ -2848,11 +2882,11 @@ pub fn build_query_string(params: &std::collections::HashMap<String, String>) ->
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn parse_url_components(url: &str) -> (String, String, String, String) {
-    let mut remaining: String = Default::default();
-    let mut host: String = Default::default();
-    let mut query: String = Default::default();
-    let mut scheme: String = Default::default();
     let mut path: String = Default::default();
+    let mut host: String = Default::default();
+    let mut scheme: String = Default::default();
+    let mut remaining: String = Default::default();
+    let mut query: String = Default::default();
     scheme = STR_EMPTY.to_string();
     host = STR_EMPTY.to_string();
     path = "/".to_string();

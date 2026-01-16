@@ -428,6 +428,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2716,78 +2750,24 @@ pub fn main() {
     let has_mode = args.mode.is_some();
     let result = {
         let mut map = HashMap::new();
-        map.insert(
-            "input_file".to_string(),
-            DepylerValue::Str(format!("{:?}", args.input_file)),
-        );
-        map.insert(
-            "debug".to_string(),
-            DepylerValue::Str(format!("{:?}", args.debug)),
-        );
-        map.insert(
-            "output".to_string(),
-            DepylerValue::Str(format!("{:?}", args.output)),
-        );
-        map.insert(
-            "quiet".to_string(),
-            DepylerValue::Str(format!("{:?}", args.quiet)),
-        );
-        map.insert(
-            "color".to_string(),
-            DepylerValue::Str(format!("{:?}", args.color)),
-        );
-        map.insert(
-            "verbosity".to_string(),
-            DepylerValue::Str(format!("{:?}", args.V)),
-        );
-        map.insert(
-            "includes".to_string(),
-            DepylerValue::Str(format!("{:?}", args.include)),
-        );
-        map.insert(
-            "extras".to_string(),
-            DepylerValue::Str(format!("{:?}", args.extras)),
-        );
-        map.insert(
-            "config".to_string(),
-            DepylerValue::Str(format!("{:?}", args.config)),
-        );
-        map.insert(
-            "count".to_string(),
-            DepylerValue::Str(format!("{:?}", args.count)),
-        );
-        map.insert(
-            "rate".to_string(),
-            DepylerValue::Str(format!("{:?}", args.rate)),
-        );
-        map.insert(
-            "timeout".to_string(),
-            DepylerValue::Str(format!("{:?}", args.timeout)),
-        );
-        map.insert(
-            "threshold".to_string(),
-            DepylerValue::Str(format!("{:?}", args.threshold)),
-        );
-        map.insert(
-            "name".to_string(),
-            DepylerValue::Str(format!("{:?}", args.name)),
-        );
-        map.insert(
-            "api_key".to_string(),
-            DepylerValue::Str(format!("{:?}", args.api_key)),
-        );
-        map.insert(
-            "format".to_string(),
-            DepylerValue::Str(format!("{:?}", args.format)),
-        );
-        map.insert(
-            "mode".to_string(),
-            DepylerValue::Str(format!("{:?}", args.mode)),
-        );
-        map.insert(
-            "speed".to_string(),
-            DepylerValue::Str(format!("{:?}", args.speed)),
-        );
+        map.insert("input_file".to_string(), args.input_file);
+        map.insert("debug".to_string(), args.debug);
+        map.insert("output".to_string(), args.output);
+        map.insert("quiet".to_string(), args.quiet);
+        map.insert("color".to_string(), args.color);
+        map.insert("verbosity".to_string(), args.V);
+        map.insert("includes".to_string(), args.include);
+        map.insert("extras".to_string(), args.extras);
+        map.insert("config".to_string(), args.config);
+        map.insert("count".to_string(), args.count);
+        map.insert("rate".to_string(), args.rate);
+        map.insert("timeout".to_string(), args.timeout);
+        map.insert("threshold".to_string(), args.threshold);
+        map.insert("name".to_string(), args.name);
+        map.insert("api_key".to_string(), args.api_key);
+        map.insert("format".to_string(), args.format);
+        map.insert("mode".to_string(), args.mode);
+        map.insert("speed".to_string(), args.speed);
         map
     };
     println!("{}", format!("{:?}", result));

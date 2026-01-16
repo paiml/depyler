@@ -5,10 +5,10 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::f64 as math;
+    const STR_A: &'static str = "A";
+    const STR_C: &'static str = "C";
     const STR_D: &'static str = "D";
     const STR_B: &'static str = "B";
-    const STR_C: &'static str = "C";
-    const STR_A: &'static str = "A";
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::io::Write;
@@ -296,6 +296,30 @@ impl std::ops::Index<i32>for DepylerValue {
 } impl From<Vec<DepylerValue>>for DepylerValue {
     fn from(v: Vec<DepylerValue>) -> Self {
     DepylerValue::List(v)
+}
+} impl From<Vec<String>>for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+}
+} impl From<Vec<i32>>for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+    DepylerValue::List(v.into_iter().map(| x | DepylerValue::Int(x as i64)).collect())
+}
+} impl From<Vec<i64>>for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+}
+} impl From<Vec<f64>>for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+}
+} impl From<Vec<bool>>for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+}
+} impl From<Vec<& str>>for DepylerValue {
+    fn from(v: Vec<& str>) -> Self {
+    DepylerValue::List(v.into_iter().map(| s | DepylerValue::Str(s.to_string())).collect())
 }
 } impl From<std::collections::HashMap<DepylerValue, DepylerValue>>for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
@@ -2052,7 +2076,7 @@ else {
 };
    
 }
-} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'b, 'a>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
+} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'a, 'b>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
     let _cse_temp_0 = a.len() as i32;
     let n = _cse_temp_0;
     let _cse_temp_1 = b.get(0usize).cloned().expect("IndexError: list index out of range").len() as i32;
@@ -2130,7 +2154,7 @@ else {
     x>pivot }).map(| x | x).collect::<Vec<_>>();
     Ok(((quicksort(left) ?).py_add(middle)).py_add(quicksort(right) ?))
 }
-#[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "] #[doc = " Depyler: proven to terminate"] pub fn safe_divide<'b, 'a>(numbers: & 'a Vec<f64>, divisors: & 'b Vec<f64>) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "] #[doc = " Depyler: proven to terminate"] pub fn safe_divide<'a, 'b>(numbers: & 'a Vec<f64>, divisors: & 'b Vec<f64>) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>>{
     let mut results = vec! [];
     for i in 0..(depyler_min ((numbers.len() as i32).clone() ,(divisors.len() as i32).clone())) {
     if divisors.get(i as usize).cloned().expect("IndexError: list index out of range")!= 0 {
@@ -2156,12 +2180,12 @@ results.push(result);
 }
 Ok(results)
 }
-#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'c, 'a, 'b>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'a, 'b, 'c>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
     let mut current: String = Default::default();
     let mut visited = std::collections::HashSet::<i32>::new();
     let mut distances_from_start = {
     let mut map = HashMap::new();
-    map.insert(DepylerValue::from(start), DepylerValue::Int(0 as i64));
+    map.insert(start ,(0) as i32);
     map };
     let mut previous = {
     let mut map = HashMap::new();
@@ -2240,28 +2264,28 @@ path.push(start);
     println!("{}", format!("Recent buffer data: {}", recent));
     let graph = {
     let mut map = HashMap::new();
-    map.insert(STR_A.to_string(), DepylerValue::Str(format!("{:?}", {
+    map.insert(STR_A.to_string(), {
     let mut map = HashMap::new();
-    map.insert(STR_B.to_string(), 1);
-    map.insert(STR_C.to_string(), 4);
-    map })));
-    map.insert(STR_B.to_string(), DepylerValue::Str(format!("{:?}", {
+    map.insert(STR_B.to_string() ,(1) as i32);
+    map.insert(STR_C.to_string() ,(4) as i32);
+    map });
+    map.insert(STR_B.to_string(), {
     let mut map = HashMap::new();
-    map.insert(STR_A.to_string(), 1);
-    map.insert(STR_C.to_string(), 2);
-    map.insert(STR_D.to_string(), 5);
-    map })));
-    map.insert(STR_C.to_string(), DepylerValue::Str(format!("{:?}", {
+    map.insert(STR_A.to_string() ,(1) as i32);
+    map.insert(STR_C.to_string() ,(2) as i32);
+    map.insert(STR_D.to_string() ,(5) as i32);
+    map });
+    map.insert(STR_C.to_string(), {
     let mut map = HashMap::new();
-    map.insert(STR_A.to_string(), 4);
-    map.insert(STR_B.to_string(), 2);
-    map.insert(STR_D.to_string(), 1);
-    map })));
-    map.insert(STR_D.to_string(), DepylerValue::Str(format!("{:?}", {
+    map.insert(STR_A.to_string() ,(4) as i32);
+    map.insert(STR_B.to_string() ,(2) as i32);
+    map.insert(STR_D.to_string() ,(1) as i32);
+    map });
+    map.insert(STR_D.to_string(), {
     let mut map = HashMap::new();
-    map.insert(STR_B.to_string(), 5);
-    map.insert(STR_C.to_string(), 1);
-    map })));
+    map.insert(STR_B.to_string() ,(5) as i32);
+    map.insert(STR_C.to_string() ,(1) as i32);
+    map });
     map };
     let route = optimize_route(& graph, & STR_A, & STR_D) ?;
     println!("{}", format!("Optimal route: {:?}", route));
