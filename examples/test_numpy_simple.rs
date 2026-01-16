@@ -426,6 +426,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2649,24 +2683,27 @@ pub mod np {
 #[doc = " Depyler: proven to terminate"]
 pub fn numpy_sum_test() -> i32 {
     let a = vec![1, 2, 3, 4, 5];
-    a.iter().sum::<f64>()
+    a.iter().map(|&x| x as f64).sum::<f64>() as i32
 }
 #[doc = "Test numpy dot product"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn numpy_dot_product<'b, 'a>(x: &'a Vec<f64>, y: &'b Vec<f64>) -> f64 {
+pub fn numpy_dot_product<'a, 'b>(x: &'a Vec<f64>, y: &'b Vec<f64>) -> f64 {
     let a = x.to_vec();
     let b = y.to_vec();
-    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f64>()
+    a.iter()
+        .zip(b.iter())
+        .map(|(x, y)| (*x as f64) * (*y as f64))
+        .sum::<f64>()
 }
 #[doc = "Test numpy statistics"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn numpy_mean_std() -> f64 {
     let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
-    let mean = (data.iter().sum::<f64>() / data.len() as f64);
+    let mean = (data.iter().map(|&x| x as f64).sum::<f64>() / data.len() as f64);
     let std = {
-        let data = &data;
+        let data: Vec<f64> = data.iter().map(|&x| x as f64).collect();
         let mean = data.iter().sum::<f64>() / data.len() as f64;
         let variance = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64;
         variance.sqrt()

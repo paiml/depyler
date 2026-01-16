@@ -290,6 +290,30 @@ impl std::ops::Index<i32>for DepylerValue {
     fn from(v: Vec<DepylerValue>) -> Self {
     DepylerValue::List(v)
 }
+} impl From<Vec<String>>for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+}
+} impl From<Vec<i32>>for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+    DepylerValue::List(v.into_iter().map(| x | DepylerValue::Int(x as i64)).collect())
+}
+} impl From<Vec<i64>>for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+}
+} impl From<Vec<f64>>for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+}
+} impl From<Vec<bool>>for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+}
+} impl From<Vec<& str>>for DepylerValue {
+    fn from(v: Vec<& str>) -> Self {
+    DepylerValue::List(v.into_iter().map(| s | DepylerValue::Str(s.to_string())).collect())
+}
 } impl From<std::collections::HashMap<DepylerValue, DepylerValue>>for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
     DepylerValue::Dict(v)
@@ -2018,7 +2042,7 @@ impl CSVParser {
     while i <(line.len() as i32) {
     let char = {
     let _base = & line;
-    let _idx = i;
+    let _idx  = (i) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2029,7 +2053,7 @@ else {
     if char == self.quote_char.clone() {
     if in_quotes && i + 1 <(line.len() as i32) && {
     let _base = & line;
-    let _idx = i + 1;
+    let _idx  = (i + 1) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2084,7 +2108,7 @@ pub fn to_dict_list(&self, csv_content: String) -> Vec<std::collections::HashMap
     };
     let headers = {
     let _base = & rows;
-    let _idx = 0;
+    let _idx  = (0) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2111,7 +2135,7 @@ else {
     for(i, value) in row.iter().cloned().enumerate().map(|(i, x) |(i as i32, x)) {
     if i <(headers.len() as i32) {
     row_dict.insert({ let _base = & headers;
-    let _idx = i;
+    let _idx  = (i) as isize;
     if _idx<0 {
     _base [_base.len().wrapping_sub((- _idx) as usize)].clone()
 }
@@ -2137,11 +2161,11 @@ else {
     let _cse_temp_1  = (! dict_rows) ||(_cse_temp_0);
     if _cse_temp_1 {
     return Ok({ let mut map = HashMap::new();
-    map.insert("count".to_string(), 0.0);
-    map.insert("sum".to_string(), 0.0);
-    map.insert("mean".to_string(), 0.0);
-    map.insert("min".to_string(), 0.0);
-    map.insert("max".to_string(), 0.0);
+    map.insert("count".to_string() ,(0.0) as f64);
+    map.insert("sum".to_string() ,(0.0) as f64);
+    map.insert("mean".to_string() ,(0.0) as f64);
+    map.insert("min".to_string() ,(0.0) as f64);
+    map.insert("max".to_string() ,(0.0) as f64);
     map });
    
 }
@@ -2163,11 +2187,11 @@ let mut values: Vec<f64>= vec! [];
 }
 if values.is_empty() {
     return Ok({ let mut map = HashMap::new();
-    map.insert("count".to_string(), 0.0);
-    map.insert("sum".to_string(), 0.0);
-    map.insert("mean".to_string(), 0.0);
-    map.insert("min".to_string(), 0.0);
-    map.insert("max".to_string(), 0.0);
+    map.insert("count".to_string() ,(0.0) as f64);
+    map.insert("sum".to_string() ,(0.0) as f64);
+    map.insert("mean".to_string() ,(0.0) as f64);
+    map.insert("min".to_string() ,(0.0) as f64);
+    map.insert("max".to_string() ,(0.0) as f64);
     map });
    
 }
@@ -2182,14 +2206,14 @@ let _cse_temp_2 = values.iter().sum::<i32>();
     let _cse_temp_6 = * values.iter().max().unwrap();
     let max_val = _cse_temp_6;
     Ok({ let mut map = HashMap::new();
-    map.insert("count".to_string(), DepylerValue::Str(format!("{:?}" ,(count) as f64)));
-    map.insert("sum".to_string(), DepylerValue::Int(total as i64));
-    map.insert("mean".to_string(), DepylerValue::Int(mean_val as i64));
-    map.insert("min".to_string(), DepylerValue::Int(min_val as i64));
-    map.insert("max".to_string(), DepylerValue::Int(max_val as i64));
+    map.insert("count".to_string() ,(count) as f64);
+    map.insert("sum".to_string() ,(total) as f64);
+    map.insert("mean".to_string() ,(mean_val) as f64);
+    map.insert("min".to_string() ,(min_val) as f64);
+    map.insert("max".to_string() ,(max_val) as f64);
     map })
 }
-#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'b, 'a>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
+#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'a, 'b>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let rows = parser.parse_string(csv_content);
     if! rows {
@@ -2231,7 +2255,7 @@ else {
 }
 Ok(result_lines.join ("\n"))
 }
-#[doc = "Group CSV rows by values in specified column"] pub fn group_by_column<'b, 'a>(csv_content: & 'a str, group_column: & 'b str) -> Result<HashMap<String, Vec<HashMap<String, String>>>, Box<dyn std::error::Error>>{
+#[doc = "Group CSV rows by values in specified column"] pub fn group_by_column<'a, 'b>(csv_content: & 'a str, group_column: & 'b str) -> Result<HashMap<String, Vec<HashMap<String, String>>>, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let dict_rows = parser.to_dict_list(csv_content);
     let mut groups: std::collections::HashMap<String, Vec<std::collections::HashMap<String, String>>>= {

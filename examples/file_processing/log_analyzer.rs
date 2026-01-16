@@ -444,6 +444,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2668,7 +2702,7 @@ impl LogAnalyzer {
         if (parts.len() as i32) >= 2 {
             let timestamp = {
                 let _base = &parts;
-                let _idx = 0;
+                let _idx = (0) as isize;
                 if _idx < 0 {
                     _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                 } else {
@@ -2677,7 +2711,7 @@ impl LogAnalyzer {
             } + " ".to_string()
                 + {
                     let _base = &parts;
-                    let _idx = 1;
+                    let _idx = (1) as isize;
                     if _idx < 0 {
                         _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                     } else {
@@ -2686,7 +2720,7 @@ impl LogAnalyzer {
                 };
             let level = {
                 let _base = &parts;
-                let _idx = 2;
+                let _idx = (2) as isize;
                 if _idx < 0 {
                     _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                 } else {
@@ -2736,7 +2770,7 @@ impl LogAnalyzer {
                     level,
                     {
                         let _base = &counts;
-                        let _idx = level;
+                        let _idx = (level) as isize;
                         if _idx < 0 {
                             _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                         } else {
@@ -2783,7 +2817,7 @@ impl LogAnalyzer {
             if (timestamp_parts.len() as i32) >= 2 {
                 let time_part = {
                     let _base = &timestamp_parts;
-                    let _idx = 1;
+                    let _idx = (1) as isize;
                     if _idx < 0 {
                         _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                     } else {
@@ -2797,7 +2831,7 @@ impl LogAnalyzer {
                 if (hour_parts.len() as i32) >= 1 {
                     let hour = {
                         let _base = &hour_parts;
-                        let _idx = 0;
+                        let _idx = (0) as isize;
                         if _idx < 0 {
                             _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                         } else {
@@ -2809,7 +2843,7 @@ impl LogAnalyzer {
                             hour,
                             {
                                 let _base = &hourly_counts;
-                                let _idx = hour;
+                                let _idx = (hour) as isize;
                                 if _idx < 0 {
                                     _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                                 } else {
@@ -2853,7 +2887,7 @@ impl LogAnalyzer {
                             word,
                             {
                                 let _base = &word_counts;
-                                let _idx = word;
+                                let _idx = (word) as isize;
                                 if _idx < 0 {
                                     _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                                 } else {
@@ -2877,14 +2911,14 @@ impl LogAnalyzer {
                 if {
                     let _base = &{
                         let _base = &sorted_patterns;
-                        let _idx = j;
+                        let _idx = (j) as isize;
                         if _idx < 0 {
                             _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                         } else {
                             _base[_idx as usize].clone()
                         }
                     };
-                    let _idx = 1;
+                    let _idx = (1) as isize;
                     if _idx < 0 {
                         _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                     } else {
@@ -2893,14 +2927,14 @@ impl LogAnalyzer {
                 } < {
                     let _base = &{
                         let _base = &sorted_patterns;
-                        let _idx = j + 1;
+                        let _idx = (j + 1) as isize;
                         if _idx < 0 {
                             _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                         } else {
                             _base[_idx as usize].clone()
                         }
                     };
-                    let _idx = 1;
+                    let _idx = (1) as isize;
                     if _idx < 0 {
                         _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                     } else {
@@ -2911,7 +2945,7 @@ impl LogAnalyzer {
                         let _swap_temp = (
                             {
                                 let _base = &sorted_patterns;
-                                let _idx = j + 1;
+                                let _idx = (j + 1) as isize;
                                 if _idx < 0 {
                                     _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                                 } else {
@@ -2920,7 +2954,7 @@ impl LogAnalyzer {
                             },
                             {
                                 let _base = &sorted_patterns;
-                                let _idx = j;
+                                let _idx = (j) as isize;
                                 if _idx < 0 {
                                     _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                                 } else {
@@ -2958,9 +2992,9 @@ pub fn analyze_log_health(
     if !analyzer.entries {
         return Ok({
             let mut map = HashMap::new();
-            map.insert("health_score".to_string(), 0.0);
-            map.insert("error_rate".to_string(), 0.0);
-            map.insert("warning_rate".to_string(), 0.0);
+            map.insert("health_score".to_string(), (0.0) as f64);
+            map.insert("error_rate".to_string(), (0.0) as f64);
+            map.insert("warning_rate".to_string(), (0.0) as f64);
             map
         });
     }
@@ -2992,18 +3026,9 @@ pub fn analyze_log_health(
     }
     Ok({
         let mut map = HashMap::new();
-        map.insert(
-            "health_score".to_string(),
-            DepylerValue::Float(health_score as f64),
-        );
-        map.insert(
-            "error_rate".to_string(),
-            DepylerValue::Int(error_rate as i64),
-        );
-        map.insert(
-            "warning_rate".to_string(),
-            DepylerValue::Int(warning_rate as i64),
-        );
+        map.insert("health_score".to_string(), (health_score) as f64);
+        map.insert("error_rate".to_string(), (error_rate) as f64);
+        map.insert("warning_rate".to_string(), (warning_rate) as f64);
         map
     })
 }

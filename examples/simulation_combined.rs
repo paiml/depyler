@@ -462,6 +462,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2693,10 +2727,10 @@ pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
 pub fn count_streaks(
     sequence: &Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let mut max_heads_streak: i32 = Default::default();
     let mut max_tails_streak: i32 = Default::default();
-    let mut current_type: String = Default::default();
+    let mut max_heads_streak: i32 = Default::default();
     let mut current_streak: i32 = Default::default();
+    let mut current_type: String = Default::default();
     let _cse_temp_0 = sequence.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -2750,8 +2784,8 @@ pub fn count_streaks(
     }
     let streaks: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("max_heads".to_string(), max_heads_streak);
-        map.insert("max_tails".to_string(), max_tails_streak);
+        map.insert("max_heads".to_string(), (max_heads_streak) as i32);
+        map.insert("max_tails".to_string(), (max_tails_streak) as i32);
         map
     };
     Ok(streaks)
@@ -2821,8 +2855,8 @@ pub fn simulate_queue_system(
     num_customers: i32,
     service_time_range: (i32, i32),
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut max_wait: i32 = Default::default();
     let mut total_wait: i32 = Default::default();
+    let mut max_wait: i32 = Default::default();
     let mut wait_times: Vec<i32> = vec![];
     let mut queue_length: i32 = 0;
     let mut current_time: i32 = 0;
@@ -2854,15 +2888,9 @@ pub fn simulate_queue_system(
     }
     let stats: std::collections::HashMap<String, f64> = {
         let mut map = HashMap::new();
-        map.insert("avg_wait".to_string(), DepylerValue::Float(avg_wait as f64));
-        map.insert(
-            "max_wait".to_string(),
-            DepylerValue::Str(format!("{:?}", (max_wait) as f64)),
-        );
-        map.insert(
-            "total_customers".to_string(),
-            DepylerValue::Str(format!("{:?}", (num_customers) as f64)),
-        );
+        map.insert("avg_wait".to_string(), (avg_wait) as f64);
+        map.insert("max_wait".to_string(), (max_wait) as f64);
+        map.insert("total_customers".to_string(), (num_customers) as f64);
         map
     };
     Ok(stats)
@@ -2874,9 +2902,9 @@ pub fn simulate_card_game(
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut results: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("wins".to_string(), 0);
-        map.insert("losses".to_string(), 0);
-        map.insert("ties".to_string(), 0);
+        map.insert("wins".to_string(), (0) as i32);
+        map.insert("losses".to_string(), (0) as i32);
+        map.insert("ties".to_string(), (0) as i32);
         map
     };
     for _game in 0..(num_games) {
@@ -2949,8 +2977,8 @@ pub fn simulate_population_growth(
 pub fn analyze_population_trend(
     populations: &Vec<i32>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut total_growth: f64 = Default::default();
     let mut peak: i32 = Default::default();
+    let mut total_growth: f64 = Default::default();
     let _cse_temp_0 = populations.len() as i32;
     let _cse_temp_1 = _cse_temp_0 < 2;
     if _cse_temp_1 {
@@ -3011,25 +3039,16 @@ pub fn analyze_population_trend(
     }
     let analysis: std::collections::HashMap<String, f64> = {
         let mut map = HashMap::new();
-        map.insert(
-            "avg_growth_rate".to_string(),
-            DepylerValue::Float(avg_growth as f64),
-        );
-        map.insert(
-            "peak_population".to_string(),
-            DepylerValue::Str(format!("{:?}", (peak) as f64)),
-        );
+        map.insert("avg_growth_rate".to_string(), (avg_growth) as f64);
+        map.insert("peak_population".to_string(), (peak) as f64);
         map.insert(
             "final_population".to_string(),
-            DepylerValue::Str(format!(
-                "{:?}",
-                ({
-                    let base = &populations;
-                    base.get(base.len().saturating_sub(1usize))
-                        .cloned()
-                        .unwrap_or_default()
-                }) as f64
-            )),
+            ({
+                let base = &populations;
+                base.get(base.len().saturating_sub(1usize))
+                    .cloned()
+                    .unwrap_or_default()
+            }) as f64,
         );
         map
     };

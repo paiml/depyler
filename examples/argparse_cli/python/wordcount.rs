@@ -427,6 +427,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2631,8 +2665,8 @@ struct Args {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn count_file(filepath: &std::path::PathBuf) -> Stats {
-    let mut lines: i32 = Default::default();
     let mut content: Option<String> = None;
+    let mut lines: i32 = Default::default();
     let mut words: i32 = Default::default();
     let mut chars: i32 = Default::default();
     match (|| -> Result<(), Box<dyn std::error::Error>> {
@@ -2682,9 +2716,9 @@ pub fn format_stats(stats: Stats, show_filename: bool) -> String {
 #[doc = "Main entry point"]
 #[doc = " Depyler: verified panic-free"]
 pub fn main() {
+    let mut total_lines: i32 = Default::default();
     let mut total_words: i32 = Default::default();
     let mut total_chars: i32 = Default::default();
-    let mut total_lines: i32 = Default::default();
     let args = Args::default();
     total_lines = 0;
     total_words = 0;

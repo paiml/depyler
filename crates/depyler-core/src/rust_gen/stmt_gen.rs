@@ -3622,9 +3622,12 @@ pub(crate) fn codegen_assign_stmt(
                     // Use return type's dict value type (handles Dict[str, Any] → Unknown)
                     (k.as_ref().clone(), v.as_ref().clone())
                 } else if !items.is_empty() {
-                    // Infer from first item (assume homogeneous dict)
-                    // For string literal keys and int values
-                    (Type::String, Type::Int)
+                    // DEPYLER-1143: Use Unknown value type for dicts without annotation
+                    // This allows dict_has_mixed_types to properly detect heterogeneous dicts
+                    // and use DepylerValue for argparse result dicts like:
+                    //   result = {"name": args.name, "debug": args.debug}  # String + bool
+                    // Using Type::Int here would incorrectly trigger target_has_concrete_value_type
+                    (Type::String, Type::Unknown)
                 } else {
                     (Type::Unknown, Type::Unknown)
                 };

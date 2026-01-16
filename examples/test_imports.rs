@@ -427,6 +427,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2615,7 +2649,7 @@ pub fn parse_json(data: &str) -> std::collections::HashMap<DepylerValue, Depyler
     std::collections::HashMap::<String, DepylerValue>::new()
 }
 #[doc = " Depyler: verified panic-free"]
-pub fn join_paths<'a, 'b>(base: &'a str, paths: &[String]) -> String {
+pub fn join_paths<'b, 'a>(base: &'a str, paths: &[String]) -> String {
     let mut result: String = Default::default();
     result = base.to_string();
     for p in paths.iter().cloned() {
@@ -2628,7 +2662,7 @@ pub fn join_paths<'a, 'b>(base: &'a str, paths: &[String]) -> String {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> Vec<String> {
+pub fn find_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> Vec<String> {
     let regex = pattern.to_string();
     regex
         .find_iter(text)

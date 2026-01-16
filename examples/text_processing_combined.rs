@@ -463,6 +463,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2743,11 +2777,11 @@ pub fn analyze_character_distribution(
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut distribution: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("letters".to_string(), 0);
-        map.insert("digits".to_string(), 0);
-        map.insert("spaces".to_string(), 0);
-        map.insert("punctuation".to_string(), 0);
-        map.insert("other".to_string(), 0);
+        map.insert("letters".to_string(), (0) as i32);
+        map.insert("digits".to_string(), (0) as i32);
+        map.insert("spaces".to_string(), (0) as i32);
+        map.insert("punctuation".to_string(), (0) as i32);
+        map.insert("other".to_string(), (0) as i32);
         map
     };
     for char in text.chars() {
@@ -3024,8 +3058,8 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, Box<dyn std:
 pub fn analyze_vowel_consonant_ratio(
     text: &str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut vowel_count: i32 = Default::default();
     let mut consonant_count: i32 = Default::default();
+    let mut vowel_count: i32 = Default::default();
     let vowels: String = "aeiouAEIOU".to_string();
     vowel_count = 0;
     consonant_count = 0;

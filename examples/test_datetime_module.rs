@@ -460,6 +460,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2715,7 +2749,7 @@ pub fn test_date_subtraction() -> DepylerDate {
 }
 #[doc = "Calculate age in years given birth date"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_age<'a, 'b>(
+pub fn calculate_age<'b, 'a>(
     birth_date: &'a DepylerDate,
     current_date: &'b DepylerDate,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -2742,7 +2776,7 @@ pub fn calculate_age<'a, 'b>(
 #[doc = "Calculate days until a future event"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn days_until_event<'b, 'a>(event_date: &'a DepylerDate, current_date: &'b DepylerDate) -> i32 {
+pub fn days_until_event<'a, 'b>(event_date: &'a DepylerDate, current_date: &'b DepylerDate) -> i32 {
     let _cse_temp_0 = event_date < current_date;
     if _cse_temp_0 {
         return 0;
@@ -2851,7 +2885,7 @@ pub fn test_date_comparison() -> bool {
 }
 #[doc = "Calculate working days between two dates(excluding weekends)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn working_days_between<'b, 'a>(
+pub fn working_days_between<'a, 'b>(
     start: &'a DepylerDate,
     end: &'b DepylerDate,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -2932,7 +2966,7 @@ pub fn test_datetime_formatting() -> String {
 }
 #[doc = "Generate list of dates in range"]
 #[doc = " Depyler: verified panic-free"]
-pub fn test_date_range<'a, 'b>(start: &'a DepylerDate, end: &'b DepylerDate) -> Vec<DepylerDate> {
+pub fn test_date_range<'b, 'a>(start: &'a DepylerDate, end: &'b DepylerDate) -> Vec<DepylerDate> {
     let mut dates: Vec<DepylerDate> = vec![];
     let mut current: DepylerDate = start.clone();
     let one_day: DepylerTimeDelta = DepylerTimeDelta::new(0, 0, 0);

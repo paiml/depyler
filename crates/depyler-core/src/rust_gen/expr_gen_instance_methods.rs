@@ -5007,8 +5007,36 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
                     // DEPYLER-1040: Handle struct field access (e.g., args.debug, args.count)
-                    HirExpr::Attribute { attr, .. } => {
-                        if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+                    // DEPYLER-1143: Also check argparse field types for proper wrapping
+                    HirExpr::Attribute { value: attr_value, attr, .. } => {
+                        // First try class_field_types
+                        let found_type: Option<&Type> = self.ctx.class_field_types.get(attr);
+                        let mut inferred_type_str: Option<String> = None;
+
+                        // DEPYLER-1143: If not found, check argparse args.field access
+                        // IMPORTANT: Always use rust_type() for argparse fields, not arg_type
+                        // Because rust_type() includes Option<T> wrapping for optional arguments
+                        // while arg_type only has the inner Python type (e.g., Type::Int instead of Option<i32>)
+                        if found_type.is_none() {
+                            if let HirExpr::Var(obj_name) = attr_value.as_ref() {
+                                for parser_info in self.ctx.argparser_tracker.parsers.values() {
+                                    if let Some(ref args_var) = parser_info.args_var {
+                                        if args_var == obj_name {
+                                            for arg in &parser_info.arguments {
+                                                if arg.rust_field_name() == *attr {
+                                                    // Always use rust_type() which accounts for Option wrapping
+                                                    inferred_type_str = Some(arg.rust_type());
+                                                    break;
+                                                }
+                                            }
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if let Some(field_type) = found_type {
                             match field_type {
                                 Type::Int => parse_quote! { DepylerValue::Int(#val_expr as i64) },
                                 Type::Float => parse_quote! { DepylerValue::Float(#val_expr as f64) },
@@ -5033,6 +5061,44 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 }
                                 Type::List(_) => parse_quote! {
                                     DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect())
+                                },
+                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                            }
+                        } else if let Some(type_str) = inferred_type_str {
+                            // DEPYLER-1143: Handle inferred types from argparse rust_type()
+                            match type_str.as_str() {
+                                "bool" => parse_quote! { DepylerValue::Bool(#val_expr) },
+                                "i32" | "i64" | "isize" => parse_quote! { DepylerValue::Int(#val_expr as i64) },
+                                "u8" | "u32" | "u64" => parse_quote! { DepylerValue::Int(#val_expr as i64) },
+                                "f32" | "f64" => parse_quote! { DepylerValue::Float(#val_expr as f64) },
+                                "String" => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
+                                s if s.starts_with("Vec<") => parse_quote! {
+                                    DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect())
+                                },
+                                s if s.starts_with("Option<") && s.contains("String") => parse_quote! {
+                                    match #val_expr {
+                                        Some(v) => DepylerValue::Str(v.to_string()),
+                                        None => DepylerValue::None,
+                                    }
+                                },
+                                // DEPYLER-1143: Handle Option<i32/i64/f32/f64> with proper numeric wrapping
+                                s if s.starts_with("Option<i") || s.starts_with("Option<u") => parse_quote! {
+                                    match #val_expr {
+                                        Some(v) => DepylerValue::Int(v as i64),
+                                        None => DepylerValue::None,
+                                    }
+                                },
+                                s if s.starts_with("Option<f") => parse_quote! {
+                                    match #val_expr {
+                                        Some(v) => DepylerValue::Float(v as f64),
+                                        None => DepylerValue::None,
+                                    }
+                                },
+                                s if s.starts_with("Option<") => parse_quote! {
+                                    match #val_expr {
+                                        Some(v) => DepylerValue::Str(format!("{:?}", v)),
+                                        None => DepylerValue::None,
+                                    }
                                 },
                                 _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
                             }
@@ -5403,9 +5469,43 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                 }
                 // DEPYLER-1040: Handle struct field access (e.g., args.debug, args.count)
-                // Look up field type from class_field_types or infer from attribute name
-                HirExpr::Attribute { attr, .. } => {
-                    if let Some(field_type) = self.ctx.class_field_types.get(attr) {
+                // Look up field type from class_field_types or argparse_tracker
+                // DEPYLER-1143: Also check argparse field types for heterogeneous dict detection
+                HirExpr::Attribute { value, attr, .. } => {
+                    // First try class_field_types
+                    let mut found_type: Option<&Type> = self.ctx.class_field_types.get(attr);
+                    // Track inferred type string from argparse rust_type()
+                    let mut inferred_type_str: Option<String> = None;
+
+                    // DEPYLER-1143: If not found, check if this is an argparse args.field access
+                    if found_type.is_none() {
+                        if let HirExpr::Var(obj_name) = value.as_ref() {
+                            // Check if obj_name is an argparse args_var
+                            for parser_info in self.ctx.argparser_tracker.parsers.values() {
+                                if let Some(ref args_var) = parser_info.args_var {
+                                    if args_var == obj_name {
+                                        // Found matching parser, look up field type
+                                        for arg in &parser_info.arguments {
+                                            if arg.rust_field_name() == *attr {
+                                                // Try explicit arg_type first
+                                                found_type = arg.arg_type.as_ref();
+                                                // If not set, use rust_type() which handles
+                                                // action="store_true" → bool, nargs="+" → Vec, etc.
+                                                if found_type.is_none() {
+                                                    inferred_type_str = Some(arg.rust_type());
+                                                }
+                                                break;
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Process found explicit Type
+                    if let Some(field_type) = found_type {
                         match field_type {
                             Type::Bool => has_bool_literal = true,
                             Type::Int => has_int_literal = true,
@@ -5413,6 +5513,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             Type::String => has_string_literal = true,
                             Type::List(_) => has_complex_expr = true,
                             Type::Optional(_) => has_complex_expr = true,
+                            _ => has_complex_expr = true,
+                        }
+                    } else if let Some(type_str) = inferred_type_str {
+                        // DEPYLER-1143: Handle inferred types from argparse rust_type()
+                        match type_str.as_str() {
+                            "bool" => has_bool_literal = true,
+                            "i32" | "i64" | "isize" | "u8" | "u32" | "u64" => has_int_literal = true,
+                            "f32" | "f64" => has_float_literal = true,
+                            "String" => has_string_literal = true,
+                            s if s.starts_with("Vec<") => has_complex_expr = true,
+                            s if s.starts_with("Option<") => has_complex_expr = true,
                             _ => has_complex_expr = true,
                         }
                     } else {

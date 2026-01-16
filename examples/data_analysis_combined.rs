@@ -462,6 +462,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2651,10 +2685,10 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
 pub fn calculate_statistics(
     data: &Vec<f64>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut min_val: f64 = Default::default();
     let mut variance_sum: f64 = Default::default();
-    let mut total: f64 = Default::default();
     let mut max_val: f64 = Default::default();
+    let mut total: f64 = Default::default();
+    let mut min_val: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -2932,8 +2966,8 @@ pub fn bin_data(
     data: &Vec<f64>,
     num_bins: i32,
 ) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let mut bin_index: i32 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -2990,11 +3024,11 @@ pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut x_sum: f64 = Default::default();
-    let mut y_variance_sum: f64 = Default::default();
     let mut x_variance_sum: f64 = Default::default();
-    let mut numerator: f64 = Default::default();
+    let mut y_variance_sum: f64 = Default::default();
     let mut y_sum: f64 = Default::default();
+    let mut x_sum: f64 = Default::default();
+    let mut numerator: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3052,8 +3086,8 @@ pub fn calculate_correlation<'a, 'b>(
 }
 #[doc = "Z-score normalization using statistics"]
 pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
-    let mut variance_sum: f64 = Default::default();
     let mut total: f64 = Default::default();
+    let mut variance_sum: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
