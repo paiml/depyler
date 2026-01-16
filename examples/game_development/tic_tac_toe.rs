@@ -178,6 +178,33 @@ _dv_list.clone()
 }
 _dv_other =>panic!("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
 }
+} #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"] #[doc = r" Returns empty string for non-element types"] pub fn tag(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.clone(), _ =>String::new() ,
+}
+} #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"] #[doc = r" Returns None for non-string types"] pub fn text(&self) -> Option<String>{
+    match self {
+    DepylerValue::Str(_dv_s) =>Some(_dv_s.clone()), DepylerValue::None =>Option::None, _ =>Option::None ,
+}
+} #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"] #[doc = r" Returns DepylerValue::None for non-matching/non-container types"] pub fn find(&self, _tag: & str) -> DepylerValue {
+    match self {
+    DepylerValue::List(_dv_list) =>{
+    _dv_list.first().cloned().unwrap_or(DepylerValue::None)
+}
+DepylerValue::Dict(_dv_dict) =>{
+    _dv_dict.get(& DepylerValue::Str(_tag.to_string())).cloned().unwrap_or(DepylerValue::None)
+}
+_ =>DepylerValue::None ,
+}
+} #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"] #[doc = r" Returns empty Vec for non-container types"] pub fn findall(&self, _tag: & str) -> Vec<DepylerValue>{
+    match self {
+    DepylerValue::List(_dv_list) =>_dv_list.clone(), _ =>Vec::new() ,
+}
+} #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"] #[doc = r" No-op for non-dict types"] pub fn set(&mut self, key: & str, value: & str) {
+    if let DepylerValue::Dict(_dv_dict) = self {
+    _dv_dict.insert(DepylerValue::Str(key.to_string()), DepylerValue::Str(value.to_string()));
+   
+}
 }
 }
 impl std::ops::Index<usize>for DepylerValue {
@@ -2549,8 +2576,8 @@ else {
     let ai = AIPlayer::new("O".to_string());
     let mut moves_log: Vec<String>= vec! [];
     while! game.is_game_over() {
-    let mut col;
     let mut row;
+    let mut col;
     if game.current_player == "X" {
     let empty_positions = game.get_empty_positions();
     if empty_positions {
@@ -2576,7 +2603,7 @@ else {
 }
 Ok(moves_log.join ("\n"))
 }
-#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'a, 'b>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
+#[doc = "Count how many ways a player can win from current state"] pub fn count_winning_positions<'b, 'a>(board_state: & 'a Vec<Vec<String>>, player: & 'b str) -> Result<i32, Box<dyn std::error::Error>>{
     let mut count: i32 = Default::default();
     let winning_positions = vec! [vec! [(0, 0) ,(0, 1) ,(0, 2)], vec! [(1, 0) ,(1, 1) ,(1, 2)], vec! [(2, 0) ,(2, 1) ,(2, 2)], vec! [(0, 0) ,(1, 0) ,(2, 0)], vec! [(0, 1) ,(1, 1) ,(2, 1)], vec! [(0, 2) ,(1, 2) ,(2, 2)], vec! [(0, 0) ,(1, 1) ,(2, 2)], vec! [(0, 2) ,(1, 1) ,(2, 0)]];
     count = 0;

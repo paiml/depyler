@@ -328,6 +328,53 @@ impl DepylerValue {
             ),
         }
     }
+    #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"]
+    #[doc = r" Returns empty string for non-element types"]
+    pub fn tag(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.clone(),
+            _ => String::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"]
+    #[doc = r" Returns None for non-string types"]
+    pub fn text(&self) -> Option<String> {
+        match self {
+            DepylerValue::Str(_dv_s) => Some(_dv_s.clone()),
+            DepylerValue::None => Option::None,
+            _ => Option::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"]
+    #[doc = r" Returns DepylerValue::None for non-matching/non-container types"]
+    pub fn find(&self, _tag: &str) -> DepylerValue {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.first().cloned().unwrap_or(DepylerValue::None),
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Str(_tag.to_string()))
+                .cloned()
+                .unwrap_or(DepylerValue::None),
+            _ => DepylerValue::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"]
+    #[doc = r" Returns empty Vec for non-container types"]
+    pub fn findall(&self, _tag: &str) -> Vec<DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.clone(),
+            _ => Vec::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"]
+    #[doc = r" No-op for non-dict types"]
+    pub fn set(&mut self, key: &str, value: &str) {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.insert(
+                DepylerValue::Str(key.to_string()),
+                DepylerValue::Str(value.to_string()),
+            );
+        }
+    }
 }
 impl std::ops::Index<usize> for DepylerValue {
     type Output = DepylerValue;
@@ -2625,7 +2672,7 @@ pub fn mixed_operations<'b, 'a>(x: i32, y: i32) {
 #[doc = " Depyler: proven to terminate"]
 pub fn container_operations(
     items: &mut Vec<DepylerValue>,
-) -> Result<Option<DepylerValue>, Box<dyn std::error::Error>> {
+) -> Result<String, Box<dyn std::error::Error>> {
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     if _cse_temp_1 {
@@ -2634,7 +2681,7 @@ pub fn container_operations(
             .cloned()
             .expect("IndexError: list index out of range");
         items.push(DepylerValue::Int(42 as i64));
-        return Ok(first);
+        return Ok(first.to_string());
     }
     Ok(None)
 }
@@ -2682,7 +2729,7 @@ pub fn type_conversions(value: &str) -> (String, i32, f64) {
 }
 #[doc = "Only some parameters have annotations."]
 #[doc = " Depyler: verified panic-free"]
-pub fn partial_annotations<'a, 'b>(
+pub fn partial_annotations<'b, 'a>(
     data: &'a Vec<DepylerValue>,
     multiplier: i32,
 ) -> Vec<DepylerValue> {
@@ -2694,19 +2741,4 @@ pub fn partial_annotations<'a, 'b>(
         )));
     }
     result
-}
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use quickcheck::{quickcheck, TestResult};
-    #[test]
-    fn test_process_numbers_examples() {
-        assert_eq!(process_numbers(&vec![]), 0);
-        assert_eq!(process_numbers(&vec![1]), 1);
-        assert_eq!(process_numbers(&vec![1, 2, 3]), 3);
-    }
-    #[test]
-    fn test_inferred_return_types_examples() {
-        let _ = inferred_return_types();
-    }
 }

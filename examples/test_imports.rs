@@ -295,6 +295,53 @@ impl DepylerValue {
             ),
         }
     }
+    #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"]
+    #[doc = r" Returns empty string for non-element types"]
+    pub fn tag(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.clone(),
+            _ => String::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"]
+    #[doc = r" Returns None for non-string types"]
+    pub fn text(&self) -> Option<String> {
+        match self {
+            DepylerValue::Str(_dv_s) => Some(_dv_s.clone()),
+            DepylerValue::None => Option::None,
+            _ => Option::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"]
+    #[doc = r" Returns DepylerValue::None for non-matching/non-container types"]
+    pub fn find(&self, _tag: &str) -> DepylerValue {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.first().cloned().unwrap_or(DepylerValue::None),
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Str(_tag.to_string()))
+                .cloned()
+                .unwrap_or(DepylerValue::None),
+            _ => DepylerValue::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"]
+    #[doc = r" Returns empty Vec for non-container types"]
+    pub fn findall(&self, _tag: &str) -> Vec<DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.clone(),
+            _ => Vec::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"]
+    #[doc = r" No-op for non-dict types"]
+    pub fn set(&mut self, key: &str, value: &str) {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.insert(
+                DepylerValue::Str(key.to_string()),
+                DepylerValue::Str(value.to_string()),
+            );
+        }
+    }
 }
 impl std::ops::Index<usize> for DepylerValue {
     type Output = DepylerValue;
@@ -2568,7 +2615,7 @@ pub fn parse_json(data: &str) -> std::collections::HashMap<DepylerValue, Depyler
     std::collections::HashMap::<String, DepylerValue>::new()
 }
 #[doc = " Depyler: verified panic-free"]
-pub fn join_paths<'b, 'a>(base: &'a str, paths: &[String]) -> String {
+pub fn join_paths<'a, 'b>(base: &'a str, paths: &[String]) -> String {
     let mut result: String = Default::default();
     result = base.to_string();
     for p in paths.iter().cloned() {
@@ -2581,7 +2628,7 @@ pub fn join_paths<'b, 'a>(base: &'a str, paths: &[String]) -> String {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> Vec<String> {
+pub fn find_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> Vec<String> {
     let regex = pattern.to_string();
     regex
         .find_iter(text)

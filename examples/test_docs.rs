@@ -295,6 +295,53 @@ impl DepylerValue {
             ),
         }
     }
+    #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"]
+    #[doc = r" Returns empty string for non-element types"]
+    pub fn tag(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.clone(),
+            _ => String::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"]
+    #[doc = r" Returns None for non-string types"]
+    pub fn text(&self) -> Option<String> {
+        match self {
+            DepylerValue::Str(_dv_s) => Some(_dv_s.clone()),
+            DepylerValue::None => Option::None,
+            _ => Option::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"]
+    #[doc = r" Returns DepylerValue::None for non-matching/non-container types"]
+    pub fn find(&self, _tag: &str) -> DepylerValue {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.first().cloned().unwrap_or(DepylerValue::None),
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Str(_tag.to_string()))
+                .cloned()
+                .unwrap_or(DepylerValue::None),
+            _ => DepylerValue::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"]
+    #[doc = r" Returns empty Vec for non-container types"]
+    pub fn findall(&self, _tag: &str) -> Vec<DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.clone(),
+            _ => Vec::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"]
+    #[doc = r" No-op for non-dict types"]
+    pub fn set(&mut self, key: &str, value: &str) {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.insert(
+                DepylerValue::Str(key.to_string()),
+                DepylerValue::Str(value.to_string()),
+            );
+        }
+    }
 }
 impl std::ops::Index<usize> for DepylerValue {
     type Output = DepylerValue;
@@ -2641,7 +2688,7 @@ pub fn fibonacci(n: i32) -> i32 {
 #[doc = "Process a list of integers and return statistics.\n    \n    This function analyzes a list of integers and returns various\n    statistics about the data.\n    \n    Args:\n        items: List of integers to process\n        threshold: Optional threshold for filtering(default: None)\n        \n    Returns:\n        Dictionary containing statistics:\n        - 'count': Total number of items\n        - 'sum': Sum of all items\n        - 'max': Maximum value\n        - 'min': Minimum value\n        - 'above_threshold': Count of items above threshold\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process_data<'b, 'a>(
+pub fn process_data<'a, 'b>(
     items: &'a Vec<i32>,
     threshold: &'b Option<i32>,
 ) -> HashMap<String, i32> {

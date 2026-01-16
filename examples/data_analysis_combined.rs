@@ -330,6 +330,53 @@ impl DepylerValue {
             ),
         }
     }
+    #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"]
+    #[doc = r" Returns empty string for non-element types"]
+    pub fn tag(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.clone(),
+            _ => String::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"]
+    #[doc = r" Returns None for non-string types"]
+    pub fn text(&self) -> Option<String> {
+        match self {
+            DepylerValue::Str(_dv_s) => Some(_dv_s.clone()),
+            DepylerValue::None => Option::None,
+            _ => Option::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"]
+    #[doc = r" Returns DepylerValue::None for non-matching/non-container types"]
+    pub fn find(&self, _tag: &str) -> DepylerValue {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.first().cloned().unwrap_or(DepylerValue::None),
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Str(_tag.to_string()))
+                .cloned()
+                .unwrap_or(DepylerValue::None),
+            _ => DepylerValue::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"]
+    #[doc = r" Returns empty Vec for non-container types"]
+    pub fn findall(&self, _tag: &str) -> Vec<DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.clone(),
+            _ => Vec::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"]
+    #[doc = r" No-op for non-dict types"]
+    pub fn set(&mut self, key: &str, value: &str) {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.insert(
+                DepylerValue::Str(key.to_string()),
+                DepylerValue::Str(value.to_string()),
+            );
+        }
+    }
 }
 impl std::ops::Index<usize> for DepylerValue {
     type Output = DepylerValue;
@@ -2604,10 +2651,10 @@ pub fn generate_sample_data(size: i32, mean: f64, stddev: f64) -> Vec<f64> {
 pub fn calculate_statistics(
     data: &Vec<f64>,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
+    let mut variance_sum: f64 = Default::default();
     let mut min_val: f64 = Default::default();
     let mut total: f64 = Default::default();
     let mut max_val: f64 = Default::default();
-    let mut variance_sum: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -2939,14 +2986,14 @@ pub fn bin_data(
 }
 #[doc = "Calculate Pearson correlation coefficient"]
 #[doc = " Depyler: proven to terminate"]
-pub fn calculate_correlation<'b, 'a>(
+pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
     let mut numerator: f64 = Default::default();
+    let mut y_variance_sum: f64 = Default::default();
     let mut x_variance_sum: f64 = Default::default();
     let mut x_sum: f64 = Default::default();
-    let mut y_variance_sum: f64 = Default::default();
     let mut y_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
@@ -3005,8 +3052,8 @@ pub fn calculate_correlation<'b, 'a>(
 }
 #[doc = "Z-score normalization using statistics"]
 pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
-    let mut total: f64 = Default::default();
     let mut variance_sum: f64 = Default::default();
+    let mut total: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3037,12 +3084,12 @@ pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Er
     Ok(normalized)
 }
 #[doc = "Group data by ranges using collections"]
-pub fn group_by_range<'a, 'b>(
+pub fn group_by_range<'b, 'a>(
     data: &'a Vec<f64>,
     ranges: &'b Vec<(f64, f64)>,
 ) -> Result<HashMap<String, Vec<f64>>, Box<dyn std::error::Error>> {
-    let mut range_tuple: (f64, f64) = Default::default();
     let mut range_key: String = Default::default();
+    let mut range_tuple: (f64, f64) = Default::default();
     let mut groups: std::collections::HashMap<String, Vec<f64>> = {
         let map: HashMap<String, Vec<f64>> = HashMap::new();
         map

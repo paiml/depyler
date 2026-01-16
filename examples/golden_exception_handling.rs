@@ -346,6 +346,53 @@ impl DepylerValue {
             ),
         }
     }
+    #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"]
+    #[doc = r" Returns empty string for non-element types"]
+    pub fn tag(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.clone(),
+            _ => String::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"]
+    #[doc = r" Returns None for non-string types"]
+    pub fn text(&self) -> Option<String> {
+        match self {
+            DepylerValue::Str(_dv_s) => Some(_dv_s.clone()),
+            DepylerValue::None => Option::None,
+            _ => Option::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"]
+    #[doc = r" Returns DepylerValue::None for non-matching/non-container types"]
+    pub fn find(&self, _tag: &str) -> DepylerValue {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.first().cloned().unwrap_or(DepylerValue::None),
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Str(_tag.to_string()))
+                .cloned()
+                .unwrap_or(DepylerValue::None),
+            _ => DepylerValue::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"]
+    #[doc = r" Returns empty Vec for non-container types"]
+    pub fn findall(&self, _tag: &str) -> Vec<DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.clone(),
+            _ => Vec::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"]
+    #[doc = r" No-op for non-dict types"]
+    pub fn set(&mut self, key: &str, value: &str) {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.insert(
+                DepylerValue::Str(key.to_string()),
+                DepylerValue::Str(value.to_string()),
+            );
+        }
+    }
 }
 impl std::ops::Index<usize> for DepylerValue {
     type Output = DepylerValue;
@@ -2675,7 +2722,7 @@ pub fn divide_safe(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "try/except with KeyError.\n\n    Python: try d[key] except KeyError\n    Rust: d.get(&key).cloned().unwrap_or(-1)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_with_key_error<'a, 'b>(
+pub fn get_with_key_error<'b, 'a>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -2704,7 +2751,7 @@ pub fn get_with_bound_exception<'a, 'b>(
 #[doc = "Multiple exception type handlers.\n\n    Python: except ValueError, except KeyError\n    Rust: match with multiple Err patterns\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn multiple_handlers<'a, 'b>(
+pub fn multiple_handlers<'b, 'a>(
     s: &'a str,
     d: &'b std::collections::HashMap<String, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {

@@ -196,6 +196,33 @@ _dv_list.clone()
 }
 _dv_other =>panic!("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
 }
+} #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"] #[doc = r" Returns empty string for non-element types"] pub fn tag(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.clone(), _ =>String::new() ,
+}
+} #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"] #[doc = r" Returns None for non-string types"] pub fn text(&self) -> Option<String>{
+    match self {
+    DepylerValue::Str(_dv_s) =>Some(_dv_s.clone()), DepylerValue::None =>Option::None, _ =>Option::None ,
+}
+} #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"] #[doc = r" Returns DepylerValue::None for non-matching/non-container types"] pub fn find(&self, _tag: & str) -> DepylerValue {
+    match self {
+    DepylerValue::List(_dv_list) =>{
+    _dv_list.first().cloned().unwrap_or(DepylerValue::None)
+}
+DepylerValue::Dict(_dv_dict) =>{
+    _dv_dict.get(& DepylerValue::Str(_tag.to_string())).cloned().unwrap_or(DepylerValue::None)
+}
+_ =>DepylerValue::None ,
+}
+} #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"] #[doc = r" Returns empty Vec for non-container types"] pub fn findall(&self, _tag: & str) -> Vec<DepylerValue>{
+    match self {
+    DepylerValue::List(_dv_list) =>_dv_list.clone(), _ =>Vec::new() ,
+}
+} #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"] #[doc = r" No-op for non-dict types"] pub fn set(&mut self, key: & str, value: & str) {
+    if let DepylerValue::Dict(_dv_dict) = self {
+    _dv_dict.insert(DepylerValue::Str(key.to_string()), DepylerValue::Str(value.to_string()));
+   
+}
 }
 }
 impl std::ops::Index<usize>for DepylerValue {
@@ -2103,7 +2130,7 @@ else {
     return result;
    
 }
-} #[doc = "Calculate basic statistics for a numeric column in CSV"] pub fn calculate_column_stats<'a, 'b>(csv_content: & 'a str, column_name: & 'b str) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>>{
+} #[doc = "Calculate basic statistics for a numeric column in CSV"] pub fn calculate_column_stats<'b, 'a>(csv_content: & 'a str, column_name: & 'b str) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let dict_rows = parser.to_dict_list(csv_content);
     let _cse_temp_0 =! dict_rows.get(0usize).cloned().expect("IndexError: list index out of range").contains(& * column_name);
@@ -2162,7 +2189,7 @@ let _cse_temp_2 = values.iter().sum::<i32>();
     map.insert("max".to_string(), DepylerValue::Int(max_val as i64));
     map })
 }
-#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'a, 'b>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
+#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'b, 'a>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let rows = parser.parse_string(csv_content);
     if! rows {

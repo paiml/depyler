@@ -5,8 +5,8 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::path::PathBuf;
-    const STR___1: &'static str = "\n";
-    const STR___2: &'static str = "=";
+    const STR___1: &'static str = "=";
+    const STR___2: &'static str = "\n";
     use std::collections::HashMap;
     #[derive(Debug, Clone)] pub struct ZeroDivisionError {
     message: String ,
@@ -198,6 +198,33 @@ DepylerValue::List(_dv_list) =>{
 _dv_list.clone()
 }
 _dv_other =>panic!("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
+}
+} #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"] #[doc = r" Returns empty string for non-element types"] pub fn tag(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.clone(), _ =>String::new() ,
+}
+} #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"] #[doc = r" Returns None for non-string types"] pub fn text(&self) -> Option<String>{
+    match self {
+    DepylerValue::Str(_dv_s) =>Some(_dv_s.clone()), DepylerValue::None =>Option::None, _ =>Option::None ,
+}
+} #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"] #[doc = r" Returns DepylerValue::None for non-matching/non-container types"] pub fn find(&self, _tag: & str) -> DepylerValue {
+    match self {
+    DepylerValue::List(_dv_list) =>{
+    _dv_list.first().cloned().unwrap_or(DepylerValue::None)
+}
+DepylerValue::Dict(_dv_dict) =>{
+    _dv_dict.get(& DepylerValue::Str(_tag.to_string())).cloned().unwrap_or(DepylerValue::None)
+}
+_ =>DepylerValue::None ,
+}
+} #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"] #[doc = r" Returns empty Vec for non-container types"] pub fn findall(&self, _tag: & str) -> Vec<DepylerValue>{
+    match self {
+    DepylerValue::List(_dv_list) =>_dv_list.clone(), _ =>Vec::new() ,
+}
+} #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"] #[doc = r" No-op for non-dict types"] pub fn set(&mut self, key: & str, value: & str) {
+    if let DepylerValue::Dict(_dv_dict) = self {
+    _dv_dict.insert(DepylerValue::Str(key.to_string()), DepylerValue::Str(value.to_string()));
+   
 }
 }
 }
@@ -2115,7 +2142,7 @@ else {
 }
 } #[doc = "Example 1: Simple function transpilation with MCP."] pub fn example_1_simple_transpilation() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 1: Simple Function Transpilation");
-    println!("{}" ,(STR___2).py_mul(50));
+    println!("{}" ,(STR___1).py_mul(50));
     let client = DepylerMCPClient::new();
     let python_code = "\ndef add_numbers(a: int, b: int) -> int:\n    \"\"\"Add two numbers together.\"\"\"\n    return a + b\n\nif __name__ == \"__main__\":\n    result = add_numbers(5, 3)\n    print(f\"Result: {result}\")\n";
     println!("{}", "🐍 Python Source:");
@@ -2148,7 +2175,7 @@ println!();
 }
 #[doc = "Example 2: Analyze migration complexity for a project."] pub fn example_2_project_analysis() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 2: Project Migration Analysis");
-    println!("{}" ,(STR___2).py_mul(50));
+    println!("{}" ,(STR___1).py_mul(50));
     let client = DepylerMCPClient::new();
     let result = client.call_tool("analyze_migration_complexity", {
     let mut map = HashMap::new();
@@ -2190,7 +2217,7 @@ println!();
 }
 #[doc = "Example 3: Verify transpilation correctness."] pub fn example_3_verification() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 3: Transpilation Verification");
-    println!("{}" ,(STR___2).py_mul(50));
+    println!("{}" ,(STR___1).py_mul(50));
     let client = DepylerMCPClient::new();
     let python_source = "\ndef factorial(n: int) -> int:\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n";
     let rust_source = "\nfn factorial(n: i32) -> i32 {\n    if n <= 1 {\n        1\n   
@@ -2256,7 +2283,7 @@ println!();
 }
 #[doc = "Example 4: Batch processing multiple files."] pub fn example_4_batch_processing() -> Result <(), Box<dyn std::error::Error>>{
     println!("{}", "🔬 Example 4: Batch Processing Workflow");
-    println!("{}" ,(STR___2).py_mul(50));
+    println!("{}" ,(STR___1).py_mul(50));
     let client = DepylerMCPClient::new();
     let python_files = vec! [("binary_search.py".to_string(), "def binary_search(arr, target):...".to_string()) ,("calculate_sum.py".to_string(), "def calculate_sum(numbers):...".to_string()) ,("classify_number.py".to_string(), "def classify_number(n):...".to_string())];
     println!("{}", "🔄 Processing multiple files with MCP...");
@@ -2308,7 +2335,7 @@ println!();
 }
 #[doc = "Example 5: Integration pattern for AI assistants."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn example_5_ai_assistant_integration() {
     println!("{}", "🔬 Example 5: AI Assistant Integration Pattern");
-    println!("{}" ,(STR___2).py_mul(50));
+    println!("{}" ,(STR___1).py_mul(50));
     println!("{}", "🤖 AI Assistant Workflow:");
     println!();
     println!("{}", "1\u{fe0f}\u{20e3}  Analyze Python project complexity...");
@@ -2363,7 +2390,7 @@ println!();
 }
 #[doc = "Run all MCP usage examples."] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn main () {
     println!("{}", "🚀 Depyler MCP Integration Examples");
-    println!("{}" ,(STR___2).py_mul(60));
+    println!("{}" ,(STR___1).py_mul(60));
     println!();
     println!("{}", "This script demonstrates various ways to use Depyler's");
     println!("{}", "Model Context Protocol(MCP) integration for AI-powered");
@@ -2376,16 +2403,16 @@ println!();
     println!("{}", "  4. Batch processing workflow");
     println!("{}", "  5. AI assistant integration patterns");
     println!();
-    println!("{}" ,(STR___2).py_mul(60));
+    println!("{}" ,(STR___1).py_mul(60));
     println!();
     example_1_simple_transpilation();
-    println!("{}" ,((STR___1).py_add((STR___2).py_mul(60))).py_add(STR___1));
+    println!("{}" ,((STR___2).py_add((STR___1).py_mul(60))).py_add(STR___2));
     example_2_project_analysis();
-    println!("{}" ,((STR___1).py_add((STR___2).py_mul(60))).py_add(STR___1));
+    println!("{}" ,((STR___2).py_add((STR___1).py_mul(60))).py_add(STR___2));
     example_3_verification();
-    println!("{}" ,((STR___1).py_add((STR___2).py_mul(60))).py_add(STR___1));
+    println!("{}" ,((STR___2).py_add((STR___1).py_mul(60))).py_add(STR___2));
     example_4_batch_processing();
-    println!("{}" ,((STR___1).py_add((STR___2).py_mul(60))).py_add(STR___1));
+    println!("{}" ,((STR___2).py_add((STR___1).py_mul(60))).py_add(STR___2));
     example_5_ai_assistant_integration();
     println!("{}", "🎉 All examples completed!");
     println!();

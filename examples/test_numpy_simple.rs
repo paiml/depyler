@@ -4,42 +4,6 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-use std::collections::HashMap;
-use std::f64 as math;
-#[derive(Debug, Clone)]
-pub struct ZeroDivisionError {
-    message: String,
-}
-impl std::fmt::Display for ZeroDivisionError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "division by zero: {}", self.message)
-    }
-}
-impl std::error::Error for ZeroDivisionError {}
-impl ZeroDivisionError {
-    pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-}
-#[derive(Debug, Clone)]
-pub struct IndexError {
-    message: String,
-}
-impl std::fmt::Display for IndexError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "index out of range: {}", self.message)
-    }
-}
-impl std::error::Error for IndexError {}
-impl IndexError {
-    pub fn new(message: impl Into<String>) -> Self {
-        Self {
-            message: message.into(),
-        }
-    }
-}
 #[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
 #[doc = r" DEPYLER-1040b: Now implements Hash + Eq to support non-string dict keys"]
 #[derive(Debug, Clone, Default)]
@@ -2636,489 +2600,85 @@ impl DepylerRegexMatch {
         text.split(pattern).map(|s| s.to_string()).collect()
     }
 }
-#[doc = "Roll multiple dice and return sum"]
+#[doc = r" DEPYLER-1136: Module alias stub for external library"]
+#[doc = r" DEPYLER-1137: Uses DepylerValue for dynamic dispatch compatibility"]
+#[doc = r" DEPYLER-1139: Minimal required args to avoid E0061"]
+#[allow(non_snake_case)]
+#[allow(unused_variables)]
+pub mod np {
+    use super::DepylerValue;
+    #[doc = r" Phantom function stub - parses XML from string(1 arg)"]
+    pub fn fromstring<S: AsRef<str>>(_s: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - parses XML from file(1 arg)"]
+    pub fn parse<S: AsRef<str>>(_source: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - creates Element(1 arg only)"]
+    pub fn Element<S: Into<String>>(_tag: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - creates SubElement(2 args)"]
+    pub fn SubElement<P, S: Into<String>>(_parent: P, _tag: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - converts to string(1-2 args via generic)"]
+    pub fn tostring<E>(_elem: E) -> String {
+        String::new()
+    }
+    #[doc = r" Phantom function stub - tostring with encoding(2 args)"]
+    pub fn tostring_with_encoding<E, S: AsRef<str>>(_elem: E, _encoding: S) -> String {
+        String::new()
+    }
+    #[doc = r" Phantom function stub - creates ElementTree(1 arg)"]
+    pub fn ElementTree<E>(_element: E) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - iterparse(1 arg)"]
+    pub fn iterparse<S: AsRef<str>>(_source: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" DEPYLER-1139: Generic get function(like dict.get)"]
+    pub fn get<K, D>(_key: K, _default: D) -> DepylerValue {
+        DepylerValue::None
+    }
+}
+#[doc = "Test basic numpy array creation and sum"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn roll_dice(num_dice: i32, num_sides: i32) -> i32 {
-    let mut total: i32 = Default::default();
-    total = 0;
-    for _i in 0..(num_dice) {
-        let roll: i32 = 1;
-        total = (total).py_add(roll);
-    }
-    total
+pub fn numpy_sum_test() -> i32 {
+    let a = vec![1, 2, 3, 4, 5];
+    a.iter().sum::<f64>()
 }
-#[doc = "Simulate dice rolls and collect distribution"]
-#[doc = " Depyler: proven to terminate"]
-pub fn simulate_dice_rolls(
-    num_dice: i32,
-    num_sides: i32,
-    num_trials: i32,
-) -> Result<HashMap<i32, i32>, Box<dyn std::error::Error>> {
-    let mut results: std::collections::HashMap<i32, i32> = {
-        let map: HashMap<i32, i32> = HashMap::new();
-        map
-    };
-    for _trial in 0..(num_trials) {
-        let total: i32 = roll_dice(num_dice, num_sides);
-        if results.get(&total).is_some() {
-            {
-                let _key = total;
-                let _old_val = results.get(&_key).cloned().unwrap_or_default();
-                results.insert(_key, _old_val + 1);
-            }
-        } else {
-            results.insert(total.clone(), 1);
-        }
-    }
-    Ok(results)
-}
-#[doc = "Simulate sequence of coin flips"]
+#[doc = "Test numpy dot product"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
-    let mut flips: Vec<String> = vec![];
-    for _i in 0..(num_flips) {
-        let flip: i32 = 0;
-        if flip == 0 {
-            flips.push("H".to_string());
-        } else {
-            flips.push("T".to_string());
-        }
-    }
-    flips
+pub fn numpy_dot_product<'b, 'a>(x: &'a Vec<f64>, y: &'b Vec<f64>) -> f64 {
+    let a = x.to_vec();
+    let b = y.to_vec();
+    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum::<f64>()
 }
-#[doc = "Count longest streaks in sequence"]
-#[doc = " Depyler: proven to terminate"]
-pub fn count_streaks(
-    sequence: &Vec<String>,
-) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let mut current_streak: i32 = Default::default();
-    let mut max_tails_streak: i32 = Default::default();
-    let mut current_type: String = Default::default();
-    let mut max_heads_streak: i32 = Default::default();
-    let _cse_temp_0 = sequence.len() as i32;
-    let _cse_temp_1 = _cse_temp_0 == 0;
-    if _cse_temp_1 {
-        return Ok({
-            let map: HashMap<String, i32> = HashMap::new();
-            map
-        });
-    }
-    max_heads_streak = 0;
-    max_tails_streak = 0;
-    current_streak = 1;
-    current_type = sequence
-        .get(0usize)
-        .cloned()
-        .expect("IndexError: list index out of range");
-    for i in (1)..(sequence.len() as i32) {
-        if sequence
-            .get(i as usize)
-            .cloned()
-            .expect("IndexError: list index out of range")
-            == current_type
-        {
-            current_streak = (current_streak).py_add(1);
-        } else {
-            if (current_type == "H") && (current_streak > max_heads_streak) {
-                max_heads_streak = current_streak;
-            } else {
-                if (current_type == "T") && (current_streak > max_tails_streak) {
-                    max_tails_streak = current_streak;
-                }
-            }
-            current_type = sequence
-                .get(i as usize)
-                .cloned()
-                .expect("IndexError: list index out of range");
-            current_streak = 1;
-        }
-    }
-    let _cse_temp_2 = current_type == "H";
-    let _cse_temp_3 = current_streak > max_heads_streak;
-    let _cse_temp_4 = (_cse_temp_2) && (_cse_temp_3);
-    if _cse_temp_4 {
-        max_heads_streak = current_streak;
-    } else {
-        let _cse_temp_5 = current_type == "T";
-        let _cse_temp_6 = current_streak > max_tails_streak;
-        let _cse_temp_7 = (_cse_temp_5) && (_cse_temp_6);
-        if _cse_temp_7 {
-            max_tails_streak = current_streak;
-        }
-    }
-    let streaks: std::collections::HashMap<String, i32> = {
-        let mut map = HashMap::new();
-        map.insert("max_heads".to_string(), max_heads_streak);
-        map.insert("max_tails".to_string(), max_tails_streak);
-        map
-    };
-    Ok(streaks)
-}
-#[doc = "Estimate pi using Monte Carlo method"]
-#[doc = " Depyler: proven to terminate"]
-pub fn monte_carlo_pi_estimation(
-    num_samples: i32,
-) -> Result<(f64, f64), Box<dyn std::error::Error>> {
-    let mut inside_circle: i32 = Default::default();
-    inside_circle = 0;
-    for _i in 0..(num_samples) {
-        let x: f64 = 0.5_f64;
-        let y: f64 = 0.5_f64;
-        let distance_squared: f64 = ((x).py_mul(x)).py_add((y).py_mul(y));
-        if distance_squared <= 1.0 {
-            inside_circle = (inside_circle).py_add(1);
-        }
-    }
-    let _cse_temp_0 = (inside_circle) as f64;
-    let _cse_temp_1 = (4.0).py_mul(_cse_temp_0);
-    let _cse_temp_2 = (num_samples) as f64;
-    let _cse_temp_3 = (_cse_temp_1).py_div(_cse_temp_2);
-    let pi_estimate: f64 = _cse_temp_3;
-    let actual_pi: f64 = 3.14159265359;
-    let _cse_temp_4 = ((pi_estimate).py_sub(actual_pi)).abs();
-    let error: f64 = _cse_temp_4;
-    Ok((pi_estimate, error))
-}
-#[doc = "Simulate 2D random walk"]
+#[doc = "Test numpy statistics"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn simulate_random_walk(num_steps: i32) -> (i32, i32) {
-    let mut x: i32 = Default::default();
-    let mut y: i32 = Default::default();
-    x = 0;
-    y = 0;
-    for _step in 0..(num_steps) {
-        let direction: i32 = 0;
-        if direction == 0 {
-            y = (y).py_add(1);
-        } else {
-            if direction == 1 {
-                x = (x).py_add(1);
-            } else {
-                if direction == 2 {
-                    y = (y).py_sub(1);
-                } else {
-                    x = (x).py_sub(1);
-                }
-            }
-        }
-    }
-    (x, y)
-}
-#[doc = "Calculate Euclidean distance from origin"]
-#[doc = " Depyler: proven to terminate"]
-pub fn calculate_walk_distance(position: (i32, i32)) -> Result<f64, Box<dyn std::error::Error>> {
-    let x: i32 = position.0;
-    let y: i32 = position.1;
-    let distance: f64 = ((((x).py_mul(x)).py_add((y).py_mul(y))) as f64 as f64).sqrt();
-    Ok(distance)
-}
-#[doc = "Simulate queue/service system"]
-#[doc = " Depyler: verified panic-free"]
-pub fn simulate_queue_system(
-    num_customers: i32,
-    service_time_range: (i32, i32),
-) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut total_wait: i32 = Default::default();
-    let mut max_wait: i32 = Default::default();
-    let mut wait_times: Vec<i32> = vec![];
-    let mut queue_length: i32 = 0;
-    let mut current_time: i32 = 0;
-    for _customer in 0..(num_customers) {
-        let arrival_time: i32 = current_time;
-        let service_time: i32 = service_time_range.0;
-        let wait_time: i32 = queue_length;
-        wait_times.push(wait_time as i64);
-        queue_length = (queue_length).py_add(service_time);
-        current_time = (arrival_time).py_add(service_time);
-        if queue_length > 0 {
-            queue_length = depyler_max((0).clone(), ((queue_length).py_sub(1)).clone());
-        }
-    }
-    total_wait = 0;
-    for wait in wait_times.iter().cloned() {
-        total_wait = (total_wait).py_add(wait);
-    }
-    let avg_wait: f64 = if wait_times.len() as i32 > 0 {
-        ((total_wait) as f64).py_div((wait_times.len() as i32) as f64)
-    } else {
-        0.0
+pub fn numpy_mean_std() -> f64 {
+    let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+    let mean = (data.iter().sum::<f64>() / data.len() as f64);
+    let std = {
+        let data = &data;
+        let mean = data.iter().sum::<f64>() / data.len() as f64;
+        let variance = data.iter().map(|x| (x - mean).powi(2)).sum::<f64>() / data.len() as f64;
+        variance.sqrt()
     };
-    max_wait = 0;
-    for wait in wait_times.iter().cloned() {
-        if wait > max_wait {
-            max_wait = wait;
-        }
-    }
-    let stats: std::collections::HashMap<String, f64> = {
-        let mut map = HashMap::new();
-        map.insert("avg_wait".to_string(), DepylerValue::Float(avg_wait as f64));
-        map.insert(
-            "max_wait".to_string(),
-            DepylerValue::Str(format!("{:?}", (max_wait) as f64)),
-        );
-        map.insert(
-            "total_customers".to_string(),
-            DepylerValue::Str(format!("{:?}", (num_customers) as f64)),
-        );
-        map
-    };
-    Ok(stats)
-}
-#[doc = "Simulate card game results"]
-#[doc = " Depyler: proven to terminate"]
-pub fn simulate_card_game(
-    num_games: i32,
-) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
-    let mut results: std::collections::HashMap<String, i32> = {
-        let mut map = HashMap::new();
-        map.insert("wins".to_string(), 0);
-        map.insert("losses".to_string(), 0);
-        map.insert("ties".to_string(), 0);
-        map
-    };
-    for _game in 0..(num_games) {
-        let player_card: i32 = 1;
-        let dealer_card: i32 = 1;
-        if player_card > dealer_card {
-            results.insert(
-                "wins".to_string(),
-                (results.get("wins").cloned().unwrap_or_default()).py_add(1),
-            );
-        } else {
-            if player_card < dealer_card {
-                results.insert(
-                    "losses".to_string(),
-                    (results.get("losses").cloned().unwrap_or_default()).py_add(1),
-                );
-            } else {
-                results.insert(
-                    "ties".to_string(),
-                    (results.get("ties").cloned().unwrap_or_default()).py_add(1),
-                );
-            }
-        }
-    }
-    Ok(results)
-}
-#[doc = "Calculate win rate from game results"]
-#[doc = " Depyler: proven to terminate"]
-pub fn calculate_win_rate(
-    results: &std::collections::HashMap<String, i32>,
-) -> Result<f64, Box<dyn std::error::Error>> {
-    let _cse_temp_0 = (results.get("wins").cloned().unwrap_or_default())
-        .py_add(results.get("losses").cloned().unwrap_or_default());
-    let _cse_temp_1 = (_cse_temp_0).py_add(results.get("ties").cloned().unwrap_or_default());
-    let total_games: i32 = _cse_temp_1;
-    let _cse_temp_2 = total_games == 0;
-    if _cse_temp_2 {
-        return Ok(0.0);
-    }
-    let _cse_temp_3 = (results.get("wins").cloned().unwrap_or_default()) as f64;
-    let _cse_temp_4 = (total_games) as f64;
-    let _cse_temp_5 = (_cse_temp_3).py_div(_cse_temp_4);
-    let win_rate: f64 = _cse_temp_5;
-    Ok(win_rate)
-}
-#[doc = "Simulate population growth with randomness"]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn simulate_population_growth(
-    initial_population: i32,
-    growth_rate: f64,
-    num_generations: i32,
-) -> Vec<i32> {
-    let mut current_population: i32 = Default::default();
-    let mut populations: Vec<i32> = vec![initial_population];
-    current_population = initial_population;
-    for _generation in 0..(num_generations) {
-        let random_factor: f64 = ((0.5_f64).py_mul(0.2)).py_sub(0.1);
-        let actual_growth: f64 = (growth_rate).py_add(random_factor);
-        let growth: i32 = (((current_population) as f64).py_mul(actual_growth)) as i32;
-        current_population = (current_population).py_add(growth);
-        if current_population < 0 {
-            current_population = 0;
-        }
-        populations.push(current_population as i64);
-    }
-    populations
-}
-#[doc = "Analyze population growth trend"]
-pub fn analyze_population_trend(
-    populations: &Vec<i32>,
-) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut total_growth: f64 = Default::default();
-    let mut peak: i32 = Default::default();
-    let _cse_temp_0 = populations.len() as i32;
-    let _cse_temp_1 = _cse_temp_0 < 2;
-    if _cse_temp_1 {
-        return Ok({
-            let map: HashMap<String, f64> = HashMap::new();
-            map
-        });
-    }
-    total_growth = 0.0;
-    let num_intervals: i32 = (_cse_temp_0).py_sub(1);
-    for i in 0..(num_intervals) {
-        if populations
-            .get(i as usize)
-            .cloned()
-            .expect("IndexError: list index out of range")
-            > 0
-        {
-            let growth_rate: f64 = ((({
-                let base = &populations;
-                let idx: i32 = (i).py_add(1);
-                let actual_idx = if idx < 0 {
-                    base.len().saturating_sub(idx.abs() as usize)
-                } else {
-                    idx as usize
-                };
-                base.get(actual_idx)
-                    .cloned()
-                    .expect("IndexError: list index out of range")
-            })
-            .py_sub(
-                populations
-                    .get(i as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            )) as f64)
-                .py_div(
-                    (populations
-                        .get(i as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range")) as f64,
-                );
-            total_growth = (total_growth).py_add(growth_rate);
-        }
-    }
-    let avg_growth: f64 = if num_intervals > 0 {
-        (total_growth).py_div((num_intervals) as f64)
-    } else {
-        0.0
-    };
-    peak = populations
-        .get(0usize)
-        .cloned()
-        .expect("IndexError: list index out of range");
-    for pop in populations.iter().cloned() {
-        if pop > peak {
-            peak = pop;
-        }
-    }
-    let analysis: std::collections::HashMap<String, f64> = {
-        let mut map = HashMap::new();
-        map.insert(
-            "avg_growth_rate".to_string(),
-            DepylerValue::Float(avg_growth as f64),
-        );
-        map.insert(
-            "peak_population".to_string(),
-            DepylerValue::Str(format!("{:?}", (peak) as f64)),
-        );
-        map.insert(
-            "final_population".to_string(),
-            DepylerValue::Str(format!(
-                "{:?}",
-                ({
-                    let base = &populations;
-                    base.get(base.len().saturating_sub(1usize))
-                        .cloned()
-                        .unwrap_or_default()
-                }) as f64
-            )),
-        );
-        map
-    };
-    Ok(analysis)
-}
-#[doc = "Run comprehensive simulation suite"]
-#[doc = " Depyler: verified panic-free"]
-#[doc = " Depyler: proven to terminate"]
-pub fn run_simulations() -> Result<(), Box<dyn std::error::Error>> {
-    println!("{}", "=== Comprehensive Simulation Demo ===");
-    ();
-    println!("{}", "\n1. Dice Rolling Simulation");
-    let dice_results: std::collections::HashMap<i32, i32> = simulate_dice_rolls(2, 6, 1000)?;
-    println!("{}", format!("   Simulated {} rolls of 2d6", 1000));
-    println!(
-        "{}",
-        format!("   Unique outcomes: {}", dice_results.len() as i32)
-    );
-    println!("{}", "\n2. Coin Flip Sequence");
-    let flips: Vec<String> = coin_flip_sequence(100);
-    let streaks: std::collections::HashMap<String, i32> = count_streaks(&flips)?;
-    println!(
-        "{}",
-        format!(
-            "   100 flips, max heads streak: {}",
-            streaks.get("max_heads").cloned().unwrap_or_default()
-        )
-    );
-    println!("{}", "\n3. Monte Carlo Pi Estimation");
-    let pi_result: (f64, f64) = monte_carlo_pi_estimation(10000)?;
-    println!(
-        "{}",
-        format!("   Pi estimate: {}, Error: {}", pi_result.0, pi_result.1)
-    );
-    println!("{}", "\n4. Random Walk Simulation");
-    let final_pos: (i32, i32) = simulate_random_walk(1000);
-    let distance: f64 = calculate_walk_distance(final_pos)?;
-    println!(
-        "{}",
-        format!(
-            "   Final position:({}, {}), Distance: {}",
-            final_pos.0, final_pos.1, distance
-        )
-    );
-    println!("{}", "\n5. Queue System Simulation");
-    let queue_stats: std::collections::HashMap<String, f64> = simulate_queue_system(100, (1, 5))?;
-    println!(
-        "{}",
-        format!(
-            "   Avg wait time: {}",
-            queue_stats.get("avg_wait").cloned().unwrap_or_default()
-        )
-    );
-    println!("{}", "\n6. Card Game Simulation");
-    let game_results: std::collections::HashMap<String, i32> = simulate_card_game(1000)?;
-    let win_rate: f64 = calculate_win_rate(&game_results)?;
-    println!(
-        "{}",
-        format!(
-            "   Win rate: {}, Wins: {}",
-            win_rate,
-            game_results.get("wins").cloned().unwrap_or_default()
-        )
-    );
-    println!("{}", "\n7. Population Growth Simulation");
-    let populations: Vec<i32> = simulate_population_growth(100, 0.1, 20);
-    let pop_analysis: std::collections::HashMap<String, f64> =
-        analyze_population_trend(&populations)?;
-    println!(
-        "{}",
-        format!(
-            "   Final population: {}",
-            pop_analysis
-                .get("final_population")
-                .cloned()
-                .unwrap_or_default()
-        )
-    );
-    println!("{}", "\n=== All Simulations Complete ===");
-    Ok(())
+    (mean).py_add(std)
 }
 #[cfg(test)]
 mod tests {
     use super::*;
     use quickcheck::{quickcheck, TestResult};
     #[test]
-    fn test_roll_dice_examples() {
-        assert_eq!(roll_dice(0, 0), 0);
-        assert_eq!(roll_dice(1, 2), 3);
-        assert_eq!(roll_dice(-1, 1), 0);
+    fn test_numpy_sum_test_examples() {
+        let _ = numpy_sum_test();
     }
 }

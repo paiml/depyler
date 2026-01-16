@@ -5,10 +5,10 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::f64 as math;
-    const STR_D: &'static str = "D";
     const STR_A: &'static str = "A";
-    const STR_B: &'static str = "B";
     const STR_C: &'static str = "C";
+    const STR_B: &'static str = "B";
+    const STR_D: &'static str = "D";
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::io::Write;
@@ -202,6 +202,33 @@ DepylerValue::List(_dv_list) =>{
 _dv_list.clone()
 }
 _dv_other =>panic!("Expected tuple or list for unpacking, found {:?}", _dv_other) ,
+}
+} #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"] #[doc = r" Returns empty string for non-element types"] pub fn tag(&self) -> String {
+    match self {
+    DepylerValue::Str(_dv_s) =>_dv_s.clone(), _ =>String::new() ,
+}
+} #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"] #[doc = r" Returns None for non-string types"] pub fn text(&self) -> Option<String>{
+    match self {
+    DepylerValue::Str(_dv_s) =>Some(_dv_s.clone()), DepylerValue::None =>Option::None, _ =>Option::None ,
+}
+} #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"] #[doc = r" Returns DepylerValue::None for non-matching/non-container types"] pub fn find(&self, _tag: & str) -> DepylerValue {
+    match self {
+    DepylerValue::List(_dv_list) =>{
+    _dv_list.first().cloned().unwrap_or(DepylerValue::None)
+}
+DepylerValue::Dict(_dv_dict) =>{
+    _dv_dict.get(& DepylerValue::Str(_tag.to_string())).cloned().unwrap_or(DepylerValue::None)
+}
+_ =>DepylerValue::None ,
+}
+} #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"] #[doc = r" Returns empty Vec for non-container types"] pub fn findall(&self, _tag: & str) -> Vec<DepylerValue>{
+    match self {
+    DepylerValue::List(_dv_list) =>_dv_list.clone(), _ =>Vec::new() ,
+}
+} #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"] #[doc = r" No-op for non-dict types"] pub fn set(&mut self, key: & str, value: & str) {
+    if let DepylerValue::Dict(_dv_dict) = self {
+    _dv_dict.insert(DepylerValue::Str(key.to_string()), DepylerValue::Str(value.to_string()));
+   
 }
 }
 }
@@ -2025,7 +2052,7 @@ else {
 };
    
 }
-} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'a, 'b>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
+} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'b, 'a>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
     let _cse_temp_0 = a.len() as i32;
     let n = _cse_temp_0;
     let _cse_temp_1 = b.get(0usize).cloned().expect("IndexError: list index out of range").len() as i32;
@@ -2129,7 +2156,7 @@ results.push(result as i64);
 }
 Ok(results)
 }
-#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'a, 'b, 'c>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'b, 'c, 'a>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
     let mut current: String = Default::default();
     let mut visited = std::collections::HashSet::<i32>::new();
     let mut distances_from_start = {

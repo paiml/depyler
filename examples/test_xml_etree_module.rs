@@ -296,6 +296,53 @@ impl DepylerValue {
             ),
         }
     }
+    #[doc = r" DEPYLER-1137: Get tag name(XML element proxy)"]
+    #[doc = r" Returns empty string for non-element types"]
+    pub fn tag(&self) -> String {
+        match self {
+            DepylerValue::Str(_dv_s) => _dv_s.clone(),
+            _ => String::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Get text content(XML element proxy)"]
+    #[doc = r" Returns None for non-string types"]
+    pub fn text(&self) -> Option<String> {
+        match self {
+            DepylerValue::Str(_dv_s) => Some(_dv_s.clone()),
+            DepylerValue::None => Option::None,
+            _ => Option::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find child element by tag(XML element proxy)"]
+    #[doc = r" Returns DepylerValue::None for non-matching/non-container types"]
+    pub fn find(&self, _tag: &str) -> DepylerValue {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.first().cloned().unwrap_or(DepylerValue::None),
+            DepylerValue::Dict(_dv_dict) => _dv_dict
+                .get(&DepylerValue::Str(_tag.to_string()))
+                .cloned()
+                .unwrap_or(DepylerValue::None),
+            _ => DepylerValue::None,
+        }
+    }
+    #[doc = r" DEPYLER-1137: Find all child elements by tag(XML element proxy)"]
+    #[doc = r" Returns empty Vec for non-container types"]
+    pub fn findall(&self, _tag: &str) -> Vec<DepylerValue> {
+        match self {
+            DepylerValue::List(_dv_list) => _dv_list.clone(),
+            _ => Vec::new(),
+        }
+    }
+    #[doc = r" DEPYLER-1137: Set attribute(XML element proxy)"]
+    #[doc = r" No-op for non-dict types"]
+    pub fn set(&mut self, key: &str, value: &str) {
+        if let DepylerValue::Dict(_dv_dict) = self {
+            _dv_dict.insert(
+                DepylerValue::Str(key.to_string()),
+                DepylerValue::Str(value.to_string()),
+            );
+        }
+    }
 }
 impl std::ops::Index<usize> for DepylerValue {
     type Output = DepylerValue;
@@ -2555,15 +2602,59 @@ impl DepylerRegexMatch {
         text.split(pattern).map(|s| s.to_string()).collect()
     }
 }
+#[doc = r" DEPYLER-1136: Module alias stub for external library"]
+#[doc = r" DEPYLER-1137: Uses DepylerValue for dynamic dispatch compatibility"]
+#[doc = r" DEPYLER-1139: Minimal required args to avoid E0061"]
+#[allow(non_snake_case)]
+#[allow(unused_variables)]
+pub mod ET {
+    use super::DepylerValue;
+    #[doc = r" Phantom function stub - parses XML from string(1 arg)"]
+    pub fn fromstring<S: AsRef<str>>(_s: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - parses XML from file(1 arg)"]
+    pub fn parse<S: AsRef<str>>(_source: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - creates Element(1 arg only)"]
+    pub fn Element<S: Into<String>>(_tag: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - creates SubElement(2 args)"]
+    pub fn SubElement<P, S: Into<String>>(_parent: P, _tag: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - converts to string(1-2 args via generic)"]
+    pub fn tostring<E>(_elem: E) -> String {
+        String::new()
+    }
+    #[doc = r" Phantom function stub - tostring with encoding(2 args)"]
+    pub fn tostring_with_encoding<E, S: AsRef<str>>(_elem: E, _encoding: S) -> String {
+        String::new()
+    }
+    #[doc = r" Phantom function stub - creates ElementTree(1 arg)"]
+    pub fn ElementTree<E>(_element: E) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" Phantom function stub - iterparse(1 arg)"]
+    pub fn iterparse<S: AsRef<str>>(_source: S) -> DepylerValue {
+        DepylerValue::None
+    }
+    #[doc = r" DEPYLER-1139: Generic get function(like dict.get)"]
+    pub fn get<K, D>(_key: K, _default: D) -> DepylerValue {
+        DepylerValue::None
+    }
+}
 #[doc = "Test parsing XML from a string."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_parse_from_string() {
     let xml_string = "<root><child>Hello</child></root>";
-    let root = ET.fromstring(xml_string);
-    assert_eq!(root.tag, "root".to_string());
+    let root = ET::fromstring(xml_string);
+    assert_eq!(root.tag(), "root".to_string());
     assert_eq!(
-        root.find("child").map(|i| i as i32).unwrap_or(-1).text,
+        root.find("child").map(|i| i as i32).unwrap_or(-1).text(),
         "Hello".to_string()
     );
     println!("{}", "PASS: test_xml_parse_from_string");
@@ -2572,31 +2663,31 @@ pub fn test_xml_parse_from_string() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_create_element() {
-    let root = ET.Element("root".to_string());
-    assert_eq!(root.tag, "root".to_string());
-    assert!(root.text.is_none());
+    let root = ET::Element("root".to_string());
+    assert_eq!(root.tag(), "root".to_string());
+    assert!(root.text().is_none());
     println!("{}", "PASS: test_xml_create_element");
 }
 #[doc = "Test creating child elements."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_create_subelement() {
-    let root = ET.Element("root".to_string());
-    let mut child = ET.SubElement(root, "child".to_string());
+    let root = ET::Element("root".to_string());
+    let mut child = ET::SubElement(root, "child".to_string());
     child.text = "Test";
     assert_eq!(root.len() as i32, 1);
     assert_eq!(
         root.get(0usize)
             .cloned()
             .expect("IndexError: list index out of range")
-            .tag,
+            .tag(),
         "child".to_string()
     );
     assert_eq!(
         root.get(0usize)
             .cloned()
             .expect("IndexError: list index out of range")
-            .text,
+            .text(),
         "Test"
     );
     println!("{}", "PASS: test_xml_create_subelement");
@@ -2606,7 +2697,7 @@ pub fn test_xml_create_subelement() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_element_attributes() {
     let xml_string = "<root id=\"123\" name=\"test\"></root>";
-    let root = ET.fromstring(xml_string);
+    let root = ET::fromstring(xml_string);
     assert_eq!(root.get("id").cloned(), "123".to_string());
     assert_eq!(root.get("name").cloned(), "test".to_string());
     assert_eq!(
@@ -2619,7 +2710,7 @@ pub fn test_xml_element_attributes() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_set_attribute() {
-    let root = ET.Element("root".to_string());
+    let root = ET::Element("root".to_string());
     root.set("id".to_string(), "456".to_string());
     root.set("type".to_string(), "test".to_string());
     assert_eq!(root.get("id").cloned(), "456".to_string());
@@ -2631,11 +2722,11 @@ pub fn test_xml_set_attribute() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_find_element() {
     let xml_string = "\n    <root>\n        <person>\n            <name>Alice</name>\n            <age>30</age>\n        </person>\n        <person>\n            <name>Bob</name>\n            <age>25</age>\n        </person>\n    </root>\n    ";
-    let root = ET.fromstring(xml_string);
+    let root = ET::fromstring(xml_string);
     let person = root.find("person").map(|i| i as i32).unwrap_or(-1);
     assert!(person.is_some());
     assert_eq!(
-        person.find("name").map(|i| i as i32).unwrap_or(-1).text,
+        person.find("name").map(|i| i as i32).unwrap_or(-1).text(),
         "Alice".to_string()
     );
     println!("{}", "PASS: test_xml_find_element");
@@ -2645,7 +2736,7 @@ pub fn test_xml_find_element() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_findall_elements() {
     let xml_string = "\n    <root>\n        <item>First</item>\n        <item>Second</item>\n        <item>Third</item>\n    </root>\n    ";
-    let root = ET.fromstring(xml_string);
+    let root = ET::fromstring(xml_string);
     let items = root
         .find_iter("item".to_string())
         .map(|m| m.as_str().to_string())
@@ -2656,7 +2747,7 @@ pub fn test_xml_findall_elements() {
             .get(0usize)
             .cloned()
             .expect("IndexError: list index out of range")
-            .text,
+            .text(),
         "First".to_string()
     );
     assert_eq!(
@@ -2664,7 +2755,7 @@ pub fn test_xml_findall_elements() {
             .get(1usize)
             .cloned()
             .expect("IndexError: list index out of range")
-            .text,
+            .text(),
         "Second".to_string()
     );
     assert_eq!(
@@ -2672,7 +2763,7 @@ pub fn test_xml_findall_elements() {
             .get(2usize)
             .cloned()
             .expect("IndexError: list index out of range")
-            .text,
+            .text(),
         "Third".to_string()
     );
     println!("{}", "PASS: test_xml_findall_elements");
@@ -2681,10 +2772,10 @@ pub fn test_xml_findall_elements() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_to_string() {
-    let root = ET.Element("root".to_string());
-    let mut child = ET.SubElement(root, "child".to_string());
+    let root = ET::Element("root".to_string());
+    let mut child = ET::SubElement(root, "child".to_string());
     child.text = "Content";
-    let xml_bytes = ET.tostring(root);
+    let xml_bytes = ET::tostring(root);
     assert!(xml_bytes.contains("<root>"));
     assert!(xml_bytes.contains("<child>Content</child>"));
     println!("{}", "PASS: test_xml_to_string");
@@ -2694,20 +2785,20 @@ pub fn test_xml_to_string() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_nested_structure() {
     let xml_string = "\n    <catalog>\n        <book id=\"1\">\n            <title>Python Guide</title>\n            <author>\n                <name>John Doe</name>\n                <email>john@example.com</email>\n            </author>\n            <price>29.99</price>\n        </book>\n    </catalog>\n    ";
-    let root = ET.fromstring(xml_string);
+    let root = ET::fromstring(xml_string);
     let book = root.find("book").map(|i| i as i32).unwrap_or(-1);
     assert_eq!(book.get("id").cloned(), "1".to_string());
     assert_eq!(
-        book.find("title").map(|i| i as i32).unwrap_or(-1).text,
+        book.find("title").map(|i| i as i32).unwrap_or(-1).text(),
         "Python Guide".to_string()
     );
     let author = book.find("author").map(|i| i as i32).unwrap_or(-1);
     assert_eq!(
-        author.find("name").map(|i| i as i32).unwrap_or(-1).text,
+        author.find("name").map(|i| i as i32).unwrap_or(-1).text(),
         "John Doe".to_string()
     );
     assert_eq!(
-        author.find("email").map(|i| i as i32).unwrap_or(-1).text,
+        author.find("email").map(|i| i as i32).unwrap_or(-1).text(),
         "john@example.com".to_string()
     );
     println!("{}", "PASS: test_xml_nested_structure");
@@ -2717,12 +2808,12 @@ pub fn test_xml_nested_structure() {
 pub fn test_xml_iterate_children() {
     let xml_string =
         "\n    <root>\n        <a>1</a>\n        <b>2</b>\n        <c>3</c>\n    </root>\n    ";
-    let root = ET.fromstring(xml_string);
+    let root = ET::fromstring(xml_string);
     let mut tags = vec![];
     let mut texts = vec![];
     for child in root.iter().cloned() {
-        tags.push(DepylerValue::Str(format!("{:?}", child.tag)));
-        texts.push(DepylerValue::Str(format!("{:?}", child.text)));
+        tags.push(DepylerValue::Str(format!("{:?}", child.tag())));
+        texts.push(DepylerValue::Str(format!("{:?}", child.text())));
     }
     assert_eq!(
         tags,
@@ -2746,11 +2837,11 @@ pub fn test_xml_iterate_children() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_build_tree() {
-    let users = ET.Element("users".to_string());
-    let user1 = ET.SubElement(users, "user".to_string());
+    let users = ET::Element("users".to_string());
+    let user1 = ET::SubElement(users, "user".to_string());
     user1.set("name".to_string(), "Alice".to_string());
     user1.set("id".to_string(), "1".to_string());
-    let user2 = ET.SubElement(users, "user".to_string());
+    let user2 = ET::SubElement(users, "user".to_string());
     user2.set("name".to_string(), "Bob".to_string());
     user2.set("id".to_string(), "2".to_string());
     assert_eq!(users.len() as i32, 2);
@@ -2779,23 +2870,23 @@ pub fn test_xml_build_tree() {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_empty_elements() {
     let xml_string = "<root><empty/><notempty>text</notempty></root>";
-    let root = ET.fromstring(xml_string);
+    let root = ET::fromstring(xml_string);
     let empty = root.find("empty").map(|i| i as i32).unwrap_or(-1);
     let notempty = root.find("notempty").map(|i| i as i32).unwrap_or(-1);
-    assert!(empty.text.is_none());
-    assert_eq!(notempty.text, "text".to_string());
+    assert!(empty.text().is_none());
+    assert_eq!(notempty.text(), "text".to_string());
     println!("{}", "PASS: test_xml_empty_elements");
 }
 #[doc = "Test elements with text content."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_xml_text_content() {
-    let mut root = ET.Element("root".to_string());
+    let mut root = ET::Element("root".to_string());
     root.text = "Direct text content";
-    assert_eq!(root.text, "Direct text content");
-    let mut child = ET.SubElement(root, "child".to_string());
+    assert_eq!(root.text(), "Direct text content");
+    let mut child = ET::SubElement(root, "child".to_string());
     child.text = "Child text";
-    assert_eq!(child.text, "Child text");
+    assert_eq!(child.text(), "Child text");
     println!("{}", "PASS: test_xml_text_content");
 }
 #[doc = "Run all xml.etree.ElementTree tests."]
