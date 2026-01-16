@@ -144,6 +144,7 @@ mod tests {
 
         module.imports.push(Import {
             module: "math".to_string(),
+            alias: None,
             items: vec![ImportItem::Named("sqrt".to_string())],
         });
 
@@ -365,6 +366,7 @@ mod tests {
         // Add various components
         module.imports.push(Import {
             module: "typing".to_string(),
+            alias: None,
             items: vec![
                 ImportItem::Named("List".to_string()),
                 ImportItem::Aliased {

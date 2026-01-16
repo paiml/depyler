@@ -3034,10 +3034,11 @@ impl<'a> ExprConverter<'a> {
                 // For negative literals, use runtime-safe indexing:
                 // base.get(base.len().wrapping_add(idx as usize)).cloned().unwrap()
                 // This handles -1 → len-1, -2 → len-2, etc.
+                // DEPYLER-1140: Cast to isize first to handle usize indices correctly
                 Ok(parse_quote! {
                     {
                         let _base = &#base_expr;
-                        let _idx = #index_expr;
+                        let _idx = (#index_expr) as isize;
                         let _actual_idx = if _idx < 0 {
                             _base.len().wrapping_sub((-_idx) as usize)
                         } else {
@@ -3049,10 +3050,11 @@ impl<'a> ExprConverter<'a> {
             } else {
                 // For non-negative or variable indices, generate simpler code
                 // but still handle potential negatives at runtime
+                // DEPYLER-1140: Cast to isize first to handle usize indices correctly
                 Ok(parse_quote! {
                     {
                         let _base = &#base_expr;
-                        let _idx = #index_expr;
+                        let _idx = (#index_expr) as isize;
                         if _idx < 0 {
                             _base[_base.len().wrapping_sub((-_idx) as usize)].clone()
                         } else {
