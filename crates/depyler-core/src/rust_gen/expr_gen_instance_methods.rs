@@ -3652,6 +3652,42 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { #base_expr.clone().py_index(#index_for_pyops) });
         }
 
+        // DEPYLER-1145: Wrap index in DepylerValue if base is HashMap<DepylerValue, ...>
+        // Check if base is a variable with DepylerValue key type
+        let is_depyler_value_key = if let HirExpr::Var(var_name) = base {
+            self.ctx.var_types.get(var_name).map_or(false, |t| {
+                matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Unknown))
+            })
+        } else {
+            false
+        };
+
+        if is_depyler_value_key {
+            // Need to convert index to Rust expression if we haven't yet (we haven't in this block)
+            let index_expr = index.to_rust_expr(self.ctx)?;
+            
+            // Wrap index in DepylerValue
+            let wrapped_index: syn::Expr = match index {
+                HirExpr::Literal(Literal::String(s)) => {
+                    parse_quote! { &DepylerValue::Str(#s.to_string()) }
+                }
+                HirExpr::Literal(Literal::Int(i)) => {
+                    parse_quote! { &DepylerValue::Int(#i) }
+                }
+                HirExpr::Literal(Literal::Float(f)) => {
+                    parse_quote! { &DepylerValue::Float(#f) }
+                }
+                HirExpr::Literal(Literal::Bool(b)) => {
+                    parse_quote! { &DepylerValue::Bool(#b) }
+                }
+                _ => {
+                    // For variables, fallback to generic conversion
+                     parse_quote! { &DepylerValue::Str(format!("{:?}", #index_expr)) }
+                }
+            };
+            return Ok(parse_quote! { #base_expr.get(#wrapped_index).cloned() });
+        }
+
         // DEPYLER-0422 Fix #3 & #4: Handle tuple indexing with actual type information
         // Python: tuple[0], tuple[1] → Rust: tuple.0, tuple.1
         // Also handles chained indexing: list_of_tuples[i][j] → list_of_tuples.get(i).0
