@@ -42,7 +42,7 @@ prop_compose! {
         module in arb_module_name(),
         items in prop::collection::vec(arb_import_item(), 0..5)
     ) -> Import {
-        Import { module, items }
+        Import { module, alias: None, items }
     }
 }
 

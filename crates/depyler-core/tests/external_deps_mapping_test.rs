@@ -131,6 +131,7 @@ mod numpy_to_trueno {
         let mapper = ModuleMapper::new();
         let import = Import {
             module: "numpy".to_string(),
+            alias: None,
             items: vec![ImportItem::Named("array".to_string())],
         };
 
@@ -146,6 +147,7 @@ mod numpy_to_trueno {
         let mapper = ModuleMapper::new();
         let imports = vec![Import {
             module: "numpy".to_string(),
+            alias: None,
             items: vec![ImportItem::Named("array".to_string())],
         }];
 
@@ -212,6 +214,7 @@ mod sklearn_to_aprender {
         let mapper = ModuleMapper::new();
         let imports = vec![Import {
             module: "sklearn.linear_model".to_string(),
+            alias: None,
             items: vec![ImportItem::Named("LinearRegression".to_string())],
         }];
 
@@ -719,6 +722,7 @@ mod integration {
         let imports = vec![
             Import {
                 module: "numpy".to_string(),
+                alias: None,
                 items: vec![
                     ImportItem::Named("array".to_string()),
                     ImportItem::Named("zeros".to_string()),
@@ -753,18 +757,22 @@ mod integration {
         let imports = vec![
             Import {
                 module: "numpy".to_string(),
+                alias: None,
                 items: vec![ImportItem::Named("array".to_string())],
             },
             Import {
                 module: "json".to_string(),
+                alias: None,
                 items: vec![ImportItem::Named("loads".to_string())],
             },
             Import {
                 module: "os".to_string(),
+                alias: None,
                 items: vec![ImportItem::Named("getcwd".to_string())],
             },
             Import {
                 module: "re".to_string(),
+                alias: None,
                 items: vec![ImportItem::Named("compile".to_string())],
             },
         ];
