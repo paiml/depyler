@@ -293,6 +293,30 @@ impl std::ops::Index<i32>for DepylerValue {
     fn from(v: Vec<DepylerValue>) -> Self {
     DepylerValue::List(v)
 }
+} impl From<Vec<String>>for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+}
+} impl From<Vec<i32>>for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+    DepylerValue::List(v.into_iter().map(| x | DepylerValue::Int(x as i64)).collect())
+}
+} impl From<Vec<i64>>for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+}
+} impl From<Vec<f64>>for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+}
+} impl From<Vec<bool>>for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+}
+} impl From<Vec<& str>>for DepylerValue {
+    fn from(v: Vec<& str>) -> Self {
+    DepylerValue::List(v.into_iter().map(| s | DepylerValue::Str(s.to_string())).collect())
+}
 } impl From<std::collections::HashMap<DepylerValue, DepylerValue>>for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
     DepylerValue::Dict(v)
@@ -2341,42 +2365,42 @@ println!();
     println!("{}", "1\u{fe0f}\u{20e3}  Analyze Python project complexity...");
     let analysis_request = {
     let mut map = HashMap::new();
-    map.insert("tool".to_string(), DepylerValue::Str("analyze_migration_complexity".to_string()));
-    map.insert("arguments".to_string(), DepylerValue::Str(format!("{:?}", {
+    map.insert("tool".to_string(), "analyze_migration_complexity".to_string());
+    map.insert("arguments".to_string(), {
     let mut map = HashMap::new();
     map.insert("project_path".to_string(), "/path/to/python/project".to_string());
     map.insert("analysis_depth".to_string(), "deep".to_string());
-    map })));
+    map });
     map };
     println!("{}", format!("   Request: {}", format!("{:?}", analysis_request)));
     println!();
     println!("{}", "2\u{fe0f}\u{20e3}  Transpile files in priority order...");
     let transpile_request = {
     let mut map = HashMap::new();
-    map.insert("tool".to_string(), DepylerValue::Str("transpile_python".to_string()));
-    map.insert("arguments".to_string(), DepylerValue::Str(format!("{:?}", {
+    map.insert("tool".to_string(), "transpile_python".to_string());
+    map.insert("arguments".to_string(), {
     let mut map = HashMap::new();
-    map.insert("source".to_string(), DepylerValue::Str("# Python code from high-priority file".to_string()));
-    map.insert("mode".to_string(), DepylerValue::Str("file".to_string()));
-    map.insert("options".to_string(), DepylerValue::Str(format!("{:?}", {
+    map.insert("source".to_string(), "# Python code from high-priority file".to_string());
+    map.insert("mode".to_string(), "file".to_string());
+    map.insert("options".to_string(), {
     let mut map = HashMap::new();
     map.insert("optimization_level".to_string(), "energy".to_string());
     map.insert("verification_level".to_string(), "comprehensive".to_string());
-    map })));
-    map })));
+    map });
+    map });
     map };
     println!("{}", format!("   Request: {}", format!("{:?}", transpile_request)));
     println!();
     println!("{}", "3\u{fe0f}\u{20e3}  Verify each transpilation...");
     let verify_request = {
     let mut map = HashMap::new();
-    map.insert("tool".to_string(), DepylerValue::Str("verify_transpilation".to_string()));
-    map.insert("arguments".to_string(), DepylerValue::Str(format!("{:?}", {
+    map.insert("tool".to_string(), "verify_transpilation".to_string());
+    map.insert("arguments".to_string(), {
     let mut map = HashMap::new();
     map.insert("python_source".to_string(), "# Original Python".to_string());
     map.insert("rust_source".to_string(), "# Generated Rust".to_string());
     map.insert("verification_level".to_string(), "comprehensive".to_string());
-    map })));
+    map });
     map };
     println!("{}", format!("   Request: {}", format!("{:?}", verify_request)));
     println!();

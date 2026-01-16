@@ -431,6 +431,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2640,9 +2674,9 @@ pub fn test_pickle_list() {
 pub fn test_pickle_dict() {
     let data = {
         let mut map = HashMap::new();
-        map.insert("name".to_string(), DepylerValue::Str("Alice".to_string()));
-        map.insert("age".to_string(), DepylerValue::Int(30 as i64));
-        map.insert("city".to_string(), DepylerValue::Str("NYC".to_string()));
+        map.insert("name".to_string(), "Alice".to_string());
+        map.insert("age".to_string(), (30) as i32);
+        map.insert("city".to_string(), "NYC".to_string());
         map
     };
     let pickled = { format!("{:?}", data).into_bytes() };
@@ -2674,25 +2708,22 @@ pub fn test_pickle_nested_structure() {
         let mut map = HashMap::new();
         map.insert(
             "users".to_string(),
-            DepylerValue::Str(format!(
-                "{:?}",
-                vec![
-                    {
-                        let mut map = HashMap::new();
-                        map.insert("name".to_string(), "Alice".to_string());
-                        map.insert("scores".to_string(), vec![90, 85, 88]);
-                        map
-                    },
-                    {
-                        let mut map = HashMap::new();
-                        map.insert("name".to_string(), "Bob".to_string());
-                        map.insert("scores".to_string(), vec![78, 82, 91]);
-                        map
-                    }
-                ]
-            )),
+            vec![
+                {
+                    let mut map = HashMap::new();
+                    map.insert("name".to_string(), "Alice".to_string());
+                    map.insert("scores".to_string(), vec![90, 85, 88]);
+                    map
+                },
+                {
+                    let mut map = HashMap::new();
+                    map.insert("name".to_string(), "Bob".to_string());
+                    map.insert("scores".to_string(), vec![78, 82, 91]);
+                    map
+                },
+            ],
         );
-        map.insert("count".to_string(), DepylerValue::Int(2 as i64));
+        map.insert("count".to_string(), (2) as i32);
         map
     };
     let pickled = { format!("{:?}", data).into_bytes() };
