@@ -4880,6 +4880,16 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             false
         };
 
+        // DEPYLER-1141: Check if target type annotation specifies a CONCRETE value type
+        // When `stats: Dict[str, float] = {...}`, even if values are mixed (int/float),
+        // we should coerce to the target type instead of using DepylerValue.
+        // This enables Python's implicit int→float coercion.
+        let target_has_concrete_value_type = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type {
+            matches!(val_type.as_ref(), Type::Int | Type::Float | Type::String | Type::Bool)
+        } else {
+            false
+        };
+
         // DEPYLER-1050: Check if function return type requires DepylerValue
         // When function returns HashMap<String, DepylerValue>, ALL dict literals in the
         // function body must use DepylerValue wrapping (even in nested return statements)
@@ -4901,7 +4911,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-1045: Also use DepylerValue when target type annotation requires it
         // DEPYLER-1050: Also use DepylerValue when function return type requires it
         // DEPYLER-1060: Also use DepylerValue when dict has non-string keys
-        if nasa_mode && (has_mixed_types || target_needs_depyler_value || return_needs_depyler_value || has_non_string_keys) {
+        // DEPYLER-1141: BUT skip DepylerValue when target has CONCRETE value type
+        // This allows `Dict[str, float]` to coerce int→float instead of wrapping in DepylerValue
+        if nasa_mode && !target_has_concrete_value_type && (has_mixed_types || target_needs_depyler_value || return_needs_depyler_value || has_non_string_keys) {
             self.ctx.needs_hashmap = true;
             self.ctx.needs_depyler_value_enum = true;
 
@@ -5162,6 +5174,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0953: String literal values are now always converted to String
         // (Previously DEPYLER-0729 only converted when target type required it)
+        // DEPYLER-1141: Get target value type for coercion
+        let target_value_type = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type {
+            Some(val_type.as_ref().clone())
+        } else {
+            None
+        };
+
         let mut insert_stmts = Vec::new();
         for (key, value) in items {
             let mut key_expr = key.to_rust_expr(self.ctx)?;
@@ -5191,6 +5210,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // The original DEPYLER-1015 logic was too aggressive.
             if matches!(value, HirExpr::Literal(Literal::String(_))) {
                 val_expr = parse_quote! { #val_expr.to_string() };
+            }
+
+            // DEPYLER-1141: Coerce values to target type when annotation specifies concrete type
+            // This handles Python's implicit int→float coercion in Dict[str, float] = {"key": int_var}
+            if let Some(ref target_type) = target_value_type {
+                match target_type {
+                    Type::Float => {
+                        // Coerce to f64 - handles int→float coercion
+                        val_expr = parse_quote! { (#val_expr) as f64 };
+                    }
+                    Type::Int => {
+                        // Coerce to i32
+                        val_expr = parse_quote! { (#val_expr) as i32 };
+                    }
+                    // String and Bool don't need coercion
+                    _ => {}
+                }
             }
 
             insert_stmts.push(quote! { map.insert(#key_expr, #val_expr); });
