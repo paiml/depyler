@@ -3675,6 +3675,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         if args.len() == 1 {
+            // Safety check to prevent panic if hir_args is out of sync
+            if hir_args.is_empty() {
+                let arg = &args[0];
+                return Ok(parse_quote! { #arg.to_vec() });
+            }
+
             let hir_arg = &hir_args[0];
             let arg = &args[0];
 
