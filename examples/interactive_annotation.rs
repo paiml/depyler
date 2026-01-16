@@ -5,10 +5,10 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::f64 as math;
-    const STR_A: &'static str = "A";
-    const STR_C: &'static str = "C";
     const STR_D: &'static str = "D";
     const STR_B: &'static str = "B";
+    const STR_A: &'static str = "A";
+    const STR_C: &'static str = "C";
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::io::Write;
@@ -2180,12 +2180,12 @@ results.push(result);
 }
 Ok(results)
 }
-#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'a, 'b, 'c>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'b, 'a, 'c>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
     let mut current: String = Default::default();
     let mut visited = std::collections::HashSet::<i32>::new();
     let mut distances_from_start = {
     let mut map = HashMap::new();
-    map.insert(start ,(0) as i32);
+    map.insert(DepylerValue::from(start), DepylerValue::Int(0 as i64));
     map };
     let mut previous = {
     let mut map = HashMap::new();
@@ -2210,7 +2210,7 @@ visited.insert(current);
     if! visited.contains(& neighbor) {
     let new_distance  = (distances_from_start.get(& current).cloned().unwrap_or_default()).py_add(distances.get(& current).cloned().unwrap_or_default().get(neighbor as usize).cloned().expect("IndexError: list index out of range"));
     if(distances_from_start.get(& neighbor).is_none()) ||(new_distance <(distances_from_start.get(& DepylerValue::Int(neighbor as i64)).cloned().unwrap_or_default() as f64)) {
-    distances_from_start.insert(neighbor.to_string().clone(), new_distance);
+    distances_from_start.insert(neighbor.to_string().clone(), DepylerValue::Str(format!("{:?}", new_distance)));
     previous.insert(neighbor.to_string().clone(), DepylerValue::Str(format!("{:?}", current)));
    
 }
@@ -2225,7 +2225,7 @@ let mut path = vec! [];
     current = end.to_string();
     while current! = (* start) {
     path.push(current);
-    current = previous.get(& current).cloned().unwrap_or_default();
+    current = previous.get(& DepylerValue::Str(format!("{:?}", current))).cloned().unwrap_or_default();
    
 }
 path.push(start);
@@ -2264,28 +2264,28 @@ path.push(start);
     println!("{}", format!("Recent buffer data: {}", recent));
     let graph = {
     let mut map = HashMap::new();
-    map.insert(STR_A.to_string(), {
+    map.insert(STR_A.to_string(), DepylerValue::Str(format!("{:?}", {
     let mut map = HashMap::new();
-    map.insert(STR_B.to_string() ,(1) as i32);
-    map.insert(STR_C.to_string() ,(4) as i32);
-    map });
-    map.insert(STR_B.to_string(), {
+    map.insert(STR_B.to_string(), DepylerValue::Int(1 as i64));
+    map.insert(STR_C.to_string(), DepylerValue::Int(4 as i64));
+    map })));
+    map.insert(STR_B.to_string(), DepylerValue::Str(format!("{:?}", {
     let mut map = HashMap::new();
-    map.insert(STR_A.to_string() ,(1) as i32);
-    map.insert(STR_C.to_string() ,(2) as i32);
-    map.insert(STR_D.to_string() ,(5) as i32);
-    map });
-    map.insert(STR_C.to_string(), {
+    map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
+    map.insert(STR_C.to_string(), DepylerValue::Int(2 as i64));
+    map.insert(STR_D.to_string(), DepylerValue::Int(5 as i64));
+    map })));
+    map.insert(STR_C.to_string(), DepylerValue::Str(format!("{:?}", {
     let mut map = HashMap::new();
-    map.insert(STR_A.to_string() ,(4) as i32);
-    map.insert(STR_B.to_string() ,(2) as i32);
-    map.insert(STR_D.to_string() ,(1) as i32);
-    map });
-    map.insert(STR_D.to_string(), {
+    map.insert(STR_A.to_string(), DepylerValue::Int(4 as i64));
+    map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
+    map.insert(STR_D.to_string(), DepylerValue::Int(1 as i64));
+    map })));
+    map.insert(STR_D.to_string(), DepylerValue::Str(format!("{:?}", {
     let mut map = HashMap::new();
-    map.insert(STR_B.to_string() ,(5) as i32);
-    map.insert(STR_C.to_string() ,(1) as i32);
-    map });
+    map.insert(STR_B.to_string(), DepylerValue::Int(5 as i64));
+    map.insert(STR_C.to_string(), DepylerValue::Int(1 as i64));
+    map })));
     map };
     let route = optimize_route(& graph, & STR_A, & STR_D) ?;
     println!("{}", format!("Optimal route: {:?}", route));

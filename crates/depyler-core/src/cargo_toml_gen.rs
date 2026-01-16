@@ -531,6 +531,7 @@ mod tests {
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
             option_unwrap_map: std::collections::HashMap::new(),
+            narrowed_option_vars: std::collections::HashSet::new(), // DEPYLER-1151
             needs_completed_process: false,
             vararg_functions: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
@@ -699,6 +700,7 @@ mod tests {
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
             option_unwrap_map: std::collections::HashMap::new(),
+            narrowed_option_vars: std::collections::HashSet::new(), // DEPYLER-1151
             needs_completed_process: false,
             vararg_functions: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
@@ -864,6 +866,7 @@ mod tests {
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
             option_unwrap_map: std::collections::HashMap::new(),
+            narrowed_option_vars: std::collections::HashSet::new(), // DEPYLER-1151
             needs_completed_process: false,
             vararg_functions: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
@@ -1276,6 +1279,7 @@ mod tests {
             boxed_dyn_write_vars: std::collections::HashSet::new(),
             function_returns_boxed_write: false,
             option_unwrap_map: std::collections::HashMap::new(),
+            narrowed_option_vars: std::collections::HashSet::new(), // DEPYLER-1151
             needs_completed_process: false,
             vararg_functions: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),

@@ -2118,7 +2118,63 @@ pub(crate) fn codegen_if_stmt(
         ctx.hoisted_inference_vars.remove(var_name);
     }
 
+    // DEPYLER-1151: Detect None-check-early-exit pattern to narrow Option variables
+    // Pattern: `if x is None: return` or `if x.is_none() { return }` (no else branch)
+    // After this pattern, x is narrowed to the inner type (can safely unwrap)
+    if else_body.is_none() {
+        if let Some(var_name) = detect_none_check_variable(condition) {
+            if is_early_exit_body(then_body) {
+                // Variable is narrowed after this if statement
+                ctx.narrowed_option_vars.insert(var_name);
+            }
+        }
+    }
+
     result
+}
+
+/// DEPYLER-1151: Detect if a condition is a None check on a variable
+/// Returns Some(var_name) if condition is `x.is_none()` or `not x` (for Optional)
+/// Note: `x is None` is already converted to `x.is_none()` by the AST bridge
+fn detect_none_check_variable(condition: &HirExpr) -> Option<String> {
+    match condition {
+        // Pattern: x.is_none() -> MethodCall { object: Var(x), method: "is_none" }
+        // This also handles `x is None` which is converted to x.is_none() by AST bridge
+        HirExpr::MethodCall { object, method, .. } if method == "is_none" => {
+            if let HirExpr::Var(var_name) = object.as_ref() {
+                return Some(var_name.clone());
+            }
+            None
+        }
+        // Pattern: `not x` where x is Optional -> Unary { op: Not, operand: Var(x) }
+        HirExpr::Unary {
+            op: UnaryOp::Not,
+            operand,
+        } => {
+            if let HirExpr::Var(var_name) = operand.as_ref() {
+                // This could be a None check if var is Optional
+                // We'll verify it's Optional when we use it
+                return Some(var_name.clone());
+            }
+            None
+        }
+        _ => None,
+    }
+}
+
+/// DEPYLER-1151: Check if a body consists only of an early exit statement
+/// Early exits: return, break, continue, raise
+fn is_early_exit_body(body: &[HirStmt]) -> bool {
+    if body.len() != 1 {
+        return false;
+    }
+    matches!(
+        &body[0],
+        HirStmt::Return(_)
+            | HirStmt::Break { .. }
+            | HirStmt::Continue { .. }
+            | HirStmt::Raise { .. }
+    )
 }
 
 /// DEPYLER-0627: Generate if-let pattern for Option variable truthiness check

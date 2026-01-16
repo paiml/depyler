@@ -2792,10 +2792,7 @@ pub fn multiple_handlers<'b, 'a>(
     let mut num: i32 = Default::default();
     match (|| -> Result<(), Box<dyn std::error::Error>> {
         num = s.parse::<i32>().unwrap_or_default();
-        return Ok(d
-            .get(&DepylerValue::Int((num).to_string() as i64))
-            .cloned()
-            .unwrap_or_default());
+        return Ok(d.get(&(num).to_string()).cloned().unwrap_or_default());
     })() {
         Ok(_result) => {
             return Ok(_result);
@@ -2914,8 +2911,8 @@ pub fn exception_with_computation(
     b: i32,
     c: i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut step1: i32 = Default::default();
     let mut step2: i32 = Default::default();
+    let mut step1: i32 = Default::default();
     match (|| -> Result<i32, Box<dyn std::error::Error>> {
         step1 = {
             let a = a;

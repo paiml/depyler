@@ -2705,7 +2705,7 @@ pub fn get_first(items: &Vec<DepylerValue>) -> Result<(), Box<dyn std::error::Er
 #[doc = " Depyler: proven to terminate"]
 pub fn get_rest(items: &Vec<DepylerValue>) -> Vec<DepylerValue> {
     {
-        let base = &items;
+        let base = &*items;
         let start_idx = (1) as isize;
         let start = if start_idx < 0 {
             (base.len() as isize + start_idx).max(0) as usize

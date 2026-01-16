@@ -2716,7 +2716,7 @@ pub fn sliding_window(data: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
         return vec![];
     }
     let mut window = VecDeque::from({
-        let base = &data;
+        let base = &*data;
         let stop_idx = (window_size) as isize;
         let stop = if stop_idx < 0 {
             (base.len() as isize + stop_idx).max(0) as usize
@@ -2727,7 +2727,7 @@ pub fn sliding_window(data: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> {
     });
     let mut windows = vec![window.into_iter().collect::<Vec<_>>()];
     for item in {
-        let base = &data;
+        let base = &*data;
         let start_idx = (window_size) as isize;
         let start = if start_idx < 0 {
             (base.len() as isize + start_idx).max(0) as usize

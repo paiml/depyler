@@ -2785,7 +2785,7 @@ pub fn test_repeat(value: i32, times: i32) -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_islice(items: &Vec<i32>, start: i32, stop: i32) -> Vec<i32> {
     let result: Vec<i32> = {
-        let base = &items;
+        let base = &*items;
         let start_idx = (start) as isize;
         let stop_idx = (stop) as isize;
         let start = if start_idx < 0 {
@@ -2877,8 +2877,8 @@ pub fn test_pairwise(items: &Vec<i32>) -> Vec<(i32, i32)> {
 pub fn test_groupby_manual(
     items: &Vec<i32>,
 ) -> Result<Vec<(bool, Vec<i32>)>, Box<dyn std::error::Error>> {
-    let mut current_is_even: bool = Default::default();
     let mut current_group: Vec<i32> = Default::default();
+    let mut current_is_even: bool = Default::default();
     let mut groups: Vec<(bool, Vec<i32>)> = vec![];
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -2971,7 +2971,7 @@ pub fn flatten_nested_lists(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Manual implementation of Cartesian product"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_manual<'a, 'b>(
+pub fn cartesian_product_manual<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Vec<(i32, i32)> {
@@ -2986,7 +2986,7 @@ pub fn cartesian_product_manual<'a, 'b>(
 }
 #[doc = "Manual implementation of zip_longest"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_zip_longest<'b, 'a>(
+pub fn test_zip_longest<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
     fillvalue: i32,
@@ -3045,7 +3045,7 @@ pub fn test_sliding_window(items: &Vec<i32>, window_size: i32) -> Vec<Vec<i32>> 
     let mut windows: Vec<Vec<i32>> = vec![];
     for i in 0..(((items.len() as i32).py_sub(window_size)).py_add(1)) {
         let window: Vec<i32> = {
-            let base = &items;
+            let base = &*items;
             let start_idx = (i) as isize;
             let stop_idx = ((i).py_add(window_size)) as isize;
             let start = if start_idx < 0 {

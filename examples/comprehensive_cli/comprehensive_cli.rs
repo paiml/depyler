@@ -2750,24 +2750,86 @@ pub fn main() {
     let has_mode = args.mode.is_some();
     let result = {
         let mut map = HashMap::new();
-        map.insert("input_file".to_string(), args.input_file);
-        map.insert("debug".to_string(), args.debug);
-        map.insert("output".to_string(), args.output);
-        map.insert("quiet".to_string(), args.quiet);
-        map.insert("color".to_string(), args.color);
-        map.insert("verbosity".to_string(), args.V);
-        map.insert("includes".to_string(), args.include);
-        map.insert("extras".to_string(), args.extras);
-        map.insert("config".to_string(), args.config);
-        map.insert("count".to_string(), args.count);
-        map.insert("rate".to_string(), args.rate);
-        map.insert("timeout".to_string(), args.timeout);
-        map.insert("threshold".to_string(), args.threshold);
-        map.insert("name".to_string(), args.name);
-        map.insert("api_key".to_string(), args.api_key);
-        map.insert("format".to_string(), args.format);
-        map.insert("mode".to_string(), args.mode);
-        map.insert("speed".to_string(), args.speed);
+        map.insert(
+            "input_file".to_string(),
+            DepylerValue::Str(args.input_file.to_string()),
+        );
+        map.insert("debug".to_string(), DepylerValue::Bool(args.debug));
+        map.insert(
+            "output".to_string(),
+            match args.output {
+                Some(v) => DepylerValue::Str(v.to_string()),
+                None => DepylerValue::None,
+            },
+        );
+        map.insert("quiet".to_string(), DepylerValue::Bool(args.quiet));
+        map.insert("color".to_string(), DepylerValue::Bool(args.color));
+        map.insert("verbosity".to_string(), DepylerValue::Int(args.V as i64));
+        map.insert(
+            "includes".to_string(),
+            DepylerValue::Str(format!("{:?}", args.include)),
+        );
+        map.insert(
+            "extras".to_string(),
+            DepylerValue::List(
+                args.extras
+                    .iter()
+                    .map(|v| DepylerValue::Str(v.to_string()))
+                    .collect(),
+            ),
+        );
+        map.insert(
+            "config".to_string(),
+            match args.config {
+                Some(v) => DepylerValue::Str(v.to_string()),
+                None => DepylerValue::None,
+            },
+        );
+        map.insert(
+            "count".to_string(),
+            match args.count {
+                Some(v) => DepylerValue::Int(v as i64),
+                None => DepylerValue::None,
+            },
+        );
+        map.insert(
+            "rate".to_string(),
+            match args.rate {
+                Some(v) => DepylerValue::Float(v as f64),
+                None => DepylerValue::None,
+            },
+        );
+        map.insert(
+            "timeout".to_string(),
+            DepylerValue::Int(args.timeout as i64),
+        );
+        map.insert(
+            "threshold".to_string(),
+            DepylerValue::Float(args.threshold as f64),
+        );
+        map.insert("name".to_string(), DepylerValue::Str(args.name.to_string()));
+        map.insert(
+            "api_key".to_string(),
+            DepylerValue::Str(args.api_key.to_string()),
+        );
+        map.insert(
+            "format".to_string(),
+            match args.format {
+                Some(v) => DepylerValue::Str(v.to_string()),
+                None => DepylerValue::None,
+            },
+        );
+        map.insert(
+            "mode".to_string(),
+            match args.mode {
+                Some(v) => DepylerValue::Str(v.to_string()),
+                None => DepylerValue::None,
+            },
+        );
+        map.insert(
+            "speed".to_string(),
+            DepylerValue::Str(format!("{:?}", args.speed)),
+        );
         map
     };
     println!("{}", format!("{:?}", result));

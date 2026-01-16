@@ -6,8 +6,8 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 use std::collections::VecDeque;
-const STR_A: &'static str = "a";
 const STR_B: &'static str = "b";
+const STR_A: &'static str = "a";
 const STR_APPLE: &'static str = "apple";
 #[derive(Debug, Clone)]
 pub struct IndexError {
@@ -446,6 +446,40 @@ impl From<bool> for DepylerValue {
 impl From<Vec<DepylerValue>> for DepylerValue {
     fn from(v: Vec<DepylerValue>) -> Self {
         DepylerValue::List(v)
+    }
+}
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
     }
 }
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
@@ -2744,7 +2778,7 @@ pub fn test_counter_most_common(
         }
     }
     let result: Vec<(String, i32)> = {
-        let base = &count_list;
+        let base = &*count_list;
         let stop_idx = (n) as isize;
         let stop = if stop_idx < 0 {
             (base.len() as isize + stop_idx).max(0) as usize
@@ -2759,15 +2793,15 @@ pub fn test_counter_most_common(
 pub fn test_counter_arithmetic() -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let counter1: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 3);
-        map.insert(STR_B.to_string(), 1);
+        map.insert(STR_A.to_string(), (3) as i32);
+        map.insert(STR_B.to_string(), (1) as i32);
         map
     };
     let counter2: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
-        map.insert(STR_B.to_string(), 2);
-        map.insert("c".to_string(), 1);
+        map.insert(STR_A.to_string(), (1) as i32);
+        map.insert(STR_B.to_string(), (2) as i32);
+        map.insert("c".to_string(), (1) as i32);
         map
     };
     let mut result: std::collections::HashMap<String, i32> = {
@@ -2866,9 +2900,9 @@ pub fn test_ordereddict_basic() -> Vec<(String, i32)> {
 pub fn test_ordereddict_move_to_end() -> Vec<String> {
     let mut od: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert(STR_A.to_string(), 1);
-        map.insert(STR_B.to_string(), 2);
-        map.insert("c".to_string(), 3);
+        map.insert(STR_A.to_string(), (1) as i32);
+        map.insert(STR_B.to_string(), (2) as i32);
+        map.insert("c".to_string(), (3) as i32);
         map
     };
     let value: i32 = od.remove(STR_A).expect("KeyError: key not found");
@@ -3036,14 +3070,14 @@ pub fn test_all_collections_features() -> Result<(), Box<dyn std::error::Error>>
     let moved: Vec<String> = test_ordereddict_move_to_end();
     let d1: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("x".to_string(), 1);
-        map.insert("y".to_string(), 2);
+        map.insert("x".to_string(), (1) as i32);
+        map.insert("y".to_string(), (2) as i32);
         map
     };
     let d2: std::collections::HashMap<String, i32> = {
         let mut map = HashMap::new();
-        map.insert("y".to_string(), 3);
-        map.insert("z".to_string(), 4);
+        map.insert("y".to_string(), (3) as i32);
+        map.insert("z".to_string(), (4) as i32);
         map
     };
     let chain_result: i32 = test_chainmap(&d1, &d2)?;

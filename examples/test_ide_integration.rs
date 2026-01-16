@@ -451,6 +451,40 @@ impl From<Vec<DepylerValue>> for DepylerValue {
         DepylerValue::List(v)
     }
 }
+impl From<Vec<String>> for DepylerValue {
+    fn from(v: Vec<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<Vec<i32>> for DepylerValue {
+    fn from(v: Vec<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<Vec<i64>> for DepylerValue {
+    fn from(v: Vec<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<Vec<f64>> for DepylerValue {
+    fn from(v: Vec<f64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Float).collect())
+    }
+}
+impl From<Vec<bool>> for DepylerValue {
+    fn from(v: Vec<bool>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Bool).collect())
+    }
+}
+impl From<Vec<&str>> for DepylerValue {
+    fn from(v: Vec<&str>) -> Self {
+        DepylerValue::List(
+            v.into_iter()
+                .map(|s| DepylerValue::Str(s.to_string()))
+                .collect(),
+        )
+    }
+}
 impl From<std::collections::HashMap<DepylerValue, DepylerValue>> for DepylerValue {
     fn from(v: std::collections::HashMap<DepylerValue, DepylerValue>) -> Self {
         DepylerValue::Dict(v)
@@ -2668,15 +2702,9 @@ pub fn process_data(items: &Vec<i32>) -> Result<HashMap<String, i32>, Box<dyn st
     let utils = MathUtils::new();
     let mut stats = {
         let mut map = HashMap::new();
-        map.insert(
-            "count".to_string(),
-            DepylerValue::Str(format!("{:?}", items.len() as i32)),
-        );
-        map.insert(
-            "sum".to_string(),
-            DepylerValue::Str(format!("{:?}", items.iter().sum::<i32>())),
-        );
-        map.insert("primes".to_string(), DepylerValue::Int(0 as i64));
+        map.insert("count".to_string(), items.len() as i32);
+        map.insert("sum".to_string(), items.iter().sum::<i32>());
+        map.insert("primes".to_string(), (0) as i32);
         map
     };
     for item in items.iter().cloned() {

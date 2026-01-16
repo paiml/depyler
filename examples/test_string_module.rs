@@ -2954,7 +2954,7 @@ pub fn keep_alphanumeric(text: &str) -> String {
     result.to_string()
 }
 #[doc = "Simple template substitution"]
-pub fn template_substitute<'b, 'a>(
+pub fn template_substitute<'a, 'b>(
     template: &'a str,
     values: &'b std::collections::HashMap<DepylerValue, DepylerValue>,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -2962,7 +2962,11 @@ pub fn template_substitute<'b, 'a>(
     result = template.to_string();
     for key in values.keys().cloned().collect::<Vec<_>>() {
         let placeholder: String = (("${").py_add(key)).py_add("}");
-        let value: String = (values.get(&key).cloned().unwrap_or_default()).to_string();
+        let value: String = (values
+            .get(&DepylerValue::Str(format!("{:?}", key)))
+            .cloned()
+            .unwrap_or_default())
+        .to_string();
         result = result.replace(&placeholder, &value);
     }
     Ok(result.to_string())
@@ -2973,9 +2977,9 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, Box<dyn std::erro
     result = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
         if char.is_alphabetic() {
-            let mut shifted: i32;
-            let mut new_char: String;
             let mut base: i32;
+            let mut new_char: String;
+            let mut shifted: i32;
             if !char.is_alphabetic() || char.is_uppercase() {
                 base = "A".chars().next().unwrap() as i32;
                 shifted = (((char as u32 as i32).py_sub(base)).py_add(shift)).py_mod(26);
