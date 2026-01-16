@@ -4811,6 +4811,46 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(parse_quote! { vec![#(#elt_exprs),*] })
     }
 
+    /// DEPYLER-1144: Convert list literal with explicit f64 coercion for integer elements
+    /// Used when the target type is known to be Vec<f64> (e.g., class field typed as list[float])
+    /// Converts `[0, 1, 2]` → `vec![0.0, 1.0, 2.0]`
+    pub(crate) fn convert_list_with_float_coercion(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+        let elt_exprs: Vec<syn::Expr> = elts
+            .iter()
+            .map(|e| {
+                match e {
+                    // Integer literals: convert to f64 literal
+                    HirExpr::Literal(Literal::Int(n)) => {
+                        let float_val = *n as f64;
+                        Ok(parse_quote! { #float_val })
+                    }
+                    // Float literals: use as-is
+                    HirExpr::Literal(Literal::Float(f)) => {
+                        Ok(parse_quote! { #f })
+                    }
+                    // Variables: cast to f64 at runtime
+                    HirExpr::Var(name) => {
+                        let var_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                        // Check if variable is already known to be float
+                        if let Some(var_type) = self.ctx.var_types.get(name) {
+                            if matches!(var_type, Type::Float) {
+                                return Ok(parse_quote! { #var_ident });
+                            }
+                        }
+                        Ok(parse_quote! { (#var_ident as f64) })
+                    }
+                    // Other expressions: convert and cast
+                    _ => {
+                        let expr = e.to_rust_expr(self.ctx)?;
+                        Ok(parse_quote! { (#expr as f64) })
+                    }
+                }
+            })
+            .collect::<Result<Vec<_>>>()?;
+
+        Ok(parse_quote! { vec![#(#elt_exprs),*] })
+    }
+
     /// DEPYLER-0711: Check if list has heterogeneous element types
     /// Returns true if elements have different primitive types (int, string, float, bool)
     pub(crate) fn list_has_mixed_types(&self, elts: &[HirExpr]) -> bool {
