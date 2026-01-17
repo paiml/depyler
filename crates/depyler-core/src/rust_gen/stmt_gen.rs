@@ -553,45 +553,77 @@ pub(crate) fn codegen_return_stmt(
     if let Some(e) = expr {
         // DEPYLER-1064: Handle Tuple[Any, ...] returns - wrap elements in DepylerValue
         // When return type is Tuple containing Any types, each element needs DepylerValue wrapping
-        if let (HirExpr::Tuple(elts), Some(Type::Tuple(elem_types))) =
-            (e, ctx.current_return_type.as_ref())
-        {
-            if ctx.type_mapper.nasa_mode
-                && elem_types.iter().any(|t| {
-                    matches!(t, Type::Unknown)
-                        || matches!(t, Type::Custom(name) if name == "Any" || name == "object")
-                })
+        // DEPYLER-1158: Clone elem_types to avoid borrow conflict with ctx
+        let elem_types_owned: Option<Vec<Type>> =
+            if let Some(Type::Tuple(types)) = ctx.current_return_type.as_ref() {
+                Some(types.clone())
+            } else {
+                None
+            };
+        if let (HirExpr::Tuple(elts), Some(elem_types)) = (e, elem_types_owned.as_ref()) {
+            // DEPYLER-1158: Trigger wrapping for tuples with Unknown, Any, or list of Unknown types
+            // This ensures proper element conversion when function signature differs from expression types
+            // Key insight: HIR uses Type::Unknown, not Type::Custom("DepylerValue") - the DepylerValue
+            // tokens are generated during code emission, not stored in the type system
+            let has_depyler_related_types = elem_types.iter().any(|t| {
+                matches!(t, Type::Unknown)
+                    || matches!(t, Type::Custom(name) if name == "Any" || name == "object")
+                    || matches!(t, Type::List(inner) if matches!(inner.as_ref(), Type::Unknown))
+            });
+            if ctx.type_mapper.nasa_mode && has_depyler_related_types
             {
-                // Generate tuple with each element wrapped in DepylerValue
-                let wrapped_elems: Vec<proc_macro2::TokenStream> = elts
-                    .iter()
-                    .map(|elem| {
-                        let elem_expr = elem.to_rust_expr(ctx)?;
-                        // Wrap based on expression type
-                        let wrapped = match elem {
-                            HirExpr::Literal(Literal::Int(_)) => {
-                                quote! { DepylerValue::Int(#elem_expr as i64) }
-                            }
-                            HirExpr::Literal(Literal::Float(_)) => {
-                                quote! { DepylerValue::Float(#elem_expr) }
-                            }
-                            HirExpr::Literal(Literal::String(_)) => {
-                                quote! { DepylerValue::Str(#elem_expr) }
-                            }
-                            HirExpr::Literal(Literal::Bool(_)) => {
-                                quote! { DepylerValue::Bool(#elem_expr) }
-                            }
-                            HirExpr::List(_) => {
-                                quote! { DepylerValue::List(#elem_expr.into_iter().map(DepylerValue::from).collect()) }
-                            }
-                            _ => {
-                                // For other expressions, try to wrap in from()
+                // DEPYLER-1158: Generate tuple with each element respecting expected type
+                // Use indexed iteration to avoid borrow checker issues with ctx
+                let mut wrapped_elems = Vec::with_capacity(elts.len());
+                for (i, elem) in elts.iter().enumerate() {
+                    let elem_expr = elem.to_rust_expr(ctx)?;
+                    let expected_type = elem_types.get(i);
+                    // DEPYLER-1158: Check expected type and infer from expression for Unknown
+                    // For list expressions with Unknown type, produce Vec<DepylerValue>
+                    // Key: HIR uses Type::List(Type::Unknown), not Type::List(Type::Custom("DepylerValue"))
+                    let wrapped = match expected_type {
+                        // DEPYLER-1158: List<Unknown> maps to Vec<DepylerValue>
+                        Some(Type::List(inner)) if matches!(inner.as_ref(), Type::Unknown) => {
+                            // Expected: Vec<DepylerValue> - convert each element
+                            quote! { #elem_expr.into_iter().map(DepylerValue::from).collect::<Vec<_>>() }
+                        }
+                        // DEPYLER-1158: Scalar Unknown maps to DepylerValue
+                        Some(Type::Unknown) => {
+                            // Check if expression is a list or likely produces a list
+                            let is_list_expr = matches!(elem, HirExpr::List(_))
+                                || matches!(elem, HirExpr::ListComp { .. })
+                                || match elem {
+                                    HirExpr::Var(name) => {
+                                        // Check if var is known to be a list type
+                                        ctx.var_types
+                                            .get(name)
+                                            .map(|t| matches!(t, Type::List(_)))
+                                            .unwrap_or(false)
+                                    }
+                                    HirExpr::MethodCall { method, .. } => {
+                                        // Methods like map, filter, collect return lists
+                                        matches!(
+                                            method.as_str(),
+                                            "collect" | "map" | "filter" | "sorted" | "list"
+                                        )
+                                    }
+                                    _ => false,
+                                };
+                            if is_list_expr {
+                                // List expression with Unknown type -> Vec<DepylerValue>
+                                quote! { #elem_expr.into_iter().map(DepylerValue::from).collect::<Vec<_>>() }
+                            } else {
+                                // Non-list: wrap in DepylerValue::from()
                                 quote! { DepylerValue::from(#elem_expr) }
                             }
-                        };
-                        Ok(wrapped)
-                    })
-                    .collect::<Result<Vec<_>>>()?;
+                        }
+                        _ => {
+                            // Default: wrap in DepylerValue::from()
+                            quote! { DepylerValue::from(#elem_expr) }
+                        }
+                    };
+                    wrapped_elems.push(wrapped);
+                }
 
                 return Ok(quote! { return (#(#wrapped_elems),*); });
             }
