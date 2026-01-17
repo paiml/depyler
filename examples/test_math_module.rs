@@ -2793,8 +2793,8 @@ pub fn test_power_operations() -> f64 {
 }
 #[doc = "Test min/max with math operations"]
 pub fn test_comparison_functions(values: &Vec<f64>) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut max_val: f64 = Default::default();
     let mut min_val: f64 = Default::default();
+    let mut max_val: f64 = Default::default();
     let _cse_temp_0 = values.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {

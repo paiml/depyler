@@ -2825,7 +2825,7 @@ pub fn simple_list_sum(numbers: &Vec<i32>) -> i32 {
 #[doc = "Dictionary lookup with default."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn simple_dict_lookup<'b, 'a>(
+pub fn simple_dict_lookup<'a, 'b>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> i32 {

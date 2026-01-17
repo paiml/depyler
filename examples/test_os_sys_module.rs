@@ -2388,7 +2388,7 @@ Ok(path.to_string())
     let files: Vec<String>= vec! ["file1.txt".to_string(), "file2.py".to_string(), "dir1".to_string(), ".hidden".to_string()];
     files
 }
-#[doc = "Filter files by extension"] #[doc = " Depyler: verified panic-free"] pub fn filter_by_extension<'a, 'b>(files: & 'a Vec<String>, ext: & 'b str) -> Result<Vec<String>, Box<dyn std::error::Error>>{
+#[doc = "Filter files by extension"] #[doc = " Depyler: verified panic-free"] pub fn filter_by_extension<'b, 'a>(files: & 'a Vec<String>, ext: & 'b str) -> Result<Vec<String>, Box<dyn std::error::Error>>{
     let mut filtered: Vec<String>= vec! [];
     for file in files.iter().cloned() {
     let file_ext: String = get_file_extension(& file) ?;

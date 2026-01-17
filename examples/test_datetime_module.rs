@@ -2776,7 +2776,7 @@ pub fn calculate_age<'b, 'a>(
 #[doc = "Calculate days until a future event"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn days_until_event<'b, 'a>(event_date: &'a DepylerDate, current_date: &'b DepylerDate) -> i32 {
+pub fn days_until_event<'a, 'b>(event_date: &'a DepylerDate, current_date: &'b DepylerDate) -> i32 {
     let _cse_temp_0 = event_date < current_date;
     if _cse_temp_0 {
         return 0;

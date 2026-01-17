@@ -2154,7 +2154,7 @@ else {
     return result;
    
 }
-} #[doc = "Calculate basic statistics for a numeric column in CSV"] pub fn calculate_column_stats<'b, 'a>(csv_content: & 'a str, column_name: & 'b str) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>>{
+} #[doc = "Calculate basic statistics for a numeric column in CSV"] pub fn calculate_column_stats<'a, 'b>(csv_content: & 'a str, column_name: & 'b str) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let dict_rows = parser.to_dict_list(csv_content);
     let _cse_temp_0 =! dict_rows.get(0usize).cloned().expect("IndexError: list index out of range").contains(& * column_name);
@@ -2213,7 +2213,7 @@ let _cse_temp_2 = values.iter().sum::<i32>();
     map.insert("max".to_string() ,(max_val) as f64);
     map })
 }
-#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'a, 'b>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
+#[doc = "Filter CSV rows where column equals condition_value"] pub fn filter_csv_rows<'b, 'a>(csv_content: String, column_name: & 'a str, condition_value: & 'b str) -> Result<String, Box<dyn std::error::Error>>{
     let parser = CSVParser::new();
     let rows = parser.parse_string(csv_content);
     if! rows {

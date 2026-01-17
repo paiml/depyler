@@ -2651,7 +2651,7 @@ pub fn read_file(filename: &str) -> Result<String, std::io::Error> {
 #[doc = "Write file using with statement."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn write_file<'a, 'b>(filename: &'a str, content: &'b str) -> Result<(), std::io::Error> {
+pub fn write_file<'b, 'a>(filename: &'a str, content: &'b str) -> Result<(), std::io::Error> {
     let mut f = std::fs::File::create(&filename)?;
     f.write_all(content.as_bytes()).unwrap();
     Ok(())
@@ -2659,7 +2659,7 @@ pub fn write_file<'a, 'b>(filename: &'a str, content: &'b str) -> Result<(), std
 #[doc = "Process file with multiple with statements."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn process_file<'b, 'a>(
+pub fn process_file<'a, 'b>(
     input_file: &'a str,
     output_file: &'b str,
 ) -> Result<(), std::io::Error> {

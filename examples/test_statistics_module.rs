@@ -2868,8 +2868,8 @@ pub fn test_variance() -> Result<f64, Box<dyn std::error::Error>> {
 }
 #[doc = "Test calculating standard deviation"]
 pub fn test_stdev() -> Result<f64, Box<dyn std::error::Error>> {
-    let mut total: f64 = Default::default();
     let mut variance_sum: f64 = Default::default();
+    let mut total: f64 = Default::default();
     let data: Vec<f64> = vec![2.0, 4.0, 6.0, 8.0, 10.0];
     total = 0.0;
     for value in data.iter().cloned() {
@@ -3056,8 +3056,8 @@ pub fn detect_outliers(data: &Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::
 }
 #[doc = "Normalize data to 0-1 range"]
 pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
-    let mut min_val: f64 = Default::default();
     let mut max_val: f64 = Default::default();
+    let mut min_val: f64 = Default::default();
     let _cse_temp_0 = data.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
@@ -3093,8 +3093,8 @@ pub fn normalize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Er
 }
 #[doc = "Standardize data(z-score)"]
 pub fn standardize_data(data: Vec<f64>) -> Result<Vec<f64>, Box<dyn std::error::Error>> {
-    let mut total: f64 = Default::default();
     let mut variance_sum: f64 = Default::default();
+    let mut total: f64 = Default::default();
     total = 0.0;
     for value in data.iter().cloned() {
         total = (total).py_add(value);
@@ -3128,9 +3128,9 @@ pub fn calculate_covariance<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut y_total: f64 = Default::default();
-    let mut x_total: f64 = Default::default();
     let mut cov_sum: f64 = Default::default();
+    let mut x_total: f64 = Default::default();
+    let mut y_total: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;
@@ -3182,11 +3182,11 @@ pub fn calculate_correlation<'a, 'b>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
+    let mut x_var_sum: f64 = Default::default();
     let mut diff: f64 = Default::default();
     let mut y_total: f64 = Default::default();
     let mut x_total: f64 = Default::default();
     let mut y_var_sum: f64 = Default::default();
-    let mut x_var_sum: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;

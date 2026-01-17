@@ -2716,7 +2716,7 @@ pub fn balanced_parentheses(expression: &str) -> Result<bool, Box<dyn std::error
                     return Ok(false);
                 }
                 let expected = pairs
-                    .get(&char::from_u32((last) as u32).unwrap().to_string())
+                    .get(&char::from_u32((last.unwrap()) as u32).unwrap().to_string())
                     .cloned()
                     .unwrap_or_default()
                     .chars()
