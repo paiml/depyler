@@ -5233,13 +5233,26 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 insert_stmts.push(quote! { map.insert(#key_expr, #wrapped_val); });
             }
 
-            return Ok(parse_quote! {
-                {
-                    let mut map = HashMap::new();
-                    #(#insert_stmts)*
-                    map
-                }
-            });
+            // DEPYLER-1159: Add explicit type annotations to HashMap to help type inference
+            // Without type annotations, empty or nested dicts can cause E0282 errors
+            // when the type can't be inferred from context (e.g., inside format! macro)
+            return if use_string_keys {
+                Ok(parse_quote! {
+                    {
+                        let mut map: HashMap<String, DepylerValue> = HashMap::new();
+                        #(#insert_stmts)*
+                        map
+                    }
+                })
+            } else {
+                Ok(parse_quote! {
+                    {
+                        let mut map: HashMap<DepylerValue, DepylerValue> = HashMap::new();
+                        #(#insert_stmts)*
+                        map
+                    }
+                })
+            };
         }
 
         // DEPYLER-0560: When inside json!() context (nested dict), use json!() macro
@@ -5476,13 +5489,35 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
             }
         } else {
-            Ok(parse_quote! {
-                {
-                    let mut map = HashMap::new();
-                    #(#insert_stmts)*
-                    map
-                }
-            })
+            // DEPYLER-1159: Add type annotations when target/return type is known
+            // to help Rust's type inference in complex expressions
+            let key_type = self.ctx.current_assign_type.as_ref()
+                .or(self.ctx.current_return_type.as_ref())
+                .and_then(|t| if let Type::Dict(k, _) = t { Some(k.as_ref()) } else { None });
+            let val_type = self.ctx.current_assign_type.as_ref()
+                .or(self.ctx.current_return_type.as_ref())
+                .and_then(|t| if let Type::Dict(_, v) = t { Some(v.as_ref()) } else { None });
+
+            if let (Some(k), Some(v)) = (key_type, val_type) {
+                let key_tokens = type_to_rust_type(k, self.ctx.type_mapper);
+                let val_tokens = type_to_rust_type(v, self.ctx.type_mapper);
+                Ok(parse_quote! {
+                    {
+                        let mut map: HashMap<#key_tokens, #val_tokens> = HashMap::new();
+                        #(#insert_stmts)*
+                        map
+                    }
+                })
+            } else {
+                // No type information available, let Rust infer
+                Ok(parse_quote! {
+                    {
+                        let mut map = HashMap::new();
+                        #(#insert_stmts)*
+                        map
+                    }
+                })
+            }
         }
     }
 
