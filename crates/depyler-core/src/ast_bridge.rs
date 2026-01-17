@@ -231,6 +231,18 @@ impl AstBridge {
                         }
                     }
                 }
+                // DEPYLER-1155: Handle `if __name__ == "__main__":` pattern
+                // Convert to a `fn main()` function that contains the block body
+                // BUT only if there's no `def main():` already defined
+                ast::Stmt::If(if_stmt) => {
+                    let has_main_function = functions.iter().any(|f| f.name == "main");
+                    if !has_main_function {
+                        if let Some(main_fn) = self.try_convert_if_main(&if_stmt)? {
+                            functions.push(main_fn);
+                        }
+                    }
+                    // Skip other if statements at module level
+                }
                 _ => {
                     // Skip other statements for now
                 }
@@ -544,6 +556,78 @@ impl AstBridge {
             }))
         } else {
             Ok(None) // No value, skip it
+        }
+    }
+
+    /// DEPYLER-1155: Handle `if __name__ == "__main__":` pattern
+    ///
+    /// This pattern is the standard Python entry point. We convert it to a `fn main()`
+    /// function so that the transpiled Rust code can be executed as a binary.
+    ///
+    /// Python:
+    /// ```python
+    /// if __name__ == "__main__":
+    ///     analyze_dataset()
+    /// ```
+    ///
+    /// Rust:
+    /// ```rust
+    /// fn main() {
+    ///     analyze_dataset();
+    /// }
+    /// ```
+    fn try_convert_if_main(&mut self, if_stmt: &ast::StmtIf) -> Result<Option<HirFunction>> {
+        // Check if condition is `__name__ == "__main__"`
+        if !self.is_main_guard(&if_stmt.test) {
+            return Ok(None);
+        }
+
+        // Convert the body of the if statement to HirStmts
+        let body: Vec<HirStmt> = if_stmt
+            .body
+            .iter()
+            .filter_map(|stmt| convert_stmt(stmt.clone()).ok())
+            .collect();
+
+        // Create a main function with the body
+        Ok(Some(HirFunction {
+            name: "main".to_string(),
+            params: smallvec::smallvec![],
+            ret_type: Type::None, // Rust main() returns ()
+            body,
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        }))
+    }
+
+    /// DEPYLER-1155: Check if expression is `__name__ == "__main__"`
+    fn is_main_guard(&self, expr: &ast::Expr) -> bool {
+        match expr {
+            ast::Expr::Compare(compare) => {
+                // Check left side is `__name__`
+                let left_is_name = match compare.left.as_ref() {
+                    ast::Expr::Name(name) => name.id.as_str() == "__name__",
+                    _ => false,
+                };
+
+                // Check operator is `==`
+                let op_is_eq = compare.ops.len() == 1
+                    && matches!(compare.ops[0], ast::CmpOp::Eq);
+
+                // Check right side is `"__main__"`
+                let right_is_main = compare.comparators.len() == 1
+                    && match &compare.comparators[0] {
+                        ast::Expr::Constant(c) => match &c.value {
+                            ast::Constant::Str(s) => s.as_str() == "__main__",
+                            _ => false,
+                        },
+                        _ => false,
+                    };
+
+                left_is_name && op_is_eq && right_is_main
+            }
+            _ => false,
         }
     }
 
