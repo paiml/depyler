@@ -2957,7 +2957,7 @@ pub fn safe_divide(a: i32, b: i32) -> Result<Option<f64>, Box<dyn std::error::Er
 }
 #[doc = "Safe dict access"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_value<'b, 'a>(
+pub fn get_value<'a, 'b>(
     data: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<Option<i32>, Box<dyn std::error::Error>> {

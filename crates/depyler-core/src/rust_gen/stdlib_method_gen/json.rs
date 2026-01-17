@@ -198,6 +198,23 @@ fn is_json_value_type(t: &Type) -> bool {
     }
 }
 
+/// DEPYLER-1153: Check if return type expects DepylerValue keys (bare Dict)
+/// This happens when Python has `-> Dict` without type parameters
+fn return_type_needs_depyler_value_keys(ctx: &CodeGenContext) -> bool {
+    if let Some(ref ret_type) = ctx.current_return_type {
+        match ret_type {
+            // Bare Dict maps to HashMap<DepylerValue, DepylerValue>
+            Type::Custom(s) if s == "Dict" => true,
+            // Dict with unknown key type also uses DepylerValue keys
+            Type::Dict(key_type, _) => matches!(key_type.as_ref(), Type::Unknown),
+            _ => false,
+        }
+    } else {
+        // No return type specified - default to DepylerValue keys for safety
+        true
+    }
+}
+
 // ============ NASA Mode Stub Functions ============
 // DEPYLER-1022: These functions provide std-only implementations that compile
 // without external crates. They use format!("{:?}", ...) for serialization
@@ -215,6 +232,7 @@ fn convert_dumps_nasa(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 
 /// NASA mode: json.loads() → empty HashMap stub
 /// DEPYLER-1051: Uses DepylerValue for Hybrid Fallback Strategy
+/// DEPYLER-1153: Use DepylerValue keys when return type is bare Dict
 fn convert_loads_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("json.loads() requires exactly 1 argument");
@@ -223,8 +241,13 @@ fn convert_loads_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Resu
     ctx.needs_hashmap = true;
     ctx.needs_depyler_value_enum = true; // DEPYLER-1051: Need DepylerValue enum
     // Return empty HashMap as stub - actual parsing requires serde_json
-    // DEPYLER-1051: Use DepylerValue for value type to match return type inference
-    Ok(parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() })
+    // DEPYLER-1153: Check if return type expects DepylerValue keys (bare Dict)
+    if return_type_needs_depyler_value_keys(ctx) {
+        Ok(parse_quote! { std::collections::HashMap::<DepylerValue, DepylerValue>::new() })
+    } else {
+        // DEPYLER-1051: Use String keys when return type is Dict[str, Any] or similar
+        Ok(parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() })
+    }
 }
 
 /// NASA mode: json.dump() → write Debug format to file (stub)
@@ -240,6 +263,7 @@ fn convert_dump_nasa(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 
 /// NASA mode: json.load() → empty HashMap stub
 /// DEPYLER-1051: Uses DepylerValue for Hybrid Fallback Strategy
+/// DEPYLER-1153: Use DepylerValue keys when return type is bare Dict
 fn convert_load_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn::Expr> {
     if arg_exprs.len() != 1 {
         bail!("json.load() requires exactly 1 argument (file)");
@@ -248,8 +272,13 @@ fn convert_load_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Resul
     ctx.needs_hashmap = true;
     ctx.needs_depyler_value_enum = true; // DEPYLER-1051: Need DepylerValue enum
     // Return empty HashMap as stub
-    // DEPYLER-1051: Use DepylerValue for value type to match return type inference
-    Ok(parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() })
+    // DEPYLER-1153: Check if return type expects DepylerValue keys (bare Dict)
+    if return_type_needs_depyler_value_keys(ctx) {
+        Ok(parse_quote! { std::collections::HashMap::<DepylerValue, DepylerValue>::new() })
+    } else {
+        // DEPYLER-1051: Use String keys when return type is Dict[str, Any] or similar
+        Ok(parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() })
+    }
 }
 
 #[cfg(test)]

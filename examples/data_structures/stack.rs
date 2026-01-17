@@ -2663,7 +2663,7 @@ impl Stack {
     pub fn push(&mut self, item: i32) {
         self._items.push(item);
     }
-    pub fn pop(&self) -> Option<i32> {
+    pub fn pop(&mut self) -> Option<i32> {
         if self.is_empty() {
             return None;
         };
