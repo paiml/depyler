@@ -2006,7 +2006,7 @@ results
     {
         hex::encode(hasher.finalize_reset())
 }
-} #[doc = "Verify data integrity using SHA512"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn verify_integrity<'b, 'a>(data: & 'a str, expected_hash: & 'b str) -> bool {
+} #[doc = "Verify data integrity using SHA512"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn verify_integrity<'a, 'b>(data: & 'a str, expected_hash: & 'b str) -> bool {
     let mut hasher = {
             Box::new(std::collections::hash_map::DefaultHasher::new()) as Box<dyn DynDigest>};
     hasher.update(& data.as_bytes().to_vec());

@@ -2653,7 +2653,7 @@ pub fn read_csv_rows(filename: &str) -> Result<Vec<Vec<String>>, std::io::Error>
 #[doc = "Write data to CSV file"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn write_csv_data<'b, 'a>(
+pub fn write_csv_data<'a, 'b>(
     filename: &'a str,
     data: &'b Vec<Vec<String>>,
 ) -> Result<(), std::io::Error> {

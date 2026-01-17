@@ -2637,7 +2637,7 @@ impl DepylerRegexMatch {
 #[doc = "Build a file path from components"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn build_file_path<'a, 'b>(base_dir: &'a str, components: &[String]) -> String {
+pub fn build_file_path<'b, 'a>(base_dir: &'a str, components: &[String]) -> String {
     {
         let mut __path = std::path::PathBuf::from(base_dir);
         for __part in components {
@@ -2747,7 +2747,7 @@ pub fn normalize_path(path: &str) -> String {
 #[doc = "Get relative path from start to path"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_relative_path<'a, 'b>(path: &'a str, start: &'b str) -> String {
+pub fn get_relative_path<'b, 'a>(path: &'a str, start: &'b str) -> String {
     {
         let path_obj = std::path::Path::new(path);
         let start_obj = std::path::Path::new(start);

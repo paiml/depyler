@@ -5,10 +5,10 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::f64 as math;
-    const STR_D: &'static str = "D";
     const STR_B: &'static str = "B";
     const STR_A: &'static str = "A";
     const STR_C: &'static str = "C";
+    const STR_D: &'static str = "D";
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::io::Write;
@@ -2076,7 +2076,7 @@ else {
 };
    
 }
-} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'a, 'b>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
+} #[doc = "\n    Matrix multiplication with nested loops.\n    \n    Interactive mode will suggest:\n    - Aggressive optimization for nested loops\n    - Potential SIMD vectorization\n    - Loop unrolling opportunities\n    "] #[doc = " Depyler: proven to terminate"] pub fn matrix_multiply<'b, 'a>(a: & 'a Vec<Vec<f64>>, b: & 'b Vec<Vec<f64>>) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>>{
     let _cse_temp_0 = a.len() as i32;
     let n = _cse_temp_0;
     let _cse_temp_1 = b.get(0usize).cloned().expect("IndexError: list index out of range").len() as i32;
@@ -2094,7 +2094,7 @@ else {
 }
 Ok(result)
 }
-#[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "] pub fn process_text_data<'a, 'b>(texts: & 'a Vec<String>, keywords: & 'b Vec<String>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>>{
+#[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "] pub fn process_text_data<'b, 'a>(texts: & 'a Vec<String>, keywords: & 'b Vec<String>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>>{
     let mut keyword_counts = keywords.iter().cloned().map(| kw | {
     let _v = 0;
    (kw, _v) }).collect::<std::collections::HashMap<_, _>>();
@@ -2180,7 +2180,7 @@ results.push(result);
 }
 Ok(results)
 }
-#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'b, 'a, 'c>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'a, 'b, 'c>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
     let mut current: String = Default::default();
     let mut visited = std::collections::HashSet::<i32>::new();
     let mut distances_from_start = {

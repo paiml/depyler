@@ -2785,7 +2785,7 @@ pub fn get_with_bound_exception<'a, 'b>(
 #[doc = "Multiple exception type handlers.\n\n    Python: except ValueError, except KeyError\n    Rust: match with multiple Err patterns\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn multiple_handlers<'b, 'a>(
+pub fn multiple_handlers<'a, 'b>(
     s: &'a str,
     d: &'b std::collections::HashMap<String, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
@@ -2911,8 +2911,8 @@ pub fn exception_with_computation(
     b: i32,
     c: i32,
 ) -> Result<i32, Box<dyn std::error::Error>> {
-    let mut step2: i32 = Default::default();
     let mut step1: i32 = Default::default();
+    let mut step2: i32 = Default::default();
     match (|| -> Result<i32, Box<dyn std::error::Error>> {
         step1 = {
             let a = a;

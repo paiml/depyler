@@ -4,8 +4,8 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_B: &'static str = "b";
 const STR_A: &'static str = "a";
+const STR_B: &'static str = "b";
 use std::collections::HashMap;
 use std::collections::HashSet;
 #[derive(Debug, Clone)]
