@@ -5283,7 +5283,16 @@ pub(crate) fn infer_try_body_return_type(body: &[HirStmt], ctx: &CodeGenContext)
         match stmt {
             HirStmt::Return(Some(expr)) => {
                 // Found a return with a value - infer its type
-                return Some(infer_expr_return_type(expr, ctx));
+                // DEPYLER-1157: If inference returns Unknown, fall back to function's return type
+                // This handles cases like `return json.loads(...)` where the method isn't recognized
+                let inferred = infer_expr_return_type(expr, ctx);
+                if matches!(inferred, Type::Unknown) {
+                    // Use function's annotated return type if available
+                    if let Some(ret_type) = ctx.current_return_type.as_ref() {
+                        return Some(ret_type.clone());
+                    }
+                }
+                return Some(inferred);
             }
             HirStmt::While { body: inner, .. } | HirStmt::For { body: inner, .. } => {
                 // Check inside loops
@@ -5424,6 +5433,13 @@ pub(crate) fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
             } else if let Type::Custom(name) = ty {
                 if name == "serde_json::Value" || name == "Value" {
                     quote! { serde_json::Value }
+                } else if name == "Dict" {
+                    // DEPYLER-1157: Bare Dict annotation -> HashMap<DepylerValue, DepylerValue>
+                    // Must match function signature mapping (DEPYLER-1153)
+                    quote! { std::collections::HashMap<DepylerValue, DepylerValue> }
+                } else if name == "List" {
+                    // DEPYLER-1157: Bare List annotation -> Vec<DepylerValue>
+                    quote! { Vec<DepylerValue> }
                 } else {
                     let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
                     quote! { #ident }
@@ -5431,6 +5447,15 @@ pub(crate) fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
             } else if let Type::Tuple(elems) = ty {
                 let elem_tokens: Vec<_> = elems.iter().map(try_return_type_to_tokens).collect();
                 quote! { (#(#elem_tokens),*) }
+            } else if let Type::List(elem) = ty {
+                // DEPYLER-1157: Handle List return types in try/except closures
+                let elem_tokens = try_return_type_to_tokens(elem);
+                quote! { Vec<#elem_tokens> }
+            } else if let Type::Dict(key, value) = ty {
+                // DEPYLER-1157: Handle Dict return types in try/except closures
+                let key_tokens = try_return_type_to_tokens(key);
+                let value_tokens = try_return_type_to_tokens(value);
+                quote! { std::collections::HashMap<#key_tokens, #value_tokens> }
             } else {
                 quote! { () }
             }
