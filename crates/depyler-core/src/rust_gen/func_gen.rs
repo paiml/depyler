@@ -2330,7 +2330,52 @@ pub(crate) fn collect_return_types_with_env(
     }
 }
 
+/// DEPYLER-1160: Collect all variable names that are returned from a function
+/// Used for target-typed inference of empty lists - we only infer the return type
+/// for variables that are actually returned, not just any empty list assignment
+fn collect_returned_var_names(stmts: &[HirStmt]) -> std::collections::HashSet<String> {
+    let mut names = std::collections::HashSet::new();
+    collect_returned_var_names_impl(stmts, &mut names);
+    names
+}
+
+fn collect_returned_var_names_impl(stmts: &[HirStmt], names: &mut std::collections::HashSet<String>) {
+    for stmt in stmts {
+        match stmt {
+            HirStmt::Return(Some(HirExpr::Var(name))) => {
+                names.insert(name.clone());
+            }
+            HirStmt::If { then_body, else_body, .. } => {
+                collect_returned_var_names_impl(then_body, names);
+                if let Some(else_stmts) = else_body {
+                    collect_returned_var_names_impl(else_stmts, names);
+                }
+            }
+            HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                collect_returned_var_names_impl(body, names);
+            }
+            HirStmt::Try { body, handlers, orelse, finalbody } => {
+                collect_returned_var_names_impl(body, names);
+                for handler in handlers {
+                    collect_returned_var_names_impl(&handler.body, names);
+                }
+                if let Some(orelse_stmts) = orelse {
+                    collect_returned_var_names_impl(orelse_stmts, names);
+                }
+                if let Some(finally_stmts) = finalbody {
+                    collect_returned_var_names_impl(finally_stmts, names);
+                }
+            }
+            HirStmt::With { body, .. } => {
+                collect_returned_var_names_impl(body, names);
+            }
+            _ => {}
+        }
+    }
+}
+
 /// DEPYLER-1134: Propagate return type annotation to returned variables
+/// DEPYLER-1160: Also propagate to empty list assignments that are later returned
 /// This enables Constraint-Aware Coercion by ensuring variables like `rows`
 /// get their type from `-> List[List[str]]` return annotation
 pub(crate) fn propagate_return_type_to_vars(
@@ -2343,8 +2388,45 @@ pub(crate) fn propagate_return_type_to_vars(
         return;
     }
 
+    // DEPYLER-1160: First, collect all returned variable names
+    // This enables the "Short Circuit" heuristic: when we see `result = []`
+    // and result is returned, we infer its type from the return type
+    let returned_vars = collect_returned_var_names(stmts);
+
+    propagate_return_type_impl(stmts, var_types, return_type, &returned_vars);
+}
+
+/// Internal implementation of return type propagation
+fn propagate_return_type_impl(
+    stmts: &[HirStmt],
+    var_types: &mut std::collections::HashMap<String, Type>,
+    return_type: &Type,
+    returned_vars: &std::collections::HashSet<String>,
+) {
     for stmt in stmts {
         match stmt {
+            // DEPYLER-1160: Target-typed inference for empty list assignments
+            // When `result = []` is assigned and `result` is returned from a function
+            // with return type List[T], infer result's type as List[T]
+            HirStmt::Assign { target: AssignTarget::Symbol(name), value, .. } => {
+                if let HirExpr::List(elements) = value {
+                    if elements.is_empty() && returned_vars.contains(name) {
+                        // Only propagate if return type is a List with concrete element type
+                        if let Type::List(_elem_type) = return_type {
+                            // Don't override if we already have a concrete type
+                            let should_update = match var_types.get(name) {
+                                None => true,
+                                Some(Type::Unknown) => true,
+                                Some(Type::List(inner)) if matches!(inner.as_ref(), Type::Unknown) => true,
+                                _ => false,
+                            };
+                            if should_update {
+                                var_types.insert(name.clone(), return_type.clone());
+                            }
+                        }
+                    }
+                }
+            }
             HirStmt::Return(Some(expr)) => {
                 // If returning a simple variable, propagate return type to it
                 if let HirExpr::Var(var_name) = expr {
@@ -2362,28 +2444,28 @@ pub(crate) fn propagate_return_type_to_vars(
                 }
             }
             HirStmt::If { then_body, else_body, .. } => {
-                propagate_return_type_to_vars(then_body, var_types, return_type);
+                propagate_return_type_impl(then_body, var_types, return_type, returned_vars);
                 if let Some(else_stmts) = else_body {
-                    propagate_return_type_to_vars(else_stmts, var_types, return_type);
+                    propagate_return_type_impl(else_stmts, var_types, return_type, returned_vars);
                 }
             }
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
-                propagate_return_type_to_vars(body, var_types, return_type);
+                propagate_return_type_impl(body, var_types, return_type, returned_vars);
             }
             HirStmt::Try { body, handlers, orelse, finalbody } => {
-                propagate_return_type_to_vars(body, var_types, return_type);
+                propagate_return_type_impl(body, var_types, return_type, returned_vars);
                 for handler in handlers {
-                    propagate_return_type_to_vars(&handler.body, var_types, return_type);
+                    propagate_return_type_impl(&handler.body, var_types, return_type, returned_vars);
                 }
                 if let Some(orelse_stmts) = orelse {
-                    propagate_return_type_to_vars(orelse_stmts, var_types, return_type);
+                    propagate_return_type_impl(orelse_stmts, var_types, return_type, returned_vars);
                 }
                 if let Some(finally_stmts) = finalbody {
-                    propagate_return_type_to_vars(finally_stmts, var_types, return_type);
+                    propagate_return_type_impl(finally_stmts, var_types, return_type, returned_vars);
                 }
             }
             HirStmt::With { body, .. } => {
-                propagate_return_type_to_vars(body, var_types, return_type);
+                propagate_return_type_impl(body, var_types, return_type, returned_vars);
             }
             _ => {}
         }
