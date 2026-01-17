@@ -6,8 +6,8 @@
 #![allow(dead_code)]
 use std::collections::HashMap;
 use std::collections::VecDeque;
-const STR_B: &'static str = "b";
 const STR_A: &'static str = "a";
+const STR_B: &'static str = "b";
 const STR_APPLE: &'static str = "apple";
 #[derive(Debug, Clone)]
 pub struct IndexError {

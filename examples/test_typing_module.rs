@@ -2858,7 +2858,7 @@ pub fn process_user_data(
     Ok((result, avg_score))
 }
 #[doc = "Test Dict parameters and return"]
-pub fn merge_data<'a, 'b>(
+pub fn merge_data<'b, 'a>(
     dict1: &'a std::collections::HashMap<String, i32>,
     dict2: &'b std::collections::HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {

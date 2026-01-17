@@ -2877,8 +2877,8 @@ pub fn test_pairwise(items: &Vec<i32>) -> Vec<(i32, i32)> {
 pub fn test_groupby_manual(
     items: &Vec<i32>,
 ) -> Result<Vec<(bool, Vec<i32>)>, Box<dyn std::error::Error>> {
-    let mut current_group: Vec<i32> = Default::default();
     let mut current_is_even: bool = Default::default();
+    let mut current_group: Vec<i32> = Default::default();
     let mut groups: Vec<(bool, Vec<i32>)> = vec![];
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
@@ -2924,7 +2924,7 @@ pub fn test_groupby_manual(
 }
 #[doc = "Test compress() to filter data by selectors"]
 #[doc = " Depyler: proven to terminate"]
-pub fn test_compress<'a, 'b>(
+pub fn test_compress<'b, 'a>(
     data: &'a Vec<String>,
     selectors: &'b Vec<bool>,
 ) -> Result<Vec<String>, Box<dyn std::error::Error>> {
@@ -2971,7 +2971,7 @@ pub fn flatten_nested_lists(nested: &Vec<Vec<i32>>) -> Vec<i32> {
 }
 #[doc = "Manual implementation of Cartesian product"]
 #[doc = " Depyler: verified panic-free"]
-pub fn cartesian_product_manual<'b, 'a>(
+pub fn cartesian_product_manual<'a, 'b>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Vec<(i32, i32)> {

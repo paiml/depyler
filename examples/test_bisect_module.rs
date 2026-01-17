@@ -2971,7 +2971,7 @@ pub fn find_closest_value(arr: &Vec<i32>, target: i32) -> Result<i32, Box<dyn st
     }
 }
 #[doc = "Merge two sorted arrays"]
-pub fn merge_sorted_arrays<'b, 'a>(
+pub fn merge_sorted_arrays<'a, 'b>(
     arr1: &'a Vec<i32>,
     arr2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {
@@ -3061,8 +3061,8 @@ pub fn find_floor_ceiling(
     arr: &Vec<i32>,
     target: i32,
 ) -> Result<(i32, i32), Box<dyn std::error::Error>> {
-    let mut ceiling_val: i32 = Default::default();
     let mut floor_val: i32 = Default::default();
+    let mut ceiling_val: i32 = Default::default();
     let position: i32 = binary_search_left(&arr, target)?;
     floor_val = -1;
     ceiling_val = -1;

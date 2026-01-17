@@ -2691,7 +2691,7 @@ pub fn manipulate_text(text: &str) -> String {
 #[doc = "Mixed numeric operations."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn mixed_operations<'a, 'b>(x: i32, y: i32) {
+pub fn mixed_operations<'b, 'a>(x: i32, y: i32) {
     let sum_val = (x).py_add(y);
     let _cse_temp_0 = (x).py_mul(y);
     let product = _cse_temp_0;
@@ -2706,7 +2706,7 @@ pub fn mixed_operations<'a, 'b>(x: i32, y: i32) {
 #[doc = " Depyler: proven to terminate"]
 pub fn container_operations(
     items: &mut Vec<DepylerValue>,
-) -> Result<String, Box<dyn std::error::Error>> {
+) -> Result<Option<DepylerValue>, Box<dyn std::error::Error>> {
     let _cse_temp_0 = items.len() as i32;
     let _cse_temp_1 = _cse_temp_0 > 0;
     if _cse_temp_1 {
@@ -2715,7 +2715,7 @@ pub fn container_operations(
             .cloned()
             .expect("IndexError: list index out of range");
         items.push(DepylerValue::Int(42 as i64));
-        return Ok(first.to_string());
+        return Ok(first);
     }
     Ok(None)
 }
@@ -2775,4 +2775,19 @@ pub fn partial_annotations<'a, 'b>(
         )));
     }
     result
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use quickcheck::{quickcheck, TestResult};
+    #[test]
+    fn test_process_numbers_examples() {
+        assert_eq!(process_numbers(&vec![]), 0);
+        assert_eq!(process_numbers(&vec![1]), 1);
+        assert_eq!(process_numbers(&vec![1, 2, 3]), 3);
+    }
+    #[test]
+    fn test_inferred_return_types_examples() {
+        let _ = inferred_return_types();
+    }
 }

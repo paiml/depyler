@@ -1030,6 +1030,9 @@ fn stmt_mutates_self(stmt: &HirStmt) -> bool {
         // DEPYLER-1008: Check for method calls that mutate self.field
         // e.g., self.messages.append(msg) -> self.messages is mutated
         HirStmt::Expr(expr) => expr_mutates_self(expr),
+        // DEPYLER-1152: Check for mutations in return statements
+        // e.g., return self._items.pop() - the pop() mutates self._items
+        HirStmt::Return(Some(expr)) => expr_mutates_self(expr),
         HirStmt::If {
             then_body,
             else_body,
@@ -4258,6 +4261,32 @@ mod tests {
             docstring: None,
         };
         assert!(!method_mutates_self(&method));
+    }
+
+    /// DEPYLER-1152: Test that return statements containing mutations are detected
+    /// e.g., return self._items.pop() should trigger &mut self
+    #[test]
+    fn test_method_mutates_self_in_return() {
+        let method = HirMethod {
+            name: "pop".to_string(),
+            params: smallvec::smallvec![],
+            body: vec![HirStmt::Return(Some(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("self".to_string())),
+                    attr: "_items".to_string(),
+                }),
+                method: "pop".to_string(),
+                args: vec![],
+                kwargs: vec![],
+            }))],
+            ret_type: Type::Optional(Box::new(Type::Int)),
+            is_async: false,
+            is_static: false,
+            is_classmethod: false,
+            is_property: false,
+            docstring: None,
+        };
+        assert!(method_mutates_self(&method));
     }
 
     // ============ stmt_mutates_self tests ============

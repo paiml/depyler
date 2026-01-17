@@ -2858,7 +2858,7 @@ pub fn clone_dict_with_filter(
     Ok(filtered)
 }
 #[doc = "Merge two dictionaries by copying"]
-pub fn merge_copied_dicts<'a, 'b>(
+pub fn merge_copied_dicts<'b, 'a>(
     dict1: &'a std::collections::HashMap<String, i32>,
     dict2: &'b std::collections::HashMap<String, i32>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {

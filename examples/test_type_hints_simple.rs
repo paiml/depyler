@@ -2654,7 +2654,7 @@ impl DepylerRegexMatch {
 #[doc = "Add two numbers - should infer numeric types."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn add_numbers<'b, 'a>(a: i32, b: i32) {
+pub fn add_numbers<'a, 'b>(a: i32, b: i32) {
     let _ = (a).py_add(b);
 }
 #[doc = "Process text - should infer string type."]

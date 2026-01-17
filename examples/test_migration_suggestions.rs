@@ -2656,7 +2656,7 @@ pub fn error_with_none(value: &str) -> Option<DepylerValue> {
     if processed.is_none() {
         return None;
     }
-    processed
+    processed.unwrap()
 }
 #[doc = "Pattern: mutating parameters - should suggest ownership patterns."]
 #[doc = " Depyler: verified panic-free"]

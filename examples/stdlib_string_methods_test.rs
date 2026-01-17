@@ -4,8 +4,8 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_HELLO: &'static str = "hello";
 const STR_HELLO_WORLD: &'static str = "hello world";
+const STR_HELLO: &'static str = "hello";
 #[doc = r" Sum type for heterogeneous dictionary values(Python fidelity)"]
 #[doc = r" DEPYLER-1040b: Now implements Hash + Eq to support non-string dict keys"]
 #[derive(Debug, Clone, Default)]

@@ -2756,7 +2756,7 @@ pub fn type_check_heavy(values: &Vec<DepylerValue>) -> i32 {
 }
 #[doc = "Matrix multiplication - triple nested loop."]
 #[doc = " Depyler: proven to terminate"]
-pub fn matrix_multiply<'b, 'a>(
+pub fn matrix_multiply<'a, 'b>(
     a: &'a Vec<Vec<f64>>,
     b: &'b Vec<Vec<f64>>,
 ) -> Result<Vec<Vec<f64>>, Box<dyn std::error::Error>> {
