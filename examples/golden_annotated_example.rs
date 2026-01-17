@@ -2782,7 +2782,7 @@ pub fn function_composition(
 #[doc = "Demonstrates different confidence levels."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn confidence_levels_demo<'a, 'b>(
+pub fn confidence_levels_demo<'b, 'a>(
     certain_str: &'a str,
     probable_num: i32,
     possible_container: &'b Vec<i32>,
@@ -2825,7 +2825,7 @@ pub fn simple_list_sum(numbers: &Vec<i32>) -> i32 {
 #[doc = "Dictionary lookup with default."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn simple_dict_lookup<'a, 'b>(
+pub fn simple_dict_lookup<'b, 'a>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> i32 {

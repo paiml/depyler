@@ -3058,8 +3058,8 @@ pub fn find_palindromes(words: &Vec<String>) -> Result<Vec<String>, Box<dyn std:
 pub fn analyze_vowel_consonant_ratio(
     text: &str,
 ) -> Result<HashMap<String, f64>, Box<dyn std::error::Error>> {
-    let mut consonant_count: i32 = Default::default();
     let mut vowel_count: i32 = Default::default();
+    let mut consonant_count: i32 = Default::default();
     let vowels: String = "aeiouAEIOU".to_string();
     vowel_count = 0;
     consonant_count = 0;

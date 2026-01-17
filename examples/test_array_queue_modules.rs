@@ -2691,7 +2691,7 @@ impl SimpleStack {
     pub fn push(&mut self, item: i32) {
         self.items.push(item);
     }
-    pub fn pop(&self) -> i32 {
+    pub fn pop(&mut self) -> i32 {
         if (self.items.clone().len() as i32) == 0 {
             return -1;
         };

@@ -2885,7 +2885,7 @@ pub fn test_date_comparison() -> bool {
 }
 #[doc = "Calculate working days between two dates(excluding weekends)"]
 #[doc = " Depyler: proven to terminate"]
-pub fn working_days_between<'a, 'b>(
+pub fn working_days_between<'b, 'a>(
     start: &'a DepylerDate,
     end: &'b DepylerDate,
 ) -> Result<i32, Box<dyn std::error::Error>> {

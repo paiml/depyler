@@ -2685,7 +2685,7 @@ impl VerifiedStack {
             self.items.push(item);
         };
     }
-    pub fn pop(&self) -> i32 {
+    pub fn pop(&mut self) -> i32 {
         if self.items.clone() {
             return self.items.pop().unwrap_or_default();
         };

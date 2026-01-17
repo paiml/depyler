@@ -2727,9 +2727,9 @@ pub fn coin_flip_sequence(num_flips: i32) -> Vec<String> {
 pub fn count_streaks(
     sequence: &Vec<String>,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
+    let mut max_heads_streak: i32 = Default::default();
     let mut max_tails_streak: i32 = Default::default();
     let mut current_streak: i32 = Default::default();
-    let mut max_heads_streak: i32 = Default::default();
     let mut current_type: String = Default::default();
     let _cse_temp_0 = sequence.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;

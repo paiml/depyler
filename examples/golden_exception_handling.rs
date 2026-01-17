@@ -2765,7 +2765,7 @@ pub fn get_with_key_error<'a, 'b>(
 #[doc = "try/except with exception variable binding.\n\n    Python: except KeyError as e → use e\n    Rust: Err(e) =>format!(\"Error: {}\", e)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_with_bound_exception<'a, 'b>(
+pub fn get_with_bound_exception<'b, 'a>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -2785,7 +2785,7 @@ pub fn get_with_bound_exception<'a, 'b>(
 #[doc = "Multiple exception type handlers.\n\n    Python: except ValueError, except KeyError\n    Rust: match with multiple Err patterns\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn multiple_handlers<'a, 'b>(
+pub fn multiple_handlers<'b, 'a>(
     s: &'a str,
     d: &'b std::collections::HashMap<String, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {

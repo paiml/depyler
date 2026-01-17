@@ -2991,8 +2991,8 @@ pub fn test_zip_longest<'a, 'b>(
     list2: &'b Vec<i32>,
     fillvalue: i32,
 ) -> Result<Vec<(i32, i32)>, Box<dyn std::error::Error>> {
-    let mut val1: i32 = Default::default();
     let mut val2: i32 = Default::default();
+    let mut val1: i32 = Default::default();
     let mut result: Vec<(i32, i32)> = vec![];
     let _cse_temp_0 = list1.len() as i32;
     let _cse_temp_1 = list2.len() as i32;
