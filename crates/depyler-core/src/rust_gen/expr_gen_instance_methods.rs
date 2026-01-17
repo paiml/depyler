@@ -8073,8 +8073,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn infer_lambda_param_type(&self, param: &str, body: &HirExpr) -> Option<syn::Type> {
         // DEPYLER-1117: Check iterator methods FIRST - if param.iter() is called,
         // it's a collection, not a scalar
+        // DEPYLER-1156: Use &Vec<i64> (reference) instead of Vec<i64> (owned)
+        // Python passes lists by reference, so lambda calls use &numbers not numbers
         if self.body_uses_iter_on_param(param, body) {
-            return Some(parse_quote! { Vec<i64> });
+            return Some(parse_quote! { &Vec<i64> });
         }
 
         // DEPYLER-1130: Check if parameter is used as a boolean condition
