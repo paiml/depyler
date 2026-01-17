@@ -20,6 +20,7 @@ use crate::rust_gen::stmt_gen::{
 };
 use crate::rust_gen::type_tokens::hir_type_to_tokens;
 use crate::rust_gen::var_analysis::extract_toplevel_assigned_symbols;
+use crate::rust_gen::func_gen::propagate_return_type_to_vars;
 #[cfg(feature = "decision-tracing")]
 use crate::decision_trace::DecisionCategory;
 use crate::trace_decision;
@@ -1775,6 +1776,11 @@ fn codegen_nested_function_def(
     // Without this, variables reassigned inside closures don't get `let mut`,
     // causing E0384 "cannot assign twice to immutable variable" errors.
     crate::rust_gen::analyze_mutable_vars(body, ctx, &effective_params);
+
+    // DEPYLER-1160: Propagate return type annotation to returned variables
+    // This enables target-typed inference for empty lists in nested functions
+    // e.g., `result = []` gets type Vec<i32> when function returns list[int]
+    propagate_return_type_to_vars(body, &mut ctx.var_types, ret_type);
 
     // Generate body
     let body_tokens: Vec<proc_macro2::TokenStream> = body
