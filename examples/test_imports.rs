@@ -2649,7 +2649,7 @@ pub fn parse_json(data: &str) -> std::collections::HashMap<DepylerValue, Depyler
     std::collections::HashMap::<String, DepylerValue>::new()
 }
 #[doc = " Depyler: verified panic-free"]
-pub fn join_paths<'a, 'b>(base: &'a str, paths: &[String]) -> String {
+pub fn join_paths<'b, 'a>(base: &'a str, paths: &[String]) -> String {
     let mut result: String = Default::default();
     result = base.to_string();
     for p in paths.iter().cloned() {
@@ -2662,7 +2662,7 @@ pub fn join_paths<'a, 'b>(base: &'a str, paths: &[String]) -> String {
 }
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn find_pattern<'b, 'a>(text: &'a str, pattern: &'b str) -> Vec<String> {
+pub fn find_pattern<'a, 'b>(text: &'a str, pattern: &'b str) -> Vec<String> {
     let regex = pattern.to_string();
     regex
         .find_iter(text)

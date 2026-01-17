@@ -2977,8 +2977,8 @@ pub fn caesar_cipher(text: &str, shift: i32) -> Result<String, Box<dyn std::erro
     result = STR_EMPTY.to_string().to_string();
     for char in text.chars() {
         if char.is_alphabetic() {
-            let mut shifted: i32;
             let mut new_char: String;
+            let mut shifted: i32;
             let mut base: i32;
             if !char.is_alphabetic() || char.is_uppercase() {
                 base = "A".chars().next().unwrap() as i32;

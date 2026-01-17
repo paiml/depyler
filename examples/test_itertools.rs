@@ -2637,7 +2637,7 @@ impl DepylerRegexMatch {
 #[doc = "Chain two lists together"]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn chain_lists<'b, 'a>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<i32> {
+pub fn chain_lists<'a, 'b>(list1: &'a Vec<i32>, list2: &'b Vec<i32>) -> Vec<i32> {
     {
         let a = list1;
         let b = list2;

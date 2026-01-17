@@ -2735,7 +2735,7 @@ pub fn process_strings(strings: &Vec<String>) -> String {
 }
 #[doc = "Function with frequent dictionary lookups."]
 #[doc = " Depyler: verified panic-free"]
-pub fn lookup_values<'a, 'b>(
+pub fn lookup_values<'b, 'a>(
     data: &'a std::collections::HashMap<String, i32>,
     keys: &'b Vec<String>,
 ) -> Vec<i32> {

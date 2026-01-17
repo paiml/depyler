@@ -2695,7 +2695,7 @@ pub fn find_duplicates(numbers: &Vec<i32>) -> Vec<i32> {
     duplicates
 }
 #[doc = "Merge two sorted lists into one sorted list"]
-pub fn merge_sorted_lists<'a, 'b>(
+pub fn merge_sorted_lists<'b, 'a>(
     list1: &'a Vec<i32>,
     list2: &'b Vec<i32>,
 ) -> Result<Vec<i32>, Box<dyn std::error::Error>> {

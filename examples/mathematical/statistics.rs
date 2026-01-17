@@ -2851,14 +2851,14 @@ pub fn standard_deviation(numbers: &Vec<f64>) -> Result<f64, Box<dyn std::error:
 }
 #[doc = "Calculate Pearson correlation coefficient"]
 #[doc = " Depyler: proven to terminate"]
-pub fn correlation<'a, 'b>(
+pub fn correlation<'b, 'a>(
     x: &'a Vec<f64>,
     y: &'b Vec<f64>,
 ) -> Result<f64, Box<dyn std::error::Error>> {
-    let mut sum_x_squared: f64 = Default::default();
     let mut denominator: f64 = Default::default();
-    let mut numerator: f64 = Default::default();
     let mut sum_y_squared: f64 = Default::default();
+    let mut numerator: f64 = Default::default();
+    let mut sum_x_squared: f64 = Default::default();
     let _cse_temp_0 = x.len() as i32;
     let _cse_temp_1 = y.len() as i32;
     let _cse_temp_2 = _cse_temp_0 != _cse_temp_1;

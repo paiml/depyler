@@ -2788,8 +2788,8 @@ pub fn fibonacci_memoized(
 #[doc = "Find the index of a target value in Fibonacci sequence."]
 #[doc = " Depyler: verified panic-free"]
 pub fn find_fibonacci_index(target: i32) -> Option<i32> {
-    let mut a: i32 = Default::default();
     let mut index: i32 = Default::default();
+    let mut a: i32 = Default::default();
     let _cse_temp_0 = target < 0;
     if _cse_temp_0 {
         return None;
