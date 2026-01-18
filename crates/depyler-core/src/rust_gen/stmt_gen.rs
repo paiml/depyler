@@ -4826,9 +4826,11 @@ pub(crate) fn codegen_assign_index(
     if indices.is_empty() {
         // Simple assignment: d[k] = v OR list[i] = x
         if is_numeric_index {
-            // DEPYLER-0314: Vec.insert(index as usize, value)
-            // Wrap in parentheses to ensure correct operator precedence
-            Ok(quote! { #base_expr.insert((#final_index) as usize, #final_value_expr); })
+            // DEPYLER-1169: List index assignment uses index operator, NOT insert()
+            // Python: list[i] = x → replaces element at index i
+            // Rust: vec[i] = x → replaces element at index i
+            // WRONG: vec.insert(i, x) → inserts NEW element, shifts others (causes bugs!)
+            Ok(quote! { #base_expr[(#final_index) as usize] = #final_value_expr; })
         } else if needs_as_object_mut {
             // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
             // DEPYLER-0473: Clone key to avoid move-after-use errors

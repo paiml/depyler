@@ -384,6 +384,12 @@ pub struct CodeGenContext<'a> {
     /// Maps variable name -> correct Type. Overrides inferred types during codegen.
     /// Populated by repair_file_types() in utol.rs via transpile_with_constraints().
     pub type_overrides: HashMap<String, Type>,
+
+    /// DEPYLER-1168: Track variables that are used after the current statement
+    /// When a function takes ownership of a parameter and the argument variable is used
+    /// later in the same scope, we need to insert .clone() at the call site.
+    /// Populated during statement iteration in stmt_gen.rs.
+    pub vars_used_later: HashSet<String>,
 }
 
 impl<'a> CodeGenContext<'a> {
@@ -781,6 +787,7 @@ pub mod test_helpers {
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
             type_overrides: HashMap::new(), // DEPYLER-1101
+            vars_used_later: HashSet::new(), // DEPYLER-1168
         }
     }
 }

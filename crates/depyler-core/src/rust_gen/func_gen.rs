@@ -800,6 +800,17 @@ pub(crate) fn codegen_function_body(
         // Mark final statement for idiomatic expression-based return
         // (only if it's not a FunctionDef, as those are assignments not returns)
         ctx.is_final_statement = i == body_len - 1 && !matches!(stmt, HirStmt::FunctionDef { .. });
+
+        // DEPYLER-1168: Populate vars_used_later for call-site clone detection
+        // Before processing each statement, compute which variables are used in remaining statements
+        ctx.vars_used_later.clear();
+        let remaining_stmts = &func.body[i + 1..];
+        for var_name in ctx.var_types.keys() {
+            if is_var_used_in_remaining_stmts(var_name, remaining_stmts) {
+                ctx.vars_used_later.insert(var_name.clone());
+            }
+        }
+
         let tokens = stmt.to_rust_tokens(ctx)?;
         body_stmts.push(tokens);
     }
