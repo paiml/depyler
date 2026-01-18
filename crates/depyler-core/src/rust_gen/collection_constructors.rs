@@ -160,20 +160,30 @@ pub fn convert_dict_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Res
 /// Convert Python deque() to Rust VecDeque
 ///
 /// DEPYLER-0173: deque(iterable) creates VecDeque from iterable
+/// DEPYLER-1165: In NASA mode, wrap elements in DepylerValue for heterogeneous deques
 ///
 /// - `deque()` → `VecDeque::new()`
 /// - `deque(iterable)` → `VecDeque::from(iterable)`
+/// - In NASA mode: `deque([1,2,3])` → `VecDeque::from(vec![1,2,3].into_iter().map(DepylerValue::from).collect::<Vec<_>>())`
 ///
-/// # Complexity: 4
+/// # Complexity: 6
 pub fn convert_deque_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
     ctx.needs_vecdeque = true;
     if args.is_empty() {
         Ok(parse_quote! { VecDeque::new() })
     } else if args.len() == 1 {
         let arg = &args[0];
-        Ok(parse_quote! {
-            VecDeque::from(#arg)
-        })
+        // DEPYLER-1165: In NASA mode, wrap iterable elements in DepylerValue
+        if ctx.type_mapper.nasa_mode {
+            ctx.needs_depyler_value_enum = true;
+            Ok(parse_quote! {
+                VecDeque::from(#arg.into_iter().map(DepylerValue::from).collect::<Vec<_>>())
+            })
+        } else {
+            Ok(parse_quote! {
+                VecDeque::from(#arg)
+            })
+        }
     } else {
         bail!("deque() takes at most 1 argument ({} given)", args.len())
     }
