@@ -2,6 +2,49 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.22.0] - 2025-01-18
+
+### 🎯 Hero Example Achievement
+
+**data_analysis_combined.py now compiles AND runs!**
+
+This release marks a significant milestone: complex Python data science scripts
+with multiple function calls, statistical calculations, and data transformations
+now transpile to working Rust binaries.
+
+### 🔧 Bug Fixes
+
+#### DEPYLER-1168: Call-Site Borrowing Heuristic
+**Impact**: Fixes E0382 "use of moved value" errors
+**Root Cause**: When a variable was passed to a function that takes ownership,
+but the variable was used again later in the same scope, Rust would error.
+
+**Solution**: Added look-ahead analysis during code generation:
+- Track variables used after current statement (`vars_used_later`)
+- When function takes ownership and variable is reused, insert `.clone()`
+- Example: `normalize_data(dataset.clone())` preserves `dataset` for later use
+
+**Files Changed**:
+- `context.rs`: Added `vars_used_later: HashSet<String>`
+- `func_gen.rs`: Populate `vars_used_later` during statement iteration
+- `expr_gen.rs`: Insert `.clone()` at call site when variable is reused
+
+#### DEPYLER-1169: List Index Assignment
+**Impact**: Fixes infinite loop/hang in bubble sort implementations
+**Root Cause**: `list[i] = x` was generating `vec.insert(i, x)` instead of `vec[i] = x`
+
+**Python semantics**: `list[i] = x` replaces element at index i
+**Wrong Rust**: `vec.insert(i, x)` inserts NEW element, shifts others (O(n))
+**Correct Rust**: `vec[i] = x` replaces element at index i (O(1))
+
+**File Changed**: `stmt_gen.rs` line 4831
+
+### 📊 Metrics
+
+- **Compile Rate**: 40.6% (130/320 files)
+- **Hero Example Runtime**: < 10 seconds
+- **Top Remaining Blocker**: E0308 type mismatches (334 errors)
+
 ## [Unreleased]
 
 ### 🔧 Code Organization & Refactoring (2025-01-06)
