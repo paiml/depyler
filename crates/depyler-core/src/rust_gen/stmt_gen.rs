@@ -9807,11 +9807,12 @@ mod tests {
 
     #[test]
     fn test_try_return_type_to_tokens_list() {
-        // Note: try_return_type_to_tokens doesn't handle List, falls to ()
+        // DEPYLER-1157: List is now handled and returns Vec<T>
         let tokens = try_return_type_to_tokens(&Type::List(Box::new(Type::Int)));
         let tokens_str = tokens.to_string();
-        // List not specifically handled, falls back to unit type
-        assert!(tokens_str.contains("()"));
+        // List returns Vec<element_type>
+        assert!(tokens_str.contains("Vec"));
+        assert!(tokens_str.contains("i32"));
     }
 
     #[test]

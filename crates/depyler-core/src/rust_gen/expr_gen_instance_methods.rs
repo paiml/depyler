@@ -5092,9 +5092,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-1045: Check if target type annotation requires DepylerValue
         // When `values: dict = {...}`, the type annotation maps to DepylerValue values
         // even if all literal values are strings (homogeneous)
+        // DEPYLER-1166: Also check for Type::Custom("DepylerValue") which is what Dict[str, Any] maps to in NASA mode
         let target_needs_depyler_value = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type {
-            // Unknown value type means bare `dict` annotation → DepylerValue
+            // Unknown or DepylerValue value type → use DepylerValue wrapping
             matches!(val_type.as_ref(), Type::Unknown)
+                || matches!(val_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "serde_json::Value")
         } else {
             false
         };
@@ -5112,9 +5114,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-1050: Check if function return type requires DepylerValue
         // When function returns HashMap<String, DepylerValue>, ALL dict literals in the
         // function body must use DepylerValue wrapping (even in nested return statements)
+        // DEPYLER-1166: Also check for Type::Custom("DepylerValue") which is what Dict[str, Any] maps to in NASA mode
         let return_needs_depyler_value = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_return_type {
-            // Unknown value type means bare `dict` return → DepylerValue
+            // Unknown or DepylerValue value type → use DepylerValue wrapping
             matches!(val_type.as_ref(), Type::Unknown)
+                || matches!(val_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "serde_json::Value")
         } else {
             false
         };
@@ -5156,7 +5160,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let mut insert_stmts = Vec::new();
             for (key, value) in items {
                 let key_expr_raw = key.to_rust_expr(self.ctx)?;
+
+                // DEPYLER-1166: Propagate DepylerValue context for nested Dict/List values
+                // When converting a nested dict that will become a DepylerValue, set the context
+                // so the inner dict also uses DepylerValue wrapping for its values
+                let prev_assign_type = self.ctx.current_assign_type.clone();
+                if matches!(value, HirExpr::Dict(_) | HirExpr::List(_)) {
+                    // Set context to Dict with Unknown value type → triggers DepylerValue
+                    self.ctx.current_assign_type = Some(Type::Dict(
+                        Box::new(Type::String),
+                        Box::new(Type::Unknown)
+                    ));
+                }
                 let val_expr = value.to_rust_expr(self.ctx)?;
+                // Restore context
+                self.ctx.current_assign_type = prev_assign_type;
 
                 // DEPYLER-1047: Use String keys when return/target type expects String keys
                 // DEPYLER-1060: Wrap keys in DepylerValue to support non-string keys
@@ -5329,8 +5347,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
                         }
                     }
-                    // TODO: Handle nested List/Dict by recursively enabling DepylerValue context?
-                    // For now, fallback to string representation for complex nested types to avoid compile errors
+                    // DEPYLER-1166: Handle nested Dict values
+                    // Wrap inner HashMap<String, DepylerValue> as DepylerValue::Dict(HashMap<DepylerValue, DepylerValue>)
+                    // by converting String keys to DepylerValue::Str keys
+                    HirExpr::Dict(_) => {
+                        parse_quote! {
+                            DepylerValue::Dict(#val_expr.into_iter()
+                                .map(|(k, v)| (DepylerValue::Str(k), v))
+                                .collect())
+                        }
+                    }
+                    // DEPYLER-1166: Handle nested List values
+                    // The list elements should already be DepylerValue from recursive conversion
+                    HirExpr::List(_) => {
+                        parse_quote! { DepylerValue::List(#val_expr) }
+                    }
+                    // Fallback for other complex types
                     _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
                 };
 
@@ -5674,15 +5706,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-0270 FIX: Only flag as heterogeneous when we have strong evidence
     /// DEPYLER-0461: Also detect nested dicts which require serde_json::Value
     pub(crate) fn dict_has_mixed_types(&self, items: &[(HirExpr, HirExpr)]) -> Result<bool> {
-        if items.len() <= 1 {
-            return Ok(false); // Single type or empty
-        }
-
-        // DEPYLER-0461: Check for nested dict expressions (recursively)
-        // If any value is a Dict (or contains a Dict), we need serde_json::json!()
-        // This ensures ALL levels of nested dicts use json!() for consistency
+        // DEPYLER-1166: Check for nested dicts FIRST (before item count check)
+        // A single-item dict like {"key": {...}} should still trigger DepylerValue
+        // wrapping because the nested dict needs to be wrapped as DepylerValue::Dict
         if self.dict_contains_nested_dict(items) {
             return Ok(true);
+        }
+
+        if items.len() <= 1 {
+            return Ok(false); // Single type or empty
         }
 
         // STRATEGY 1: Check for obvious mixing of literal types
