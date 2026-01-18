@@ -2420,6 +2420,7 @@ fn propagate_return_type_impl(
             // DEPYLER-1160: Target-typed inference for empty list assignments
             // When `result = []` is assigned and `result` is returned from a function
             // with return type List[T], infer result's type as List[T]
+            // DEPYLER-1164: Extended to empty dict assignments
             HirStmt::Assign { target: AssignTarget::Symbol(name), value, .. } => {
                 if let HirExpr::List(elements) = value {
                     if elements.is_empty() && returned_vars.contains(name) {
@@ -2430,6 +2431,26 @@ fn propagate_return_type_impl(
                                 None => true,
                                 Some(Type::Unknown) => true,
                                 Some(Type::List(inner)) if matches!(inner.as_ref(), Type::Unknown) => true,
+                                _ => false,
+                            };
+                            if should_update {
+                                var_types.insert(name.clone(), return_type.clone());
+                            }
+                        }
+                    }
+                }
+                // DEPYLER-1164: Target-typed inference for empty dict assignments
+                // When `result = {}` is assigned and `result` is returned from a function
+                // with return type Dict[K, V], infer result's type as Dict[K, V]
+                if let HirExpr::Dict(items) = value {
+                    if items.is_empty() && returned_vars.contains(name) {
+                        // Only propagate if return type is a Dict with concrete key/value types
+                        if let Type::Dict(_key_type, _val_type) = return_type {
+                            // Don't override if we already have a concrete type
+                            let should_update = match var_types.get(name) {
+                                None => true,
+                                Some(Type::Unknown) => true,
+                                Some(Type::Dict(k, v)) if matches!(k.as_ref(), Type::Unknown) || matches!(v.as_ref(), Type::Unknown) => true,
                                 _ => false,
                             };
                             if should_update {
