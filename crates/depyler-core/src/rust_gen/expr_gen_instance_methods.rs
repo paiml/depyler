@@ -3911,12 +3911,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // For these, we can use simpler inline code that works in range contexts
             let is_simple_var = matches!(index, HirExpr::Var(_));
 
+            // DEPYLER-1162: Check if index expression returns DepylerValue
+            // In this case, we need to use .to_i64() as usize instead of direct cast
+            let index_is_depyler_value =
+                self.expr_returns_depyler_value(index) && self.ctx.type_mapper.nasa_mode;
+
             if is_simple_var {
                 // Simple variable index - use inline expression (works in range contexts)
                 // This avoids block expressions that break in `for j in 0..matrix[i].len()`
                 // DEPYLER-0730: Use .expect() for Python IndexError semantics
+                // DEPYLER-1162: Handle DepylerValue indices with .to_i64() conversion
+                if index_is_depyler_value {
+                    Ok(parse_quote! {
+                        #base_expr.get(#index_expr.to_i64() as usize).cloned().expect("IndexError: list index out of range")
+                    })
+                } else {
+                    Ok(parse_quote! {
+                        #base_expr.get(#index_expr as usize).cloned().expect("IndexError: list index out of range")
+                    })
+                }
+            } else if index_is_depyler_value {
+                // DEPYLER-1162: Complex DepylerValue expression - use .to_i64() conversion
                 Ok(parse_quote! {
-                    #base_expr.get(#index_expr as usize).cloned().expect("IndexError: list index out of range")
+                    {
+                        let base = &#base_expr;
+                        let idx: i64 = #index_expr.to_i64();
+                        let actual_idx = if idx < 0 {
+                            base.len().saturating_sub(idx.abs() as usize)
+                        } else {
+                            idx as usize
+                        };
+                        base.get(actual_idx).cloned().expect("IndexError: list index out of range")
+                    }
                 })
             } else {
                 // Complex expression - use block with full negative index handling
