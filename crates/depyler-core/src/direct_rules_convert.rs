@@ -925,12 +925,19 @@ pub(crate) fn convert_method_stmt(
             let is_optional_return = matches!(ret_type, Type::Optional(_));
 
             // DEPYLER-1122: Check if return type is bare dict (HashMap<DepylerValue, DepylerValue>)
+            // DEPYLER-1166: Also check for Dict[str, Any] which maps to Type::Dict(String, Custom("DepylerValue"))
             let is_bare_dict_return = matches!(
                 ret_type,
                 Type::Dict(k, v) if matches!((k.as_ref(), v.as_ref()), (Type::Unknown, Type::Unknown))
             ) || matches!(
                 ret_type,
                 Type::Custom(name) if name == "dict" || name == "Dict"
+            ) || matches!(
+                ret_type,
+                Type::Dict(_, v) if matches!(v.as_ref(), Type::Unknown)
+            ) || matches!(
+                ret_type,
+                Type::Dict(_, v) if matches!(v.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "serde_json::Value")
             );
 
             let ret_expr = if let Some(e) = expr {
@@ -939,10 +946,11 @@ pub(crate) fn convert_method_stmt(
 
                 // DEPYLER-1122: If returning dict literal with bare dict return type,
                 // use specialized converter with DepylerValue wrapping
+                // DEPYLER-1166: Pass ret_type to determine if keys should be String or DepylerValue
                 if is_bare_dict_return {
                     if let HirExpr::Dict(items) = e {
                         let converter = ExprConverter::new(type_mapper);
-                        converter.convert_dict_to_depyler_value(items, class_field_types)?
+                        converter.convert_dict_to_depyler_value(items, class_field_types, ret_type)?
                     } else {
                         // Not a dict literal, use normal conversion
                         convert_expr_with_class_fields(e, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?
@@ -3166,6 +3174,16 @@ impl<'a> ExprConverter<'a> {
     }
 
     fn convert_dict(&self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
+        // DEPYLER-1166: Check if dict has mixed value types and needs DepylerValue wrapping
+        let has_mixed_types = self.dict_has_mixed_value_types(items);
+
+        if has_mixed_types {
+            // Use DepylerValue wrapping for mixed-type dicts
+            // Use String keys since most Python dicts have string keys
+            let nested_type = Type::Dict(Box::new(Type::String), Box::new(Type::Unknown));
+            return self.convert_dict_to_depyler_value(items, &std::collections::HashMap::new(), &nested_type);
+        }
+
         let insert_exprs: Vec<syn::Expr> = items
             .iter()
             .map(|(k, v)| {
@@ -3185,28 +3203,80 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
+    /// DEPYLER-1166: Check if dict literal has mixed value types (requires DepylerValue)
+    fn dict_has_mixed_value_types(&self, items: &[(HirExpr, HirExpr)]) -> bool {
+        if items.len() <= 1 {
+            return false; // Single or empty dict, no mixing
+        }
+
+        // Quick check: if any value is a dict or list, it's potentially mixed
+        let has_dict_or_list = items.iter().any(|(_, v)| {
+            matches!(v, HirExpr::Dict(_) | HirExpr::List(_))
+        });
+
+        if has_dict_or_list {
+            return true;
+        }
+
+        // Check if literal types are mixed
+        let value_type = |v: &HirExpr| -> u8 {
+            match v {
+                HirExpr::Literal(Literal::Int(_)) => 1,
+                HirExpr::Literal(Literal::Float(_)) => 2,
+                HirExpr::Literal(Literal::String(_)) => 3,
+                HirExpr::Literal(Literal::Bool(_)) => 4,
+                HirExpr::Literal(Literal::None) => 5,
+                HirExpr::Var(_) => 6, // Variables have unknown type
+                _ => 7, // Other expressions
+            }
+        };
+
+        let first_type = value_type(&items[0].1);
+
+        // If any value has a different type, it's mixed
+        // Variables (type 6) and other expressions (type 7) always count as different
+        items.iter().any(|(_, v)| {
+            let t = value_type(v);
+            t != first_type || t >= 6
+        })
+    }
+
     /// DEPYLER-1122: Convert dict literal with DepylerValue wrapping
     /// Used when returning a dict from a method with bare `dict` return type,
     /// which maps to HashMap<DepylerValue, DepylerValue>
+    /// DEPYLER-1166: Also handles Dict[str, Any] which has String keys
     fn convert_dict_to_depyler_value(
         &self,
         items: &[(HirExpr, HirExpr)],
         class_field_types: &std::collections::HashMap<String, Type>,
+        ret_type: &Type,
     ) -> Result<syn::Expr> {
+        // DEPYLER-1166: Determine if keys should be String (Dict[str, Any]) or DepylerValue (bare dict)
+        // Bare dict has Unknown key type; Dict[str, Any] has String key type
+        let use_string_keys = matches!(
+            ret_type,
+            Type::Dict(k, _) if !matches!(k.as_ref(), Type::Unknown)
+        );
+
         let insert_exprs: Vec<syn::Expr> = items
             .iter()
             .map(|(k, v)| {
                 let key_raw = self.convert(k)?;
                 let val_raw = self.convert(v)?;
 
-                // Wrap key in DepylerValue
-                // Note: String literals already have .to_string() from convert(), so wrap directly
-                let key: syn::Expr = match k {
-                    HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#key_raw as i64) },
-                    HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#key_raw as f64) },
-                    HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#key_raw) },
-                    HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#key_raw) },
-                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #key_raw)) },
+                // DEPYLER-1166: For Dict[str, Any], use raw string keys; for bare dict, wrap in DepylerValue
+                let key: syn::Expr = if use_string_keys {
+                    // Dict[str, Any] - use String keys directly
+                    key_raw.clone()
+                } else {
+                    // Bare dict - wrap key in DepylerValue
+                    match k {
+                        HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#key_raw as i64) },
+                        HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#key_raw as f64) },
+                        HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#key_raw) },
+                        HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#key_raw) },
+                        _ => parse_quote! { DepylerValue::Str(format!("{:?}", #key_raw)) },
+                    }
                 };
 
                 // Wrap value in DepylerValue based on its type
@@ -3248,6 +3318,35 @@ impl<'a> ExprConverter<'a> {
                         } else {
                             parse_quote! { DepylerValue::Str(format!("{:?}", #val_raw)) }
                         }
+                    }
+                    // DEPYLER-1166: Recursively handle nested Dict values
+                    HirExpr::Dict(nested_items) => {
+                        // Create a nested HashMap with DepylerValue keys and values
+                        // For bare dict return types, inner dicts also have DepylerValue keys
+                        let nested_type = Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown));
+                        let nested_dict = self.convert_dict_to_depyler_value(nested_items, class_field_types, &nested_type)?;
+                        // The recursive call already produces HashMap<DepylerValue, DepylerValue>, just wrap it
+                        parse_quote! { DepylerValue::Dict(#nested_dict) }
+                    }
+                    // DEPYLER-1166: Handle nested List values
+                    HirExpr::List(items) => {
+                        // Convert each list element to DepylerValue
+                        let list_elements: Vec<syn::Expr> = items
+                            .iter()
+                            .map(|item| {
+                                let item_raw = self.convert(item)?;
+                                let wrapped: syn::Expr = match item {
+                                    HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#item_raw as i64) },
+                                    HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#item_raw as f64) },
+                                    HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#item_raw) },
+                                    HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#item_raw) },
+                                    HirExpr::Literal(Literal::None) => parse_quote! { DepylerValue::None },
+                                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #item_raw)) },
+                                };
+                                Ok(wrapped)
+                            })
+                            .collect::<Result<Vec<_>>>()?;
+                        parse_quote! { DepylerValue::List(vec![#(#list_elements),*]) }
                     }
                     _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_raw)) },
                 };
