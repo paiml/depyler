@@ -226,24 +226,49 @@ pub(crate) fn codegen_try_stmt(
                         .collect::<Result<Vec<_>>>()?;
                     ctx.exit_scope();
 
-                    return Ok(quote! {
-                        {
+                    // DEPYLER-1161: Wrap floor div result in Ok() when function returns Result
+                    return if ctx.current_function_can_fail {
+                        Ok(quote! {
+                            {
+                                if #divisor_tokens == 0 {
+                                    #(#handler_stmts)*
+                                } else {
+                                    return Ok(#floor_div_result);
+                                }
+                                #(#finally_stmts)*
+                            }
+                        })
+                    } else {
+                        Ok(quote! {
+                            {
+                                if #divisor_tokens == 0 {
+                                    #(#handler_stmts)*
+                                } else {
+                                    return #floor_div_result;
+                                }
+                                #(#finally_stmts)*
+                            }
+                        })
+                    };
+                } else {
+                    // DEPYLER-1161: Wrap floor div result in Ok() when function returns Result
+                    return if ctx.current_function_can_fail {
+                        Ok(quote! {
+                            if #divisor_tokens == 0 {
+                                #(#handler_stmts)*
+                            } else {
+                                return Ok(#floor_div_result);
+                            }
+                        })
+                    } else {
+                        Ok(quote! {
                             if #divisor_tokens == 0 {
                                 #(#handler_stmts)*
                             } else {
                                 return #floor_div_result;
                             }
-                            #(#finally_stmts)*
-                        }
-                    });
-                } else {
-                    return Ok(quote! {
-                        if #divisor_tokens == 0 {
-                            #(#handler_stmts)*
-                        } else {
-                            return #floor_div_result;
-                        }
-                    });
+                        })
+                    };
                 }
             }
         }
