@@ -3627,11 +3627,17 @@ pub(crate) fn codegen_assign_stmt(
                 // DEPYLER-0969: Track deque() constructor for VecDeque truthiness conversion
                 // This enables `while queue:` → `while !queue.is_empty()` conversion
                 // Python: queue = deque([start]) → Rust: VecDeque::from(vec![start])
+                // DEPYLER-1165: In NASA mode, track as VecDeque<DepylerValue> for auto-boxing
                 else if func == "deque" || func == "collections.deque" || func == "Deque" {
                     // Track as Custom type for VecDeque - enables .is_empty() truthiness
+                    let elem_type = if ctx.type_mapper.nasa_mode {
+                        "DepylerValue"
+                    } else {
+                        "i32"
+                    };
                     ctx.var_types.insert(
                         var_name.clone(),
-                        Type::Custom("std::collections::VecDeque<i32>".to_string()),
+                        Type::Custom(format!("std::collections::VecDeque<{}>", elem_type)),
                     );
                 }
                 // DEPYLER-0969: Track queue.Queue() and similar constructors
