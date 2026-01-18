@@ -2483,12 +2483,51 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Fallback to method name dispatch
         match method {
             // DEPYLER-0742: Deque-specific methods (must come before list methods)
+            // DEPYLER-1165: Auto-box for VecDeque<DepylerValue>
             "appendleft" => {
                 if arg_exprs.len() != 1 {
                     bail!("appendleft() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
-                Ok(parse_quote! { #object_expr.push_front(#arg) })
+
+                // DEPYLER-1165: Check if deque has DepylerValue element type
+                let is_deque_depyler_value = if let HirExpr::Var(var_name) = object {
+                    if let Some(Type::Custom(type_str)) = self.ctx.var_types.get(var_name) {
+                        type_str.contains("VecDeque") && type_str.contains("DepylerValue")
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                if is_deque_depyler_value && self.ctx.type_mapper.nasa_mode {
+                    // Wrap argument in DepylerValue based on argument type
+                    let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
+                        match &hir_args[0] {
+                            HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                            HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                            HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
+                            HirExpr::Var(name) => {
+                                match self.ctx.var_types.get(name) {
+                                    Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                                    Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                                    Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                                    Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                                    _ => parse_quote! { DepylerValue::from(#arg) },
+                                }
+                            }
+                            _ => parse_quote! { DepylerValue::from(#arg) },
+                        }
+                    } else {
+                        parse_quote! { DepylerValue::from(#arg) }
+                    };
+                    self.ctx.needs_depyler_value_enum = true;
+                    Ok(parse_quote! { #object_expr.push_front(#wrapped_arg) })
+                } else {
+                    Ok(parse_quote! { #object_expr.push_front(#arg) })
+                }
             }
             "popleft" => {
                 if !arg_exprs.is_empty() {
@@ -2498,13 +2537,52 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // DEPYLER-0742: Handle append/pop for deque vs list
+            // DEPYLER-1165: Auto-box for VecDeque<DepylerValue>
             "append" => {
                 if self.is_deque_expr(object) {
                     if arg_exprs.len() != 1 {
                         bail!("append() requires exactly one argument");
                     }
                     let arg = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.push_back(#arg) })
+
+                    // DEPYLER-1165: Check if deque has DepylerValue element type
+                    let is_deque_depyler_value = if let HirExpr::Var(var_name) = object {
+                        if let Some(Type::Custom(type_str)) = self.ctx.var_types.get(var_name) {
+                            type_str.contains("VecDeque") && type_str.contains("DepylerValue")
+                        } else {
+                            false
+                        }
+                    } else {
+                        false
+                    };
+
+                    if is_deque_depyler_value && self.ctx.type_mapper.nasa_mode {
+                        // Wrap argument in DepylerValue based on argument type
+                        let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
+                            match &hir_args[0] {
+                                HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                                HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                                HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                                HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
+                                HirExpr::Var(name) => {
+                                    match self.ctx.var_types.get(name) {
+                                        Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                                        Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                                        Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                                        Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                                        _ => parse_quote! { DepylerValue::from(#arg) },
+                                    }
+                                }
+                                _ => parse_quote! { DepylerValue::from(#arg) },
+                            }
+                        } else {
+                            parse_quote! { DepylerValue::from(#arg) }
+                        };
+                        self.ctx.needs_depyler_value_enum = true;
+                        Ok(parse_quote! { #object_expr.push_back(#wrapped_arg) })
+                    } else {
+                        Ok(parse_quote! { #object_expr.push_back(#arg) })
+                    }
                 } else {
                     self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
                 }
