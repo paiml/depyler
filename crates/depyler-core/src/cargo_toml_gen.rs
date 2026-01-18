@@ -554,6 +554,7 @@ mod tests {
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
             type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
+            vars_used_later: std::collections::HashSet::new(), // DEPYLER-1168
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -723,6 +724,7 @@ mod tests {
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
             type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
+            vars_used_later: std::collections::HashSet::new(), // DEPYLER-1168
         };
 
         let deps = extract_dependencies(&ctx);
@@ -889,6 +891,7 @@ mod tests {
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
             type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
+            vars_used_later: std::collections::HashSet::new(), // DEPYLER-1168
         };
 
         let deps = extract_dependencies(&ctx);
@@ -1302,6 +1305,7 @@ mod tests {
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
             type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
+            vars_used_later: std::collections::HashSet::new(), // DEPYLER-1168
         };
 
         let deps = extract_dependencies(&ctx);
