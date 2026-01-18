@@ -1923,6 +1923,18 @@ pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
     }
 }
 
+/// DEPYLER-1163: Check if a type expects int values (recursively checks Option, Result, etc.)
+/// Used to determine when py_div result should be cast from f64 to i32
+pub(crate) fn return_type_expects_int(ty: &Type) -> bool {
+    match ty {
+        Type::Int => true,
+        Type::Optional(inner) => return_type_expects_int(inner),
+        Type::List(inner) => return_type_expects_int(inner),
+        Type::Tuple(types) => types.iter().any(return_type_expects_int),
+        _ => false,
+    }
+}
+
 /// DEPYLER-0936: Rewrite ADT child types to parent enum types
 /// When a Python ABC hierarchy is converted to a Rust enum (e.g., Iter with ListIter, RangeIter),
 /// return types mentioning child classes must be rewritten to parent enum names.

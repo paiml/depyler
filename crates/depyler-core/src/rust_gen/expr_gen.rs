@@ -471,11 +471,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Delegate arithmetic/indexing to PyOps traits to handle type coercion (i32+f64, etc.)
         // Note: Wrap left_expr in parens to handle cast expressions (a as f64).method() is invalid
         if self.ctx.type_mapper.nasa_mode && !is_comparison {
+            // DEPYLER-1163: Check if return type expects int for division
+            // py_div always returns f64, so we need to cast when int is expected
+            let return_expects_int = self
+                .ctx
+                .current_return_type
+                .as_ref()
+                .map(crate::rust_gen::func_gen::return_type_expects_int)
+                .unwrap_or(false);
+
             match op {
                 BinOp::Add => return Ok(parse_quote! { (#left_expr).py_add(#right_expr) }),
                 BinOp::Sub => return Ok(parse_quote! { (#left_expr).py_sub(#right_expr) }),
                 BinOp::Mul => return Ok(parse_quote! { (#left_expr).py_mul(#right_expr) }),
-                BinOp::Div => return Ok(parse_quote! { (#left_expr).py_div(#right_expr) }),
+                BinOp::Div => {
+                    // DEPYLER-1163: Cast py_div result to i32 when return type expects int
+                    if return_expects_int {
+                        return Ok(parse_quote! { ((#left_expr).py_div(#right_expr) as i32) });
+                    } else {
+                        return Ok(parse_quote! { (#left_expr).py_div(#right_expr) });
+                    }
+                }
                 BinOp::Mod => return Ok(parse_quote! { (#left_expr).py_mod(#right_expr) }),
                 _ => {}
             }
