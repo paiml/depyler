@@ -2367,6 +2367,7 @@ fn generate_rust_file_internal(
         type_query: load_type_database(), // DEPYLER-1114: Auto-load Sovereign Type Database
         last_external_call_return_type: None, // DEPYLER-1113: External call return type
         type_overrides: HashMap::new(), // DEPYLER-1101: Oracle-learned type overrides
+        vars_used_later: HashSet::new(), // DEPYLER-1168: Call-site clone detection
     };
 
     // DEPYLER-1137: Enable DepylerValue enum when module aliases are present
@@ -5695,6 +5696,7 @@ mod tests {
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
             type_overrides: HashMap::new(), // DEPYLER-1101: Oracle-learned type overrides
+            vars_used_later: HashSet::new(), // DEPYLER-1168: Call-site clone detection
         }
     }
 

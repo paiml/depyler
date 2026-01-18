@@ -4779,6 +4779,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             }
                         }
 
+                        // DEPYLER-1168: Call-site clone insertion for variables used later
+                        // When a function takes ownership (doesn't borrow) and the argument
+                        // variable is used again later in the same scope, we need to clone it.
+                        // This prevents E0382 "use of moved value" errors.
+                        if let HirExpr::Var(var_name) = hir_arg {
+                            // Only clone if:
+                            // 1. Variable is used later in the same scope
+                            // 2. Variable type is clonable (List, Dict, Set, String, Custom types)
+                            let used_later = self.ctx.vars_used_later.contains(var_name);
+                            let is_clonable_type = self.ctx.var_types.get(var_name)
+                                .map(|ty| matches!(ty,
+                                    Type::List(_) | Type::Dict(_, _) | Type::Set(_) |
+                                    Type::String | Type::Tuple(_) | Type::Custom(_)
+                                ))
+                                .unwrap_or(false);
+
+                            if used_later && is_clonable_type {
+                                return parse_quote! { #arg_expr.clone() };
+                            }
+                        }
+
                         arg_expr.clone()
                     }
                 })
