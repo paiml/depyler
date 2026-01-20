@@ -2533,7 +2533,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if !arg_exprs.is_empty() {
                     bail!("popleft() takes no arguments");
                 }
-                Ok(parse_quote! { #object_expr.pop_front() })
+                // DEPYLER-1186: Add .expect() to match Python's raise on empty deque
+                // Python raises IndexError if deque is empty, so we panic with expect()
+                Ok(parse_quote! { #object_expr.pop_front().expect("popleft from empty deque") })
+            }
+            // DEPYLER-1187: Handle extendleft for deque
+            // Python's deque.extendleft(iterable) adds each element to the front
+            // The final order is reversed from the input (first element ends up deepest)
+            "extendleft" => {
+                if arg_exprs.len() != 1 {
+                    bail!("extendleft() requires exactly one argument");
+                }
+                let arg = &arg_exprs[0];
+                // Implement as: for each element in reversed input, push_front
+                // Using into_iter().rev() to reverse the input first
+                Ok(parse_quote! {
+                    for __item in #arg.into_iter().rev() {
+                        #object_expr.push_front(__item);
+                    }
+                })
             }
 
             // DEPYLER-0742: Handle append/pop for deque vs list
