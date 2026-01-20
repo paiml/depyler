@@ -679,6 +679,8 @@ impl RustCodeGen for HirFunction {
         // when they share the same parameter name (e.g., both have `items` parameter)
         ctx.var_types.clear();
         ctx.type_substitutions.clear();
+        // DEPYLER-1150: Clear slice params from previous function
+        ctx.slice_params.clear();
 
         // DEPYLER-0306 FIX: Use raw identifiers for function names that are Rust keywords
         let name = if is_rust_keyword(&self.name) {

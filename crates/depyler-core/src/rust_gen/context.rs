@@ -306,6 +306,10 @@ pub struct CodeGenContext<'a> {
     /// These functions expect &[T] slice arguments, so call sites need to wrap args in &[...]
     pub vararg_functions: HashSet<String>,
 
+    /// DEPYLER-1150: Track parameters in current function that are slices (from varargs)
+    /// When returning a slice param in a function that returns Vec<T>, add .to_vec()
+    pub slice_params: HashSet<String>,
+
     /// DEPYLER-0716: Type substitutions for current function's generic inference
     /// When a type parameter T can be inferred to a concrete type (e.g., String),
     /// this maps "T" -> String. Used to substitute in return types.
@@ -767,6 +771,7 @@ pub mod test_helpers {
             narrowed_option_vars: HashSet::new(),
             needs_completed_process: false,
             vararg_functions: HashSet::new(),
+            slice_params: HashSet::new(),
             type_substitutions: HashMap::new(),
             current_assign_type: None,
             force_dict_value_option_wrap: false,

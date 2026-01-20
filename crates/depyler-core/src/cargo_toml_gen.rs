@@ -534,6 +534,7 @@ mod tests {
             narrowed_option_vars: std::collections::HashSet::new(), // DEPYLER-1151
             needs_completed_process: false,
             vararg_functions: std::collections::HashSet::new(),
+            slice_params: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
@@ -704,6 +705,7 @@ mod tests {
             narrowed_option_vars: std::collections::HashSet::new(), // DEPYLER-1151
             needs_completed_process: false,
             vararg_functions: std::collections::HashSet::new(),
+            slice_params: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
@@ -871,6 +873,7 @@ mod tests {
             narrowed_option_vars: std::collections::HashSet::new(), // DEPYLER-1151
             needs_completed_process: false,
             vararg_functions: std::collections::HashSet::new(),
+            slice_params: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
@@ -1285,6 +1288,7 @@ mod tests {
             narrowed_option_vars: std::collections::HashSet::new(), // DEPYLER-1151
             needs_completed_process: false,
             vararg_functions: std::collections::HashSet::new(),
+            slice_params: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
             current_assign_type: None, // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
