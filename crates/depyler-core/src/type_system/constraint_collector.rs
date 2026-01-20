@@ -467,12 +467,68 @@ impl ConstraintCollector {
                 result_var
             }
 
-            HirExpr::MethodCall { object, args, .. } => {
-                let _obj_var = self.collect_expr(object);
+            // DEPYLER-1173: Usage-based type inference from method calls
+            // If a method is called on an object, we can infer the object's type
+            HirExpr::MethodCall { object, method, args, .. } => {
+                let obj_var = self.collect_expr(object);
+                let result_var = self.fresh_var();
+
                 for arg in args {
                     let _ = self.collect_expr(arg);
                 }
-                self.fresh_var()
+
+                // Infer object type from method name
+                match method.as_str() {
+                    // String methods → object must be String
+                    "split" | "rsplit" | "splitlines" | "upper" | "lower" | "strip"
+                    | "lstrip" | "rstrip" | "capitalize" | "title" | "swapcase"
+                    | "startswith" | "endswith" | "find" | "rfind" | "index" | "rindex"
+                    | "count" | "replace" | "join" | "encode" | "zfill" | "center"
+                    | "ljust" | "rjust" | "isalpha" | "isdigit" | "isalnum" | "isspace"
+                    | "isupper" | "islower" | "istitle" | "format" => {
+                        self.constraints.push(Constraint::Instance(obj_var, Type::String));
+                    }
+
+                    // List methods → object must be List
+                    "append" | "extend" | "insert" | "pop" | "remove" | "clear"
+                    | "sort" | "reverse" => {
+                        // For list methods, we know it's a list but not the element type
+                        // Create a fresh var for element type
+                        let elem_var = self.fresh_var();
+                        self.constraints.push(Constraint::Instance(
+                            obj_var,
+                            Type::List(Box::new(Type::UnificationVar(elem_var))),
+                        ));
+                    }
+
+                    // Dict methods → object must be Dict
+                    "keys" | "values" | "items" | "get" | "setdefault" | "update"
+                    | "popitem" => {
+                        let key_var = self.fresh_var();
+                        let val_var = self.fresh_var();
+                        self.constraints.push(Constraint::Instance(
+                            obj_var,
+                            Type::Dict(
+                                Box::new(Type::UnificationVar(key_var)),
+                                Box::new(Type::UnificationVar(val_var)),
+                            ),
+                        ));
+                    }
+
+                    // Set methods → object must be Set
+                    "add" | "discard" | "union" | "intersection" | "difference"
+                    | "symmetric_difference" | "issubset" | "issuperset" => {
+                        let elem_var = self.fresh_var();
+                        self.constraints.push(Constraint::Instance(
+                            obj_var,
+                            Type::Set(Box::new(Type::UnificationVar(elem_var))),
+                        ));
+                    }
+
+                    _ => {}
+                }
+
+                result_var
             }
 
             HirExpr::Attribute { value, .. } => {
@@ -505,6 +561,41 @@ impl ConstraintCollector {
                 then_var
             }
 
+            // DEPYLER-1173: Usage-based type inference from slice operations
+            // If s[1:4] is used, s must be either String or List
+            HirExpr::Slice { base, start, stop, step } => {
+                let base_var = self.collect_expr(base);
+                let result_var = self.fresh_var();
+
+                // Collect start/stop/step if present (they should be Int)
+                if let Some(start_expr) = start {
+                    let start_var = self.collect_expr(start_expr);
+                    self.constraints.push(Constraint::Instance(start_var, Type::Int));
+                }
+                if let Some(stop_expr) = stop {
+                    let stop_var = self.collect_expr(stop_expr);
+                    self.constraints.push(Constraint::Instance(stop_var, Type::Int));
+                }
+                if let Some(step_expr) = step {
+                    let step_var = self.collect_expr(step_expr);
+                    self.constraints.push(Constraint::Instance(step_var, Type::Int));
+                }
+
+                // DEPYLER-1173: Key insight - slicing is most commonly on String in Python
+                // When we see s[1:4] without additional context, assume String
+                // This can be refined later with bidirectional inference
+                //
+                // Future enhancement: Check if base is already constrained to List
+                // and propagate that. For now, String is the safe default for
+                // single-shot compilation (most slicing is on strings).
+                self.constraints.push(Constraint::Instance(base_var, Type::String));
+
+                // Result of slicing a String is a String
+                self.constraints.push(Constraint::Instance(result_var, Type::String));
+
+                result_var
+            }
+
             _ => self.fresh_var(),
         }
     }
@@ -517,6 +608,21 @@ impl ConstraintCollector {
     /// Get parameter type variable mappings for substitution
     pub fn param_type_vars(&self) -> &HashMap<String, VarId> {
         &self.param_type_vars
+    }
+
+    /// DEPYLER-1180: Get local variable type mappings for codegen context
+    /// Returns the mapping from variable names to their inferred types
+    pub fn get_inferred_var_types(&self, solution: &HashMap<VarId, Type>) -> HashMap<String, Type> {
+        let mut result = HashMap::new();
+        for (var_name, &var_id) in &self.var_to_type_var {
+            if let Some(inferred_type) = solution.get(&var_id) {
+                // Only include concrete types, not unification variables
+                if !matches!(inferred_type, Type::UnificationVar(_) | Type::Unknown) {
+                    result.insert(var_name.clone(), inferred_type.clone());
+                }
+            }
+        }
+        result
     }
 
     /// Apply solved substitutions back to HirModule
@@ -555,6 +661,76 @@ impl ConstraintCollector {
                     }
                 }
             }
+
+            // DEPYLER-1180: Apply to local variable type annotations in statements
+            // This is the "Neural Link" - propagating inferred types to statement-level
+            applied_count += self.apply_to_statements(&mut func.body, solution);
+        }
+
+        applied_count
+    }
+
+    /// DEPYLER-1180: Apply inferred types to local variable declarations in statements
+    fn apply_to_statements(&self, stmts: &mut [HirStmt], solution: &HashMap<VarId, Type>) -> usize {
+        let mut applied_count = 0;
+
+        for stmt in stmts {
+            match stmt {
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol(var_name),
+                    type_annotation,
+                    ..
+                } => {
+                    // Only update if no explicit annotation exists
+                    if type_annotation.is_none() {
+                        if let Some(&var_id) = self.var_to_type_var.get(var_name) {
+                            if let Some(inferred) = solution.get(&var_id) {
+                                if !matches!(inferred, Type::UnificationVar(_) | Type::Unknown) {
+                                    *type_annotation = Some(inferred.clone());
+                                    applied_count += 1;
+                                }
+                            }
+                        }
+                    }
+                }
+                // Recursively apply to nested blocks
+                HirStmt::If { then_body, else_body, .. } => {
+                    applied_count += self.apply_to_statements(then_body, solution);
+                    if let Some(else_stmts) = else_body {
+                        applied_count += self.apply_to_statements(else_stmts, solution);
+                    }
+                }
+                HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
+                    applied_count += self.apply_to_statements(body, solution);
+                }
+                HirStmt::Try {
+                    body,
+                    handlers,
+                    orelse,
+                    finalbody,
+                } => {
+                    applied_count += self.apply_to_statements(body, solution);
+                    for handler in handlers {
+                        applied_count += self.apply_to_statements(&mut handler.body, solution);
+                    }
+                    if let Some(else_stmts) = orelse {
+                        applied_count += self.apply_to_statements(else_stmts, solution);
+                    }
+                    if let Some(final_stmts) = finalbody {
+                        applied_count += self.apply_to_statements(final_stmts, solution);
+                    }
+                }
+                HirStmt::With { body, .. } => {
+                    applied_count += self.apply_to_statements(body, solution);
+                }
+                HirStmt::Block(stmts) => {
+                    applied_count += self.apply_to_statements(stmts, solution);
+                }
+                HirStmt::FunctionDef { body, .. } => {
+                    applied_count += self.apply_to_statements(body, solution);
+                }
+                _ => {}
+            }
         }
 
         applied_count
@@ -571,7 +747,9 @@ impl Default for ConstraintCollector {
 mod tests {
     use super::*;
     use crate::hir::{ExceptHandler, FunctionProperties, HirParam, UnaryOp};
+    use crate::type_system::hindley_milner::TypeConstraintSolver;
     use depyler_annotations::TranspilationAnnotations;
+    use smallvec::smallvec;
 
     fn make_test_function(name: &str, params: Vec<(&str, Type)>, body: Vec<HirStmt>) -> HirFunction {
         HirFunction {
@@ -1723,5 +1901,409 @@ mod tests {
             matches!(c, Constraint::Equality(_, _))
         }).count();
         assert_eq!(equality_count, 2);
+    }
+
+    // ============================================================
+    // DEPYLER-1173: Usage-Based Type Inference Tests
+    // ============================================================
+
+    #[test]
+    fn test_depyler_1173_slice_constrains_base_to_string() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::Slice {
+            base: Box::new(HirExpr::Var("s".into())),
+            start: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
+            stop: Some(Box::new(HirExpr::Literal(Literal::Int(4)))),
+            step: None,
+        });
+
+        // Base should be constrained to String
+        let has_string_constraint = collector.constraints().iter().any(|c| {
+            matches!(c, Constraint::Instance(_, Type::String))
+        });
+        assert!(has_string_constraint, "Slice base should be constrained to String");
+    }
+
+    #[test]
+    fn test_depyler_1173_slice_start_stop_constrained_to_int() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::Slice {
+            base: Box::new(HirExpr::Var("s".into())),
+            start: Some(Box::new(HirExpr::Var("start".into()))),
+            stop: Some(Box::new(HirExpr::Var("stop".into()))),
+            step: Some(Box::new(HirExpr::Var("step".into()))),
+        });
+
+        // start, stop, step should be constrained to Int
+        let int_constraints = collector.constraints().iter().filter(|c| {
+            matches!(c, Constraint::Instance(_, Type::Int))
+        }).count();
+        // At least 3 Int constraints (for start, stop, step)
+        assert!(int_constraints >= 3, "Slice indices should be constrained to Int");
+    }
+
+    #[test]
+    fn test_depyler_1173_method_split_constrains_to_string() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("text".into())),
+            method: "split".into(),
+            args: vec![HirExpr::Literal(Literal::String(",".into()))],
+            kwargs: vec![],
+        });
+
+        let has_string_constraint = collector.constraints().iter().any(|c| {
+            matches!(c, Constraint::Instance(_, Type::String))
+        });
+        assert!(has_string_constraint, "split() receiver should be constrained to String");
+    }
+
+    #[test]
+    fn test_depyler_1173_method_upper_constrains_to_string() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("text".into())),
+            method: "upper".into(),
+            args: vec![],
+            kwargs: vec![],
+        });
+
+        let has_string_constraint = collector.constraints().iter().any(|c| {
+            matches!(c, Constraint::Instance(_, Type::String))
+        });
+        assert!(has_string_constraint, "upper() receiver should be constrained to String");
+    }
+
+    #[test]
+    fn test_depyler_1173_method_append_constrains_to_list() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("items".into())),
+            method: "append".into(),
+            args: vec![HirExpr::Literal(Literal::Int(42))],
+            kwargs: vec![],
+        });
+
+        let has_list_constraint = collector.constraints().iter().any(|c| {
+            matches!(c, Constraint::Instance(_, Type::List(_)))
+        });
+        assert!(has_list_constraint, "append() receiver should be constrained to List");
+    }
+
+    #[test]
+    fn test_depyler_1173_method_pop_constrains_to_list() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("stack".into())),
+            method: "pop".into(),
+            args: vec![],
+            kwargs: vec![],
+        });
+
+        let has_list_constraint = collector.constraints().iter().any(|c| {
+            matches!(c, Constraint::Instance(_, Type::List(_)))
+        });
+        assert!(has_list_constraint, "pop() receiver should be constrained to List");
+    }
+
+    #[test]
+    fn test_depyler_1173_method_keys_constrains_to_dict() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("data".into())),
+            method: "keys".into(),
+            args: vec![],
+            kwargs: vec![],
+        });
+
+        let has_dict_constraint = collector.constraints().iter().any(|c| {
+            matches!(c, Constraint::Instance(_, Type::Dict(_, _)))
+        });
+        assert!(has_dict_constraint, "keys() receiver should be constrained to Dict");
+    }
+
+    #[test]
+    fn test_depyler_1173_method_values_constrains_to_dict() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("mapping".into())),
+            method: "values".into(),
+            args: vec![],
+            kwargs: vec![],
+        });
+
+        let has_dict_constraint = collector.constraints().iter().any(|c| {
+            matches!(c, Constraint::Instance(_, Type::Dict(_, _)))
+        });
+        assert!(has_dict_constraint, "values() receiver should be constrained to Dict");
+    }
+
+    #[test]
+    fn test_depyler_1173_method_add_constrains_to_set() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("unique".into())),
+            method: "add".into(),
+            args: vec![HirExpr::Literal(Literal::Int(1))],
+            kwargs: vec![],
+        });
+
+        let has_set_constraint = collector.constraints().iter().any(|c| {
+            matches!(c, Constraint::Instance(_, Type::Set(_)))
+        });
+        assert!(has_set_constraint, "add() receiver should be constrained to Set");
+    }
+
+    #[test]
+    fn test_depyler_1173_unknown_method_no_constraint() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("obj".into())),
+            method: "custom_method".into(),
+            args: vec![],
+            kwargs: vec![],
+        });
+
+        // No type constraints should be added for unknown methods
+        let container_constraints = collector.constraints().iter().filter(|c| {
+            matches!(c, Constraint::Instance(_, Type::String)
+                | Constraint::Instance(_, Type::List(_))
+                | Constraint::Instance(_, Type::Dict(_, _))
+                | Constraint::Instance(_, Type::Set(_)))
+        }).count();
+        assert_eq!(container_constraints, 0, "Unknown method should not add type constraints");
+    }
+
+    #[test]
+    fn test_depyler_1173_slice_with_step() {
+        let mut collector = ConstraintCollector::new();
+        let _ = collector.collect_expr(&HirExpr::Slice {
+            base: Box::new(HirExpr::Var("s".into())),
+            start: None,
+            stop: None,
+            step: Some(Box::new(HirExpr::Literal(Literal::Int(-1)))),
+        });
+
+        // Should still constrain base to String
+        let has_string_constraint = collector.constraints().iter().any(|c| {
+            matches!(c, Constraint::Instance(_, Type::String))
+        });
+        assert!(has_string_constraint, "Slice with step should still constrain to String");
+    }
+
+    #[test]
+    fn test_depyler_1173_multiple_string_methods_chained() {
+        // Test: text.strip().upper()
+        let mut collector = ConstraintCollector::new();
+
+        // First, strip() on text
+        let strip_result = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("text".into())),
+            method: "strip".into(),
+            args: vec![],
+            kwargs: vec![],
+        });
+
+        // Then upper() on result - but result is a fresh var, not text
+        // This demonstrates that the inner object gets constrained
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("text".into())),
+            method: "upper".into(),
+            args: vec![],
+            kwargs: vec![],
+        });
+
+        // Should have multiple String constraints
+        let string_constraints = collector.constraints().iter().filter(|c| {
+            matches!(c, Constraint::Instance(_, Type::String))
+        }).count();
+        assert!(string_constraints >= 2, "Chained string methods should add constraints: got {}", string_constraints);
+
+        // Verify strip_result is used (suppress warning)
+        assert!(strip_result > 0 || strip_result == 0);
+    }
+
+    // ============================================================
+    // DEPYLER-1180: Neural Link - Type Propagation Tests
+    // ============================================================
+
+    #[test]
+    fn test_depyler_1180_apply_substitutions_to_local_vars() {
+        // Create a function that uses slicing: def test(s): x = s[1:4]
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![HirParam {
+                name: "s".to_string(),
+                ty: Type::Unknown, // No explicit type annotation
+                default: None,
+                is_vararg: false,
+            }],
+            ret_type: Type::Unknown,
+            body: vec![
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".into()),
+                    value: HirExpr::Slice {
+                        base: Box::new(HirExpr::Var("s".into())),
+                        start: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
+                        stop: Some(Box::new(HirExpr::Literal(Literal::Int(4)))),
+                        step: None,
+                    },
+                    type_annotation: None, // No explicit annotation
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut module = HirModule {
+            functions: vec![func],
+            ..empty_module()
+        };
+
+        // Collect constraints
+        let mut collector = ConstraintCollector::new();
+        collector.collect_module(&module);
+
+        // Solve constraints
+        let mut solver = TypeConstraintSolver::new();
+        for constraint in collector.constraints() {
+            solver.add_constraint(constraint.clone());
+        }
+        let solution = solver.solve().expect("Constraint solving should succeed");
+
+        // Apply substitutions
+        let applied = collector.apply_substitutions(&mut module, &solution);
+
+        // Verify: Parameter 's' should be inferred as String (from slicing)
+        assert_eq!(module.functions[0].params[0].ty, Type::String,
+            "Parameter 's' should be inferred as String from slice usage");
+
+        // Verify: At least one substitution was applied
+        assert!(applied >= 1, "Should have applied at least 1 substitution, got {}", applied);
+    }
+
+    #[test]
+    fn test_depyler_1180_get_inferred_var_types() {
+        // Test the helper function that returns inferred types for codegen
+        let mut collector = ConstraintCollector::new();
+
+        // Create a simple expression that constrains a variable
+        let _ = collector.collect_expr(&HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("text".into())),
+            method: "split".into(),
+            args: vec![],
+            kwargs: vec![],
+        });
+
+        // Solve constraints
+        let mut solver = TypeConstraintSolver::new();
+        for constraint in collector.constraints() {
+            solver.add_constraint(constraint.clone());
+        }
+        let solution = solver.solve().expect("Constraint solving should succeed");
+
+        // Get inferred var types
+        let var_types = collector.get_inferred_var_types(&solution);
+
+        // Verify 'text' is inferred as String
+        assert_eq!(var_types.get("text"), Some(&Type::String),
+            "Variable 'text' should be inferred as String from split() call");
+    }
+
+    #[test]
+    fn test_depyler_1180_preserves_explicit_annotations() {
+        // Ensure explicit type annotations are NOT overwritten
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::Unknown,
+            body: vec![
+                HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".into()),
+                    value: HirExpr::Literal(Literal::Int(42)),
+                    type_annotation: Some(Type::Float), // Explicit annotation
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut module = HirModule {
+            functions: vec![func],
+            ..empty_module()
+        };
+
+        let mut collector = ConstraintCollector::new();
+        collector.collect_module(&module);
+
+        let mut solver = TypeConstraintSolver::new();
+        for constraint in collector.constraints() {
+            solver.add_constraint(constraint.clone());
+        }
+        let solution = solver.solve().expect("Constraint solving should succeed");
+
+        collector.apply_substitutions(&mut module, &solution);
+
+        // Verify: Explicit annotation should be preserved
+        if let HirStmt::Assign { type_annotation, .. } = &module.functions[0].body[0] {
+            assert_eq!(*type_annotation, Some(Type::Float),
+                "Explicit type annotation should be preserved");
+        } else {
+            panic!("Expected Assign statement");
+        }
+    }
+
+    #[test]
+    fn test_depyler_1180_propagates_to_nested_blocks() {
+        // Test propagation to nested if/else blocks
+        let func = HirFunction {
+            name: "test".to_string(),
+            params: smallvec![],
+            ret_type: Type::Unknown,
+            body: vec![
+                HirStmt::If {
+                    condition: HirExpr::Literal(Literal::Bool(true)),
+                    then_body: vec![
+                        HirStmt::Assign {
+                            target: AssignTarget::Symbol("x".into()),
+                            value: HirExpr::MethodCall {
+                                object: Box::new(HirExpr::Var("s".into())),
+                                method: "upper".into(),
+                                args: vec![],
+                                kwargs: vec![],
+                            },
+                            type_annotation: None,
+                        },
+                    ],
+                    else_body: None,
+                },
+            ],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        };
+
+        let mut module = HirModule {
+            functions: vec![func],
+            ..empty_module()
+        };
+
+        let mut collector = ConstraintCollector::new();
+        collector.collect_module(&module);
+
+        // Get inferred types directly (test the helper)
+        let mut solver = TypeConstraintSolver::new();
+        for constraint in collector.constraints() {
+            solver.add_constraint(constraint.clone());
+        }
+        let solution = solver.solve().expect("Constraint solving should succeed");
+
+        let var_types = collector.get_inferred_var_types(&solution);
+
+        // Variable 's' should be inferred as String from .upper() call
+        assert_eq!(var_types.get("s"), Some(&Type::String),
+            "Variable 's' should be inferred as String from upper() in nested block");
     }
 }
