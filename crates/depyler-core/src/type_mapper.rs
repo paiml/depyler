@@ -325,10 +325,12 @@ impl TypeMapper {
                         | "ZeroDivisionError" | "OverflowError" | "ArithmeticError" => {
                             RustType::Custom("Box<dyn std::error::Error>".to_string())
                         }
-                        // DEPYLER-0742/1015: Python collections.deque maps to std::collections::VecDeque
+                        // DEPYLER-0742/1185: Python collections.deque maps to std::collections::VecDeque
                         // VecDeque is the Rust equivalent of Python's deque (double-ended queue)
+                        // DEPYLER-1185: Default to i32 instead of DepylerValue for untyped deques
+                        // This matches set() behavior and avoids E0308 type mismatches
                         "deque" | "collections.deque" | "Deque" => {
-                            RustType::Custom(format!("std::collections::VecDeque<{}>", self.unknown_fallback_str()))
+                            RustType::Custom("std::collections::VecDeque<i32>".to_string())
                         }
                         // DEPYLER-0742: Python Counter maps to HashMap (for now)
                         // A proper Counter implementation would need a wrapper type
