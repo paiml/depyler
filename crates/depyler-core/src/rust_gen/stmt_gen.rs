@@ -66,6 +66,65 @@ fn type_to_rust_string(ty: &Type) -> String {
     }
 }
 
+/// DEPYLER-1149: Infer element type from set/list literal elements
+/// Returns the HIR Type of elements if homogeneous, or Type::Unknown if mixed/empty.
+/// This enables proper type inference for set literals to avoid HashSet<DepylerValue>.
+fn infer_collection_element_type(elems: &[HirExpr]) -> Type {
+    if elems.is_empty() {
+        // Empty collection defaults to Unknown (will use DepylerValue)
+        return Type::Unknown;
+    }
+
+    // Check first element type and verify all elements match
+    match &elems[0] {
+        HirExpr::Literal(Literal::Int(_)) => {
+            // Verify all elements are integers
+            if elems
+                .iter()
+                .all(|e| matches!(e, HirExpr::Literal(Literal::Int(_))))
+            {
+                Type::Int
+            } else {
+                Type::Unknown // Heterogeneous
+            }
+        }
+        HirExpr::Literal(Literal::Float(_)) => {
+            // Verify all elements are floats (or ints - promote to float)
+            if elems.iter().all(|e| {
+                matches!(
+                    e,
+                    HirExpr::Literal(Literal::Float(_)) | HirExpr::Literal(Literal::Int(_))
+                )
+            }) {
+                Type::Float
+            } else {
+                Type::Unknown
+            }
+        }
+        HirExpr::Literal(Literal::String(_)) => {
+            if elems
+                .iter()
+                .all(|e| matches!(e, HirExpr::Literal(Literal::String(_))))
+            {
+                Type::String
+            } else {
+                Type::Unknown
+            }
+        }
+        HirExpr::Literal(Literal::Bool(_)) => {
+            if elems
+                .iter()
+                .all(|e| matches!(e, HirExpr::Literal(Literal::Bool(_))))
+            {
+                Type::Bool
+            } else {
+                Type::Unknown
+            }
+        }
+        _ => Type::Unknown, // Non-literal or complex expression
+    }
+}
+
 /// Helper to build nested dictionary access for assignment
 /// Returns (base_expr, access_chain) where access_chain is a vec of index expressions
 fn extract_nested_indices_tokens(
@@ -2785,6 +2844,21 @@ pub(crate) fn codegen_for_stmt(
             }
         }
 
+        // DEPYLER-1189: Handle dict index expression iteration
+        // Python: for key in dict[index] - iterates over keys of the nested dict
+        // Rust: HashMap iteration gives (K, V) tuples, need .keys() for Python semantics
+        if let HirExpr::Index { base, .. } = iter {
+            // Check if the base is a dict-of-dicts
+            if let HirExpr::Var(base_name) = base.as_ref() {
+                if let Some(Type::Dict(_, value_type)) = ctx.var_types.get(base_name) {
+                    // If the value type is also a Dict, iteration should be over keys
+                    if matches!(value_type.as_ref(), Type::Dict(_, _)) {
+                        iter_expr = parse_quote! { #iter_expr.keys().cloned() };
+                    }
+                }
+            }
+        }
+
         // DEPYLER-1045: Handle string method calls that return String
         // When iterating over text.lower(), text.upper(), text.strip(), etc.,
         // we need to add .chars() because these methods return String which is not an iterator
@@ -3534,9 +3608,13 @@ pub(crate) fn codegen_assign_stmt(
                     _ => bail!("Unsupported augmented assignment operator for dict"),
                 };
 
+                // DEPYLER-1188: Clone the key to avoid borrow-after-move
+                // when #right_expr may also reference the original key variable
+                // Pattern: result[key] = result[key] + counter2[key]
+                // The key is used in both LHS index and RHS expression
                 return Ok(quote! {
                     {
-                        let _key = #index_expr;
+                        let _key = #index_expr.clone();
                         let _old_val = #base_expr.get(&_key).cloned().unwrap_or_default();
                         #base_expr.insert(_key, _old_val #op_token #right_expr);
                     }
@@ -4288,9 +4366,24 @@ pub(crate) fn codegen_assign_stmt(
                         (Some(quote! { : Vec<DepylerValue> }), false)
                     }
                 }
-                // Set literal: `x = {1, 2, 3}` → `HashSet<DepylerValue>`
-                HirExpr::Set(_) => {
-                    (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
+                // DEPYLER-1149: Set literal with element type inference
+                // `x = {1, 2, 3}` → `HashSet<i32>` if all ints
+                // `x = {"a", "b"}` → `HashSet<String>` if all strings
+                // `x = {1, "a"}` → `HashSet<DepylerValue>` if mixed
+                HirExpr::Set(elems) => {
+                    let elem_type = infer_collection_element_type(elems);
+                    match elem_type {
+                        Type::Int => (Some(quote! { : std::collections::HashSet<i32> }), false),
+                        Type::Float => (Some(quote! { : std::collections::HashSet<f64> }), false),
+                        Type::String => {
+                            (Some(quote! { : std::collections::HashSet<String> }), false)
+                        }
+                        Type::Bool => (Some(quote! { : std::collections::HashSet<bool> }), false),
+                        _ => {
+                            // Unknown or mixed types - fall back to DepylerValue
+                            (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
+                        }
+                    }
                 }
                 // Set comprehension: `x = {v for ...}` → `HashSet<DepylerValue>`
                 HirExpr::SetComp { .. } => {
