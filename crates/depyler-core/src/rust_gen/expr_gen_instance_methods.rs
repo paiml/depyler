@@ -5123,8 +5123,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // When `stats: Dict[str, float] = {...}`, even if values are mixed (int/float),
         // we should coerce to the target type instead of using DepylerValue.
         // This enables Python's implicit int→float coercion.
+        // DEPYLER-1153: ALSO check for nested Dict/List with concrete element types
+        // e.g., Dict[str, Dict[str, int]] should NOT use DepylerValue wrapping
         let target_has_concrete_value_type = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type {
-            matches!(val_type.as_ref(), Type::Int | Type::Float | Type::String | Type::Bool)
+            self.is_concrete_type(val_type.as_ref())
         } else {
             false
         };
@@ -5532,7 +5534,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let mut insert_stmts = Vec::new();
         for (key, value) in items {
             let mut key_expr = key.to_rust_expr(self.ctx)?;
+
+            // DEPYLER-1153: Propagate value type to nested dict/list values
+            // For Dict[str, Dict[str, int]], inner dict needs current_assign_type = Dict[str, int]
+            let prev_assign_type = self.ctx.current_assign_type.clone();
+            if matches!(value, HirExpr::Dict(_) | HirExpr::List(_)) {
+                if let Some(ref val_type) = target_value_type {
+                    self.ctx.current_assign_type = Some(val_type.clone());
+                }
+            }
             let mut val_expr = value.to_rust_expr(self.ctx)?;
+            self.ctx.current_assign_type = prev_assign_type;
 
             // DEPYLER-0810: Unwrap Result-returning function calls in dict value context
             // HashMap<K, V> expects V, not Result<V, E>, so we need to unwrap
@@ -8079,6 +8091,44 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     false
                 }
             }
+            _ => false,
+        }
+    }
+
+    /// DEPYLER-1153: Check if a type is "concrete" (not Unknown/Any/DepylerValue)
+    /// Used to determine if a Dict return type should use type-preserving codegen
+    /// instead of DepylerValue wrapping.
+    ///
+    /// A type is concrete if it's:
+    /// - A scalar type (Int, Float, String, Bool)
+    /// - A Dict/List/Tuple with concrete element types (recursive)
+    /// - NOT Unknown, Any, or DepylerValue
+    #[inline]
+    fn is_concrete_type(&self, ty: &Type) -> bool {
+        match ty {
+            // Scalar types are concrete
+            Type::Int | Type::Float | Type::String | Type::Bool | Type::None => true,
+
+            // Nested collections are concrete if their element types are concrete
+            Type::Dict(key_type, val_type) => {
+                self.is_concrete_type(key_type) && self.is_concrete_type(val_type)
+            }
+            Type::List(elem_type) => self.is_concrete_type(elem_type),
+            Type::Tuple(types) => types.iter().all(|t| self.is_concrete_type(t)),
+            Type::Set(elem_type) => self.is_concrete_type(elem_type),
+            Type::Optional(inner) => self.is_concrete_type(inner),
+
+            // Unknown, Any, DepylerValue, serde_json::Value are NOT concrete
+            Type::Unknown => false,
+            Type::Custom(name) if name == "Any" || name == "DepylerValue" || name == "serde_json::Value" => false,
+
+            // Other custom types are considered concrete (user-defined classes, etc.)
+            Type::Custom(_) => true,
+
+            // Union types are concrete if all variants are concrete
+            Type::Union(types) => types.iter().all(|t| self.is_concrete_type(t)),
+
+            // Callable, Generator, etc. - treat as non-concrete for now
             _ => false,
         }
     }
@@ -11351,5 +11401,81 @@ def owned_test():
 "#,
         );
         assert!(code.contains("vec!"));
+    }
+
+    // ========================================================================
+    // DEPYLER-1153: NESTED DICT TYPE PROPAGATION TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_DEPYLER_1153_nested_dict_concrete_type() {
+        // Test that Dict[str, Dict[str, int]] uses concrete types, not DepylerValue
+        let code = transpile(
+            r#"
+def nested_dict() -> dict[str, dict[str, int]]:
+    x = 42
+    return {"outer": {"inner": x}}
+"#,
+        );
+        // Extract just the function body to avoid matching prelude definitions
+        let fn_start = code.find("pub fn nested_dict").unwrap_or(0);
+        let fn_code = &code[fn_start..];
+
+        // Should NOT contain DepylerValue wrapping for dict values
+        assert!(
+            !fn_code.contains("DepylerValue::Dict"),
+            "Should not use DepylerValue::Dict for concrete nested dict type: {}",
+            fn_code
+        );
+        // Inner dict should be HashMap<String, i32> (not HashMap<String, HashMap<...>>)
+        // This proves the type propagation is working
+        assert!(
+            fn_code.contains("HashMap<String, i32>"),
+            "Inner dict should use concrete HashMap<String, i32>: {}",
+            fn_code
+        );
+    }
+
+    #[test]
+    fn test_DEPYLER_1153_nested_list_concrete_type() {
+        // Test that Dict[str, list[int]] uses concrete types
+        let code = transpile(
+            r#"
+def dict_with_list() -> dict[str, list[int]]:
+    return {"values": [1, 2, 3]}
+"#,
+        );
+        // Should NOT contain DepylerValue wrapping for list
+        // (but may use DepylerValue for other reasons in prelude - only check the function body)
+        let fn_start = code.find("pub fn dict_with_list").unwrap_or(0);
+        let fn_code = &code[fn_start..];
+        assert!(
+            !fn_code.contains("DepylerValue::List"),
+            "Should not use DepylerValue::List for concrete list type: {}",
+            fn_code
+        );
+        // Should use vec![] for the list
+        assert!(
+            fn_code.contains("vec!["),
+            "Should use vec![] for concrete list type: {}",
+            fn_code
+        );
+    }
+
+    #[test]
+    fn test_DEPYLER_1153_bare_dict_still_uses_depyler_value() {
+        // Test that bare dict (no type annotation) still uses DepylerValue
+        let code = transpile(
+            r#"
+def bare_dict() -> dict:
+    return {"key": 42, "name": "test"}
+"#,
+        );
+        // Bare dict with mixed types SHOULD use DepylerValue
+        assert!(
+            code.contains("DepylerValue"),
+            "Bare dict with mixed types should use DepylerValue: {}",
+            code
+        );
     }
 }
