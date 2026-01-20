@@ -237,7 +237,7 @@ fn test_coerce_int_expr_to_float() {
 def compute(i: int, dx: float) -> float:
     return (i + 1) * dx
 "#;
-    let result = transpile(code).unwrap();
+    let _result = transpile(code).unwrap();
     // The (i + 1) should be cast to f64
     assert!(transpile_succeeds(code));
 }

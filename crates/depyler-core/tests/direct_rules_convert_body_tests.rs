@@ -1,6 +1,7 @@
 //! EXTREME TDD: Tests for direct_rules_convert body conversion functions
 //! Coverage target: convert_body, find_mutable_vars_in_body, convert_body_with_context
 
+#[allow(unused_imports)]
 use depyler_core::hir::{AssignTarget, BinOp, HirExpr, HirStmt, Literal, Type};
 use depyler_core::DepylerPipeline;
 

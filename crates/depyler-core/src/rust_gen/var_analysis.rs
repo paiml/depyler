@@ -475,6 +475,145 @@ pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
     symbols
 }
 
+/// DEPYLER-1188: Collect all variable names used in an expression
+/// Returns a set of all variable names that appear as HirExpr::Var
+/// Used to detect when a variable is used multiple times in a tuple expression
+pub fn collect_vars_in_expr(expr: &HirExpr) -> HashSet<String> {
+    let mut vars = HashSet::new();
+    collect_vars_recursive(expr, &mut vars);
+    vars
+}
+
+/// DEPYLER-1188: Recursive helper to collect variable names
+fn collect_vars_recursive(expr: &HirExpr, vars: &mut HashSet<String>) {
+    match expr {
+        HirExpr::Var(name) => {
+            vars.insert(name.clone());
+        }
+        HirExpr::Binary { left, right, .. } => {
+            collect_vars_recursive(left, vars);
+            collect_vars_recursive(right, vars);
+        }
+        HirExpr::Unary { operand, .. } => {
+            collect_vars_recursive(operand, vars);
+        }
+        HirExpr::Call { args, kwargs, .. } => {
+            for arg in args {
+                collect_vars_recursive(arg, vars);
+            }
+            for (_, v) in kwargs {
+                collect_vars_recursive(v, vars);
+            }
+        }
+        HirExpr::MethodCall { object, args, kwargs, .. } => {
+            collect_vars_recursive(object, vars);
+            for arg in args {
+                collect_vars_recursive(arg, vars);
+            }
+            for (_, v) in kwargs {
+                collect_vars_recursive(v, vars);
+            }
+        }
+        HirExpr::Index { base, index } => {
+            collect_vars_recursive(base, vars);
+            collect_vars_recursive(index, vars);
+        }
+        HirExpr::Attribute { value, .. } => {
+            collect_vars_recursive(value, vars);
+        }
+        HirExpr::List(elements)
+        | HirExpr::Tuple(elements)
+        | HirExpr::Set(elements)
+        | HirExpr::FrozenSet(elements) => {
+            for e in elements {
+                collect_vars_recursive(e, vars);
+            }
+        }
+        HirExpr::Dict(pairs) => {
+            for (k, v) in pairs {
+                collect_vars_recursive(k, vars);
+                collect_vars_recursive(v, vars);
+            }
+        }
+        HirExpr::IfExpr { test, body, orelse } => {
+            collect_vars_recursive(test, vars);
+            collect_vars_recursive(body, vars);
+            collect_vars_recursive(orelse, vars);
+        }
+        HirExpr::Lambda { body, .. } => {
+            collect_vars_recursive(body, vars);
+        }
+        HirExpr::Slice { base, start, stop, step } => {
+            collect_vars_recursive(base, vars);
+            if let Some(s) = start {
+                collect_vars_recursive(s, vars);
+            }
+            if let Some(s) = stop {
+                collect_vars_recursive(s, vars);
+            }
+            if let Some(s) = step {
+                collect_vars_recursive(s, vars);
+            }
+        }
+        HirExpr::FString { parts } => {
+            for part in parts {
+                if let FStringPart::Expr(e) = part {
+                    collect_vars_recursive(e, vars);
+                }
+            }
+        }
+        HirExpr::GeneratorExp { element, generators }
+        | HirExpr::ListComp { element, generators }
+        | HirExpr::SetComp { element, generators } => {
+            collect_vars_recursive(element, vars);
+            for gen in generators {
+                collect_vars_recursive(&gen.iter, vars);
+                for cond in &gen.conditions {
+                    collect_vars_recursive(cond, vars);
+                }
+            }
+        }
+        HirExpr::DictComp { key, value, generators } => {
+            collect_vars_recursive(key, vars);
+            collect_vars_recursive(value, vars);
+            for gen in generators {
+                collect_vars_recursive(&gen.iter, vars);
+                for cond in &gen.conditions {
+                    collect_vars_recursive(cond, vars);
+                }
+            }
+        }
+        HirExpr::Await { value } => {
+            collect_vars_recursive(value, vars);
+        }
+        HirExpr::Yield { value: Some(v) } => {
+            collect_vars_recursive(v, vars);
+        }
+        HirExpr::Yield { value: None } => {}
+        HirExpr::Borrow { expr, .. } => {
+            collect_vars_recursive(expr, vars);
+        }
+        HirExpr::NamedExpr { value, .. } => {
+            collect_vars_recursive(value, vars);
+        }
+        HirExpr::DynamicCall { callee, args, .. } => {
+            collect_vars_recursive(callee, vars);
+            for arg in args {
+                collect_vars_recursive(arg, vars);
+            }
+        }
+        HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
+            collect_vars_recursive(iterable, vars);
+            collect_vars_recursive(key_body, vars);
+            if let Some(r) = reverse_expr {
+                collect_vars_recursive(r, vars);
+            }
+        }
+        // Literals and other non-variable expressions
+        _ => {}
+    }
+}
+
 /// DEPYLER-0188: Extract NamedExpr (walrus operator) assignments from a condition expression
 /// Returns: (hoisted_lets, simplified_condition)
 pub fn extract_walrus_from_condition(condition: &HirExpr) -> (Vec<(String, HirExpr)>, HirExpr) {

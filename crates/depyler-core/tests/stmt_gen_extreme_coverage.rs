@@ -16,6 +16,7 @@ fn transpile_ok(code: &str) -> bool {
     transpile(code).is_ok()
 }
 
+#[allow(dead_code)]
 fn transpile_contains(code: &str, expected: &str) -> bool {
     match transpile(code) {
         Ok(result) => result.contains(expected),

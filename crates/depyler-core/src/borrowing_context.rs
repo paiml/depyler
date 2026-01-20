@@ -973,9 +973,11 @@ mod tests {
 
     #[test]
     fn test_parameter_usage_pattern_clone() {
-        let mut pattern = ParameterUsagePattern::default();
-        pattern.is_read = true;
-        pattern.is_mutated = true;
+        let pattern = ParameterUsagePattern {
+            is_read: true,
+            is_mutated: true,
+            ..Default::default()
+        };
         let cloned = pattern.clone();
         assert_eq!(pattern.is_read, cloned.is_read);
         assert_eq!(pattern.is_mutated, cloned.is_mutated);
@@ -1387,14 +1389,16 @@ mod tests {
 
     #[test]
     fn test_parameter_usage_pattern_all_fields() {
-        let mut pattern = ParameterUsagePattern::default();
-        pattern.is_read = true;
-        pattern.is_mutated = true;
-        pattern.is_moved = false;
-        pattern.escapes_through_return = true;
-        pattern.is_stored = false;
-        pattern.used_in_closure = true;
-        pattern.used_in_loop = true;
+        let mut pattern = ParameterUsagePattern {
+            is_read: true,
+            is_mutated: true,
+            is_moved: false,
+            escapes_through_return: true,
+            is_stored: false,
+            used_in_closure: true,
+            used_in_loop: true,
+            ..Default::default()
+        };
         pattern.field_accesses.insert("name".to_string());
         pattern.method_calls.insert("len".to_string());
 

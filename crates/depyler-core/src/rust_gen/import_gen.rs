@@ -5,6 +5,14 @@
 
 use crate::hir::{Import, ImportItem};
 
+/// Result type for processed module imports to reduce type complexity
+pub type ProcessedImports = (
+    std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
+    std::collections::HashMap<String, String>,
+    Vec<UnresolvedImport>,
+    std::collections::HashMap<String, String>,
+);
+
 /// Process a whole module import (e.g., `import math`)
 ///
 /// Adds the module mapping to imported_modules if found in the module mapper.
@@ -113,12 +121,7 @@ pub struct UnresolvedImport {
 pub fn process_module_imports(
     imports: &[Import],
     module_mapper: &crate::module_mapper::ModuleMapper,
-) -> (
-    std::collections::HashMap<String, crate::module_mapper::ModuleMapping>,
-    std::collections::HashMap<String, String>,
-    Vec<UnresolvedImport>,
-    std::collections::HashMap<String, String>,
-) {
+) -> ProcessedImports {
     let mut imported_modules = std::collections::HashMap::new();
     let mut imported_items = std::collections::HashMap::new();
     let mut unresolved_imports = Vec::new();

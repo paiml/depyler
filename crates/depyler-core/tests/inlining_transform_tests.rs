@@ -606,7 +606,7 @@ fn test_apply_multi_use_function_kept() {
     let decisions = HashMap::new();
     let result = analyzer.apply_inlining(program, &decisions);
     // Multi-use function should be kept
-    assert!(result.functions.len() >= 1);
+    assert!(!result.functions.is_empty());
 }
 
 // ============ Config variation tests ============

@@ -2,6 +2,7 @@
 
 use depyler_core::DepylerPipeline;
 
+#[allow(dead_code)]
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
     pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))

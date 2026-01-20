@@ -11,6 +11,7 @@ fn transpile_ok(code: &str) -> bool {
     transpile(code).is_ok()
 }
 
+#[allow(dead_code)]
 fn transpile_contains(code: &str, needle: &str) -> bool {
     transpile(code).map(|s| s.contains(needle)).unwrap_or(false)
 }

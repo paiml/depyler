@@ -3074,6 +3074,33 @@ impl<'a> ExprConverter<'a> {
         }
     }
 
+    /// DEPYLER-1177: Check if expression has a List type (for proper slice codegen)
+    fn is_list_type(&self, expr: &HirExpr) -> bool {
+        match expr {
+            HirExpr::Var(name) => {
+                matches!(
+                    self.param_types.get(name),
+                    Some(Type::List(_)) | Some(Type::Set(_))
+                ) || matches!(
+                    self.class_field_types.get(name),
+                    Some(Type::List(_)) | Some(Type::Set(_))
+                )
+            }
+            HirExpr::Attribute { value, attr } => {
+                if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                    matches!(
+                        self.class_field_types.get(attr),
+                        Some(Type::List(_)) | Some(Type::Set(_))
+                    )
+                } else {
+                    false
+                }
+            }
+            HirExpr::List(_) => true,
+            _ => false,
+        }
+    }
+
     /// DEPYLER-0596: Convert slice expression (e.g., value[1:-1])
     fn convert_slice(
         &self,
@@ -3083,6 +3110,11 @@ impl<'a> ExprConverter<'a> {
         step: &Option<Box<HirExpr>>,
     ) -> Result<syn::Expr> {
         let base_expr = self.convert(base)?;
+
+        // DEPYLER-1177: Check if base is a Vec type - use Vec slicing instead of String
+        if self.is_list_type(base) {
+            return self.convert_vec_slice(base_expr, start, stop, step);
+        }
 
         // Convert start/stop/step expressions
         let start_expr = start.as_ref().map(|e| self.convert(e)).transpose()?;
@@ -3156,6 +3188,83 @@ impl<'a> ExprConverter<'a> {
             }
             (None, None) => {
                 // value[:] - full clone
+                Ok(parse_quote! { #base_expr.clone() })
+            }
+        }
+    }
+
+    /// DEPYLER-1177: Convert Vec slice expression (e.g., list[start:stop])
+    fn convert_vec_slice(
+        &self,
+        base_expr: syn::Expr,
+        start: &Option<Box<HirExpr>>,
+        stop: &Option<Box<HirExpr>>,
+        _step: &Option<Box<HirExpr>>,
+    ) -> Result<syn::Expr> {
+        let start_expr = start.as_ref().map(|e| self.convert(e)).transpose()?;
+        let stop_expr = stop.as_ref().map(|e| self.convert(e)).transpose()?;
+
+        match (start_expr, stop_expr) {
+            (Some(start), Some(stop)) => {
+                // list[start:stop] - handles negative indices
+                Ok(parse_quote! {
+                    {
+                        let v = &#base_expr;
+                        let len = v.len() as isize;
+                        let start_idx = (#start) as isize;
+                        let stop_idx = (#stop) as isize;
+                        let start = if start_idx < 0 {
+                            (len + start_idx).max(0) as usize
+                        } else {
+                            start_idx as usize
+                        };
+                        let stop = if stop_idx < 0 {
+                            (len + stop_idx).max(0) as usize
+                        } else {
+                            stop_idx.min(len) as usize
+                        };
+                        if stop > start {
+                            v[start..stop].to_vec()
+                        } else {
+                            vec![]
+                        }
+                    }
+                })
+            }
+            (Some(start), None) => {
+                // list[start:] - from start to end
+                Ok(parse_quote! {
+                    {
+                        let v = &#base_expr;
+                        let len = v.len() as isize;
+                        let start_idx = (#start) as isize;
+                        let start = if start_idx < 0 {
+                            (len + start_idx).max(0) as usize
+                        } else {
+                            start_idx as usize
+                        };
+                        v[start..].to_vec()
+                    }
+                })
+            }
+            (None, Some(stop)) => {
+                // list[:stop] - from beginning to stop
+                Ok(parse_quote! {
+                    {
+                        let v = &#base_expr;
+                        let len = v.len() as isize;
+                        let stop_idx = (#stop) as isize;
+                        let stop = if stop_idx < 0 {
+                            (len + stop_idx).max(0) as usize
+                        } else {
+                            stop_idx.min(len) as usize
+                        };
+                        v[..stop].to_vec()
+                    }
+                })
+            }
+            (None, None) => {
+                // list[:] - full clone
                 Ok(parse_quote! { #base_expr.clone() })
             }
         }
@@ -5894,10 +6003,10 @@ mod tests {
 
     #[test]
     fn test_convert_literal_float() {
-        let lit = Literal::Float(3.14);
+        let lit = Literal::Float(3.15);
         let result = convert_literal(&lit);
         let result_str = quote::quote!(#result).to_string();
-        assert!(result_str.contains("3.14") || result_str.contains("3.1"));
+        assert!(result_str.contains("3.15") || result_str.contains("3.1"));
     }
 
     #[test]

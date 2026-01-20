@@ -17,6 +17,7 @@ fn transpile_ok(code: &str) -> bool {
     transpile(code).is_ok()
 }
 
+#[allow(dead_code)]
 fn transpile_contains(code: &str, expected: &str) -> bool {
     match transpile(code) {
         Ok(result) => result.contains(expected),
@@ -1163,9 +1164,9 @@ mod falsification {
     fn test_deeply_nested_doesnt_stack_overflow() {
         let mut code = "def f(x: int) -> int:\n    return ".to_string();
         for _ in 0..50 {
-            code.push_str("(");
+            code.push('(');
         }
-        code.push_str("x");
+        code.push('x');
         for _ in 0..50 {
             code.push_str(" + 1)");
         }

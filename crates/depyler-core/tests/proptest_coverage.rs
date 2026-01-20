@@ -359,7 +359,7 @@ proptest! {
 
     #[test]
     fn prop_long_expression_chain(length in 1usize..20) {
-        let ops = vec!["+", "-", "*"];
+        let ops = ["+", "-", "*"];
         let mut code = "def f() -> int:\n    return 1".to_string();
         for i in 0..length {
             let op = &ops[i % ops.len()];

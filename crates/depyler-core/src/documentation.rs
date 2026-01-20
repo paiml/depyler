@@ -1013,12 +1013,14 @@ mod tests {
         };
         let generator = DocGenerator::new(config);
 
-        let mut props = FunctionProperties::default();
-        props.is_pure = true;
-        props.always_terminates = true;
-        props.panic_free = true;
-        props.is_async = true;
-        props.max_stack_depth = Some(10);
+        let props = FunctionProperties {
+            is_pure: true,
+            always_terminates: true,
+            panic_free: true,
+            is_async: true,
+            max_stack_depth: Some(10),
+            ..Default::default()
+        };
 
         let func = HirFunction {
             name: "pure_func".to_string(),

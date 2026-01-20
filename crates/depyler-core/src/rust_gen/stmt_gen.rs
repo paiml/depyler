@@ -48,7 +48,7 @@ fn type_to_rust_string(ty: &Type) -> String {
         Type::List(inner) => format!("Vec<{}>", type_to_rust_string(inner)),
         Type::Optional(inner) => format!("Option<{}>", type_to_rust_string(inner)),
         Type::Tuple(types) => {
-            let inner: Vec<_> = types.iter().map(|t| type_to_rust_string(t)).collect();
+            let inner: Vec<_> = types.iter().map(type_to_rust_string).collect();
             format!("({})", inner.join(", "))
         }
         Type::Dict(k, v) => format!(
@@ -59,7 +59,7 @@ fn type_to_rust_string(ty: &Type) -> String {
         Type::Set(inner) => format!("std::collections::HashSet<{}>", type_to_rust_string(inner)),
         Type::Custom(name) => name.clone(),
         Type::Generic { base, params } if !params.is_empty() => {
-            let inner: Vec<_> = params.iter().map(|t| type_to_rust_string(t)).collect();
+            let inner: Vec<_> = params.iter().map(type_to_rust_string).collect();
             format!("{}<{}>", base, inner.join(", "))
         }
         _ => "DepylerValue".to_string(), // Fallback for Unknown, etc.

@@ -459,7 +459,7 @@ mod tests {
             vec![],
             vec![make_assign(
                 "y",
-                HirExpr::Literal(Literal::Float(3.14)),
+                HirExpr::Literal(Literal::Float(3.15)),
                 None,
             )],
         );

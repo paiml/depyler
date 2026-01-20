@@ -566,7 +566,7 @@ mod tests {
 
         // Medium type mismatch
         let e0308_complexity = planner.estimate_complexity("E0308");
-        assert!(e0308_complexity >= 3 && e0308_complexity <= 5);
+        assert!((3..=5).contains(&e0308_complexity));
 
         // Hard borrowing
         assert!(planner.estimate_complexity("E0503") >= 6);
