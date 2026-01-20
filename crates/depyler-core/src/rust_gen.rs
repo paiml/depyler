@@ -1359,6 +1359,55 @@ fn infer_lazy_constant_type(
                     .unwrap_or_else(|| quote! { i32 });
                 return quote! { std::collections::HashMap<#key_type, #val_type> };
             }
+            // DEPYLER-1172: Handle math module constants (math.pi, math.e, etc.)
+            HirExpr::Attribute { value: attr_obj, attr } => {
+                if let HirExpr::Var(module_name) = attr_obj.as_ref() {
+                    if module_name == "math" {
+                        match attr.as_str() {
+                            "pi" | "e" | "tau" | "inf" | "nan" => {
+                                return quote! { f64 };
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+            // DEPYLER-1172: Handle math method calls like (16).sqrt(), math.sqrt(16)
+            HirExpr::MethodCall { method, .. } => {
+                match method.as_str() {
+                    // Float-returning math methods
+                    "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan"
+                    | "sinh" | "cosh" | "tanh" | "exp" | "log" | "log10" | "log2"
+                    | "floor" | "ceil" | "trunc" | "fract" | "abs" => {
+                        return quote! { f64 };
+                    }
+                    // String methods
+                    "upper" | "lower" | "strip" | "lstrip" | "rstrip"
+                    | "replace" | "join" | "format" | "to_string" | "to_uppercase"
+                    | "to_lowercase" | "trim" => {
+                        return quote! { String };
+                    }
+                    // Int methods
+                    "count" | "index" | "find" | "rfind" | "len" => {
+                        return quote! { i32 };
+                    }
+                    _ => {}
+                }
+            }
+            // DEPYLER-1172: Handle math function calls like math.sqrt(16)
+            HirExpr::Call { func, .. } => {
+                match func.as_str() {
+                    "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan"
+                    | "sinh" | "cosh" | "tanh" | "exp" | "log" | "log10" | "log2"
+                    | "floor" | "ceil" | "trunc" | "fabs" => {
+                        return quote! { f64 };
+                    }
+                    "abs" | "len" | "ord" | "hash" => {
+                        return quote! { i32 };
+                    }
+                    _ => {}
+                }
+            }
             _ => {}
         }
     }
@@ -1763,6 +1812,31 @@ fn infer_constant_type(value: &HirExpr, ctx: &mut CodeGenContext) -> proc_macro2
         HirExpr::Var(name) => {
             if let Some(var_type) = ctx.var_types.get(name) {
                 match type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(var_type)) {
+                    Ok(syn_type) => quote! { : #syn_type },
+                    Err(_) => ctx.fallback_type_annotation(),
+                }
+            } else {
+                ctx.fallback_type_annotation()
+            }
+        }
+
+        // DEPYLER-1172: Handle math module constants (math.pi, math.e, etc.)
+        // These are f64 constants, not String
+        HirExpr::Attribute { value, attr } => {
+            // Check if this is a math module attribute
+            if let HirExpr::Var(module_name) = value.as_ref() {
+                if module_name == "math" {
+                    // Math module constants are all f64
+                    match attr.as_str() {
+                        "pi" | "e" | "tau" | "inf" | "nan" => return quote! { : f64 },
+                        _ => {}
+                    }
+                }
+            }
+            // Fall through to default inference
+            let inferred = func_gen::infer_expr_type_simple(value);
+            if !matches!(inferred, crate::hir::Type::Unknown) {
+                match type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(&inferred)) {
                     Ok(syn_type) => quote! { : #syn_type },
                     Err(_) => ctx.fallback_type_annotation(),
                 }
@@ -2280,6 +2354,7 @@ fn generate_rust_file_internal(
         needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
         needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
         vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
+        slice_params: HashSet::new(),     // DEPYLER-1150: Track slice params in current function
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
         current_return_type: None,
@@ -5606,6 +5681,7 @@ mod tests {
             needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
             needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
             vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
+            slice_params: HashSet::new(),     // DEPYLER-1150: Track slice params in current function
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,

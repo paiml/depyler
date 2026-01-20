@@ -770,6 +770,21 @@ pub(crate) fn codegen_return_stmt(
             }
         }
 
+        // DEPYLER-1150: Convert slice params to Vec when returning in Vec-returning function
+        // Pattern: def func(*args) -> List[T]: return args
+        // Rust: fn func(args: &[T]) -> Vec<T> { args.to_vec() }
+        // Without this, we get E0308: expected Vec<T>, found &[T]
+        if let HirExpr::Var(var_name) = e {
+            let is_slice_param = ctx.slice_params.contains(var_name);
+            let is_vec_return = matches!(
+                ctx.current_return_type.as_ref(),
+                Some(Type::List(_)) | Some(Type::Tuple(_))
+            );
+            if is_slice_param && is_vec_return {
+                expr_tokens = parse_quote! { #expr_tokens.to_vec() };
+            }
+        }
+
         // DEPYLER-0757: Wrap return values when function returns serde_json::Value (Python's `any`)
         // When return type is serde_json::Value, use json!() macro to convert any value
         // Note: ctx.current_return_type contains HIR type (e.g., "any") not the mapped Rust type

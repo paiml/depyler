@@ -1427,6 +1427,10 @@ fn codegen_single_param(
     // This allows calling from match patterns where the value is borrowed
     // Python: def func(*args) → Rust: fn func(args: &[T])
     if param.is_vararg {
+        // DEPYLER-1150: Track this parameter as a slice for return type conversion
+        // When returning a slice param in a function that returns Vec<T>, add .to_vec()
+        ctx.slice_params.insert(param.name.clone());
+
         // Extract element type from Type::List
         let elem_type = if let Type::List(elem) = &param.ty {
             rust_type_to_syn(&ctx.type_mapper.map_type(elem))?
