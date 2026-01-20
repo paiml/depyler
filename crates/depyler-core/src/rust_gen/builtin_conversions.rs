@@ -776,8 +776,8 @@ mod tests {
     #[test]
     fn test_convert_bool_cast_float_literal() {
         let ctx = CodeGenContext::default();
-        let hir_args = vec![HirExpr::Literal(Literal::Float(3.14))];
-        let args: Vec<syn::Expr> = vec![parse_quote! { 3.14 }];
+        let hir_args = vec![HirExpr::Literal(Literal::Float(3.15))];
+        let args: Vec<syn::Expr> = vec![parse_quote! { 3.15 }];
         let result = convert_bool_cast(&ctx, &hir_args, &args).unwrap();
         let result_str = quote::quote!(#result).to_string();
         assert!(result_str.contains("true"), "Expected true, got: {}", result_str);

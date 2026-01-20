@@ -548,7 +548,7 @@ mod training_data_collector_tests {
         ];
         collector.collect_from_transpiler(&mut transpiler, &samples);
         // Should have collected pairs from successful transpilations
-        assert!(collector.len() >= 0); // May or may not collect depending on confidence
+        // Collection may or may not occur depending on confidence - test just verifies no panic
     }
 
     #[test]

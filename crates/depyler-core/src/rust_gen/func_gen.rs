@@ -4235,7 +4235,7 @@ mod tests {
 
     #[test]
     fn test_literal_to_type_float() {
-        assert_eq!(literal_to_type(&Literal::Float(3.14)), Type::Float);
+        assert_eq!(literal_to_type(&Literal::Float(3.15)), Type::Float);
         assert_eq!(literal_to_type(&Literal::Float(-1.0)), Type::Float);
     }
 
@@ -4970,7 +4970,7 @@ mod tests {
 
     #[test]
     fn test_infer_simple_float() {
-        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Float(3.14))), Type::Float);
+        assert_eq!(infer_expr_type_simple(&HirExpr::Literal(Literal::Float(3.15))), Type::Float);
     }
 
     #[test]
@@ -5718,7 +5718,7 @@ mod tests {
     fn test_infer_return_type_in_if() {
         let body = vec![HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
-            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(3.14))))],
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(3.15))))],
             else_body: None,
         }];
         assert_eq!(infer_return_type_from_body(&body), Some(Type::Float));

@@ -431,7 +431,7 @@ mod tests {
     fn test_is_negated_float_literal() {
         let expr = HirExpr::Unary {
             op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Literal(Literal::Float(3.14))),
+            operand: Box::new(HirExpr::Literal(Literal::Float(3.15))),
         };
         assert!(is_negated_literal(&expr));
     }
@@ -489,9 +489,9 @@ mod tests {
     fn test_get_negated_float_value() {
         let expr = HirExpr::Unary {
             op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Literal(Literal::Float(3.14))),
+            operand: Box::new(HirExpr::Literal(Literal::Float(3.15))),
         };
-        assert_eq!(get_negated_float_value(&expr), Some(-3.14));
+        assert_eq!(get_negated_float_value(&expr), Some(-3.15));
     }
 
     #[test]

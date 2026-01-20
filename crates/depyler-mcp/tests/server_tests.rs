@@ -7,7 +7,7 @@ use depyler_mcp::tools::*;
 use depyler_mcp::{AnalyzeTool, DepylerMcpServer, PmatQualityTool, TranspileTool, VerifyTool};
 use pmcp::{RequestHandlerExtra, ToolHandler};
 use serde_json::json;
-use std::fs::{self, File};
+use std::fs::File;
 use std::io::Write;
 use std::sync::Arc;
 use tempfile::TempDir;

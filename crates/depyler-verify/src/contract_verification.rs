@@ -914,7 +914,7 @@ mod tests {
     #[test]
     fn test_value_parsing() {
         assert!(matches!(parse_value("42"), Some(Value::Int(42))));
-        assert!(matches!(parse_value("3.14"), Some(Value::Float(_))));
+        assert!(matches!(parse_value("3.15"), Some(Value::Float(_))));
         assert!(matches!(parse_value("true"), Some(Value::Bool(true))));
         assert!(matches!(parse_value("\"hello\""), Some(Value::String(_))));
         assert!(matches!(parse_value("None"), Some(Value::Null)));
@@ -1205,7 +1205,7 @@ mod tests {
     #[test]
     fn test_value_formatting() {
         assert_eq!(value_to_rust(&Value::Int(42)), "42");
-        assert!(value_to_rust(&Value::Float(3.14)).contains("3.14"));
+        assert!(value_to_rust(&Value::Float(3.15)).contains("3.15"));
         assert_eq!(value_to_rust(&Value::String("hello".to_string())), "\"hello\"");
         assert_eq!(value_to_rust(&Value::Bool(true)), "true");
         assert_eq!(value_to_rust(&Value::Bool(false)), "false");
@@ -1824,9 +1824,9 @@ mod tests {
 
     #[test]
     fn test_parse_value_float_negative() {
-        let val = parse_value("-3.14");
+        let val = parse_value("-3.15");
         if let Some(Value::Float(f)) = val {
-            assert!((f - (-3.14)).abs() < 0.001);
+            assert!((f - (-3.15)).abs() < 0.001);
         }
     }
 }

@@ -700,7 +700,7 @@ mod tests {
 
     #[test]
     fn test_infer_expr_type_float_literal() {
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         assert_eq!(infer_expr_type(&expr), Some(Type::Float));
     }
 
@@ -836,7 +836,7 @@ mod tests {
 
         let expr = HirExpr::Call {
             func: "compute".to_string(),
-            args: vec![HirExpr::Literal(Literal::Float(3.14))],
+            args: vec![HirExpr::Literal(Literal::Float(3.15))],
             kwargs: vec![],
         };
 

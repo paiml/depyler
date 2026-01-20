@@ -1105,7 +1105,7 @@ mod tests {
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Int(42))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::String("hello".to_string()))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Bool(true))));
-        assert!(is_pure_expression(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(is_pure_expression(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::None)));
     }
 
@@ -1404,7 +1404,7 @@ mod tests {
     #[test]
     fn test_expr_infers_float_float_literal() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         assert!(expr_infers_float(&expr, &ctx));
     }
 
@@ -1680,7 +1680,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Unary {
             op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Literal(Literal::Float(3.14))),
+            operand: Box::new(HirExpr::Literal(Literal::Float(3.15))),
         };
         assert!(expr_infers_float(&expr, &ctx));
     }
@@ -1690,7 +1690,7 @@ mod tests {
         let ctx = CodeGenContext::default();
         let expr = HirExpr::Unary {
             op: UnaryOp::Not,
-            operand: Box::new(HirExpr::Literal(Literal::Float(3.14))),
+            operand: Box::new(HirExpr::Literal(Literal::Float(3.15))),
         };
         assert!(expr_infers_float(&expr, &ctx));
     }

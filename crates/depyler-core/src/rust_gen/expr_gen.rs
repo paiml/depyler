@@ -11324,9 +11324,9 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Float(3.14), &string_optimizer, &needs_cow, &ctx);
+        let result = literal_to_rust_expr(&Literal::Float(3.15), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
-        assert!(code.contains("3.14"));
+        assert!(code.contains("3.15"));
     }
 
     #[test]

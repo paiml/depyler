@@ -4642,7 +4642,7 @@ fn test_stdlib_ext_struct_pack() {
     let ok = transpile_ok(r#"import struct
 def pack_data(fmt: str, val: int) -> bytes:
     return struct.pack(fmt, val)"#);
-    assert!(ok || !ok); // Just test that it doesn't panic
+    let _ = ok; // Silence unused variable, test just verifies no panic
 }
 
 #[test]
@@ -4651,7 +4651,7 @@ fn test_stdlib_ext_struct_unpack() {
     let ok = transpile_ok(r#"import struct
 def unpack_data(fmt: str, data: bytes):
     return struct.unpack(fmt, data)"#);
-    assert!(ok || !ok); // Just test that it doesn't panic
+    let _ = ok; // Silence unused variable, test just verifies no panic
 }
 
 // --- csv module ---
@@ -4979,7 +4979,7 @@ fn test_stdlib_ext_pprint_pformat() {
     let ok = transpile_ok(r#"import pprint
 def format_obj(obj) -> str:
     return pprint.pformat(obj)"#);
-    assert!(ok || !ok); // Just test that it doesn't panic
+    let _ = ok; // Silence unused variable, test just verifies no panic
 }
 
 // --- pickle module ---
@@ -5561,7 +5561,7 @@ fn test_expr_await() {
     let ok = transpile_ok(r#"async def fetch():
     result = await get_data()
     return result"#);
-    assert!(ok || !ok);
+    let _ = ok; // Test just verifies no panic
 }
 
 // --- Yield expressions ---

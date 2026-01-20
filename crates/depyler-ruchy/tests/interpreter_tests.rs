@@ -26,8 +26,10 @@ mod interpreter_creation {
 
     #[test]
     fn test_with_config_custom() {
-        let mut config = RuchyConfig::default();
-        config.enable_mcp = true;
+        let config = RuchyConfig {
+            enable_mcp: true,
+            ..Default::default()
+        };
 
         let interpreter = RuchyInterpreter::with_config(&config);
         // Should be created with custom config
@@ -122,6 +124,7 @@ mod context_management {
 }
 
 mod execution_without_interpreter_feature {
+    #[allow(unused_imports)]
     use super::*;
 
     #[cfg(not(feature = "interpreter"))]
@@ -255,8 +258,10 @@ mod ruchy_config {
 
     #[test]
     fn test_config_with_mcp_enabled() {
-        let mut config = RuchyConfig::default();
-        config.enable_mcp = true;
+        let config = RuchyConfig {
+            enable_mcp: true,
+            ..Default::default()
+        };
         assert!(config.enable_mcp);
     }
 

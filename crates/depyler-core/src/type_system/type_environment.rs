@@ -292,7 +292,7 @@ mod tests {
     #[test]
     fn test_synthesize_float_literal() {
         let mut env = TypeEnvironment::new();
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
 
         let ty = env.synthesize_type(&expr).expect("Should infer type");
         assert_eq!(ty, Type::Float);

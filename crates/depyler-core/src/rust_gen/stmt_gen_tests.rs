@@ -2767,7 +2767,7 @@ fn test_stmt_ext_assignment_nested_unpack() {
     // Complex tuple unpacking may not be supported yet
     let ok = transpile_ok(r#"def foo():
     a, (b, c) = 1, (2, 3)"#);
-    assert!(ok || !ok); // Just test that it doesn't panic
+    let _ = ok; // Silence unused variable, test just verifies no panic
 }
 
 #[test]
@@ -3573,7 +3573,7 @@ fn test_stmt_numpy_array() {
     let ok = transpile_ok(r#"import numpy as np
 def create_array() -> np.ndarray:
     return np.array([1, 2, 3])"#);
-    assert!(ok || !ok);
+    let _ = ok; // Test just verifies no panic
 }
 
 // --- Pure expression detection ---

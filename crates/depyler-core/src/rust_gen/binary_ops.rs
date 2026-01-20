@@ -482,14 +482,14 @@ mod tests {
 
     #[test]
     fn test_is_int_literal_false() {
-        assert!(!is_int_literal(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(!is_int_literal(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(!is_int_literal(&HirExpr::Literal(Literal::String("hi".to_string()))));
         assert!(!is_int_literal(&HirExpr::Var("x".to_string())));
     }
 
     #[test]
     fn test_is_float_literal_true() {
-        assert!(is_float_literal(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(is_float_literal(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(is_float_literal(&HirExpr::Literal(Literal::Float(0.0))));
         assert!(is_float_literal(&HirExpr::Literal(Literal::Float(-1.5))));
     }
@@ -510,7 +510,7 @@ mod tests {
     #[test]
     fn test_is_string_literal_false() {
         assert!(!is_string_literal(&HirExpr::Literal(Literal::Int(42))));
-        assert!(!is_string_literal(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(!is_string_literal(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(!is_string_literal(&HirExpr::Var("s".to_string())));
     }
 

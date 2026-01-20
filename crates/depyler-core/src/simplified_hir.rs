@@ -515,9 +515,9 @@ mod tests {
 
     #[test]
     fn test_hir_literal_float() {
-        let lit = HirLiteral::Float(3.14);
+        let lit = HirLiteral::Float(3.15);
         if let HirLiteral::Float(v) = lit {
-            assert!((v - 3.14).abs() < f64::EPSILON);
+            assert!((v - 3.15).abs() < f64::EPSILON);
         }
     }
 

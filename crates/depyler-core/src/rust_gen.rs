@@ -6703,7 +6703,7 @@ mod tests {
         let mut ctx = create_test_context();
         let result = infer_unary_type(
             &UnaryOp::Neg,
-            &HirExpr::Literal(Literal::Float(3.14)),
+            &HirExpr::Literal(Literal::Float(3.15)),
             &mut ctx,
         );
         assert!(result.to_string().contains("f64"));
@@ -6959,7 +6959,7 @@ mod tests {
     #[test]
     fn test_infer_constant_type_float() {
         let mut ctx = create_test_context();
-        let result = infer_constant_type(&HirExpr::Literal(Literal::Float(3.14)), &mut ctx);
+        let result = infer_constant_type(&HirExpr::Literal(Literal::Float(3.15)), &mut ctx);
         assert!(result.to_string().contains("f64"));
     }
 
@@ -7724,7 +7724,7 @@ mod tests {
                     name: "test_cross_type".to_string(),
                     params: smallvec![],
                     ret_type: Type::Unknown, // Triggers DepylerValue
-                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(3.14))))],
+                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(3.15))))],
                     properties: FunctionProperties::default(),
                     annotations: TranspilationAnnotations::default(),
                     docstring: None,

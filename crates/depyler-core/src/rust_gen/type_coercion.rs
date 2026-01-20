@@ -359,7 +359,7 @@ mod tests {
 
     #[test]
     fn test_is_int_literal_false() {
-        assert!(!is_int_literal(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(!is_int_literal(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(!is_int_literal(&HirExpr::Literal(Literal::String("42".to_string()))));
         assert!(!is_int_literal(&HirExpr::Var("x".to_string())));
     }
@@ -370,7 +370,7 @@ mod tests {
 
     #[test]
     fn test_is_float_literal_true() {
-        assert!(is_float_literal(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(is_float_literal(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(is_float_literal(&HirExpr::Literal(Literal::Float(0.0))));
         assert!(is_float_literal(&HirExpr::Literal(Literal::Float(-1.5))));
     }
@@ -392,7 +392,7 @@ mod tests {
 
     #[test]
     fn test_is_numeric_literal_float() {
-        assert!(is_numeric_literal(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(is_numeric_literal(&HirExpr::Literal(Literal::Float(3.15))));
     }
 
     #[test]
@@ -546,7 +546,7 @@ mod tests {
 
     #[test]
     fn test_get_float_value() {
-        assert_eq!(get_float_value(&HirExpr::Literal(Literal::Float(3.14))), Some(3.14));
+        assert_eq!(get_float_value(&HirExpr::Literal(Literal::Float(3.15))), Some(3.15));
         assert_eq!(get_float_value(&HirExpr::Var("x".to_string())), None);
     }
 
@@ -886,7 +886,7 @@ mod tests {
 
     #[test]
     fn test_is_int_expr_recursive_float_literal() {
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         let var_types = HashMap::new();
         assert!(!is_int_expr_recursive(&expr, &var_types));
     }

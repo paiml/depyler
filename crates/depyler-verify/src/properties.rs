@@ -180,7 +180,7 @@ fn generate_termination_test(func: &HirFunction) -> Result<String> {
         .iter()
         .map(|param| match &param.ty {
             Type::Int => "42",
-            Type::Float => "3.14",
+            Type::Float => "3.15",
             Type::String => "\"test\".to_string()",
             Type::Bool => "true",
             Type::List(_) => "&vec![1, 2, 3]",

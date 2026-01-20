@@ -1053,7 +1053,7 @@ mod tests {
 
     #[test]
     fn test_infer_yield_type_float_literal() {
-        let expr = HirExpr::Literal(Literal::Float(3.14.into()));
+        let expr = HirExpr::Literal(Literal::Float(3.15.into()));
         let result = infer_yield_type(&expr);
         assert!(matches!(result, Type::Float));
     }

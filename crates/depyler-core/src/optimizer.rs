@@ -1645,7 +1645,7 @@ mod tests {
     fn test_is_constant_expr_literals() {
         let optimizer = Optimizer::new(OptimizerConfig::default());
         assert!(optimizer.is_constant_expr(&HirExpr::Literal(Literal::Int(42))));
-        assert!(optimizer.is_constant_expr(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(optimizer.is_constant_expr(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(optimizer.is_constant_expr(&HirExpr::Literal(Literal::Bool(true))));
         assert!(optimizer.is_constant_expr(&HirExpr::Literal(Literal::String("hello".into()))));
     }
@@ -1819,12 +1819,12 @@ mod tests {
         let optimizer = Optimizer::new(OptimizerConfig::default());
         let expr = HirExpr::Unary {
             op: UnaryOp::Neg,
-            operand: Box::new(HirExpr::Literal(Literal::Float(3.14))),
+            operand: Box::new(HirExpr::Literal(Literal::Float(3.15))),
         };
         let result = optimizer.evaluate_constant_unaryop(&expr);
         assert!(result.is_some());
         if let Some(HirExpr::Literal(Literal::Float(v))) = result {
-            assert!((v - (-3.14)).abs() < 0.001);
+            assert!((v - (-3.15)).abs() < 0.001);
         }
     }
 
@@ -2083,7 +2083,7 @@ mod tests {
     #[test]
     fn test_is_constant_expr_inner_literals() {
         assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Int(42))));
-        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Bool(true))));
         assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::String("hi".into()))));
         assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::None)));
@@ -2555,8 +2555,8 @@ mod tests {
 
     #[test]
     fn test_hash_expr_literal_float() {
-        let expr1 = HirExpr::Literal(Literal::Float(3.14));
-        let expr2 = HirExpr::Literal(Literal::Float(3.14));
+        let expr1 = HirExpr::Literal(Literal::Float(3.15));
+        let expr2 = HirExpr::Literal(Literal::Float(3.15));
         let optimizer = Optimizer::new(OptimizerConfig::default());
         assert_eq!(optimizer.hash_expr(&expr1), optimizer.hash_expr(&expr2));
     }
