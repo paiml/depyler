@@ -1442,12 +1442,14 @@ fn infer_homogeneous_list_type(elems: &[HirExpr]) -> Option<proc_macro2::TokenSt
     };
 
     // Verify all elements match
-    let all_same = elems.iter().all(|e| match (first_type, e) {
-        ("int", HirExpr::Literal(Literal::Int(_))) => true,
-        ("float", HirExpr::Literal(Literal::Float(_))) => true,
-        ("string", HirExpr::Literal(Literal::String(_))) => true,
-        ("bool", HirExpr::Literal(Literal::Bool(_))) => true,
-        _ => false,
+    let all_same = elems.iter().all(|e| {
+        matches!(
+            (first_type, e),
+            ("int", HirExpr::Literal(Literal::Int(_)))
+                | ("float", HirExpr::Literal(Literal::Float(_)))
+                | ("string", HirExpr::Literal(Literal::String(_)))
+                | ("bool", HirExpr::Literal(Literal::Bool(_)))
+        )
     });
 
     if all_same {
@@ -1668,10 +1670,12 @@ fn infer_homogeneous_set_type(elems: &[HirExpr]) -> Option<proc_macro2::TokenStr
     };
 
     // Verify all elements match
-    let all_same = elems.iter().all(|e| match (first_type, e) {
-        ("int", HirExpr::Literal(Literal::Int(_))) => true,
-        ("string", HirExpr::Literal(Literal::String(_))) => true,
-        _ => false,
+    let all_same = elems.iter().all(|e| {
+        matches!(
+            (first_type, e),
+            ("int", HirExpr::Literal(Literal::Int(_)))
+                | ("string", HirExpr::Literal(Literal::String(_)))
+        )
     });
 
     if all_same {
@@ -5132,7 +5136,7 @@ fn generate_rust_file_internal(
     // DEPYLER-1137: Use DepylerValue for semantic proxy types (not serde_json::Value)
     // DEPYLER-1139: Use minimal required args - accept anything via impl traits
     // For `import xml.etree.ElementTree as ET`, generate `mod ET { ... }` stubs
-    for (alias, _original_module) in &ctx.module_aliases {
+    for alias in ctx.module_aliases.keys() {
         let alias_ident = syn::Ident::new(alias, proc_macro2::Span::call_site());
         let alias_stub = quote::quote! {
             /// DEPYLER-1136: Module alias stub for external library

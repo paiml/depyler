@@ -2514,10 +2514,10 @@ mod tests {
 
     #[test]
     fn test_literal_float() {
-        let float_lit = Literal::Float(3.14);
+        let float_lit = Literal::Float(3.15);
         let tokens = literal_to_rust_tokens(&float_lit).unwrap();
         let code = tokens.to_string();
-        assert!(code.contains("3.14") || code.contains("f64"));
+        assert!(code.contains("3.15") || code.contains("f64"));
     }
 
     #[test]
@@ -2719,7 +2719,7 @@ mod tests {
     #[test]
     fn test_literal_to_rust_tokens_all_types() {
         assert_eq!(literal_to_rust_tokens(&Literal::Int(42)).unwrap().to_string(), "42i64");
-        assert!(literal_to_rust_tokens(&Literal::Float(3.14)).unwrap().to_string().contains("3.14"));
+        assert!(literal_to_rust_tokens(&Literal::Float(3.15)).unwrap().to_string().contains("3.15"));
         assert!(literal_to_rust_tokens(&Literal::String("test".to_string())).unwrap().to_string().contains("test"));
         assert_eq!(literal_to_rust_tokens(&Literal::Bool(true)).unwrap().to_string(), "true");
         assert_eq!(literal_to_rust_tokens(&Literal::Bool(false)).unwrap().to_string(), "false");

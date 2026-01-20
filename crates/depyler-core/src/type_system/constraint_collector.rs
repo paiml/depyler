@@ -2285,7 +2285,7 @@ mod tests {
             docstring: None,
         };
 
-        let mut module = HirModule {
+        let module = HirModule {
             functions: vec![func],
             ..empty_module()
         };

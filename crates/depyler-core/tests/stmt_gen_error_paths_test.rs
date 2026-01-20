@@ -12,6 +12,7 @@ fn transpile_ok(code: &str) -> bool {
     pipeline.transpile(code).is_ok()
 }
 
+#[allow(dead_code)]
 fn transpile_err(code: &str) -> bool {
     let pipeline = DepylerPipeline::new();
     pipeline.transpile(code).is_err()

@@ -1306,7 +1306,7 @@ mod tests {
 
         let subs = registry.infer_type_substitutions(&func).unwrap();
         // No type vars in this function, so no substitutions
-        assert!(subs.is_empty() || subs.get("T").is_some());
+        assert!(subs.is_empty() || subs.contains_key("T"));
     }
 
     // ========== TypeInference Tests ==========

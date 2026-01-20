@@ -296,7 +296,7 @@ mod tests {
     #[test]
     fn test_expr_uses_hashmap_primitives() {
         assert!(!expr_uses_hashmap(&int_expr(42)));
-        assert!(!expr_uses_hashmap(&float_expr(3.14)));
+        assert!(!expr_uses_hashmap(&float_expr(3.15)));
         assert!(!expr_uses_hashmap(&bool_expr(true)));
         assert!(!expr_uses_hashmap(&string_expr("test")));
     }
@@ -403,7 +403,7 @@ mod tests {
     #[test]
     fn test_is_simple_literal() {
         assert!(is_simple_literal(&int_expr(42)));
-        assert!(is_simple_literal(&float_expr(3.14)));
+        assert!(is_simple_literal(&float_expr(3.15)));
         assert!(is_simple_literal(&bool_expr(true)));
         assert!(is_simple_literal(&string_expr("test")));
         assert!(is_simple_literal(&none_expr()));
@@ -414,7 +414,7 @@ mod tests {
     #[test]
     fn test_is_constant_expr_literals() {
         assert!(is_constant_expr(&int_expr(42)));
-        assert!(is_constant_expr(&float_expr(3.14)));
+        assert!(is_constant_expr(&float_expr(3.15)));
         assert!(is_constant_expr(&bool_expr(true)));
         assert!(is_constant_expr(&string_expr("test")));
         assert!(is_constant_expr(&none_expr()));
@@ -459,7 +459,7 @@ mod tests {
     #[test]
     fn test_expr_complexity_literals() {
         assert_eq!(expr_complexity(&int_expr(42)), 1);
-        assert_eq!(expr_complexity(&float_expr(3.14)), 1);
+        assert_eq!(expr_complexity(&float_expr(3.15)), 1);
         assert_eq!(expr_complexity(&bool_expr(true)), 1);
         assert_eq!(expr_complexity(&string_expr("test")), 1);
         assert_eq!(expr_complexity(&none_expr()), 1);

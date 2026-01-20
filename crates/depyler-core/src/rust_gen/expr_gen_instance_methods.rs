@@ -3751,7 +3751,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-1145: Wrap index in DepylerValue if base is HashMap<DepylerValue, ...>
         // Check if base is a variable with DepylerValue key type
         let is_depyler_value_key = if let HirExpr::Var(var_name) = base {
-            self.ctx.var_types.get(var_name).map_or(false, |t| {
+            self.ctx.var_types.get(var_name).is_some_and(|t| {
                 matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Unknown))
             })
         } else {
@@ -5908,10 +5908,75 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // When tuples are used in lists (e.g., Vec<(i32, i32, String)>), string
         // elements need to be owned Strings, not &str references.
         // This ensures type consistency across all tuple elements in a Vec.
+
+        // DEPYLER-1188: Detect variables used multiple times across tuple elements
+        // Pattern: (key, dict.get(&key)) - key is moved in position 0, borrowed in position 1
+        // Fix: Clone variables that appear both as direct Var AND elsewhere in the tuple
+        use crate::rust_gen::var_analysis::collect_vars_in_expr;
+
+        // Step 1: Collect vars from each element and find multi-use vars
+        let mut all_vars = std::collections::HashSet::new();
+        let mut multi_use_vars = std::collections::HashSet::new();
+
+        for elt in elts {
+            let vars_in_elt = collect_vars_in_expr(elt);
+            for var in &vars_in_elt {
+                if all_vars.contains(var) {
+                    // This var appears in multiple elements
+                    multi_use_vars.insert(var.clone());
+                } else {
+                    all_vars.insert(var.clone());
+                }
+            }
+        }
+
+        // Step 2: Also check vars that appear multiple times within the same element
+        // (e.g., a single complex expression using 'key' twice)
+        for elt in elts {
+            if let HirExpr::Var(name) = elt {
+                // If this element is a direct var, check if it's also used elsewhere
+                for other_elt in elts {
+                    if !std::ptr::eq(elt, other_elt) {
+                        let other_vars = collect_vars_in_expr(other_elt);
+                        if other_vars.contains(name) {
+                            multi_use_vars.insert(name.clone());
+                        }
+                    }
+                }
+            }
+        }
+
         let elt_exprs: Vec<syn::Expr> = elts
             .iter()
             .map(|e| {
                 let mut expr = e.to_rust_expr(self.ctx)?;
+
+                // DEPYLER-1188: Clone direct variable references that are used multiple times
+                // Only clone owned types (String, Vec, HashMap, etc.) - not Copy types
+                if let HirExpr::Var(name) = e {
+                    if multi_use_vars.contains(name) {
+                        // Check if this is an owned type that needs cloning
+                        let needs_clone = if let Some(var_type) = self.ctx.var_types.get(name) {
+                            matches!(
+                                var_type,
+                                Type::String
+                                    | Type::List(_)
+                                    | Type::Dict(_, _)
+                                    | Type::Set(_)
+                                    | Type::Tuple(_)
+                                    | Type::Custom(_)
+                            )
+                        } else {
+                            // Unknown type - assume String for safety (common case)
+                            true
+                        };
+
+                        if needs_clone {
+                            expr = parse_quote! { #expr.clone() };
+                        }
+                    }
+                }
+
                 // Convert string literals to .to_string() for owned String
                 if matches!(e, HirExpr::Literal(Literal::String(_))) {
                     expr = parse_quote! { #expr.to_string() };
@@ -7237,6 +7302,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         || name.ends_with("_map")
                 }
             }
+            // DEPYLER-1189: Handle dict-of-dicts indexing (e.g., distances[current])
+            // If base is a dict with dict value type, the result is also a dict
+            HirExpr::Index { base, .. } => {
+                if let HirExpr::Var(name) = base.as_ref() {
+                    if let Some(Type::Dict(_, value_type)) = self.ctx.var_types.get(name) {
+                        // If the value type is also a Dict, indexing returns a dict
+                        matches!(value_type.as_ref(), Type::Dict(_, _))
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                }
+            }
             _ => false,
         }
     }
@@ -8391,39 +8470,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Check in nested expressions
             HirExpr::Call { args, .. } => {
                 args.iter().any(|arg| self.body_uses_iter_on_param(param, arg))
-            }
-            _ => false,
-        }
-    }
-
-    /// Check if expression contains a variable reference
-    fn expr_contains_var(&self, var_name: &str, expr: &HirExpr) -> bool {
-        match expr {
-            HirExpr::Var(name) => name == var_name,
-            HirExpr::Binary { left, right, .. } => {
-                self.expr_contains_var(var_name, left) || self.expr_contains_var(var_name, right)
-            }
-            HirExpr::Unary { operand, .. } => self.expr_contains_var(var_name, operand),
-            HirExpr::Call { args, .. } => {
-                args.iter().any(|arg| self.expr_contains_var(var_name, arg))
-            }
-            HirExpr::MethodCall { object, args, .. } => {
-                self.expr_contains_var(var_name, object)
-                    || args.iter().any(|arg| self.expr_contains_var(var_name, arg))
-            }
-            HirExpr::Index { base, index, .. } => {
-                self.expr_contains_var(var_name, base) || self.expr_contains_var(var_name, index)
-            }
-            HirExpr::Attribute { value, .. } => self.expr_contains_var(var_name, value),
-            HirExpr::IfExpr {
-                test, body, orelse, ..
-            } => {
-                self.expr_contains_var(var_name, test)
-                    || self.expr_contains_var(var_name, body)
-                    || self.expr_contains_var(var_name, orelse)
-            }
-            HirExpr::Tuple(elems) | HirExpr::List(elems) => {
-                elems.iter().any(|e| self.expr_contains_var(var_name, e))
             }
             _ => false,
         }

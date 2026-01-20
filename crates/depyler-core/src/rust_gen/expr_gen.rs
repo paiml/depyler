@@ -3208,13 +3208,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .iter()
                 .map(|(name, value)| {
                     // DEPYLER-1144: Check if field expects Vec<f64> and value is list of integers
-                    if let Some(field_type) = self.ctx.class_field_types.get(name) {
-                        if let Type::List(elem_type) = field_type {
-                            if matches!(elem_type.as_ref(), Type::Float) {
-                                if let HirExpr::List(elems) = value {
-                                    // Convert list with integer coercion to f64
-                                    return self.convert_list_with_float_coercion(elems);
-                                }
+                    if let Some(Type::List(elem_type)) = self.ctx.class_field_types.get(name) {
+                        if matches!(elem_type.as_ref(), Type::Float) {
+                            if let HirExpr::List(elems) = value {
+                                // Convert list with integer coercion to f64
+                                return self.convert_list_with_float_coercion(elems);
                             }
                         }
                     }
@@ -11512,7 +11510,7 @@ mod tests {
         // Register a variable as List(Float)
         ctx.var_types.insert("data".to_string(), Type::List(Box::new(Type::Float)));
 
-        let mut converter = ExpressionConverter::new(&mut ctx);
+        let converter = ExpressionConverter::new(&mut ctx);
         let iterable = HirExpr::Var("data".to_string());
         let elem_type = converter.infer_iterable_element_type(&iterable);
 
@@ -11525,7 +11523,7 @@ mod tests {
         // Test that infer_iterable_element_type correctly infers Float from list literal
         let mut ctx = CodeGenContext::default();
 
-        let mut converter = ExpressionConverter::new(&mut ctx);
+        let converter = ExpressionConverter::new(&mut ctx);
         let iterable = HirExpr::List(vec![
             HirExpr::Literal(Literal::Float(1.0)),
             HirExpr::Literal(Literal::Float(2.0)),
@@ -11541,7 +11539,7 @@ mod tests {
         // Test that infer_iterable_element_type correctly infers Int from list literal
         let mut ctx = CodeGenContext::default();
 
-        let mut converter = ExpressionConverter::new(&mut ctx);
+        let converter = ExpressionConverter::new(&mut ctx);
         let iterable = HirExpr::List(vec![
             HirExpr::Literal(Literal::Int(1)),
             HirExpr::Literal(Literal::Int(2)),
@@ -11557,7 +11555,7 @@ mod tests {
         // Test that infer_iterable_element_type returns None for unknown iterables
         let mut ctx = CodeGenContext::default();
 
-        let mut converter = ExpressionConverter::new(&mut ctx);
+        let converter = ExpressionConverter::new(&mut ctx);
         // Variable not registered in var_types
         let iterable = HirExpr::Var("unknown".to_string());
         let elem_type = converter.infer_iterable_element_type(&iterable);

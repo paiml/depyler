@@ -749,7 +749,7 @@ mod tests {
     #[test]
     fn test_literal_types() {
         assert_eq!(Literal::Int(42), Literal::Int(42));
-        assert_eq!(Literal::Float(3.14), Literal::Float(3.14));
+        assert_eq!(Literal::Float(3.15), Literal::Float(3.15));
         assert_eq!(Literal::String("test".to_string()), Literal::String("test".to_string()));
         assert_eq!(Literal::Bool(true), Literal::Bool(true));
         assert_eq!(Literal::None, Literal::None);

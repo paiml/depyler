@@ -2475,20 +2475,18 @@ fn propagate_return_type_impl(
                     }
                 }
             }
-            HirStmt::Return(Some(expr)) => {
+            HirStmt::Return(Some(HirExpr::Var(var_name))) => {
                 // If returning a simple variable, propagate return type to it
-                if let HirExpr::Var(var_name) = expr {
-                    // Check if the variable has an Unknown or weaker type
-                    let should_update = match var_types.get(var_name) {
-                        None => true,
-                        Some(Type::Unknown) => true,
-                        Some(Type::List(elem)) if matches!(elem.as_ref(), Type::Unknown) => true,
-                        Some(Type::Dict(k, v)) if matches!(k.as_ref(), Type::Unknown) || matches!(v.as_ref(), Type::Unknown) => true,
-                        _ => false,
-                    };
-                    if should_update {
-                        var_types.insert(var_name.clone(), return_type.clone());
-                    }
+                // Check if the variable has an Unknown or weaker type
+                let should_update = match var_types.get(var_name) {
+                    None => true,
+                    Some(Type::Unknown) => true,
+                    Some(Type::List(elem)) if matches!(elem.as_ref(), Type::Unknown) => true,
+                    Some(Type::Dict(k, v)) if matches!(k.as_ref(), Type::Unknown) || matches!(v.as_ref(), Type::Unknown) => true,
+                    _ => false,
+                };
+                if should_update {
+                    var_types.insert(var_name.clone(), return_type.clone());
                 }
             }
             HirStmt::If { then_body, else_body, .. } => {

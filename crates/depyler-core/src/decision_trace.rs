@@ -2219,7 +2219,7 @@ mod tests {
     #[test]
     fn test_decision_category_clone() {
         let category = DecisionCategory::TypeMapping;
-        let cloned = category.clone();
+        let cloned = category; // Copy trait, no need for clone()
         assert_eq!(category, cloned);
     }
 
@@ -2351,7 +2351,8 @@ mod tests {
         }
         assert_eq!(collector.total_streamed(), 0); // Not flushed yet
         let _ = collector.flush();
-        assert!(collector.total_streamed() >= 0);
+        // total_streamed() is always >= 0 since it's usize, just ensure no panic
+        let _ = collector.total_streamed();
     }
 
     #[test]
@@ -2557,7 +2558,8 @@ mod tests {
         ];
 
         let chain = build_causal_chain(&decisions, (30, 70), 5);
-        assert!(chain.len() >= 0); // May be empty if no overlap found
+        // chain.len() is always >= 0 since it's usize, just verify no panic
+        let _ = chain.len();
     }
 
     #[test]

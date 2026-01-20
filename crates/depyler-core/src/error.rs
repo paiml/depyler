@@ -422,7 +422,7 @@ mod tests {
             line: 1,
             column: 1,
         };
-        let source_err = std::io::Error::new(std::io::ErrorKind::Other, "test");
+        let source_err = std::io::Error::other("test");
 
         let err = TranspileError::new(ErrorKind::InternalError("test".to_string()))
             .with_location(loc.clone())
@@ -506,6 +506,7 @@ mod tests {
         assert_eq!(err.context.len(), 4);
     }
 
+    #[allow(clippy::result_large_err)]
     fn bail_test_helper() -> TranspileResult<()> {
         transpile_bail!(ErrorKind::ParseError);
     }
@@ -518,6 +519,7 @@ mod tests {
         assert!(matches!(err.kind, ErrorKind::ParseError));
     }
 
+    #[allow(clippy::result_large_err)]
     fn bail_test_with_context() -> TranspileResult<()> {
         transpile_bail!(ErrorKind::ParseError, "context1", "context2");
     }
