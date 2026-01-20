@@ -36,6 +36,36 @@ use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
 
+/// DEPYLER-1185: Convert HIR Type to Rust type string
+/// Used for generating collection element types from type annotations
+fn type_to_rust_string(ty: &Type) -> String {
+    match ty {
+        Type::Int => "i32".to_string(),
+        Type::Float => "f64".to_string(),
+        Type::String => "String".to_string(),
+        Type::Bool => "bool".to_string(),
+        Type::None => "()".to_string(),
+        Type::List(inner) => format!("Vec<{}>", type_to_rust_string(inner)),
+        Type::Optional(inner) => format!("Option<{}>", type_to_rust_string(inner)),
+        Type::Tuple(types) => {
+            let inner: Vec<_> = types.iter().map(|t| type_to_rust_string(t)).collect();
+            format!("({})", inner.join(", "))
+        }
+        Type::Dict(k, v) => format!(
+            "std::collections::HashMap<{}, {}>",
+            type_to_rust_string(k),
+            type_to_rust_string(v)
+        ),
+        Type::Set(inner) => format!("std::collections::HashSet<{}>", type_to_rust_string(inner)),
+        Type::Custom(name) => name.clone(),
+        Type::Generic { base, params } if !params.is_empty() => {
+            let inner: Vec<_> = params.iter().map(|t| type_to_rust_string(t)).collect();
+            format!("{}<{}>", base, inner.join(", "))
+        }
+        _ => "DepylerValue".to_string(), // Fallback for Unknown, etc.
+    }
+}
+
 /// Helper to build nested dictionary access for assignment
 /// Returns (base_expr, access_chain) where access_chain is a vec of index expressions
 fn extract_nested_indices_tokens(
@@ -3627,17 +3657,27 @@ pub(crate) fn codegen_assign_stmt(
                 // DEPYLER-0969: Track deque() constructor for VecDeque truthiness conversion
                 // This enables `while queue:` → `while !queue.is_empty()` conversion
                 // Python: queue = deque([start]) → Rust: VecDeque::from(vec![start])
-                // DEPYLER-1165: In NASA mode, track as VecDeque<DepylerValue> for auto-boxing
+                // DEPYLER-1185: Use concrete element type from annotation, default to i32
+                // This mirrors the behavior of set() which defaults to Type::Int
                 else if func == "deque" || func == "collections.deque" || func == "Deque" {
-                    // Track as Custom type for VecDeque - enables .is_empty() truthiness
-                    let elem_type = if ctx.type_mapper.nasa_mode {
-                        "DepylerValue"
+                    // DEPYLER-1185: Extract element type from type annotation if available
+                    // Priority: 1. deque[int] annotation, 2. infer from context, 3. default to i32
+                    let elem_type_str = if let Some(Type::Generic { base, params }) = type_annotation {
+                        if (base == "deque" || base == "collections.deque" || base == "Deque") && !params.is_empty() {
+                            type_to_rust_string(&params[0])
+                        } else {
+                            "i32".to_string() // Default like set()
+                        }
+                    } else if let Some(Type::List(elem)) = type_annotation {
+                        type_to_rust_string(elem)
                     } else {
-                        "i32"
+                        // DEPYLER-1185: Default to i32 for untyped deques (matches set() behavior)
+                        // This avoids DepylerValue which causes E0308 mismatches
+                        "i32".to_string()
                     };
                     ctx.var_types.insert(
                         var_name.clone(),
-                        Type::Custom(format!("std::collections::VecDeque<{}>", elem_type)),
+                        Type::Custom(format!("std::collections::VecDeque<{}>", elem_type_str)),
                     );
                 }
                 // DEPYLER-0969: Track queue.Queue() and similar constructors
@@ -4161,6 +4201,108 @@ pub(crate) fn codegen_assign_stmt(
         // Python: `x = None` → Rust: `let x: Option<()> = None;`
         if matches!(value, HirExpr::Literal(Literal::None)) {
             (Some(quote! { : Option<()> }), false)
+        } else if ctx.type_mapper.nasa_mode {
+            // DEPYLER-1174: Aggressive Defaulting - force DepylerValue for ambiguous types
+            // Rationale: E0282 (type annotation needed) stops compilation immediately.
+            // E0308 (type mismatch) from DepylerValue can be fixed later.
+            // It's better to compile with potential type mismatches than not compile at all.
+            match value {
+                // Empty dict literal: `x = {}` → `let x: HashMap<String, DepylerValue> = HashMap::new();`
+                HirExpr::Dict(entries) if entries.is_empty() => {
+                    (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                }
+                // Dict literal with entries: infer from usage or default to DepylerValue values
+                HirExpr::Dict(_) => {
+                    (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                }
+                // Dict comprehension: `x = {k: v for ...}` → `HashMap<String, DepylerValue>`
+                HirExpr::DictComp { .. } => {
+                    (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                }
+                // Empty list literal: `x = []` → `let x: Vec<DepylerValue> = Vec::new();`
+                HirExpr::List(elems) if elems.is_empty() => {
+                    (Some(quote! { : Vec<DepylerValue> }), false)
+                }
+                // List comprehension: `x = [v for ...]` → infer from iterable type if possible
+                HirExpr::ListComp { generators, .. } => {
+                    // DEPYLER-1176: Smart list comprehension typing
+                    // Try to infer element type from the iterable being iterated over
+                    // If iter is a Var with known List[T] type, result is Vec<T>
+                    // Also handles slices: `arr[1:]` preserves element type
+                    let inferred_type = generators.first().and_then(|gen| {
+                        // Helper to get element type from a list type
+                        let get_list_elem_type = |var_name: &str| {
+                            ctx.var_types.get(var_name).and_then(|t| {
+                                if let Type::List(elem_ty) = t {
+                                    Some(elem_ty.as_ref().clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        };
+
+                        match gen.iter.as_ref() {
+                            // Direct variable: `for x in arr`
+                            HirExpr::Var(iter_name) => get_list_elem_type(iter_name),
+                            // Slice: `for x in arr[1:]` - base var determines type
+                            HirExpr::Slice { base, .. } => {
+                                if let HirExpr::Var(base_name) = base.as_ref() {
+                                    get_list_elem_type(base_name)
+                                } else {
+                                    None
+                                }
+                            }
+                            // Index: `for x in arr[0]` (nested list)
+                            HirExpr::Index { base, .. } => {
+                                if let HirExpr::Var(base_name) = base.as_ref() {
+                                    // If base is List[List[T]], indexing gives List[T], so element is T
+                                    ctx.var_types.get(base_name).and_then(|t| {
+                                        if let Type::List(inner) = t {
+                                            if let Type::List(elem_ty) = inner.as_ref() {
+                                                Some(elem_ty.as_ref().clone())
+                                            } else {
+                                                // Base is List[T], indexing gives T (not a list)
+                                                None
+                                            }
+                                        } else {
+                                            None
+                                        }
+                                    })
+                                } else {
+                                    None
+                                }
+                            }
+                            _ => None,
+                        }
+                    });
+
+                    if let Some(elem_type) = inferred_type {
+                        // Inferred element type - use it
+                        let rust_type = ctx.type_mapper.map_type(&elem_type);
+                        match rust_type_to_syn(&rust_type) {
+                            Ok(syn_type) => (Some(quote! { : Vec<#syn_type> }), false),
+                            Err(_) => (Some(quote! { : Vec<DepylerValue> }), false),
+                        }
+                    } else {
+                        // Couldn't infer - fall back to DepylerValue
+                        (Some(quote! { : Vec<DepylerValue> }), false)
+                    }
+                }
+                // Set literal: `x = {1, 2, 3}` → `HashSet<DepylerValue>`
+                HirExpr::Set(_) => {
+                    (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
+                }
+                // Set comprehension: `x = {v for ...}` → `HashSet<DepylerValue>`
+                HirExpr::SetComp { .. } => {
+                    (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
+                }
+                // Generator expression assigned to variable: force Vec<DepylerValue>
+                HirExpr::GeneratorExp { .. } => {
+                    (Some(quote! { : Vec<DepylerValue> }), false)
+                }
+                // Default: let Rust infer if possible
+                _ => (None, false)
+            }
         } else {
             (None, false)
         }
@@ -4859,9 +5001,11 @@ pub(crate) fn codegen_assign_index(
         }
 
         if is_numeric_index {
-            // DEPYLER-0314: Vec.insert(index as usize, value)
-            // Wrap in parentheses to ensure correct operator precedence
-            Ok(quote! { #chain.insert((#final_index) as usize, #final_value_expr); })
+            // DEPYLER-1170: Nested list index assignment uses index operator, NOT insert()
+            // Python: nested[i][j] = x → replaces element at index j
+            // Rust: nested[i][j] = x → replaces element at index j
+            // WRONG: nested.get_mut(i).insert(j, x) → inserts NEW element (causes bugs!)
+            Ok(quote! { #chain[(#final_index) as usize] = #final_value_expr; })
         } else if needs_as_object_mut {
             // DEPYLER-0449: serde_json::Value needs .as_object_mut() for insert
             // DEPYLER-0473: Clone key to avoid move-after-use errors
@@ -5213,10 +5357,24 @@ pub(crate) fn codegen_assign_tuple(
                     let index_expr = index.to_rust_expr(ctx)?;
                     let tuple_idx = syn::Index::from(idx);
 
-                    // Check if base is a Vec (numeric index) or HashMap (string key)
-                    let is_numeric = matches!(index.as_ref(), HirExpr::Literal(Literal::Int(_)));
+                    // DEPYLER-1171: Check if index is numeric TYPE, not just literal
+                    // Python: arr[i], arr[j] = arr[j], arr[i] where i, j are int variables
+                    // Must use vec[i] = x, NOT vec.insert(i, x)
+                    let is_numeric_index = match index.as_ref() {
+                        HirExpr::Literal(Literal::Int(_)) => true,
+                        HirExpr::Var(name) => {
+                            // Check if variable has Int type
+                            ctx.var_types
+                                .get(name)
+                                .map(|ty| matches!(ty, Type::Int))
+                                .unwrap_or(false)
+                        }
+                        // Binary ops on ints are still ints (e.g., i + 1)
+                        HirExpr::Binary { .. } => true, // Assume arithmetic for now
+                        _ => false,
+                    };
 
-                    if is_numeric {
+                    if is_numeric_index {
                         // Vec assignment: base[index as usize] = temp.N
                         assignments.push(quote! {
                             #base_expr[(#index_expr) as usize] = #temp_var.#tuple_idx;
