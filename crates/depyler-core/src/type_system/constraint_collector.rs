@@ -898,7 +898,7 @@ mod tests {
     #[test]
     fn test_literal_float_constraint() {
         let mut collector = ConstraintCollector::new();
-        let var = collector.collect_expr(&HirExpr::Literal(Literal::Float(3.14.into())));
+        let var = collector.collect_expr(&HirExpr::Literal(Literal::Float(3.15.into())));
 
         let has_float_constraint = collector.constraints().iter().any(|c| {
             matches!(c, Constraint::Instance(v, Type::Float) if *v == var)

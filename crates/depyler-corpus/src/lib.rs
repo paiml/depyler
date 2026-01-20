@@ -143,8 +143,10 @@ mod tests {
 
     #[test]
     fn test_corpus_analyzer_config_accessor() {
-        let mut config = CorpusConfig::default();
-        config.skip_clean = true;
+        let config = CorpusConfig {
+            skip_clean: true,
+            ..Default::default()
+        };
         let analyzer = CorpusAnalyzer::new(config);
         assert!(analyzer.config().skip_clean);
     }
@@ -158,8 +160,10 @@ mod tests {
 
     #[test]
     fn test_corpus_config_skip_clean() {
-        let mut config = CorpusConfig::default();
-        config.skip_clean = true;
+        let config = CorpusConfig {
+            skip_clean: true,
+            ..Default::default()
+        };
         assert!(config.skip_clean);
     }
 

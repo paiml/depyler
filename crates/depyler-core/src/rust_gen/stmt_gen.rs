@@ -6356,7 +6356,7 @@ mod tests {
     #[test]
     fn test_is_pure_expr_literal() {
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Int(42))));
-        assert!(is_pure_expression(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(is_pure_expression(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Bool(true))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::String("test".to_string()))));
     }
@@ -7019,7 +7019,7 @@ mod tests {
     #[test]
     fn test_expr_infers_float_literal_float() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         assert!(expr_infers_float(&expr, &ctx));
     }
 
@@ -7554,7 +7554,7 @@ mod tests {
     #[test]
     fn test_expr_infers_float_literal() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         assert!(expr_infers_float(&expr, &ctx));
     }
 
@@ -7778,7 +7778,7 @@ mod tests {
     #[test]
     fn test_infer_return_type_float() {
         let ctx = CodeGenContext::default();
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         let result = infer_expr_return_type(&expr, &ctx);
         assert_eq!(result, Type::Float);
     }
@@ -9479,7 +9479,7 @@ mod tests {
             then_body: vec![],
             else_body: Some(vec![HirStmt::Assign {
                 target: AssignTarget::Symbol("fallback".to_string()),
-                value: HirExpr::Literal(Literal::Float(3.14)),
+                value: HirExpr::Literal(Literal::Float(3.15)),
                 type_annotation: Some(Type::Float),
             }]),
         }];

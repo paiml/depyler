@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn test_is_int_expr_float_literal() {
         let var_types = HashMap::new();
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         assert!(!is_int_expr(&expr, &var_types));
     }
 
@@ -748,7 +748,7 @@ mod tests {
 
     #[test]
     fn test_is_literal_type_float() {
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         assert!(is_literal_type(&expr, "float"));
         assert!(!is_literal_type(&expr, "int"));
     }

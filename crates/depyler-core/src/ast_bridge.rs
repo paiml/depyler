@@ -571,7 +571,7 @@ impl AstBridge {
     /// ```
     ///
     /// Rust:
-    /// ```rust
+    /// ```rust,ignore
     /// fn main() {
     ///     analyze_dataset();
     /// }
@@ -3692,8 +3692,7 @@ from . import utils
 from ..helpers import helper
 "#;
         let hir = parse_python_to_hir(source);
-        // Relative imports should be handled
-        assert!(hir.imports.len() >= 0);
+        // Relative imports should be handled - test verifies no panic
     }
 
     #[test]
@@ -3750,8 +3749,7 @@ T = TypeVar('T')
 MyList = List[T]
 "#;
         let hir = parse_python_to_hir(source);
-        // TypeVar and alias should be handled
-        assert!(hir.type_aliases.len() >= 0);
+        // TypeVar and alias should be handled - test verifies no panic
     }
 
     #[test]

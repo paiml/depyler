@@ -394,7 +394,7 @@ mod tests {
 
     #[test]
     fn test_infer_expr_type_simple_float() {
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         assert_eq!(infer_expr_type_simple(&expr), Type::Float);
     }
 

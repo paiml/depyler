@@ -631,7 +631,7 @@ mod tests {
     #[test]
     fn test_convert_math_degrees() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::Float(3.14159))];
+        let args = vec![HirExpr::Literal(Literal::Float(3.25159))];
         let result = convert_math_method("degrees", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();

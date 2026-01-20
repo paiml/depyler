@@ -2597,7 +2597,7 @@ mod tests {
         let type_mapper = create_test_type_mapper();
         let converter = ExprConverter::new(&type_mapper);
 
-        let float_expr = HirExpr::Literal(Literal::Float(3.14));
+        let float_expr = HirExpr::Literal(Literal::Float(3.15));
         let result = converter.convert(&float_expr).unwrap();
         assert!(matches!(result, syn::Expr::Lit(_)));
     }
@@ -4419,7 +4419,7 @@ mod tests {
 
     #[test]
     fn test_convert_literal_float() {
-        let result = convert_literal(&Literal::Float(3.14));
+        let result = convert_literal(&Literal::Float(3.15));
         assert!(matches!(result, syn::Expr::Lit(_)));
     }
 
@@ -4614,7 +4614,7 @@ mod tests {
 
     #[test]
     fn test_infer_expr_type_float_literal() {
-        let expr = HirExpr::Literal(Literal::Float(3.14));
+        let expr = HirExpr::Literal(Literal::Float(3.15));
         let fields: Vec<HirField> = vec![];
         let result = infer_expr_type_with_fields(&expr, &fields);
         assert_eq!(result, Type::Float);
@@ -4786,7 +4786,7 @@ mod tests {
         assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Int(42))));
         assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::String("hello".to_string()))));
         assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Bool(true))));
-        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Float(3.14))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Float(3.15))));
     }
 
     #[test]

@@ -1,7 +1,7 @@
 //! Comprehensive tests for ruchy transformer module
 //! DEPYLER-COVERAGE-95: Extreme TDD test coverage
 
-use depyler_ruchy::ast::{Literal, Param, PipelineStage, RuchyExpr};
+use depyler_ruchy::ast::{Literal, Param, RuchyExpr};
 use depyler_ruchy::ast::RuchyType as Type;
 use depyler_ruchy::transformer::PatternTransformer;
 use depyler_ruchy::RuchyConfig;
@@ -60,16 +60,14 @@ fn make_lambda(params: Vec<&str>, body: RuchyExpr) -> RuchyExpr {
 
 #[test]
 fn test_pattern_transformer_new() {
-    let transformer = PatternTransformer::new();
-    // Just verify creation works
-    assert!(true);
+    let _transformer = PatternTransformer::new();
+    // Verify creation doesn't panic
 }
 
 #[test]
 fn test_pattern_transformer_default() {
-    let transformer = PatternTransformer::default();
-    // Verify default is same as new
-    assert!(true);
+    let _transformer = PatternTransformer::default();
+    // Verify default creation doesn't panic
 }
 
 // ============================================================================
@@ -79,8 +77,8 @@ fn test_pattern_transformer_default() {
 #[test]
 fn test_pattern_transformer_with_default_config() {
     let config = RuchyConfig::default();
-    let transformer = PatternTransformer::with_config(&config);
-    assert!(true);
+    let _transformer = PatternTransformer::with_config(&config);
+    // Verify creation with default config doesn't panic
 }
 
 #[test]
@@ -99,8 +97,8 @@ fn test_pattern_transformer_with_custom_config() {
         #[cfg(feature = "interpreter")]
         enable_mcp: true,
     };
-    let transformer = PatternTransformer::with_config(&config);
-    assert!(true);
+    let _transformer = PatternTransformer::with_config(&config);
+    // Verify creation with custom config doesn't panic
 }
 
 #[test]
@@ -119,8 +117,8 @@ fn test_pattern_transformer_all_disabled() {
         #[cfg(feature = "interpreter")]
         enable_mcp: false,
     };
-    let transformer = PatternTransformer::with_config(&config);
-    assert!(true);
+    let _transformer = PatternTransformer::with_config(&config);
+    // Verify creation with all disabled config doesn't panic
 }
 
 // ============================================================================
@@ -139,7 +137,7 @@ fn test_transform_int_literal() {
 #[test]
 fn test_transform_float_literal() {
     let transformer = PatternTransformer::new();
-    let expr = make_float(3.14);
+    let expr = make_float(3.15);
     let result = transformer.transform(expr);
     assert!(result.is_ok());
 }

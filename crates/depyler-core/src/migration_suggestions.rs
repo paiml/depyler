@@ -1795,8 +1795,7 @@ mod tests {
         let mut analyzer = MigrationAnalyzer::new(MigrationConfig::default());
         analyzer.analyze_function(&func);
 
-        // Should suggest enumerate or direct iteration
-        assert!(analyzer.suggestions.len() >= 0);
+        // Should suggest enumerate or direct iteration - test verifies no panic
     }
 
     #[test]
@@ -1818,8 +1817,7 @@ mod tests {
         let mut analyzer = MigrationAnalyzer::new(MigrationConfig::default());
         analyzer.analyze_function(&func);
 
-        // Should detect type check pattern
-        assert!(analyzer.suggestions.len() >= 0);
+        // Should detect type check pattern - test verifies no panic
     }
 
     #[test]
@@ -1838,8 +1836,7 @@ mod tests {
         let mut analyzer = MigrationAnalyzer::new(MigrationConfig::default());
         analyzer.analyze_function(&func);
 
-        // May suggest format! or push_str
-        assert!(analyzer.suggestions.len() >= 0);
+        // May suggest format! or push_str - test verifies no panic
     }
 
     #[test]
@@ -1890,8 +1887,7 @@ mod tests {
         let func = create_test_function("test", body);
         analyzer.analyze_function(&func);
 
-        // With all suggestions disabled, might have fewer suggestions
-        assert!(analyzer.suggestions.len() >= 0);
+        // With all suggestions disabled, might have fewer suggestions - test verifies no panic
     }
 
     #[test]
@@ -2022,8 +2018,7 @@ mod tests {
         let mut analyzer = MigrationAnalyzer::new(MigrationConfig::default());
         let suggestions = analyzer.analyze_program(&program);
 
-        // Should analyze both functions
-        assert!(suggestions.len() >= 0);
+        // Should analyze both functions - test verifies no panic
     }
 
     #[test]
