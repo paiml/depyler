@@ -577,6 +577,101 @@ pub(crate) fn codegen_return_type(
 // ========== Phase 3c: Generator Implementation ==========
 // (Moved to generator_gen.rs in v3.18.0 Phase 4)
 
+/// DEPYLER-1181: Preload type annotations from HIR statements into var_types context
+/// This ensures that inferred types from the constraint solver are available during
+/// expression code generation. Without this, the "Neural Link" (DEPYLER-1180) propagation
+/// of types to HIR annotations is ignored by the code generator.
+///
+/// The flow is:
+/// 1. Constraint solver infers types (DEPYLER-1173)
+/// 2. apply_substitutions writes types to HIR type_annotation fields (DEPYLER-1180)
+/// 3. THIS function reads those annotations into ctx.var_types (DEPYLER-1181)
+/// 4. Expression codegen can now access inferred types
+pub(crate) fn preload_hir_type_annotations(body: &[HirStmt], ctx: &mut CodeGenContext) {
+    for stmt in body {
+        preload_stmt_type_annotations(stmt, ctx);
+    }
+}
+
+/// DEPYLER-1181: Recursively extract type annotations from a single statement
+fn preload_stmt_type_annotations(stmt: &HirStmt, ctx: &mut CodeGenContext) {
+    match stmt {
+        HirStmt::Assign {
+            target: AssignTarget::Symbol(var_name),
+            type_annotation: Some(ty),
+            ..
+        } => {
+            // Only preload non-Unknown types to avoid overwriting better inferences
+            if !matches!(ty, Type::Unknown) {
+                ctx.var_types.insert(var_name.clone(), ty.clone());
+            }
+        }
+        // Recursively handle nested statements
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
+            for s in then_body {
+                preload_stmt_type_annotations(s, ctx);
+            }
+            if let Some(else_stmts) = else_body {
+                for s in else_stmts {
+                    preload_stmt_type_annotations(s, ctx);
+                }
+            }
+        }
+        HirStmt::While { body, .. } | HirStmt::Block(body) => {
+            for s in body {
+                preload_stmt_type_annotations(s, ctx);
+            }
+        }
+        HirStmt::For { body, .. } => {
+            for s in body {
+                preload_stmt_type_annotations(s, ctx);
+            }
+        }
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+        } => {
+            for s in body {
+                preload_stmt_type_annotations(s, ctx);
+            }
+            for handler in handlers {
+                for s in &handler.body {
+                    preload_stmt_type_annotations(s, ctx);
+                }
+            }
+            if let Some(orelse_stmts) = orelse {
+                for s in orelse_stmts {
+                    preload_stmt_type_annotations(s, ctx);
+                }
+            }
+            if let Some(final_stmts) = finalbody {
+                for s in final_stmts {
+                    preload_stmt_type_annotations(s, ctx);
+                }
+            }
+        }
+        HirStmt::With { body, .. } => {
+            for s in body {
+                preload_stmt_type_annotations(s, ctx);
+            }
+        }
+        HirStmt::FunctionDef { body, .. } => {
+            // Note: Nested functions have their own scope, but we still preload
+            // for consistency. The function's own codegen will clear and repopulate.
+            for s in body {
+                preload_stmt_type_annotations(s, ctx);
+            }
+        }
+        _ => {}
+    }
+}
+
 impl RustCodeGen for HirFunction {
     fn to_rust_tokens(&self, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
         // DEPYLER-0717: Clear var_types at the start of each function to prevent type leaking
@@ -919,6 +1014,26 @@ impl RustCodeGen for HirFunction {
         // This affects return statement handling (integer returns → process::exit)
         let was_main = ctx.is_main_function;
         ctx.is_main_function = self.name == "main";
+
+        // DEPYLER-1181: Preload HIR type annotations into var_types BEFORE body codegen
+        // This ensures that types inferred by the constraint solver (DEPYLER-1173) and
+        // propagated to HIR (DEPYLER-1180) are available during expression generation.
+        // Without this, the code generator ignores inferred types (the "Deaf Mapper" problem).
+        preload_hir_type_annotations(&self.body, ctx);
+
+        // DEPYLER-1182: Preload PARAMETER types into var_types
+        // The constraint solver (DEPYLER-1173) may infer parameter types from usage
+        // (e.g., `s[1:4]` constrains `s` to String). These inferred types are stored in
+        // the HirParam.ty field via apply_substitutions (DEPYLER-1180).
+        // Without this preload, expression codegen ignores inferred param types.
+        for param in &self.params {
+            if !matches!(param.ty, Type::Unknown) {
+                // Only preload if we don't already have a better type from earlier inference
+                if !ctx.var_types.contains_key(&param.name) {
+                    ctx.var_types.insert(param.name.clone(), param.ty.clone());
+                }
+            }
+        }
 
         // Process function body with proper scoping (expressions will now be rewritten if needed)
         let mut body_stmts = codegen_function_body(self, can_fail, error_type, ctx)?;
