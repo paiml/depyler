@@ -653,6 +653,51 @@ impl Type {
             Type::List(_) | Type::Dict(_, _) | Type::Tuple(_) | Type::Set(_) | Type::Array { .. }
         )
     }
+
+    /// DEPYLER-1154: Check if this type maps to a Rust Copy type
+    ///
+    /// Copy types don't need borrowing - they can be passed by value without
+    /// moving ownership, eliminating unnecessary `&` references.
+    ///
+    /// # Rust Copy types
+    /// - `i32`/`i64` (Int)
+    /// - `f64` (Float)
+    /// - `bool` (Bool)
+    /// - `()` (None/unit)
+    /// - Tuples where all elements are Copy
+    ///
+    /// # Non-Copy types (need borrowing or clone)
+    /// - `String`
+    /// - `Vec<T>`
+    /// - `HashMap<K, V>`
+    /// - `HashSet<T>`
+    pub fn is_copy(&self) -> bool {
+        match self {
+            // Scalar types map to Copy Rust primitives
+            Type::Int | Type::Float | Type::Bool | Type::None => true,
+
+            // Tuples are Copy if all elements are Copy
+            Type::Tuple(elems) => elems.iter().all(|t| t.is_copy()),
+
+            // String, collections are NOT Copy
+            Type::String | Type::List(_) | Type::Dict(_, _) | Type::Set(_) => false,
+
+            // Optional<Copy> is still Copy in Rust
+            Type::Optional(inner) => inner.is_copy(),
+
+            // Arrays of Copy elements are Copy
+            Type::Array { element_type, .. } => element_type.is_copy(),
+
+            // Union types are Copy only if ALL variants are Copy
+            Type::Union(types) => types.iter().all(|t| t.is_copy()),
+
+            // Custom types - assume not Copy unless we know otherwise
+            Type::Custom(_) => false,
+
+            // Unknown, Function, TypeVar, etc. - assume not Copy (defensive)
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -677,6 +722,87 @@ mod tests {
         assert!(Type::Set(Box::new(Type::Int)).is_container());
         assert!(!Type::Int.is_container());
         assert!(!Type::String.is_container());
+    }
+
+    // ========================================================================
+    // DEPYLER-1154: TYPE IS_COPY TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_DEPYLER_1154_type_is_copy_primitives() {
+        // Primitive Copy types
+        assert!(Type::Int.is_copy(), "Int should be Copy");
+        assert!(Type::Float.is_copy(), "Float should be Copy");
+        assert!(Type::Bool.is_copy(), "Bool should be Copy");
+        assert!(Type::None.is_copy(), "None should be Copy");
+    }
+
+    #[test]
+    fn test_DEPYLER_1154_type_is_copy_non_copy() {
+        // Non-Copy types
+        assert!(!Type::String.is_copy(), "String should NOT be Copy");
+        assert!(
+            !Type::List(Box::new(Type::Int)).is_copy(),
+            "List should NOT be Copy"
+        );
+        assert!(
+            !Type::Dict(Box::new(Type::String), Box::new(Type::Int)).is_copy(),
+            "Dict should NOT be Copy"
+        );
+        assert!(
+            !Type::Set(Box::new(Type::Int)).is_copy(),
+            "Set should NOT be Copy"
+        );
+    }
+
+    #[test]
+    fn test_DEPYLER_1154_type_is_copy_tuple() {
+        // Tuple of Copy types is Copy
+        assert!(
+            Type::Tuple(vec![Type::Int, Type::Float]).is_copy(),
+            "Tuple(Int, Float) should be Copy"
+        );
+        // Tuple with non-Copy element is NOT Copy
+        assert!(
+            !Type::Tuple(vec![Type::Int, Type::String]).is_copy(),
+            "Tuple(Int, String) should NOT be Copy"
+        );
+    }
+
+    #[test]
+    fn test_DEPYLER_1154_type_is_copy_optional() {
+        // Optional<Copy> is Copy
+        assert!(
+            Type::Optional(Box::new(Type::Int)).is_copy(),
+            "Optional<Int> should be Copy"
+        );
+        // Optional<non-Copy> is NOT Copy
+        assert!(
+            !Type::Optional(Box::new(Type::String)).is_copy(),
+            "Optional<String> should NOT be Copy"
+        );
+    }
+
+    #[test]
+    fn test_DEPYLER_1154_type_is_copy_array() {
+        // Array of Copy elements is Copy
+        assert!(
+            Type::Array {
+                element_type: Box::new(Type::Int),
+                size: ConstGeneric::Literal(10)
+            }
+            .is_copy(),
+            "Array<Int> should be Copy"
+        );
+        // Array of non-Copy elements is NOT Copy
+        assert!(
+            !Type::Array {
+                element_type: Box::new(Type::String),
+                size: ConstGeneric::Literal(10)
+            }
+            .is_copy(),
+            "Array<String> should NOT be Copy"
+        );
     }
 
     #[test]
