@@ -305,6 +305,29 @@ impl DepylerPipeline {
         self
     }
 
+    /// DEPYLER-0426: Configure NASA mode (std-only compilation)
+    ///
+    /// When NASA mode is enabled (default), external crate references are replaced
+    /// with std-only equivalents for single-shot compilation compatibility.
+    /// When disabled, generates code that uses proper crate APIs (e.g., csv crate).
+    ///
+    /// # Arguments
+    ///
+    /// * `enabled` - Whether to enable NASA mode (default: true)
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use depyler_core::DepylerPipeline;
+    ///
+    /// // Disable NASA mode to get csv crate output instead of std::io stubs
+    /// let pipeline = DepylerPipeline::new().with_nasa_mode(false);
+    /// ```
+    pub fn with_nasa_mode(mut self, enabled: bool) -> Self {
+        self.transpiler.type_mapper.nasa_mode = enabled;
+        self
+    }
+
     /// Transpiles Python source code to equivalent Rust code
     ///
     /// This is the main entry point for transpilation. It performs the complete

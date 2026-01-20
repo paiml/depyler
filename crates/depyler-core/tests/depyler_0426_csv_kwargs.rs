@@ -10,9 +10,15 @@
 
 use depyler_core::DepylerPipeline;
 
-/// Helper to transpile Python code
+/// Helper to transpile Python code with default settings (NASA mode enabled)
 fn transpile_python(python: &str) -> anyhow::Result<String> {
     let pipeline = DepylerPipeline::new();
+    pipeline.transpile(python)
+}
+
+/// Helper to transpile Python code with NASA mode disabled (uses csv crate)
+fn transpile_python_no_nasa(python: &str) -> anyhow::Result<String> {
+    let pipeline = DepylerPipeline::new().with_nasa_mode(false);
     pipeline.transpile(python)
 }
 
@@ -28,7 +34,8 @@ def write_data(filename):
         writer.writeheader()
 "#;
 
-    let result = transpile_python(python);
+    // Use non-NASA mode to verify correct csv crate codegen
+    let result = transpile_python_no_nasa(python);
     assert!(
         result.is_ok(),
         "Transpilation should succeed: {:?}",
@@ -37,10 +44,10 @@ def write_data(filename):
 
     let rust = result.unwrap();
 
-    // Should generate csv::Writer::from_writer
+    // Should generate csv::Writer::from_writer (only in non-NASA mode)
     assert!(
         rust.contains("csv::Writer"),
-        "Should use csv::Writer: {}",
+        "Should use csv::Writer (non-NASA mode): {}",
         rust
     );
 
@@ -112,7 +119,8 @@ def filter_csv(input_file, column, value, output_file=None):
                 output.close()
 "#;
 
-    let result = transpile_python(python);
+    // Use non-NASA mode to verify correct csv crate codegen
+    let result = transpile_python_no_nasa(python);
     assert!(
         result.is_ok(),
         "Real-world pattern should transpile: {:?}",
@@ -120,7 +128,11 @@ def filter_csv(input_file, column, value, output_file=None):
     );
 
     let rust = result.unwrap();
-    assert!(rust.contains("csv::Writer"), "Should generate csv::Writer");
+    assert!(
+        rust.contains("csv::Writer"),
+        "Should generate csv::Writer (non-NASA mode): {}",
+        rust
+    );
 }
 
 #[test]
