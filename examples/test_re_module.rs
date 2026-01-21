@@ -4,9 +4,9 @@
 #![allow(unreachable_patterns)]
 #![allow(unused_assignments)]
 #![allow(dead_code)]
-const STR_EMPTY: &'static str = "";
+const STR_HELLO: &'static str = "Hello";
     const STR_HELLO_WORLD: &'static str = "Hello World";
-    const STR_HELLO: &'static str = "Hello";
+    const STR_EMPTY: &'static str = "";
     #[derive(Debug, Clone)] pub struct IndexError {
     message: String ,
 }
@@ -307,6 +307,38 @@ impl std::ops::Index<i32>for DepylerValue {
     fn from(v: std::collections::HashMap<String, DepylerValue>) -> Self {
     let converted: std::collections::HashMap<DepylerValue, DepylerValue>= v.into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect();
     DepylerValue::Dict(converted)
+}
+} impl From<std::collections::HashSet<DepylerValue>>for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+    DepylerValue::List(v.into_iter().collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+    DepylerValue::List(v.iter().cloned().collect())
+}
+} impl From<std::collections::HashSet<i32>>for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+    DepylerValue::List(v.into_iter().map(| x | DepylerValue::Int(x as i64)).collect())
+}
+} impl From<std::collections::HashSet<i64>>for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+}
+} impl From<std::collections::HashSet<String>>for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<i32>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x as i64)).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<i64>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x)).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<String>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+    DepylerValue::List(v.iter().map(| s | DepylerValue::Str(s.clone())).collect())
 }
 } impl From<DepylerValue>for i64 {
     fn from(v: DepylerValue) -> Self {
@@ -804,7 +836,22 @@ impl PyAdd for i32 {
 }
 }
 }
-impl PySub for i32 {
+impl PyAdd<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> i64 {
+    self as i64 + rhs.to_i64()
+}
+} impl PyAdd<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> i64 {
+    self + rhs.to_i64()
+}
+} impl PyAdd<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> f64 {
+    self + rhs.to_f64()
+}
+} impl PySub for i32 {
     type Output = i32;
     #[inline] fn py_sub(self, rhs: i32) -> i32 {
     self - rhs
@@ -847,7 +894,22 @@ impl PySub for i32 {
 }
 }
 }
-impl PyMul for i32 {
+impl PySub<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> i64 {
+    self as i64 - rhs.to_i64()
+}
+} impl PySub<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> i64 {
+    self - rhs.to_i64()
+}
+} impl PySub<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
+    self - rhs.to_f64()
+}
+} impl PyMul for i32 {
     type Output = i32;
     #[inline] fn py_mul(self, rhs: i32) -> i32 {
     self * rhs
@@ -856,6 +918,11 @@ impl PyMul for i32 {
     type Output = f64;
     #[inline] fn py_mul(self, rhs: f64) -> f64 {
     self as f64 * rhs
+}
+} impl PyMul<i64>for i32 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: i64) -> i64 {
+    self as i64 * rhs
 }
 } impl PyMul for i64 {
     type Output = i64;
@@ -866,6 +933,11 @@ impl PyMul for i32 {
     type Output = f64;
     #[inline] fn py_mul(self, rhs: f64) -> f64 {
     self as f64 * rhs
+}
+} impl PyMul<i32>for i64 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: i32) -> i64 {
+    self * rhs as i64
 }
 } impl PyMul for f64 {
     type Output = f64;
@@ -941,7 +1013,22 @@ else {
 }
 }
 }
-impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
+impl PyMul<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> i64 {
+    self as i64 * rhs.to_i64()
+}
+} impl PyMul<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> i64 {
+    self * rhs.to_i64()
+}
+} impl PyMul<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> f64 {
+    self * rhs.to_f64()
+}
+} impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
     type Output = Vec<T>;
     fn py_add(mut self, rhs: Vec<T>) -> Vec<T>{
     self.extend(rhs);
@@ -1079,6 +1166,42 @@ impl PyDiv for DepylerValue {
     fn py_div(self, rhs: DepylerValue) -> DepylerValue {
     match(self, rhs) {
    (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a as f64 / _dv_b as f64) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
+}
+}
+}
+impl PyDiv<DepylerValue>for i32 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self as f64 / divisor
+}
+}
+}
+impl PyDiv<DepylerValue>for i64 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self as f64 / divisor
+}
+}
+}
+impl PyDiv<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self / divisor
 }
 }
 }
@@ -2200,7 +2323,7 @@ domain.to_string()
     let normalized: String = words.join (" ");
     normalized.to_string()
 }
-#[doc = "Check if text starts with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn starts_with_pattern<'b, 'a>(text: & 'a str, pattern: & 'b str) -> bool {
+#[doc = "Check if text starts with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn starts_with_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
     text.starts_with(pattern)
 }
 #[doc = "Check if text ends with pattern"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn ends_with_pattern<'a, 'b>(text: & 'a str, pattern: & 'b str) -> bool {
@@ -2213,7 +2336,7 @@ domain.to_string()
     let matches: bool = _cse_temp_0;
     matches
 }
-#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'c, 'a, 'b>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
+#[doc = "Find text between two markers"] #[doc = " Depyler: verified panic-free"] #[doc = " Depyler: proven to terminate"] pub fn find_between<'a, 'c, 'b>(text: & 'a str, start_marker: & 'b str, end_marker: & 'c str) -> String {
     let mut start_pos: i32 = text.find(start_marker).map(| i | i as i32).unwrap_or(- 1);
     let _cse_temp_0 = start_pos.unwrap_or_default()<0;
     if _cse_temp_0 {
@@ -2303,7 +2426,7 @@ let _cse_temp_0 = current_num.len() as i32;
 }
 numbers
 }
-#[doc = "Simple wildcard matching(* means any sequence)"] #[doc = " Depyler: proven to terminate"] pub fn wildcard_match_simple<'b, 'a>(text: & 'a str, pattern: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
+#[doc = "Simple wildcard matching(* means any sequence)"] #[doc = " Depyler: proven to terminate"] pub fn wildcard_match_simple<'a, 'b>(text: & 'a str, pattern: & 'b str) -> Result<bool, Box<dyn std::error::Error>>{
     let mut has_prefix: bool = Default::default();
     let mut has_suffix: bool = Default::default();
     let _cse_temp_0 =! pattern.contains("*");

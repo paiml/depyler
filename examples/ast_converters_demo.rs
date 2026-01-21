@@ -40,7 +40,7 @@ pub static tuple_example: std::sync::LazyLock<(i32, String, f64, bool)> =
 pub static dict_example: std::sync::LazyLock<
     std::collections::HashMap<DepylerValue, DepylerValue>,
 > = std::sync::LazyLock::new(|| {
-    let mut map = HashMap::new();
+    let mut map: HashMap<DepylerValue, DepylerValue> = HashMap::new();
     map.insert(
         DepylerValue::Str("name".to_string().to_string()),
         DepylerValue::Str("John".to_string().to_string()),
@@ -194,8 +194,8 @@ pub static method_call: std::sync::LazyLock<String> =
     std::sync::LazyLock::new(|| "hello".to_string().to_uppercase());
 pub static chained_calls: std::sync::LazyLock<String> =
     std::sync::LazyLock::new(|| "  hello  ".to_string().trim().to_string().to_uppercase());
-pub const pi_value: String = std::f64::consts::PI;
-pub static module_function: std::sync::LazyLock<String> =
+pub const pi_value: f64 = std::f64::consts::PI;
+pub static module_function: std::sync::LazyLock<f64> =
     std::sync::LazyLock::new(|| (16 as f64).sqrt());
 pub fn square(x: i32) -> i32 {
     {
@@ -725,6 +725,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
             .map(|(k, v)| (DepylerValue::Str(k), v))
             .collect();
         DepylerValue::Dict(converted)
+    }
+}
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
     }
 }
 impl From<DepylerValue> for i64 {
@@ -1427,6 +1467,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1496,6 +1557,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1510,6 +1592,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1522,6 +1611,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1610,6 +1706,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1778,6 +1895,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2907,7 +3060,7 @@ impl DemoClass {
     }
 }
 #[doc = "Show various statement types."]
-pub fn demonstrate_statements() -> Result<Option<i32>, Box<dyn std::error::Error>> {
+pub fn demonstrate_statements() -> Result<i32, Box<dyn std::error::Error>> {
     let mut x = 10;
     let mut y = 20;
     x = (x).py_add(5);
@@ -2973,11 +3126,11 @@ pub fn demonstrate_statements() -> Result<Option<i32>, Box<dyn std::error::Error
     }
     let _cse_temp_5 = x > 100;
     if _cse_temp_5 {
-        return Ok(Some(x));
+        return Ok(x);
     } else {
         let _cse_temp_6 = x > 50;
         if _cse_temp_6 {
-            return Ok(Some((x).py_mul(2)));
+            return Ok((x).py_mul(2));
         } else {
             return Ok(None);
         }
@@ -3005,11 +3158,11 @@ pub fn demonstrate_advanced() -> Result<String, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn demonstrate_comprehensions() -> Vec<(i32, i32, i32)> {
-    let transformed = (0..(5))
+    let transformed: Vec<DepylerValue> = (0..(5))
         .into_iter()
         .map(|x| {
             (
-                x,
+                x.clone(),
                 {
                     if 2 >= 0 && (2 as i64) <= (u32::MAX as i64) {
                         ({ x } as i32)
@@ -3032,4 +3185,38 @@ pub fn demonstrate_comprehensions() -> Vec<(i32, i32, i32)> {
         })
         .collect::<Vec<_>>();
     transformed
+}
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("{}", "AST Converters Demo");
+    println!("{}", ("=").py_mul(40));
+    println!(
+        "{}",
+        format!(
+            "Literals: {:?}, {:?}, {:?}",
+            int_literal, float_literal, string_literal
+        )
+    );
+    println!(
+        "{}",
+        format!(
+            "Operations: {:?}, {:?}, {:?}",
+            addition, multiplication, greater_than
+        )
+    );
+    println!(
+        "{}",
+        format!("Collections: {:?}, {:?}", list_example, dict_example)
+    );
+    println!("{}", format!("Comprehensions: {:?}", list_comp));
+    println!("{}", format!("Lambda: {}, {}", square(5), add(3, 4)));
+    let result = demonstrate_statements()?;
+    println!("{}", format!("Statement result: {:?}", result));
+    let advanced = demonstrate_advanced()?;
+    println!("{}", format!("Advanced result: {:?}", advanced));
+    let comps = demonstrate_comprehensions();
+    println!("{}", format!("Comprehensions: {:?}", comps));
+    let obj = DemoClass::new(10);
+    println!("{}", format!("Object method: {}", obj.method()));
+    println!("{}", format!("Chained: {}", obj.chain_example()));
+    Ok(())
 }

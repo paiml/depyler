@@ -495,6 +495,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+    }
+}
 impl From<DepylerValue> for i64 {
     fn from(v: DepylerValue) -> Self {
         v.to_i64()
@@ -1195,6 +1235,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1264,6 +1325,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1278,6 +1360,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1290,6 +1379,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1378,6 +1474,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1546,6 +1663,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2761,8 +2914,8 @@ pub fn test_list_sort() -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_get() -> i32 {
-    let data = {
-        let mut map = HashMap::new();
+    let data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
@@ -2774,8 +2927,8 @@ pub fn test_dict_get() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_get_default() -> i32 {
-    let data = {
-        let mut map = HashMap::new();
+    let data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map
     };
@@ -2786,8 +2939,8 @@ pub fn test_dict_get_default() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_keys() -> i32 {
-    let data = {
-        let mut map = HashMap::new();
+    let data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map.insert("c".to_string(), DepylerValue::Int(3 as i64));
@@ -2800,8 +2953,8 @@ pub fn test_dict_keys() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 pub fn test_dict_values() -> i32 {
     let mut total: i32 = Default::default();
-    let data = {
-        let mut map = HashMap::new();
+    let data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(10 as i64));
         map.insert(STR_B.to_string(), DepylerValue::Int(20 as i64));
         map
@@ -2817,8 +2970,8 @@ pub fn test_dict_values() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_items() -> i32 {
-    let data = {
-        let mut map = HashMap::new();
+    let data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
@@ -2833,8 +2986,8 @@ pub fn test_dict_items() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_pop() -> i32 {
-    let mut data = {
-        let mut map = HashMap::new();
+    let mut data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
@@ -2846,8 +2999,8 @@ pub fn test_dict_pop() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_clear() -> i32 {
-    let mut data = {
-        let mut map = HashMap::new();
+    let mut data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
@@ -2859,8 +3012,8 @@ pub fn test_dict_clear() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_update() -> i32 {
-    let mut data = {
-        let mut map = HashMap::new();
+    let mut data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map
     };
@@ -2879,8 +3032,8 @@ pub fn test_dict_update() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_setdefault() -> i32 {
-    let mut data = {
-        let mut map = HashMap::new();
+    let mut data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map
@@ -2892,8 +3045,8 @@ pub fn test_dict_setdefault() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_setdefault_new() -> i32 {
-    let mut data = {
-        let mut map = HashMap::new();
+    let mut data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map
     };
@@ -2904,8 +3057,8 @@ pub fn test_dict_setdefault_new() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_popitem() -> i32 {
-    let mut data = {
-        let mut map = HashMap::new();
+    let mut data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
         map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
         map.insert("c".to_string(), DepylerValue::Int(3 as i64));
@@ -2926,7 +3079,7 @@ pub fn test_dict_popitem() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_add() -> i32 {
-    let mut numbers = {
+    let mut numbers: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
@@ -2939,7 +3092,7 @@ pub fn test_set_add() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_remove() -> i32 {
-    let mut numbers = {
+    let mut numbers: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
@@ -2955,7 +3108,7 @@ pub fn test_set_remove() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_discard() -> i32 {
-    let mut numbers = {
+    let mut numbers: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
@@ -2969,7 +3122,7 @@ pub fn test_set_discard() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_pop() -> bool {
-    let mut numbers = {
+    let mut numbers: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
@@ -2991,7 +3144,7 @@ pub fn test_set_pop() -> bool {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_clear() -> i32 {
-    let mut numbers = {
+    let mut numbers: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
@@ -3005,13 +3158,13 @@ pub fn test_set_clear() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_union() -> i32 {
-    let set1 = {
+    let set1: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set
     };
-    let set2 = {
+    let set2: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(2);
         set.insert(3);
@@ -3027,14 +3180,14 @@ pub fn test_set_union() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_intersection() -> i32 {
-    let set1 = {
+    let set1: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
         set
     };
-    let set2 = {
+    let set2: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(2);
         set.insert(3);
@@ -3051,14 +3204,14 @@ pub fn test_set_intersection() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_difference() -> i32 {
-    let set1 = {
+    let set1: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
         set.insert(3);
         set
     };
-    let set2 = {
+    let set2: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(2);
         set.insert(3);
@@ -3074,7 +3227,7 @@ pub fn test_set_difference() -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_set_update() -> i32 {
-    let mut numbers = {
+    let mut numbers: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);

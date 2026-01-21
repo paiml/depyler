@@ -5,10 +5,10 @@
 #![allow(unused_assignments)]
 #![allow(dead_code)]
 use std::f64 as math;
-    const STR_D: &'static str = "D";
     const STR_C: &'static str = "C";
-    const STR_B: &'static str = "B";
     const STR_A: &'static str = "A";
+    const STR_D: &'static str = "D";
+    const STR_B: &'static str = "B";
     use std::collections::HashMap;
     use std::collections::HashSet;
     use std::io::Write;
@@ -329,6 +329,38 @@ impl std::ops::Index<i32>for DepylerValue {
     fn from(v: std::collections::HashMap<String, DepylerValue>) -> Self {
     let converted: std::collections::HashMap<DepylerValue, DepylerValue>= v.into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect();
     DepylerValue::Dict(converted)
+}
+} impl From<std::collections::HashSet<DepylerValue>>for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+    DepylerValue::List(v.into_iter().collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+    DepylerValue::List(v.iter().cloned().collect())
+}
+} impl From<std::collections::HashSet<i32>>for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+    DepylerValue::List(v.into_iter().map(| x | DepylerValue::Int(x as i64)).collect())
+}
+} impl From<std::collections::HashSet<i64>>for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+}
+} impl From<std::collections::HashSet<String>>for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<i32>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x as i64)).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<i64>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x)).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<String>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+    DepylerValue::List(v.iter().map(| s | DepylerValue::Str(s.clone())).collect())
 }
 } impl From<DepylerValue>for i64 {
     fn from(v: DepylerValue) -> Self {
@@ -826,7 +858,22 @@ impl PyAdd for i32 {
 }
 }
 }
-impl PySub for i32 {
+impl PyAdd<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> i64 {
+    self as i64 + rhs.to_i64()
+}
+} impl PyAdd<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> i64 {
+    self + rhs.to_i64()
+}
+} impl PyAdd<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> f64 {
+    self + rhs.to_f64()
+}
+} impl PySub for i32 {
     type Output = i32;
     #[inline] fn py_sub(self, rhs: i32) -> i32 {
     self - rhs
@@ -869,7 +916,22 @@ impl PySub for i32 {
 }
 }
 }
-impl PyMul for i32 {
+impl PySub<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> i64 {
+    self as i64 - rhs.to_i64()
+}
+} impl PySub<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> i64 {
+    self - rhs.to_i64()
+}
+} impl PySub<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
+    self - rhs.to_f64()
+}
+} impl PyMul for i32 {
     type Output = i32;
     #[inline] fn py_mul(self, rhs: i32) -> i32 {
     self * rhs
@@ -878,6 +940,11 @@ impl PyMul for i32 {
     type Output = f64;
     #[inline] fn py_mul(self, rhs: f64) -> f64 {
     self as f64 * rhs
+}
+} impl PyMul<i64>for i32 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: i64) -> i64 {
+    self as i64 * rhs
 }
 } impl PyMul for i64 {
     type Output = i64;
@@ -888,6 +955,11 @@ impl PyMul for i32 {
     type Output = f64;
     #[inline] fn py_mul(self, rhs: f64) -> f64 {
     self as f64 * rhs
+}
+} impl PyMul<i32>for i64 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: i32) -> i64 {
+    self * rhs as i64
 }
 } impl PyMul for f64 {
     type Output = f64;
@@ -963,7 +1035,22 @@ else {
 }
 }
 }
-impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
+impl PyMul<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> i64 {
+    self as i64 * rhs.to_i64()
+}
+} impl PyMul<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> i64 {
+    self * rhs.to_i64()
+}
+} impl PyMul<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> f64 {
+    self * rhs.to_f64()
+}
+} impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
     type Output = Vec<T>;
     fn py_add(mut self, rhs: Vec<T>) -> Vec<T>{
     self.extend(rhs);
@@ -1101,6 +1188,42 @@ impl PyDiv for DepylerValue {
     fn py_div(self, rhs: DepylerValue) -> DepylerValue {
     match(self, rhs) {
    (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a as f64 / _dv_b as f64) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
+}
+}
+}
+impl PyDiv<DepylerValue>for i32 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self as f64 / divisor
+}
+}
+}
+impl PyDiv<DepylerValue>for i64 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self as f64 / divisor
+}
+}
+}
+impl PyDiv<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self / divisor
 }
 }
 }
@@ -2083,26 +2206,26 @@ else {
     let m = _cse_temp_1;
     let _cse_temp_2 = b.len() as i32;
     let k = _cse_temp_2;
-    let result  = (0..(n)).into_iter().map(| _ |(0..(m)).into_iter().map(| _ | 0.0).collect::<Vec<_>>()).collect::<Vec<_>>();
+    let result: Vec<DepylerValue>= (0..(n)).into_iter().map(| _ |(0..(m)).into_iter().map(| _ | 0.0).collect::<Vec<_>>()).collect::<Vec<_>>();
     for i in 0..(n) {
     for j in 0..(m) {
     for p in 0..(k) {
-    result.get_mut(& i).unwrap().insert((j) as usize ,(result.get(i as usize).cloned().expect("IndexError: list index out of range").get(j as usize).cloned().expect("IndexError: list index out of range")).py_add((a.get(i as usize).cloned().expect("IndexError: list index out of range").get(p as usize).cloned().expect("IndexError: list index out of range")).py_mul(b.get(p as usize).cloned().expect("IndexError: list index out of range").get(j as usize).cloned().expect("IndexError: list index out of range"))));
+    result.get_mut(& i).unwrap() [(j) as usize]  = (result.get(i as usize).cloned().expect("IndexError: list index out of range").get(j as usize).cloned().expect("IndexError: list index out of range")).py_add((a.get(i as usize).cloned().expect("IndexError: list index out of range").get(p as usize).cloned().expect("IndexError: list index out of range")).py_mul(b.get(p as usize).cloned().expect("IndexError: list index out of range").get(j as usize).cloned().expect("IndexError: list index out of range")));
    
 }
 }
 }
 Ok(result)
 }
-#[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "] pub fn process_text_data<'b, 'a>(texts: & 'a Vec<String>, keywords: & 'b Vec<String>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>>{
-    let mut keyword_counts = keywords.iter().cloned().map(| kw | {
+#[doc = "\n    Process text data to count keyword occurrences.\n    \n    Interactive mode will suggest:\n    - String ownership strategy(borrowed vs owned)\n    - Potential zero-copy optimizations\n    "] pub fn process_text_data<'a, 'b>(texts: & 'a Vec<String>, keywords: & 'b Vec<String>) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>>{
+    let mut keyword_counts: std::collections::HashMap<String, DepylerValue>= keywords.iter().cloned().map(| kw | {
     let _v = 0;
    (kw, _v) }).collect::<std::collections::HashMap<_, _>>();
     for text in texts.iter().cloned() {
     let normalized = text.to_lowercase().trim().to_string();
     for keyword in keywords.iter().cloned() {
     if normalized.contains(& * keyword) {
-    { let _key = keyword;
+    { let _key = keyword.clone();
     let _old_val = keyword_counts.get(& _key).cloned().unwrap_or_default();
     keyword_counts.insert(_key, _old_val + 1);
    
@@ -2143,19 +2266,19 @@ else {
 else {
     idx as usize };
     base.get(actual_idx).cloned().expect("IndexError: list index out of range") };
-    let left = arr.as_slice().iter().cloned().filter(| x | {
+    let left: Vec<i32>= arr.as_slice().iter().cloned().filter(| x | {
     let x = x.clone();
     x<pivot }).map(| x | x).collect::<Vec<_>>();
-    let middle = arr.as_slice().iter().cloned().filter(| x | {
+    let middle: Vec<i32>= arr.as_slice().iter().cloned().filter(| x | {
     let x = x.clone();
     x == pivot }).map(| x | x).collect::<Vec<_>>();
-    let right = arr.as_slice().iter().cloned().filter(| x | {
+    let right: Vec<i32>= arr.as_slice().iter().cloned().filter(| x | {
     let x = x.clone();
     x>pivot }).map(| x | x).collect::<Vec<_>>();
     Ok(((quicksort(left) ?).py_add(middle)).py_add(quicksort(right) ?))
 }
 #[doc = "\n    Safe division with error handling.\n    \n    Interactive mode will suggest:\n    - Error handling strategy\n    - Result type usage\n    - Panic-free guarantees\n    "] #[doc = " Depyler: proven to terminate"] pub fn safe_divide<'b, 'a>(numbers: & 'a Vec<f64>, divisors: & 'b Vec<f64>) -> Result<Vec<Option<f64>>, Box<dyn std::error::Error>>{
-    let mut results = vec! [];
+    let mut results: Vec<DepylerValue>= vec! [];
     for i in 0..(depyler_min ((numbers.len() as i32).clone() ,(divisors.len() as i32).clone())) {
     if divisors.get(i as usize).cloned().expect("IndexError: list index out of range")!= 0 {
     results.push((numbers.get(i as usize).cloned().expect("IndexError: list index out of range")).py_div(divisors.get(i as usize).cloned().expect("IndexError: list index out of range")));
@@ -2168,7 +2291,7 @@ else {
 } Ok(results)
 }
 #[doc = "\n    Function that could benefit from parallelization.\n    \n    Interactive mode will suggest:\n    - Thread safety requirements\n    - Parallelization strategy\n    - Send/Sync trait bounds\n    "] pub fn parallel_map(func: impl Fn(i32) -> i32, data: & Vec<i32>) -> Result<Vec<i32>, Box<dyn std::error::Error>>{
-    let mut results = vec! [];
+    let mut results: Vec<DepylerValue>= vec! [];
     for item in data.iter().cloned() {
     let mut result = func(item);
     for __sanitized in 0..(1000) {
@@ -2180,15 +2303,15 @@ results.push(result);
 }
 Ok(results)
 }
-#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'c, 'b, 'a>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
+#[doc = "\n    Route optimization using dynamic programming.\n    \n    Interactive mode will suggest multiple annotations:\n    - Algorithm complexity hints\n    - Memory vs speed tradeoffs\n    - Caching strategy\n    - Error handling approach\n    "] pub fn optimize_route<'b, 'c, 'a>(distances: & 'a std::collections::HashMap<String, std::collections::HashMap<String, f64>>, start: & 'b str, end: & 'c str) -> Result<Option<Vec<String>>, Box<dyn std::error::Error>>{
     let mut current: String = Default::default();
     let mut visited = std::collections::HashSet::<i32>::new();
-    let mut distances_from_start = {
-    let mut map = HashMap::new();
+    let mut distances_from_start: std::collections::HashMap<String, DepylerValue>= {
+    let mut map: HashMap<DepylerValue, DepylerValue>= HashMap::new();
     map.insert(DepylerValue::from(start), DepylerValue::Int(0 as i64));
     map };
-    let mut previous = {
-    let mut map = HashMap::new();
+    let mut previous: std::collections::HashMap<String, DepylerValue>= {
+    let mut map: HashMap<String, DepylerValue>= HashMap::new();
     map };
     while(visited.len() as i32)<distances.len() as i32 {
     let mut current_distance = "inf".parse::<f64>().unwrap();
@@ -2206,9 +2329,9 @@ if current.is_none() {
    
 }
 visited.insert(current);
-    for neighbor in distances.get(& current).cloned().unwrap_or_default() {
+    for neighbor in distances.get(& current).cloned().unwrap_or_default().keys().cloned() {
     if! visited.contains(& neighbor) {
-    let new_distance  = (distances_from_start.get(& current).cloned().unwrap_or_default()).py_add(distances.get(& current).cloned().unwrap_or_default().get(neighbor as usize).cloned().expect("IndexError: list index out of range"));
+    let new_distance  = (distances_from_start.get(& current).cloned().unwrap_or_default()).py_add(distances.get(& current).cloned().unwrap_or_default().get(& DepylerValue::Int(neighbor as i64)).cloned().unwrap_or_default());
     if(distances_from_start.get(& neighbor).is_none()) ||(new_distance <(distances_from_start.get(& DepylerValue::Int(neighbor as i64)).cloned().unwrap_or_default() as f64)) {
     distances_from_start.insert(neighbor.to_string().clone(), DepylerValue::Str(format!("{:?}", new_distance)));
     previous.insert(neighbor.to_string().clone(), DepylerValue::Str(format!("{:?}", current)));
@@ -2221,7 +2344,7 @@ visited.insert(current);
     return Ok(None);
    
 }
-let mut path = vec! [];
+let mut path: Vec<DepylerValue>= vec! [];
     current = end.to_string();
     while current! = (* start) {
     path.push(current);
@@ -2262,30 +2385,34 @@ path.push(start);
     _read_buf.truncate(_n);
     _read_buf };
     println!("{}", format!("Recent buffer data: {}", recent));
-    let graph = {
-    let mut map = HashMap::new();
-    map.insert(STR_A.to_string(), DepylerValue::Str(format!("{:?}", {
-    let mut map = HashMap::new();
+    let graph: std::collections::HashMap<String, DepylerValue>= {
+    let mut map: HashMap<String, DepylerValue>= HashMap::new();
+    map.insert(STR_A.to_string(), DepylerValue::Dict({ let mut map: HashMap<String, DepylerValue>= HashMap::new();
     map.insert(STR_B.to_string(), DepylerValue::Int(1 as i64));
     map.insert(STR_C.to_string(), DepylerValue::Int(4 as i64));
-    map })));
-    map.insert(STR_B.to_string(), DepylerValue::Str(format!("{:?}", {
-    let mut map = HashMap::new();
+    map
+}
+. into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect()));
+    map.insert(STR_B.to_string(), DepylerValue::Dict({ let mut map: HashMap<String, DepylerValue>= HashMap::new();
     map.insert(STR_A.to_string(), DepylerValue::Int(1 as i64));
     map.insert(STR_C.to_string(), DepylerValue::Int(2 as i64));
     map.insert(STR_D.to_string(), DepylerValue::Int(5 as i64));
-    map })));
-    map.insert(STR_C.to_string(), DepylerValue::Str(format!("{:?}", {
-    let mut map = HashMap::new();
+    map
+}
+. into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect()));
+    map.insert(STR_C.to_string(), DepylerValue::Dict({ let mut map: HashMap<String, DepylerValue>= HashMap::new();
     map.insert(STR_A.to_string(), DepylerValue::Int(4 as i64));
     map.insert(STR_B.to_string(), DepylerValue::Int(2 as i64));
     map.insert(STR_D.to_string(), DepylerValue::Int(1 as i64));
-    map })));
-    map.insert(STR_D.to_string(), DepylerValue::Str(format!("{:?}", {
-    let mut map = HashMap::new();
+    map
+}
+. into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect()));
+    map.insert(STR_D.to_string(), DepylerValue::Dict({ let mut map: HashMap<String, DepylerValue>= HashMap::new();
     map.insert(STR_B.to_string(), DepylerValue::Int(5 as i64));
     map.insert(STR_C.to_string(), DepylerValue::Int(1 as i64));
-    map })));
+    map
+}
+. into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect()));
     map };
     let route = optimize_route(& graph, & STR_A, & STR_D) ?;
     println!("{}", format!("Optimal route: {:?}", route));

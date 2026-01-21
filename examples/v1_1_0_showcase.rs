@@ -493,6 +493,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+    }
+}
 impl From<DepylerValue> for i64 {
     fn from(v: DepylerValue) -> Self {
         v.to_i64()
@@ -1193,6 +1233,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1262,6 +1323,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1276,6 +1358,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1288,6 +1377,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1376,6 +1472,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1544,6 +1661,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2663,26 +2816,36 @@ pub fn showcase_dictionary_assignment() -> (
     >,
     std::collections::HashMap<DepylerValue, DepylerValue>,
 ) {
-    let mut d = {
-        let mut map = HashMap::new();
+    let mut d: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map
     };
     d.insert("key".to_string(), DepylerValue::Str("value".to_string()));
-    let nested = {
-        let mut map = HashMap::new();
+    let nested: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(
             "level1".to_string(),
-            DepylerValue::Str(format!("{:?}", {
-                let mut map = HashMap::new();
-                map.insert(
-                    "level2".to_string(),
-                    DepylerValue::Str(format!("{:?}", {
-                        let mut map = HashMap::new();
-                        map
-                    })),
-                );
-                map
-            })),
+            DepylerValue::Dict(
+                {
+                    let mut map: HashMap<String, DepylerValue> = HashMap::new();
+                    map.insert(
+                        "level2".to_string(),
+                        DepylerValue::Dict(
+                            {
+                                let mut map: HashMap<String, DepylerValue> = HashMap::new();
+                                map
+                            }
+                            .into_iter()
+                            .map(|(k, v)| (DepylerValue::Str(k), v))
+                            .collect(),
+                        ),
+                    );
+                    map
+                }
+                .into_iter()
+                .map(|(k, v)| (DepylerValue::Str(k), v))
+                .collect(),
+            ),
         );
         map
     };
@@ -2692,8 +2855,8 @@ pub fn showcase_dictionary_assignment() -> (
         .get_mut(&"level2")
         .unwrap()
         .insert("level3".to_string(), "deep value".to_string());
-    let mut coords = {
-        let mut map = HashMap::new();
+    let mut coords: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map
     };
     coords.insert(
@@ -2716,7 +2879,7 @@ pub fn showcase_set_operations() -> (
     std::collections::HashSet<i32>,
     std::collections::HashSet<i32>,
 ) {
-    let set1 = {
+    let set1: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
@@ -2725,7 +2888,7 @@ pub fn showcase_set_operations() -> (
         set.insert(5);
         set
     };
-    let set2 = {
+    let set2: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(4);
         set.insert(5);
@@ -2750,7 +2913,7 @@ pub fn showcase_set_operations() -> (
         .cloned()
         .collect::<std::collections::HashSet<_>>();
     let symmetric_diff = _cse_temp_2;
-    let mut mutable_set = {
+    let mut mutable_set: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);
@@ -2772,11 +2935,11 @@ pub fn showcase_set_comprehensions() -> (
     std::collections::HashSet<String>,
     std::collections::HashSet<String>,
 ) {
-    let squares = (0..(10))
+    let squares: std::collections::HashSet<DepylerValue> = (0..(10))
         .into_iter()
         .map(|x| (x).py_mul(x))
         .collect::<std::collections::HashSet<_>>();
-    let even_squares = (0..(10))
+    let even_squares: std::collections::HashSet<DepylerValue> = (0..(10))
         .into_iter()
         .filter(|x| {
             let x = x.clone();
@@ -2784,7 +2947,7 @@ pub fn showcase_set_comprehensions() -> (
         })
         .map(|x| (x).py_mul(x))
         .collect::<std::collections::HashSet<_>>();
-    let unique_chars = "hello world"
+    let unique_chars: std::collections::HashSet<DepylerValue> = "hello world"
         .to_string()
         .into_iter()
         .filter(|c| {
@@ -2811,8 +2974,8 @@ pub fn showcase_frozen_sets() -> (
         std::sync::Arc::new((3)..(6).into_iter().collect::<std::collections::HashSet<_>>());
     let _cse_temp_0 = immutable1 & immutable2;
     let result = _cse_temp_0;
-    let frozen_dict = {
-        let mut map = HashMap::new();
+    let frozen_dict: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<DepylerValue, DepylerValue> = HashMap::new();
         map.insert(
             DepylerValue::from(immutable1),
             DepylerValue::Str("first set".to_string()),
@@ -2829,21 +2992,21 @@ pub fn showcase_frozen_sets() -> (
 #[doc = " Depyler: proven to terminate"]
 pub fn showcase_control_flow(
 ) -> Result<(Vec<DepylerValue>, Vec<DepylerValue>, Vec<DepylerValue>), Box<dyn std::error::Error>> {
-    let mut result1 = vec![];
+    let mut result1: Vec<DepylerValue> = vec![];
     for i in 0..(10) {
         if i == 5 {
             break;
         }
         result1.push(DepylerValue::Int(i as i64));
     }
-    let mut result2 = vec![];
+    let mut result2: Vec<DepylerValue> = vec![];
     for i in 0..(10) {
         if (i).py_mod(2) == 0 {
             continue;
         }
         result2.push(DepylerValue::Int(i as i64));
     }
-    let mut result3 = vec![];
+    let mut result3: Vec<DepylerValue> = vec![];
     for i in 0..(3) {
         for j in 0..(3) {
             if (i == 1) && (j == 1) {
@@ -2852,7 +3015,20 @@ pub fn showcase_control_flow(
             result3.push(DepylerValue::Str(format!("{:?}", (i, j))));
         }
     }
-    Ok((result1, result2, result3))
+    return (
+        result1
+            .into_iter()
+            .map(DepylerValue::from)
+            .collect::<Vec<_>>(),
+        result2
+            .into_iter()
+            .map(DepylerValue::from)
+            .collect::<Vec<_>>(),
+        result3
+            .into_iter()
+            .map(DepylerValue::from)
+            .collect::<Vec<_>>(),
+    );
 }
 #[doc = "Showcase power operator support"]
 #[doc = " Depyler: verified panic-free"]
