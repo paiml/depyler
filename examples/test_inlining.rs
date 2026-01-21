@@ -474,6 +474,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+    }
+}
 impl From<DepylerValue> for i64 {
     fn from(v: DepylerValue) -> Self {
         v.to_i64()
@@ -1174,6 +1214,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1243,6 +1304,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1257,6 +1339,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1269,6 +1358,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1357,6 +1453,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1525,6 +1642,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2650,8 +2803,8 @@ pub fn add_one(n: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn compute_distance_squared(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
-    let dx = (x2).py_sub(x1);
-    let dy = (y2).py_sub(y1);
+    let dx: i32 = (x2).py_sub(x1);
+    let dy: i32 = (y2).py_sub(y1);
     (square(dx)).py_add(square(dy))
 }
 #[doc = "Called only once - should be inlined."]
@@ -2659,18 +2812,18 @@ pub fn compute_distance_squared(x1: i32, y1: i32, x2: i32, y2: i32) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn process_single_use(value: i32) -> i32 {
     let _cse_temp_0 = (value).py_mul(2);
-    let temp = _cse_temp_0;
-    let result = (temp).py_add(10);
+    let temp: i32 = _cse_temp_0;
+    let result: i32 = (temp).py_add(10);
     result
 }
 #[doc = "Main function that uses other functions."]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn main_computation(a: i32, b: i32) -> i32 {
-    let step1 = process_single_use(a);
-    let step2 = add_one(step1);
-    let step3 = add_one(b);
-    let distance = compute_distance_squared(0, 0, step2, step3);
+    let step1: i32 = process_single_use(a);
+    let step2: i32 = add_one(step1);
+    let step3: i32 = add_one(b);
+    let distance: i32 = compute_distance_squared(0, 0, step2, step3);
     distance
 }
 #[doc = "Recursive function - should NOT be inlined."]
@@ -2689,7 +2842,7 @@ pub fn has_loop(items: &Vec<DepylerValue>) -> i32 {
     let mut total: i32 = Default::default();
     total = 0;
     for item in items.iter().cloned() {
-        total = (total).py_add(item);
+        total = ((total).py_add(item)).to_i64() as i32;
     }
     total
 }
@@ -2697,29 +2850,29 @@ pub fn has_loop(items: &Vec<DepylerValue>) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn large_function(x: i32, y: i32, z: i32) -> i32 {
-    let a = (x).py_add(y);
-    let b = (y).py_add(z);
-    let c = (z).py_add(x);
+    let a: i32 = (x).py_add(y);
+    let b: i32 = (y).py_add(z);
+    let c: i32 = (z).py_add(x);
     let _cse_temp_0 = (a).py_mul(b);
-    let d = _cse_temp_0;
+    let d: i32 = _cse_temp_0;
     let _cse_temp_1 = (b).py_mul(c);
-    let e = _cse_temp_1;
+    let e: i32 = _cse_temp_1;
     let _cse_temp_2 = (c).py_mul(a);
-    let f = _cse_temp_2;
-    let g = (d).py_add(e);
-    let h = (e).py_add(f);
-    let i = (f).py_add(d);
+    let f: i32 = _cse_temp_2;
+    let g: i32 = (d).py_add(e);
+    let h: i32 = (e).py_add(f);
+    let i: i32 = (f).py_add(d);
     let _cse_temp_3 = (g).py_mul(h);
-    let j = _cse_temp_3;
+    let j: i32 = _cse_temp_3;
     let _cse_temp_4 = (h).py_mul(i);
-    let k = _cse_temp_4;
+    let k: i32 = _cse_temp_4;
     let _cse_temp_5 = (i).py_mul(g);
-    let l = _cse_temp_5;
-    let m = (j).py_add(k);
-    let n = (k).py_add(l);
-    let o = (l).py_add(j);
+    let l: i32 = _cse_temp_5;
+    let m: i32 = (j).py_add(k);
+    let n: i32 = (k).py_add(l);
+    let o: i32 = (l).py_add(j);
     let _cse_temp_6 = ((m).py_add(n)).py_add(o);
-    let result = _cse_temp_6;
+    let result: i32 = _cse_temp_6;
     result
 }
 #[cfg(test)]

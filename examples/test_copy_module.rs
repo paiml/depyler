@@ -493,6 +493,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+    }
+}
 impl From<DepylerValue> for i64 {
     fn from(v: DepylerValue) -> Self {
         v.to_i64()
@@ -1193,6 +1233,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1262,6 +1323,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1276,6 +1358,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1288,6 +1377,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1376,6 +1472,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1544,6 +1661,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2667,7 +2820,7 @@ pub fn test_shallow_copy_list() -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_shallow_copy_dict() -> HashMap<String, i32> {
     let original: std::collections::HashMap<String, i32> = {
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, i32> = HashMap::new();
         map.insert("a".to_string(), (1) as i32);
         map.insert("b".to_string(), (2) as i32);
         map.insert("c".to_string(), (3) as i32);
@@ -2683,7 +2836,7 @@ pub fn test_shallow_copy_dict() -> HashMap<String, i32> {
 pub fn test_list_copy_method() -> Vec<i32> {
     let original: Vec<i32> = vec![10, 20, 30];
     let mut copied: Vec<i32> = original.clone();
-    copied.insert((0) as usize, 99);
+    copied[(0) as usize] = 99;
     copied
 }
 #[doc = "Test dict.copy() method"]
@@ -2691,7 +2844,7 @@ pub fn test_list_copy_method() -> Vec<i32> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_dict_copy_method() -> HashMap<String, String> {
     let original: std::collections::HashMap<String, String> = {
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, String> = HashMap::new();
         map.insert("key1".to_string(), "value1".to_string());
         map.insert("key2".to_string(), "value2".to_string());
         map
@@ -2731,25 +2884,19 @@ pub fn test_deep_copy_nested_list() -> Vec<Vec<i32>> {
 #[doc = " Depyler: proven to terminate"]
 pub fn test_deep_copy_nested_dict() -> HashMap<String, HashMap<String, i32>> {
     let original: std::collections::HashMap<String, std::collections::HashMap<String, i32>> = {
-        let mut map = HashMap::new();
-        map.insert(
-            "group1".to_string(),
-            DepylerValue::Str(format!("{:?}", {
-                let mut map = HashMap::new();
-                map.insert("a".to_string(), 1);
-                map.insert("b".to_string(), 2);
-                map
-            })),
-        );
-        map.insert(
-            "group2".to_string(),
-            DepylerValue::Str(format!("{:?}", {
-                let mut map = HashMap::new();
-                map.insert("c".to_string(), 3);
-                map.insert("d".to_string(), 4);
-                map
-            })),
-        );
+        let mut map: HashMap<String, std::collections::HashMap<String, i32>> = HashMap::new();
+        map.insert("group1".to_string(), {
+            let mut map: HashMap<String, i32> = HashMap::new();
+            map.insert("a".to_string(), (1) as i32);
+            map.insert("b".to_string(), (2) as i32);
+            map
+        });
+        map.insert("group2".to_string(), {
+            let mut map: HashMap<String, i32> = HashMap::new();
+            map.insert("c".to_string(), (3) as i32);
+            map.insert("d".to_string(), (4) as i32);
+            map
+        });
         map
     };
     let copied: std::collections::HashMap<String, std::collections::HashMap<String, i32>> =
@@ -2890,7 +3037,7 @@ pub fn test_copy_empty_collections() -> (i32, i32) {
 pub fn test_copy_single_element() -> (i32, i32) {
     let single_list: Vec<i32> = vec![42];
     let single_dict: std::collections::HashMap<String, i32> = {
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, i32> = HashMap::new();
         map.insert("answer".to_string(), (42) as i32);
         map
     };
@@ -2920,7 +3067,7 @@ pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
     > = test_deep_copy_nested_dict();
     let manual_list: Vec<i32> = manual_shallow_copy_list(&vec![1, 2, 3]);
     let manual_dict: std::collections::HashMap<String, i32> = manual_shallow_copy_dict(&{
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, i32> = HashMap::new();
         map.insert("x".to_string(), (10) as i32);
         map.insert("y".to_string(), (20) as i32);
         map
@@ -2931,7 +3078,7 @@ pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
     let data: Vec<i32> = vec![1, 2, 3, 4, 5];
     let transformed: Vec<i32> = clone_list_with_transform(&data, 2);
     let scores: std::collections::HashMap<String, i32> = {
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, i32> = HashMap::new();
         map.insert("alice".to_string(), (85) as i32);
         map.insert("bob".to_string(), (72) as i32);
         map.insert("charlie".to_string(), (95) as i32);
@@ -2939,13 +3086,13 @@ pub fn test_all_copy_features() -> Result<(), Box<dyn std::error::Error>> {
     };
     let filtered: std::collections::HashMap<String, i32> = clone_dict_with_filter(&scores, 80)?;
     let d1: std::collections::HashMap<String, i32> = {
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, i32> = HashMap::new();
         map.insert("a".to_string(), (1) as i32);
         map.insert("b".to_string(), (2) as i32);
         map
     };
     let d2: std::collections::HashMap<String, i32> = {
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, i32> = HashMap::new();
         map.insert("c".to_string(), (3) as i32);
         map.insert("d".to_string(), (4) as i32);
         map

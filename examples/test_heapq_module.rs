@@ -509,6 +509,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+    }
+}
 impl From<DepylerValue> for i64 {
     fn from(v: DepylerValue) -> Self {
         v.to_i64()
@@ -1209,6 +1249,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1278,6 +1339,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1292,6 +1374,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1304,6 +1393,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1392,6 +1488,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1560,6 +1677,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2691,13 +2844,11 @@ pub fn test_heap_push_pop() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
                     .get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range");
-                heap.insert(
-                    (i) as usize,
-                    heap.get(j as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                );
-                heap.insert((j) as usize, temp);
+                heap[(i) as usize] = heap
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                heap[(j) as usize] = temp;
             }
         }
     }
@@ -2723,13 +2874,11 @@ pub fn test_heapify() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
                     .get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range");
-                heap.insert(
-                    (i) as usize,
-                    heap.get(j as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                );
-                heap.insert((j) as usize, temp);
+                heap[(i) as usize] = heap
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                heap[(j) as usize] = temp;
             }
         }
     }
@@ -2793,14 +2942,11 @@ pub fn test_nsmallest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::
                     .get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range");
-                sorted_data.insert(
-                    (i) as usize,
-                    sorted_data
-                        .get(j as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                );
-                sorted_data.insert((j) as usize, temp);
+                sorted_data[(i) as usize] = sorted_data
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                sorted_data[(j) as usize] = temp;
             }
         }
     }
@@ -2834,14 +2980,11 @@ pub fn test_nlargest(data: &Vec<i32>, n: i32) -> Result<Vec<i32>, Box<dyn std::e
                     .get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range");
-                sorted_data.insert(
-                    (i) as usize,
-                    sorted_data
-                        .get(j as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                );
-                sorted_data.insert((j) as usize, temp);
+                sorted_data[(i) as usize] = sorted_data
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                sorted_data[(j) as usize] = temp;
             }
         }
     }
@@ -2895,14 +3038,11 @@ pub fn manual_heap_insert(
                 .get(index as usize)
                 .cloned()
                 .expect("IndexError: list index out of range");
-            new_heap.insert(
-                (index) as usize,
-                new_heap
-                    .get(parent as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            );
-            new_heap.insert((parent) as usize, temp);
+            new_heap[(index) as usize] = new_heap
+                .get(parent as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+            new_heap[(parent) as usize] = temp;
             index = parent;
         } else {
             break;
@@ -2918,7 +3058,13 @@ pub fn manual_heap_extract_min(
     let _cse_temp_0 = heap.len() as i32;
     let _cse_temp_1 = _cse_temp_0 == 0;
     if _cse_temp_1 {
-        return Ok((-1, vec![]));
+        return (
+            DepylerValue::from(-1),
+            vec![]
+                .into_iter()
+                .map(DepylerValue::from)
+                .collect::<Vec<_>>(),
+        );
     }
     let min_val: i32 = heap
         .get(0usize)
@@ -2926,7 +3072,13 @@ pub fn manual_heap_extract_min(
         .expect("IndexError: list index out of range");
     let _cse_temp_2 = _cse_temp_0 == 1;
     if _cse_temp_2 {
-        return Ok((min_val, vec![]));
+        return (
+            DepylerValue::from(min_val),
+            vec![]
+                .into_iter()
+                .map(DepylerValue::from)
+                .collect::<Vec<_>>(),
+        );
     }
     let mut new_heap: Vec<i32> = vec![{
         let base = &heap;
@@ -2981,20 +3133,23 @@ pub fn manual_heap_extract_min(
                 .get(index as usize)
                 .cloned()
                 .expect("IndexError: list index out of range");
-            new_heap.insert(
-                (index) as usize,
-                new_heap
-                    .get(smallest as usize)
-                    .cloned()
-                    .expect("IndexError: list index out of range"),
-            );
-            new_heap.insert((smallest) as usize, temp);
+            new_heap[(index) as usize] = new_heap
+                .get(smallest as usize)
+                .cloned()
+                .expect("IndexError: list index out of range");
+            new_heap[(smallest) as usize] = temp;
             index = smallest;
         } else {
             break;
         }
     }
-    Ok((min_val, new_heap))
+    return (
+        DepylerValue::from(min_val),
+        new_heap
+            .into_iter()
+            .map(DepylerValue::from)
+            .collect::<Vec<_>>(),
+    );
 }
 #[doc = "Simulate priority queue using heap"]
 pub fn priority_queue_simulation() -> Result<Vec<i32>, Box<dyn std::error::Error>> {
@@ -3021,14 +3176,11 @@ pub fn priority_queue_simulation() -> Result<Vec<i32>, Box<dyn std::error::Error
                     .get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range");
-                sorted_tasks.insert(
-                    (i) as usize,
-                    sorted_tasks
-                        .get(j as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                );
-                sorted_tasks.insert((j) as usize, temp);
+                sorted_tasks[(i) as usize] = sorted_tasks
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                sorted_tasks[(j) as usize] = temp;
             }
         }
     }
@@ -3061,14 +3213,11 @@ pub fn merge_sorted_lists(lists: &Vec<Vec<i32>>) -> Result<Vec<i32>, Box<dyn std
                     .get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range");
-                result.insert(
-                    (i) as usize,
-                    result
-                        .get(j as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                );
-                result.insert((j) as usize, temp);
+                result[(i) as usize] = result
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                result[(j) as usize] = temp;
             }
         }
     }
@@ -3093,14 +3242,11 @@ pub fn find_kth_smallest(data: &Vec<i32>, k: i32) -> Result<i32, Box<dyn std::er
                     .get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range");
-                sorted_data.insert(
-                    (i) as usize,
-                    sorted_data
-                        .get(j as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                );
-                sorted_data.insert((j) as usize, temp);
+                sorted_data[(i) as usize] = sorted_data
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                sorted_data[(j) as usize] = temp;
             }
         }
     }
@@ -3145,14 +3291,11 @@ pub fn find_median_using_heaps(data: &Vec<i32>) -> Result<f64, Box<dyn std::erro
                     .get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range");
-                sorted_data.insert(
-                    (i) as usize,
-                    sorted_data
-                        .get(j as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                );
-                sorted_data.insert((j) as usize, temp);
+                sorted_data[(i) as usize] = sorted_data
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                sorted_data[(j) as usize] = temp;
             }
         }
     }

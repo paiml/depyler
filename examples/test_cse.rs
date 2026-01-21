@@ -474,6 +474,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+    }
+}
 impl From<DepylerValue> for i64 {
     fn from(v: DepylerValue) -> Self {
         v.to_i64()
@@ -1174,6 +1214,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1243,6 +1304,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1257,6 +1339,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1269,6 +1358,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1357,6 +1453,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1525,6 +1642,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2639,10 +2792,10 @@ impl DepylerRegexMatch {
 #[doc = " Depyler: proven to terminate"]
 pub fn repeated_complex_expressions(a: i32, b: i32, c: i32) -> i32 {
     let _cse_temp_0 = ((a).py_add(b)).py_mul(c);
-    let x = (_cse_temp_0).py_add(10);
-    let y = (_cse_temp_0).py_sub(5);
+    let x: i32 = (_cse_temp_0).py_add(10);
+    let y: i32 = (_cse_temp_0).py_sub(5);
     let _cse_temp_1 = (_cse_temp_0).py_mul(2);
-    let z = _cse_temp_1;
+    let z: i32 = _cse_temp_1;
     ((x).py_add(y)).py_add(z)
 }
 #[doc = "Repeated calls to pure functions."]
@@ -2666,12 +2819,12 @@ pub fn repeated_function_calls(n: i32) -> i32 {
 pub fn nested_expressions(x: i32, y: i32) -> i32 {
     let _cse_temp_0 = (x).py_mul(y);
     let _cse_temp_1 = (_cse_temp_0).py_mul(2);
-    let a = (_cse_temp_0).py_add(_cse_temp_1);
+    let a: i32 = (_cse_temp_0).py_add(_cse_temp_1);
     let _cse_temp_2 = (_cse_temp_0).py_mul(_cse_temp_0);
-    let b = _cse_temp_2;
+    let b: i32 = _cse_temp_2;
     let _cse_temp_3 = ((x).py_add(1)).py_mul((y).py_add(1));
-    let c = (_cse_temp_3).py_add(10);
-    let d = (_cse_temp_3).py_sub(20);
+    let c: i32 = (_cse_temp_3).py_add(10);
+    let d: i32 = (_cse_temp_3).py_sub(20);
     (((a).py_add(b)).py_add(c)).py_add(d)
 }
 #[doc = "CSE across conditional branches."]
@@ -2681,7 +2834,7 @@ pub fn conditional_cse(flag: bool, a: i32, b: i32) -> i32 {
     let mut result: i32 = Default::default();
     let _cse_temp_0 = (a).py_mul(b);
     let _cse_temp_1 = (_cse_temp_0).py_add((a).py_sub(b));
-    let base = _cse_temp_1;
+    let base: i32 = _cse_temp_1;
     if flag {
         result = (_cse_temp_1).py_add(10);
     } else {
@@ -2693,11 +2846,11 @@ pub fn conditional_cse(flag: bool, a: i32, b: i32) -> i32 {
 #[doc = " Depyler: verified panic-free"]
 pub fn loop_invariant_expressions(items: &Vec<DepylerValue>) -> i32 {
     let mut total: i32 = Default::default();
-    let x = 10;
-    let y = 20;
+    let x: i32 = 10;
+    let y: i32 = 20;
     total = 0;
     for item in items.iter().cloned() {
-        total = (total).py_add((item).py_add(((x).py_add(y)).py_mul(2)));
+        total = ((total).py_add((item).py_add(((x).py_add(y)).py_mul(2)))).to_i64() as i32;
     }
     total
 }

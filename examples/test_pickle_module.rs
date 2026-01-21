@@ -479,6 +479,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+    }
+}
 impl From<DepylerValue> for i64 {
     fn from(v: DepylerValue) -> Self {
         v.to_i64()
@@ -1179,6 +1219,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1248,6 +1309,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1262,6 +1344,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1274,6 +1363,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1362,6 +1458,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1530,6 +1647,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2672,8 +2825,8 @@ pub fn test_pickle_list() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_dict() {
-    let data = {
-        let mut map = HashMap::new();
+    let data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert("name".to_string(), DepylerValue::Str("Alice".to_string()));
         map.insert("age".to_string(), DepylerValue::Int(30 as i64));
         map.insert("city".to_string(), DepylerValue::Str("NYC".to_string()));
@@ -2682,7 +2835,7 @@ pub fn test_pickle_dict() {
     let pickled = { format!("{:?}", data).into_bytes() };
     let unpickled = { String::from_utf8_lossy(pickled).to_string() };
     assert_eq!(unpickled, {
-        let mut map = HashMap::new();
+        let mut map: HashMap<DepylerValue, DepylerValue> = HashMap::new();
         map.insert(
             DepylerValue::Str("name".to_string()),
             DepylerValue::Str("Alice".to_string()),
@@ -2704,33 +2857,48 @@ pub fn test_pickle_dict() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_nested_structure() {
-    let data = {
-        let mut map = HashMap::new();
+    let data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
         map.insert(
             "users".to_string(),
-            DepylerValue::Str(format!(
-                "{:?}",
-                vec![
+            DepylerValue::List(vec![
+                DepylerValue::Dict(
                     {
-                        let mut map = HashMap::new();
+                        let mut map: HashMap<String, DepylerValue> = HashMap::new();
                         map.insert("name".to_string(), DepylerValue::Str("Alice".to_string()));
                         map.insert(
                             "scores".to_string(),
-                            DepylerValue::Str(format!("{:?}", vec![90, 85, 88])),
-                        );
-                        map
-                    },
-                    {
-                        let mut map = HashMap::new();
-                        map.insert("name".to_string(), DepylerValue::Str("Bob".to_string()));
-                        map.insert(
-                            "scores".to_string(),
-                            DepylerValue::Str(format!("{:?}", vec![78, 82, 91])),
+                            DepylerValue::List(vec![
+                                DepylerValue::Int(90 as i64),
+                                DepylerValue::Int(85 as i64),
+                                DepylerValue::Int(88 as i64),
+                            ]),
                         );
                         map
                     }
-                ]
-            )),
+                    .into_iter()
+                    .map(|(k, v)| (DepylerValue::Str(k), v))
+                    .collect(),
+                ),
+                DepylerValue::Dict(
+                    {
+                        let mut map: HashMap<String, DepylerValue> = HashMap::new();
+                        map.insert("name".to_string(), DepylerValue::Str("Bob".to_string()));
+                        map.insert(
+                            "scores".to_string(),
+                            DepylerValue::List(vec![
+                                DepylerValue::Int(78 as i64),
+                                DepylerValue::Int(82 as i64),
+                                DepylerValue::Int(91 as i64),
+                            ]),
+                        );
+                        map
+                    }
+                    .into_iter()
+                    .map(|(k, v)| (DepylerValue::Str(k), v))
+                    .collect(),
+                ),
+            ]),
         );
         map.insert("count".to_string(), DepylerValue::Int(2 as i64));
         map
@@ -2790,7 +2958,7 @@ pub fn test_pickle_tuple() {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn test_pickle_set() {
-    let data = {
+    let data: std::collections::HashSet<i32> = {
         let mut set = std::collections::HashSet::new();
         set.insert(1);
         set.insert(2);

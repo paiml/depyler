@@ -308,6 +308,38 @@ impl std::ops::Index<i32>for DepylerValue {
     let converted: std::collections::HashMap<DepylerValue, DepylerValue>= v.into_iter().map(|(k, v) |(DepylerValue::Str(k), v)).collect();
     DepylerValue::Dict(converted)
 }
+} impl From<std::collections::HashSet<DepylerValue>>for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+    DepylerValue::List(v.into_iter().collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+    DepylerValue::List(v.iter().cloned().collect())
+}
+} impl From<std::collections::HashSet<i32>>for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+    DepylerValue::List(v.into_iter().map(| x | DepylerValue::Int(x as i64)).collect())
+}
+} impl From<std::collections::HashSet<i64>>for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+}
+} impl From<std::collections::HashSet<String>>for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+    DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<i32>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x as i64)).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<i64>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+    DepylerValue::List(v.iter().map(| x | DepylerValue::Int(* x)).collect())
+}
+} impl From<std::sync::Arc<std::collections::HashSet<String>>>for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+    DepylerValue::List(v.iter().map(| s | DepylerValue::Str(s.clone())).collect())
+}
 } impl From<DepylerValue>for i64 {
     fn from(v: DepylerValue) -> Self {
     v.to_i64()
@@ -804,7 +836,22 @@ impl PyAdd for i32 {
 }
 }
 }
-impl PySub for i32 {
+impl PyAdd<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> i64 {
+    self as i64 + rhs.to_i64()
+}
+} impl PyAdd<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> i64 {
+    self + rhs.to_i64()
+}
+} impl PyAdd<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_add(self, rhs: DepylerValue) -> f64 {
+    self + rhs.to_f64()
+}
+} impl PySub for i32 {
     type Output = i32;
     #[inline] fn py_sub(self, rhs: i32) -> i32 {
     self - rhs
@@ -847,7 +894,22 @@ impl PySub for i32 {
 }
 }
 }
-impl PyMul for i32 {
+impl PySub<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> i64 {
+    self as i64 - rhs.to_i64()
+}
+} impl PySub<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> i64 {
+    self - rhs.to_i64()
+}
+} impl PySub<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_sub(self, rhs: DepylerValue) -> f64 {
+    self - rhs.to_f64()
+}
+} impl PyMul for i32 {
     type Output = i32;
     #[inline] fn py_mul(self, rhs: i32) -> i32 {
     self * rhs
@@ -856,6 +918,11 @@ impl PyMul for i32 {
     type Output = f64;
     #[inline] fn py_mul(self, rhs: f64) -> f64 {
     self as f64 * rhs
+}
+} impl PyMul<i64>for i32 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: i64) -> i64 {
+    self as i64 * rhs
 }
 } impl PyMul for i64 {
     type Output = i64;
@@ -866,6 +933,11 @@ impl PyMul for i32 {
     type Output = f64;
     #[inline] fn py_mul(self, rhs: f64) -> f64 {
     self as f64 * rhs
+}
+} impl PyMul<i32>for i64 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: i32) -> i64 {
+    self * rhs as i64
 }
 } impl PyMul for f64 {
     type Output = f64;
@@ -941,7 +1013,22 @@ else {
 }
 }
 }
-impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
+impl PyMul<DepylerValue>for i32 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> i64 {
+    self as i64 * rhs.to_i64()
+}
+} impl PyMul<DepylerValue>for i64 {
+    type Output = i64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> i64 {
+    self * rhs.to_i64()
+}
+} impl PyMul<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_mul(self, rhs: DepylerValue) -> f64 {
+    self * rhs.to_f64()
+}
+} impl<T: Clone>PyAdd<Vec<T>>for Vec<T>{
     type Output = Vec<T>;
     fn py_add(mut self, rhs: Vec<T>) -> Vec<T>{
     self.extend(rhs);
@@ -1079,6 +1166,42 @@ impl PyDiv for DepylerValue {
     fn py_div(self, rhs: DepylerValue) -> DepylerValue {
     match(self, rhs) {
    (DepylerValue::Int(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a as f64 / _dv_b as f64) ,(DepylerValue::Float(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a / _dv_b) ,(DepylerValue::Int(_dv_a), DepylerValue::Float(_dv_b)) if _dv_b!= 0.0 =>DepylerValue::Float(_dv_a as f64 / _dv_b) ,(DepylerValue::Float(_dv_a), DepylerValue::Int(_dv_b)) if _dv_b!= 0 =>DepylerValue::Float(_dv_a / _dv_b as f64), _ =>DepylerValue::None ,
+}
+}
+}
+impl PyDiv<DepylerValue>for i32 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self as f64 / divisor
+}
+}
+}
+impl PyDiv<DepylerValue>for i64 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self as f64 / divisor
+}
+}
+}
+impl PyDiv<DepylerValue>for f64 {
+    type Output = f64;
+    #[inline] fn py_div(self, rhs: DepylerValue) -> f64 {
+    let divisor = rhs.to_f64();
+    if divisor == 0.0 {
+    f64::NAN
+}
+else {
+    self / divisor
 }
 }
 }
@@ -2388,7 +2511,7 @@ Ok(path.to_string())
     let files: Vec<String>= vec! ["file1.txt".to_string(), "file2.py".to_string(), "dir1".to_string(), ".hidden".to_string()];
     files
 }
-#[doc = "Filter files by extension"] #[doc = " Depyler: verified panic-free"] pub fn filter_by_extension<'b, 'a>(files: & 'a Vec<String>, ext: & 'b str) -> Result<Vec<String>, Box<dyn std::error::Error>>{
+#[doc = "Filter files by extension"] #[doc = " Depyler: verified panic-free"] pub fn filter_by_extension<'a, 'b>(files: & 'a Vec<String>, ext: & 'b str) -> Result<Vec<String>, Box<dyn std::error::Error>>{
     let mut filtered: Vec<String>= vec! [];
     for file in files.iter().cloned() {
     let file_ext: String = get_file_extension(& file) ?;
@@ -2410,7 +2533,7 @@ Ok(path.to_string())
    
 }
 if counts.get(& ext).is_some() {
-    { let _key = ext;
+    { let _key = ext.clone();
     let _old_val = counts.get(& _key).cloned().unwrap_or_default();
     counts.insert(_key, _old_val + 1);
    

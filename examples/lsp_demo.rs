@@ -30,6 +30,7 @@ pub static data_processors: std::sync::LazyLock<
     map
 });
 use std::collections::HashMap;
+use std::io::Write;
 use std::sync::LazyLock;
 #[derive(Debug, Clone)]
 pub struct ValueError {
@@ -516,6 +517,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
             .map(|(k, v)| (DepylerValue::Str(k), v))
             .collect();
         DepylerValue::Dict(converted)
+    }
+}
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
     }
 }
 impl From<DepylerValue> for i64 {
@@ -1218,6 +1259,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1287,6 +1349,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1301,6 +1384,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1313,6 +1403,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1401,6 +1498,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1569,6 +1687,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2761,8 +2915,8 @@ pub fn calculate_fibonacci(n: i32) -> Result<i32, Box<dyn std::error::Error>> {
 #[doc = "Process and categorize users.\n    \n    Args:\n        users: List of User objects to process\n        filter_adults: Whether to filter only adult users\n        \n    Returns:\n        Dictionary with 'adults' and 'minors' keys\n    "]
 #[doc = " Depyler: verified panic-free"]
 pub fn process_users(users: &Vec<User>, _filter_adults: bool) -> HashMap<String, Vec<User>> {
-    let result = {
-        let mut map = HashMap::new();
+    let result: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, Vec<()>> = HashMap::new();
         map.insert("adults".to_string(), vec![]);
         map.insert("minors".to_string(), vec![]);
         map
@@ -2815,7 +2969,7 @@ pub fn problematic_function() -> String {
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
 pub fn process_numbers(numbers: &Vec<i32>) -> Vec<i32> {
-    let doubled = numbers
+    let doubled: Vec<i32> = numbers
         .as_slice()
         .iter()
         .cloned()
@@ -2854,6 +3008,63 @@ pub fn log_calls(func: DepylerValue) -> Box<dyn Fn(()) -> ()> {
 #[doc = " Depyler: proven to terminate"]
 pub fn important_operation(value: &str) -> String {
     value.to_uppercase()
+}
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let users = vec![
+        User::new("Alice".to_string(), 25),
+        User::new("Bob".to_string(), 17),
+        AdminUser::new(
+            "Charlie".to_string(),
+            30,
+            vec![
+                "read".to_string(),
+                "write".to_string(),
+                "delete".to_string(),
+            ],
+        ),
+    ];
+    let categorized = process_users(&users, true);
+    let adults = categorized.get("adults").cloned().unwrap_or_default();
+    for user in adults.iter().cloned() {
+        println!("{}", user.greet());
+    }
+    let sqrt_2 = (2 as f64).sqrt();
+    let config_data: std::collections::HashMap<String, DepylerValue> = {
+        let mut map: HashMap<String, DepylerValue> = HashMap::new();
+        map.insert(
+            "debug".to_string(),
+            DepylerValue::Str(format!("{:?}", DEBUG_MODE)),
+        );
+        map.insert(
+            "retries".to_string(),
+            DepylerValue::Str(format!("{:?}", MAX_RETRIES)),
+        );
+        map
+    };
+    let json_str = format!("{:?}", config_data);
+    let fib_10 = calculate_fibonacci(10)?;
+    println!("{}", format!("10th Fibonacci number: {:?}", fib_10));
+    let info_handler = create_handler("INFO".to_string());
+    let error_handler = create_handler("ERROR".to_string());
+    println!("{}", info_handler("Application started".to_string()));
+    println!("{}", error_handler("Something went wrong".to_string()));
+    match (|| -> Result<(), Box<dyn std::error::Error>> {
+        let mut _context = FileManager::new(CONFIG_FILE, "w".to_string().to_string());
+        let f = _context.__enter__();
+        f.write_all(json_str.as_bytes()).unwrap();
+        Ok(())
+    })() {
+        Ok(()) => {}
+        Err(e) => {
+            println!("{}", format!("Error writing config: {:?}", e));
+        }
+    }
+    let numbers = vec![1, 2, 3, 4, 5];
+    let processed = process_numbers(&numbers);
+    println!("{}", format!("Processed: {:?}", processed));
+    let result = important_operation(&"hello world");
+    println!("{}", format!("Result: {:?}", result));
+    Ok(())
 }
 #[cfg(test)]
 mod tests {

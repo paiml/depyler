@@ -526,6 +526,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+    }
+}
 impl From<DepylerValue> for i64 {
     fn from(v: DepylerValue) -> Self {
         v.to_i64()
@@ -1226,6 +1266,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1295,6 +1356,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1309,6 +1391,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1321,6 +1410,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1409,6 +1505,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1577,6 +1694,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2735,7 +2888,7 @@ pub fn divide_safe(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
     if b == 0 {
         return Ok(0);
     } else {
-        return {
+        return Ok({
             let a = a;
             let b = b;
             let q = a / b;
@@ -2750,7 +2903,7 @@ pub fn divide_safe(a: i32, b: i32) -> Result<i32, Box<dyn std::error::Error>> {
             } else {
                 q
             }
-        };
+        });
     }
 }
 #[doc = "try/except with KeyError.\n\n    Python: try d[key] except KeyError\n    Rust: d.get(&key).cloned().unwrap_or(-1)\n    "]
@@ -2765,7 +2918,7 @@ pub fn get_with_key_error<'a, 'b>(
 #[doc = "try/except with exception variable binding.\n\n    Python: except KeyError as e → use e\n    Rust: Err(e) =>format!(\"Error: {}\", e)\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn get_with_bound_exception<'b, 'a>(
+pub fn get_with_bound_exception<'a, 'b>(
     d: &'a std::collections::HashMap<String, i32>,
     key: &'b str,
 ) -> Result<String, Box<dyn std::error::Error>> {
@@ -2785,12 +2938,12 @@ pub fn get_with_bound_exception<'b, 'a>(
 #[doc = "Multiple exception type handlers.\n\n    Python: except ValueError, except KeyError\n    Rust: match with multiple Err patterns\n    "]
 #[doc = " Depyler: verified panic-free"]
 #[doc = " Depyler: proven to terminate"]
-pub fn multiple_handlers<'b, 'a>(
+pub fn multiple_handlers<'a, 'b>(
     s: &'a str,
     d: &'b std::collections::HashMap<String, i32>,
 ) -> Result<i32, Box<dyn std::error::Error>> {
     let mut num: i32 = Default::default();
-    match (|| -> Result<(), Box<dyn std::error::Error>> {
+    match (|| -> Result<i32, Box<dyn std::error::Error>> {
         num = s.parse::<i32>().unwrap_or_default();
         return Ok(d.get(&(num).to_string()).cloned().unwrap_or_default());
     })() {
@@ -2885,7 +3038,7 @@ pub fn propagate_result(values: &Vec<String>) -> i32 {
 #[doc = " Depyler: proven to terminate"]
 pub fn early_return_in_try(x: i32) -> i32 {
     let mut result: i32 = Default::default();
-    match (|| -> Result<(), Box<dyn std::error::Error>> {
+    match (|| -> Result<i32, Box<dyn std::error::Error>> {
         if x < 0 {
             return -1;
         }
@@ -3083,7 +3236,7 @@ pub fn validate_and_transform(value: i32) -> Result<i32, Box<dyn std::error::Err
 #[doc = " Depyler: proven to terminate"]
 pub fn catch_custom_exception(value: i32) -> Result<String, Box<dyn std::error::Error>> {
     let mut result: i32 = Default::default();
-    match (|| -> Result<(), Box<dyn std::error::Error>> {
+    match (|| -> Result<String, Box<dyn std::error::Error>> {
         result = validate_and_transform(value)?;
         return Ok(format!("Result: {}", result));
     })() {
@@ -3106,7 +3259,7 @@ pub fn main() {
     assert_eq!(divide_safe(10, 2), 5);
     assert_eq!(divide_safe(10, 0), 0);
     let d: std::collections::HashMap<String, i32> = {
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, i32> = HashMap::new();
         map.insert("a".to_string(), (1) as i32);
         map.insert("b".to_string(), (2) as i32);
         map

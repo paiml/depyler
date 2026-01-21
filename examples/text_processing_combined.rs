@@ -511,6 +511,46 @@ impl From<std::collections::HashMap<String, DepylerValue>> for DepylerValue {
         DepylerValue::Dict(converted)
     }
 }
+impl From<std::collections::HashSet<DepylerValue>> for DepylerValue {
+    fn from(v: std::collections::HashSet<DepylerValue>) -> Self {
+        DepylerValue::List(v.into_iter().collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<DepylerValue>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<DepylerValue>>) -> Self {
+        DepylerValue::List(v.iter().cloned().collect())
+    }
+}
+impl From<std::collections::HashSet<i32>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i32>) -> Self {
+        DepylerValue::List(v.into_iter().map(|x| DepylerValue::Int(x as i64)).collect())
+    }
+}
+impl From<std::collections::HashSet<i64>> for DepylerValue {
+    fn from(v: std::collections::HashSet<i64>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Int).collect())
+    }
+}
+impl From<std::collections::HashSet<String>> for DepylerValue {
+    fn from(v: std::collections::HashSet<String>) -> Self {
+        DepylerValue::List(v.into_iter().map(DepylerValue::Str).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i32>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i32>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x as i64)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<i64>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<i64>>) -> Self {
+        DepylerValue::List(v.iter().map(|x| DepylerValue::Int(*x)).collect())
+    }
+}
+impl From<std::sync::Arc<std::collections::HashSet<String>>> for DepylerValue {
+    fn from(v: std::sync::Arc<std::collections::HashSet<String>>) -> Self {
+        DepylerValue::List(v.iter().map(|s| DepylerValue::Str(s.clone())).collect())
+    }
+}
 impl From<DepylerValue> for i64 {
     fn from(v: DepylerValue) -> Self {
         v.to_i64()
@@ -1211,6 +1251,27 @@ impl PyAdd for DepylerValue {
         }
     }
 }
+impl PyAdd<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self as i64 + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> i64 {
+        self + rhs.to_i64()
+    }
+}
+impl PyAdd<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_add(self, rhs: DepylerValue) -> f64 {
+        self + rhs.to_f64()
+    }
+}
 impl PySub for i32 {
     type Output = i32;
     #[inline]
@@ -1280,6 +1341,27 @@ impl PySub for DepylerValue {
         }
     }
 }
+impl PySub<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self as i64 - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> i64 {
+        self - rhs.to_i64()
+    }
+}
+impl PySub<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_sub(self, rhs: DepylerValue) -> f64 {
+        self - rhs.to_f64()
+    }
+}
 impl PyMul for i32 {
     type Output = i32;
     #[inline]
@@ -1294,6 +1376,13 @@ impl PyMul<f64> for i32 {
         self as f64 * rhs
     }
 }
+impl PyMul<i64> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i64) -> i64 {
+        self as i64 * rhs
+    }
+}
 impl PyMul for i64 {
     type Output = i64;
     #[inline]
@@ -1306,6 +1395,13 @@ impl PyMul<f64> for i64 {
     #[inline]
     fn py_mul(self, rhs: f64) -> f64 {
         self as f64 * rhs
+    }
+}
+impl PyMul<i32> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: i32) -> i64 {
+        self * rhs as i64
     }
 }
 impl PyMul for f64 {
@@ -1394,6 +1490,27 @@ impl PyMul for DepylerValue {
             }
             _ => DepylerValue::None,
         }
+    }
+}
+impl PyMul<DepylerValue> for i32 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self as i64 * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for i64 {
+    type Output = i64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> i64 {
+        self * rhs.to_i64()
+    }
+}
+impl PyMul<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_mul(self, rhs: DepylerValue) -> f64 {
+        self * rhs.to_f64()
     }
 }
 impl<T: Clone> PyAdd<Vec<T>> for Vec<T> {
@@ -1562,6 +1679,42 @@ impl PyDiv for DepylerValue {
                 DepylerValue::Float(_dv_a / _dv_b as f64)
             }
             _ => DepylerValue::None,
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i32 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for i64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self as f64 / divisor
+        }
+    }
+}
+impl PyDiv<DepylerValue> for f64 {
+    type Output = f64;
+    #[inline]
+    fn py_div(self, rhs: DepylerValue) -> f64 {
+        let divisor = rhs.to_f64();
+        if divisor == 0.0 {
+            f64::NAN
+        } else {
+            self / divisor
         }
     }
 }
@@ -2712,7 +2865,7 @@ pub fn count_word_frequencies(
     for word in words.iter().cloned() {
         if frequencies.get(&word).is_some() {
             {
-                let _key = word;
+                let _key = word.clone();
                 let _old_val = frequencies.get(&_key).cloned().unwrap_or_default();
                 frequencies.insert(_key, _old_val + 1);
             }
@@ -2749,14 +2902,11 @@ pub fn get_most_common_words(
                     .get(i as usize)
                     .cloned()
                     .expect("IndexError: list index out of range");
-                word_counts.insert(
-                    (i) as usize,
-                    word_counts
-                        .get(j as usize)
-                        .cloned()
-                        .expect("IndexError: list index out of range"),
-                );
-                word_counts.insert((j) as usize, temp);
+                word_counts[(i) as usize] = word_counts
+                    .get(j as usize)
+                    .cloned()
+                    .expect("IndexError: list index out of range");
+                word_counts[(j) as usize] = temp;
             }
         }
     }
@@ -2776,7 +2926,7 @@ pub fn analyze_character_distribution(
     text: &str,
 ) -> Result<HashMap<String, i32>, Box<dyn std::error::Error>> {
     let mut distribution: std::collections::HashMap<String, i32> = {
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, i32> = HashMap::new();
         map.insert("letters".to_string(), (0) as i32);
         map.insert("digits".to_string(), (0) as i32);
         map.insert("spaces".to_string(), (0) as i32);
@@ -2834,7 +2984,7 @@ pub fn extract_sentences(text: &str) -> Vec<String> {
             if trimmed.len() as i32 > 0 {
                 sentences.push(trimmed);
             }
-            current_sentence = STR_EMPTY.to_string();
+            current_sentence = STR_EMPTY.to_string().to_string();
         }
     }
     let _cse_temp_0 = current_sentence.trim().to_string().len() as i32;
@@ -2853,7 +3003,7 @@ pub fn calculate_readability_metrics(
         let map: HashMap<String, f64> = HashMap::new();
         map
     };
-    let words: Vec<String> = tokenize_text(text);
+    let words: Vec<String> = tokenize_text(text.clone());
     let sentences: Vec<String> = extract_sentences(text);
     let _cse_temp_0 = words.len() as i32;
     let _cse_temp_1 = (_cse_temp_0) as f64;
@@ -2863,7 +3013,7 @@ pub fn calculate_readability_metrics(
     metrics.insert("sentence_count".to_string(), _cse_temp_3);
     total_chars = 0;
     for word in words.iter().cloned() {
-        total_chars = (total_chars).py_add(word.len() as i32);
+        total_chars = (total_chars).py_add(word.len() as i32) as i32;
     }
     let _cse_temp_4 = _cse_temp_0 > 0;
     if _cse_temp_4 {
@@ -2907,7 +3057,7 @@ pub fn find_word_patterns(
     words: &Vec<String>,
 ) -> Result<HashMap<String, Vec<String>>, Box<dyn std::error::Error>> {
     let patterns: std::collections::HashMap<String, Vec<String>> = {
-        let mut map = HashMap::new();
+        let mut map: HashMap<String, Vec<String>> = HashMap::new();
         map.insert("starts_with_a".to_string(), vec![]);
         map.insert("ends_with_ing".to_string(), vec![]);
         map.insert("contains_th".to_string(), vec![]);
@@ -3165,6 +3315,10 @@ pub fn process_text_pipeline() -> Result<(), Box<dyn std::error::Error>> {
         )
     );
     println!("{}", "=== Processing Complete ===");
+    Ok(())
+}
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    process_text_pipeline();
     Ok(())
 }
 #[cfg(test)]
