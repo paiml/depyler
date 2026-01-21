@@ -6007,6 +6007,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             .iter()
             .any(|e| matches!(e, HirExpr::Literal(Literal::None)));
 
+        // DEPYLER-1163: Detect if elements need DepylerValue wrapping
+        // In NASA mode, sets with mixed or unknown types use HashSet<DepylerValue>
+        // We must wrap elements in DepylerValue to match the type annotation in stmt_gen
+        let needs_depyler_value_wrap = self.ctx.type_mapper.nasa_mode
+            && !has_none
+            && !self.elements_are_homogeneous(elts);
+
         let mut insert_stmts = Vec::new();
         for elem in elts {
             // DEPYLER-0742: Wrap non-None elements in Some() when set has None
@@ -6017,6 +6024,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let elem_expr = elem.to_rust_expr(self.ctx)?;
                     insert_stmts.push(quote! { set.insert(Some(#elem_expr)); });
                 }
+            } else if needs_depyler_value_wrap {
+                // DEPYLER-1163: Wrap elements in DepylerValue for mixed-type sets
+                let wrapped = self.wrap_in_depyler_value(elem)?;
+                insert_stmts.push(quote! { set.insert(#wrapped); });
             } else {
                 let elem_expr = elem.to_rust_expr(self.ctx)?;
                 insert_stmts.push(quote! { set.insert(#elem_expr); });
@@ -6030,6 +6041,66 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 set
             }
         })
+    }
+
+    /// DEPYLER-1163: Check if all elements in a collection are of the same type
+    /// Returns true if all elements are literals of the same type (Int, Float, String, Bool)
+    fn elements_are_homogeneous(&self, elts: &[HirExpr]) -> bool {
+        if elts.is_empty() {
+            return false;
+        }
+
+        // Determine the first element's type category
+        let first_type = match &elts[0] {
+            HirExpr::Literal(Literal::Int(_)) => Some("int"),
+            HirExpr::Literal(Literal::Float(_)) => Some("float"),
+            HirExpr::Literal(Literal::String(_)) => Some("string"),
+            HirExpr::Literal(Literal::Bool(_)) => Some("bool"),
+            _ => None,
+        };
+
+        // If first element isn't a simple literal, not homogeneous
+        let Some(expected_type) = first_type else {
+            return false;
+        };
+
+        // Check all elements match the first type
+        elts.iter().all(|e| {
+            let elem_type = match e {
+                HirExpr::Literal(Literal::Int(_)) => Some("int"),
+                HirExpr::Literal(Literal::Float(_)) => Some("float"),
+                HirExpr::Literal(Literal::String(_)) => Some("string"),
+                HirExpr::Literal(Literal::Bool(_)) => Some("bool"),
+                _ => None,
+            };
+            elem_type == Some(expected_type)
+        })
+    }
+
+    /// DEPYLER-1163: Wrap an expression in the appropriate DepylerValue variant
+    fn wrap_in_depyler_value(&mut self, expr: &HirExpr) -> Result<syn::Expr> {
+        match expr {
+            HirExpr::Literal(Literal::Int(n)) => {
+                Ok(parse_quote! { DepylerValue::Int(#n as i64) })
+            }
+            HirExpr::Literal(Literal::Float(f)) => {
+                Ok(parse_quote! { DepylerValue::Float(#f) })
+            }
+            HirExpr::Literal(Literal::String(s)) => {
+                Ok(parse_quote! { DepylerValue::Str(#s.to_string()) })
+            }
+            HirExpr::Literal(Literal::Bool(b)) => {
+                Ok(parse_quote! { DepylerValue::Bool(#b) })
+            }
+            HirExpr::Literal(Literal::None) => {
+                Ok(parse_quote! { DepylerValue::None })
+            }
+            _ => {
+                // For complex expressions, convert to Rust and wrap with From trait
+                let inner_expr = expr.to_rust_expr(self.ctx)?;
+                Ok(parse_quote! { DepylerValue::from(#inner_expr) })
+            }
+        }
     }
 
     pub(crate) fn convert_frozenset(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
