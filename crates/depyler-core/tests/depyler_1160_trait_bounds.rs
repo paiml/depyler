@@ -1,3 +1,5 @@
+#![allow(clippy::assertions_on_constants)]
+
 // DEPYLER-1160: Missing Trait Bounds Offensive
 //
 // Audit and fix E0277 errors caused by missing trait implementations.

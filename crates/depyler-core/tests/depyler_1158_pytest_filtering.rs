@@ -1,3 +1,5 @@
+#![allow(clippy::assertions_on_constants)]
+
 // DEPYLER-1158: Pytest Artifact Filtering
 //
 // Filters out pytest-specific files from convergence metrics to establish

@@ -1,3 +1,5 @@
+#![allow(clippy::assertions_on_constants)]
+
 // DEPYLER-1159: Reference/Ownership E0308 Strike
 //
 // Uses borrow_if_needed_typed() infrastructure (DEPYLER-1154) to fix

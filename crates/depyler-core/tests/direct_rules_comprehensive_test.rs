@@ -7,6 +7,7 @@ fn transpile_ok(code: &str) -> bool {
     pipeline.transpile(code).is_ok()
 }
 
+#[allow(dead_code)]
 fn transpile_contains(code: &str, needle: &str) -> bool {
     let pipeline = DepylerPipeline::new();
     if let Ok(result) = pipeline.transpile(code) {

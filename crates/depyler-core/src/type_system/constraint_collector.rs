@@ -898,7 +898,7 @@ mod tests {
     #[test]
     fn test_literal_float_constraint() {
         let mut collector = ConstraintCollector::new();
-        let var = collector.collect_expr(&HirExpr::Literal(Literal::Float(3.15.into())));
+        let var = collector.collect_expr(&HirExpr::Literal(Literal::Float(3.15)));
 
         let has_float_constraint = collector.constraints().iter().any(|c| {
             matches!(c, Constraint::Instance(v, Type::Float) if *v == var)
@@ -2120,7 +2120,7 @@ mod tests {
         assert!(string_constraints >= 2, "Chained string methods should add constraints: got {}", string_constraints);
 
         // Verify strip_result is used (suppress warning)
-        assert!(strip_result > 0 || strip_result == 0);
+        let _ = strip_result;
     }
 
     // ============================================================

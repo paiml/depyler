@@ -459,8 +459,7 @@ mod tests {
     fn test_feature_config_constants() {
         assert!(!feature_config::ERROR_CODES.is_empty());
         assert!(!feature_config::KEYWORDS.is_empty());
-        assert!(feature_config::TOTAL_FEATURES > 0);
-        // Verify total features calculation
+        // Verify total features calculation (TOTAL_FEATURES > 0 is verified by the equality check)
         let expected = feature_config::ERROR_CODES.len()
             + feature_config::KEYWORDS.len()
             + ErrorFeatures::DIM;

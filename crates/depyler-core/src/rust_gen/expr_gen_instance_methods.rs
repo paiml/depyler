@@ -9733,6 +9733,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 // EXTREME TDD TESTS - DEPYLER-COVERAGE-95
 // ============================================================================
 #[cfg(test)]
+#[allow(non_snake_case)]
 mod tests {
     use crate::DepylerPipeline;
 

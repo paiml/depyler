@@ -1,3 +1,5 @@
+#![allow(clippy::assertions_on_constants)]
+
 // DEPYLER-1156: "Noise Floor" Deep Scan
 //
 // Analysis of E0308 type mismatch patterns contributing to compilation failures.
@@ -42,8 +44,9 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 }
 
 /// Helper to check if transpiled code compiles
+#[allow(dead_code)]
 fn compiles_ok(rust_code: &str) -> bool {
-    use std::io::Write;
+    
     use std::process::Command;
 
     let tmp_dir = std::env::temp_dir();

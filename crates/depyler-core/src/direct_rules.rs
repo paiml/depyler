@@ -2112,6 +2112,7 @@ fn rust_type_to_syn(rust_type: &RustType) -> Result<syn::Type> {
 }
 
 #[cfg(test)]
+#[allow(non_snake_case)]
 mod tests {
     use super::*;
     use crate::direct_rules_convert::ExprConverter;
@@ -3242,7 +3243,7 @@ mod tests {
         };
         let result = converter.convert(&sorted_expr).unwrap();
         let s = quote::quote!(#result).to_string();
-        assert!(s.contains("sort") || s.len() > 0);
+        assert!(s.contains("sort") || !s.is_empty());
     }
 
     #[test]
@@ -3257,7 +3258,7 @@ mod tests {
         };
         let result = converter.convert(&reversed_expr).unwrap();
         let s = quote::quote!(#result).to_string();
-        assert!(s.contains("rev") || s.len() > 0);
+        assert!(s.contains("rev") || !s.is_empty());
     }
 
     #[test]
@@ -3272,7 +3273,7 @@ mod tests {
         };
         let result = converter.convert(&any_expr).unwrap();
         let s = quote::quote!(#result).to_string();
-        assert!(s.contains("any") || s.len() > 0);
+        assert!(s.contains("any") || !s.is_empty());
     }
 
     #[test]
@@ -3287,7 +3288,7 @@ mod tests {
         };
         let result = converter.convert(&all_expr).unwrap();
         let s = quote::quote!(#result).to_string();
-        assert!(s.contains("all") || s.len() > 0);
+        assert!(s.contains("all") || !s.is_empty());
     }
 
     #[test]

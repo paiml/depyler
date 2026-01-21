@@ -2986,7 +2986,7 @@ def outer(x: int) -> int:
 "#;
         let hir = parse_python_to_hir(source);
         // Should have at least the outer function
-        assert!(hir.functions.len() >= 1);
+        assert!(!hir.functions.is_empty());
         assert_eq!(hir.functions[0].name, "outer");
     }
 
@@ -3113,7 +3113,7 @@ class Comparable(Protocol):
 "#;
         let hir = parse_python_to_hir(source);
         // Protocol should be converted to protocol type
-        assert!(hir.protocols.len() >= 1 || hir.classes.len() >= 1);
+        assert!(!hir.protocols.is_empty() || !hir.classes.is_empty());
     }
 
     #[test]
@@ -3288,7 +3288,7 @@ def increment() -> None:
     counter += 1
 "#;
         let hir = parse_python_to_hir(source);
-        assert!(hir.functions.len() >= 1);
+        assert!(!hir.functions.is_empty());
     }
 
     #[test]
@@ -3303,7 +3303,7 @@ def outer() -> int:
     return count
 "#;
         let hir = parse_python_to_hir(source);
-        assert!(hir.functions.len() >= 1);
+        assert!(!hir.functions.is_empty());
     }
 
     #[test]
@@ -3365,7 +3365,7 @@ def maybe(x: Optional[int]) -> Optional[str]:
     return None
 "#;
         let hir = parse_python_to_hir(source);
-        assert!(hir.functions.len() >= 1);
+        assert!(!hir.functions.is_empty());
     }
 
     #[test]
@@ -3376,7 +3376,7 @@ def apply(f: Callable[[int], int], x: int) -> int:
     return f(x)
 "#;
         let hir = parse_python_to_hir(source);
-        assert!(hir.functions.len() >= 1);
+        assert!(!hir.functions.is_empty());
     }
 
     #[test]
@@ -3579,7 +3579,7 @@ class Point:
 "#;
         let hir = parse_python_to_hir(source);
         // Should be converted even without decorator
-        assert!(hir.classes.len() >= 1 || hir.protocols.len() >= 1);
+        assert!(!hir.classes.is_empty() || !hir.protocols.is_empty());
     }
 
     #[test]
@@ -3682,7 +3682,7 @@ def get_path() -> str:
     return join(dirname(__file__), "data")
 "#;
         let hir = parse_python_to_hir(source);
-        assert!(!hir.imports.is_empty() || hir.functions.len() >= 1);
+        assert!(!hir.imports.is_empty() || !hir.functions.is_empty());
     }
 
     #[test]
@@ -3691,7 +3691,7 @@ def get_path() -> str:
 from . import utils
 from ..helpers import helper
 "#;
-        let hir = parse_python_to_hir(source);
+        let _hir = parse_python_to_hir(source);
         // Relative imports should be handled - test verifies no panic
     }
 
@@ -3714,7 +3714,7 @@ def func() -> None:
 "#;
         let hir = parse_python_to_hir(source);
         // Should handle module-level expression
-        assert!(hir.functions.len() >= 1);
+        assert!(!hir.functions.is_empty());
     }
 
     #[test]
@@ -3738,7 +3738,7 @@ class Container(Generic[T]):
 "#;
         let hir = parse_python_to_hir(source);
         // Should handle generics
-        assert!(hir.classes.len() >= 1 || hir.type_aliases.len() >= 1);
+        assert!(!hir.classes.is_empty() || !hir.type_aliases.is_empty());
     }
 
     #[test]
@@ -3748,7 +3748,7 @@ from typing import TypeVar, List
 T = TypeVar('T')
 MyList = List[T]
 "#;
-        let hir = parse_python_to_hir(source);
+        let _hir = parse_python_to_hir(source);
         // TypeVar and alias should be handled - test verifies no panic
     }
 

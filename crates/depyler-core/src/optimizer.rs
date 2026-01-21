@@ -2724,7 +2724,7 @@ mod tests {
 
         // After hoisting, there should be an assignment before the if
         let func = &optimized.functions[0];
-        assert!(func.body.len() >= 1, "Should have at least one statement");
+        assert!(!func.body.is_empty(), "Should have at least one statement");
     }
 
     #[test]
@@ -2760,7 +2760,7 @@ mod tests {
 
         // print() has side effects, should be preserved
         let func = &optimized.functions[0];
-        assert!(func.body.len() >= 1, "Side effect statement should be preserved");
+        assert!(!func.body.is_empty(), "Side effect statement should be preserved");
     }
 
     // === Additional tests for expr_has_side_effects ===

@@ -651,16 +651,14 @@ mod tests {
 
     #[test]
     fn test_lambda_template_variants() {
-        let templates = vec![
-            LambdaTemplate::BasicHandler,
+        let templates = [LambdaTemplate::BasicHandler,
             LambdaTemplate::StreamingHandler,
             LambdaTemplate::BatchProcessor,
             LambdaTemplate::EventBridgeHandler,
             LambdaTemplate::CargoToml,
             LambdaTemplate::BuildScript,
             LambdaTemplate::SamTemplate,
-            LambdaTemplate::CdkConstruct,
-        ];
+            LambdaTemplate::CdkConstruct];
         assert_eq!(templates.len(), 8);
     }
 

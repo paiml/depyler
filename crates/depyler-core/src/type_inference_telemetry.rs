@@ -296,6 +296,7 @@ macro_rules! record_unknown_type {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
 

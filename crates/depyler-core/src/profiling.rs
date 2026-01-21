@@ -720,7 +720,7 @@ mod tests {
             ..Default::default()
         };
         let cloned = config.clone();
-        assert_eq!(cloned.count_instructions, false);
+        assert!(!cloned.count_instructions);
         assert_eq!(cloned.hot_path_threshold, 50);
     }
 
@@ -1054,7 +1054,7 @@ mod tests {
         };
 
         let report = profiler.analyze_program(&program);
-        assert!(report.metrics.get("with_while").is_some());
+        assert!(report.metrics.contains_key("with_while"));
     }
 
     #[test]
@@ -1077,7 +1077,7 @@ mod tests {
         };
 
         let report = profiler.analyze_program(&program);
-        assert!(report.metrics.get("with_if").is_some());
+        assert!(report.metrics.contains_key("with_if"));
     }
 
     #[test]

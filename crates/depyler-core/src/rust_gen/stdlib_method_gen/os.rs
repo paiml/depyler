@@ -233,6 +233,7 @@ fn convert_urandom(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
     use crate::hir::Literal;

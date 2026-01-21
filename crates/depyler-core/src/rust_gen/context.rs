@@ -635,6 +635,17 @@ pub trait ToRustExpr {
     fn to_rust_expr(&self, ctx: &mut CodeGenContext) -> Result<syn::Expr>;
 }
 
+/// Default implementation for CodeGenContext (test-only)
+///
+/// Uses a static TypeMapper to allow Default trait implementation.
+/// This is primarily useful for unit testing.
+#[cfg(test)]
+impl Default for CodeGenContext<'static> {
+    fn default() -> Self {
+        test_helpers::test_context()
+    }
+}
+
 #[cfg(test)]
 pub mod test_helpers {
     use super::*;
@@ -650,7 +661,7 @@ pub mod test_helpers {
     /// need custom type mapper configuration.
     pub fn test_context() -> CodeGenContext<'static> {
         CodeGenContext {
-            type_mapper: &*TEST_TYPE_MAPPER,
+            type_mapper: &TEST_TYPE_MAPPER,
             annotation_aware_mapper: AnnotationAwareTypeMapper::with_base_mapper(
                 TEST_TYPE_MAPPER.clone(),
             ),
@@ -794,16 +805,5 @@ pub mod test_helpers {
             type_overrides: HashMap::new(), // DEPYLER-1101
             vars_used_later: HashSet::new(), // DEPYLER-1168
         }
-    }
-}
-
-/// Default implementation for CodeGenContext (test-only)
-///
-/// Uses a static TypeMapper to allow Default trait implementation.
-/// This is primarily useful for unit testing.
-#[cfg(test)]
-impl Default for CodeGenContext<'static> {
-    fn default() -> Self {
-        test_helpers::test_context()
     }
 }

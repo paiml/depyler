@@ -5978,6 +5978,7 @@ pub(crate) fn convert_bitwise_op(op: BinOp) -> Result<syn::BinOp> {
 // =============================================================================
 
 #[cfg(test)]
+#[allow(non_snake_case)]
 mod tests {
     use super::*;
 

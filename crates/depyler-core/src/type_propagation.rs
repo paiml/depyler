@@ -907,7 +907,7 @@ mod tests {
         );
 
         // Unknown types should not be propagated
-        assert!(call_site_types.get(&("process".to_string(), 0)).is_none());
+        assert!(!call_site_types.contains_key(&("process".to_string(), 0)));
     }
 
     #[test]
@@ -937,7 +937,7 @@ mod tests {
         );
 
         // Optional types should not be propagated
-        assert!(call_site_types.get(&("process".to_string(), 0)).is_none());
+        assert!(!call_site_types.contains_key(&("process".to_string(), 0)));
     }
 
     #[test]

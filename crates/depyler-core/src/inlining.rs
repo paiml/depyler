@@ -1857,7 +1857,7 @@ mod tests {
             imports: vec![],
         };
         let decisions = analyzer.analyze_program(&program);
-        assert!(decisions.len() >= 1);
+        assert!(!decisions.is_empty());
     }
 
     // --- Recursion detection ---
@@ -2462,6 +2462,6 @@ mod tests {
         };
         let decisions = analyzer.analyze_program(&program);
         // Should detect mutual recursion
-        assert!(decisions.len() >= 1);
+        assert!(!decisions.is_empty());
     }
 }

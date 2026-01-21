@@ -593,7 +593,7 @@ mod tests {
     fn test_convert_list_builtin_already_collected() {
         let mut ctx = make_ctx();
         let arg: syn::Expr = parse_quote! { items.iter().collect::<Vec<_>>() };
-        let result = convert_list_builtin(&mut ctx, &[arg.clone()]).unwrap();
+        let result = convert_list_builtin(&mut ctx, std::slice::from_ref(&arg)).unwrap();
         // Should return the same expression
         let code = quote::quote!(#result).to_string();
         assert!(code.contains("collect"));

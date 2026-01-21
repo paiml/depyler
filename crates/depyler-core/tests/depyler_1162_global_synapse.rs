@@ -1,3 +1,5 @@
+#![allow(clippy::assertions_on_constants)]
+
 // DEPYLER-1162: Global Synapse Activation
 //
 // Tests for cross-module type propagation using the GlobalTypeGraph.

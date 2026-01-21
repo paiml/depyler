@@ -1216,7 +1216,7 @@ fn test_func_typed_tuple_param() {
     let code = transpile(r#"from typing import Tuple
 def swap(pair: Tuple[int, int]) -> Tuple[int, int]:
     return (pair[1], pair[0])"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Default parameter values ---
@@ -1224,14 +1224,14 @@ def swap(pair: Tuple[int, int]) -> Tuple[int, int]:
 fn test_ext_func_default_int() {
     let code = transpile(r#"def increment(x: int, by: int = 1) -> int:
     return x + by"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_default_string() {
     let code = transpile(r#"def greet(name: str = "World") -> str:
     return "Hello, " + name"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1240,7 +1240,7 @@ fn test_ext_func_default_none() {
     if data is None:
         data = []
     return len(data)"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1248,14 +1248,14 @@ fn test_ext_func_default_bool() {
     let code = transpile(r#"def debug_print(msg: str, verbose: bool = False):
     if verbose:
         print(msg)"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_multiple_defaults() {
     let code = transpile(r#"def configure(host: str = "localhost", port: int = 8080, ssl: bool = False):
     return f"{host}:{port}""#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Variadic functions ---
@@ -1266,7 +1266,7 @@ fn test_ext_func_args() {
     for x in args:
         total += x
     return total"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1274,7 +1274,7 @@ fn test_ext_func_kwargs() {
     let code = transpile(r#"def print_kwargs(**kwargs):
     for key, value in kwargs.items():
         print(key, value)"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1283,7 +1283,7 @@ fn test_ext_func_args_kwargs() {
     print(first)
     print(args)
     print(kwargs)"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Async functions ---
@@ -1291,7 +1291,7 @@ fn test_ext_func_args_kwargs() {
 fn test_ext_func_async_basic() {
     let code = transpile(r#"async def fetch_data():
     return "data""#);
-    assert!(code.contains("async") || code.len() > 0);
+    assert!(code.contains("async") || !code.is_empty());
 }
 
 #[test]
@@ -1299,7 +1299,7 @@ fn test_ext_func_async_await() {
     let code = transpile(r#"async def process():
     data = await fetch()
     return data"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Generator functions ---
@@ -1310,7 +1310,7 @@ fn test_ext_func_generator_basic() {
     while i < n:
         yield i
         i += 1"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1318,7 +1318,7 @@ fn test_ext_func_generator_yield_from() {
     let code = transpile(r#"def flatten(nested: list):
     for item in nested:
         yield from item"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Lambda functions ---
@@ -1333,21 +1333,21 @@ fn test_ext_func_lambda_simple() {
 fn test_ext_func_lambda_multi_arg() {
     let code = transpile(r#"def get_multiplier():
     return lambda x, y: x * y"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_lambda_no_arg() {
     let code = transpile(r#"def get_constant():
     return lambda: 42"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_lambda_in_call() {
     let code = transpile(r#"def sort_by_len(items: list) -> list:
     return sorted(items, key=lambda x: len(x))"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Higher-order functions ---
@@ -1356,7 +1356,7 @@ fn test_ext_func_higher_order_param() {
     let code = transpile(r#"from typing import Callable
 def apply(f: Callable[[int], int], x: int) -> int:
     return f(x)"#);
-    assert!(code.contains("Fn") || code.len() > 0);
+    assert!(code.contains("Fn") || !code.is_empty());
 }
 
 #[test]
@@ -1365,21 +1365,21 @@ fn test_ext_func_higher_order_return() {
     def adder(x: int) -> int:
         return x + n
     return adder"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_map_usage() {
     let code = transpile(r#"def double_all(nums: list) -> list:
     return list(map(lambda x: x * 2, nums))"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_filter_usage() {
     let code = transpile(r#"def filter_positive(nums: list) -> list:
     return list(filter(lambda x: x > 0, nums))"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Class methods ---
@@ -1391,7 +1391,7 @@ fn test_ext_func_method_self() {
 
     def increment(self):
         self.count += 1"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1400,7 +1400,7 @@ fn test_ext_func_method_classmethod() {
     @classmethod
     def create(cls) -> 'Factory':
         return cls()"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1409,7 +1409,7 @@ fn test_ext_func_method_staticmethod() {
     @staticmethod
     def add(a: int, b: int) -> int:
         return a + b"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1421,7 +1421,7 @@ fn test_ext_func_method_property() {
     @property
     def area(self) -> float:
         return 3.14159 * self._radius ** 2"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Special methods ---
@@ -1442,7 +1442,7 @@ fn test_ext_func_str() {
 
     def __str__(self) -> str:
         return f"Person({self.name})""#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1450,7 +1450,7 @@ fn test_ext_func_repr() {
     let code = transpile(r#"class Data:
     def __repr__(self) -> str:
         return "Data()""#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1461,7 +1461,7 @@ fn test_ext_func_len() {
 
     def __len__(self) -> int:
         return len(self.items)"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1473,7 +1473,7 @@ fn test_ext_func_eq() {
 
     def __eq__(self, other) -> bool:
         return self.x == other.x and self.y == other.y"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Complex function patterns ---
@@ -1485,7 +1485,7 @@ fn test_ext_func_nested_deep() {
             return 42
         return inner()
     return middle()"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1495,7 +1495,7 @@ fn test_ext_func_conditional_return_types() {
         return 42
     else:
         return "forty-two""#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1506,7 +1506,7 @@ fn test_ext_func_early_return_guard() {
     if len(data) == 0:
         return []
     return data[0]"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1516,7 +1516,7 @@ fn test_ext_func_multiple_decorators() {
 @decorator3
 def decorated():
     return 42"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1525,7 +1525,7 @@ fn test_ext_func_generic_type_param() {
 T = TypeVar('T')
 def first(items: List[T]) -> T:
     return items[0]"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Function with complex bodies ---
@@ -1541,7 +1541,7 @@ fn test_ext_func_complex_control_flow() {
         else:
             continue
     return count"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1551,7 +1551,7 @@ fn test_ext_func_try_in_body() {
         return int(s)
     except ValueError:
         return 0"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1559,21 +1559,21 @@ fn test_ext_func_with_in_body() {
     let code = transpile(r#"def read_first_line(path: str) -> str:
     with open(path) as f:
         return f.readline()"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_list_comp_in_body() {
     let code = transpile(r#"def squares(n: int) -> list:
     return [x * x for x in range(n)]"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_dict_comp_in_body() {
     let code = transpile(r#"def invert_dict(d: dict) -> dict:
     return {v: k for k, v in d.items()}"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // --- Edge cases ---
@@ -1581,7 +1581,7 @@ fn test_ext_func_dict_comp_in_body() {
 fn test_ext_func_empty_body() {
     let code = transpile(r#"def noop():
     pass"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
@@ -1589,35 +1589,35 @@ fn test_ext_func_only_docstring() {
     let code = transpile(r#"def documented():
     """This function does nothing."""
     pass"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_single_expression() {
     let code = transpile(r#"def identity(x):
     return x"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_long_param_list() {
     let code = transpile(r#"def many_params(a: int, b: int, c: int, d: int, e: int, f: int) -> int:
     return a + b + c + d + e + f"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_keyword_only_params() {
     let code = transpile(r#"def keyword_only(*, name: str, value: int):
     print(name, value)"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 #[test]
 fn test_ext_func_positional_only_params() {
     let code = transpile(r#"def positional_only(x: int, y: int, /):
     return x + y"#);
-    assert!(code.len() > 0);
+    assert!(!code.is_empty());
 }
 
 // ============================================================================
