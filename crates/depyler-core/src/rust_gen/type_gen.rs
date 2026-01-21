@@ -1384,7 +1384,7 @@ mod tests {
             ))))),
         );
         let result = rust_type_to_syn(&ty).unwrap();
-        assert!(result.to_token_stream().to_string().len() > 0);
+        assert!(!result.to_token_stream().to_string().is_empty());
     }
 
     #[test]

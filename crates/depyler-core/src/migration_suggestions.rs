@@ -1492,7 +1492,7 @@ mod tests {
     #[test]
     fn test_severity_clone() {
         let sev = Severity::Warning;
-        let cloned = sev.clone();
+        let cloned = sev;
         assert_eq!(sev, cloned);
     }
 
@@ -2016,7 +2016,7 @@ mod tests {
 
         let program = create_test_program(vec![func1, func2]);
         let mut analyzer = MigrationAnalyzer::new(MigrationConfig::default());
-        let suggestions = analyzer.analyze_program(&program);
+        let _suggestions = analyzer.analyze_program(&program);
 
         // Should analyze both functions - test verifies no panic
     }

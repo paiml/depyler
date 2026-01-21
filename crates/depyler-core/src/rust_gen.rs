@@ -5773,6 +5773,7 @@ fn find_balanced_comma(s: &str) -> Option<usize> {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
     use crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper;

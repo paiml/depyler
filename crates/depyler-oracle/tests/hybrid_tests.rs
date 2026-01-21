@@ -97,7 +97,7 @@ mod pattern_complexity_tests {
     #[test]
     fn test_pattern_complexity_clone() {
         let complexity = PatternComplexity::Complex;
-        let cloned = complexity.clone();
+        let cloned = complexity;
         assert_eq!(complexity, cloned);
     }
 

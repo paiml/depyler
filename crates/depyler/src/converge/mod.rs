@@ -335,8 +335,7 @@ mod tests {
             .with_parallel_jobs(4)
             .with_display_mode(DisplayMode::Silent);
 
-        // Just verify compiler is constructed correctly
-        assert!(true);
+        // Just verify compiler is constructed correctly (no assertion needed - if we get here, it works)
     }
 
     // --------------------------------------------------------------------------

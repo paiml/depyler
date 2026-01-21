@@ -282,6 +282,7 @@ fn convert_load_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Resul
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
     use crate::hir::Literal;

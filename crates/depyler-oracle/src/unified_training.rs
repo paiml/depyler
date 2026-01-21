@@ -515,6 +515,7 @@ pub fn print_merge_stats(stats: &MergeStats) {
 }
 
 #[cfg(test)]
+#[allow(clippy::field_reassign_with_default)]
 mod tests {
     use super::*;
 
@@ -1089,7 +1090,7 @@ mod tests {
         {
             let mut file = std::fs::File::create(&file_path).unwrap();
             writeln!(file, "# Comment line").unwrap();
-            writeln!(file, "").unwrap();
+            writeln!(file).unwrap();
             writeln!(file, "E0308|mismatched types|type|add type annotation").unwrap();
             writeln!(file, "E0382|moved value|borrow").unwrap();
         }

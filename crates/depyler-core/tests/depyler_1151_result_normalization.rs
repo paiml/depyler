@@ -1,3 +1,5 @@
+#![allow(clippy::assertions_on_constants)]
+
 // DEPYLER-1151: Result Normalization Pass
 //
 // Tests for Result<Option<T>> ambiguity in functions that mix:

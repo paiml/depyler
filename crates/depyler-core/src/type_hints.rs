@@ -2007,7 +2007,7 @@ mod tests {
     #[test]
     fn test_literal_to_type_float() {
         let provider = TypeHintProvider::new();
-        let ty = provider.literal_to_type(&Literal::Float(3.15.into()));
+        let ty = provider.literal_to_type(&Literal::Float(3.15));
         assert!(matches!(ty, Type::Float));
     }
 
@@ -2567,7 +2567,7 @@ mod tests {
     #[test]
     fn test_infer_expr_type_literal() {
         let provider = TypeHintProvider::new();
-        let ty = provider.infer_expr_type(&HirExpr::Literal(Literal::Float(1.0.into())));
+        let ty = provider.infer_expr_type(&HirExpr::Literal(Literal::Float(1.0)));
         assert!(matches!(ty, Type::Float));
     }
 

@@ -256,7 +256,7 @@ mod tests {
         let status = engine.andon_status();
         // Just verify we can call the method and get a status
         // (the actual status value depends on initial state)
-        format!("{:?}", status); // Ensure Debug works
+        let _ = format!("{:?}", status); // Ensure Debug works
     }
 
     #[test]

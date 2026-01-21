@@ -62,6 +62,7 @@ pub fn wrap_in_parens(expr: syn::Expr) -> syn::Expr {
 }
 
 #[cfg(test)]
+#[allow(non_snake_case)]
 mod tests {
     use super::*;
     use quote::ToTokens;

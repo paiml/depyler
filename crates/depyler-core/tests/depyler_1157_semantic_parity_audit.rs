@@ -1,3 +1,5 @@
+#![allow(clippy::assertions_on_constants)]
+
 // DEPYLER-1157: Semantic Parity Audit for DepylerValue
 //
 // Falsification test suite verifying that DepylerValue trait implementations

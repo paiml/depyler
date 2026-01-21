@@ -4,6 +4,8 @@
 //! of the Depyler transpiler with custom generators, weighted patterns, and
 //! mutation-based edge case discovery.
 
+#![allow(non_snake_case)]
+
 use depyler_core::DepylerPipeline;
 use proptest::prelude::*;
 use proptest::strategy::ValueTree;

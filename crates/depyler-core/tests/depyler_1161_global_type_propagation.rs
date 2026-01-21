@@ -1,3 +1,5 @@
+#![allow(clippy::assertions_on_constants)]
+
 // DEPYLER-1161: Global Type Propagation Experiment
 //
 // Hypothesis: "Connecting the return type of function A to the expected parameter

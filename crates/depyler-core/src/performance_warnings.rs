@@ -836,7 +836,7 @@ mod tests {
             ..Default::default()
         };
         let cloned = config.clone();
-        assert_eq!(cloned.warn_string_concat, false);
+        assert!(!cloned.warn_string_concat);
         assert_eq!(cloned.max_loop_depth, 5);
     }
 
@@ -907,7 +907,7 @@ mod tests {
     #[test]
     fn test_severity_clone() {
         let s = WarningSeverity::Medium;
-        let cloned = s.clone();
+        let cloned = s;
         assert_eq!(s, cloned);
     }
 
@@ -919,12 +919,10 @@ mod tests {
 
     #[test]
     fn test_severity_ord_all() {
-        let mut severities = vec![
-            WarningSeverity::Medium,
+        let mut severities = [WarningSeverity::Medium,
             WarningSeverity::Critical,
             WarningSeverity::Low,
-            WarningSeverity::High,
-        ];
+            WarningSeverity::High];
         severities.sort();
         assert_eq!(severities[0], WarningSeverity::Low);
         assert_eq!(severities[3], WarningSeverity::Critical);

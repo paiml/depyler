@@ -10427,6 +10427,7 @@ fn literal_to_rust_expr(
 }
 
 #[cfg(test)]
+#[allow(non_snake_case)]
 mod tests {
     use super::*;
     use crate::hir::{BinOp, HirExpr, Literal, UnaryOp};
