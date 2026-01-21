@@ -188,9 +188,20 @@ def count_lines(filepath):
         rust_code
     );
 
-    // Should NOT use .iter() on File directly
+    // Should NOT use .iter() on File directly (e.g., f.iter())
+    // Note: We check for the pattern "f.iter()" specifically, not .iter() anywhere,
+    // because the DepylerValue preamble legitimately uses .iter() for collections
     if rust_code.contains("File::open") {
-        assert_not_contains(&rust_code, ".iter()");
+        // Extract the function body to check (after "fn count_lines")
+        if let Some(func_start) = rust_code.find("fn count_lines") {
+            let func_code = &rust_code[func_start..];
+            // Check that we're not calling .iter() directly on the file variable
+            assert!(
+                !func_code.contains("f.iter()"),
+                "Should not use .iter() directly on File, got:\n{}",
+                func_code
+            );
+        }
     }
 }
 

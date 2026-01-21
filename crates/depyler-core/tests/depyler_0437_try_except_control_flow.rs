@@ -51,18 +51,29 @@ def parse_int(value):
 
     let rust = result.unwrap();
 
+    // Extract just the parse_int function body to check
+    // (preamble code like DepylerRegexMatch legitimately uses unwrap_or_default)
+    let func_body = if let Some(start) = rust.find("fn parse_int") {
+        &rust[start..]
+    } else {
+        &rust[..]
+    };
+
     // CRITICAL: Should use match expression for error handling
     assert!(
-        rust.contains("match") && rust.contains(".parse"),
+        func_body.contains("match") && func_body.contains(".parse"),
         "Should generate match expression for int(value). Got: {}",
-        rust
+        func_body
     );
 
-    // Should NOT use unwrap_or_default (hides the exception handler)
+    // Should NOT use unwrap_or_default in the function body (hides the exception handler)
+    // Note: We check the function body, not the preamble which legitimately uses unwrap_or_default
+    let func_end = func_body.find("\n}\n").unwrap_or(func_body.len());
+    let func_only = &func_body[..func_end];
     assert!(
-        !rust.contains("unwrap_or_default"),
-        "Should not use unwrap_or_default - defeats try/except purpose: {}",
-        rust
+        !func_only.contains("unwrap_or_default"),
+        "Should not use unwrap_or_default in try/except function - defeats purpose: {}",
+        func_only
     );
 }
 
