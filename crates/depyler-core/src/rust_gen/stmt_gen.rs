@@ -624,6 +624,310 @@ pub(crate) fn codegen_expr_stmt(
 // Medium-complexity handlers extracted from HirStmt::to_rust_tokens
 // ============================================================================
 
+// ============================================================================
+// DEPYLER-REFACTOR: Helper functions extracted from codegen_return_stmt
+// to reduce cyclomatic complexity from 133 to ≤10 per function
+// ============================================================================
+
+/// Check if element type requires DepylerValue wrapping (DEPYLER-1158)
+#[inline]
+fn is_depyler_related_type(t: &Type) -> bool {
+    matches!(t, Type::Unknown)
+        || matches!(t, Type::Custom(name) if name == "Any" || name == "object")
+        || matches!(t, Type::List(inner) if matches!(inner.as_ref(), Type::Unknown))
+}
+
+/// Wrap a list element expression for DepylerValue (DEPYLER-1158)
+fn wrap_list_element_for_depyler(
+    elem: &HirExpr,
+    elem_expr: &syn::Expr,
+    ctx: &CodeGenContext,
+) -> proc_macro2::TokenStream {
+    let is_list_expr = matches!(elem, HirExpr::List(_))
+        || matches!(elem, HirExpr::ListComp { .. })
+        || match elem {
+            HirExpr::Var(name) => ctx
+                .var_types
+                .get(name)
+                .map(|t| matches!(t, Type::List(_)))
+                .unwrap_or(false),
+            HirExpr::MethodCall { method, .. } => {
+                matches!(method.as_str(), "collect" | "map" | "filter" | "sorted" | "list")
+            }
+            _ => false,
+        };
+
+    if is_list_expr {
+        quote! { #elem_expr.into_iter().map(DepylerValue::from).collect::<Vec<_>>() }
+    } else {
+        quote! { DepylerValue::from(#elem_expr) }
+    }
+}
+
+/// Extract Dict type from return type for empty dict inference (DEPYLER-1036)
+fn extract_dict_from_return_type(return_type: &Type) -> Option<Type> {
+    match return_type {
+        Type::Optional(inner) => match inner.as_ref() {
+            Type::Dict(_, _) => Some(inner.as_ref().clone()),
+            _ => None,
+        },
+        Type::Dict(_, _) => Some(return_type.clone()),
+        _ => None,
+    }
+}
+
+// Note: is_dict_index_access is imported from expr_analysis
+
+/// Check if expression is already Option-typed (DEPYLER-0744, DEPYLER-0951)
+fn is_expr_already_optional(
+    e: &HirExpr,
+    expr_tokens: &proc_macro2::TokenStream,
+    ctx: &CodeGenContext,
+) -> bool {
+    if let HirExpr::Var(var_name) = e {
+        if ctx
+            .var_types
+            .get(var_name)
+            .map(|ty| matches!(ty, Type::Optional(_)))
+            .unwrap_or(false)
+        {
+            return true;
+        }
+    }
+
+    if let HirExpr::MethodCall { method, args, .. } = e {
+        // dict.get(key, default) returns value type, NOT Option
+        let is_get_with_default = method == "get" && args.len() == 2;
+        if is_get_with_default {
+            return false;
+        }
+        if matches!(method.as_str(), "get" | "ok" | "cloned" | "copied" | "pop" | "first" | "last")
+        {
+            return true;
+        }
+    }
+
+    // Check token string for Option-returning methods
+    let expr_str = quote!(#expr_tokens).to_string();
+    let has_option_method = expr_str.ends_with(". ok ()")
+        || expr_str.ends_with(". next ()")
+        || expr_str.contains(". get (");
+    let has_unwrap_method = expr_str.contains(". unwrap_or (")
+        || expr_str.contains(". unwrap_or_default (")
+        || expr_str.contains(". unwrap (")
+        || expr_str.contains(". expect (");
+
+    has_option_method && !has_unwrap_method
+}
+
+/// Check if expression is if-expr with None arm (DEPYLER-0498)
+#[inline]
+fn is_if_expr_with_none_arm(e: &HirExpr) -> bool {
+    matches!(
+        e,
+        HirExpr::IfExpr { orelse, .. } if matches!(&**orelse, HirExpr::Literal(Literal::None))
+    )
+}
+
+/// Check if expression is None literal
+#[inline]
+fn is_none_literal(e: &HirExpr) -> bool {
+    matches!(e, HirExpr::Literal(Literal::None))
+}
+
+/// Check if return type is Optional
+#[inline]
+fn is_optional_return_type(ctx: &CodeGenContext) -> bool {
+    matches!(ctx.current_return_type.as_ref(), Some(Type::Optional(_)))
+}
+
+/// Check if return type is void (None in Python -> () in Rust)
+#[inline]
+fn is_void_return_type(ctx: &CodeGenContext) -> bool {
+    matches!(ctx.current_return_type.as_ref(), Some(Type::None))
+}
+
+/// Check if return type is serde_json::Value (Python's `any`) (DEPYLER-0757)
+#[inline]
+fn is_json_value_return_type(ctx: &CodeGenContext) -> bool {
+    matches!(
+        ctx.current_return_type.as_ref(),
+        Some(Type::Custom(name)) if name == "serde_json::Value"
+            || name == "any"
+            || name == "Any"
+            || name == "typing.Any"
+    )
+}
+
+/// Check if return type is Union (DEPYLER-1124)
+#[inline]
+fn is_union_return_type(ctx: &CodeGenContext) -> bool {
+    matches!(ctx.current_return_type.as_ref(), Some(Type::Union(_)))
+}
+
+/// Check if return type is String (DEPYLER-0943)
+#[inline]
+fn is_string_return_type(ctx: &CodeGenContext) -> bool {
+    matches!(ctx.current_return_type.as_ref(), Some(Type::String))
+}
+
+/// Apply return type conversions (boxed write, union, type, slice, json, dict subscript)
+fn apply_return_type_conversions(
+    mut expr_tokens: syn::Expr,
+    e: &HirExpr,
+    ctx: &CodeGenContext,
+) -> syn::Expr {
+    // DEPYLER-0626: Wrap return value with Box::new() for heterogeneous IO types
+    if ctx.function_returns_boxed_write {
+        expr_tokens = parse_quote! { Box::new(#expr_tokens) };
+    }
+
+    // DEPYLER-1124: Convert concrete type to Union type via .into()
+    if is_union_return_type(ctx) {
+        expr_tokens = parse_quote! { #expr_tokens.into() };
+    }
+
+    // DEPYLER-0241: Apply type conversion if needed
+    if let Some(return_type) = &ctx.current_return_type {
+        let target_type = match return_type {
+            Type::Optional(inner) => inner.as_ref(),
+            other => other,
+        };
+        if needs_type_conversion(target_type, e) {
+            expr_tokens = apply_type_conversion(expr_tokens, target_type);
+        }
+    }
+
+    // DEPYLER-1150: Convert slice params to Vec when returning in Vec-returning function
+    if let HirExpr::Var(var_name) = e {
+        let is_slice_param = ctx.slice_params.contains(var_name);
+        let is_vec_return = matches!(
+            ctx.current_return_type.as_ref(),
+            Some(Type::List(_)) | Some(Type::Tuple(_))
+        );
+        if is_slice_param && is_vec_return {
+            expr_tokens = parse_quote! { #expr_tokens.to_vec() };
+        }
+    }
+
+    // DEPYLER-0757: Wrap return values for serde_json::Value returns
+    if is_json_value_return_type(ctx) && !ctx.type_mapper.nasa_mode {
+        expr_tokens = parse_quote! { serde_json::json!(#expr_tokens) };
+    }
+
+    // DEPYLER-0943: Convert serde_json::Value to String
+    if is_string_return_type(ctx) && is_dict_index_access(e) {
+        expr_tokens = parse_quote! { #expr_tokens.as_str().unwrap_or("").to_string() };
+    }
+
+    expr_tokens
+}
+
+/// Generate return statement with appropriate wrapping
+fn generate_return_statement(
+    expr_tokens: proc_macro2::TokenStream,
+    use_return_keyword: bool,
+) -> proc_macro2::TokenStream {
+    if use_return_keyword {
+        quote! { return #expr_tokens; }
+    } else {
+        quote! { #expr_tokens }
+    }
+}
+
+/// Generate return statement with Result Ok() wrapping
+fn generate_ok_return(
+    expr_tokens: proc_macro2::TokenStream,
+    use_return_keyword: bool,
+) -> proc_macro2::TokenStream {
+    if use_return_keyword {
+        quote! { return Ok(#expr_tokens); }
+    } else {
+        quote! { Ok(#expr_tokens) }
+    }
+}
+
+/// Generate return statement with Some() wrapping
+fn generate_some_return(
+    expr_tokens: proc_macro2::TokenStream,
+    use_return_keyword: bool,
+) -> proc_macro2::TokenStream {
+    if use_return_keyword {
+        quote! { return Some(#expr_tokens); }
+    } else {
+        quote! { Some(#expr_tokens) }
+    }
+}
+
+/// Generate return statement with Ok(Some()) wrapping
+fn generate_ok_some_return(
+    expr_tokens: proc_macro2::TokenStream,
+    use_return_keyword: bool,
+) -> proc_macro2::TokenStream {
+    if use_return_keyword {
+        quote! { return Ok(Some(#expr_tokens)); }
+    } else {
+        quote! { Ok(Some(#expr_tokens)) }
+    }
+}
+
+/// Handle main() function exit code returns (DEPYLER-0617, DEPYLER-0950)
+fn handle_main_exit_code(
+    e: &HirExpr,
+    expr_tokens: &syn::Expr,
+    ctx: &CodeGenContext,
+    use_return_keyword: bool,
+    is_result_wrapped: bool,
+) -> Option<proc_macro2::TokenStream> {
+    let is_main_entry_point_return = matches!(
+        ctx.current_return_type.as_ref(),
+        None | Some(Type::Int) | Some(Type::None)
+    );
+
+    if !is_main_entry_point_return {
+        // main() with non-int/non-void return type - treat as normal function
+        return if is_result_wrapped {
+            Some(generate_ok_return(quote! { #expr_tokens }, use_return_keyword))
+        } else {
+            Some(generate_return_statement(quote! { #expr_tokens }, use_return_keyword))
+        };
+    }
+
+    if let HirExpr::Literal(Literal::Int(exit_code)) = e {
+        if *exit_code == 0 {
+            // Success exit code
+            return if is_result_wrapped {
+                if use_return_keyword {
+                    Some(quote! { return Ok(()); })
+                } else {
+                    Some(quote! { Ok(()) })
+                }
+            } else if use_return_keyword {
+                Some(quote! { return; })
+            } else {
+                Some(quote! { () })
+            };
+        } else {
+            // Non-zero exit code -> std::process::exit(N)
+            let code = *exit_code as i32;
+            return Some(quote! { std::process::exit(#code) });
+        }
+    }
+
+    // Other expressions in main - evaluate for side effects
+    if is_result_wrapped {
+        if use_return_keyword {
+            Some(quote! { let _ = #expr_tokens; return Ok(()); })
+        } else {
+            Some(quote! { let _ = #expr_tokens; Ok(()) })
+        }
+    } else if use_return_keyword {
+        Some(quote! { let _ = #expr_tokens; return; })
+    } else {
+        Some(quote! { let _ = #expr_tokens; })
+    }
+}
+
 /// Generate code for Return statement with optional expression
 #[inline]
 pub(crate) fn codegen_return_stmt(
@@ -2538,6 +2842,373 @@ fn is_json_value_method_chain_or_fallback(expr: &HirExpr, ctx: &CodeGenContext) 
     }
 }
 
+// ============================================================================
+// DEPYLER-REFACTOR: Helper functions extracted from codegen_for_stmt
+// to reduce cyclomatic complexity from 163 to ≤10 per function
+// ============================================================================
+
+/// Check if a loop variable is used in the body (DEPYLER-0272)
+#[inline]
+fn is_loop_var_used(var_name: &str, body: &[HirStmt]) -> bool {
+    body.iter().any(|stmt| is_var_used_in_stmt(var_name, stmt))
+}
+
+/// Check if a loop variable is reassigned in the body (DEPYLER-0756)
+#[inline]
+fn is_loop_var_reassigned(var_name: &str, body: &[HirStmt]) -> bool {
+    body.iter()
+        .any(|stmt| is_var_reassigned_in_stmt(var_name, stmt))
+}
+
+/// Track range iteration loop variable type (DEPYLER-0803)
+#[inline]
+fn track_range_loop_var(target: &AssignTarget, iter: &HirExpr, ctx: &mut CodeGenContext) {
+    if let AssignTarget::Symbol(name) = target {
+        if matches!(iter, HirExpr::Call { func, .. } if func == "range") {
+            ctx.var_types.insert(name.clone(), Type::Int);
+        }
+    }
+}
+
+/// Track char variables from Counter(string) iteration (DEPYLER-0821)
+#[inline]
+fn track_char_counter_iter(target: &AssignTarget, iter: &HirExpr, ctx: &mut CodeGenContext) {
+    if let AssignTarget::Tuple(targets) = target {
+        if let HirExpr::MethodCall { object, method, .. } = iter {
+            if method == "items" || method == "most_common" {
+                if let HirExpr::Var(counter_name) = object.as_ref() {
+                    if ctx.char_counter_vars.contains(counter_name) {
+                        if let Some(AssignTarget::Symbol(first_var)) = targets.first() {
+                            ctx.char_iter_vars.insert(first_var.clone());
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Generate pattern for a single symbol target (DEPYLER-0272, DEPYLER-0756)
+#[inline]
+fn generate_symbol_pattern(name: &str, body: &[HirStmt]) -> syn::Pat {
+    let var_name = if is_loop_var_used(name, body) {
+        name.to_string()
+    } else {
+        format!("_{}", name)
+    };
+    let ident = safe_ident(&var_name);
+    if is_loop_var_reassigned(name, body) {
+        parse_quote! { mut #ident }
+    } else {
+        parse_quote! { #ident }
+    }
+}
+
+/// Generate pattern for tuple target with usage/reassignment checks
+#[inline]
+fn generate_tuple_pattern(targets: &[AssignTarget], body: &[HirStmt]) -> syn::Pat {
+    let patterns: Vec<syn::Pat> = targets
+        .iter()
+        .map(|t| match t {
+            AssignTarget::Symbol(s) => generate_symbol_pattern(s, body),
+            _ => parse_quote! { _nested },
+        })
+        .collect();
+    parse_quote! { (#(#patterns),*) }
+}
+
+/// Generate the target pattern for a for loop
+fn generate_for_target_pattern(
+    target: &AssignTarget,
+    body: &[HirStmt],
+) -> Result<syn::Pat> {
+    match target {
+        AssignTarget::Symbol(name) => Ok(generate_symbol_pattern(name, body)),
+        AssignTarget::Tuple(targets) => Ok(generate_tuple_pattern(targets, body)),
+        _ => bail!("Unsupported for loop target type"),
+    }
+}
+
+/// Check if iteration is over sys.stdin (DEPYLER-0388)
+#[inline]
+fn is_stdin_iteration(iter: &HirExpr) -> bool {
+    matches!(iter, HirExpr::Attribute { value, attr }
+        if matches!(&**value, HirExpr::Var(m) if m == "sys") && attr == "stdin")
+}
+
+/// Check if iteration is over a file object (DEPYLER-0388)
+#[inline]
+fn is_file_iteration(iter: &HirExpr) -> bool {
+    if let HirExpr::Var(var_name) = iter {
+        var_name == "f"
+            || var_name == "file"
+            || var_name == "input"
+            || var_name == "output"
+            || var_name.ends_with("_file")
+            || var_name.starts_with("file_")
+    } else {
+        false
+    }
+}
+
+/// Check if iteration is over a CSV reader (DEPYLER-0452)
+#[inline]
+fn is_csv_reader_iteration(iter: &HirExpr) -> bool {
+    if let HirExpr::Var(var_name) = iter {
+        var_name == "reader"
+            || var_name.contains("csv")
+            || var_name.ends_with("_reader")
+            || var_name.starts_with("reader_")
+    } else {
+        false
+    }
+}
+
+/// Apply stdin iteration transformation (DEPYLER-0388)
+#[inline]
+fn apply_stdin_iteration(iter_expr: syn::Expr) -> syn::Expr {
+    parse_quote! { #iter_expr.lines().map(|l| l.unwrap_or_default()) }
+}
+
+/// Apply file iteration transformation (DEPYLER-0388, DEPYLER-0522)
+#[inline]
+fn apply_file_iteration(iter_expr: syn::Expr, ctx: &mut CodeGenContext) -> syn::Expr {
+    ctx.needs_bufread = true;
+    parse_quote! {
+        std::io::BufReader::new(#iter_expr).lines()
+            .map(|l| l.unwrap_or_default())
+    }
+}
+
+/// Extract element type from simple variable iteration (DEPYLER-0339)
+fn extract_var_element_type(var_name: &str, ctx: &CodeGenContext) -> Option<Type> {
+    ctx.var_types.get(var_name).and_then(|t| match t {
+        Type::List(elem_t) => Some(*elem_t.clone()),
+        Type::Set(elem_t) => Some(*elem_t.clone()),
+        Type::Dict(key_t, _) => Some(*key_t.clone()),
+        _ => None,
+    })
+}
+
+/// Extract element type from self.field iteration (DEPYLER-1051)
+fn extract_self_field_element_type(attr: &str, ctx: &CodeGenContext) -> Option<Type> {
+    ctx.class_field_types.get(attr).and_then(|t| match t {
+        Type::List(elem_t) => Some(*elem_t.clone()),
+        Type::Set(elem_t) => Some(*elem_t.clone()),
+        Type::Dict(key_t, _) => Some(*key_t.clone()),
+        _ => None,
+    })
+}
+
+/// Extract element type from enumerate() call
+fn extract_enumerate_element_type(arg: &HirExpr, ctx: &CodeGenContext) -> Option<Type> {
+    match arg {
+        HirExpr::Var(var_name) => ctx.var_types.get(var_name).and_then(|t| match t {
+            Type::List(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+            Type::Set(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+            _ => None,
+        }),
+        HirExpr::Attribute { value, attr, .. } => {
+            if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                ctx.class_field_types.get(attr).and_then(|t| match t {
+                    Type::List(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+                    Type::Set(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+                    _ => None,
+                })
+            } else {
+                None
+            }
+        }
+        _ => None,
+    }
+}
+
+/// Extract element type from Path.glob() method (DEPYLER-0930)
+fn extract_glob_element_type(object: &HirExpr, ctx: &CodeGenContext) -> Option<Type> {
+    if let HirExpr::Var(var_name) = object {
+        let is_path = ctx
+            .var_types
+            .get(var_name)
+            .map(|t| matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path"))
+            .unwrap_or(false);
+        if is_path {
+            return Some(Type::Custom("PathBuf".to_string()));
+        }
+    }
+    None
+}
+
+/// Extract element type from an iterator expression (DEPYLER-0339)
+fn extract_iterator_element_type(iter: &HirExpr, ctx: &CodeGenContext) -> Option<Type> {
+    match iter {
+        HirExpr::Var(var_name) => extract_var_element_type(var_name, ctx),
+        HirExpr::Attribute { value, attr, .. } => {
+            if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
+                extract_self_field_element_type(attr, ctx)
+            } else {
+                None
+            }
+        }
+        HirExpr::Call { func, args, .. } if func == "enumerate" => {
+            args.first().and_then(|arg| extract_enumerate_element_type(arg, ctx))
+        }
+        HirExpr::MethodCall { object, method, .. } if method == "glob" => {
+            extract_glob_element_type(object.as_ref(), ctx)
+        }
+        _ => None,
+    }
+}
+
+/// Declare loop variables and set their types (DEPYLER-0339)
+fn declare_loop_vars_with_types(
+    target: &AssignTarget,
+    element_type: Option<Type>,
+    ctx: &mut CodeGenContext,
+) {
+    match (target, element_type) {
+        (AssignTarget::Symbol(name), Some(elem_type)) => {
+            ctx.declare_var(name);
+            ctx.var_types.insert(name.clone(), elem_type);
+        }
+        (AssignTarget::Symbol(name), None) => {
+            ctx.declare_var(name);
+        }
+        (AssignTarget::Tuple(targets), Some(Type::Tuple(elem_types)))
+            if targets.len() == elem_types.len() =>
+        {
+            for (t, typ) in targets.iter().zip(elem_types.iter()) {
+                if let AssignTarget::Symbol(s) = t {
+                    ctx.declare_var(s);
+                    ctx.var_types.insert(s.clone(), typ.clone());
+                }
+            }
+        }
+        (AssignTarget::Tuple(targets), _) => {
+            for t in targets {
+                if let AssignTarget::Symbol(s) = t {
+                    ctx.declare_var(s);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Check if enumerate cast is needed (DEPYLER-0307)
+#[inline]
+fn needs_enumerate_index_cast(iter: &HirExpr, target: &AssignTarget) -> bool {
+    matches!(iter, HirExpr::Call { func, .. } if func == "enumerate")
+        && matches!(target, AssignTarget::Tuple(targets) if !targets.is_empty())
+}
+
+/// Check if char to string conversion is needed (DEPYLER-0317, DEPYLER-0716, DEPYLER-1045)
+fn needs_char_to_string_conversion(
+    target: &AssignTarget,
+    iter: &HirExpr,
+    body: &[HirStmt],
+    ctx: &CodeGenContext,
+) -> bool {
+    let is_range_iteration = matches!(iter, HirExpr::Call { func, .. } if func == "range");
+    if is_range_iteration {
+        return false;
+    }
+
+    let is_string_iteration = if let AssignTarget::Symbol(loop_var_name) = target {
+        ctx.char_iter_vars.contains(loop_var_name)
+    } else {
+        false
+    };
+
+    if !is_string_iteration {
+        return false;
+    }
+
+    if let AssignTarget::Symbol(loop_var_name) = target {
+        body.iter().any(|stmt| is_var_used_as_dict_key_in_stmt(loop_var_name, stmt))
+    } else {
+        false
+    }
+}
+
+/// Generate for loop with enumerate index cast (DEPYLER-0307)
+fn generate_enumerate_cast_loop(
+    target: &AssignTarget,
+    target_pattern: &syn::Pat,
+    iter_expr: &syn::Expr,
+    body: &[HirStmt],
+    body_stmts: &[proc_macro2::TokenStream],
+) -> proc_macro2::TokenStream {
+    if let AssignTarget::Tuple(targets) = target {
+        if let Some(AssignTarget::Symbol(index_var)) = targets.first() {
+            let is_index_used = body.iter().any(|stmt| is_var_used_in_stmt(index_var, stmt));
+            if is_index_used {
+                let index_ident = safe_ident(index_var);
+                return quote! {
+                    for #target_pattern in #iter_expr {
+                        let #index_ident = #index_ident as i32;
+                        #(#body_stmts)*
+                    }
+                };
+            }
+        }
+    }
+    quote! {
+        for #target_pattern in #iter_expr {
+            #(#body_stmts)*
+        }
+    }
+}
+
+/// Generate for loop with char to string conversion (DEPYLER-0317)
+fn generate_char_to_string_loop(
+    target: &AssignTarget,
+    target_pattern: &syn::Pat,
+    iter_expr: &syn::Expr,
+    body_stmts: &[proc_macro2::TokenStream],
+) -> proc_macro2::TokenStream {
+    if let AssignTarget::Symbol(var_name) = target {
+        let var_ident = safe_ident(var_name);
+        let temp_ident = safe_ident(&format!("_{}", var_name));
+        quote! {
+            for #temp_ident in #iter_expr {
+                let #var_ident = #temp_ident.to_string();
+                #(#body_stmts)*
+            }
+        }
+    } else {
+        quote! {
+            for #target_pattern in #iter_expr {
+                #(#body_stmts)*
+            }
+        }
+    }
+}
+
+/// Generate for loop with CSV result unwrapping (DEPYLER-0452)
+fn generate_csv_result_loop(
+    target: &AssignTarget,
+    target_pattern: &syn::Pat,
+    iter_expr: &syn::Expr,
+    body_stmts: &[proc_macro2::TokenStream],
+) -> proc_macro2::TokenStream {
+    if let AssignTarget::Symbol(var_name) = target {
+        let var_ident = safe_ident(var_name);
+        let result_ident = safe_ident("result");
+        quote! {
+            for #result_ident in #iter_expr {
+                let #var_ident = #result_ident?;
+                #(#body_stmts)*
+            }
+        }
+    } else {
+        quote! {
+            for #target_pattern in #iter_expr {
+                #(#body_stmts)*
+            }
+        }
+    }
+}
+
 /// Generate code for For loop statement
 #[inline]
 pub(crate) fn codegen_for_stmt(
@@ -2560,98 +3231,12 @@ pub(crate) fn codegen_for_stmt(
         confidence = 0.88
     );
 
-    // DEPYLER-0272: Prefix unused loop variables with underscore to avoid warnings
-    // DEPYLER-0683: But only if the variable is NOT used in the body
-    // If the variable IS used, we must keep the original name to match body references.
-    // This is the correct solution: check actual usage before deciding to prefix.
+    // DEPYLER-REFACTOR: Use extracted helper functions for loop variable tracking
+    track_range_loop_var(target, iter, ctx);
+    track_char_counter_iter(target, iter, ctx);
 
-    // Helper to check if a variable is used in the loop body
-    let is_used_in_body = |var_name: &str| -> bool {
-        body.iter().any(|stmt| is_var_used_in_stmt(var_name, stmt))
-    };
-
-    // DEPYLER-0756: Helper to check if a variable is reassigned in the loop body
-    // If a loop variable is reassigned (e.g., `line = line.strip()`), we need `mut`
-    let is_reassigned_in_body = |var_name: &str| -> bool {
-        body.iter()
-            .any(|stmt| is_var_reassigned_in_stmt(var_name, stmt))
-    };
-
-    // DEPYLER-0803: Track loop variable type for int/float coercion
-    // When `for i in range(n)` where n is int, track i as Int so that
-    // expressions like `i * dx` can coerce i to f64 when dx is float
-    if let AssignTarget::Symbol(name) = target {
-        // Check if this is a range iteration - the loop variable is Int
-        if matches!(iter, HirExpr::Call { func, .. } if func == "range") {
-            ctx.var_types.insert(name.clone(), Type::Int);
-        }
-    }
-
-    // DEPYLER-0821: Track char variables from Counter(string) iteration
-    // When iterating over counter.items() or counter.most_common() where counter is from Counter(string),
-    // the first tuple element is a char in Rust (not String)
-    if let AssignTarget::Tuple(targets) = target {
-        if let HirExpr::MethodCall { object, method, .. } = iter {
-            // Handle both .items() and .most_common() (with optional arg)
-            if method == "items" || method == "most_common" {
-                if let HirExpr::Var(counter_name) = object.as_ref() {
-                    // Check if this counter is from Counter(string)
-                    if ctx.char_counter_vars.contains(counter_name) {
-                        // Mark the first tuple element as a char variable
-                        if let Some(AssignTarget::Symbol(first_var)) = targets.first() {
-                            ctx.char_iter_vars.insert(first_var.clone());
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Generate target pattern based on AssignTarget type
-    let target_pattern: syn::Pat = match target {
-        AssignTarget::Symbol(name) => {
-            // DEPYLER-0272: Prefix with underscore if variable is not used in body
-            let var_name = if is_used_in_body(name) {
-                name.clone()
-            } else {
-                format!("_{}", name)
-            };
-            let ident = safe_ident(&var_name); // DEPYLER-0023
-            // DEPYLER-0756: Add `mut` if variable is reassigned inside the loop
-            if is_reassigned_in_body(name) {
-                parse_quote! { mut #ident }
-            } else {
-                parse_quote! { #ident }
-            }
-        }
-        AssignTarget::Tuple(targets) => {
-            // For tuple unpacking, check each variable individually
-            // DEPYLER-0756: Check if any tuple element is reassigned
-            let patterns: Vec<syn::Pat> = targets
-                .iter()
-                .map(|t| match t {
-                    AssignTarget::Symbol(s) => {
-                        // DEPYLER-0272: Prefix with underscore if not used in body
-                        let var_name = if is_used_in_body(s) {
-                            s.clone()
-                        } else {
-                            format!("_{}", s)
-                        };
-                        let ident = safe_ident(&var_name); // DEPYLER-0023
-                        // DEPYLER-0756: Add `mut` if this tuple element is reassigned
-                        if is_reassigned_in_body(s) {
-                            parse_quote! { mut #ident }
-                        } else {
-                            parse_quote! { #ident }
-                        }
-                    }
-                    _ => parse_quote! { _nested }, // Nested tuple unpacking - use placeholder
-                })
-                .collect();
-            parse_quote! { (#(#patterns),*) }
-        }
-        _ => bail!("Unsupported for loop target type"),
-    };
+    // DEPYLER-REFACTOR: Use extracted helper for target pattern generation
+    let target_pattern: syn::Pat = generate_for_target_pattern(target, body)?;
 
     let mut iter_expr = iter.to_rust_expr(ctx)?;
 
@@ -2683,56 +3268,17 @@ pub(crate) fn codegen_for_stmt(
         }
     }
 
-    // DEPYLER-0388: Handle sys.stdin iteration
-    // Python: for line in sys.stdin:
-    // Rust: for line in std::io::stdin().lock().lines()
-    let is_stdin_iter = matches!(iter, HirExpr::Attribute { value, attr }
-        if matches!(&**value, HirExpr::Var(m) if m == "sys") && attr == "stdin");
+    // DEPYLER-REFACTOR: Use extracted helper functions for iteration detection
+    let is_stdin_iter = is_stdin_iteration(iter);
+    let is_file_iter = is_file_iteration(iter);
+    let is_csv_reader = is_csv_reader_iteration(iter);
 
-    // DEPYLER-0388: Handle File object iteration from open()
-    // Python: for line in f: (where f = open(...))
-    // Rust: use BufReader for efficient line-by-line reading
-    // Check if this variable might be a File object
-    // Heuristic: variables named 'f', 'file', 'input', 'output', or ending in '_file'
-    let is_file_iter = if let HirExpr::Var(var_name) = iter {
-        var_name == "f"
-            || var_name == "file"
-            || var_name == "input"
-            || var_name == "output"
-            || var_name.ends_with("_file")
-            || var_name.starts_with("file_")
-    } else {
-        false
-    };
-
+    // DEPYLER-REFACTOR: Apply iteration transformations via helpers
     if is_stdin_iter {
-        // Wrap stdin with .lines() to get line iterator
-        // Stdin::lines() method provides buffered line-by-line reading
-        // Returns Iterator<Item = Result<String, io::Error>>
-        // We map to unwrap_or_default() to handle errors gracefully
-        iter_expr = parse_quote! { #iter_expr.lines().map(|l| l.unwrap_or_default()) };
+        iter_expr = apply_stdin_iteration(iter_expr);
     } else if is_file_iter {
-        // DEPYLER-0452 Phase 3: Use BufReader::new(f).lines() for File iteration
-        // This is the idiomatic Rust way to iterate over file lines
-        // Method call syntax (.lines()) is preferred over trait syntax (BufRead::lines())
-        // DEPYLER-0522: .lines() requires BufRead trait to be in scope
-        ctx.needs_bufread = true;
-        iter_expr = parse_quote! {
-            std::io::BufReader::new(#iter_expr).lines()
-                .map(|l| l.unwrap_or_default())
-        };
+        iter_expr = apply_file_iteration(iter_expr, ctx);
     }
-
-    // DEPYLER-0452: Handle CSV Reader iteration
-    // Check if variable name suggests CSV reader (heuristic-based)
-    let is_csv_reader = if let HirExpr::Var(var_name) = iter {
-        var_name == "reader"
-            || var_name.contains("csv")
-            || var_name.ends_with("_reader")
-            || var_name.starts_with("reader_")
-    } else {
-        false
-    };
 
     // Track if CSV pattern yields Results (need to unwrap in loop)
     let mut csv_yields_results = false;
@@ -2975,124 +3521,9 @@ pub(crate) fn codegen_for_stmt(
 
     ctx.enter_scope();
 
-    // DEPYLER-0339: Track loop variable types for truthiness conversion
-    // Extract element type from iterator and add to var_types
-    let element_type = match iter {
-        HirExpr::Var(var_name) => {
-            // Simple case: for x in items
-            // Look up items type, extract element type
-            ctx.var_types.get(var_name).and_then(|t| match t {
-                Type::List(elem_t) => Some(*elem_t.clone()),
-                Type::Set(elem_t) => Some(*elem_t.clone()),
-                Type::Dict(key_t, _) => Some(*key_t.clone()), // dict iteration yields keys
-                _ => None,
-            })
-        }
-        // DEPYLER-1051: Handle direct iteration over self.field
-        // Look up field type in class_field_types to get element type
-        HirExpr::Attribute { value, attr, .. } => {
-            if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
-                ctx.class_field_types.get(attr).and_then(|t| match t {
-                    Type::List(elem_t) => Some(*elem_t.clone()),
-                    Type::Set(elem_t) => Some(*elem_t.clone()),
-                    Type::Dict(key_t, _) => Some(*key_t.clone()),
-                    _ => None,
-                })
-            } else {
-                None
-            }
-        }
-        HirExpr::Call { func, args, .. } if func == "enumerate" => {
-            // enumerate(items) yields (int, elem_type)
-            if let Some(arg) = args.first() {
-                match arg {
-                    HirExpr::Var(var_name) => {
-                        ctx.var_types.get(var_name).and_then(|t| match t {
-                            Type::List(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
-                            Type::Set(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
-                            _ => None,
-                        })
-                    }
-                    // DEPYLER-1051: Handle enumerate(self.field) for struct field iteration
-                    // Look up field type in class_field_types to get element type
-                    HirExpr::Attribute { value, attr, .. } => {
-                        if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
-                            ctx.class_field_types.get(attr).and_then(|t| match t {
-                                Type::List(elem_t) => {
-                                    Some(Type::Tuple(vec![Type::Int, *elem_t.clone()]))
-                                }
-                                Type::Set(elem_t) => {
-                                    Some(Type::Tuple(vec![Type::Int, *elem_t.clone()]))
-                                }
-                                _ => None,
-                            })
-                        } else {
-                            None
-                        }
-                    }
-                    _ => None,
-                }
-            } else {
-                None
-            }
-        }
-        // DEPYLER-0930: Handle method call iteration
-        HirExpr::MethodCall { object, method, .. } => {
-            // Check for Path.glob() which yields PathBuf
-            if method == "glob" {
-                if let HirExpr::Var(var_name) = object.as_ref() {
-                    let is_path = ctx
-                        .var_types
-                        .get(var_name)
-                        .map(|t| {
-                            matches!(t, Type::Custom(ref s) if s == "PathBuf" || s == "Path")
-                        })
-                        .unwrap_or(false);
-                    if is_path {
-                        Some(Type::Custom("PathBuf".to_string()))
-                    } else {
-                        None
-                    }
-                } else {
-                    None
-                }
-            } else {
-                None
-            }
-        }
-        _ => None,
-    };
-
-    // Declare all variables from the target pattern and set their types
-    match (target, element_type) {
-        (AssignTarget::Symbol(name), Some(elem_type)) => {
-            ctx.declare_var(name);
-            ctx.var_types.insert(name.clone(), elem_type);
-        }
-        (AssignTarget::Symbol(name), None) => {
-            ctx.declare_var(name);
-        }
-        (AssignTarget::Tuple(targets), Some(Type::Tuple(elem_types)))
-            if targets.len() == elem_types.len() =>
-        {
-            // Tuple unpacking with type info: (i, val) from enumerate
-            for (t, typ) in targets.iter().zip(elem_types.iter()) {
-                if let AssignTarget::Symbol(s) = t {
-                    ctx.declare_var(s);
-                    ctx.var_types.insert(s.clone(), typ.clone());
-                }
-            }
-        }
-        (AssignTarget::Tuple(targets), _) => {
-            // Tuple unpacking without type info
-            for t in targets {
-                if let AssignTarget::Symbol(s) = t {
-                    ctx.declare_var(s);
-                }
-            }
-        }
-        _ => {}
-    }
+    // DEPYLER-REFACTOR: Use extracted helpers for element type extraction and var declaration
+    let element_type = extract_iterator_element_type(iter, ctx);
+    declare_loop_vars_with_types(target, element_type, ctx);
     let body_stmts: Vec<_> = body
         .iter()
         .map(|s| s.to_rust_tokens(ctx))
@@ -3100,125 +3531,16 @@ pub(crate) fn codegen_for_stmt(
     ctx.exit_scope();
     ctx.is_final_statement = saved_is_final;
 
-    // DEPYLER-0307 Fix #8: Handle enumerate() usize index casting
-    // When iterating with enumerate(), the first element of the tuple is usize
-    // If we're destructuring a tuple and the iterator is enumerate(), cast the first variable to i32
-    let needs_enumerate_cast = matches!(iter, HirExpr::Call { func, .. } if func == "enumerate")
-        && matches!(target, AssignTarget::Tuple(targets) if !targets.is_empty());
-
-    // DEPYLER-0317: Handle string iteration char→String conversion
-    // When iterating over strings with .chars(), convert char to String for HashMap<String, _> compatibility
-    // DEPYLER-0715: Fixed to use USAGE-based detection instead of name heuristics
-    // DEPYLER-0716: Also ensure we're actually iterating over a STRING (not a range/list/etc.)
-    // DEPYLER-0744: MUST check actual type, not just is_var_iteration!
-    // Only convert char to String if:
-    // 1. We're iterating over a string variable (will become .chars())
-    // 2. NOT iterating over a range (range produces integers)
-    // 3. The loop variable is actually used as a dict key
-    let is_range_iteration = matches!(iter, HirExpr::Call { func, .. } if func == "range");
-    // DEPYLER-0744: Check if iterable is actually a String type, not just any variable
-    // This prevents List[int] from being treated as string iteration
-    // DEPYLER-1045: Use char_iter_vars to detect string iteration (populated when .chars() is added)
-    // This is more reliable than just checking var_types since it catches name-based heuristics too
-    let is_string_iteration = if let AssignTarget::Symbol(loop_var_name) = target {
-        ctx.char_iter_vars.contains(loop_var_name)
-    } else {
-        false
-    };
-    // Only consider string iteration if we're iterating over a STRING variable (not list/dict/etc.)
-    // DEPYLER-1045: Only convert if loop variable is used as a dict key
-    // Dictionary keys need String type for HashMap<String, _>
-    // NOTE: We removed function arg and comparison detection because:
-    // - Most functions (like ord()) work fine with char
-    // - Char methods (is_alphabetic, is_uppercase) don't exist on String
-    // - Comparisons can be handled by converting the comparison, not the variable
-    let needs_char_to_string = !is_range_iteration && is_string_iteration && if let AssignTarget::Symbol(loop_var_name) = target {
-        // Only convert to String if used as dictionary key
-        body.iter().any(|stmt| is_var_used_as_dict_key_in_stmt(loop_var_name, stmt))
-    } else {
-        false
-    };
+    // DEPYLER-REFACTOR: Use extracted helper functions for loop generation
+    let needs_enumerate_cast = needs_enumerate_index_cast(iter, target);
+    let needs_char_to_string = needs_char_to_string_conversion(target, iter, body, ctx);
 
     if needs_enumerate_cast {
-        // Get the first variable name from the tuple pattern (the index from enumerate)
-        if let AssignTarget::Tuple(targets) = target {
-            if let Some(AssignTarget::Symbol(index_var)) = targets.first() {
-                // DEPYLER-0272 Fix: Only add cast if index variable is actually used
-                // If unused, it will be prefixed with _ in target_pattern, so no cast needed
-                let is_index_used = body.iter().any(|stmt| is_var_used_in_stmt(index_var, stmt));
-
-                if is_index_used {
-                    // Add a cast statement at the beginning of the loop body
-                    let index_ident = safe_ident(index_var); // DEPYLER-0023
-                    Ok(quote! {
-                        for #target_pattern in #iter_expr {
-                            let #index_ident = #index_ident as i32;
-                            #(#body_stmts)*
-                        }
-                    })
-                } else {
-                    // Index is unused - don't generate cast statement
-                    Ok(quote! {
-                        for #target_pattern in #iter_expr {
-                            #(#body_stmts)*
-                        }
-                    })
-                }
-            } else {
-                Ok(quote! {
-                    for #target_pattern in #iter_expr {
-                        #(#body_stmts)*
-                    }
-                })
-            }
-        } else {
-            Ok(quote! {
-                for #target_pattern in #iter_expr {
-                    #(#body_stmts)*
-                }
-            })
-        }
+        Ok(generate_enumerate_cast_loop(target, &target_pattern, &iter_expr, body, &body_stmts))
     } else if needs_char_to_string {
-        // DEPYLER-0317: Convert char to String for HashMap<String, _> operations
-        // Python: for char in s: freq[char] = ...
-        // Rust: for _char in s.chars() { let char = _char.to_string(); ... }
-        if let AssignTarget::Symbol(var_name) = target {
-            let var_ident = safe_ident(var_name); // DEPYLER-0023
-            let temp_ident = safe_ident(&format!("_{}", var_name)); // DEPYLER-0023
-            Ok(quote! {
-                for #temp_ident in #iter_expr {
-                    let #var_ident = #temp_ident.to_string();
-                    #(#body_stmts)*
-                }
-            })
-        } else {
-            Ok(quote! {
-                for #target_pattern in #iter_expr {
-                    #(#body_stmts)*
-                }
-            })
-        }
+        Ok(generate_char_to_string_loop(target, &target_pattern, &iter_expr, &body_stmts))
     } else if csv_yields_results {
-        // DEPYLER-0452: Unwrap Results from CSV deserialize iteration
-        // Python: for row in reader
-        // Rust: for result in reader.deserialize() { let row = result?; ... }
-        if let AssignTarget::Symbol(var_name) = target {
-            let var_ident = safe_ident(var_name); // DEPYLER-0023
-            let result_ident = safe_ident("result"); // DEPYLER-0023
-            Ok(quote! {
-                for #result_ident in #iter_expr {
-                    let #var_ident = #result_ident?;
-                    #(#body_stmts)*
-                }
-            })
-        } else {
-            // Fallback if target is not a simple symbol
-            Ok(quote! {
-                for #target_pattern in #iter_expr {
-                    #(#body_stmts)*
-                }
-            })
-        }
+        Ok(generate_csv_result_loop(target, &target_pattern, &iter_expr, &body_stmts))
     } else {
         Ok(quote! {
             for #target_pattern in #iter_expr {
@@ -3251,6 +3573,435 @@ fn get_subscript_value_type(expr: &HirExpr, ctx: &CodeGenContext) -> Option<Type
         _ => None,
     }
 }
+
+// ============================================================================
+// DEPYLER-REFACTOR: Helper functions extracted from codegen_assign_stmt
+// to reduce cyclomatic complexity from 236 to ≤10 per function
+// ============================================================================
+
+/// Track variables assigned from Option-returning functions (DEPYLER-0497)
+#[inline]
+fn track_option_returning_func(target: &AssignTarget, value: &HirExpr, ctx: &mut CodeGenContext) {
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::Call { func, .. } = value {
+            if ctx.option_returning_functions.contains(func) {
+                if let Some(ret_type) = ctx.function_return_types.get(func) {
+                    ctx.var_types.insert(var_name.clone(), ret_type.clone());
+                }
+            }
+        }
+    }
+}
+
+/// Track Counter(string) variables for char iteration (DEPYLER-0821)
+#[inline]
+fn track_counter_string_var(target: &AssignTarget, value: &HirExpr, ctx: &mut CodeGenContext) {
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::Call { func, args, .. } = value {
+            if func == "Counter" && args.len() == 1 {
+                let is_string_arg = is_counter_string_argument(&args[0], ctx);
+                if is_string_arg {
+                    ctx.char_counter_vars.insert(var_name.clone());
+                }
+            }
+        }
+    }
+}
+
+/// Check if Counter argument is a string type (helper for DEPYLER-0821)
+#[inline]
+fn is_counter_string_argument(arg: &HirExpr, ctx: &CodeGenContext) -> bool {
+    match arg {
+        HirExpr::Var(arg_name) => {
+            ctx.var_types
+                .get(arg_name)
+                .is_some_and(|t| matches!(t, Type::String))
+                || arg_name == "text"
+                || arg_name == "s"
+                || arg_name == "string"
+                || arg_name.ends_with("_text")
+        }
+        HirExpr::MethodCall { method, .. } => {
+            method == "read" || method == "strip" || method == "lower" || method == "upper"
+        }
+        _ => false,
+    }
+}
+
+/// Track Callable return types for float coercion (DEPYLER-0801)
+#[inline]
+fn track_callable_float_return(target: &AssignTarget, value: &HirExpr, ctx: &mut CodeGenContext) {
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::Call { func, .. } = value {
+            // Check Callable[[...], float] pattern
+            if let Some(Type::Generic { base, params }) = ctx.var_types.get(func) {
+                if base == "Callable" && params.len() == 2 && matches!(params[1], Type::Float) {
+                    ctx.var_types.insert(var_name.clone(), Type::Float);
+                    return;
+                }
+            }
+            // Check Type::Function pattern
+            if let Some(Type::Function { ret, .. }) = ctx.var_types.get(func) {
+                if matches!(ret.as_ref(), Type::Float) {
+                    ctx.var_types.insert(var_name.clone(), Type::Float);
+                    return;
+                }
+            }
+            // Check module-level function return types
+            if let Some(Type::Float) = ctx.function_return_types.get(func) {
+                ctx.var_types.insert(var_name.clone(), Type::Float);
+            }
+        }
+    }
+}
+
+/// Track iterator-producing expressions (DEPYLER-0520, DEPYLER-1078)
+#[inline]
+fn track_iterator_var(target: &AssignTarget, value: &HirExpr, ctx: &mut CodeGenContext) {
+    if let AssignTarget::Symbol(var_name) = target {
+        if is_iterator_producing_expr(value) {
+            ctx.iterator_vars.insert(var_name.clone());
+            ctx.mutable_vars.insert(var_name.clone());
+        }
+    }
+}
+
+/// Track numpy array variables (DEPYLER-0932)
+#[inline]
+fn track_numpy_var(target: &AssignTarget, value: &HirExpr, ctx: &mut CodeGenContext) {
+    if let AssignTarget::Symbol(var_name) = target {
+        if is_numpy_value_expr(value, ctx) {
+            ctx.numpy_vars.insert(var_name.clone());
+        }
+    }
+}
+
+/// Mark csv.DictReader variables as mutable (DEPYLER-0837)
+#[inline]
+fn track_csv_reader_mutable(target: &AssignTarget, value: &HirExpr, ctx: &mut CodeGenContext) {
+    if let AssignTarget::Symbol(var_name) = target {
+        if let HirExpr::MethodCall { object, method, .. } = value {
+            if method == "DictReader" || method == "reader" {
+                if let HirExpr::Var(module_name) = object.as_ref() {
+                    if module_name == "csv" {
+                        ctx.mutable_vars.insert(var_name.clone());
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Handle None-placeholder assignments (DEPYLER-0440, DEPYLER-0823)
+/// Returns true if the assignment should be skipped (None placeholder)
+#[inline]
+fn handle_none_placeholder(target: &AssignTarget, value: &HirExpr, ctx: &mut CodeGenContext) -> bool {
+    if let AssignTarget::Symbol(var_name) = target {
+        let is_none_literal = matches!(value, HirExpr::Literal(Literal::None));
+        let is_mutable = ctx.mutable_vars.contains(var_name);
+        if is_none_literal && is_mutable {
+            ctx.none_placeholder_vars.insert(var_name.clone());
+            return true;
+        }
+    }
+    false
+}
+
+/// Track os.environ types (DEPYLER-0479, DEPYLER-0907)
+#[inline]
+fn track_os_environ_type(var_name: &str, value: &HirExpr, ctx: &mut CodeGenContext) {
+    if let HirExpr::MethodCall { object, method, args, .. } = value {
+        // os.environ.get(key, default) - 2 args means String
+        if method == "get" && args.len() == 2 {
+            if is_os_environ_attr(object.as_ref()) {
+                ctx.var_types.insert(var_name.to_string(), Type::String);
+                return;
+            }
+        }
+        // os.getenv(key, default) - 2 args means String
+        if method == "getenv" && args.len() == 2 {
+            if let HirExpr::Var(module) = object.as_ref() {
+                if module == "os" {
+                    ctx.var_types.insert(var_name.to_string(), Type::String);
+                    return;
+                }
+            }
+        }
+        // os.environ.get(key) - 1 arg means Option<String>
+        if method == "get" && args.len() == 1 {
+            if is_os_environ_attr(object.as_ref()) {
+                ctx.var_types.insert(var_name.to_string(), Type::Optional(Box::new(Type::String)));
+            }
+        }
+    }
+}
+
+/// Check if expression is os.environ attribute access
+#[inline]
+fn is_os_environ_attr(expr: &HirExpr) -> bool {
+    if let HirExpr::Attribute { value: attr_obj, attr } = expr {
+        if let HirExpr::Var(module) = attr_obj.as_ref() {
+            return module == "os" && attr == "environ";
+        }
+    }
+    false
+}
+
+/// Track deque/Queue constructor types (DEPYLER-0969, DEPYLER-1185)
+#[inline]
+fn track_deque_constructor(
+    var_name: &str,
+    func: &str,
+    type_annotation: &Option<Type>,
+    ctx: &mut CodeGenContext,
+) {
+    if func == "deque" || func == "collections.deque" || func == "Deque" {
+        let elem_type_str = get_deque_elem_type(type_annotation);
+        ctx.var_types.insert(
+            var_name.to_string(),
+            Type::Custom(format!("std::collections::VecDeque<{}>", elem_type_str)),
+        );
+    } else if func == "Queue" || func == "LifoQueue" || func == "PriorityQueue" {
+        ctx.var_types.insert(
+            var_name.to_string(),
+            Type::Custom("std::collections::VecDeque<i32>".to_string()),
+        );
+    } else if func == "heappush" || func == "heapify" {
+        ctx.var_types.insert(
+            var_name.to_string(),
+            Type::Custom("std::collections::BinaryHeap<i32>".to_string()),
+        );
+    }
+}
+
+/// Get element type string for deque (DEPYLER-1185)
+#[inline]
+fn get_deque_elem_type(type_annotation: &Option<Type>) -> String {
+    if let Some(Type::Generic { base, params }) = type_annotation {
+        if (base == "deque" || base == "collections.deque" || base == "Deque") && !params.is_empty() {
+            return type_to_rust_string(&params[0]);
+        }
+    }
+    if let Some(Type::List(elem)) = type_annotation {
+        return type_to_rust_string(elem);
+    }
+    "i32".to_string()
+}
+
+/// Track json.loads/load return type (DEPYLER-0713)
+#[inline]
+fn track_json_loads_type(var_name: &str, object: &HirExpr, method: &str, ctx: &mut CodeGenContext) {
+    if matches!(method, "loads" | "load") {
+        if let HirExpr::Var(obj_var) = object {
+            if obj_var == "json" {
+                ctx.var_types.insert(
+                    var_name.to_string(),
+                    Type::Custom("serde_json::Value".to_string()),
+                );
+            }
+        }
+    }
+}
+
+/// Track Index access on Value-typed variables (DEPYLER-0713)
+#[inline]
+fn track_value_index_type(var_name: &str, base: &HirExpr, ctx: &mut CodeGenContext) {
+    if let HirExpr::Var(base_var) = base {
+        if let Some(base_type) = ctx.var_types.get(base_var) {
+            let is_value_type = matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value");
+            if is_value_type {
+                ctx.var_types.insert(var_name.to_string(), Type::Custom("serde_json::Value".to_string()));
+                return;
+            }
+            if let Type::Dict(_, v) = base_type {
+                let val_is_value = matches!(v.as_ref(), Type::Custom(name) if name == "serde_json::Value" || name == "Value");
+                if val_is_value {
+                    ctx.var_types.insert(var_name.to_string(), Type::Custom("serde_json::Value".to_string()));
+                }
+            }
+        }
+    }
+}
+
+/// Handle ArgumentParser patterns for clap transformation (DEPYLER-0363)
+/// Returns Some(TokenStream) if pattern was handled, None otherwise
+#[inline]
+fn handle_argparser_method_call(
+    target: &AssignTarget,
+    var_name: &str,
+    method: &str,
+    object: &HirExpr,
+    args: &[HirExpr],
+    kwargs: &[(String, HirExpr)],
+    ctx: &mut CodeGenContext,
+) -> Option<proc_macro2::TokenStream> {
+    // Pattern 1: ArgumentParser constructor
+    if method == "ArgumentParser" {
+        return handle_argumentparser_constructor(var_name, object, kwargs, ctx);
+    }
+
+    // Pattern 2: args = parser.parse_args()
+    if method == "parse_args" {
+        return handle_parse_args_call(var_name, object, ctx);
+    }
+
+    // Pattern 3: add_argument_group, add_mutually_exclusive_group, set_defaults
+    if let Some(result) = handle_argument_group_method(target, method, object, ctx) {
+        return Some(result);
+    }
+
+    // Pattern 4: add_subparsers
+    if method == "add_subparsers" {
+        return handle_add_subparsers_call(target, object, kwargs, ctx);
+    }
+
+    // Pattern 5: add_parser (subcommand)
+    if method == "add_parser" {
+        return handle_add_parser_call(target, object, args, kwargs, ctx);
+    }
+
+    None
+}
+
+/// Handle ArgumentParser(...) constructor
+#[inline]
+fn handle_argumentparser_constructor(
+    var_name: &str,
+    object: &HirExpr,
+    kwargs: &[(String, HirExpr)],
+    ctx: &mut CodeGenContext,
+) -> Option<proc_macro2::TokenStream> {
+    if let HirExpr::Var(module_name) = object {
+        if module_name == "argparse" {
+            let mut info = crate::rust_gen::argparse_transform::ArgParserInfo::new(var_name.to_string());
+            for (key, value_expr) in kwargs {
+                if key == "description" {
+                    if let HirExpr::Literal(Literal::String(s)) = value_expr {
+                        info.description = Some(s.clone());
+                    }
+                } else if key == "epilog" {
+                    if let HirExpr::Literal(Literal::String(s)) = value_expr {
+                        info.epilog = Some(s.clone());
+                    }
+                }
+            }
+            ctx.argparser_tracker.register_parser(var_name.to_string(), info);
+            return Some(quote! {});
+        }
+    }
+    None
+}
+
+/// Handle parser.parse_args() call
+#[inline]
+fn handle_parse_args_call(
+    var_name: &str,
+    object: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Option<proc_macro2::TokenStream> {
+    if let HirExpr::Var(parser_var) = object {
+        if let Some(parser_info) = ctx.argparser_tracker.get_parser_mut(parser_var) {
+            parser_info.set_args_var(var_name.to_string());
+            let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
+            return Some(quote! { let #var_ident = Args::parse(); });
+        }
+    }
+    None
+}
+
+/// Handle argument group methods (add_argument_group, add_mutually_exclusive_group, set_defaults)
+#[inline]
+fn handle_argument_group_method(
+    target: &AssignTarget,
+    method: &str,
+    object: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> Option<proc_macro2::TokenStream> {
+    if !matches!(method, "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults") {
+        return None;
+    }
+    if let HirExpr::Var(parent_var) = object {
+        let is_parser_or_group = ctx.argparser_tracker.get_parser(parent_var).is_some()
+            || ctx.argparser_tracker.get_parser_for_group(parent_var).is_some();
+        if is_parser_or_group {
+            if let AssignTarget::Symbol(group_var) = target {
+                ctx.argparser_tracker.register_group(group_var.clone(), parent_var.clone());
+            }
+            return Some(quote! {});
+        }
+    }
+    None
+}
+
+/// Handle parser.add_subparsers(...) call
+#[inline]
+fn handle_add_subparsers_call(
+    target: &AssignTarget,
+    object: &HirExpr,
+    kwargs: &[(String, HirExpr)],
+    ctx: &mut CodeGenContext,
+) -> Option<proc_macro2::TokenStream> {
+    if let HirExpr::Var(parser_var) = object {
+        if ctx.argparser_tracker.get_parser(parser_var).is_some() {
+            let dest_field = extract_kwarg_string(kwargs, "dest").unwrap_or_else(|| "command".to_string());
+            let required = extract_kwarg_bool(kwargs, "required").unwrap_or(false);
+            let help = extract_kwarg_string(kwargs, "help");
+            if let AssignTarget::Symbol(subparsers_var) = target {
+                use crate::rust_gen::argparse_transform::SubparserInfo;
+                ctx.argparser_tracker.register_subparsers(
+                    subparsers_var.clone(),
+                    SubparserInfo {
+                        parser_var: parser_var.clone(),
+                        dest_field,
+                        required,
+                        help,
+                    },
+                );
+            }
+            return Some(quote! {});
+        }
+    }
+    None
+}
+
+/// Handle subparsers.add_parser(...) call
+#[inline]
+fn handle_add_parser_call(
+    target: &AssignTarget,
+    object: &HirExpr,
+    args: &[HirExpr],
+    kwargs: &[(String, HirExpr)],
+    ctx: &mut CodeGenContext,
+) -> Option<proc_macro2::TokenStream> {
+    if let HirExpr::Var(subparsers_var) = object {
+        if ctx.argparser_tracker.get_subparsers(subparsers_var).is_some() && !args.is_empty() {
+            let command_name = extract_string_literal(&args[0]);
+            let help = extract_kwarg_string(kwargs, "help");
+            if let AssignTarget::Symbol(subcommand_var) = target {
+                use crate::rust_gen::argparse_transform::SubcommandInfo;
+                let cmd_name = command_name.clone();
+                if ctx.argparser_tracker.get_subcommand(&cmd_name).is_none() {
+                    ctx.argparser_tracker.register_subcommand(
+                        cmd_name.clone(),
+                        SubcommandInfo {
+                            name: command_name,
+                            help,
+                            arguments: vec![],
+                            subparsers_var: subparsers_var.clone(),
+                        },
+                    );
+                }
+                ctx.argparser_tracker.subcommand_var_to_cmd.insert(subcommand_var.clone(), cmd_name);
+            }
+            return Some(quote! {});
+        }
+    }
+    None
+}
+
+// ============================================================================
+// End of DEPYLER-REFACTOR helper functions
+// ============================================================================
 
 /// Generate code for Assign statement (variable/index/attribute/tuple assignment)
 #[inline]
@@ -3307,299 +4058,24 @@ pub(crate) fn codegen_assign_stmt(
         }
     }
 
-    // DEPYLER-0497: Track variables assigned from Option-returning functions
-    // When a variable is assigned from a function that returns Option<T>, we need to record
-    // its type in var_types so format! can detect it needs unwrapping.
-    if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::Call { func, .. } = value {
-            if ctx.option_returning_functions.contains(func) {
-                // Variable is assigned from Option-returning function
-                // Get the function's return type and add to var_types
-                if let Some(ret_type) = ctx.function_return_types.get(func) {
-                    ctx.var_types.insert(var_name.clone(), ret_type.clone());
-                }
-            }
-        }
+    // DEPYLER-REFACTOR: Use extracted helper functions for variable tracking
+    track_option_returning_func(target, value, ctx);
+    track_counter_string_var(target, value, ctx);
+    track_callable_float_return(target, value, ctx);
+    track_iterator_var(target, value, ctx);
+    track_numpy_var(target, value, ctx);
+
+    // DEPYLER-REFACTOR: Use extracted helpers for csv and None handling
+    track_csv_reader_mutable(target, value, ctx);
+    if handle_none_placeholder(target, value, ctx) {
+        return Ok(quote! {});
     }
 
-    // DEPYLER-0821: Track variables assigned from Counter(string)
-    // When counter = Counter(text) where text is a string, mark counter in char_counter_vars
-    // This is used to detect char iteration in for (k,v) in counter.items()
+    // DEPYLER-REFACTOR: Use extracted helper for ArgumentParser patterns
     if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::Call { func, args, .. } = value {
-            if func == "Counter" && args.len() == 1 {
-                // Check if the argument is a string type or derived from string operations
-                let is_string_arg = match &args[0] {
-                    HirExpr::Var(arg_name) => {
-                        // Check known type or use heuristics for common string var names
-                        ctx.var_types
-                            .get(arg_name)
-                            .is_some_and(|t| matches!(t, Type::String))
-                            || arg_name == "text"
-                            || arg_name == "s"
-                            || arg_name == "string"
-                            || arg_name.ends_with("_text")
-                    }
-                    // MethodCall like sys.stdin.read().strip() returns string
-                    HirExpr::MethodCall { method, .. } => {
-                        method == "read"
-                            || method == "strip"
-                            || method == "lower"
-                            || method == "upper"
-                    }
-                    _ => false,
-                };
-                if is_string_arg {
-                    ctx.char_counter_vars.insert(var_name.clone());
-                }
-            }
-        }
-    }
-
-    // DEPYLER-0801: Track variables assigned from Callable calls that return Float
-    // When fa = f(a) where f is Callable[[float], float], we need to track fa as Float
-    // so that later comparisons like `fa * fc < 0` coerce 0 to 0.0.
-    if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::Call { func, .. } = value {
-            // Check if func is a Callable parameter with Float return type
-            // Callable is stored as Type::Generic { base: "Callable", params: [input_types, return_type] }
-            if let Some(Type::Generic { base, params }) = ctx.var_types.get(func) {
-                if base == "Callable" && params.len() == 2 && matches!(params[1], Type::Float) {
-                    ctx.var_types.insert(var_name.clone(), Type::Float);
-                }
-            }
-            // Also handle Type::Function case (less common but possible)
-            if let Some(Type::Function { ret, .. }) = ctx.var_types.get(func) {
-                if matches!(ret.as_ref(), Type::Float) {
-                    ctx.var_types.insert(var_name.clone(), Type::Float);
-                }
-            }
-            // Also check module-level function return types
-            if let Some(Type::Float) = ctx.function_return_types.get(func) {
-                ctx.var_types.insert(var_name.clone(), Type::Float);
-            }
-        }
-    }
-
-    // DEPYLER-0520: Track variables assigned from iterator-producing expressions
-    // Generator expressions and method chains ending in filter/map/etc produce iterators,
-    // not collections. These variables should NOT have .iter().cloned() added in for loops.
-    // DEPYLER-1078: Also mark iterator variables as mutable since .next() requires &mut self
-    if let AssignTarget::Symbol(var_name) = target {
-        if is_iterator_producing_expr(value) {
-            ctx.iterator_vars.insert(var_name.clone());
-            // DEPYLER-1078: Iterators need to be mutable for .next() calls
-            ctx.mutable_vars.insert(var_name.clone());
-        }
-    }
-
-    // DEPYLER-0932: Track variables assigned from numpy operations
-    // When result = numpy_expr, add "result" to numpy_vars so is_numpy_array_expr() can detect it
-    // This enables correct iteration with .as_slice().iter() instead of bare .iter()
-    if let AssignTarget::Symbol(var_name) = target {
-        if is_numpy_value_expr(value, ctx) {
-            ctx.numpy_vars.insert(var_name.clone());
-        }
-    }
-
-    // DEPYLER-0837: Mark csv.DictReader variables as mutable
-    // csv::Reader needs mutable borrows for .headers() and iteration (.records())
-    // Pattern: reader = csv.DictReader(f) → let mut reader = csv::ReaderBuilder::new()...
-    if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::MethodCall { object, method, .. } = value {
-            if method == "DictReader" || method == "reader" {
-                if let HirExpr::Var(module_name) = object.as_ref() {
-                    if module_name == "csv" {
-                        ctx.mutable_vars.insert(var_name.clone());
-                    }
-                }
-            }
-        }
-    }
-
-    // DEPYLER-0440: Handle None-placeholder assignments
-    // When a variable is initialized with None and later reassigned in if-elif-else,
-    // Python uses None as a placeholder that will be overwritten.
-    // Python pattern: var = None; if cond: var = x; else: var = y; use(var)
-    // Rust pattern: Skip None assignment, let first real assignment be the declaration.
-    // The mutable_vars check ensures the variable WILL be assigned a real value later.
-    // DEPYLER-0823: Track the variable so it can be hoisted if assigned inside a conditional
-    if let AssignTarget::Symbol(var_name) = target {
-        let is_none_literal = matches!(value, HirExpr::Literal(Literal::None));
-        let is_mutable = ctx.mutable_vars.contains(var_name);
-        if is_none_literal && is_mutable {
-            // Skip None placeholder assignment - the first real assignment will declare the var
-            // This avoids type mismatch: `let mut x = None; x = "yes"` (Option vs &str)
-            // DEPYLER-0823: Track this variable for potential hoisting in if statements
-            ctx.none_placeholder_vars.insert(var_name.clone());
-            return Ok(quote! {});
-        }
-    }
-
-    // DEPYLER-0363: Detect ArgumentParser patterns for clap transformation
-    // Pattern 1: parser = argparse.ArgumentParser(...) [MethodCall with object=argparse]
-    // Pattern 2: args = parser.parse_args() [MethodCall with object=parser]
-    if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::MethodCall {
-            method,
-            object,
-            args,
-            kwargs,
-            ..
-        } = value
-        {
-            // Pattern 1: ArgumentParser constructor
-            if method == "ArgumentParser" {
-                if let HirExpr::Var(module_name) = object.as_ref() {
-                    if module_name == "argparse" {
-                        // Register this as an ArgumentParser instance
-                        let mut info = crate::rust_gen::argparse_transform::ArgParserInfo::new(
-                            var_name.clone(),
-                        );
-
-                        // Extract description and epilog from kwargs
-                        for (key, value_expr) in kwargs {
-                            if key == "description" {
-                                if let HirExpr::Literal(crate::hir::Literal::String(s)) = value_expr
-                                {
-                                    info.description = Some(s.clone());
-                                }
-                            } else if key == "epilog" {
-                                if let HirExpr::Literal(crate::hir::Literal::String(s)) = value_expr
-                                {
-                                    info.epilog = Some(s.clone());
-                                }
-                            }
-                        }
-
-                        ctx.argparser_tracker
-                            .register_parser(var_name.clone(), info);
-
-                        // Skip generating this statement - it will be replaced by Args struct
-                        return Ok(quote! {});
-                    }
-                }
-            }
-
-            // Pattern 2: args = parser.parse_args()
-            if method == "parse_args" {
-                if let HirExpr::Var(parser_var) = object.as_ref() {
-                    // Check if this parser is tracked
-                    if let Some(parser_info) = ctx.argparser_tracker.get_parser_mut(parser_var) {
-                        // Set the args variable name
-                        parser_info.set_args_var(var_name.clone());
-
-                        // Generate Args::parse() instead
-                        let var_ident = syn::Ident::new(var_name, proc_macro2::Span::call_site());
-                        return Ok(quote! {
-                            let #var_ident = Args::parse();
-                        });
-                    }
-                }
-            }
-
-            // DEPYLER-0394/0396: Skip assignments to parser configuration method results
-            // Pattern: group = parser.add_argument_group(...)
-            //      OR: nested_group = group.add_mutually_exclusive_group(...)
-            // These methods aren't needed with clap derive - skip the assignment
-            if matches!(
-                method.as_str(),
-                "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults"
-            ) {
-                if let HirExpr::Var(parent_var) = object.as_ref() {
-                    // Check if parent_var is a parser OR a group
-                    let is_parser_or_group = ctx.argparser_tracker.get_parser(parent_var).is_some()
-                        || ctx
-                            .argparser_tracker
-                            .get_parser_for_group(parent_var)
-                            .is_some();
-
-                    if is_parser_or_group {
-                        // DEPYLER-0396: Register the group variable so we can track
-                        // add_argument() calls on it later (e.g., input_group.add_argument())
-                        // This handles both:
-                        //   - group = parser.add_argument_group() → register group → parser
-                        //   - nested = group.add_mutually_exclusive_group() → register nested → group
-                        // Recursive resolution will handle nested → group → parser chain
-                        if let AssignTarget::Symbol(group_var) = target {
-                            ctx.argparser_tracker
-                                .register_group(group_var.clone(), parent_var.clone());
-                        }
-                        // Skip this assignment - not needed with clap
-                        return Ok(quote! {});
-                    }
-                }
-            }
-
-            // DEPYLER-0399: Detect subparsers = parser.add_subparsers(dest="command", required=True)
-            if method == "add_subparsers" {
-                if let HirExpr::Var(parser_var) = object.as_ref() {
-                    if ctx.argparser_tracker.get_parser(parser_var).is_some() {
-                        // Extract dest and required from kwargs
-                        let dest_field = extract_kwarg_string(kwargs, "dest")
-                            .unwrap_or_else(|| "command".to_string());
-                        let required = extract_kwarg_bool(kwargs, "required").unwrap_or(false);
-                        let help = extract_kwarg_string(kwargs, "help");
-
-                        if let AssignTarget::Symbol(subparsers_var) = target {
-                            use crate::rust_gen::argparse_transform::SubparserInfo;
-                            ctx.argparser_tracker.register_subparsers(
-                                subparsers_var.clone(),
-                                SubparserInfo {
-                                    parser_var: parser_var.clone(),
-                                    dest_field,
-                                    required,
-                                    help,
-                                },
-                            );
-                        }
-                        // Skip this assignment - not needed with clap
-                        return Ok(quote! {});
-                    }
-                }
-            }
-
-            // DEPYLER-0399: Detect parser_clone = subparsers.add_parser("clone", help="...")
-            if method == "add_parser" {
-                if let HirExpr::Var(subparsers_var) = object.as_ref() {
-                    if ctx
-                        .argparser_tracker
-                        .get_subparsers(subparsers_var)
-                        .is_some()
-                    {
-                        // Extract command name from first positional arg
-                        if !args.is_empty() {
-                            let command_name = extract_string_literal(&args[0]);
-                            let help = extract_kwarg_string(kwargs, "help");
-
-                            if let AssignTarget::Symbol(subcommand_var) = target {
-                                use crate::rust_gen::argparse_transform::SubcommandInfo;
-                                // DEPYLER-0822: Use command_name as key (not variable name)
-                                // to avoid duplicate enum variants
-                                let cmd_name = command_name.clone();
-                                // Only register if not already registered (preregister may have
-                                // already added this with argument info)
-                                if ctx.argparser_tracker.get_subcommand(&cmd_name).is_none() {
-                                    ctx.argparser_tracker.register_subcommand(
-                                        cmd_name.clone(),
-                                        SubcommandInfo {
-                                            name: command_name,
-                                            help,
-                                            arguments: vec![],
-                                            subparsers_var: subparsers_var.clone(),
-                                        },
-                                    );
-                                }
-                                // Also map variable name to command name
-                                ctx.argparser_tracker
-                                    .subcommand_var_to_cmd
-                                    .insert(subcommand_var.clone(), cmd_name);
-                            }
-                        }
-                        // Skip this assignment - not needed with clap
-                        return Ok(quote! {});
-                    }
-                }
+        if let HirExpr::MethodCall { method, object, args, kwargs, .. } = value {
+            if let Some(result) = handle_argparser_method_call(target, var_name, method, object.as_ref(), args, kwargs, ctx) {
+                return Ok(result);
             }
         }
     }
@@ -3660,61 +4136,8 @@ pub(crate) fn codegen_assign_stmt(
             }
         }
 
-        // DEPYLER-0479: Track String type from os.environ.get(key, default) with default value
-        // Example: value = os.environ.get(var, "default")
-        //       → value = std::env::var(var).unwrap_or_else(|_| "default".to_string())
-        // This should track as String, NOT Option<String>
-        if let HirExpr::MethodCall {
-            object,
-            method,
-            args,
-            kwargs: _,
-        } = value
-        {
-            // Check for os.environ.get(key, default) - 2 arguments means default provided
-            if method == "get" && args.len() == 2 {
-                if let HirExpr::Attribute {
-                    value: attr_obj,
-                    attr,
-                } = object.as_ref()
-                {
-                    if let HirExpr::Var(module) = attr_obj.as_ref() {
-                        if module == "os" && attr == "environ" {
-                            // os.environ.get(key, default) returns String (not Option)
-                            ctx.var_types.insert(var_name.clone(), Type::String);
-                        }
-                    }
-                }
-            }
-            // Also check for os.getenv(key, default)
-            else if method == "getenv" && args.len() == 2 {
-                if let HirExpr::Var(module) = object.as_ref() {
-                    if module == "os" {
-                        ctx.var_types.insert(var_name.clone(), Type::String);
-                    }
-                }
-            }
-            // DEPYLER-0907: Check for os.environ.get(key) - 1 argument means returns Option<String>
-            // Python: config_file = os.environ.get("CONFIG_FILE")  # Returns None if not set
-            // Rust: config_file = std::env::var("CONFIG_FILE").ok()  # Returns Option<String>
-            else if method == "get" && args.len() == 1 {
-                if let HirExpr::Attribute {
-                    value: attr_obj,
-                    attr,
-                } = object.as_ref()
-                {
-                    if let HirExpr::Var(module) = attr_obj.as_ref() {
-                        if module == "os" && attr == "environ" {
-                            // os.environ.get(key) returns Option<String>
-                            ctx.var_types.insert(
-                                var_name.clone(),
-                                Type::Optional(Box::new(Type::String)),
-                            );
-                        }
-                    }
-                }
-            }
-        }
+        // DEPYLER-REFACTOR: Use extracted helper for os.environ tracking
+        track_os_environ_type(var_name, value, ctx);
 
         // DEPYLER-0455: Track Option types from method calls like .ok() and .get()
         // This enables proper truthiness conversion (if option → if option.is_some())
@@ -3747,46 +4170,9 @@ pub(crate) fn codegen_assign_stmt(
                     ctx.var_types
                         .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
                 }
-                // DEPYLER-0969: Track deque() constructor for VecDeque truthiness conversion
-                // This enables `while queue:` → `while !queue.is_empty()` conversion
-                // Python: queue = deque([start]) → Rust: VecDeque::from(vec![start])
-                // DEPYLER-1185: Use concrete element type from annotation, default to i32
-                // This mirrors the behavior of set() which defaults to Type::Int
-                else if func == "deque" || func == "collections.deque" || func == "Deque" {
-                    // DEPYLER-1185: Extract element type from type annotation if available
-                    // Priority: 1. deque[int] annotation, 2. infer from context, 3. default to i32
-                    let elem_type_str = if let Some(Type::Generic { base, params }) = type_annotation {
-                        if (base == "deque" || base == "collections.deque" || base == "Deque") && !params.is_empty() {
-                            type_to_rust_string(&params[0])
-                        } else {
-                            "i32".to_string() // Default like set()
-                        }
-                    } else if let Some(Type::List(elem)) = type_annotation {
-                        type_to_rust_string(elem)
-                    } else {
-                        // DEPYLER-1185: Default to i32 for untyped deques (matches set() behavior)
-                        // This avoids DepylerValue which causes E0308 mismatches
-                        "i32".to_string()
-                    };
-                    ctx.var_types.insert(
-                        var_name.clone(),
-                        Type::Custom(format!("std::collections::VecDeque<{}>", elem_type_str)),
-                    );
-                }
-                // DEPYLER-0969: Track queue.Queue() and similar constructors
-                else if func == "Queue" || func == "LifoQueue" || func == "PriorityQueue" {
-                    ctx.var_types.insert(
-                        var_name.clone(),
-                        Type::Custom("std::collections::VecDeque<i32>".to_string()),
-                    );
-                }
-                // DEPYLER-0969: Track heapq-related variables (BinaryHeap)
-                else if func == "heappush" || func == "heapify" {
-                    // These don't create new variables, but let's track if called as constructor
-                    ctx.var_types.insert(
-                        var_name.clone(),
-                        Type::Custom("std::collections::BinaryHeap<i32>".to_string()),
-                    );
+                // DEPYLER-REFACTOR: Use extracted helper for deque/Queue tracking
+                else if matches!(func.as_str(), "deque" | "collections.deque" | "Deque" | "Queue" | "LifoQueue" | "PriorityQueue" | "heappush" | "heapify") {
+                    track_deque_constructor(var_name, func, type_annotation, ctx);
                 }
                 // DEPYLER-0269: Track user-defined function return types
                 // Lookup function return type and track it for Display trait selection
@@ -3992,44 +4378,14 @@ pub(crate) fn codegen_assign_stmt(
                     ctx.var_types
                         .insert(var_name.clone(), Type::Optional(Box::new(Type::Unknown)));
                 }
-                // DEPYLER-0713 Part 4: Track json.loads() and json.load() as returning Value
-                // data = json.loads(s) → data is serde_json::Value
+                // DEPYLER-REFACTOR: Use extracted helper for json.loads tracking
                 else if matches!(method.as_str(), "loads" | "load") {
-                    if let HirExpr::Var(obj_var) = object.as_ref() {
-                        if obj_var == "json" {
-                            ctx.var_types.insert(
-                                var_name.clone(),
-                                Type::Custom("serde_json::Value".to_string()),
-                            );
-                        }
-                    }
+                    track_json_loads_type(var_name, object.as_ref(), method, ctx);
                 }
             }
-            // DEPYLER-0713 Part 3: Track Index access on Value-typed variables as Value
-            // When we have `count = data["key"]` where `data` is serde_json::Value,
-            // then `count` should also be tracked as Value so subsequent assignments
-            // like `count = 10` get wrapped with json!()
+            // DEPYLER-REFACTOR: Use extracted helper for Index/Value tracking
             HirExpr::Index { base, .. } => {
-                if let HirExpr::Var(base_var) = base.as_ref() {
-                    if let Some(base_type) = ctx.var_types.get(base_var) {
-                        // If base is Value type, the result is also Value
-                        if matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
-                            ctx.var_types.insert(
-                                var_name.clone(),
-                                Type::Custom("serde_json::Value".to_string()),
-                            );
-                        }
-                        // If base is Dict with Value values, result is Value
-                        else if let Type::Dict(_, v) = base_type {
-                            if matches!(v.as_ref(), Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
-                                ctx.var_types.insert(
-                                    var_name.clone(),
-                                    Type::Custom("serde_json::Value".to_string()),
-                                );
-                            }
-                        }
-                    }
-                }
+                track_value_index_type(var_name, base.as_ref(), ctx);
             }
             // DEPYLER-0713: Catch-all for primitive literals and other expressions
             // This high-ROI fix prevents UnificationVar → serde_json::Value fallback
