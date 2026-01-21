@@ -5378,9 +5378,50 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
                     // DEPYLER-1166: Handle nested List values
-                    // The list elements should already be DepylerValue from recursive conversion
-                    HirExpr::List(_) => {
-                        parse_quote! { DepylerValue::List(#val_expr) }
+                    // Elements must be wrapped in DepylerValue variants
+                    HirExpr::List(elts) => {
+                        // Convert each element to DepylerValue
+                        let wrapped_elements: Vec<syn::Expr> = elts
+                            .iter()
+                            .map(|elem| {
+                                let elem_expr = elem.to_rust_expr(self.ctx)?;
+                                Ok(match elem {
+                                    HirExpr::Literal(Literal::Int(_)) => {
+                                        parse_quote! { DepylerValue::Int(#elem_expr as i64) }
+                                    }
+                                    HirExpr::Literal(Literal::Float(_)) => {
+                                        parse_quote! { DepylerValue::Float(#elem_expr as f64) }
+                                    }
+                                    HirExpr::Literal(Literal::String(_)) => {
+                                        parse_quote! { DepylerValue::Str(#elem_expr.to_string()) }
+                                    }
+                                    HirExpr::Literal(Literal::Bool(_)) => {
+                                        parse_quote! { DepylerValue::Bool(#elem_expr) }
+                                    }
+                                    HirExpr::Literal(Literal::None) => {
+                                        parse_quote! { DepylerValue::None }
+                                    }
+                                    HirExpr::Dict(_) => {
+                                        // Nested dict - wrap as DepylerValue::Dict
+                                        parse_quote! {
+                                            DepylerValue::Dict(#elem_expr.into_iter()
+                                                .map(|(k, v)| (DepylerValue::Str(k), v))
+                                                .collect())
+                                        }
+                                    }
+                                    HirExpr::List(_) => {
+                                        // Nested list - already converted recursively
+                                        parse_quote! { DepylerValue::List(#elem_expr) }
+                                    }
+                                    _ => {
+                                        // For variables/complex expressions, use from()
+                                        parse_quote! { DepylerValue::from(#elem_expr) }
+                                    }
+                                })
+                            })
+                            .collect::<Result<Vec<_>>>()?;
+
+                        parse_quote! { DepylerValue::List(vec![#(#wrapped_elements),*]) }
                     }
                     // Fallback for other complex types
                     _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
