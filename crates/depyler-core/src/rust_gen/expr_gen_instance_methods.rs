@@ -1649,8 +1649,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     pub(crate) fn convert_set_method(
         &mut self,
         object_expr: &syn::Expr,
+        object: &HirExpr,
         method: &str,
         arg_exprs: &[syn::Expr],
+        hir_args: &[HirExpr],
     ) -> Result<syn::Expr> {
         match method {
             "add" => {
@@ -1658,6 +1660,40 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     bail!("add() requires exactly one argument");
                 }
                 let arg = &arg_exprs[0];
+
+                // DEPYLER-FIX: Check if target is HashSet<DepylerValue>
+                // If so, wrap the argument in appropriate DepylerValue variant
+                let is_set_depyler_value = if let HirExpr::Var(var_name) = object {
+                    matches!(
+                        self.ctx.var_types.get(var_name),
+                        Some(Type::Set(elem)) if matches!(elem.as_ref(), Type::Unknown)
+                    )
+                } else {
+                    false
+                };
+
+                if is_set_depyler_value && !hir_args.is_empty() {
+                    // Wrap argument in DepylerValue based on argument type
+                    let wrapped_arg: syn::Expr = match &hir_args[0] {
+                        HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                        HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                        HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                        HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
+                        HirExpr::Var(name) => {
+                            match self.ctx.var_types.get(name) {
+                                Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                                Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                                Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                                Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                                _ => parse_quote! { DepylerValue::from(#arg) },
+                            }
+                        }
+                        _ => parse_quote! { DepylerValue::from(#arg) },
+                    };
+                    self.ctx.needs_depyler_value_enum = true;
+                    return Ok(parse_quote! { #object_expr.insert(#wrapped_arg) });
+                }
+
                 Ok(parse_quote! { #object_expr.insert(#arg) })
             }
             "remove" => {
@@ -2457,7 +2493,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 | "issubset"
                 | "issuperset"
                 | "isdisjoint" => {
-                    return self.convert_set_method(object_expr, method, arg_exprs);
+                    return self.convert_set_method(object_expr, object, method, arg_exprs, hir_args);
                 }
                 _ => {}
             }
@@ -2648,7 +2684,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Check if argument is a set or dict literal
                 if !hir_args.is_empty() && self.is_set_expr(&hir_args[0]) {
                     // numbers.update({3, 4}) - set update
-                    self.convert_set_method(object_expr, method, arg_exprs)
+                    self.convert_set_method(object_expr, object, method, arg_exprs, hir_args)
                 } else {
                     // data.update({"b": 2}) - dict update (default for variables)
                     // DEPYLER-0540: Pass object for serde_json::Value detection
@@ -2708,7 +2744,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             | "symmetric_difference"
             | "issubset"
             | "issuperset"
-            | "isdisjoint" => self.convert_set_method(object_expr, method, arg_exprs),
+            | "isdisjoint" => self.convert_set_method(object_expr, object, method, arg_exprs, hir_args),
 
             // DEPYLER-0431: Regex methods (compiled Regex + Match object)
             // Compiled Regex: findall, match, search (note: "find" conflicts with string.find())
@@ -4917,6 +4953,69 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         needs_string_unify: bool,
     ) -> Result<syn::Expr> {
         let nasa_mode = self.ctx.type_mapper.nasa_mode;
+
+        // DEPYLER-1201: Boundary Enforcement for Vec<DepylerValue>
+        // When target type expects Vec<DepylerValue> (from List[Any], List[Unknown], etc.),
+        // wrap ALL elements in DepylerValue constructors to prevent E0308 type mismatches.
+        // This enforces strict type boundaries: `1` → `DepylerValue::Int(1)` when needed.
+        let target_needs_depyler_value = if let Some(Type::List(elem_type)) = &self.ctx.current_assign_type {
+            matches!(elem_type.as_ref(), Type::Unknown)
+                || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "object")
+        } else {
+            false
+        };
+
+        // Also check current_return_type for function return context
+        let return_needs_depyler_value = if let Some(Type::List(elem_type)) = &self.ctx.current_return_type {
+            matches!(elem_type.as_ref(), Type::Unknown)
+                || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "object")
+        } else {
+            false
+        };
+
+        if nasa_mode && (target_needs_depyler_value || return_needs_depyler_value) {
+            self.ctx.needs_depyler_value_enum = true;
+
+            let elt_exprs: Vec<syn::Expr> = elts
+                .iter()
+                .map(|e| {
+                    let expr = e.to_rust_expr(self.ctx)?;
+                    // Wrap each element in appropriate DepylerValue constructor
+                    let wrapped = match e {
+                        HirExpr::Literal(Literal::Int(_)) => {
+                            parse_quote! { DepylerValue::Int(#expr as i64) }
+                        }
+                        HirExpr::Literal(Literal::Float(_)) => {
+                            parse_quote! { DepylerValue::Float(#expr) }
+                        }
+                        HirExpr::Literal(Literal::String(_)) => {
+                            parse_quote! { DepylerValue::Str(#expr.to_string()) }
+                        }
+                        HirExpr::Literal(Literal::Bool(_)) => {
+                            parse_quote! { DepylerValue::Bool(#expr) }
+                        }
+                        HirExpr::Literal(Literal::None) => {
+                            parse_quote! { DepylerValue::None }
+                        }
+                        HirExpr::List(_) => {
+                            // Nested list: recursively convert and wrap
+                            parse_quote! { DepylerValue::List(#expr) }
+                        }
+                        HirExpr::Dict(_) => {
+                            // Nested dict: wrap in DepylerValue::Dict
+                            parse_quote! { DepylerValue::Dict(#expr) }
+                        }
+                        _ => {
+                            // For variables and complex expressions, use .into()
+                            parse_quote! { DepylerValue::from(#expr) }
+                        }
+                    };
+                    Ok(wrapped)
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            return Ok(parse_quote! { vec![#(#elt_exprs),*] });
+        }
 
         if has_mixed_types {
             // DEPYLER-1033: In NASA mode, convert all elements to String instead of using serde_json
