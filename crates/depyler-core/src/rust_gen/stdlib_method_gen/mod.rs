@@ -13,7 +13,9 @@
 //! ## Modules
 //!
 //! - `builtin_functions` - Python builtin functions (all, any, zip, etc.)
+//! - `datetime` - Date/time manipulation (chrono crate) [Phase 3]
 //! - `functools` - Higher-order functions (reduce, etc.)
+//! - `hashlib` - Cryptographic hashing (sha2, md5, etc.) [Phase 3]
 //! - `itertools` - Iterator combinatorics (itertools crate)
 //! - `json` - JSON serialization (serde_json)
 //! - `math` - Mathematical functions (f64 methods)
@@ -27,7 +29,9 @@
 //! - `warnings` - Warning control (eprintln!)
 
 pub mod builtin_functions;
+pub mod datetime;
 pub mod functools;
+pub mod hashlib;
 pub mod itertools;
 pub mod json;
 pub mod math;
@@ -41,7 +45,9 @@ pub mod time;
 pub mod warnings;
 
 // Re-exports for convenience
+pub use datetime::convert_datetime_method;
 pub use functools::convert_functools_method;
+pub use hashlib::convert_hashlib_method;
 pub use itertools::convert_itertools_method;
 pub use json::convert_json_method;
 pub use math::convert_math_method;

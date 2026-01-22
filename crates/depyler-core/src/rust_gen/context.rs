@@ -640,6 +640,7 @@ pub trait ToRustExpr {
 /// Uses a static TypeMapper to allow Default trait implementation.
 /// This is primarily useful for unit testing.
 #[cfg(test)]
+#[cfg(test)]
 impl Default for CodeGenContext<'static> {
     fn default() -> Self {
         test_helpers::test_context()
