@@ -46,10 +46,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-1134: Constraint-Aware Coercion
                 // Check for CONCRETE element type FIRST (from Oracle or type annotations)
                 // Only fall back to DepylerValue wrapping if type is truly Unknown
+                // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+                // DEPYLER-1209: Also treat UnificationVar as non-concrete (needs DepylerValue)
                 let concrete_element_type = if let HirExpr::Attribute { value: _, attr } = object {
                     self.ctx.class_field_types.get(attr).and_then(|t| {
                         if let Type::List(elem) = t {
-                            if !matches!(elem.as_ref(), Type::Unknown) {
+                            if !matches!(**elem, Type::Unknown | Type::UnificationVar(_)) {
                                 Some(elem.as_ref().clone())
                             } else {
                                 None
@@ -61,7 +63,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else if let HirExpr::Var(var_name) = object {
                     self.ctx.var_types.get(var_name).and_then(|t| {
                         if let Type::List(elem) = t {
-                            if !matches!(elem.as_ref(), Type::Unknown) {
+                            if !matches!(**elem, Type::Unknown | Type::UnificationVar(_)) {
                                 Some(elem.as_ref().clone())
                             } else {
                                 None
@@ -84,17 +86,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-1051: Check if target is Vec<DepylerValue> (e.g., untyped class field)
                 // If so, wrap the argument in appropriate DepylerValue variant
+                // DEPYLER-1207: Fixed pattern matching bug - elem.as_ref() returns &Type,
+                // so we need to dereference with *elem.as_ref() or use &Type::Unknown pattern
+                // DEPYLER-1209: Also check for UnificationVar which indicates incomplete inference
                 let is_vec_depyler_value = if let HirExpr::Attribute { value: _, attr } = object {
                     // Check class field type
                     self.ctx
                         .class_field_types
                         .get(attr)
-                        .map(|t| matches!(t, Type::List(elem) if matches!(elem.as_ref(), Type::Unknown)))
+                        .map(|t| matches!(t, Type::List(elem) if matches!(**elem, Type::Unknown | Type::UnificationVar(_))))
                         .unwrap_or(false)
                 } else if let HirExpr::Var(var_name) = object {
                     matches!(
                         self.ctx.var_types.get(var_name),
-                        Some(Type::List(elem)) if matches!(elem.as_ref(), Type::Unknown)
+                        Some(Type::List(elem)) if matches!(**elem, Type::Unknown | Type::UnificationVar(_))
                     )
                 } else {
                     false
@@ -102,11 +107,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 if is_vec_depyler_value {
                     // DEPYLER-1051: Wrap argument in DepylerValue based on argument type
+                    // DEPYLER-1210: Avoid double .to_string() - arg_exprs already converts literals
                     let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
                         match &hir_args[0] {
                             HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
                             HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                            // String literals are already converted to String by arg_exprs, just wrap
+                            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg) },
                             HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
                             HirExpr::Var(name) => {
                                 // Check variable type
@@ -1663,10 +1670,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-FIX: Check if target is HashSet<DepylerValue>
                 // If so, wrap the argument in appropriate DepylerValue variant
+                // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+                // DEPYLER-1209: Also check for UnificationVar
                 let is_set_depyler_value = if let HirExpr::Var(var_name) = object {
                     matches!(
                         self.ctx.var_types.get(var_name),
-                        Some(Type::Set(elem)) if matches!(elem.as_ref(), Type::Unknown)
+                        Some(Type::Set(elem)) if matches!(**elem, Type::Unknown | Type::UnificationVar(_))
                     )
                 } else {
                     false
@@ -2778,6 +2787,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Default: generic method call
             _ => {
+                // DEPYLER-1202: Detect Python-specific methods that need trait bridge
+                // These methods don't exist on Rust types, so we inject the traits
+                match method {
+                    // Python string methods that might not be translated
+                    "lower" | "upper" | "strip" | "lstrip" | "rstrip" | "split_py"
+                    | "startswith" | "endswith" | "find" | "isalpha" | "isdigit"
+                    | "isalnum" | "isspace" | "islower" | "isupper" | "capitalize"
+                    | "title" | "swapcase" | "center" | "ljust" | "rjust" | "zfill" => {
+                        self.ctx.needs_python_string_ops = true;
+                    }
+                    // Python int methods
+                    "bit_length" | "bit_count" => {
+                        self.ctx.needs_python_int_ops = true;
+                    }
+                    _ => {}
+                }
+
                 // DEPYLER-0306 FIX: Use raw identifiers for method names that are Rust keywords
                 let method_ident = if keywords::is_rust_keyword(method) {
                     syn::Ident::new_raw(method, proc_macro2::Span::call_site())
@@ -2854,6 +2880,123 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             alternatives = ["trait_method", "inherent_method", "extension", "ufcs"],
             confidence = 0.88
         );
+
+        // DEPYLER-1205: Usage-Based Type Inference
+        // If a variable is Unknown/DepylerValue and calls a method that implies a type, infer it.
+        // This is "Inference by Usage" - we help the compiler by telling it what type the variable must be.
+        if let HirExpr::Var(var_name) = object {
+            let current_type = self.ctx.var_types.get(var_name).cloned();
+            let is_unknown = matches!(current_type, None | Some(Type::Unknown));
+
+            if is_unknown {
+                // List-indicator methods
+                match method {
+                    // DEPYLER-1211: Recursive Type Propagation for append
+                    // If .append(arg) is called, infer the element type from arg
+                    "append" => {
+                        let element_type = if !args.is_empty() {
+                            self.infer_type_from_hir_expr(&args[0])
+                        } else {
+                            Type::Unknown
+                        };
+                        self.ctx.var_types.insert(
+                            var_name.clone(),
+                            Type::List(Box::new(element_type.clone())),
+                        );
+                        tracing::debug!(
+                            "DEPYLER-1211: Inferred {} as List<{:?}> (via append())",
+                            var_name,
+                            element_type
+                        );
+                    }
+                    // DEPYLER-1211: For insert(idx, arg), infer element type from second arg
+                    "insert" => {
+                        let element_type = if args.len() >= 2 {
+                            self.infer_type_from_hir_expr(&args[1])
+                        } else {
+                            Type::Unknown
+                        };
+                        self.ctx.var_types.insert(
+                            var_name.clone(),
+                            Type::List(Box::new(element_type.clone())),
+                        );
+                        tracing::debug!(
+                            "DEPYLER-1211: Inferred {} as List<{:?}> (via insert())",
+                            var_name,
+                            element_type
+                        );
+                    }
+                    // Other list methods - element type remains unknown
+                    "extend" | "pop" | "remove" | "sort" | "reverse"
+                    | "clear" | "copy" | "index" | "count" => {
+                        // This variable must be a list
+                        self.ctx.var_types.insert(
+                            var_name.clone(),
+                            Type::List(Box::new(Type::Unknown)),
+                        );
+                        tracing::debug!(
+                            "DEPYLER-1205: Inferred {} as List (via {}())",
+                            var_name,
+                            method
+                        );
+                    }
+                    // String-indicator methods
+                    "lower" | "upper" | "strip" | "lstrip" | "rstrip" | "split" | "join"
+                    | "replace" | "startswith" | "endswith" | "find" | "rfind" | "isdigit"
+                    | "isalpha" | "isalnum" | "isupper" | "islower" | "title" | "capitalize"
+                    | "swapcase" | "center" | "ljust" | "rjust" | "zfill" | "encode" => {
+                        // This variable must be a string
+                        self.ctx.var_types.insert(var_name.clone(), Type::String);
+                        tracing::debug!(
+                            "DEPYLER-1205: Inferred {} as String (via {}())",
+                            var_name,
+                            method
+                        );
+                    }
+                    // Dict-indicator methods
+                    "keys" | "values" | "items" | "get" | "setdefault" | "update"
+                    | "popitem" => {
+                        // This variable must be a dict
+                        self.ctx.var_types.insert(
+                            var_name.clone(),
+                            Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                        );
+                        tracing::debug!(
+                            "DEPYLER-1205: Inferred {} as Dict (via {}())",
+                            var_name,
+                            method
+                        );
+                    }
+                    // Iterator-indicator methods (could be list, set, or dict)
+                    "iter" => {
+                        // Default to list for iter()
+                        self.ctx.var_types.insert(
+                            var_name.clone(),
+                            Type::List(Box::new(Type::Unknown)),
+                        );
+                        tracing::debug!(
+                            "DEPYLER-1205: Inferred {} as List (via iter())",
+                            var_name
+                        );
+                    }
+                    // Set-indicator methods
+                    "add" | "discard" | "difference" | "intersection" | "union"
+                    | "symmetric_difference" | "issubset" | "issuperset" | "isdisjoint" => {
+                        // This variable must be a set
+                        self.ctx.var_types.insert(
+                            var_name.clone(),
+                            Type::Set(Box::new(Type::Unknown)),
+                        );
+                        tracing::debug!(
+                            "DEPYLER-1205: Inferred {} as Set (via {}())",
+                            var_name,
+                            method
+                        );
+                    }
+                    _ => {}
+                }
+            }
+        }
 
         // DEPYLER-0964: Handle method calls on &mut Option<HashMap<K, V>> parameters
         // When a parameter is Dict[K,V] with default None, it becomes &mut Option<HashMap>
@@ -3786,9 +3929,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-1145: Wrap index in DepylerValue if base is HashMap<DepylerValue, ...>
         // Check if base is a variable with DepylerValue key type
+        // DEPYLER-1214: Type::Dict(Unknown, _) actually generates HashMap<String, ...> (see type_mapper.rs)
+        // so we should NOT wrap keys in DepylerValue. Only Type::Dict with explicit DepylerValue
+        // key type would need wrapping (which is rare in practice).
         let is_depyler_value_key = if let HirExpr::Var(var_name) = base {
             self.ctx.var_types.get(var_name).is_some_and(|t| {
-                matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Unknown))
+                // Only wrap if key type is explicitly DepylerValue, not Unknown
+                // Unknown keys map to String in the type mapper (see DEPYLER-0776)
+                matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Custom(n) if n == "DepylerValue"))
             })
         } else {
             false
@@ -4960,6 +5108,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // This enforces strict type boundaries: `1` → `DepylerValue::Int(1)` when needed.
         let target_needs_depyler_value = if let Some(Type::List(elem_type)) = &self.ctx.current_assign_type {
             matches!(elem_type.as_ref(), Type::Unknown)
+                || matches!(elem_type.as_ref(), Type::UnificationVar(_))
                 || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "object")
         } else {
             false
@@ -4968,12 +5117,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Also check current_return_type for function return context
         let return_needs_depyler_value = if let Some(Type::List(elem_type)) = &self.ctx.current_return_type {
             matches!(elem_type.as_ref(), Type::Unknown)
+                || matches!(elem_type.as_ref(), Type::UnificationVar(_))
                 || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "object")
         } else {
             false
         };
 
-        if nasa_mode && (target_needs_depyler_value || return_needs_depyler_value) {
+        // DEPYLER-1212: If no target type is specified AND elements have unknown/mixed types,
+        // default to DepylerValue wrapping to prevent E0308 type mismatches.
+        // This is the "genesis fix" - catching the problem at list literal creation.
+        let inferred_needs_depyler_value = if self.ctx.current_assign_type.is_none()
+            && self.ctx.current_return_type.is_none()
+            && nasa_mode
+        {
+            self.list_needs_depyler_value(elts)
+        } else {
+            false
+        };
+
+        if nasa_mode && (target_needs_depyler_value || return_needs_depyler_value || inferred_needs_depyler_value) {
             self.ctx.needs_depyler_value_enum = true;
 
             let elt_exprs: Vec<syn::Expr> = elts
@@ -5005,9 +5167,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // Nested dict: wrap in DepylerValue::Dict
                             parse_quote! { DepylerValue::Dict(#expr) }
                         }
+                        // DEPYLER-1212: For variables, look up type and use appropriate constructor
+                        HirExpr::Var(name) => {
+                            match self.ctx.var_types.get(name) {
+                                Some(Type::Int) => parse_quote! { DepylerValue::Int(#expr as i64) },
+                                Some(Type::Float) => parse_quote! { DepylerValue::Float(#expr as f64) },
+                                Some(Type::String) => parse_quote! { DepylerValue::Str(#expr.to_string()) },
+                                Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#expr) },
+                                // For &String references (from match arms), clone and wrap
+                                _ => parse_quote! { DepylerValue::Str(#expr.to_string()) }
+                            }
+                        }
                         _ => {
-                            // For variables and complex expressions, use .into()
-                            parse_quote! { DepylerValue::from(#expr) }
+                            // For complex expressions, default to Str with Debug format
+                            parse_quote! { DepylerValue::Str(format!("{:?}", #expr)) }
                         }
                     };
                     Ok(wrapped)
@@ -5149,34 +5322,116 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0711: Check if list has heterogeneous element types
     /// Returns true if elements have different primitive types (int, string, float, bool)
+    /// DEPYLER-1212: Also checks variable types from var_types context
     pub(crate) fn list_has_mixed_types(&self, elts: &[HirExpr]) -> bool {
         if elts.len() <= 1 {
             return false; // Single element or empty - no mixing possible
         }
 
-        let mut has_bool_literal = false;
-        let mut has_int_literal = false;
-        let mut has_float_literal = false;
-        let mut has_string_literal = false;
+        let mut has_bool = false;
+        let mut has_int = false;
+        let mut has_float = false;
+        let mut has_string = false;
+        let mut has_unknown = false;
 
         for elem in elts {
             match elem {
-                HirExpr::Literal(Literal::Bool(_)) => has_bool_literal = true,
-                HirExpr::Literal(Literal::Int(_)) => has_int_literal = true,
-                HirExpr::Literal(Literal::Float(_)) => has_float_literal = true,
-                HirExpr::Literal(Literal::String(_)) => has_string_literal = true,
-                _ => {}
+                HirExpr::Literal(Literal::Bool(_)) => has_bool = true,
+                HirExpr::Literal(Literal::Int(_)) => has_int = true,
+                HirExpr::Literal(Literal::Float(_)) => has_float = true,
+                HirExpr::Literal(Literal::String(_)) => has_string = true,
+                // DEPYLER-1212: Check variable types from context
+                HirExpr::Var(name) => {
+                    match self.ctx.var_types.get(name) {
+                        Some(Type::Bool) => has_bool = true,
+                        Some(Type::Int) => has_int = true,
+                        Some(Type::Float) => has_float = true,
+                        Some(Type::String) => has_string = true,
+                        _ => has_unknown = true, // Unknown or complex type
+                    }
+                }
+                // Non-literal, non-variable: treat as unknown
+                _ => has_unknown = true,
             }
         }
 
-        // Count how many distinct literal types we have
-        let distinct_types = [has_bool_literal, has_int_literal, has_float_literal, has_string_literal]
+        // Count how many distinct known types we have
+        let distinct_types = [has_bool, has_int, has_float, has_string]
             .iter()
             .filter(|&&b| b)
             .count();
 
-        // Mixed types if we have more than one distinct type
-        distinct_types > 1
+        // Mixed types if:
+        // 1. We have more than one distinct known type, OR
+        // 2. We have at least one known type AND unknown types
+        distinct_types > 1 || (distinct_types > 0 && has_unknown)
+    }
+
+    /// DEPYLER-1212: Infer unified element type from list elements
+    /// Returns Some(Type) if all elements have the same type, None otherwise
+    fn infer_list_element_type(&self, elts: &[HirExpr]) -> Option<Type> {
+        if elts.is_empty() {
+            return None;
+        }
+
+        // Collect all element types
+        let mut types: Vec<Type> = Vec::new();
+        for elem in elts {
+            let elem_type = match elem {
+                HirExpr::Literal(Literal::Bool(_)) => Type::Bool,
+                HirExpr::Literal(Literal::Int(_)) => Type::Int,
+                HirExpr::Literal(Literal::Float(_)) => Type::Float,
+                HirExpr::Literal(Literal::String(_)) => Type::String,
+                HirExpr::Literal(Literal::None) => continue, // Skip None for type inference
+                HirExpr::Var(name) => {
+                    self.ctx.var_types.get(name).cloned().unwrap_or(Type::Unknown)
+                }
+                _ => Type::Unknown,
+            };
+            types.push(elem_type);
+        }
+
+        if types.is_empty() {
+            return None;
+        }
+
+        // Check if all types are the same (ignoring Unknown)
+        let first_known = types.iter().find(|t| !matches!(t, Type::Unknown));
+        if let Some(first) = first_known {
+            if types.iter().all(|t| matches!(t, Type::Unknown) || t == first) {
+                return Some(first.clone());
+            }
+        }
+
+        // Mixed or all unknown - no unified type
+        None
+    }
+
+    /// DEPYLER-1212: Check if list needs DepylerValue wrapping (for NASA mode)
+    /// Returns true if:
+    /// 1. Elements have mixed types (can't determine uniform type)
+    /// 2. All elements are non-literal and their types are unknown
+    fn list_needs_depyler_value(&self, elts: &[HirExpr]) -> bool {
+        if elts.is_empty() {
+            return false;
+        }
+
+        // Check if any element is a non-literal with unknown type
+        let has_unknown_element = elts.iter().any(|e| {
+            match e {
+                HirExpr::Literal(_) => false,
+                HirExpr::Var(name) => {
+                    matches!(
+                        self.ctx.var_types.get(name),
+                        None | Some(Type::Unknown) | Some(Type::UnificationVar(_))
+                    )
+                }
+                _ => true, // Complex expressions - unknown type
+            }
+        });
+
+        // If we have unknown elements and can't infer a uniform type, need DepylerValue
+        has_unknown_element && self.infer_list_element_type(elts).is_none()
     }
 
     pub(crate) fn convert_dict(&mut self, items: &[(HirExpr, HirExpr)]) -> Result<syn::Expr> {
@@ -5264,15 +5519,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // NOT DepylerValue keys, even when values are DepylerValue
             // NOTE: Bare `dict` return type parses as Dict(Unknown, Unknown) but generates
             // HashMap<String, DepylerValue>, so Unknown key type also means String keys
-            let return_expects_string_keys = if let Some(Type::Dict(key_type, _)) = &self.ctx.current_return_type {
-                matches!(key_type.as_ref(), Type::String | Type::Unknown)
-            } else {
-                false
+            // DEPYLER-1213: Also handle Type::Custom("dict") which is how bare dict annotations are stored
+            let return_expects_string_keys = match &self.ctx.current_return_type {
+                Some(Type::Dict(key_type, _)) => {
+                    matches!(key_type.as_ref(), Type::String | Type::Unknown)
+                }
+                // Bare `dict` annotation stored as Custom("dict") - treat as Dict[str, Any]
+                Some(Type::Custom(name)) if name == "dict" || name == "Dict" => true,
+                _ => false,
             };
-            let target_expects_string_keys = if let Some(Type::Dict(key_type, _)) = &self.ctx.current_assign_type {
-                matches!(key_type.as_ref(), Type::String | Type::Unknown)
-            } else {
-                false
+            let target_expects_string_keys = match &self.ctx.current_assign_type {
+                Some(Type::Dict(key_type, _)) => {
+                    matches!(key_type.as_ref(), Type::String | Type::Unknown)
+                }
+                Some(Type::Custom(name)) if name == "dict" || name == "Dict" => true,
+                _ => false,
             };
             let use_string_keys = (return_expects_string_keys || target_expects_string_keys) && !has_non_string_keys;
 
@@ -8001,12 +8262,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 matches!(self.ctx.var_types.get(name), Some(Type::Unknown))
             }
             // Index access on collections with Unknown element type
+            // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+            // DEPYLER-1209: Also check for UnificationVar
             HirExpr::Index { base, .. } => {
                 if let HirExpr::Var(name) = base.as_ref() {
                     if let Some(ty) = self.ctx.var_types.get(name) {
                         return match ty {
-                            Type::List(elem) => matches!(elem.as_ref(), Type::Unknown),
-                            Type::Dict(_, value) => matches!(value.as_ref(), Type::Unknown),
+                            Type::List(elem) => matches!(**elem, Type::Unknown | Type::UnificationVar(_)),
+                            Type::Dict(_, value) => matches!(**value, Type::Unknown | Type::UnificationVar(_)),
                             _ => false,
                         };
                     }
@@ -8593,6 +8856,136 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         Ok(chain)
     }
 
+    /// DEPYLER-1211: Infer type from an HirExpr
+    ///
+    /// Used for recursive type propagation: when `.append(arg)` is called,
+    /// we infer the list element type from the argument's type.
+    ///
+    /// Returns the inferred Type or Type::Unknown if type cannot be determined.
+    fn infer_type_from_hir_expr(&self, expr: &HirExpr) -> Type {
+        match expr {
+            // Literal types are directly known
+            HirExpr::Literal(Literal::Int(_)) => Type::Int,
+            HirExpr::Literal(Literal::Float(_)) => Type::Float,
+            HirExpr::Literal(Literal::String(_)) => Type::String,
+            HirExpr::Literal(Literal::Bool(_)) => Type::Bool,
+            HirExpr::Literal(Literal::None) => Type::Optional(Box::new(Type::Unknown)),
+
+            // Variable - look up in context
+            HirExpr::Var(name) => {
+                self.ctx.var_types.get(name).cloned().unwrap_or(Type::Unknown)
+            }
+
+            // List literal - infer element type from first element
+            HirExpr::List(elements) => {
+                if elements.is_empty() {
+                    Type::List(Box::new(Type::Unknown))
+                } else {
+                    let elem_type = self.infer_type_from_hir_expr(&elements[0]);
+                    Type::List(Box::new(elem_type))
+                }
+            }
+
+            // Dict literal - infer key/value types from first entry
+            HirExpr::Dict(entries) => {
+                if entries.is_empty() {
+                    Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))
+                } else {
+                    let (key, val) = &entries[0];
+                    let key_type = self.infer_type_from_hir_expr(key);
+                    let val_type = self.infer_type_from_hir_expr(val);
+                    Type::Dict(Box::new(key_type), Box::new(val_type))
+                }
+            }
+
+            // Tuple - infer element types (for now, default to Unknown)
+            HirExpr::Tuple(elements) => {
+                if elements.is_empty() {
+                    Type::Tuple(vec![])
+                } else {
+                    let types: Vec<Type> = elements
+                        .iter()
+                        .map(|e| self.infer_type_from_hir_expr(e))
+                        .collect();
+                    Type::Tuple(types)
+                }
+            }
+
+            // Set - infer element type
+            HirExpr::Set(elements) => {
+                if elements.is_empty() {
+                    Type::Set(Box::new(Type::Unknown))
+                } else {
+                    let elem_type = self.infer_type_from_hir_expr(&elements[0]);
+                    Type::Set(Box::new(elem_type))
+                }
+            }
+
+            // Binary operations - infer result type
+            HirExpr::Binary { left, op, right: _ } => {
+                match op {
+                    // Comparison ops always return bool
+                    BinOp::Eq | BinOp::NotEq
+                    | BinOp::Lt | BinOp::LtEq
+                    | BinOp::Gt | BinOp::GtEq
+                    | BinOp::In | BinOp::NotIn => Type::Bool,
+                    // Arithmetic ops - infer from left operand
+                    _ => self.infer_type_from_hir_expr(left),
+                }
+            }
+
+            // Unary operations
+            HirExpr::Unary { op, operand } => {
+                match op {
+                    UnaryOp::Not => Type::Bool,
+                    UnaryOp::Neg | UnaryOp::Pos => {
+                        self.infer_type_from_hir_expr(operand)
+                    }
+                    UnaryOp::BitNot => Type::Int,
+                }
+            }
+
+            // Ternary/conditional - infer from body
+            HirExpr::IfExpr { body, .. } => self.infer_type_from_hir_expr(body),
+
+            // Call expression - harder to infer, default to Unknown
+            HirExpr::Call { func, .. } => {
+                // Special case: built-in constructors
+                match func.as_str() {
+                    "int" => Type::Int,
+                    "float" => Type::Float,
+                    "str" => Type::String,
+                    "bool" => Type::Bool,
+                    "list" => Type::List(Box::new(Type::Unknown)),
+                    "dict" => Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)),
+                    "set" => Type::Set(Box::new(Type::Unknown)),
+                    "len" => Type::Int,
+                    _ => Type::Unknown,
+                }
+            }
+
+            // Attribute access - check class field types
+            HirExpr::Attribute { attr, .. } => {
+                self.ctx.class_field_types.get(attr).cloned().unwrap_or(Type::Unknown)
+            }
+
+            // Index (subscript) - try to infer element type
+            HirExpr::Index { base, .. } => {
+                let base_type = self.infer_type_from_hir_expr(base);
+                match base_type {
+                    Type::List(elem) => *elem,
+                    Type::Dict(_, val) => *val,
+                    Type::Tuple(types) if !types.is_empty() => types[0].clone(),
+                    Type::String => Type::String, // s[i] -> str
+                    _ => Type::Unknown,
+                }
+            }
+
+            // Default to Unknown for complex expressions
+            _ => Type::Unknown,
+        }
+    }
+
     /// DEPYLER-1117: Infer lambda parameter type from body expression
     ///
     /// Analyzes the body to determine what type a parameter should be:
@@ -8746,6 +9139,52 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             confidence = 0.87
         );
 
+        // DEPYLER-1202: Variable Capture Pass - Identify captured variables from outer scope
+        // Python lambdas freely capture outer scope variables. Rust move closures need
+        // to have non-Copy types cloned before capture to avoid use-after-move errors.
+        let param_set: std::collections::HashSet<String> = params.iter().cloned().collect();
+        let body_vars = crate::rust_gen::var_analysis::collect_vars_in_expr(body);
+        let captured_vars: Vec<String> = body_vars
+            .into_iter()
+            .filter(|v| !param_set.contains(v))
+            .collect();
+
+        // DEPYLER-1202: Generate clone statements for non-Copy captured variables
+        let mut clone_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
+        let mut clone_mappings: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+        for var_name in &captured_vars {
+            // Skip 'self' - it's handled differently
+            if var_name == "self" {
+                continue;
+            }
+
+            // DEPYLER-1202 FIX: Only capture variables that EXIST in the outer scope
+            // Variables not in ctx.var_types are likely:
+            // - Loop variables from comprehensions (x in [x*2 for x in lst])
+            // - Builtins (True, False, None)
+            // - Function/class names
+            // These don't need to be captured since they're not outer scope variables
+            let var_type = match self.ctx.var_types.get(var_name) {
+                Some(ty) => ty.clone(),
+                None => continue, // Not in outer scope - skip
+            };
+
+            // Only clone non-Copy types
+            if !var_type.is_copy() {
+                let safe_var = crate::rust_gen::keywords::safe_ident(var_name);
+                let clone_var_name = format!("{}_capture", var_name);
+                let clone_var = crate::rust_gen::keywords::safe_ident(&clone_var_name);
+
+                // Generate: let prefix_capture = prefix.clone();
+                clone_stmts.push(quote::quote! {
+                    let #clone_var = #safe_var.clone();
+                });
+
+                clone_mappings.insert(var_name.clone(), clone_var_name);
+            }
+        }
+
         // DEPYLER-0597: Use safe_ident to escape Rust keywords in lambda parameters
         // DEPYLER-1117: Add type annotations to fix E0282 errors
         // Parameters are typed based on body expression analysis
@@ -8762,23 +9201,149 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             })
             .collect();
 
-        // Convert body expression
-        let body_expr = body.to_rust_expr(self.ctx)?;
+        // DEPYLER-1202: Convert body expression with captured variable substitution
+        // For captured variables that we cloned, we need to reference the clone
+        let body_expr = if clone_mappings.is_empty() {
+            body.to_rust_expr(self.ctx)?
+        } else {
+            // Substitute captured variables with their cloned versions in the body
+            let substituted_body = self.substitute_captured_vars(body, &clone_mappings);
+            substituted_body.to_rust_expr(self.ctx)?
+        };
 
         // Generate closure
         // DEPYLER-0837: Use `move` closures to match Python's closure semantics
         // Python closures capture variables by reference but extend their lifetime
         // Rust requires `move` when returning closures that capture local variables
-        if params.is_empty() {
+        let closure: syn::Expr = if params.is_empty() {
             // No parameters
-            Ok(parse_quote! { move || #body_expr })
+            parse_quote! { move || #body_expr }
         } else if params.len() == 1 {
             // Single parameter with type annotation
             let param = &param_tokens[0];
-            Ok(parse_quote! { move |#param| #body_expr })
+            parse_quote! { move |#param| #body_expr }
         } else {
             // Multiple parameters with type annotations
-            Ok(parse_quote! { move |#(#param_tokens),*| #body_expr })
+            parse_quote! { move |#(#param_tokens),*| #body_expr }
+        };
+
+        // DEPYLER-1202: Wrap closure in a block with clone statements if needed
+        if clone_stmts.is_empty() {
+            Ok(closure)
+        } else {
+            Ok(parse_quote! {
+                {
+                    #(#clone_stmts)*
+                    #closure
+                }
+            })
+        }
+    }
+
+    /// DEPYLER-1202: Substitute captured variable references with their cloned versions
+    /// This creates a modified copy of the body expression with renamed variables
+    fn substitute_captured_vars(
+        &self,
+        expr: &HirExpr,
+        mappings: &std::collections::HashMap<String, String>,
+    ) -> HirExpr {
+        match expr {
+            HirExpr::Var(name) => {
+                if let Some(new_name) = mappings.get(name) {
+                    HirExpr::Var(new_name.clone())
+                } else {
+                    expr.clone()
+                }
+            }
+            HirExpr::Binary { left, op, right } => HirExpr::Binary {
+                left: Box::new(self.substitute_captured_vars(left, mappings)),
+                op: *op,
+                right: Box::new(self.substitute_captured_vars(right, mappings)),
+            },
+            HirExpr::Unary { op, operand } => HirExpr::Unary {
+                op: *op,
+                operand: Box::new(self.substitute_captured_vars(operand, mappings)),
+            },
+            HirExpr::Call { func, args, kwargs } => HirExpr::Call {
+                func: func.clone(),
+                args: args
+                    .iter()
+                    .map(|a| self.substitute_captured_vars(a, mappings))
+                    .collect(),
+                kwargs: kwargs
+                    .iter()
+                    .map(|(k, v)| (k.clone(), self.substitute_captured_vars(v, mappings)))
+                    .collect(),
+            },
+            HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
+                object: Box::new(self.substitute_captured_vars(object, mappings)),
+                method: method.clone(),
+                args: args
+                    .iter()
+                    .map(|a| self.substitute_captured_vars(a, mappings))
+                    .collect(),
+                kwargs: kwargs
+                    .iter()
+                    .map(|(k, v)| (k.clone(), self.substitute_captured_vars(v, mappings)))
+                    .collect(),
+            },
+            HirExpr::Index { base, index } => HirExpr::Index {
+                base: Box::new(self.substitute_captured_vars(base, mappings)),
+                index: Box::new(self.substitute_captured_vars(index, mappings)),
+            },
+            HirExpr::Attribute { value, attr } => HirExpr::Attribute {
+                value: Box::new(self.substitute_captured_vars(value, mappings)),
+                attr: attr.clone(),
+            },
+            HirExpr::IfExpr { test, body, orelse } => HirExpr::IfExpr {
+                test: Box::new(self.substitute_captured_vars(test, mappings)),
+                body: Box::new(self.substitute_captured_vars(body, mappings)),
+                orelse: Box::new(self.substitute_captured_vars(orelse, mappings)),
+            },
+            HirExpr::List(elements) => HirExpr::List(
+                elements
+                    .iter()
+                    .map(|e| self.substitute_captured_vars(e, mappings))
+                    .collect(),
+            ),
+            HirExpr::Tuple(elements) => HirExpr::Tuple(
+                elements
+                    .iter()
+                    .map(|e| self.substitute_captured_vars(e, mappings))
+                    .collect(),
+            ),
+            HirExpr::Set(elements) => HirExpr::Set(
+                elements
+                    .iter()
+                    .map(|e| self.substitute_captured_vars(e, mappings))
+                    .collect(),
+            ),
+            HirExpr::Dict(pairs) => HirExpr::Dict(
+                pairs
+                    .iter()
+                    .map(|(k, v)| {
+                        (
+                            self.substitute_captured_vars(k, mappings),
+                            self.substitute_captured_vars(v, mappings),
+                        )
+                    })
+                    .collect(),
+            ),
+            // Lambda within lambda - recursively substitute, but inner lambda params shadow
+            HirExpr::Lambda { params, body } => {
+                // Create new mappings excluding shadowed params
+                let mut inner_mappings = mappings.clone();
+                for p in params {
+                    inner_mappings.remove(p);
+                }
+                HirExpr::Lambda {
+                    params: params.clone(),
+                    body: Box::new(self.substitute_captured_vars(body, &inner_mappings)),
+                }
+            }
+            // Other expression types - clone as-is (they don't contain variable references
+            // or are handled through other means)
+            _ => expr.clone(),
         }
     }
 
