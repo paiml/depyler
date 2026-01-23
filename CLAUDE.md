@@ -12,6 +12,29 @@ Depyler is a Python-to-Rust transpiler focusing on energy-efficient, safe code g
 - `uv run pytest` not python -m pytest
 - `uv run <script.py>` not python3
 
+## Build Environment (High-Performance Storage)
+**Pre-configured for maximum build speed:**
+
+| Component | Location | Size | Purpose |
+|-----------|----------|------|---------|
+| Cargo Target | `/Volumes/LambdaCache/cargo-target` | 256GB | All cargo builds (APFS disk image) |
+| Cargo Overflow | `/Volumes/LambdaOverflow` | - | Secondary cache |
+
+**Configuration** (`~/.cargo/config.toml`):
+```toml
+[build]
+jobs = 16
+
+[profile.dev]
+incremental = true
+
+[env]
+CARGO_TARGET_DIR = "/Volumes/LambdaCache/cargo-target"
+```
+
+**DO NOT create additional RAM disks** - LambdaCache is already optimized.
+**DO NOT use /tmp for transpiler output** - Use LambdaCache or in-memory when possible.
+
 ## 🚨 CRITICAL: A+ Code Standard
 **ABSOLUTE REQUIREMENTS**:
 - Maximum Cyclomatic Complexity: ≤10
