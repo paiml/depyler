@@ -2993,15 +2993,18 @@ impl<'a> ExprConverter<'a> {
             _ => false,
         };
 
-        // DEPYLER-1123: Check if base has bare dict type (HashMap<DepylerValue, DepylerValue>)
-        // This happens when a parameter has type annotation `dict` without type params
+        // DEPYLER-1123: Check if base has bare dict type with DepylerValue keys
+        // DEPYLER-1214: Type::Dict(Unknown, Unknown) generates HashMap<String, DepylerValue> (String keys!)
+        // per type_mapper.rs DEPYLER-0776. Only an explicit DepylerValue key type would need wrapping,
+        // which is rare in practice. So is_depyler_value_dict is almost always false.
         let is_depyler_value_dict = if let HirExpr::Var(var_name) = base {
             match self.param_types.get(var_name) {
-                // Bare dict type: Dict(Unknown, Unknown) or Custom("dict")
-                Some(Type::Dict(k, v)) => {
-                    matches!((k.as_ref(), v.as_ref()), (Type::Unknown, Type::Unknown))
+                // Only wrap keys if key type is explicitly DepylerValue, not Unknown
+                Some(Type::Dict(k, _)) => {
+                    matches!(k.as_ref(), Type::Custom(n) if n == "DepylerValue")
                 }
-                Some(Type::Custom(name)) => name == "dict" || name == "Dict",
+                // Custom types like "dict" use String keys
+                Some(Type::Custom(_)) => false,
                 _ => false,
             }
         } else {
@@ -3361,11 +3364,15 @@ impl<'a> ExprConverter<'a> {
         ret_type: &Type,
     ) -> Result<syn::Expr> {
         // DEPYLER-1166: Determine if keys should be String (Dict[str, Any]) or DepylerValue (bare dict)
-        // Bare dict has Unknown key type; Dict[str, Any] has String key type
-        let use_string_keys = matches!(
-            ret_type,
-            Type::Dict(k, _) if !matches!(k.as_ref(), Type::Unknown)
-        );
+        // DEPYLER-1213: Bare dict annotation stored as Custom("dict") should use String keys
+        // (produces HashMap<String, DepylerValue>)
+        let use_string_keys = match ret_type {
+            // Dict[str, Any] or Dict[str, unknown] - use String keys
+            Type::Dict(k, _) => matches!(k.as_ref(), Type::String | Type::Unknown),
+            // Bare `dict` annotation - also use String keys (common case Dict[str, Any])
+            Type::Custom(name) => name == "dict" || name == "Dict",
+            _ => false,
+        };
 
         let insert_exprs: Vec<syn::Expr> = items
             .iter()
@@ -3757,6 +3764,307 @@ impl<'a> ExprConverter<'a> {
                         return Ok(parse_quote! { std::mem::size_of_val(&#obj) as i32 });
                     }
                     _ => {} // Fall through for unhandled sys methods
+                }
+            }
+        }
+
+        // DEPYLER-1200: Handle re (regex) module method calls in class methods
+        // NASA mode: Uses DepylerRegexMatch helper struct (no external crate)
+        // Non-NASA mode: Uses regex crate for full regex support
+        if let HirExpr::Var(module_name) = object {
+            if module_name == "re" {
+                // DEPYLER-1200: For regex methods, extract raw string literals where possible
+                let extract_str_literal = |hir: &HirExpr| -> Option<String> {
+                    if let HirExpr::Literal(Literal::String(s)) = hir {
+                        Some(s.clone())
+                    } else {
+                        None
+                    }
+                };
+
+                let nasa_mode = self.type_mapper.nasa_mode;
+
+                match method {
+                    "search" if args.len() >= 2 => {
+                        let pattern_str = extract_str_literal(&args[0]);
+                        let text_str = extract_str_literal(&args[1]);
+
+                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::search(#pattern, #text) })
+                            } else {
+                                Ok(parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) })
+                            };
+                        } else {
+                            let pattern_expr = self.convert(&args[0])?;
+                            let text_expr = self.convert(&args[1])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::search(&#pattern_expr, &#text_expr) })
+                            } else {
+                                Ok(parse_quote! { regex::Regex::new(&#pattern_expr).unwrap().find(&#text_expr) })
+                            };
+                        }
+                    }
+                    "match" if args.len() >= 2 => {
+                        let pattern_str = extract_str_literal(&args[0]);
+                        let text_str = extract_str_literal(&args[1]);
+
+                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::match_start(#pattern, #text) })
+                            } else {
+                                Ok(parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) })
+                            };
+                        } else {
+                            let pattern_expr = self.convert(&args[0])?;
+                            let text_expr = self.convert(&args[1])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::match_start(&#pattern_expr, &#text_expr) })
+                            } else {
+                                Ok(parse_quote! { regex::Regex::new(&#pattern_expr).unwrap().find(&#text_expr) })
+                            };
+                        }
+                    }
+                    "fullmatch" if args.len() >= 2 => {
+                        let pattern_str = extract_str_literal(&args[0]);
+                        let text_str = extract_str_literal(&args[1]);
+
+                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+                            return if nasa_mode {
+                                // NASA mode: use DepylerRegexMatch::match_start for simplicity
+                                Ok(parse_quote! { DepylerRegexMatch::match_start(#pattern, #text) })
+                            } else {
+                                Ok(parse_quote! { regex::Regex::new(&format!("^(?:{})$", #pattern)).unwrap().find(#text) })
+                            };
+                        } else {
+                            let pattern_expr = self.convert(&args[0])?;
+                            let text_expr = self.convert(&args[1])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::match_start(&#pattern_expr, &#text_expr) })
+                            } else {
+                                Ok(parse_quote! { regex::Regex::new(&format!("^(?:{})$", &#pattern_expr)).unwrap().find(&#text_expr) })
+                            };
+                        }
+                    }
+                    "findall" if args.len() >= 2 => {
+                        let pattern_str = extract_str_literal(&args[0]);
+                        let text_str = extract_str_literal(&args[1]);
+
+                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::findall(#pattern, #text) })
+                            } else {
+                                Ok(parse_quote! {
+                                    regex::Regex::new(#pattern)
+                                        .unwrap()
+                                        .find_iter(#text)
+                                        .map(|m| m.as_str().to_string())
+                                        .collect::<Vec<_>>()
+                                })
+                            };
+                        } else {
+                            let pattern_expr = self.convert(&args[0])?;
+                            let text_expr = self.convert(&args[1])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr) })
+                            } else {
+                                Ok(parse_quote! {
+                                    regex::Regex::new(&#pattern_expr)
+                                        .unwrap()
+                                        .find_iter(&#text_expr)
+                                        .map(|m| m.as_str().to_string())
+                                        .collect::<Vec<_>>()
+                                })
+                            };
+                        }
+                    }
+                    "finditer" if args.len() >= 2 => {
+                        let pattern_str = extract_str_literal(&args[0]);
+                        let text_str = extract_str_literal(&args[1]);
+
+                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::findall(#pattern, #text).into_iter() })
+                            } else {
+                                Ok(parse_quote! {
+                                    regex::Regex::new(#pattern)
+                                        .unwrap()
+                                        .find_iter(#text)
+                                        .map(|m| m.as_str().to_string())
+                                        .collect::<Vec<_>>()
+                                })
+                            };
+                        } else {
+                            let pattern_expr = self.convert(&args[0])?;
+                            let text_expr = self.convert(&args[1])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr).into_iter() })
+                            } else {
+                                Ok(parse_quote! {
+                                    regex::Regex::new(&#pattern_expr)
+                                        .unwrap()
+                                        .find_iter(&#text_expr)
+                                        .map(|m| m.as_str().to_string())
+                                        .collect::<Vec<_>>()
+                                })
+                            };
+                        }
+                    }
+                    "sub" if args.len() >= 3 => {
+                        let pattern_str = extract_str_literal(&args[0]);
+                        let repl_str = extract_str_literal(&args[1]);
+                        let text_str = extract_str_literal(&args[2]);
+
+                        if let (Some(pattern), Some(repl), Some(text)) =
+                            (pattern_str, repl_str, text_str)
+                        {
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::sub(#pattern, #repl, #text) })
+                            } else {
+                                Ok(parse_quote! {
+                                    regex::Regex::new(#pattern)
+                                        .unwrap()
+                                        .replace_all(#text, #repl)
+                                        .to_string()
+                                })
+                            };
+                        } else {
+                            let pattern_expr = self.convert(&args[0])?;
+                            let repl_expr = self.convert(&args[1])?;
+                            let text_expr = self.convert(&args[2])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::sub(&#pattern_expr, &#repl_expr, &#text_expr) })
+                            } else {
+                                Ok(parse_quote! {
+                                    regex::Regex::new(&#pattern_expr)
+                                        .unwrap()
+                                        .replace_all(&#text_expr, &#repl_expr)
+                                        .to_string()
+                                })
+                            };
+                        }
+                    }
+                    "subn" if args.len() >= 3 => {
+                        let pattern_str = extract_str_literal(&args[0]);
+                        let repl_str = extract_str_literal(&args[1]);
+                        let text_str = extract_str_literal(&args[2]);
+
+                        if let (Some(pattern), Some(repl), Some(text)) =
+                            (pattern_str, repl_str, text_str)
+                        {
+                            return if nasa_mode {
+                                Ok(parse_quote! {
+                                    {
+                                        let result = DepylerRegexMatch::sub(#pattern, #repl, #text);
+                                        let count = (#text).matches(#pattern).count();
+                                        (result, count)
+                                    }
+                                })
+                            } else {
+                                Ok(parse_quote! {
+                                    {
+                                        let re = regex::Regex::new(#pattern).unwrap();
+                                        let count = re.find_iter(#text).count();
+                                        let result = re.replace_all(#text, #repl).to_string();
+                                        (result, count)
+                                    }
+                                })
+                            };
+                        } else {
+                            let pattern_expr = self.convert(&args[0])?;
+                            let repl_expr = self.convert(&args[1])?;
+                            let text_expr = self.convert(&args[2])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! {
+                                    {
+                                        let result = DepylerRegexMatch::sub(&#pattern_expr, &#repl_expr, &#text_expr);
+                                        let count = (&#text_expr).matches(&#pattern_expr).count();
+                                        (result, count)
+                                    }
+                                })
+                            } else {
+                                Ok(parse_quote! {
+                                    {
+                                        let re = regex::Regex::new(&#pattern_expr).unwrap();
+                                        let count = re.find_iter(&#text_expr).count();
+                                        let result = re.replace_all(&#text_expr, &#repl_expr).to_string();
+                                        (result, count)
+                                    }
+                                })
+                            };
+                        }
+                    }
+                    "split" if args.len() >= 2 => {
+                        let pattern_str = extract_str_literal(&args[0]);
+                        let text_str = extract_str_literal(&args[1]);
+
+                        if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::split(#pattern, #text) })
+                            } else {
+                                Ok(parse_quote! {
+                                    regex::Regex::new(#pattern)
+                                        .unwrap()
+                                        .split(#text)
+                                        .map(|s| s.to_string())
+                                        .collect::<Vec<_>>()
+                                })
+                            };
+                        } else {
+                            let pattern_expr = self.convert(&args[0])?;
+                            let text_expr = self.convert(&args[1])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! { DepylerRegexMatch::split(&#pattern_expr, &#text_expr) })
+                            } else {
+                                Ok(parse_quote! {
+                                    regex::Regex::new(&#pattern_expr)
+                                        .unwrap()
+                                        .split(&#text_expr)
+                                        .map(|s| s.to_string())
+                                        .collect::<Vec<_>>()
+                                })
+                            };
+                        }
+                    }
+                    "compile" if !args.is_empty() => {
+                        let pattern_str = extract_str_literal(&args[0]);
+
+                        if let Some(pattern) = pattern_str {
+                            return if nasa_mode {
+                                // NASA mode: compile returns the pattern string
+                                Ok(parse_quote! { #pattern.to_string() })
+                            } else {
+                                Ok(parse_quote! { regex::Regex::new(#pattern).unwrap() })
+                            };
+                        } else {
+                            let pattern_expr = self.convert(&args[0])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! { (#pattern_expr).to_string() })
+                            } else {
+                                Ok(parse_quote! { regex::Regex::new(&#pattern_expr).unwrap() })
+                            };
+                        }
+                    }
+                    "escape" if !args.is_empty() => {
+                        let text_str = extract_str_literal(&args[0]);
+
+                        if let Some(text) = text_str {
+                            return if nasa_mode {
+                                // NASA mode: escape just returns the string as-is
+                                Ok(parse_quote! { #text.to_string() })
+                            } else {
+                                Ok(parse_quote! { regex::escape(#text).to_string() })
+                            };
+                        } else {
+                            let text_expr = self.convert(&args[0])?;
+                            return if nasa_mode {
+                                Ok(parse_quote! { (#text_expr).to_string() })
+                            } else {
+                                Ok(parse_quote! { regex::escape(&#text_expr).to_string() })
+                            };
+                        }
+                    }
+                    _ => {} // Fall through for unhandled re methods
                 }
             }
         }
@@ -4523,10 +4831,13 @@ impl<'a> ExprConverter<'a> {
 
                 // DEPYLER-1051: Check if target is Vec<DepylerValue> (e.g., untyped class field)
                 // If so, wrap the argument in appropriate DepylerValue variant
+                // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+                // NOTE: DirectRulesConverter only has param_types and class_field_types,
+                // not local var_types - those are handled by expr_gen_instance_methods
                 let is_vec_depyler_value = if let HirExpr::Attribute { attr, .. } = object {
                     self.class_field_types
                         .get(attr)
-                        .map(|t| matches!(t, Type::List(elem) if matches!(elem.as_ref(), Type::Unknown)))
+                        .map(|t| matches!(t, Type::List(elem) if matches!(**elem, Type::Unknown | Type::UnificationVar(_))))
                         .unwrap_or(false)
                 } else {
                     false
@@ -5283,13 +5594,9 @@ impl<'a> ExprConverter<'a> {
                 }
                 _ => None,
             },
-            "re" => match constructor {
-                "compile" | "match" | "search" | "findall" => {
-                    // DEPYLER-1098: Return NASA-mode compatible placeholder
-                    Some(parse_quote! { None::<String> })
-                }
-                _ => None,
-            },
+            // DEPYLER-1200: re module methods are NOT constructors - handled separately
+            // Do NOT add re handling here - it's handled in convert_re_method below
+            "re" => None,
             "fnmatch" => match constructor {
                 "fnmatch" => {
                     // fnmatch.fnmatch(name, pattern) → name.contains(pattern) as stub
@@ -7055,6 +7362,32 @@ mod tests {
         // Should contain Instant::now
         assert!(result_str.contains("Instant"), "Should use std::time::Instant");
         assert!(result_str.contains("now"), "Should call now()");
+    }
+
+    #[test]
+    fn test_DEPYLER_1200_re_search_in_class_method() {
+        // Test that re.search() is converted to regex::Regex in class methods
+        let type_mapper = TypeMapper::default();
+        let converter = ExprConverter::new(&type_mapper);
+
+        // re.search(r"world", "hello world") method call
+        let expr = HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("re".to_string())),
+            method: "search".to_string(),
+            args: vec![
+                HirExpr::Literal(Literal::String("world".to_string())),
+                HirExpr::Literal(Literal::String("hello world".to_string())),
+            ],
+            kwargs: vec![],
+        };
+
+        let result = converter.convert(&expr).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+
+        // Should contain regex::Regex
+        assert!(result_str.contains("regex") || result_str.contains("Regex"),
+            "Should use regex crate. Got: {}", result_str);
+        assert!(!result_str.contains("None"), "Should NOT generate None. Got: {}", result_str);
     }
 }
 
