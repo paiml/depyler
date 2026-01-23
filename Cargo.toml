@@ -12,6 +12,7 @@ members = [
     "crates/depyler-oracle",
     "crates/depyler-corpus",
     "crates/depyler-knowledge",
+    "crates/depyler-graph",
 ]
 exclude = [
     "examples",
@@ -82,6 +83,9 @@ md5 = "0.7"
 
 # Hash functions
 fnv = "1.0.3"  # FNV hash for HashMap optimization
+
+# Graph algorithms
+petgraph = "0.7"
 
 # CLI
 clap = { version = "4.0", features = ["derive", "cargo"] }

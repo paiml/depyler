@@ -30,6 +30,7 @@ mod classifier;
 mod clusterer;
 mod compiler;
 mod reporter;
+mod roi_metrics;
 mod state;
 pub mod type_constraint_learner;
 
@@ -45,6 +46,7 @@ pub use state::{AppliedFix, ConvergenceConfig, ConvergenceState, DisplayMode, Ex
 pub use type_constraint_learner::{
     parse_e0308_batch, parse_e0308_constraint, TypeConstraint, TypeConstraintStore,
 };
+pub use roi_metrics::OracleRoiMetrics;
 
 use anyhow::Result;
 
@@ -59,6 +61,12 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     // DEPYLER-1101: Type constraint learning from E0308 errors
     let mut constraint_store = TypeConstraintStore::new();
 
+    // Store last compilation results for failure analysis
+    let mut last_results: Vec<CompilationResult> = Vec::new();
+
+    // DEPYLER-1301: Store all classifications for ROI metrics
+    let mut all_classifications: Vec<ErrorClassification> = Vec::new();
+
     reporter.report_start(&state);
 
     while state.compilation_rate < config.target_rate && state.iteration < config.max_iterations {
@@ -68,6 +76,10 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
         state.update_examples(&results);
 
         let classifications = classifier.classify_all(&results);
+
+        // DEPYLER-1301: Accumulate classifications for ROI metrics
+        all_classifications.extend(classifications.clone());
+
         let clusters = clusterer.cluster(&classifications);
         state.error_clusters = clusters;
 
@@ -94,6 +106,9 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
         }
 
         state.update_compilation_rate();
+
+        // Store results for final analysis
+        last_results = results;
     }
 
     // DEPYLER-1101: Report learned constraints
@@ -116,6 +131,24 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     }
 
     reporter.report_finish(&state);
+
+    // DEPYLER-UX: Automated failure analysis - no more grepping logs
+    reporter.report_failure_analysis(&last_results);
+
+    // DEPYLER-1301: Write Oracle ROI metrics
+    let session_name = format!(
+        "converge-{}",
+        chrono::Utc::now().format("%Y%m%d-%H%M%S")
+    );
+    let roi_metrics = roi_metrics::OracleRoiMetrics::from_convergence(
+        &state,
+        &all_classifications,
+        &session_name,
+    );
+    if let Err(e) = roi_metrics.write_to_docs() {
+        tracing::warn!("Failed to write Oracle ROI metrics: {}", e);
+    }
+
     Ok(state)
 }
 

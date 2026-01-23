@@ -5,9 +5,9 @@
 use anyhow::Result;
 use clap::Parser;
 use depyler::{
-    analyze_command, check_command, compile_command, converge, repair_command,
+    analyze_command, check_command, compile_command, converge, graph_cmd, repair_command,
     report_cmd::{handle_report_command, ReportArgs},
-    transpile_command, utol_cmd::handle_utol_command, CacheCommands, Cli, Commands,
+    transpile_command, utol_cmd::handle_utol_command, CacheCommands, Cli, Commands, GraphCommands,
 };
 use std::path::PathBuf;
 
@@ -307,6 +307,14 @@ async fn handle_command(command: Commands) -> Result<()> {
             max_iterations,
             verbose,
         } => repair_command(input, output, max_iterations, verbose),
+        Commands::Graph(graph_cmd) => match graph_cmd {
+            GraphCommands::Analyze { corpus, top, output } => {
+                graph_cmd::analyze_corpus(&corpus, top, output.as_deref())
+            }
+            GraphCommands::Vectorize { corpus, output, format } => {
+                graph_cmd::vectorize_corpus(&corpus, &output, &format)
+            }
+        },
     }
 }
 
