@@ -259,9 +259,37 @@ impl LifetimeInference {
             HirStmt::Expr(expr) => self.analyze_expr_for_param(param, expr, usage, in_loop, false),
             HirStmt::Assign { target, value, .. } => {
                 // Check if we're assigning to the parameter
-                if let AssignTarget::Symbol(symbol) = target {
-                    if symbol == param {
-                        usage.is_mutated = true;
+                // DEPYLER-1217: Handle all assignment targets that mutate parameters
+                match target {
+                    AssignTarget::Symbol(symbol) => {
+                        if symbol == param {
+                            usage.is_mutated = true;
+                        }
+                    }
+                    // DEPYLER-1217: Index assignment (arr[i] = value) mutates the base
+                    AssignTarget::Index { base, .. } => {
+                        if let HirExpr::Var(var_name) = base.as_ref() {
+                            if var_name == param {
+                                usage.is_mutated = true;
+                            }
+                        }
+                    }
+                    // DEPYLER-1217: Attribute assignment (obj.field = value) mutates the base
+                    AssignTarget::Attribute {
+                        value: attr_base, ..
+                    } => {
+                        if let HirExpr::Var(var_name) = attr_base.as_ref() {
+                            if var_name == param {
+                                usage.is_mutated = true;
+                            }
+                        }
+                    }
+                    // DEPYLER-1217: Tuple unpacking can contain index targets that mutate
+                    // e.g., arr[i], arr[j] = arr[j], arr[i] (swap pattern)
+                    AssignTarget::Tuple(targets) => {
+                        for t in targets {
+                            Self::check_target_mutation(t, param, usage);
+                        }
                     }
                 }
                 self.analyze_expr_for_param(param, value, usage, in_loop, false);
@@ -373,6 +401,37 @@ impl LifetimeInference {
             HirStmt::FunctionDef { body, .. } => {
                 for stmt in body {
                     self.analyze_stmt_for_param(param, stmt, usage, in_loop);
+                }
+            }
+        }
+    }
+
+    /// DEPYLER-1217: Helper to check if an assignment target mutates a parameter
+    /// Recursively handles index, attribute, and tuple targets
+    fn check_target_mutation(target: &AssignTarget, param: &str, usage: &mut ParamUsage) {
+        match target {
+            AssignTarget::Symbol(symbol) => {
+                if symbol == param {
+                    usage.is_mutated = true;
+                }
+            }
+            AssignTarget::Index { base, .. } => {
+                if let HirExpr::Var(var_name) = base.as_ref() {
+                    if var_name == param {
+                        usage.is_mutated = true;
+                    }
+                }
+            }
+            AssignTarget::Attribute { value, .. } => {
+                if let HirExpr::Var(var_name) = value.as_ref() {
+                    if var_name == param {
+                        usage.is_mutated = true;
+                    }
+                }
+            }
+            AssignTarget::Tuple(targets) => {
+                for t in targets {
+                    Self::check_target_mutation(t, param, usage);
                 }
             }
         }

@@ -169,6 +169,9 @@ pub struct CodeGenContext<'a> {
     /// DEPYLER-0758: Track parameters passed by reference in current function
     /// Used to dereference reference params in arithmetic operations (e.g., date subtraction)
     pub ref_params: HashSet<String>,
+    /// DEPYLER-1217: Track parameters passed by mutable reference (&mut T) in current function
+    /// Used to avoid double &mut when passing these params to other functions expecting &mut
+    pub mut_ref_params: HashSet<String>,
     /// DEPYLER-0271: Tracks if current statement is the final statement in its block
     /// Used to generate idiomatic expression-based returns (no `return` keyword)
     pub is_final_statement: bool,
@@ -362,6 +365,8 @@ pub struct CodeGenContext<'a> {
     /// it becomes &mut Option<T>. Assignments need dereferencing: `*param = value`
     pub mut_option_params: HashSet<String>,
     pub needs_depyler_value_enum: bool,          // DEPYLER-FIX-RC2: Track need for DepylerValue enum
+    pub needs_python_string_ops: bool,           // DEPYLER-1202: Track need for PythonStringOps trait
+    pub needs_python_int_ops: bool,              // DEPYLER-1202: Track need for PythonIntOps trait
     pub needs_depyler_date: bool,                // DEPYLER-1066: Track need for DepylerDate struct
     pub needs_depyler_datetime: bool,            // DEPYLER-1067: Track need for DepylerDateTime struct
     pub needs_depyler_timedelta: bool,           // DEPYLER-1068: Track need for DepylerTimeDelta struct
@@ -752,6 +757,7 @@ pub mod test_helpers {
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(),
             ref_params: HashSet::new(),
+            mut_ref_params: HashSet::new(),
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
@@ -795,6 +801,8 @@ pub mod test_helpers {
             mut_option_dict_params: HashSet::new(),
             mut_option_params: HashSet::new(), // DEPYLER-1126
             needs_depyler_value_enum: false,
+            needs_python_string_ops: false,  // DEPYLER-1202
+            needs_python_int_ops: false,     // DEPYLER-1202
             needs_depyler_date: false,      // DEPYLER-1066
             needs_depyler_datetime: false,  // DEPYLER-1067
             needs_depyler_timedelta: false, // DEPYLER-1068

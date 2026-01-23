@@ -275,9 +275,10 @@ pub(crate) fn codegen_return_type(
     // DEPYLER-0662: Also infer when ret_type is empty tuple (from `-> tuple` annotation)
     // Python `-> tuple` without type params should be inferred from return statements
     // DEPYLER-0662: Python `-> tuple` parses to Type::Custom("tuple"), not Type::Tuple
+    // DEPYLER-1209: Also check for UnificationVar
     let should_infer = matches!(func.ret_type, Type::Unknown | Type::None)
         || matches!(&func.ret_type, Type::Tuple(elems) if elems.is_empty() || elems.iter().any(|t| matches!(t, Type::Unknown)))
-        || matches!(&func.ret_type, Type::List(elem) if matches!(**elem, Type::Unknown))
+        || matches!(&func.ret_type, Type::List(elem) if matches!(**elem, Type::Unknown | Type::UnificationVar(_)))
         || matches!(&func.ret_type, Type::Custom(name) if name == "tuple");
 
     let effective_ret_type = if should_infer {
@@ -820,6 +821,16 @@ impl RustCodeGen for HirFunction {
                 is_mutated && should_borrow
             })
             .collect();
+
+        // DEPYLER-1217: Track parameters that are mutable references (&mut T)
+        // Used at call sites to avoid double &mut when passing these params to functions
+        ctx.mut_ref_params.clear();
+        for (p, &needs_mut) in self.params.iter().zip(param_muts.iter()) {
+            if needs_mut {
+                ctx.mut_ref_params.insert(p.name.clone());
+            }
+        }
+
         ctx.function_param_muts
             .insert(self.name.clone(), param_muts);
 
