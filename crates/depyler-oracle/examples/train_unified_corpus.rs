@@ -1,11 +1,12 @@
-//! DEPYLER-0596 / GH-153: Train Oracle model from unified corpus.
+//! DEPYLER-0596 / GH-153 / DEPYLER-1303: Train Oracle model from unified corpus.
 //!
 //! This example merges all available data sources and shows training statistics.
 //!
 //! Usage:
 //!   cargo run --release --example train_unified_corpus -p depyler-oracle -- \
 //!       --errors training_corpus/errors.jsonl \
-//!       --oip training_corpus/oip_data.json
+//!       --oip training_corpus/oip_data.json \
+//!       --graph docs/training_data/training_vectors.ndjson
 
 use clap::Parser;
 use depyler_oracle::unified_training::{build_unified_corpus, UnifiedTrainingConfig};
@@ -22,6 +23,10 @@ struct Args {
     /// Path to OIP training data file (JSON format)
     #[arg(long)]
     oip: Option<PathBuf>,
+
+    /// Path to graph-vectorized failures (NDJSON format from depyler graph vectorize)
+    #[arg(long)]
+    graph: Option<PathBuf>,
 
     /// Output path for trained model (.apr format)
     #[arg(short, long, default_value = "depyler_oracle.apr")]
@@ -56,6 +61,7 @@ fn main() -> anyhow::Result<()> {
         synthetic_samples: args.synthetic_samples,
         oip_data_path: args.oip.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()),
         real_errors_path: args.errors.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()),
+        graph_corpus_path: args.graph.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()),
         balance_classes: args.balance,
         max_per_class: if args.balance {
             Some(args.max_per_class)
@@ -74,6 +80,10 @@ fn main() -> anyhow::Result<()> {
     println!(
         "  Real errors: {}",
         config.real_errors_path.as_deref().unwrap_or("none")
+    );
+    println!(
+        "  Graph corpus: {}",
+        config.graph_corpus_path.as_deref().unwrap_or("none")
     );
     println!("  Balance classes: {}", config.balance_classes);
     if let Some(max) = config.max_per_class {
@@ -96,6 +106,10 @@ fn main() -> anyhow::Result<()> {
     println!(
         "  Real errors:  {:>6} samples",
         result.stats.real_errors_count
+    );
+    println!(
+        "  Graph corpus: {:>6} samples",
+        result.stats.graph_corpus_count
     );
     println!("  ────────────────────────");
     println!(

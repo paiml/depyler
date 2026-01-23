@@ -93,8 +93,13 @@ impl<'a> FailureContext<'a> {
     /// Extract source snippet around a line
     fn extract_snippet(&self, line: usize, context_lines: usize) -> String {
         let lines: Vec<&str> = self.source.lines().collect();
-        let start = line.saturating_sub(context_lines + 1);
-        let end = (line + context_lines).min(lines.len());
+        if lines.is_empty() {
+            return String::new();
+        }
+        // Bound line to valid range (line numbers are 1-indexed from rustc)
+        let bounded_line = line.min(lines.len()).max(1);
+        let start = bounded_line.saturating_sub(context_lines + 1);
+        let end = (bounded_line + context_lines).min(lines.len());
 
         lines[start..end].join("\n")
     }

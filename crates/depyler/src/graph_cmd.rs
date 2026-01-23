@@ -217,8 +217,9 @@ pub fn vectorize_corpus(
 ) -> Result<()> {
     let mut all_vectorized = Vec::new();
     let mut files_panicked = 0;
+    let mut files_processed = 0;
 
-    println!("Vectorizing failures from: {}", corpus_dir.display());
+    eprintln!("Vectorizing failures from: {}", corpus_dir.display());
 
     // Find all Python files
     for entry in WalkDir::new(corpus_dir)
@@ -230,6 +231,7 @@ pub fn vectorize_corpus(
         })
     {
         let path = entry.path();
+        files_processed += 1;
 
         // Read Python source
         let python_source = match fs::read_to_string(path) {
@@ -246,22 +248,38 @@ pub fn vectorize_corpus(
             }
         };
 
-        // Get compilation errors
-        let errors = check_rust_compilation(&rust_code);
+        // Get compilation errors (with panic isolation)
+        let rust_code_clone = rust_code.clone();
+        let errors = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            check_rust_compilation(&rust_code_clone)
+        }))
+        .unwrap_or_else(|_| vec![]);
+
         if errors.is_empty() {
             continue;
         }
 
-        // Build graph and vectorize
-        let result = analyze_with_graph(&python_source, &errors);
-        if let Ok(analysis) = result {
-            all_vectorized.extend(analysis.vectorized_failures);
+        // Build graph and vectorize (with panic isolation)
+        let python_source_clone = python_source.clone();
+        let errors_clone = errors.clone();
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(move || {
+            analyze_with_graph(&python_source_clone, &errors_clone)
+        }));
+
+        match result {
+            Ok(Ok(analysis)) => {
+                all_vectorized.extend(analysis.vectorized_failures);
+            }
+            Ok(Err(_)) | Err(_) => {
+                files_panicked += 1;
+            }
         }
     }
 
-    if files_panicked > 0 {
-        println!("Warning: {} files caused transpiler panics", files_panicked);
-    }
+    eprintln!(
+        "Processed {} files ({} panicked)",
+        files_processed, files_panicked
+    );
 
     // Serialize output
     let output_str = match format {
@@ -270,7 +288,7 @@ pub fn vectorize_corpus(
     };
 
     fs::write(output, &output_str)?;
-    println!(
+    eprintln!(
         "Vectorized {} failures to: {}",
         all_vectorized.len(),
         output.display()
@@ -283,22 +301,23 @@ pub fn vectorize_corpus(
 fn check_rust_compilation(rust_code: &str) -> Vec<(String, String, usize)> {
     use std::process::Command;
 
-    // Write to temp file
-    let temp_dir = tempfile::tempdir().ok();
-    let temp_file = temp_dir
-        .as_ref()
-        .map(|d| d.path().join("check.rs"))
-        .unwrap_or_else(|| PathBuf::from("/tmp/depyler_check.rs"));
+    // Write to temp file in temp directory
+    let temp_dir = match tempfile::tempdir() {
+        Ok(d) => d,
+        Err(_) => return vec![],
+    };
+    let temp_file = temp_dir.path().join("check.rs");
+    let temp_output = temp_dir.path().join("check");
 
     if fs::write(&temp_file, rust_code).is_err() {
         return vec![];
     }
 
-    // Run rustc --error-format=json
+    // Run rustc --error-format=json (output to temp dir, not /dev/null)
     let output = Command::new("rustc")
         .args(["--error-format=json", "--crate-type=lib", "--emit=metadata"])
         .arg("-o")
-        .arg("/dev/null")
+        .arg(&temp_output)
         .arg(&temp_file)
         .output();
 
