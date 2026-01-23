@@ -3155,8 +3155,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0234: For user-defined class constructors, convert string literals to String
         // This fixes "expected String, found &str" errors when calling constructors
         // DEPYLER-1144: Also coerce list literals when class has Vec<f64> field
+        // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
         let class_has_vec_f64_field = self.ctx.class_field_types.values().any(|t| {
-            matches!(t, Type::List(elem) if matches!(elem.as_ref(), Type::Float))
+            matches!(t, Type::List(elem) if matches!(**elem, Type::Float))
         });
         let arg_exprs: Vec<syn::Expr> = if is_user_class {
             args.iter()
@@ -3312,6 +3313,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "type" => stdlib_method_gen::builtin_functions::convert_type_builtin(&arg_exprs),
             // DEPYLER-0844: isinstance(x, T) → true (Rust's type system guarantees correctness)
             "isinstance" => Ok(parse_quote! { true }),
+            // DEPYLER-1205: E0425 Vocabulary Expansion - input(), hasattr()
+            "input" => stdlib_method_gen::builtin_functions::convert_input_builtin(&arg_exprs),
+            "hasattr" => stdlib_method_gen::builtin_functions::convert_hasattr_builtin(&arg_exprs),
+            "setattr" => stdlib_method_gen::builtin_functions::convert_setattr_builtin(&arg_exprs),
             _ => self.convert_generic_call(func, &all_hir_args, &all_args),
         }
     }
@@ -4375,6 +4380,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         }
                     }
 
+                    // DEPYLER-1208: DepylerValue→concrete auto-coercion (Rule 2)
+                    // When a DepylerValue variable is passed to a function expecting concrete type,
+                    // generate appropriate extraction: x.as_i64() as i32, x.as_f64(), etc.
+                    if let HirExpr::Var(var_name) = hir_arg {
+                        let var_type = self.ctx.var_types.get(var_name);
+                        let is_depyler_value = matches!(var_type, Some(Type::Unknown) | None)
+                            || matches!(var_type, Some(Type::Custom(s)) if s == "DepylerValue");
+
+                        if is_depyler_value {
+                            if let Some(param_types) = self.ctx.function_param_types.get(func) {
+                                if let Some(expected_type) = param_types.get(param_idx) {
+                                    match expected_type {
+                                        Type::Int => {
+                                            return parse_quote! { #arg_expr.as_i64().unwrap_or_default() as i32 };
+                                        }
+                                        Type::Float => {
+                                            return parse_quote! { #arg_expr.as_f64().unwrap_or_default() };
+                                        }
+                                        Type::String => {
+                                            return parse_quote! { #arg_expr.as_str().unwrap_or_default().to_string() };
+                                        }
+                                        Type::Bool => {
+                                            return parse_quote! { #arg_expr.as_bool().unwrap_or_default() };
+                                        }
+                                        _ => {} // Other types - let regular flow handle
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     // DEPYLER-1045: Convert char to String when passing to functions expecting &str
                     // When a loop variable from string.chars() is passed to a function,
                     // it needs to be converted to String because char and &str are incompatible.
@@ -4648,11 +4684,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .copied()
                             .unwrap_or(false);
 
-                        // DEPYLER-0964: Don't add &mut if variable is already &mut (mut_option_dict_params)
-                        // These parameters are already &mut Option<HashMap>, so adding &mut would create &&mut
-                        // In this case, pass the variable directly without any borrowing
+                        // DEPYLER-0964/1217: Don't add &mut if variable is already &mut
+                        // This includes:
+                        // - mut_option_dict_params: &mut Option<HashMap>
+                        // - mut_ref_params: parameters that are &mut T (detected via mutation analysis)
+                        // Adding &mut would create &&mut which is invalid
                         let is_already_mut_ref = if let HirExpr::Var(var_name) = hir_arg {
                             self.ctx.mut_option_dict_params.contains(var_name)
+                                || self.ctx.mut_ref_params.contains(var_name)
                         } else {
                             false
                         };
@@ -10354,6 +10393,11 @@ fn literal_to_rust_expr(
     _needs_cow: &bool,
     ctx: &CodeGenContext,
 ) -> syn::Expr {
+    // Note: We intentionally use unsuffixed literals to let Rust's type inference
+    // determine the appropriate type from context. Adding explicit suffixes (like _i32)
+    // caused more problems than it solved - trait resolution failures, overflow for
+    // large numbers, and type mismatches with DepylerValue containers.
+    let _ = ctx; // Suppress unused warning
     match lit {
         Literal::Int(n) => {
             let lit = syn::LitInt::new(&n.to_string(), proc_macro2::Span::call_site());
@@ -11501,6 +11545,54 @@ mod tests {
         let result = literal_to_rust_expr(&Literal::Bytes(vec![]), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         assert!(code.contains("b\"\""));
+    }
+
+    // ============ DEPYLER-1204: Literal generation tests ============
+    // Note: We use unsuffixed literals to let Rust infer types from context.
+    // Adding explicit suffixes caused more problems than it solved.
+
+    #[test]
+    pub(crate) fn test_DEPYLER_1204_int_literal_unsuffixed() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Int(42), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        // Should be unsuffixed to allow Rust type inference
+        assert_eq!(code, "42", "Integer literal should be unsuffixed, got: {}", code);
+    }
+
+    #[test]
+    pub(crate) fn test_DEPYLER_1204_float_literal_unsuffixed() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Float(3.14), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        // Should be unsuffixed (decimal point ensures float parsing)
+        assert!(code.contains("3.14"), "Float literal should contain 3.14, got: {}", code);
+    }
+
+    #[test]
+    pub(crate) fn test_DEPYLER_1204_negative_int_unsuffixed() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Int(-100), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        // Should be unsuffixed
+        assert!(code.contains("-100") || code.contains("- 100"), "Negative int should be unsuffixed, got: {}", code);
+    }
+
+    #[test]
+    pub(crate) fn test_DEPYLER_1204_float_zero_has_decimal() {
+        let string_optimizer = StringOptimizer::new();
+        let needs_cow = false;
+        let ctx = CodeGenContext::default();
+        let result = literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
+        let code = result.to_token_stream().to_string();
+        // Should have decimal point to ensure float parsing
+        assert!(code.contains("."), "Float zero should have decimal point, got: {}", code);
     }
 
     // DEPYLER-1053: Tests for lambda parameter type inference in filter/map

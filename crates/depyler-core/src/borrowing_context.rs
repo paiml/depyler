@@ -177,19 +177,10 @@ impl BorrowingContext {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
                 // Check if assigning to a parameter (mutation)
+                // DEPYLER-1217: Handle all assignment targets that mutate parameters
                 let in_loop = self.is_in_loop();
                 let in_conditional = self.is_in_conditional();
-                if let AssignTarget::Symbol(symbol) = target {
-                    if let Some(usage) = self.param_usage.get_mut(symbol) {
-                        usage.is_mutated = true;
-                        usage.usage_sites.push(UsageSite {
-                            usage_type: UsageType::Write,
-                            in_loop,
-                            in_conditional,
-                            borrow_depth: 0,
-                        });
-                    }
-                }
+                self.check_target_mutation(target, in_loop, in_conditional);
                 self.analyze_expression(value, 0);
             }
             HirStmt::Return(expr) => {
@@ -315,6 +306,59 @@ impl BorrowingContext {
             HirStmt::FunctionDef { body, .. } => {
                 for stmt in body {
                     self.analyze_statement(stmt);
+                }
+            }
+        }
+    }
+
+    /// DEPYLER-1217: Helper to check if an assignment target mutates a parameter
+    /// Recursively handles index, attribute, and tuple targets
+    fn check_target_mutation(&mut self, target: &AssignTarget, in_loop: bool, in_conditional: bool) {
+        match target {
+            AssignTarget::Symbol(symbol) => {
+                if let Some(usage) = self.param_usage.get_mut(symbol) {
+                    usage.is_mutated = true;
+                    usage.usage_sites.push(UsageSite {
+                        usage_type: UsageType::Write,
+                        in_loop,
+                        in_conditional,
+                        borrow_depth: 0,
+                    });
+                }
+            }
+            // DEPYLER-1217: Index assignment (arr[i] = value) mutates the base
+            AssignTarget::Index { base, .. } => {
+                if let HirExpr::Var(var_name) = base.as_ref() {
+                    if let Some(usage) = self.param_usage.get_mut(var_name) {
+                        usage.is_mutated = true;
+                        usage.usage_sites.push(UsageSite {
+                            usage_type: UsageType::Write,
+                            in_loop,
+                            in_conditional,
+                            borrow_depth: 0,
+                        });
+                    }
+                }
+            }
+            // DEPYLER-1217: Attribute assignment (obj.field = value) mutates the base
+            AssignTarget::Attribute { value, .. } => {
+                if let HirExpr::Var(var_name) = value.as_ref() {
+                    if let Some(usage) = self.param_usage.get_mut(var_name) {
+                        usage.is_mutated = true;
+                        usage.usage_sites.push(UsageSite {
+                            usage_type: UsageType::Write,
+                            in_loop,
+                            in_conditional,
+                            borrow_depth: 0,
+                        });
+                    }
+                }
+            }
+            // DEPYLER-1217: Tuple unpacking can contain index targets
+            // e.g., arr[i], arr[j] = arr[j], arr[i] (swap pattern)
+            AssignTarget::Tuple(targets) => {
+                for t in targets {
+                    self.check_target_mutation(t, in_loop, in_conditional);
                 }
             }
         }
@@ -843,6 +887,106 @@ impl BorrowingContext {
             _ => false,
         }
     }
+
+    /// DEPYLER-PHASE2: Run enhanced ownership analysis with escape analysis
+    ///
+    /// This method combines the traditional borrowing analysis with the new
+    /// escape analysis to detect use-after-move violations and aliasing patterns.
+    ///
+    /// Returns enhanced insights including:
+    /// - Use-after-move errors with suggested fixes
+    /// - Aliasing patterns requiring cloning
+    /// - Sites where borrows should be used instead of moves
+    pub fn analyze_with_escape_analysis(
+        &mut self,
+        func: &crate::hir::HirFunction,
+        type_mapper: &TypeMapper,
+    ) -> EnhancedBorrowingResult {
+        use crate::escape_analysis::{analyze_ownership, OwnershipFix};
+
+        // Run traditional borrowing analysis
+        let basic_result = self.analyze_function(func, type_mapper);
+
+        // Run escape analysis
+        let ownership_result = analyze_ownership(func);
+
+        // Combine results
+        let mut ownership_fixes = Vec::new();
+
+        for error in &ownership_result.use_after_move_errors {
+            ownership_fixes.push(OwnershipFixSite {
+                variable: error.var.clone(),
+                site_index: error.move_site.stmt_index,
+                fix: match &error.fix {
+                    OwnershipFix::Borrow => OwnershipFixType::UseBorrow,
+                    OwnershipFix::MutableBorrow => OwnershipFixType::UseMutableBorrow,
+                    OwnershipFix::Clone => OwnershipFixType::InsertClone,
+                    OwnershipFix::CloneAtAssignment { var } => {
+                        OwnershipFixType::CloneAtAssignment(var.clone())
+                    }
+                    OwnershipFix::Reject { reason } => {
+                        OwnershipFixType::RejectPattern(reason.clone())
+                    }
+                },
+            });
+        }
+
+        for pattern in &ownership_result.aliasing_patterns {
+            if pattern.source_used_after && pattern.alias_used_after {
+                ownership_fixes.push(OwnershipFixSite {
+                    variable: pattern.alias.clone(),
+                    site_index: 0, // Will be filled with actual assignment index
+                    fix: OwnershipFixType::CloneAtAssignment(pattern.source.clone()),
+                });
+            }
+        }
+
+        EnhancedBorrowingResult {
+            basic_result,
+            use_after_move_count: ownership_result.use_after_move_errors.len(),
+            aliasing_pattern_count: ownership_result.aliasing_patterns.len(),
+            ownership_fixes,
+        }
+    }
+}
+
+/// Result of enhanced borrowing analysis with escape analysis
+#[derive(Debug, Clone)]
+pub struct EnhancedBorrowingResult {
+    /// Traditional borrowing analysis result
+    pub basic_result: BorrowingAnalysisResult,
+    /// Number of use-after-move errors detected
+    pub use_after_move_count: usize,
+    /// Number of aliasing patterns requiring cloning
+    pub aliasing_pattern_count: usize,
+    /// Suggested ownership fixes
+    pub ownership_fixes: Vec<OwnershipFixSite>,
+}
+
+/// A site where an ownership fix is needed
+#[derive(Debug, Clone)]
+pub struct OwnershipFixSite {
+    /// Variable name
+    pub variable: String,
+    /// Statement index where fix is needed
+    pub site_index: usize,
+    /// Type of fix to apply
+    pub fix: OwnershipFixType,
+}
+
+/// Type of ownership fix to apply
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum OwnershipFixType {
+    /// Change `f(x)` to `f(&x)`
+    UseBorrow,
+    /// Change `f(x)` to `f(&mut x)`
+    UseMutableBorrow,
+    /// Change `f(x)` to `f(x.clone())`
+    InsertClone,
+    /// Change `let b = a` to `let b = a.clone()`
+    CloneAtAssignment(String),
+    /// Pattern cannot be fixed - requires Poka-Yoke rejection
+    RejectPattern(String),
 }
 
 #[cfg(test)]

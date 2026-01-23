@@ -277,6 +277,7 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
         mutable: &mut HashSet<String>,
         var_types: &HashMap<String, String>,
         mutating_methods: &HashMap<String, HashSet<String>>,
+        function_param_muts: &HashMap<String, Vec<bool>>,
     ) {
         match expr {
             HirExpr::MethodCall {
@@ -310,45 +311,62 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                     }
                 }
                 // Recursively check nested expressions
-                analyze_expr_for_mutations(object, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(object, mutable, var_types, mutating_methods, function_param_muts);
                 for arg in args {
-                    analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods);
+                    analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods, function_param_muts);
                 }
             }
             HirExpr::Binary { left, right, .. } => {
-                analyze_expr_for_mutations(left, mutable, var_types, mutating_methods);
-                analyze_expr_for_mutations(right, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(left, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(right, mutable, var_types, mutating_methods, function_param_muts);
             }
             HirExpr::Unary { operand, .. } => {
-                analyze_expr_for_mutations(operand, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(operand, mutable, var_types, mutating_methods, function_param_muts);
             }
-            HirExpr::Call { args, .. } => {
-                for arg in args {
-                    analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods);
+            // DEPYLER-1217: Detect transitive mutation through function calls
+            // If a variable is passed to a function that expects &mut at that position,
+            // the variable must be mutable in the caller's scope
+            HirExpr::Call { func, args, .. } => {
+                // Check if called function has param_muts info
+                if let Some(param_muts) = function_param_muts.get(func) {
+                    for (idx, arg) in args.iter().enumerate() {
+                        // If this param needs &mut, mark the variable as mutable
+                        if param_muts.get(idx).copied().unwrap_or(false) {
+                            if let HirExpr::Var(var_name) = arg {
+                                mutable.insert(var_name.clone());
+                            }
+                        }
+                        analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods, function_param_muts);
+                    }
+                } else {
+                    // No param_muts info - just recurse into args
+                    for arg in args {
+                        analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods, function_param_muts);
+                    }
                 }
             }
             HirExpr::IfExpr { test, body, orelse } => {
-                analyze_expr_for_mutations(test, mutable, var_types, mutating_methods);
-                analyze_expr_for_mutations(body, mutable, var_types, mutating_methods);
-                analyze_expr_for_mutations(orelse, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(test, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(body, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(orelse, mutable, var_types, mutating_methods, function_param_muts);
             }
             HirExpr::List(items)
             | HirExpr::Tuple(items)
             | HirExpr::Set(items)
             | HirExpr::FrozenSet(items) => {
                 for item in items {
-                    analyze_expr_for_mutations(item, mutable, var_types, mutating_methods);
+                    analyze_expr_for_mutations(item, mutable, var_types, mutating_methods, function_param_muts);
                 }
             }
             HirExpr::Dict(pairs) => {
                 for (key, value) in pairs {
-                    analyze_expr_for_mutations(key, mutable, var_types, mutating_methods);
-                    analyze_expr_for_mutations(value, mutable, var_types, mutating_methods);
+                    analyze_expr_for_mutations(key, mutable, var_types, mutating_methods, function_param_muts);
+                    analyze_expr_for_mutations(value, mutable, var_types, mutating_methods, function_param_muts);
                 }
             }
             HirExpr::Index { base, index } => {
-                analyze_expr_for_mutations(base, mutable, var_types, mutating_methods);
-                analyze_expr_for_mutations(index, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(base, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(index, mutable, var_types, mutating_methods, function_param_muts);
             }
             HirExpr::Attribute { value, attr } => {
                 // DEPYLER-0835: Some Python attributes translate to mutating method calls in Rust
@@ -358,7 +376,7 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                         mutable.insert(name.clone());
                     }
                 }
-                analyze_expr_for_mutations(value, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(value, mutable, var_types, mutating_methods, function_param_muts);
             }
             _ => {}
         }
@@ -380,11 +398,12 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
         mutable: &mut HashSet<String>,
         var_types: &mut HashMap<String, String>,
         mutating_methods: &HashMap<String, HashSet<String>>,
+        function_param_muts: &HashMap<String, Vec<bool>>,
     ) {
         match stmt {
             HirStmt::Assign { target, value, .. } => {
                 // Check if the value expression contains method calls that mutate variables
-                analyze_expr_for_mutations(value, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(value, mutable, var_types, mutating_methods, function_param_muts);
 
                 match target {
                     AssignTarget::Symbol(name) => {
@@ -438,17 +457,45 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                         }
                     }
                     AssignTarget::Tuple(targets) => {
-                        // Tuple assignment - analyze each element
-                        for t in targets {
-                            if let AssignTarget::Symbol(name) = t {
-                                if declared.contains(name) {
-                                    // Variable is being reassigned - mark as mutable
-                                    mutable.insert(name.clone());
-                                } else {
-                                    // First declaration
-                                    declared.insert(name.clone());
+                        // DEPYLER-1217: Tuple assignment - recursively handle all target types
+                        // including Index targets (e.g., arr[i], arr[j] = arr[j], arr[i])
+                        fn handle_tuple_target(
+                            t: &AssignTarget,
+                            declared: &mut HashSet<String>,
+                            mutable: &mut HashSet<String>,
+                        ) {
+                            match t {
+                                AssignTarget::Symbol(name) => {
+                                    if declared.contains(name) {
+                                        // Variable is being reassigned - mark as mutable
+                                        mutable.insert(name.clone());
+                                    } else {
+                                        // First declaration
+                                        declared.insert(name.clone());
+                                    }
+                                }
+                                AssignTarget::Index { base, .. } => {
+                                    // Index assignment mutates the base
+                                    if let HirExpr::Var(var_name) = base.as_ref() {
+                                        mutable.insert(var_name.clone());
+                                    }
+                                }
+                                AssignTarget::Attribute { value, .. } => {
+                                    // Attribute assignment mutates the base
+                                    if let HirExpr::Var(var_name) = value.as_ref() {
+                                        mutable.insert(var_name.clone());
+                                    }
+                                }
+                                AssignTarget::Tuple(nested_targets) => {
+                                    // Recursively handle nested tuples
+                                    for nested in nested_targets {
+                                        handle_tuple_target(nested, declared, mutable);
+                                    }
                                 }
                             }
+                        }
+                        for t in targets {
+                            handle_tuple_target(t, declared, mutable);
                         }
                     }
                     AssignTarget::Attribute { value, .. } => {
@@ -469,10 +516,10 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
             }
             HirStmt::Expr(expr) => {
                 // Check standalone expressions for method calls (e.g., numbers.push(4))
-                analyze_expr_for_mutations(expr, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(expr, mutable, var_types, mutating_methods, function_param_muts);
             }
             HirStmt::Return(Some(expr)) => {
-                analyze_expr_for_mutations(expr, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(expr, mutable, var_types, mutating_methods, function_param_muts);
             }
             HirStmt::If {
                 condition,
@@ -480,33 +527,33 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                 else_body,
                 ..
             } => {
-                analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods, function_param_muts);
                 for stmt in then_body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
                 }
                 if let Some(else_stmts) = else_body {
                     for stmt in else_stmts {
-                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
                     }
                 }
             }
             HirStmt::While {
                 condition, body, ..
             } => {
-                analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods);
+                analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods, function_param_muts);
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
                 }
             }
             HirStmt::For { body, .. } => {
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
                 }
             }
             // DEPYLER-0549: Handle WITH statements - analyze body for mutations
             HirStmt::With { body, .. } => {
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
                 }
             }
             // DEPYLER-0549: Handle Try - analyze all branches
@@ -518,21 +565,21 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                 ..
             } => {
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
                 }
                 for handler in handlers {
                     for stmt in &handler.body {
-                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
                     }
                 }
                 if let Some(else_stmts) = orelse {
                     for stmt in else_stmts {
-                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
                     }
                 }
                 if let Some(final_stmts) = finalbody {
                     for stmt in final_stmts {
-                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods);
+                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
                     }
                 }
             }
@@ -542,6 +589,7 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
 
     let mut var_types = HashMap::new();
     let mutating_methods = &ctx.mutating_methods;
+    let function_param_muts = &ctx.function_param_muts;
     for stmt in stmts {
         analyze_stmt(
             stmt,
@@ -549,6 +597,7 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
             &mut ctx.mutable_vars,
             &mut var_types,
             mutating_methods,
+            function_param_muts,
         );
     }
 }
@@ -2257,6 +2306,28 @@ fn generate_rust_file_internal(
             .values()
             .any(|path| path.starts_with("url::"));
 
+    // DEPYLER-NASA-ASYNC: Detect async usage and resolve NASA Mode Paradox
+    // If ANY function or class method is async, we MUST disable NASA mode
+    // because async requires a runtime (tokio). NASA mode = no external deps.
+    // Async + NASA = contradiction. Async wins.
+    let has_async_functions = module.functions.iter().any(|f| f.properties.is_async);
+    let has_async_methods = module.classes.iter().any(|c| c.methods.iter().any(|m| m.is_async));
+    let has_asyncio_import = imported_modules.contains_key("asyncio");
+    let has_async_code = has_async_functions || has_async_methods || has_asyncio_import;
+
+    // Clone and modify type_mapper if async detected and NASA mode is on
+    let type_mapper = if has_async_code && type_mapper.nasa_mode {
+        let mut async_mapper = type_mapper.clone();
+        async_mapper.nasa_mode = false; // Disable NASA mode for async code
+        async_mapper
+    } else {
+        type_mapper.clone()
+    };
+    let type_mapper = &type_mapper; // Re-bind as reference for rest of function
+
+    // Track if we need tokio (will be set true if async code detected)
+    let needs_tokio_from_async = has_async_code;
+
     // Extract class names from module (DEPYLER-0230: distinguish user classes from builtins)
     let class_names: HashSet<String> = module
         .classes
@@ -2346,6 +2417,8 @@ fn generate_rust_file_internal(
         needs_once_cell: false, // DEPYLER-REARCH-001
         needs_lazy_lock: false, // DEPYLER-1016
         needs_depyler_value_enum: false, // DEPYLER-FIX-RC2
+        needs_python_string_ops: false, // DEPYLER-1202: Python string ops trait
+        needs_python_int_ops: false,    // DEPYLER-1202: Python int ops trait
         needs_depyler_date: false,
         needs_depyler_datetime: false,
         needs_depyler_timedelta: false,
@@ -2355,7 +2428,7 @@ fn generate_rust_file_internal(
         needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
         needs_statrs,           // DEPYLER-1001: Set from imports
         needs_url,              // DEPYLER-1001: Set from imports
-        needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
+        needs_tokio: needs_tokio_from_async, // DEPYLER-NASA-ASYNC: Auto-set from async detection
         needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
         vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
         slice_params: HashSet::new(),     // DEPYLER-1150: Track slice params in current function
@@ -2403,6 +2476,7 @@ fn generate_rust_file_internal(
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
         ref_params: HashSet::new(),      // DEPYLER-0758: Track parameters passed by reference
+            mut_ref_params: HashSet::new(), // DEPYLER-1217: Track parameters passed by mutable reference
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
         result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
@@ -4811,6 +4885,71 @@ fn generate_rust_file_internal(
         items.push(depyler_value_enum);
     }
 
+    // DEPYLER-1202: NOTE - PythonStringOps trait is NOT injected because PyStringMethods
+    // already provides the same functionality (lower, upper, strip, etc.) on String/&str.
+    // The PyStringMethods trait was added in DEPYLER-1118 at line ~4471.
+
+    // DEPYLER-1202: Inject PythonIntOps trait if Python int methods were detected
+    // This trait provides Python method names (bit_length, bit_count) on Rust integer types
+    if ctx.needs_python_int_ops || nasa_mode {
+        let python_int_ops_trait = quote! {
+            /// DEPYLER-1202: Python integer operations for Rust integer types.
+            pub trait PythonIntOps {
+                fn bit_length(&self) -> u32;
+                fn bit_count(&self) -> u32;
+            }
+
+            impl PythonIntOps for i32 {
+                fn bit_length(&self) -> u32 {
+                    if *self == 0 { 0 }
+                    else { (std::mem::size_of::<i32>() as u32 * 8) - self.unsigned_abs().leading_zeros() }
+                }
+                fn bit_count(&self) -> u32 { self.unsigned_abs().count_ones() }
+            }
+
+            impl PythonIntOps for i64 {
+                fn bit_length(&self) -> u32 {
+                    if *self == 0 { 0 }
+                    else { (std::mem::size_of::<i64>() as u32 * 8) - self.unsigned_abs().leading_zeros() }
+                }
+                fn bit_count(&self) -> u32 { self.unsigned_abs().count_ones() }
+            }
+
+            impl PythonIntOps for u32 {
+                fn bit_length(&self) -> u32 {
+                    if *self == 0 { 0 }
+                    else { (std::mem::size_of::<u32>() as u32 * 8) - self.leading_zeros() }
+                }
+                fn bit_count(&self) -> u32 { self.count_ones() }
+            }
+
+            impl PythonIntOps for u64 {
+                fn bit_length(&self) -> u32 {
+                    if *self == 0 { 0 }
+                    else { (std::mem::size_of::<u64>() as u32 * 8) - self.leading_zeros() }
+                }
+                fn bit_count(&self) -> u32 { self.count_ones() }
+            }
+
+            impl PythonIntOps for usize {
+                fn bit_length(&self) -> u32 {
+                    if *self == 0 { 0 }
+                    else { (std::mem::size_of::<usize>() as u32 * 8) - self.leading_zeros() }
+                }
+                fn bit_count(&self) -> u32 { self.count_ones() }
+            }
+
+            impl PythonIntOps for isize {
+                fn bit_length(&self) -> u32 {
+                    if *self == 0 { 0 }
+                    else { (std::mem::size_of::<isize>() as u32 * 8) - self.unsigned_abs().leading_zeros() }
+                }
+                fn bit_count(&self) -> u32 { self.unsigned_abs().count_ones() }
+            }
+        };
+        items.push(python_int_ops_trait);
+    }
+
     // DEPYLER-1066: Inject DepylerDate struct if date types were detected
     // This wrapper struct provides .day(), .month(), .year() methods
     // that Python's datetime.date has, which raw tuples don't have.
@@ -5367,6 +5506,22 @@ fn generate_rust_file_internal(
     // Add all functions
     items.extend(functions);
 
+    // DEPYLER-1216: Generate stub main() if no entry point exists
+    // A Rust binary MUST have fn main(). If the Python script has no main() or
+    // `if __name__ == "__main__":` block, we generate a stub to enable compilation.
+    let has_main = module.functions.iter().any(|f| f.name == "main");
+    if !has_main {
+        let stub_main = quote::quote! {
+            /// DEPYLER-1216: Auto-generated entry point for standalone compilation
+            /// This file was transpiled from a Python module without an explicit main.
+            /// Add a main() function or `if __name__ == "__main__":` block to customize.
+            pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+                Ok(())
+            }
+        };
+        items.push(stub_main);
+    }
+
     // Generate tests for all functions in a single test module
     // DEPYLER-0280 FIX: Use generate_tests_module() to create a single `mod tests {}` block
     // instead of one per function, which caused "the name `tests` is defined multiple times" errors
@@ -5542,9 +5697,8 @@ fn generate_rust_file_internal(
         formatted_code = formatted_code.replace("tokio::time::sleep(", "std::thread::sleep(");
         formatted_code = formatted_code.replace("tokio::join!(", "(");
 
-        // Replace regex with string contains for basic patterns
-        formatted_code = formatted_code.replace("regex::Regex::new(", "String::from(");
-        formatted_code = formatted_code.replace("regex :: Regex :: new(", "String::from(");
+        // DEPYLER-1200: Do NOT replace regex::Regex::new - it's now properly handled
+        // by NASA mode in direct_rules_convert.rs which generates DepylerRegexMatch instead
 
         // Replace .copied() with .cloned() for non-Copy types like String
         // This is safe because String implements Clone
@@ -5876,6 +6030,7 @@ mod tests {
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track variables assigned from iterators
             ref_params: HashSet::new(),      // DEPYLER-0758: Track parameters passed by reference
+            mut_ref_params: HashSet::new(), // DEPYLER-1217: Track parameters passed by mutable reference
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
             result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
@@ -5920,8 +6075,10 @@ mod tests {
             mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
             mut_option_params: HashSet::new(), // DEPYLER-1126: Track ALL &mut Option<T> params
             needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_python_string_ops: false, // DEPYLER-1202: Python string ops trait
+            needs_python_int_ops: false,    // DEPYLER-1202: Python int ops trait
             needs_depyler_date: false,
-        needs_depyler_datetime: false,
+            needs_depyler_datetime: false,
         needs_depyler_timedelta: false,
             module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
             needs_depyler_regex_match: false, // DEPYLER-1070: Track DepylerRegexMatch struct need
@@ -6239,8 +6396,10 @@ mod tests {
         let base = HirExpr::Var("dict".to_string());
         let index = HirExpr::Literal(Literal::String("key".to_string()));
         let value_expr = syn::parse_quote! { 42 };
+        // DEPYLER-1203: Pass HirExpr for type-based DepylerValue wrapping
+        let hir_value = HirExpr::Literal(Literal::Int(42));
 
-        let result = codegen_assign_index(&base, &index, value_expr, &mut ctx).unwrap();
+        let result = codegen_assign_index(&base, &index, value_expr, &hir_value, &mut ctx).unwrap();
         assert!(result.to_string().contains("dict . insert"));
     }
 
