@@ -1,0 +1,216 @@
+{
+  "files_analyzed": 152,
+  "files_with_errors": 95,
+  "total_errors": 3479,
+  "patient_zeros": [
+    {
+      "node_id": "test_proto_redis_cli::TestRealWorldCommands",
+      "impact_score": 152.1005734450816,
+      "direct_errors": 152,
+      "downstream_affected": 0,
+      "fix_priority": 1,
+      "estimated_fix_impact": 152
+    },
+    {
+      "node_id": "test_proto_redis_cli::import:pytest",
+      "impact_score": 151.09991177767975,
+      "direct_errors": 151,
+      "downstream_affected": 0,
+      "fix_priority": 2,
+      "estimated_fix_impact": 151
+    },
+    {
+      "node_id": "generic_visitor_cli::Simplifier.visit_call",
+      "impact_score": 139.09197176885752,
+      "direct_errors": 139,
+      "downstream_affected": 0,
+      "fix_priority": 3,
+      "estimated_fix_impact": 139
+    },
+    {
+      "node_id": "test_proto_redis_cli::TestRealWorldCommands.test_hset",
+      "impact_score": 133.0880017644464,
+      "direct_errors": 133,
+      "downstream_affected": 0,
+      "fix_priority": 4,
+      "estimated_fix_impact": 133
+    },
+    {
+      "node_id": "test_proto_redis_cli::TestRealWorldCommands.test_zadd",
+      "impact_score": 127.08403176003529,
+      "direct_errors": 127,
+      "downstream_affected": 0,
+      "fix_priority": 5,
+      "estimated_fix_impact": 127
+    },
+    {
+      "node_id": "generic_builder_cli::GenericBuilder.set",
+      "impact_score": 119.07873842082047,
+      "direct_errors": 119,
+      "downstream_affected": 0,
+      "fix_priority": 6,
+      "estimated_fix_impact": 119
+    },
+    {
+      "node_id": "test_complex_cli::TestEdgeCases.test_special_chars_in_filename",
+      "impact_score": 114.0754300838112,
+      "direct_errors": 114,
+      "downstream_affected": 0,
+      "fix_priority": 7,
+      "estimated_fix_impact": 114
+    },
+    {
+      "node_id": "test_proto_redis_cli::TestSimulateResp.test_encode_cmd",
+      "impact_score": 113.07476841640936,
+      "direct_errors": 113,
+      "downstream_affected": 0,
+      "fix_priority": 8,
+      "estimated_fix_impact": 113
+    },
+    {
+      "node_id": "prime_cli::main",
+      "impact_score": 111.07344508160564,
+      "direct_errors": 111,
+      "downstream_affected": 0,
+      "fix_priority": 9,
+      "estimated_fix_impact": 111
+    },
+    {
+      "node_id": "test_complex_cli::TestEdgeCases.test_stdout_ends_with_newline",
+      "impact_score": 98.06484340538157,
+      "direct_errors": 98,
+      "downstream_affected": 0,
+      "fix_priority": 10,
+      "estimated_fix_impact": 98
+    },
+    {
+      "node_id": "generic_visitor_cli::parse_expr",
+      "impact_score": 98.06484340538157,
+      "direct_errors": 98,
+      "downstream_affected": 0,
+      "fix_priority": 11,
+      "estimated_fix_impact": 98
+    },
+    {
+      "node_id": "test_complex_cli::TestEdgeCases.test_deterministic_output",
+      "impact_score": 93.0615350683723,
+      "direct_errors": 93,
+      "downstream_affected": 0,
+      "fix_priority": 12,
+      "estimated_fix_impact": 93
+    },
+    {
+      "node_id": "test_complex_cli::TestEdgeCases.test_port_boundary_1",
+      "impact_score": 88.05822673136304,
+      "direct_errors": 88,
+      "downstream_affected": 0,
+      "fix_priority": 13,
+      "estimated_fix_impact": 88
+    },
+    {
+      "node_id": "test_complex_cli::TestErrorMessages",
+      "impact_score": 74.0489633877371,
+      "direct_errors": 74,
+      "downstream_affected": 0,
+      "fix_priority": 14,
+      "estimated_fix_impact": 74
+    },
+    {
+      "node_id": "generic_builder_cli::EmailBuilder.build",
+      "impact_score": 73.04830172033525,
+      "direct_errors": 73,
+      "downstream_affected": 0,
+      "fix_priority": 15,
+      "estimated_fix_impact": 73
+    },
+    {
+      "node_id": "test_proto_redis_cli::TestRealWorldCommands.test_info",
+      "impact_score": 71.04697838553155,
+      "direct_errors": 71,
+      "downstream_affected": 0,
+      "fix_priority": 16,
+      "estimated_fix_impact": 71
+    },
+    {
+      "node_id": "stats_cli::main",
+      "impact_score": 67.04433171592413,
+      "direct_errors": 67,
+      "downstream_affected": 0,
+      "fix_priority": 17,
+      "estimated_fix_impact": 67
+    },
+    {
+      "node_id": "datetime_delta_cli::main",
+      "impact_score": 66.04367004852227,
+      "direct_errors": 66,
+      "downstream_affected": 0,
+      "fix_priority": 18,
+      "estimated_fix_impact": 66
+    },
+    {
+      "node_id": "smtp_cli::main",
+      "impact_score": 64.04234671371857,
+      "direct_errors": 64,
+      "downstream_affected": 0,
+      "fix_priority": 19,
+      "estimated_fix_impact": 64
+    },
+    {
+      "node_id": "test_complex_cli::TestErrorMessages.test_missing_input_error_message",
+      "impact_score": 62.041023378914865,
+      "direct_errors": 62,
+      "downstream_affected": 0,
+      "fix_priority": 20,
+      "estimated_fix_impact": 62
+    }
+  ],
+  "error_distribution": {
+    "E0027": 10,
+    "E0606": 7,
+    "E0277": 259,
+    "E0610": 2,
+    "E0381": 2,
+    "E0599": 576,
+    "E0004": 2,
+    "E0057": 7,
+    "E0382": 2,
+    "E0423": 5,
+    "E0254": 1,
+    "E0747": 1,
+    "E0392": 1,
+    "E0432": 5,
+    "E0608": 6,
+    "E0562": 6,
+    "E0317": 7,
+    "E0107": 41,
+    "E0308": 1142,
+    "E0689": 4,
+    "E0658": 6,
+    "E0600": 16,
+    "E0515": 1,
+    "E0618": 9,
+    "E0592": 2,
+    "E0596": 1,
+    "E0530": 1,
+    "E0425": 189,
+    "E0000": 120,
+    "E0433": 275,
+    "E0614": 8,
+    "E0405": 3,
+    "E0283": 21,
+    "E0061": 202,
+    "E0609": 118,
+    "E0670": 21,
+    "E0507": 3,
+    "E0106": 2,
+    "E0271": 6,
+    "E0428": 1,
+    "E0369": 47,
+    "E0412": 22,
+    "E0631": 19,
+    "E0164": 5,
+    "E0573": 8,
+    "E0605": 117,
+    "E0282": 170
+  }
+}

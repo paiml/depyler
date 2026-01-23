@@ -115,6 +115,8 @@ pub struct UnifiedTrainingConfig {
     pub oip_data_path: Option<String>,
     /// Path to real errors file (optional)
     pub real_errors_path: Option<String>,
+    /// Path to graph-vectorized failures (NDJSON format, optional)
+    pub graph_corpus_path: Option<String>,
     /// Whether to balance classes
     pub balance_classes: bool,
     /// Maximum samples per class (for balancing)
@@ -128,6 +130,7 @@ impl Default for UnifiedTrainingConfig {
             synthetic_samples: 12_000,
             oip_data_path: None,
             real_errors_path: None,
+            graph_corpus_path: None,
             balance_classes: false,
             max_per_class: None,
         }
@@ -155,6 +158,8 @@ pub struct MergeStats {
     pub verificar_count: usize,
     pub oip_count: usize,
     pub real_errors_count: usize,
+    /// DEPYLER-1303: Graph corpus samples
+    pub graph_corpus_count: usize,
     pub total_before_dedupe: usize,
     pub duplicates_removed: usize,
     pub final_count: usize,
@@ -338,6 +343,17 @@ pub fn build_unified_corpus(config: &UnifiedTrainingConfig) -> UnifiedTrainingRe
         );
     }
 
+    // 6. Graph corpus (DEPYLER-1303: graph-aware vectorized failures)
+    if let Some(ref graph_path) = config.graph_corpus_path {
+        if let Ok(graph_samples) = crate::graph_corpus::build_graph_corpus(Path::new(graph_path)) {
+            stats.graph_corpus_count = graph_samples.len();
+            merger.add_source(
+                TextCorpusSource::new("graph_corpus", graph_samples, TextSampleSource::Production)
+                    .with_priority(3), // Highest priority - graph-aware samples
+            );
+        }
+    }
+
     // Merge using CorpusMerger-style API
     let (merged_samples, provenance) = merger.merge();
 
@@ -345,7 +361,8 @@ pub fn build_unified_corpus(config: &UnifiedTrainingConfig) -> UnifiedTrainingRe
         + stats.depyler_count
         + stats.verificar_count
         + stats.oip_count
-        + stats.real_errors_count;
+        + stats.real_errors_count
+        + stats.graph_corpus_count;
     stats.duplicates_removed = provenance.duplicates_removed;
     stats.provenance = provenance;
 

@@ -53,6 +53,7 @@ pub mod tarantula_corpus;
 pub mod oip_export;
 pub mod acceleration_pipeline;
 pub mod utol;  // UTOL-001: Unified Training Oracle Loop
+pub mod graph_corpus;  // DEPYLER-1303: Graph-aware corpus integration
 
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
@@ -66,6 +67,10 @@ pub use synthetic::{
     generate_synthetic_corpus, generate_synthetic_corpus_sized, SyntheticConfig, SyntheticGenerator,
 };
 pub use tuning::{find_best_config, quick_tune, TuningConfig, TuningResult};
+pub use graph_corpus::{
+    build_graph_corpus, convert_to_training_samples, load_vectorized_failures,
+    analyze_graph_corpus, GraphCorpusStats, VectorizedFailure,
+};
 
 #[cfg(test)]
 mod proptests;
