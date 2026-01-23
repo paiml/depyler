@@ -3178,21 +3178,61 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
                 .collect::<Result<Vec<_>>>()?
         } else {
-            args.iter()
-                .map(|arg| {
-                    let expr = arg.to_rust_expr(self.ctx)?;
-                    // DEPYLER-0458: Add & prefix for Lazy const variables (e.g., DEFAULT_CONFIG)
-                    // When passing a const (all uppercase) to a function, it's likely a Lazy<T>
-                    // that needs to be borrowed (&) so Deref converts it to &T
-                    if let HirExpr::Var(var_name) = arg {
-                        let is_const = var_name.chars().all(|c| c.is_uppercase() || c == '_');
-                        if is_const {
-                            return Ok(parse_quote! { &#expr });
+            // DEPYLER-1215: Convert args with type context for dict literals
+            // When a dict literal is passed to a function expecting Dict[str, Any],
+            // we need to set current_assign_type to trigger DepylerValue wrapping
+            let mut converted_args = Vec::with_capacity(args.len());
+            for (param_idx, arg) in args.iter().enumerate() {
+                // DEPYLER-1215: For dict literals, check if param expects Dict with Unknown/Any value type
+                let prev_assign_type = if matches!(arg, HirExpr::Dict(_)) {
+                    if let Some(param_types) = self.ctx.function_param_types.get(func) {
+                        if let Some(param_type) = param_types.get(param_idx) {
+                            // Check if param is Dict[_, Any/Unknown] or bare dict
+                            let needs_depyler_value = match param_type {
+                                Type::Dict(_, val_type) => {
+                                    matches!(val_type.as_ref(), Type::Unknown)
+                                        || matches!(val_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any")
+                                }
+                                Type::Custom(name) if name == "dict" || name == "Dict" => true,
+                                _ => false,
+                            };
+                            if needs_depyler_value {
+                                let old = self.ctx.current_assign_type.clone();
+                                self.ctx.current_assign_type = Some(param_type.clone());
+                                Some(old)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
                         }
+                    } else {
+                        None
                     }
-                    Ok(expr)
-                })
-                .collect::<Result<Vec<_>>>()?
+                } else {
+                    None
+                };
+
+                let expr = arg.to_rust_expr(self.ctx)?;
+
+                // Restore previous assign type if we changed it
+                if let Some(old_type) = prev_assign_type {
+                    self.ctx.current_assign_type = old_type;
+                }
+
+                // DEPYLER-0458: Add & prefix for Lazy const variables (e.g., DEFAULT_CONFIG)
+                // When passing a const (all uppercase) to a function, it's likely a Lazy<T>
+                // that needs to be borrowed (&) so Deref converts it to &T
+                if let HirExpr::Var(var_name) = arg {
+                    let is_const = var_name.chars().all(|c| c.is_uppercase() || c == '_');
+                    if is_const {
+                        converted_args.push(parse_quote! { &#expr });
+                        continue;
+                    }
+                }
+                converted_args.push(expr);
+            }
+            converted_args
         };
 
         // DEPYLER-0364: Convert kwargs to positional arguments
