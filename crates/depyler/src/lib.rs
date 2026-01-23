@@ -14,10 +14,15 @@ use std::path::PathBuf;
 pub mod cli_shim;
 pub mod compile_cmd;
 pub mod converge;
+pub mod graph_cmd;
 pub mod report_cmd;
 pub mod report_shim;
 pub mod transpile_shim;
 pub mod utol_cmd;
+
+// DEPYLER-1202: Trait Bridge for Python method compatibility
+pub mod prelude;
+pub mod python_ops;
 
 #[derive(Parser)]
 #[command(name = "depyler")]
@@ -218,6 +223,44 @@ pub enum Commands {
         #[arg(short, long)]
         verbose: bool,
     },
+
+    /// DEPYLER-1303: Graph-based error analysis
+    #[command(subcommand)]
+    Graph(GraphCommands),
+}
+
+/// Graph analysis subcommands
+#[derive(Subcommand)]
+pub enum GraphCommands {
+    /// Analyze corpus and identify Patient Zeros (high-impact failure points)
+    Analyze {
+        /// Directory containing Python examples
+        #[arg(long)]
+        corpus: PathBuf,
+
+        /// Number of top Patient Zeros to identify
+        #[arg(long, default_value = "5")]
+        top: usize,
+
+        /// Output file (JSON format)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+
+    /// Vectorize failures for ML training
+    Vectorize {
+        /// Directory containing Python examples
+        #[arg(long)]
+        corpus: PathBuf,
+
+        /// Output file for vectorized failures
+        #[arg(short, long)]
+        output: PathBuf,
+
+        /// Output format (json, ndjson)
+        #[arg(long, default_value = "ndjson")]
+        format: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -271,15 +314,44 @@ pub fn transpile_command(
     debug: bool,
     source_map: bool,
 ) -> Result<()> {
+    use depyler_core::cargo_toml_gen::{generate_cargo_toml_auto, Dependency};
+
     let python_source = fs::read_to_string(&input)?;
     let pipeline = DepylerPipeline::new();
 
-    let rust_code = pipeline.transpile(&python_source)?;
+    // DEPYLER-0384: Use transpile_with_dependencies for automatic Cargo.toml emission
+    let (rust_code, dependencies) = pipeline.transpile_with_dependencies(&python_source)?;
 
     let output_path = output.unwrap_or_else(|| input.with_extension("rs"));
     fs::write(&output_path, &rust_code)?;
 
     println!("{} {}", "✓".green(), output_path.display());
+
+    // DEPYLER-0384: Automatically emit Cargo.toml if dependencies detected
+    if !dependencies.is_empty() || true {
+        // Always emit Cargo.toml for single-shot compile guarantee
+        let package_name = output_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("transpiled")
+            .replace('-', "_"); // Cargo package names use underscores
+
+        let source_file_name = output_path
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or("main.rs");
+
+        // Convert dependencies to cargo_toml_gen::Dependency type
+        let deps: Vec<Dependency> = dependencies;
+
+        let cargo_toml = generate_cargo_toml_auto(&package_name, source_file_name, &deps);
+
+        // Write Cargo.toml in the same directory as the output file
+        let cargo_toml_path = output_path.parent().unwrap_or(std::path::Path::new(".")).join("Cargo.toml");
+        fs::write(&cargo_toml_path, cargo_toml)?;
+
+        println!("{} {} (with {} dependencies)", "✓".green(), cargo_toml_path.display(), deps.len());
+    }
 
     if verify {
         println!("Verification not yet implemented");

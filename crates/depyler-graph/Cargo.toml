@@ -1,0 +1,22 @@
+[package]
+name = "depyler-graph"
+version.workspace = true
+edition.workspace = true
+description = "Dependency graph analysis for Python-to-Rust transpilation error reasoning"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["python", "rust", "transpiler", "graph", "analysis"]
+categories = ["development-tools", "compilers"]
+
+[dependencies]
+depyler-core = { path = "../depyler-core" }
+petgraph.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+rustpython-parser.workspace = true
+thiserror.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
