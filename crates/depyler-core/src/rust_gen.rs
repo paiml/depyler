@@ -2925,6 +2925,39 @@ fn generate_rust_file_internal(
                     }
                 }
 
+                /// DEPYLER-1215: Get as str reference (for string values only)
+                pub fn as_str(&self) -> Option<&str> {
+                    match self {
+                        DepylerValue::Str(_dv_str) => Some(_dv_str.as_str()),
+                        _ => None,
+                    }
+                }
+
+                /// DEPYLER-1215: Get as i64 (for integer values)
+                pub fn as_i64(&self) -> Option<i64> {
+                    match self {
+                        DepylerValue::Int(_dv_int) => Some(*_dv_int),
+                        _ => None,
+                    }
+                }
+
+                /// DEPYLER-1215: Get as f64 (for float values)
+                pub fn as_f64(&self) -> Option<f64> {
+                    match self {
+                        DepylerValue::Float(_dv_float) => Some(*_dv_float),
+                        DepylerValue::Int(_dv_int) => Some(*_dv_int as f64),
+                        _ => None,
+                    }
+                }
+
+                /// DEPYLER-1215: Get as bool (for boolean values)
+                pub fn as_bool(&self) -> Option<bool> {
+                    match self {
+                        DepylerValue::Bool(_dv_bool) => Some(*_dv_bool),
+                        _ => None,
+                    }
+                }
+
                 /// Convert to i64
                 pub fn to_i64(&self) -> i64 {
                     match self {
