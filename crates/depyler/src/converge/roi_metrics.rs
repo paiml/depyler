@@ -58,6 +58,12 @@ pub struct RoiMetrics {
     pub classifiable_rate: f64,
     /// Estimated cost savings in cents
     pub estimated_savings_cents: u64,
+    /// DEPYLER-1304: Number of errors with suggested fixes available
+    #[serde(default)]
+    pub fixes_available: usize,
+    /// DEPYLER-1304: Fix availability rate (0.0-1.0)
+    #[serde(default)]
+    pub fix_availability_rate: f64,
 }
 
 impl Default for RoiMetrics {
@@ -68,6 +74,8 @@ impl Default for RoiMetrics {
             total_classifiable: 0,
             classifiable_rate: 0.0,
             estimated_savings_cents: 0,
+            fixes_available: 0,
+            fix_availability_rate: 0.0,
         }
     }
 }
@@ -127,6 +135,17 @@ impl OracleRoiMetrics {
         // Estimate savings: $0.04 per error avoided (based on LLM API costs)
         let estimated_savings = (high_conf * 4) as u64; // 4 cents per high-conf error
 
+        // DEPYLER-1304: Count errors with suggested fixes available
+        let fixes_available = classifications
+            .iter()
+            .filter(|c| c.suggested_fix.is_some())
+            .count();
+        let fix_availability_rate = if !classifications.is_empty() {
+            fixes_available as f64 / classifications.len() as f64
+        } else {
+            0.0
+        };
+
         // Calculate average confidence per category
         let mut category_confidences: HashMap<String, (f64, usize)> = HashMap::new();
         for c in classifications {
@@ -174,6 +193,8 @@ impl OracleRoiMetrics {
                     0.0
                 },
                 estimated_savings_cents: estimated_savings,
+                fixes_available,
+                fix_availability_rate,
             },
             issue: None,
         }
@@ -196,11 +217,13 @@ impl OracleRoiMetrics {
         std::fs::write(path, json)?;
 
         tracing::info!(
-            "Wrote Oracle ROI metrics to {}: {} high-conf, {} classifiable ({}%)",
+            "Wrote Oracle ROI metrics to {}: {} high-conf, {} classifiable ({}%), {} fixes available ({}%)",
             path.display(),
             self.roi_metrics.high_confidence_errors,
             self.roi_metrics.total_classifiable,
-            (self.roi_metrics.classifiable_rate * 100.0).round() as u32
+            (self.roi_metrics.classifiable_rate * 100.0).round() as u32,
+            self.roi_metrics.fixes_available,
+            (self.roi_metrics.fix_availability_rate * 100.0).round() as u32
         );
 
         Ok(())
