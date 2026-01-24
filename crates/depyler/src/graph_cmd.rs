@@ -389,8 +389,9 @@ mod tests {
             node_id: "test_func".to_string(),
             impact_score: 0.85,
             direct_errors: 3,
-            downstream_errors: 10,
-            error_codes: vec!["E0308".to_string()],
+            downstream_affected: 10,
+            fix_priority: 1,
+            estimated_fix_impact: 5,
         };
         let summary = PatientZeroSummary::from(&pz);
         assert_eq!(summary.node_id, "test_func");

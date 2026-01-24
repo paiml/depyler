@@ -29,6 +29,7 @@ pub mod cache_warmer;
 mod classifier;
 mod clusterer;
 mod compiler;
+mod fix_applicator;
 mod reporter;
 mod roi_metrics;
 mod state;
@@ -41,12 +42,15 @@ pub use cache::{
 pub use classifier::{ErrorCategory, ErrorClassification, ErrorClassifier};
 pub use clusterer::{ErrorCluster, ErrorClusterer, RootCause};
 pub use compiler::{BatchCompiler, CompilationError, CompilationResult};
+pub use fix_applicator::{
+    CompositeFixApplicator, FixApplicationResult, FixApplicator, FixType, GeneratedRustFixer,
+};
 pub use reporter::{ConvergenceReporter, IterationReport};
+pub use roi_metrics::OracleRoiMetrics;
 pub use state::{AppliedFix, ConvergenceConfig, ConvergenceState, DisplayMode, ExampleState};
 pub use type_constraint_learner::{
     parse_e0308_batch, parse_e0308_constraint, TypeConstraint, TypeConstraintStore,
 };
-pub use roi_metrics::OracleRoiMetrics;
 
 use anyhow::Result;
 
@@ -57,6 +61,13 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     let classifier = ErrorClassifier::new();
     let clusterer = ErrorClusterer::new();
     let reporter = ConvergenceReporter::with_display_mode(config.display_mode);
+
+    // DEPYLER-1305: Initialize fix applicator if auto_fix is enabled
+    let fix_applicator = if config.auto_fix {
+        Some(CompositeFixApplicator::new())
+    } else {
+        None
+    };
 
     // DEPYLER-1101: Type constraint learning from E0308 errors
     let mut constraint_store = TypeConstraintStore::new();
@@ -83,6 +94,59 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
         let clusters = clusterer.cluster(&classifications);
         state.error_clusters = clusters;
 
+        // DEPYLER-1305: Apply fixes if auto_fix is enabled
+        if let Some(ref applicator) = fix_applicator {
+            // Collect source files for batch processing
+            let source_files: std::collections::HashMap<std::path::PathBuf, String> = results
+                .iter()
+                .filter(|r| !r.success)
+                .filter_map(|r| {
+                    let rust_file = r.source_file.with_extension("rs");
+                    std::fs::read_to_string(&rust_file)
+                        .ok()
+                        .map(|content| (rust_file, content))
+                })
+                .collect();
+
+            // Apply fixes
+            let fix_results = applicator.apply_batch(&classifications, &source_files);
+
+            // Track applied fixes
+            for (result, classification) in fix_results.iter().zip(classifications.iter()) {
+                if result.applied {
+                    state.fixes_applied.push(AppliedFix {
+                        iteration: state.iteration,
+                        error_code: classification.error.code.clone(),
+                        description: result.description.clone(),
+                        file_modified: classification.error.file.clone(),
+                        commit_hash: None,
+                        verified: false,
+                    });
+
+                    // Write modified source if available
+                    if let Some(ref modified) = result.modified_source {
+                        let rust_file = classification.error.file.with_extension("rs");
+                        if let Err(e) = std::fs::write(&rust_file, modified) {
+                            tracing::warn!(
+                                "Failed to write fixed source to {}: {}",
+                                rust_file.display(),
+                                e
+                            );
+                        }
+                    }
+                }
+            }
+
+            let fixes_applied = fix_results.iter().filter(|r| r.applied).count();
+            if fixes_applied > 0 {
+                tracing::info!(
+                    "DEPYLER-1305: Applied {} fixes in iteration {}",
+                    fixes_applied,
+                    state.iteration
+                );
+            }
+        }
+
         // DEPYLER-1101: Extract type constraints from E0308 errors
         for result in &results {
             if !result.success {
@@ -91,8 +155,7 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
                     .iter()
                     .map(|e| (e.code.clone(), e.message.clone(), e.line))
                     .collect();
-                let constraints =
-                    parse_e0308_batch(&e0308_errors, &result.source_file);
+                let constraints = parse_e0308_batch(&e0308_errors, &result.source_file);
                 for constraint in constraints {
                     constraint_store.add_constraint(constraint);
                 }
@@ -100,7 +163,9 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
         }
 
         if let Some(cluster) = state.error_clusters.iter().max_by(|a, b| {
-            a.impact_score().partial_cmp(&b.impact_score()).unwrap_or(std::cmp::Ordering::Equal)
+            a.impact_score()
+                .partial_cmp(&b.impact_score())
+                .unwrap_or(std::cmp::Ordering::Equal)
         }) {
             reporter.report_iteration(&state, cluster);
         }
