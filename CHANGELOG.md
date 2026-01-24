@@ -47,6 +47,40 @@ but the variable was used again later in the same scope, Rust would error.
 
 ## [Unreleased]
 
+### 🧬 Oracle Training: Ambiguity Corpus (2025-01-24)
+
+#### DEPYLER-1318: Dict Key Paradox Training Data
+**Impact**: Improves Oracle prediction accuracy for dictionary type mismatch errors
+**Target**: E0308 errors from HashMap<String, V> vs HashMap<DepylerValue, V> conflicts
+
+**New Files**:
+- `scripts/generate_ambiguity_corpus.py` - Generates 2,000 hostile Python files
+- `scripts/train_ambiguity_pipeline.sh` - Full training pipeline script
+- `crates/depyler-oracle/examples/train_ambiguity_corpus.rs` - Cargo example
+- `docs/training/AMBIGUITY_CORPUS.md` - Training guide
+
+**Hostile Patterns Generated**:
+1. **Literal Trap** (30%): `{"a": 1}` vs `{1: "a"}` vs `{}` (empty dicts)
+2. **Flow Gap** (30%): Dict passing through functions with type changes
+3. **Method Clash** (25%): Classes with `to_dict()` returning mixed types
+4. **Module Boundary** (15%): Cross-module dict inference
+
+**Training Results**:
+- 2,000 Python files → 14,207 failure vectors
+- 3,723 E0308 (Type Mismatch) errors captured
+- Model saved to `~/.depyler/depyler_oracle_v3.23.apr`
+
+**Usage**:
+```bash
+# Full pipeline
+./scripts/train_ambiguity_pipeline.sh
+
+# Or step by step
+python scripts/generate_ambiguity_corpus.py
+cargo run --bin depyler -- graph vectorize --corpus training_corpus/ambiguity_v1 --output training_corpus/ambiguity_vectors.ndjson
+cargo run --release --example train_ambiguity_corpus -p depyler-oracle
+```
+
 ### 🔧 Code Organization & Refactoring (2025-01-06)
 
 #### Module Extraction Refactoring (DEPYLER-0963)
