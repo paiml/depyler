@@ -3483,3 +3483,67 @@ roadmap:
   estimated_effort: null
   labels: []
   notes: null
+- id: DEPYLER-1149
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1149'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-20T17:00:38.319099+00:00
+  updated: 2026-01-20T17:00:38.319099+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1150
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1150'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-20T17:40:01.352710+00:00
+  updated: 2026-01-20T17:40:01.352710+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: Refactor high-complexity codegen files under 500 lines for A+ TDG
+  github_issue: null
+  item_type: task
+  title: 'New task: Refactor high-complexity codegen files under 500 lines for A+ TDG'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-21T16:03:58.537836+00:00
+  updated: 2026-01-21T16:03:58.537836+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null
+- id: DEPYLER-1321
+  github_issue: null
+  item_type: task
+  title: 'New task: DEPYLER-1321'
+  status: inprogress
+  priority: medium
+  assigned_to: null
+  created: 2026-01-24T23:15:38.462919+00:00
+  updated: 2026-01-24T23:15:38.462919+00:00
+  spec: null
+  acceptance_criteria: []
+  phases: []
+  subtasks: []
+  estimated_effort: null
+  labels: []
+  notes: null

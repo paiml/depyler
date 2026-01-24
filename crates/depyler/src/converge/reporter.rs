@@ -4,6 +4,7 @@
 //! Supports multiple display modes: rich (TUI), minimal (CI), json, silent.
 
 use super::clusterer::ErrorCluster;
+use super::roi_metrics::{EscapeRateTracker, ESCAPE_RATE_FALSIFICATION_THRESHOLD};
 use super::state::{ConvergenceState, DisplayMode};
 
 /// Report for a single iteration
@@ -47,6 +48,17 @@ pub fn progress_bar(current: usize, total: usize, width: usize) -> String {
     let empty = width.saturating_sub(filled);
 
     format!("{}{}", "█".repeat(filled), "░".repeat(empty))
+}
+
+/// Error frequency entry for failure analysis
+#[derive(Debug, Clone)]
+pub struct ErrorFrequency {
+    /// Error code
+    pub code: String,
+    /// Number of files affected
+    pub count: usize,
+    /// Representative error message
+    pub sample_message: String,
 }
 
 /// Reporter for convergence progress
@@ -277,6 +289,242 @@ impl ConvergenceReporter {
             }
         }
     }
+
+    /// DEPYLER-1321 (Popper): Report escape rate metrics
+    /// This implements Popper's falsification criterion for the type system.
+    /// If escape_rate > 20%, the type inference is immunizing against falsification.
+    pub fn report_escape_rate(&self, tracker: &EscapeRateTracker) {
+        if !self.should_output() {
+            return;
+        }
+
+        let (concrete, dv) = tracker.counts();
+        let escape_rate = tracker.escape_rate();
+        let total = concrete + dv;
+        let is_falsified = tracker.is_falsified();
+
+        match self.display_mode {
+            DisplayMode::Rich => {
+                println!();
+                println!("╔══════════════════════════════════════════════════════════════╗");
+                println!("║          DEPYLER-1321: ESCAPE RATE ANALYSIS (Popper)         ║");
+                println!("╠══════════════════════════════════════════════════════════════╣");
+                println!(
+                    "║ Concrete Types:  {:6} ({:5.1}%)                              ║",
+                    concrete,
+                    if total > 0 {
+                        (concrete as f64 / total as f64) * 100.0
+                    } else {
+                        0.0
+                    }
+                );
+                println!(
+                    "║ DepylerValue:    {:6} ({:5.1}%)                              ║",
+                    dv,
+                    escape_rate * 100.0
+                );
+                println!(
+                    "║ Escape Rate:     {:5.1}%                                       ║",
+                    escape_rate * 100.0
+                );
+                println!(
+                    "║ Threshold:       {:5.1}%                                       ║",
+                    ESCAPE_RATE_FALSIFICATION_THRESHOLD * 100.0
+                );
+                println!("╠══════════════════════════════════════════════════════════════╣");
+
+                if is_falsified {
+                    println!("║ ⚠️  STATUS: FALSIFIED                                        ║");
+                    println!("║                                                              ║");
+                    println!("║ Per Karl Popper: Type inference is evading, not solving.    ║");
+                    println!("║ DepylerValue acts as a 'protective belt' absorbing type     ║");
+                    println!("║ mismatches rather than genuinely inferring correct types.   ║");
+                } else {
+                    println!("║ ✅  STATUS: OK                                               ║");
+                    println!("║                                                              ║");
+                    println!("║ Type inference is working within acceptable bounds.         ║");
+                }
+
+                println!("╚══════════════════════════════════════════════════════════════╝");
+            }
+            DisplayMode::Minimal => {
+                let status = if is_falsified { "FALSIFIED" } else { "OK" };
+                println!(
+                    "ESCAPE_RATE | {:.1}% ({}/{}) | Threshold: {:.0}% | Status: {}",
+                    escape_rate * 100.0,
+                    dv,
+                    total,
+                    ESCAPE_RATE_FALSIFICATION_THRESHOLD * 100.0,
+                    status
+                );
+            }
+            DisplayMode::Json | DisplayMode::Silent => {}
+        }
+    }
+
+    /// Report failure analysis with Error Frequency Table
+    /// This provides automated root cause hinting without requiring log analysis
+    pub fn report_failure_analysis(
+        &self,
+        results: &[super::compiler::CompilationResult],
+    ) {
+        if !self.should_output() {
+            return;
+        }
+
+        // Aggregate error frequencies
+        let frequencies = Self::compute_error_frequencies(results);
+        if frequencies.is_empty() {
+            return;
+        }
+
+        match self.display_mode {
+            DisplayMode::Rich => {
+                println!();
+                println!("╔══════════════════════════════════════════════════════════════╗");
+                println!("║                    FAILURES ANALYSIS                         ║");
+                println!("╠══════════════════════════════════════════════════════════════╣");
+
+                for (i, freq) in frequencies.iter().take(10).enumerate() {
+                    let bar = Self::mini_bar(freq.count, frequencies[0].count, 10);
+                    println!(
+                        "║ {:2}. {} {:>4} files  [{}]                     ║",
+                        i + 1,
+                        freq.code,
+                        freq.count,
+                        bar
+                    );
+                }
+
+                println!("╠══════════════════════════════════════════════════════════════╣");
+
+                // Top blocker with representative error
+                if let Some(top) = frequencies.first() {
+                    println!("║ TOP BLOCKER: {} ({} files)                          ║", top.code, top.count);
+                    println!("╠──────────────────────────────────────────────────────────────╣");
+                    // Wrap the sample message
+                    let msg = &top.sample_message;
+                    for line in Self::wrap_text(msg, 58) {
+                        println!("║ {}║", Self::pad_right(&line, 60));
+                    }
+                }
+
+                println!("╚══════════════════════════════════════════════════════════════╝");
+            }
+            DisplayMode::Minimal => {
+                println!();
+                println!("=== FAILURES ANALYSIS ===");
+                for (i, freq) in frequencies.iter().take(5).enumerate() {
+                    println!("{}. {} ({}): {} files", i + 1, freq.code, Self::error_description(&freq.code), freq.count);
+                }
+                if let Some(top) = frequencies.first() {
+                    println!("Top Blocker: {}", top.code);
+                    println!("  Sample: {}", truncate(&top.sample_message, 70));
+                }
+            }
+            DisplayMode::Json | DisplayMode::Silent => {}
+        }
+    }
+
+    /// Compute error frequencies from compilation results
+    pub fn compute_error_frequencies(
+        results: &[super::compiler::CompilationResult],
+    ) -> Vec<ErrorFrequency> {
+        use std::collections::HashMap;
+
+        let mut code_counts: HashMap<String, (usize, String)> = HashMap::new();
+
+        for result in results {
+            if result.success {
+                continue;
+            }
+            for error in &result.errors {
+                let entry = code_counts.entry(error.code.clone()).or_insert((0, error.message.clone()));
+                entry.0 += 1;
+            }
+        }
+
+        let mut frequencies: Vec<ErrorFrequency> = code_counts
+            .into_iter()
+            .map(|(code, (count, sample_message))| ErrorFrequency {
+                code,
+                count,
+                sample_message,
+            })
+            .collect();
+
+        // Sort by count descending
+        frequencies.sort_by(|a, b| b.count.cmp(&a.count));
+        frequencies
+    }
+
+    /// Get human-readable description for error code
+    fn error_description(code: &str) -> &'static str {
+        match code {
+            "E0308" => "Type Mismatch",
+            "E0425" => "Undefined Value",
+            "E0599" => "Missing Method",
+            "E0277" => "Trait Bound",
+            "E0412" => "Undefined Type",
+            "E0061" => "Arg Count",
+            "E0282" => "Type Inference",
+            "E0433" => "Unresolved Module",
+            "E0562" => "Impl Trait",
+            "E0609" => "No Field",
+            "TRANSPILE" => "Transpile Error",
+            "CARGO" => "Cargo Error",
+            "UNKNOWN" => "Unknown",
+            _ => "Other",
+        }
+    }
+
+    /// Mini progress bar for frequencies
+    fn mini_bar(value: usize, max: usize, width: usize) -> String {
+        if max == 0 {
+            return "░".repeat(width);
+        }
+        let pct = (value as f64 / max as f64).clamp(0.0, 1.0);
+        let filled = (pct * width as f64).round() as usize;
+        let empty = width.saturating_sub(filled);
+        format!("{}{}", "█".repeat(filled), "░".repeat(empty))
+    }
+
+    /// Wrap text to specified width
+    fn wrap_text(text: &str, width: usize) -> Vec<String> {
+        let mut lines = Vec::new();
+        let mut current_line = String::new();
+
+        for word in text.split_whitespace() {
+            if current_line.is_empty() {
+                current_line = word.to_string();
+            } else if current_line.len() + 1 + word.len() <= width {
+                current_line.push(' ');
+                current_line.push_str(word);
+            } else {
+                lines.push(current_line);
+                current_line = word.to_string();
+            }
+        }
+
+        if !current_line.is_empty() {
+            lines.push(current_line);
+        }
+
+        if lines.is_empty() {
+            lines.push(String::new());
+        }
+
+        lines
+    }
+
+    /// Pad string to right
+    fn pad_right(s: &str, width: usize) -> String {
+        if s.len() >= width {
+            s[..width].to_string()
+        } else {
+            format!("{:width$}", s, width = width)
+        }
+    }
 }
 
 /// Truncate a string to max length with ellipsis
@@ -342,6 +590,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         }
     }
 
@@ -504,6 +754,7 @@ mod tests {
                 file: PathBuf::from("test.py"),
                 line: 10,
                 column: 5,
+                ..Default::default()
             },
         ];
         reporter.report_iteration(&state, &cluster);
@@ -667,6 +918,224 @@ mod tests {
         let mut state = super::super::state::ConvergenceState::new(make_test_config());
         state.compilation_rate = 50.0;
         reporter.report_finish(&state);
+    }
+
+    // ============================================================================
+    // DEPYLER-UX: Error Frequency / Failure Analysis Tests
+    // ============================================================================
+
+    #[test]
+    fn test_compute_error_frequencies_empty() {
+        let results: Vec<super::super::compiler::CompilationResult> = vec![];
+        let frequencies = ConvergenceReporter::compute_error_frequencies(&results);
+        assert!(frequencies.is_empty());
+    }
+
+    #[test]
+    fn test_compute_error_frequencies_all_success() {
+        let results = vec![
+            super::super::compiler::CompilationResult {
+                source_file: PathBuf::from("a.py"),
+                success: true,
+                errors: vec![],
+                rust_file: Some(PathBuf::from("a.rs")),
+            },
+        ];
+        let frequencies = ConvergenceReporter::compute_error_frequencies(&results);
+        assert!(frequencies.is_empty());
+    }
+
+    #[test]
+    fn test_compute_error_frequencies_single_error() {
+        let results = vec![
+            super::super::compiler::CompilationResult {
+                source_file: PathBuf::from("a.py"),
+                success: false,
+                errors: vec![
+                    super::super::compiler::CompilationError {
+                        code: "E0308".to_string(),
+                        message: "mismatched types".to_string(),
+                        file: PathBuf::from("a.rs"),
+                        line: 10,
+                        column: 5,
+                        ..Default::default()
+                    },
+                ],
+                rust_file: Some(PathBuf::from("a.rs")),
+            },
+        ];
+        let frequencies = ConvergenceReporter::compute_error_frequencies(&results);
+        assert_eq!(frequencies.len(), 1);
+        assert_eq!(frequencies[0].code, "E0308");
+        assert_eq!(frequencies[0].count, 1);
+    }
+
+    #[test]
+    fn test_compute_error_frequencies_sorted_by_count() {
+        let results = vec![
+            super::super::compiler::CompilationResult {
+                source_file: PathBuf::from("a.py"),
+                success: false,
+                errors: vec![
+                    super::super::compiler::CompilationError {
+                        code: "E0599".to_string(),
+                        message: "no method".to_string(),
+                        file: PathBuf::from("a.rs"),
+                        line: 1,
+                        column: 1,
+                        ..Default::default()
+                    },
+                ],
+                rust_file: None,
+            },
+            super::super::compiler::CompilationResult {
+                source_file: PathBuf::from("b.py"),
+                success: false,
+                errors: vec![
+                    super::super::compiler::CompilationError {
+                        code: "E0308".to_string(),
+                        message: "type mismatch".to_string(),
+                        file: PathBuf::from("b.rs"),
+                        line: 1,
+                        column: 1,
+                        ..Default::default()
+                    },
+                    super::super::compiler::CompilationError {
+                        code: "E0308".to_string(),
+                        message: "another mismatch".to_string(),
+                        file: PathBuf::from("b.rs"),
+                        line: 2,
+                        column: 1,
+                        ..Default::default()
+                    },
+                ],
+                rust_file: None,
+            },
+        ];
+        let frequencies = ConvergenceReporter::compute_error_frequencies(&results);
+        assert_eq!(frequencies.len(), 2);
+        // E0308 should be first (2 occurrences)
+        assert_eq!(frequencies[0].code, "E0308");
+        assert_eq!(frequencies[0].count, 2);
+        // E0599 should be second (1 occurrence)
+        assert_eq!(frequencies[1].code, "E0599");
+        assert_eq!(frequencies[1].count, 1);
+    }
+
+    #[test]
+    fn test_error_frequency_struct() {
+        let freq = ErrorFrequency {
+            code: "E0308".to_string(),
+            count: 42,
+            sample_message: "mismatched types".to_string(),
+        };
+        assert_eq!(freq.code, "E0308");
+        assert_eq!(freq.count, 42);
+        assert_eq!(freq.sample_message, "mismatched types");
+    }
+
+    #[test]
+    fn test_error_frequency_clone() {
+        let freq = ErrorFrequency {
+            code: "E0599".to_string(),
+            count: 10,
+            sample_message: "method not found".to_string(),
+        };
+        let cloned = freq.clone();
+        assert_eq!(freq.code, cloned.code);
+        assert_eq!(freq.count, cloned.count);
+    }
+
+    #[test]
+    fn test_mini_bar_full() {
+        let bar = ConvergenceReporter::mini_bar(100, 100, 10);
+        assert_eq!(bar, "██████████");
+    }
+
+    #[test]
+    fn test_mini_bar_empty() {
+        let bar = ConvergenceReporter::mini_bar(0, 100, 10);
+        assert_eq!(bar, "░░░░░░░░░░");
+    }
+
+    #[test]
+    fn test_mini_bar_half() {
+        let bar = ConvergenceReporter::mini_bar(50, 100, 10);
+        assert_eq!(bar, "█████░░░░░");
+    }
+
+    #[test]
+    fn test_mini_bar_zero_max() {
+        let bar = ConvergenceReporter::mini_bar(50, 0, 10);
+        assert_eq!(bar, "░░░░░░░░░░");
+    }
+
+    #[test]
+    fn test_wrap_text_short() {
+        let lines = ConvergenceReporter::wrap_text("short text", 50);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0], "short text");
+    }
+
+    #[test]
+    fn test_wrap_text_long() {
+        let lines = ConvergenceReporter::wrap_text("this is a very long text that should wrap", 20);
+        assert!(lines.len() > 1);
+    }
+
+    #[test]
+    fn test_wrap_text_empty() {
+        let lines = ConvergenceReporter::wrap_text("", 50);
+        assert_eq!(lines.len(), 1);
+        assert!(lines[0].is_empty());
+    }
+
+    #[test]
+    fn test_pad_right_short() {
+        let padded = ConvergenceReporter::pad_right("short", 10);
+        assert_eq!(padded.len(), 10);
+        assert!(padded.starts_with("short"));
+    }
+
+    #[test]
+    fn test_pad_right_exact() {
+        let padded = ConvergenceReporter::pad_right("exact", 5);
+        assert_eq!(padded, "exact");
+    }
+
+    #[test]
+    fn test_pad_right_long() {
+        let padded = ConvergenceReporter::pad_right("verylongtext", 5);
+        assert_eq!(padded.len(), 5);
+    }
+
+    #[test]
+    fn test_error_description_known_codes() {
+        assert_eq!(ConvergenceReporter::error_description("E0308"), "Type Mismatch");
+        assert_eq!(ConvergenceReporter::error_description("E0425"), "Undefined Value");
+        assert_eq!(ConvergenceReporter::error_description("E0599"), "Missing Method");
+        assert_eq!(ConvergenceReporter::error_description("E0277"), "Trait Bound");
+    }
+
+    #[test]
+    fn test_error_description_unknown_code() {
+        assert_eq!(ConvergenceReporter::error_description("E9999"), "Other");
+    }
+
+    #[test]
+    fn test_report_failure_analysis_silent_mode() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Silent);
+        let results: Vec<super::super::compiler::CompilationResult> = vec![];
+        // Should not panic
+        reporter.report_failure_analysis(&results);
+    }
+
+    #[test]
+    fn test_report_failure_analysis_json_mode() {
+        let reporter = ConvergenceReporter::with_display_mode(DisplayMode::Json);
+        let results: Vec<super::super::compiler::CompilationResult> = vec![];
+        // Should not panic
+        reporter.report_failure_analysis(&results);
     }
 
     // ============================================================================
