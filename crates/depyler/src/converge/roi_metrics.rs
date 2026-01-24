@@ -7,6 +7,72 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+/// DEPYLER-1321 (Popper): Global escape rate tracker
+/// Tracks DepylerValue usage vs concrete type usage during codegen
+///
+/// This implements Popper's "falsification criterion" for the type system:
+/// If escape_rate > 20%, the type inference is immunizing against falsification
+/// rather than genuinely solving the type inference problem.
+#[derive(Debug, Default)]
+pub struct EscapeRateTracker {
+    /// Number of concrete type annotations (i32, String, Vec<T>, HashMap<K,V>, etc.)
+    pub concrete_usages: AtomicUsize,
+    /// Number of DepylerValue fallback usages
+    pub depyler_value_usages: AtomicUsize,
+}
+
+impl EscapeRateTracker {
+    /// Create a new tracker
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Record a concrete type usage (not DepylerValue)
+    #[inline]
+    pub fn record_concrete(&self) {
+        self.concrete_usages.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a DepylerValue fallback usage
+    #[inline]
+    pub fn record_depyler_value(&self) {
+        self.depyler_value_usages.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Get the current escape rate (0.0 - 1.0)
+    /// Returns 0.0 if no types have been tracked yet
+    pub fn escape_rate(&self) -> f64 {
+        let concrete = self.concrete_usages.load(Ordering::Relaxed);
+        let dv = self.depyler_value_usages.load(Ordering::Relaxed);
+        let total = concrete + dv;
+        if total == 0 {
+            0.0
+        } else {
+            dv as f64 / total as f64
+        }
+    }
+
+    /// Check if escape rate exceeds falsification threshold (20%)
+    pub fn is_falsified(&self) -> bool {
+        self.escape_rate() > ESCAPE_RATE_FALSIFICATION_THRESHOLD
+    }
+
+    /// Get current counts
+    pub fn counts(&self) -> (usize, usize) {
+        (
+            self.concrete_usages.load(Ordering::Relaxed),
+            self.depyler_value_usages.load(Ordering::Relaxed),
+        )
+    }
+
+    /// Reset the tracker
+    pub fn reset(&self) {
+        self.concrete_usages.store(0, Ordering::Relaxed);
+        self.depyler_value_usages.store(0, Ordering::Relaxed);
+    }
+}
 
 /// Baseline metrics before Oracle intervention
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -64,7 +130,28 @@ pub struct RoiMetrics {
     /// DEPYLER-1304: Fix availability rate (0.0-1.0)
     #[serde(default)]
     pub fix_availability_rate: f64,
+    /// DEPYLER-1321 (Popper): Total concrete type annotations generated
+    /// (native Rust types like i32, String, Vec<T>, HashMap<K,V>)
+    #[serde(default)]
+    pub concrete_type_usages: usize,
+    /// DEPYLER-1321 (Popper): Number of DepylerValue fallback usages
+    /// (the universal type that absorbs type mismatches)
+    #[serde(default)]
+    pub depyler_value_usages: usize,
+    /// DEPYLER-1321 (Popper): Escape rate = depyler_value_usages / total_type_usages
+    /// Per Popper's critique: if escape_rate > 0.20 (20%), type inference is failing
+    /// The DepylerValue is a "protective belt" that immunizes against falsification
+    #[serde(default)]
+    pub escape_rate: f64,
+    /// DEPYLER-1321 (Popper): Whether escape rate exceeds falsification threshold (20%)
+    /// TRUE means type inference is evading, not solving
+    #[serde(default)]
+    pub escape_rate_falsified: bool,
 }
+
+/// DEPYLER-1321 (Popper): Threshold for escape rate falsification
+/// If escape_rate exceeds this, type inference is failing (immunizing against falsification)
+pub const ESCAPE_RATE_FALSIFICATION_THRESHOLD: f64 = 0.20;
 
 impl Default for RoiMetrics {
     fn default() -> Self {
@@ -76,6 +163,11 @@ impl Default for RoiMetrics {
             estimated_savings_cents: 0,
             fixes_available: 0,
             fix_availability_rate: 0.0,
+            // DEPYLER-1321 (Popper): Escape rate metrics
+            concrete_type_usages: 0,
+            depyler_value_usages: 0,
+            escape_rate: 0.0,
+            escape_rate_falsified: false,
         }
     }
 }
@@ -195,9 +287,40 @@ impl OracleRoiMetrics {
                 estimated_savings_cents: estimated_savings,
                 fixes_available,
                 fix_availability_rate,
+                // DEPYLER-1321 (Popper): Default escape rate values
+                // Will be populated by from_convergence_with_escape_rate()
+                concrete_type_usages: 0,
+                depyler_value_usages: 0,
+                escape_rate: 0.0,
+                escape_rate_falsified: false,
             },
             issue: None,
         }
+    }
+
+    /// Create new metrics from convergence state with escape rate tracking
+    /// DEPYLER-1321 (Popper): This variant includes escape rate metrics
+    pub fn from_convergence_with_escape_rate(
+        state: &super::ConvergenceState,
+        classifications: &[super::ErrorClassification],
+        session_name: &str,
+        escape_tracker: Option<&EscapeRateTracker>,
+    ) -> Self {
+        let mut metrics = Self::from_convergence(state, classifications, session_name);
+
+        // DEPYLER-1321: Populate escape rate metrics if tracker is provided
+        if let Some(tracker) = escape_tracker {
+            let (concrete, dv) = tracker.counts();
+            let escape_rate = tracker.escape_rate();
+            let falsified = tracker.is_falsified();
+
+            metrics.roi_metrics.concrete_type_usages = concrete;
+            metrics.roi_metrics.depyler_value_usages = dv;
+            metrics.roi_metrics.escape_rate = escape_rate;
+            metrics.roi_metrics.escape_rate_falsified = falsified;
+        }
+
+        metrics
     }
 
     /// Write metrics to the standard docs location
@@ -216,14 +339,23 @@ impl OracleRoiMetrics {
         let json = serde_json::to_string_pretty(self)?;
         std::fs::write(path, json)?;
 
+        // DEPYLER-1321 (Popper): Include escape rate status in log
+        let escape_status = if self.roi_metrics.escape_rate_falsified {
+            "⚠️ FALSIFIED (>20%)"
+        } else {
+            "✅ OK"
+        };
+
         tracing::info!(
-            "Wrote Oracle ROI metrics to {}: {} high-conf, {} classifiable ({}%), {} fixes available ({}%)",
+            "Wrote Oracle ROI metrics to {}: {} high-conf, {} classifiable ({}%), {} fixes available ({}%), escape_rate: {:.1}% {}",
             path.display(),
             self.roi_metrics.high_confidence_errors,
             self.roi_metrics.total_classifiable,
             (self.roi_metrics.classifiable_rate * 100.0).round() as u32,
             self.roi_metrics.fixes_available,
-            (self.roi_metrics.fix_availability_rate * 100.0).round() as u32
+            (self.roi_metrics.fix_availability_rate * 100.0).round() as u32,
+            self.roi_metrics.escape_rate * 100.0,
+            escape_status
         );
 
         Ok(())
@@ -250,6 +382,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         }
     }
 
@@ -340,5 +474,179 @@ mod tests {
     fn test_oracle_performance_default() {
         let perf = OraclePerformance::default();
         assert_eq!(perf.type_mismatch_confidence, 0.0);
+    }
+
+    // ========================================================================
+    // DEPYLER-1321 (Popper): Escape Rate Tracker Tests
+    // ========================================================================
+
+    #[test]
+    fn test_escape_rate_tracker_new() {
+        let tracker = EscapeRateTracker::new();
+        let (concrete, dv) = tracker.counts();
+        assert_eq!(concrete, 0);
+        assert_eq!(dv, 0);
+        assert_eq!(tracker.escape_rate(), 0.0);
+        assert!(!tracker.is_falsified());
+    }
+
+    #[test]
+    fn test_escape_rate_tracker_record_concrete() {
+        let tracker = EscapeRateTracker::new();
+        tracker.record_concrete();
+        tracker.record_concrete();
+        tracker.record_concrete();
+
+        let (concrete, dv) = tracker.counts();
+        assert_eq!(concrete, 3);
+        assert_eq!(dv, 0);
+        assert_eq!(tracker.escape_rate(), 0.0); // 0 / 3 = 0
+        assert!(!tracker.is_falsified());
+    }
+
+    #[test]
+    fn test_escape_rate_tracker_record_depyler_value() {
+        let tracker = EscapeRateTracker::new();
+        tracker.record_depyler_value();
+        tracker.record_depyler_value();
+
+        let (concrete, dv) = tracker.counts();
+        assert_eq!(concrete, 0);
+        assert_eq!(dv, 2);
+        assert_eq!(tracker.escape_rate(), 1.0); // 2 / 2 = 1.0 (100% escape!)
+        assert!(tracker.is_falsified()); // 100% > 20%
+    }
+
+    #[test]
+    fn test_escape_rate_tracker_mixed_usage() {
+        let tracker = EscapeRateTracker::new();
+        // 80 concrete, 20 DepylerValue = 20% escape rate = exactly at threshold
+        for _ in 0..80 {
+            tracker.record_concrete();
+        }
+        for _ in 0..20 {
+            tracker.record_depyler_value();
+        }
+
+        let (concrete, dv) = tracker.counts();
+        assert_eq!(concrete, 80);
+        assert_eq!(dv, 20);
+        assert!((tracker.escape_rate() - 0.20).abs() < 0.001); // 20 / 100 = 0.20
+        assert!(!tracker.is_falsified()); // 20% is not > 20%
+    }
+
+    #[test]
+    fn test_escape_rate_tracker_falsification_threshold() {
+        let tracker = EscapeRateTracker::new();
+        // 79 concrete, 21 DepylerValue = 21% escape rate = exceeds threshold
+        for _ in 0..79 {
+            tracker.record_concrete();
+        }
+        for _ in 0..21 {
+            tracker.record_depyler_value();
+        }
+
+        assert!(tracker.escape_rate() > ESCAPE_RATE_FALSIFICATION_THRESHOLD);
+        assert!(tracker.is_falsified()); // 21% > 20%
+    }
+
+    #[test]
+    fn test_escape_rate_tracker_reset() {
+        let tracker = EscapeRateTracker::new();
+        tracker.record_concrete();
+        tracker.record_depyler_value();
+        tracker.reset();
+
+        let (concrete, dv) = tracker.counts();
+        assert_eq!(concrete, 0);
+        assert_eq!(dv, 0);
+    }
+
+    #[test]
+    fn test_roi_metrics_escape_rate_fields() {
+        let roi = RoiMetrics::default();
+        // DEPYLER-1321: Verify escape rate fields exist and are initialized
+        assert_eq!(roi.concrete_type_usages, 0);
+        assert_eq!(roi.depyler_value_usages, 0);
+        assert_eq!(roi.escape_rate, 0.0);
+        assert!(!roi.escape_rate_falsified);
+    }
+
+    #[test]
+    fn test_roi_metrics_escape_rate_serialization() {
+        let roi = RoiMetrics {
+            high_confidence_errors: 10,
+            medium_confidence_errors: 5,
+            total_classifiable: 15,
+            classifiable_rate: 0.75,
+            estimated_savings_cents: 40,
+            fixes_available: 8,
+            fix_availability_rate: 0.53,
+            // DEPYLER-1321: Escape rate fields
+            concrete_type_usages: 80,
+            depyler_value_usages: 20,
+            escape_rate: 0.20,
+            escape_rate_falsified: false,
+        };
+
+        let json = serde_json::to_string_pretty(&roi).unwrap();
+        assert!(json.contains("concrete_type_usages"));
+        assert!(json.contains("depyler_value_usages"));
+        assert!(json.contains("escape_rate"));
+        assert!(json.contains("escape_rate_falsified"));
+
+        let parsed: RoiMetrics = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed.concrete_type_usages, 80);
+        assert_eq!(parsed.depyler_value_usages, 20);
+        assert!((parsed.escape_rate - 0.20).abs() < 0.001);
+        assert!(!parsed.escape_rate_falsified);
+    }
+
+    #[test]
+    fn test_from_convergence_with_escape_rate() {
+        let config = test_config();
+        let state = super::super::ConvergenceState::new(config);
+        let classifications: Vec<super::super::ErrorClassification> = vec![];
+
+        // Create tracker with some usage
+        let tracker = EscapeRateTracker::new();
+        for _ in 0..70 {
+            tracker.record_concrete();
+        }
+        for _ in 0..30 {
+            tracker.record_depyler_value();
+        }
+
+        let metrics = OracleRoiMetrics::from_convergence_with_escape_rate(
+            &state,
+            &classifications,
+            "escape-test",
+            Some(&tracker),
+        );
+
+        assert_eq!(metrics.roi_metrics.concrete_type_usages, 70);
+        assert_eq!(metrics.roi_metrics.depyler_value_usages, 30);
+        assert!((metrics.roi_metrics.escape_rate - 0.30).abs() < 0.001);
+        assert!(metrics.roi_metrics.escape_rate_falsified); // 30% > 20%
+    }
+
+    #[test]
+    fn test_from_convergence_without_escape_tracker() {
+        let config = test_config();
+        let state = super::super::ConvergenceState::new(config);
+        let classifications: Vec<super::super::ErrorClassification> = vec![];
+
+        let metrics = OracleRoiMetrics::from_convergence_with_escape_rate(
+            &state,
+            &classifications,
+            "no-tracker",
+            None,
+        );
+
+        // Without tracker, escape rate should be 0
+        assert_eq!(metrics.roi_metrics.concrete_type_usages, 0);
+        assert_eq!(metrics.roi_metrics.depyler_value_usages, 0);
+        assert_eq!(metrics.roi_metrics.escape_rate, 0.0);
+        assert!(!metrics.roi_metrics.escape_rate_falsified);
     }
 }

@@ -42,6 +42,7 @@ fn test_augmented_assignment() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -83,6 +84,7 @@ fn test_in_operator() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -121,6 +123,7 @@ fn test_not_in_operator() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -458,6 +461,7 @@ fn test_array_length_subtraction_safety() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -497,6 +501,7 @@ fn test_regular_subtraction_unchanged() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -539,6 +544,7 @@ fn test_len_variable_subtraction_safety() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();

@@ -33,6 +33,7 @@ mod fix_applicator;
 mod reporter;
 mod roi_metrics;
 mod state;
+pub mod transpiler_patcher;
 pub mod type_constraint_learner;
 
 pub use cache::{
@@ -46,8 +47,11 @@ pub use fix_applicator::{
     CompositeFixApplicator, FixApplicationResult, FixApplicator, FixType, GeneratedRustFixer,
 };
 pub use reporter::{ConvergenceReporter, IterationReport};
-pub use roi_metrics::OracleRoiMetrics;
+pub use roi_metrics::{
+    EscapeRateTracker, OracleRoiMetrics, RoiMetrics, ESCAPE_RATE_FALSIFICATION_THRESHOLD,
+};
 pub use state::{AppliedFix, ConvergenceConfig, ConvergenceState, DisplayMode, ExampleState};
+pub use transpiler_patcher::{AprFile, PatchRecord, PatchResult, PatchType, TranspilerPatcher};
 pub use type_constraint_learner::{
     parse_e0308_batch, parse_e0308_constraint, TypeConstraint, TypeConstraintStore,
 };
@@ -65,6 +69,33 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     // DEPYLER-1305: Initialize fix applicator if auto_fix is enabled
     let fix_applicator = if config.auto_fix {
         Some(CompositeFixApplicator::new())
+    } else {
+        None
+    };
+
+    // DEPYLER-1308: Initialize transpiler patcher if enabled
+    let mut transpiler_patcher = if config.patch_transpiler {
+        let core_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .join("depyler-core");
+        let mut patcher = TranspilerPatcher::new(&core_path);
+
+        // Load custom APR file if provided, otherwise use defaults
+        if let Some(ref apr_path) = config.apr_file {
+            if let Err(e) = patcher.load_apr(apr_path) {
+                tracing::warn!("Failed to load APR file {}: {}", apr_path.display(), e);
+                patcher.load_defaults();
+            }
+        } else {
+            patcher.load_defaults();
+        }
+
+        tracing::info!(
+            "DEPYLER-1308: TranspilerPatcher initialized with {} patches",
+            patcher.patch_count()
+        );
+        Some(patcher)
     } else {
         None
     };
@@ -144,6 +175,86 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
                     fixes_applied,
                     state.iteration
                 );
+            }
+        }
+
+        // DEPYLER-1308: Apply transpiler patches if enabled
+        if let Some(ref mut patcher) = transpiler_patcher {
+            tracing::info!("DEPYLER-1312: Checking for transpiler patches, {} clusters available", state.error_clusters.len());
+            // Find applicable patches based on highest-impact error cluster
+            // DEPYLER-1312: Sort by impact_score instead of using arbitrary first()
+            if let Some(top_cluster) = state.error_clusters.iter().max_by(|a, b| {
+                a.impact_score().partial_cmp(&b.impact_score()).unwrap_or(std::cmp::Ordering::Equal)
+            }) {
+                let error_code = top_cluster.error_code.clone();
+                let sample_error = top_cluster.sample_errors.first();
+                let sample_message = sample_error
+                    .map(|e| e.message.clone())
+                    .unwrap_or_default();
+
+                // DEPYLER-1310: Extract context_keywords from all sample errors
+                let context_keywords: Vec<String> = top_cluster.sample_errors.iter()
+                    .flat_map(|e| e.context_keywords.iter().cloned())
+                    .collect();
+
+                // Info: log context keywords for diagnosis
+                tracing::info!(
+                    "DEPYLER-1312: Top cluster {} has {} sample errors with context_keywords: {:?}",
+                    error_code,
+                    top_cluster.sample_errors.len(),
+                    &context_keywords
+                );
+
+                // Clone patches to avoid borrow conflict
+                let patches: Vec<_> = patcher.find_patches(&error_code, &sample_message, &context_keywords)
+                    .into_iter()
+                    .cloned()
+                    .collect();
+
+                if !patches.is_empty() {
+                    tracing::info!(
+                        "DEPYLER-1308: Found {} patches for {} errors",
+                        patches.len(),
+                        error_code
+                    );
+
+                    for patch in &patches {
+                        match patcher.apply_patch(patch) {
+                            Ok(result) if result.success => {
+                                tracing::info!(
+                                    "DEPYLER-1308: Applied transpiler patch '{}' to {}",
+                                    result.patch_id,
+                                    result.file_modified.display()
+                                );
+                                state.fixes_applied.push(AppliedFix {
+                                    iteration: state.iteration,
+                                    error_code: error_code.clone(),
+                                    description: format!(
+                                        "Transpiler patch: {}",
+                                        result.description
+                                    ),
+                                    file_modified: result.file_modified,
+                                    commit_hash: None,
+                                    verified: false,
+                                });
+                            }
+                            Ok(result) => {
+                                tracing::debug!(
+                                    "DEPYLER-1308: Patch '{}' not applied: {}",
+                                    result.patch_id,
+                                    result.description
+                                );
+                            }
+                            Err(e) => {
+                                tracing::warn!(
+                                    "DEPYLER-1308: Failed to apply patch '{}': {}",
+                                    patch.id,
+                                    e
+                                );
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -247,6 +358,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
 
         let state = ConvergenceState::new(config);
@@ -277,6 +390,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
 
         let result = config.validate();
@@ -321,6 +436,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 42,
             column: 10,
+            ..Default::default()
         };
 
         let classification = classifier.classify(&error);
@@ -338,6 +454,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 100,
             column: 5,
+            ..Default::default()
         };
 
         let classification = classifier.classify(&error);
@@ -355,6 +472,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 200,
             column: 15,
+            ..Default::default()
         };
 
         let classification = classifier.classify(&error);
@@ -376,6 +494,7 @@ mod tests {
                     file: PathBuf::from("a.rs"),
                     line: 1,
                     column: 1,
+                    ..Default::default()
                 },
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "missing_method".to_string(),
@@ -389,6 +508,7 @@ mod tests {
                     file: PathBuf::from("b.rs"),
                     line: 2,
                     column: 2,
+                    ..Default::default()
                 },
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "missing_method".to_string(),
@@ -402,6 +522,7 @@ mod tests {
                     file: PathBuf::from("c.rs"),
                     line: 3,
                     column: 3,
+                    ..Default::default()
                 },
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "type_inference".to_string(),
@@ -455,6 +576,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
 
         let mut state = ConvergenceState::new(config);
@@ -498,6 +621,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
 
         let mut state = ConvergenceState::new(config.clone());
@@ -556,6 +681,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
 
         let state = ConvergenceState::new(config);
@@ -597,6 +724,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
 
         let mut state = ConvergenceState::new(config);
@@ -659,6 +788,8 @@ mod tests {
             oracle: true,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
         assert!(config.oracle);
     }
@@ -683,6 +814,8 @@ mod tests {
             // NEW: explain flag must exist
             explain: true,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
         assert!(config.explain);
     }
@@ -707,6 +840,8 @@ mod tests {
             explain: false,
             // NEW: use_cache flag must exist
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
         assert!(config.use_cache);
     }
@@ -730,6 +865,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         };
         // Cache ON by default (performance)
         assert!(config.use_cache);
