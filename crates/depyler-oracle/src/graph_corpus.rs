@@ -215,8 +215,10 @@ pub struct GraphCorpusStats {
 
 /// Analyze graph corpus and return statistics
 pub fn analyze_graph_corpus(failures: &[VectorizedFailure]) -> GraphCorpusStats {
-    let mut stats = GraphCorpusStats::default();
-    stats.total_samples = failures.len();
+    let mut stats = GraphCorpusStats {
+        total_samples: failures.len(),
+        ..Default::default()
+    };
 
     for failure in failures {
         // Count by category
