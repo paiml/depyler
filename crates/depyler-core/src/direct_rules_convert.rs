@@ -3012,23 +3012,48 @@ impl<'a> ExprConverter<'a> {
         };
 
         if is_dict_access || base_is_dict {
-            let index_expr = self.convert(index)?;
+            // DEPYLER-1320: Check if NASA mode (DepylerValue values need .into() for type conversion)
+            let needs_into = self.type_mapper.nasa_mode;
 
             // DEPYLER-1123: For bare dict types (HashMap<DepylerValue, DepylerValue>),
             // wrap key in DepylerValue::Str and add .into() for type conversion
             if is_depyler_value_dict {
                 // String literal key - wrap in DepylerValue::Str
                 if let HirExpr::Literal(Literal::String(_)) = index {
+                    let index_expr = self.convert(index)?;
                     return Ok(parse_quote! {
                         #base_expr.get(&DepylerValue::Str(#index_expr)).cloned().unwrap_or_default().into()
                     });
                 }
             }
 
+            // DEPYLER-1320: For string literal keys, use the literal directly without .to_string()
+            // This prevents &"key".to_string() which creates unnecessary allocation
+            if let HirExpr::Literal(Literal::String(s)) = index {
+                if needs_into {
+                    return Ok(parse_quote! {
+                        #base_expr.get(#s).cloned().unwrap_or_default().into()
+                    });
+                } else {
+                    return Ok(parse_quote! {
+                        #base_expr.get(#s).cloned().unwrap_or_default()
+                    });
+                }
+            }
+
+            // Non-literal index - convert and borrow
+            let index_expr = self.convert(index)?;
+
             // Standard dict access (HashMap<String, T> or HashMap<K, V> with known types)
-            Ok(parse_quote! {
-                #base_expr.get(&#index_expr).cloned().unwrap_or_default()
-            })
+            if needs_into {
+                Ok(parse_quote! {
+                    #base_expr.get(&#index_expr).cloned().unwrap_or_default().into()
+                })
+            } else {
+                Ok(parse_quote! {
+                    #base_expr.get(&#index_expr).cloned().unwrap_or_default()
+                })
+            }
         } else {
             // DEPYLER-1095: Vec/List access with numeric index - handle negative indices
             // Python supports list[-1] to get last element, list[-2] for second-to-last, etc.
@@ -5233,7 +5258,14 @@ impl<'a> ExprConverter<'a> {
                     // Two args: dict.get(key, default) → V
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
-                    Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| #default) })
+                    // GH-226: Check if default is a string literal - needs .to_string()
+                    // to match the cloned String type from HashMap<K, String>
+                    let is_str_literal = matches!(&args[1], HirExpr::Literal(Literal::String(_)));
+                    if is_str_literal {
+                        Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| (#default).to_string()) })
+                    } else {
+                        Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| #default) })
+                    }
                 } else {
                     bail!("get() requires 1 or 2 arguments");
                 }
@@ -5472,17 +5504,44 @@ impl<'a> ExprConverter<'a> {
                 }
                 _ => None,
             },
+            // GH-204: Collections module constructors - delegate to collection_constructors
+            // These constructors need proper argument handling, not just new()
             "collections" => match constructor {
                 "deque" => {
-                    Some(parse_quote! { std::collections::VecDeque::new() })
+                    // collections.deque([1,2,3]) → VecDeque::from(vec![...])
+                    if arg_exprs.is_empty() {
+                        Some(parse_quote! { std::collections::VecDeque::new() })
+                    } else {
+                        let arg = &arg_exprs[0];
+                        Some(parse_quote! { std::collections::VecDeque::from(#arg) })
+                    }
                 }
                 "Counter" => {
-                    Some(parse_quote! { std::collections::HashMap::new() })
+                    // collections.Counter([1,2,2,3]) → fold with entry().or_insert()
+                    if arg_exprs.is_empty() {
+                        Some(parse_quote! { std::collections::HashMap::new() })
+                    } else {
+                        let arg = &arg_exprs[0];
+                        Some(parse_quote! {
+                            #arg.into_iter().fold(std::collections::HashMap::new(), |mut acc, item| {
+                                *acc.entry(item).or_insert(0) += 1;
+                                acc
+                            })
+                        })
+                    }
                 }
                 "OrderedDict" => {
-                    Some(parse_quote! { std::collections::HashMap::new() })
+                    // OrderedDict preserves insertion order - in Rust 1.36+, HashMap does too
+                    // but we use indexmap for explicit ordering
+                    if arg_exprs.is_empty() {
+                        Some(parse_quote! { std::collections::HashMap::new() })
+                    } else {
+                        let arg = &arg_exprs[0];
+                        Some(parse_quote! { #arg.into_iter().collect::<std::collections::HashMap<_, _>>() })
+                    }
                 }
                 "defaultdict" => {
+                    // defaultdict(factory) → HashMap::new() (use entry API for defaults)
                     Some(parse_quote! { std::collections::HashMap::new() })
                 }
                 _ => None,

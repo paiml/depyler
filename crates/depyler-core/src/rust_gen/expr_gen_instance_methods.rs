@@ -497,6 +497,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0540: Check if this is a serde_json::Value that needs special handling
         let is_json_value = self.is_serde_json_value(hir_object);
 
+        // DEPYLER-1316: Check if object is a DepylerValue (heterogeneous dict wrapper)
+        // DepylerValue.get(&DepylerValue) vs DepylerValue.get_str(&str)
+        let object_is_depyler_value =
+            self.expr_returns_depyler_value(hir_object) && self.ctx.type_mapper.nasa_mode;
+
         match method {
             "get" => {
                 if arg_exprs.len() == 1 {
@@ -504,6 +509,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-0330: Keep dict.get() as Option to support .is_none() checks
                     // Python: result = d.get(key); if result is None: ...
                     // Rust: let result = d.get(key).cloned(); if result.is_none() { ... }
+
+                    // DEPYLER-1316: For DepylerValue, use get_str() for string keys
+                    if object_is_depyler_value {
+                        // Check if key is a string literal or string variable
+                        if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.first() {
+                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                            return Ok(parse_quote! { #object_expr.get_str(#lit).cloned() });
+                        } else if let Some(HirExpr::Var(var_name)) = hir_args.first() {
+                            // String variable - borrow if needed
+                            if self.is_borrowed_str_param(var_name) {
+                                return Ok(parse_quote! { #object_expr.get_str(#key).cloned() });
+                            } else {
+                                return Ok(parse_quote! { #object_expr.get_str(&#key).cloned() });
+                            }
+                        }
+                        // For non-string keys on DepylerValue, fall through to standard handling
+                    }
 
                     // DEPYLER-0542: Always borrow the key to prevent move semantics issues
                     // HashMap::get() expects &Q where Q: Borrow<K>. Using & prevents:
@@ -536,6 +558,55 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else if arg_exprs.len() == 2 {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
+
+                    // DEPYLER-1316: For DepylerValue, use get_str() for string keys
+                    if object_is_depyler_value {
+                        // Check if key is a string literal or string variable
+                        if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.first() {
+                            let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                            // For DepylerValue, wrap the default in DepylerValue if needed
+                            let default_expr: syn::Expr = match hir_args.get(1) {
+                                Some(HirExpr::Literal(Literal::Int(i))) => {
+                                    parse_quote! { DepylerValue::Int(#i) }
+                                }
+                                Some(HirExpr::Literal(Literal::Float(f))) => {
+                                    parse_quote! { DepylerValue::Float(#f) }
+                                }
+                                Some(HirExpr::Literal(Literal::String(s))) => {
+                                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                                    parse_quote! { DepylerValue::Str(#lit.to_string()) }
+                                }
+                                _ => parse_quote! { #default },
+                            };
+                            return Ok(
+                                parse_quote! { #object_expr.get_str(#lit).cloned().unwrap_or(#default_expr) },
+                            );
+                        } else if let Some(HirExpr::Var(var_name)) = hir_args.first() {
+                            let default_expr: syn::Expr = match hir_args.get(1) {
+                                Some(HirExpr::Literal(Literal::Int(i))) => {
+                                    parse_quote! { DepylerValue::Int(#i) }
+                                }
+                                Some(HirExpr::Literal(Literal::Float(f))) => {
+                                    parse_quote! { DepylerValue::Float(#f) }
+                                }
+                                Some(HirExpr::Literal(Literal::String(s))) => {
+                                    let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                                    parse_quote! { DepylerValue::Str(#lit.to_string()) }
+                                }
+                                _ => parse_quote! { #default },
+                            };
+                            if self.is_borrowed_str_param(var_name) {
+                                return Ok(
+                                    parse_quote! { #object_expr.get_str(#key).cloned().unwrap_or(#default_expr) },
+                                );
+                            } else {
+                                return Ok(
+                                    parse_quote! { #object_expr.get_str(&#key).cloned().unwrap_or(#default_expr) },
+                                );
+                            }
+                        }
+                    }
+
                     // DEPYLER-0542: Borrow keys for dict.get() (but not string literals)
                     let key_expr: syn::Expr = if let Some(HirExpr::Var(var_name)) = hir_args.first()
                     {
@@ -3779,11 +3850,80 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-1115: Handle external module function calls with Rust path syntax
         // When calling module functions like requests.get(url), use requests::get(url)
         // This enables phantom binding generation to provide type-safe stubs
+        // GH-204: Extended to properly use module mappings for stdlib modules like logging
         if let HirExpr::Var(module_name) = object {
+            // GH-204: Handle collections module constructor patterns FIRST
+            // Route collections.Counter, collections.deque, collections.defaultdict
+            // to proper builtin converter functions instead of generic module::function()
+            // This MUST be checked before the generic module mapping handling below
+            if module_name == "collections" {
+                let arg_exprs: Vec<syn::Expr> = args
+                    .iter()
+                    .map(|arg| arg.to_rust_expr(self.ctx))
+                    .collect::<Result<Vec<_>>>()?;
+
+                match method {
+                    "Counter" => {
+                        return crate::rust_gen::collection_constructors::convert_counter_builtin(
+                            self.ctx,
+                            &arg_exprs,
+                        );
+                    }
+                    "deque" => {
+                        return crate::rust_gen::collection_constructors::convert_deque_builtin(
+                            self.ctx,
+                            &arg_exprs,
+                        );
+                    }
+                    "defaultdict" => {
+                        return crate::rust_gen::collection_constructors::convert_defaultdict_builtin(
+                            self.ctx,
+                            &arg_exprs,
+                        );
+                    }
+                    _ => {} // Fall through to generic handling for other collections methods
+                }
+            }
+
             // Check if this is an imported module (not a local variable)
             // Use all_imported_modules which includes external unmapped modules like requests
             if self.ctx.all_imported_modules.contains(module_name) {
-                // Generate module::function() syntax instead of module.function()
+                // GH-204: Check if this module has a mapping with a Rust equivalent
+                if let Some(mapping) = self.ctx.imported_modules.get(module_name) {
+                    // Get the rust path and item mapping
+                    let rust_path = &mapping.rust_path;
+                    let rust_method = mapping.item_map.get(method);
+
+                    // GH-204: If we have a mapped method and non-empty rust_path
+                    if let Some(rust_name) = rust_method {
+                        // Check if this is a macro call (ends with !)
+                        if rust_name.ends_with('!') {
+                            // Macro call - generate macro_name!(args)
+                            let macro_name_str = rust_name.trim_end_matches('!');
+                            let macro_ident = syn::Ident::new(macro_name_str, proc_macro2::Span::call_site());
+
+                            let arg_exprs: Vec<syn::Expr> = args
+                                .iter()
+                                .map(|arg| arg.to_rust_expr(self.ctx))
+                                .collect::<Result<Vec<_>>>()?;
+
+                            return Ok(parse_quote! { #macro_ident!(#(#arg_exprs),*) });
+                        } else if !rust_path.is_empty() {
+                            // Regular function call with full path
+                            let full_path: syn::Path =
+                                syn::parse_str(&format!("{}::{}", rust_path, rust_name))?;
+
+                            let arg_exprs: Vec<syn::Expr> = args
+                                .iter()
+                                .map(|arg| arg.to_rust_expr(self.ctx))
+                                .collect::<Result<Vec<_>>>()?;
+
+                            return Ok(parse_quote! { #full_path(#(#arg_exprs),*) });
+                        }
+                    }
+                }
+
+                // Fallback: Generate module::function() syntax for unmapped modules
                 let module_ident = crate::rust_gen::keywords::safe_ident(module_name);
                 let method_ident = crate::rust_gen::keywords::safe_ident(method);
 
@@ -3913,8 +4053,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-1106: Use PyOps trait methods for DepylerValue indexing
         // This provides Python-semantic indexing with negative index support
+        // DEPYLER-1316: For string keys, use get_str() instead of py_index()
+        // DEPYLER-1319: Add .into() for type conversion from DepylerValue to expected type
         let base_is_depyler = self.expr_returns_depyler_value(base);
         if base_is_depyler && self.ctx.type_mapper.nasa_mode {
+            // DEPYLER-1316: Check for string literal keys - use get_str() for dict access
+            // DEPYLER-1319: Add .into() to convert DepylerValue to target type
+            if let HirExpr::Literal(Literal::String(s)) = index {
+                let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
+                return Ok(parse_quote! { #base_expr.get_str(#lit).cloned().unwrap_or_default().into() });
+            }
+            // DEPYLER-1316: Check for string variable keys - use get_str() for dict access
+            // DEPYLER-1319: Add .into() to convert DepylerValue to target type
+            if let HirExpr::Var(var_name) = index {
+                let var_type = self.ctx.var_types.get(var_name);
+                let is_string_var = matches!(var_type, Some(Type::String) | None);
+                if is_string_var {
+                    let var_ident = crate::rust_gen::keywords::safe_ident(var_name);
+                    return Ok(
+                        parse_quote! { #base_expr.get_str(&#var_ident).cloned().unwrap_or_default().into() },
+                    );
+                }
+            }
+            // For numeric indices, use py_index for negative index support
             let index_expr = index.to_rust_expr(self.ctx)?;
             // Use .py_index() for DepylerValue - handles negative indices and type coercion
             let index_for_pyops = if matches!(index, HirExpr::Literal(Literal::Int(_))) {
@@ -3929,13 +4090,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-1145: Wrap index in DepylerValue if base is HashMap<DepylerValue, ...>
         // Check if base is a variable with DepylerValue key type
-        // DEPYLER-1214: Type::Dict(Unknown, _) actually generates HashMap<String, ...> (see type_mapper.rs)
+        // DEPYLER-1214: Type::Dict(Unknown, _) actually generates HashMap<String, ...> (see type_tokens.rs)
         // so we should NOT wrap keys in DepylerValue. Only Type::Dict with explicit DepylerValue
         // key type would need wrapping (which is rare in practice).
         let is_depyler_value_key = if let HirExpr::Var(var_name) = base {
             self.ctx.var_types.get(var_name).is_some_and(|t| {
                 // Only wrap if key type is explicitly DepylerValue, not Unknown
-                // Unknown keys map to String in the type mapper (see DEPYLER-0776)
+                // Unknown keys map to String in the type_tokens.rs (see DEPYLER-1214)
                 matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Custom(n) if n == "DepylerValue"))
             })
         } else {
@@ -4028,14 +4189,56 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         if is_string_key {
             // HashMap/Dict access with string keys
+            // DEPYLER-1316: When base is DepylerValue (NASA mode), use get_str() for string keys
+            // DepylerValue.get(&DepylerValue) vs DepylerValue.get_str(&str)
+            let base_is_depyler_value = self.expr_returns_depyler_value(base);
+
+            // DEPYLER-1319: Check if dict values are DepylerValue (needs .into() for conversion)
+            // This enables type coercion: dict["key"] → DepylerValue → primitive type
+            let needs_into = base_is_depyler_value || self.dict_has_depyler_value_values(base);
+
             match index {
                 HirExpr::Literal(Literal::String(s)) => {
                     // String literal - use it directly without .to_string()
-                    Ok(parse_quote! {
-                        #base_expr.get(#s).cloned().unwrap_or_default()
-                    })
+                    if base_is_depyler_value && self.ctx.type_mapper.nasa_mode {
+                        // DEPYLER-1316: DepylerValue has get_str(&str) method for string keys
+                        // DEPYLER-1319: Add .into() for type conversion
+                        Ok(parse_quote! {
+                            #base_expr.get_str(#s).cloned().unwrap_or_default().into()
+                        })
+                    } else if needs_into {
+                        // DEPYLER-1319: Dict has DepylerValue values - add .into()
+                        Ok(parse_quote! {
+                            #base_expr.get(#s).cloned().unwrap_or_default().into()
+                        })
+                    } else {
+                        Ok(parse_quote! {
+                            #base_expr.get(#s).cloned().unwrap_or_default()
+                        })
+                    }
                 }
                 _ => {
+                    // DEPYLER-1320: Defensive check for string literals that reach this branch
+                    // In classmethods, string literals may not match the earlier pattern due to
+                    // differences in HIR construction. Handle them here to ensure correct codegen.
+                    if let HirExpr::Literal(Literal::String(s)) = index {
+                        if base_is_depyler_value && self.ctx.type_mapper.nasa_mode {
+                            // DepylerValue with string key - use get_str + .into()
+                            return Ok(parse_quote! {
+                                #base_expr.get_str(#s).cloned().unwrap_or_default().into()
+                            });
+                        } else if needs_into {
+                            // Dict with DepylerValue values - add .into()
+                            return Ok(parse_quote! {
+                                #base_expr.get(#s).cloned().unwrap_or_default().into()
+                            });
+                        } else {
+                            return Ok(parse_quote! {
+                                #base_expr.get(#s).cloned().unwrap_or_default()
+                            });
+                        }
+                    }
+
                     // String variable - needs proper referencing
                     // HashMap.get() expects &K, so we need to borrow the key
                     // DEPYLER-0521: Don't add & if variable is already &str type
@@ -4059,7 +4262,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     } else {
                         true // Non-variable expressions typically need borrowing
                     };
-                    if needs_borrow {
+
+                    if base_is_depyler_value && self.ctx.type_mapper.nasa_mode {
+                        // DEPYLER-1316: Use get_str for DepylerValue with string variable keys
+                        // DEPYLER-1319: Add .into() for type conversion
+                        if needs_borrow {
+                            Ok(parse_quote! {
+                                #base_expr.get_str(&#index_expr).cloned().unwrap_or_default().into()
+                            })
+                        } else {
+                            Ok(parse_quote! {
+                                #base_expr.get_str(#index_expr).cloned().unwrap_or_default().into()
+                            })
+                        }
+                    } else if needs_into {
+                        // DEPYLER-1319: Dict has DepylerValue values - add .into()
+                        if needs_borrow {
+                            Ok(parse_quote! {
+                                #base_expr.get(&#index_expr).cloned().unwrap_or_default().into()
+                            })
+                        } else {
+                            Ok(parse_quote! {
+                                #base_expr.get(#index_expr).cloned().unwrap_or_default().into()
+                            })
+                        }
+                    } else if needs_borrow {
                         Ok(parse_quote! {
                             #base_expr.get(&#index_expr).cloned().unwrap_or_default()
                         })
@@ -4848,10 +5075,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ) -> Result<syn::Expr> {
         match (start_expr, stop_expr, step_expr) {
             // Full slice with step: s[::step]
+            // DEPYLER-1315: Clone base to prevent E0382 "use of moved value"
             (None, None, Some(step)) => {
                 Ok(parse_quote! {
                     {
-                        let base = #base_expr;
+                        let base = (#base_expr).clone();
                         let step: i32 = #step;
                         if step == 1 {
                             base.to_string()
@@ -4869,9 +5097,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // Start and stop: s[start:stop]
+            // DEPYLER-1315: Clone base to prevent E0382 "use of moved value"
             (Some(start), Some(stop), None) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
+                    let base = (#base_expr).clone();
                     let start_idx: i32 = #start;
                     let stop_idx: i32 = #stop;
                     let len = base.chars().count() as i32;
@@ -4898,9 +5127,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }),
 
             // Start only: s[start:]
+            // DEPYLER-1315: Clone base to prevent E0382 "use of moved value"
             (Some(start), None, None) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
+                    let base = (#base_expr).clone();
                     let start_idx: i32 = #start;
                     let len = base.chars().count() as i32;
 
@@ -4916,9 +5146,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }),
 
             // Stop only: s[:stop]
+            // DEPYLER-1315: Clone base to prevent E0382 "use of moved value"
             (None, Some(stop), None) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
+                    let base = (#base_expr).clone();
                     let stop_idx: i32 = #stop;
                     let len = base.chars().count() as i32;
 
@@ -4937,10 +5168,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             (None, None, None) => Ok(parse_quote! { #base_expr.to_string() }),
 
             // Start, stop, and step: s[start:stop:step]
+            // DEPYLER-1315: Clone base to prevent E0382 "use of moved value"
             (Some(start), Some(stop), Some(step)) => {
                 Ok(parse_quote! {
                     {
-                        let base = #base_expr;
+                        let base = (#base_expr).clone();
                         let start_idx: i32 = #start;
                         let stop_idx: i32 = #stop;
                         let step: i32 = #step;
@@ -4990,9 +5222,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // Start and step: s[start::step]
+            // DEPYLER-1315: Clone base to prevent E0382 "use of moved value"
             (Some(start), None, Some(step)) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
+                    let base = (#base_expr).clone();
                     let start_idx: i32 = #start;
                     let step: i32 = #step;
                     let len = base.chars().count() as i32;
@@ -5017,9 +5250,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }),
 
             // Stop and step: s[:stop:step]
+            // DEPYLER-1315: Clone base to prevent E0382 "use of moved value"
             (None, Some(stop), Some(step)) => Ok(parse_quote! {
                 {
-                    let base = #base_expr;
+                    let base = (#base_expr).clone();
                     let stop_idx: i32 = #stop;
                     let step: i32 = #step;
                     let len = base.chars().count() as i32;
@@ -7959,18 +8193,50 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0729: Check if dict value type is String (not &str)
     /// Used to determine if string literal defaults in dict.get() need .to_string()
+    /// GH-226: Default to true when type unknown - HashMap<String, String> is most common
+    /// and calling .to_string() on String just clones (harmless), while NOT calling it
+    /// on String values causes compile errors
     pub(crate) fn dict_value_type_is_string(&self, expr: &HirExpr) -> bool {
         match expr {
             HirExpr::Var(name) => {
                 if let Some(var_type) = self.ctx.var_types.get(name) {
-                    matches!(var_type, Type::Dict(_, ref v) if matches!(**v, Type::String))
+                    // String values or unknown dict value type - need .to_string() for safety
+                    matches!(var_type, Type::Dict(_, ref v) if matches!(**v, Type::String | Type::Unknown))
+                        || !matches!(var_type, Type::Dict(_, _))
                 } else {
-                    false
+                    // GH-226: Unknown type - assume String (safer default)
+                    true
                 }
             }
             HirExpr::MethodCall { object, .. } => self.dict_value_type_is_string(object),
             HirExpr::Index { base, .. } => self.dict_value_type_is_string(base),
-            _ => false,
+            // GH-226: Unknown expression type - assume String (safer default)
+            _ => true,
+        }
+    }
+
+    /// DEPYLER-1319: Check if dict has DepylerValue values (requires .into() for type conversion)
+    /// In NASA mode, dicts with Unknown/Any value types use DepylerValue as the value type.
+    /// When accessing such dicts, we need .into() to convert to the expected primitive type.
+    pub(crate) fn dict_has_depyler_value_values(&self, expr: &HirExpr) -> bool {
+        // In NASA mode, check if the dict value type is Unknown (maps to DepylerValue)
+        if !self.ctx.type_mapper.nasa_mode {
+            return false;
+        }
+        match expr {
+            HirExpr::Var(name) => {
+                if let Some(var_type) = self.ctx.var_types.get(name) {
+                    // Dict with Unknown value type → DepylerValue in NASA mode
+                    matches!(var_type, Type::Dict(_, ref v) if matches!(**v, Type::Unknown))
+                } else {
+                    // Unknown variable in NASA mode - assume DepylerValue values
+                    true
+                }
+            }
+            HirExpr::MethodCall { object, .. } => self.dict_has_depyler_value_values(object),
+            HirExpr::Index { base, .. } => self.dict_has_depyler_value_values(base),
+            // For function parameters like `data: dict`, assume DepylerValue in NASA mode
+            _ => true,
         }
     }
 
@@ -8258,8 +8524,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     pub(crate) fn expr_returns_depyler_value(&self, expr: &HirExpr) -> bool {
         match expr {
             // Variables with Unknown type become DepylerValue
+            // DEPYLER-1316: In NASA mode, also return true for variables not in var_types
+            // (like loop variables) since they likely came from iterating over DepylerValue
             HirExpr::Var(name) => {
-                matches!(self.ctx.var_types.get(name), Some(Type::Unknown))
+                let var_type = self.ctx.var_types.get(name);
+                match var_type {
+                    Some(Type::Unknown) | Some(Type::UnificationVar(_)) => true,
+                    // DEPYLER-1316: In NASA mode, any untracked or ambiguous variable
+                    // likely came from DepylerValue
+                    None if self.ctx.type_mapper.nasa_mode => {
+                        // Exception: Don't assume system-level vars like `_dv_*` are DepylerValue
+                        !name.starts_with("_dv_")
+                            && !name.starts_with("_cse_")
+                            && !name.starts_with("_range_")
+                    }
+                    // DEPYLER-1316: Also check for custom types that map to DepylerValue
+                    Some(Type::Custom(type_name)) if self.ctx.type_mapper.nasa_mode => {
+                        // Custom types in NASA mode are typically DepylerValue wrappers
+                        type_name.contains("DepylerValue") || type_name == "Unknown"
+                    }
+                    _ => false,
+                }
             }
             // Index access on collections with Unknown element type
             // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
@@ -8277,9 +8562,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             }
             // Method calls on Unknown-typed objects
-            HirExpr::MethodCall { object, .. } => {
+            // DEPYLER-1316: Recursively check if object returns DepylerValue
+            // This handles chained calls like: record.get("s3").cloned().unwrap_or_default().get("bucket")
+            HirExpr::MethodCall { object, method, .. } => {
+                // Check if the object itself returns DepylerValue
+                if self.expr_returns_depyler_value(object) {
+                    // Methods that preserve DepylerValue type
+                    return matches!(
+                        method.as_str(),
+                        "get" | "get_str" | "cloned" | "clone" | "unwrap_or_default" | "unwrap"
+                    );
+                }
+                // DEPYLER-1316: Recursively check the object via Var case logic
                 if let HirExpr::Var(name) = object.as_ref() {
-                    return matches!(self.ctx.var_types.get(name), Some(Type::Unknown));
+                    let var_type = self.ctx.var_types.get(name);
+                    return match var_type {
+                        Some(Type::Unknown) | Some(Type::UnificationVar(_)) => true,
+                        None if self.ctx.type_mapper.nasa_mode => {
+                            !name.starts_with("_dv_")
+                                && !name.starts_with("_cse_")
+                                && !name.starts_with("_range_")
+                        }
+                        Some(Type::Custom(type_name)) if self.ctx.type_mapper.nasa_mode => {
+                            type_name.contains("DepylerValue") || type_name == "Unknown"
+                        }
+                        _ => false,
+                    };
                 }
                 false
             }
@@ -8995,10 +9303,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn infer_lambda_param_type(&self, param: &str, body: &HirExpr) -> Option<syn::Type> {
         // DEPYLER-1117: Check iterator methods FIRST - if param.iter() is called,
         // it's a collection, not a scalar
-        // DEPYLER-1156: Use &Vec<i64> (reference) instead of Vec<i64> (owned)
+        // DEPYLER-1156: Use &Vec<i32> (reference) instead of Vec<i32> (owned)
         // Python passes lists by reference, so lambda calls use &numbers not numbers
+        // DEPYLER-1314: Changed from i64 to i32 for consistency with list element inference
         if self.body_uses_iter_on_param(param, body) {
-            return Some(parse_quote! { &Vec<i64> });
+            return Some(parse_quote! { &Vec<i32> });
         }
 
         // DEPYLER-1130: Check if parameter is used as a boolean condition
@@ -9008,13 +9317,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
 
         // Check if parameter is used directly in PyOps (not in nested lambdas)
+        // DEPYLER-1314: Changed from i64 to i32 for consistency
         if self.param_directly_in_pyops(param, body) {
-            return Some(parse_quote! { i64 });
+            return Some(parse_quote! { i32 });
         }
 
-        // Default to i64 for standalone lambdas to resolve E0282
-        // This is safe because PyOps traits are implemented for i64
-        Some(parse_quote! { i64 })
+        // Default to i32 for standalone lambdas to resolve E0282
+        // DEPYLER-1314: Changed from i64 to i32 to match list element type inference
+        // This is safe because PyOps traits are implemented for i32
+        Some(parse_quote! { i32 })
     }
 
     /// DEPYLER-1130: Check if parameter is used as a boolean condition
