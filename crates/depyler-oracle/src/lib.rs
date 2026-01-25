@@ -702,6 +702,118 @@ impl Oracle {
             adwin_detector: ADWIN::with_delta(0.002),
         })
     }
+
+    // =========================================================================
+    // GH-210 Phase 4: Enhanced Classification with Combined Features
+    // =========================================================================
+
+    /// Classify an error using enhanced features from GH-210.
+    ///
+    /// Combines:
+    /// - Enhanced 73-dimensional features (base + error codes + keywords)
+    /// - HNSW-accelerated structural similarity search (O(log n))
+    /// - GNN error encoding for semantic understanding
+    /// - AST embeddings for Code2Vec-style patterns
+    ///
+    /// # Arguments
+    /// * `error_code` - Rust error code (e.g., "E0308")
+    /// * `error_message` - Full error message text
+    /// * `python_source` - Original Python source (for AST embedding)
+    /// * `rust_source` - Generated Rust source (for AST embedding)
+    /// * `gnn_encoder` - Pre-configured GNN encoder with indexed patterns
+    ///
+    /// # Returns
+    /// * Enhanced classification result with structural similarity matches
+    #[must_use]
+    pub fn classify_enhanced(
+        &self,
+        error_code: &str,
+        error_message: &str,
+        python_source: &str,
+        rust_source: &str,
+        gnn_encoder: &mut DepylerGnnEncoder,
+    ) -> EnhancedClassificationResult {
+        // 1. Get base classification using Random Forest
+        let base_result = self.classify_message(error_message)
+            .unwrap_or_else(|_| ClassificationResult {
+                category: ErrorCategory::Other,
+                confidence: 0.5,
+                suggested_fix: None,
+                related_patterns: vec![],
+            });
+
+        // 2. Extract enhanced 73-dim features
+        let enhanced_features = features::EnhancedErrorFeatures::from_error_message(error_message);
+
+        // 3. Get GNN structural similarity matches (HNSW O(log n))
+        let similar_patterns = gnn_encoder.find_similar(
+            error_code,
+            error_message,
+            rust_source,
+        );
+
+        // 4. Get combined embedding for downstream use
+        let combined_embedding = gnn_encoder.encode_combined(
+            error_code,
+            error_message,
+            python_source,
+            rust_source,
+        );
+
+        // 5. Compute enhanced confidence
+        // Boost confidence if we found structurally similar patterns
+        let similarity_boost = if !similar_patterns.is_empty() {
+            similar_patterns[0].similarity * 0.1 // Up to 10% boost
+        } else {
+            0.0
+        };
+        let enhanced_confidence = (base_result.confidence + similarity_boost).min(1.0);
+
+        // 6. Extract suggested fixes from matched patterns
+        let pattern_fixes: Vec<String> = similar_patterns
+            .iter()
+            .filter_map(|sp| {
+                sp.pattern.error_pattern.as_ref().map(|ep| ep.fix_diff.clone())
+            })
+            .filter(|fix| !fix.is_empty())
+            .take(3)
+            .collect();
+
+        EnhancedClassificationResult {
+            category: base_result.category,
+            confidence: enhanced_confidence,
+            suggested_fix: base_result.suggested_fix,
+            related_patterns: base_result.related_patterns,
+            similar_patterns,
+            enhanced_features,
+            combined_embedding,
+            pattern_fixes,
+            hnsw_used: gnn_encoder.is_hnsw_active(),
+        }
+    }
+}
+
+/// GH-210 Phase 4: Enhanced classification result with structural similarity.
+#[derive(Debug, Clone)]
+pub struct EnhancedClassificationResult {
+    /// Predicted error category (from Random Forest)
+    pub category: ErrorCategory,
+    /// Enhanced confidence score (boosted by structural matches)
+    pub confidence: f32,
+    /// Suggested fix from templates
+    pub suggested_fix: Option<String>,
+    /// Related fix patterns from templates
+    pub related_patterns: Vec<String>,
+    /// Structurally similar patterns from HNSW/GNN search
+    pub similar_patterns: Vec<SimilarPattern>,
+    /// Enhanced 73-dimensional features
+    pub enhanced_features: features::EnhancedErrorFeatures,
+    /// Combined GNN + AST embedding vector
+    pub combined_embedding: Vec<f32>,
+    /// Fix diffs from matched patterns
+    pub pattern_fixes: Vec<String>,
+    /// Whether HNSW index was used for search
+    pub hnsw_used: bool,
 }
 
 impl Default for Oracle {
@@ -1606,5 +1718,171 @@ mod tests {
         oracle.set_adwin_delta(0.001);
         oracle.set_adwin_delta(0.01);
         oracle.set_adwin_delta(0.1);
+    }
+
+    // ==========================================================================
+    // GH-210 Phase 4: Enhanced Classification Integration Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_phase4_enhanced_classification() {
+        let oracle = Oracle::new();
+        let mut gnn_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            similarity_threshold: 0.0, // Accept all matches
+            ..Default::default()
+        });
+
+        // Index a sample pattern
+        let pattern = error_patterns::ErrorPattern::new(
+            "E0308",
+            "mismatched types",
+            "+let x: i32 = 42;",
+        );
+        gnn_encoder.index_pattern(&pattern, "let x: i32 = \"hello\";");
+
+        let result = oracle.classify_enhanced(
+            "E0308",
+            "mismatched types: expected i32, found String",
+            "def foo(): return \"hello\"",
+            "fn foo() -> i32 { \"hello\" }",
+            &mut gnn_encoder,
+        );
+
+        // Verify result structure
+        assert!(result.confidence >= 0.0 && result.confidence <= 1.0);
+        assert!(!result.combined_embedding.is_empty());
+        assert!(result.enhanced_features.base.message_length > 0.0);
+    }
+
+    #[test]
+    fn test_phase4_enhanced_classification_hnsw_used() {
+        let oracle = Oracle::new();
+        let mut gnn_encoder = DepylerGnnEncoder::with_defaults();
+
+        // Index pattern to enable HNSW
+        let pattern = error_patterns::ErrorPattern::new(
+            "E0308",
+            "type mismatch",
+            "+fix",
+        );
+        gnn_encoder.index_pattern(&pattern, "source");
+
+        let result = oracle.classify_enhanced(
+            "E0308",
+            "type mismatch",
+            "def foo(): pass",
+            "fn foo() {}",
+            &mut gnn_encoder,
+        );
+
+        assert!(result.hnsw_used, "HNSW should be used when patterns are indexed");
+    }
+
+    #[test]
+    fn test_phase4_enhanced_classification_without_hnsw() {
+        let oracle = Oracle::new();
+        let mut gnn_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            use_hnsw: false,
+            ..Default::default()
+        });
+
+        let result = oracle.classify_enhanced(
+            "E0308",
+            "type mismatch",
+            "def foo(): pass",
+            "fn foo() {}",
+            &mut gnn_encoder,
+        );
+
+        assert!(!result.hnsw_used, "HNSW should not be used when disabled");
+    }
+
+    #[test]
+    fn test_phase4_enhanced_classification_combined_embedding_size() {
+        let oracle = Oracle::new();
+        let mut gnn_encoder = DepylerGnnEncoder::with_defaults();
+
+        let result = oracle.classify_enhanced(
+            "E0382",
+            "borrow of moved value",
+            "def foo(): x = []; return x",
+            "fn foo() { let x = vec![]; x }",
+            &mut gnn_encoder,
+        );
+
+        // Combined embedding: GNN (256) + Python AST (128) + Rust AST (128) = 512
+        assert_eq!(
+            result.combined_embedding.len(),
+            gnn_encoder.combined_dim(),
+            "Combined embedding should have correct dimension"
+        );
+    }
+
+    #[test]
+    fn test_phase4_enhanced_features_extraction() {
+        let oracle = Oracle::new();
+        let mut gnn_encoder = DepylerGnnEncoder::with_defaults();
+
+        let result = oracle.classify_enhanced(
+            "E0277",
+            "the trait `Clone` is not implemented for `Foo`",
+            "class Foo: pass",
+            "struct Foo {}",
+            &mut gnn_encoder,
+        );
+
+        // Verify enhanced features contain trait keywords
+        let keyword_sum: f32 = result.enhanced_features.keyword_counts.iter().sum();
+        assert!(keyword_sum > 0.0, "Should extract trait-related keywords");
+    }
+
+    #[test]
+    fn test_phase4_pattern_fixes_extraction() {
+        let oracle = Oracle::new();
+        let mut gnn_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            similarity_threshold: 0.0,
+            ..Default::default()
+        });
+
+        // Index pattern with a fix
+        let pattern = error_patterns::ErrorPattern::new(
+            "E0308",
+            "type error",
+            "-let x = \"hello\";\n+let x: i32 = 42;",
+        );
+        gnn_encoder.index_pattern(&pattern, "source");
+
+        let result = oracle.classify_enhanced(
+            "E0308",
+            "type error",
+            "def foo(): pass",
+            "fn foo() {}",
+            &mut gnn_encoder,
+        );
+
+        // Should extract fix from matched pattern
+        assert!(
+            !result.pattern_fixes.is_empty() || result.similar_patterns.is_empty(),
+            "Should extract fixes from matched patterns"
+        );
+    }
+
+    #[test]
+    fn test_phase4_enhanced_result_clone() {
+        let oracle = Oracle::new();
+        let mut gnn_encoder = DepylerGnnEncoder::with_defaults();
+
+        let result = oracle.classify_enhanced(
+            "E0599",
+            "method not found",
+            "foo.bar()",
+            "foo.bar()",
+            &mut gnn_encoder,
+        );
+
+        let cloned = result.clone();
+        assert_eq!(cloned.category, result.category);
+        assert_eq!(cloned.confidence, result.confidence);
+        assert_eq!(cloned.hnsw_used, result.hnsw_used);
     }
 }
