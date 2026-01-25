@@ -9,18 +9,29 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 /// A single compilation error
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CompilationError {
     /// Rust error code (e.g., E0599, E0308)
+    #[serde(default)]
     pub code: String,
     /// Error message
+    #[serde(default)]
     pub message: String,
     /// File where error occurred
+    #[serde(default)]
     pub file: PathBuf,
     /// Line number
+    #[serde(default)]
     pub line: usize,
     /// Column number
+    #[serde(default)]
     pub column: usize,
+    /// DEPYLER-1310: Source code context - the actual Rust line that caused the error
+    #[serde(default)]
+    pub source_context: String,
+    /// DEPYLER-1310: Keywords extracted from source context for pattern matching
+    #[serde(default)]
+    pub context_keywords: Vec<String>,
 }
 
 /// Result of compiling a single example
@@ -133,13 +144,49 @@ pub fn truncate_filename(s: &str, max_len: usize) -> String {
 }
 
 /// Parse rustc error output into structured errors
+/// DEPYLER-1310: Enhanced to extract source context and keywords
 pub fn parse_rustc_errors(stderr: &str, file: &Path) -> Vec<CompilationError> {
     let mut errors = Vec::new();
+    let lines: Vec<&str> = stderr.lines().collect();
+    let mut i = 0;
 
-    for line in stderr.lines() {
+    while i < lines.len() {
+        let line = lines[i];
+
+        // Look for error lines: "error[E0308]: message"
         if let Some(error) = parse_error_line(line, file) {
+            let mut error = error;
+
+            // Look ahead for location and source context
+            // Format: "   --> file:line:col"
+            //         "    |"
+            //         "123 |     source_code_here"
+            for next_line in lines.iter().skip(i + 1).take(9) {
+
+                // Extract line number from location
+                if next_line.trim().starts_with("-->") {
+                    if let Some(loc) = parse_location(next_line) {
+                        error.line = loc.0;
+                        error.column = loc.1;
+                    }
+                }
+
+                // Extract source context (line with " | " followed by code)
+                if let Some(source) = extract_source_line(next_line) {
+                    error.source_context = source.clone();
+                    error.context_keywords = extract_keywords(&source);
+                    break;
+                }
+
+                // Stop at next error or blank line
+                if next_line.starts_with("error") || next_line.is_empty() {
+                    break;
+                }
+            }
+
             errors.push(error);
         }
+        i += 1;
     }
 
     if errors.is_empty() && !stderr.is_empty() {
@@ -149,10 +196,144 @@ pub fn parse_rustc_errors(stderr: &str, file: &Path) -> Vec<CompilationError> {
             file: file.to_path_buf(),
             line: 0,
             column: 0,
+            source_context: String::new(),
+            context_keywords: Vec::new(),
         });
     }
 
     errors
+}
+
+/// Parse location from " --> file:line:col" format
+fn parse_location(line: &str) -> Option<(usize, usize)> {
+    let trimmed = line.trim();
+    if !trimmed.starts_with("-->") {
+        return None;
+    }
+
+    // Find the last colon-separated numbers
+    let parts: Vec<&str> = trimmed.split(':').collect();
+    if parts.len() >= 2 {
+        let line_num = parts[parts.len() - 2].trim().parse().ok()?;
+        let col_num = parts[parts.len() - 1].trim().parse().unwrap_or(0);
+        return Some((line_num, col_num));
+    }
+    None
+}
+
+/// Extract source code from line like "123 |     source_code_here"
+fn extract_source_line(line: &str) -> Option<String> {
+    // Match pattern: "digits | code" or just "| code"
+    let trimmed = line.trim();
+
+    // Skip lines that are just "|" or contain only markers like "^^^"
+    if trimmed == "|" || trimmed.contains("^^^") || trimmed.contains("---") {
+        return None;
+    }
+
+    // Look for the pipe separator
+    if let Some(pipe_pos) = trimmed.find('|') {
+        let after_pipe = trimmed[pipe_pos + 1..].trim();
+        // Make sure it's actual code, not just whitespace or help text
+        if !after_pipe.is_empty()
+            && !after_pipe.starts_with("help:")
+            && !after_pipe.starts_with("note:")
+        {
+            return Some(after_pipe.to_string());
+        }
+    }
+    None
+}
+
+/// DEPYLER-1310: Extract keywords from source context for pattern matching
+fn extract_keywords(source: &str) -> Vec<String> {
+    let mut keywords = Vec::new();
+
+    // Collection-related keywords
+    if source.contains("vec!") || source.contains("Vec::") || source.contains("Vec<") {
+        keywords.push("vec".to_string());
+        keywords.push("list".to_string());
+    }
+    if source.contains(".push(") {
+        keywords.push("push".to_string());
+        keywords.push("list".to_string());
+    }
+    if source.contains("HashMap") || source.contains("dict") {
+        keywords.push("hashmap".to_string());
+        keywords.push("dict".to_string());
+    }
+    if source.contains(".get(") {
+        keywords.push("get".to_string());
+    }
+    if source.contains(".insert(") {
+        keywords.push("insert".to_string());
+        keywords.push("dict".to_string());
+    }
+
+    // Type-related keywords
+    if source.contains("String") || source.contains("&str") || source.contains(".to_string()") {
+        keywords.push("string".to_string());
+    }
+    if source.contains("i32") || source.contains("i64") || source.contains("usize") {
+        keywords.push("integer".to_string());
+    }
+    if source.contains("f64") || source.contains("f32") {
+        keywords.push("float".to_string());
+    }
+    if source.contains("Option<") || source.contains("Some(") || source.contains("None") {
+        keywords.push("option".to_string());
+    }
+    if source.contains("Result<") || source.contains("Ok(") || source.contains("Err(") {
+        keywords.push("result".to_string());
+    }
+
+    // Function call patterns
+    if source.contains("::new(") {
+        keywords.push("constructor".to_string());
+    }
+    if source.contains(".iter()") || source.contains(".into_iter()") {
+        keywords.push("iterator".to_string());
+    }
+    if source.contains(".collect()") || source.contains(".collect::<") {
+        keywords.push("collect".to_string());
+    }
+
+    // Datetime patterns
+    if source.contains("DateTime") || source.contains("NaiveDate") || source.contains("NaiveTime") {
+        keywords.push("datetime".to_string());
+    }
+    if source.contains(".hour") || source.contains(".minute") || source.contains(".second") {
+        keywords.push("time".to_string());
+    }
+    if source.contains(".year") || source.contains(".month") || source.contains(".day") {
+        keywords.push("date".to_string());
+    }
+
+    // Command/subprocess patterns
+    if source.contains("Command") || source.contains("subprocess") {
+        keywords.push("subprocess".to_string());
+        keywords.push("command".to_string());
+    }
+
+    // File/path patterns
+    if source.contains("Path") || source.contains("PathBuf") {
+        keywords.push("path".to_string());
+    }
+    if source.contains("File::") || source.contains("fs::") {
+        keywords.push("file".to_string());
+    }
+
+    // Tuple patterns
+    if source.contains("(") && source.contains(",") && source.contains(")") {
+        // Simple heuristic for tuple-like patterns
+        let paren_count = source.matches('(').count();
+        let comma_count = source.matches(',').count();
+        if paren_count > 0 && comma_count > 0 {
+            keywords.push("tuple".to_string());
+        }
+    }
+
+    keywords
 }
 
 /// Parse a single error line
@@ -169,6 +350,8 @@ pub fn parse_error_line(line: &str, file: &Path) -> Option<CompilationError> {
                 file: file.to_path_buf(),
                 line: 0,
                 column: 0,
+                source_context: String::new(),
+                context_keywords: Vec::new(),
             });
         }
     }
@@ -218,6 +401,8 @@ pub fn make_transpile_failure(py_file: &Path, error_message: &str) -> Compilatio
             file: py_file.to_path_buf(),
             line: 0,
             column: 0,
+            source_context: String::new(),
+            context_keywords: vec!["transpile".to_string()],
         }],
         rust_file: None,
     }
@@ -252,6 +437,10 @@ pub fn convert_cargo_errors(
     cargo_errors: Vec<depyler_core::cargo_first::CompilerError>,
     rust_file: &Path,
 ) -> Vec<CompilationError> {
+    // DEPYLER-1310: Pre-read rust file for source context extraction
+    let rust_source = std::fs::read_to_string(rust_file).unwrap_or_default();
+    let source_lines: Vec<&str> = rust_source.lines().collect();
+
     cargo_errors
         .into_iter()
         .filter(|e| e.is_semantic)
@@ -260,12 +449,26 @@ pub fn convert_cargo_errors(
                 Some(s) => (s.line_start as usize, s.column_start as usize),
                 None => (0, 0),
             };
+            // DEPYLER-1310: Extract source context from actual source line
+            let source_context = if line > 0 && line <= source_lines.len() {
+                source_lines[line - 1].to_string()
+            } else {
+                String::new()
+            };
+            // Extract keywords from BOTH source context AND error message
+            let mut context_keywords = extract_keywords(&source_context);
+            context_keywords.extend(extract_keywords(&e.message));
+            context_keywords.sort();
+            context_keywords.dedup();
+
             CompilationError {
                 code: e.code.unwrap_or_else(|| "E????".to_string()),
                 message: e.message,
                 file: rust_file.to_path_buf(),
                 line,
                 column,
+                source_context,
+                context_keywords,
             }
         })
         .collect()
@@ -310,6 +513,8 @@ pub async fn compile_single_file(py_file: &Path) -> Result<CompilationResult> {
                 file: py_file.to_path_buf(),
                 line: 0,
                 column: 0,
+                source_context: String::new(),
+                context_keywords: vec!["cargo".to_string()],
             }],
             rust_file: None,
         }),
@@ -433,6 +638,8 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 10,
             column: 5,
+            source_context: String::new(),
+            context_keywords: Vec::new(),
         };
         assert_eq!(error.code, "E0599");
         assert_eq!(error.message, "no method found");
@@ -449,11 +656,14 @@ mod tests {
             file: PathBuf::from("main.rs"),
             line: 20,
             column: 10,
+            source_context: "let x: Vec<i32> = vec![];".to_string(),
+            context_keywords: vec!["vec".to_string(), "list".to_string()],
         };
         let cloned = error.clone();
         assert_eq!(error.code, cloned.code);
         assert_eq!(error.message, cloned.message);
         assert_eq!(error.file, cloned.file);
+        assert_eq!(error.context_keywords, cloned.context_keywords);
     }
 
     #[test]
@@ -464,6 +674,8 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 1,
             column: 1,
+            source_context: String::new(),
+            context_keywords: Vec::new(),
         };
         let debug = format!("{:?}", error);
         assert!(debug.contains("E0599"));
@@ -494,6 +706,8 @@ mod tests {
                 file: PathBuf::from("test.rs"),
                 line: 1,
                 column: 1,
+                source_context: String::new(),
+                context_keywords: Vec::new(),
             }],
             rust_file: None,
         };
@@ -651,15 +865,19 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 10,
             column: 5,
+            source_context: "let x = vec![].foo()".to_string(),
+            context_keywords: vec!["vec".to_string()],
         };
 
         let json = serde_json::to_string(&error).unwrap();
         assert!(json.contains("E0599"));
         assert!(json.contains("no method found"));
+        assert!(json.contains("context_keywords"));
 
         let deserialized: CompilationError = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.code, error.code);
         assert_eq!(deserialized.message, error.message);
+        assert_eq!(deserialized.context_keywords, error.context_keywords);
     }
 
     #[test]
@@ -705,6 +923,8 @@ mod tests {
             file: rs_file.clone(),
             line: 10,
             column: 5,
+            source_context: String::new(),
+            context_keywords: Vec::new(),
         }];
         let result = make_compile_failure(py_file, rs_file.clone(), errors);
         assert!(!result.success);
@@ -786,5 +1006,99 @@ mod tests {
         let result = convert_cargo_errors(cargo_errors, rust_file);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].code, "E????");
+    }
+
+    // DEPYLER-1310: Tests for keyword extraction
+    #[test]
+    fn test_extract_keywords_vec() {
+        let keywords = extract_keywords("let x: Vec<i32> = vec![1, 2, 3];");
+        assert!(keywords.contains(&"vec".to_string()));
+        assert!(keywords.contains(&"list".to_string()));
+    }
+
+    #[test]
+    fn test_extract_keywords_hashmap() {
+        let keywords = extract_keywords("let map: HashMap<String, i32> = HashMap::new();");
+        assert!(keywords.contains(&"hashmap".to_string()));
+        assert!(keywords.contains(&"dict".to_string()));
+        assert!(keywords.contains(&"constructor".to_string()));
+    }
+
+    #[test]
+    fn test_extract_keywords_option() {
+        let keywords = extract_keywords("let x: Option<String> = Some(value);");
+        assert!(keywords.contains(&"option".to_string()));
+        assert!(keywords.contains(&"string".to_string()));
+    }
+
+    #[test]
+    fn test_extract_keywords_result() {
+        let keywords = extract_keywords("return Ok(value);");
+        assert!(keywords.contains(&"result".to_string()));
+    }
+
+    #[test]
+    fn test_extract_keywords_iterator() {
+        let keywords = extract_keywords("items.iter().collect()");
+        assert!(keywords.contains(&"iterator".to_string()));
+        assert!(keywords.contains(&"collect".to_string()));
+    }
+
+    #[test]
+    fn test_extract_keywords_datetime() {
+        let keywords = extract_keywords("let dt: DateTime<Utc> = DateTime::new();");
+        assert!(keywords.contains(&"datetime".to_string()));
+        assert!(keywords.contains(&"constructor".to_string()));
+    }
+
+    #[test]
+    fn test_extract_keywords_path() {
+        let keywords = extract_keywords("let p: PathBuf = PathBuf::new();");
+        assert!(keywords.contains(&"path".to_string()));
+    }
+
+    #[test]
+    fn test_extract_keywords_tuple() {
+        let keywords = extract_keywords("let t = (1, \"hello\", 3.14);");
+        assert!(keywords.contains(&"tuple".to_string()));
+    }
+
+    #[test]
+    fn test_extract_keywords_empty() {
+        let keywords = extract_keywords("let x = 42;");
+        assert!(!keywords.contains(&"vec".to_string()));
+        assert!(!keywords.contains(&"hashmap".to_string()));
+    }
+
+    #[test]
+    fn test_parse_rustc_errors_with_source_context() {
+        let file = Path::new("test.rs");
+        let stderr = r#"error[E0308]: mismatched types
+  --> test.rs:10:5
+   |
+10 |     let x: Vec<i32> = vec![];
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^ expected `Vec<i32>`, found `Vec<&str>`
+"#;
+        let errors = parse_rustc_errors(stderr, file);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "E0308");
+        assert!(errors[0].source_context.contains("Vec<i32>"));
+        assert!(errors[0].context_keywords.contains(&"vec".to_string()));
+        assert!(errors[0].context_keywords.contains(&"list".to_string()));
+    }
+
+    #[test]
+    fn test_parse_rustc_errors_extracts_line_number() {
+        let file = Path::new("test.rs");
+        let stderr = r#"error[E0599]: no method named `foo` found
+  --> test.rs:42:13
+   |
+42 |     items.foo()
+   |          ^^^ method not found
+"#;
+        let errors = parse_rustc_errors(stderr, file);
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].line, 42);
+        assert_eq!(errors[0].column, 13);
     }
 }
