@@ -168,10 +168,41 @@ impl Oracle {
 
 ## Timeline
 
-- Phase 1: Enhanced Features - 1 sprint
-- Phase 2: AST Extraction - 1 sprint
-- Phase 3: HNSW Index - 1 sprint
-- Phase 4: Integration - 1 sprint
+- Phase 1: Enhanced Features - ✅ COMPLETE
+- Phase 2: AST Extraction - ✅ COMPLETE
+- Phase 3: HNSW Index - ✅ COMPLETE
+- Phase 4: Integration - ✅ COMPLETE
+
+## Implementation Summary
+
+### Phase 1: Enhanced Feature Engineering (12 → 73 dims)
+- `ERROR_CODES`: 25 common Rust error codes for one-hot encoding
+- `KEYWORD_CATEGORIES`: 9 categories with 36 keyword features
+- `EnhancedErrorFeatures`: Combined 73-dimensional features
+- 8 tests passing
+
+### Phase 2: Proper AST Path Extraction
+- `PythonPathVisitor`: rustpython-parser based Python AST traversal
+- `RustPathVisitor`: syn-based Rust AST traversal
+- Function, class, method, parameter, control flow extraction
+- Fallback to heuristic on parse errors
+- 6 tests passing
+
+### Phase 3: HNSW Index for Similarity Search
+- `HNSWIndex` from aprender::index::hnsw
+- O(log n) similarity search (vs O(n) linear)
+- Configurable M and ef_construction parameters
+- Stats tracking for HNSW vs linear queries
+- 9 tests passing
+
+### Phase 4: Integration with Oracle Query Loop
+- `Oracle::classify_enhanced()`: Combined classification method
+- Uses Random Forest + GNN + HNSW + AST embeddings
+- `EnhancedClassificationResult`: Rich result with all signals
+- Pattern fix extraction from structural matches
+- 7 tests passing
+
+**Total: 30 new tests across all phases**
 
 ## References
 
