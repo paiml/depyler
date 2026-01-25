@@ -23,6 +23,15 @@ criterion/
 bench_results/
 *.bench
 
+# Compiled benchmark binaries (DO NOT COMMIT)
+benchmarks/rust/*_bin
+benchmarks/rust/*_optimized
+**/lib*.rlib
+*.bak
+
+# Compilation test artifacts
+.compile_test_tmp/
+
 # Testing artifacts
 **/mutants.out*/
 coverage/
