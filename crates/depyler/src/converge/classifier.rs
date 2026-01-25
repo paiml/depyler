@@ -5,8 +5,8 @@
 
 use super::compiler::{CompilationError, CompilationResult};
 use depyler_oracle::{
-    ErrorCategory as OracleCategory, Oracle, OracleQueryLoop, OracleSuggestion,
-    QueryLoopConfig, RustErrorCode, ErrorContext,
+    ErrorCategory as OracleCategory, ErrorContext, Oracle, OracleQueryLoop, OracleSuggestion,
+    QueryLoopConfig, RustErrorCode,
 };
 use std::sync::OnceLock;
 
@@ -16,13 +16,11 @@ static ORACLE: OnceLock<Option<Oracle>> = OnceLock::new();
 /// Get or initialize the Oracle singleton
 fn get_oracle() -> Option<&'static Oracle> {
     ORACLE
-        .get_or_init(|| {
-            match Oracle::load_or_train() {
-                Ok(oracle) => Some(oracle),
-                Err(e) => {
-                    tracing::warn!("Failed to load oracle: {e}. Using fallback classification.");
-                    None
-                }
+        .get_or_init(|| match Oracle::load_or_train() {
+            Ok(oracle) => Some(oracle),
+            Err(e) => {
+                tracing::warn!("Failed to load oracle: {e}. Using fallback classification.");
+                None
             }
         })
         .as_ref()
@@ -131,9 +129,17 @@ impl ErrorClassifier {
             "E0599" => (ErrorCategory::TranspilerGap, "missing_method".into(), 0.9),
             "E0308" => (ErrorCategory::TranspilerGap, "type_inference".into(), 0.85),
             "E0277" => (ErrorCategory::TranspilerGap, "trait_bound".into(), 0.8),
-            "E0425" => (ErrorCategory::TranspilerGap, "undefined_variable".into(), 0.75),
+            "E0425" => (
+                ErrorCategory::TranspilerGap,
+                "undefined_variable".into(),
+                0.75,
+            ),
             "E0433" => (ErrorCategory::TranspilerGap, "missing_import".into(), 0.85),
-            "E0432" => (ErrorCategory::TranspilerGap, "unresolved_import".into(), 0.85),
+            "E0432" => (
+                ErrorCategory::TranspilerGap,
+                "unresolved_import".into(),
+                0.85,
+            ),
             "E0382" => (ErrorCategory::TranspilerGap, "borrow_checker".into(), 0.7),
             "E0502" => (ErrorCategory::TranspilerGap, "borrow_checker".into(), 0.7),
             "E0507" => (ErrorCategory::TranspilerGap, "borrow_checker".into(), 0.7),
@@ -211,6 +217,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 10,
             column: 5,
+            ..Default::default()
         };
 
         // Use fallback directly to test rule-based logic
@@ -229,6 +236,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 20,
             column: 10,
+            ..Default::default()
         };
 
         let classification = classifier.classify_fallback(&error);
@@ -245,6 +253,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 30,
             column: 15,
+            ..Default::default()
         };
 
         let classification = classifier.classify_fallback(&error);
@@ -261,6 +270,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 1,
             column: 1,
+            ..Default::default()
         };
 
         let classification = classifier.classify_fallback(&error);
@@ -299,6 +309,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 5,
             column: 1,
+            ..Default::default()
         };
         let classification = classifier.classify_fallback(&error);
         assert_eq!(classification.category, ErrorCategory::TranspilerGap);
@@ -314,6 +325,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 1,
             column: 5,
+            ..Default::default()
         };
         let classification = classifier.classify_fallback(&error);
         assert_eq!(classification.category, ErrorCategory::TranspilerGap);
@@ -329,6 +341,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 2,
             column: 5,
+            ..Default::default()
         };
         let classification = classifier.classify_fallback(&error);
         assert_eq!(classification.category, ErrorCategory::TranspilerGap);
@@ -344,6 +357,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 10,
             column: 5,
+            ..Default::default()
         };
         let classification = classifier.classify_fallback(&error);
         assert_eq!(classification.category, ErrorCategory::TranspilerGap);
@@ -359,6 +373,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 15,
             column: 8,
+            ..Default::default()
         };
         let classification = classifier.classify_fallback(&error);
         assert_eq!(classification.category, ErrorCategory::TranspilerGap);
@@ -374,6 +389,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 20,
             column: 10,
+            ..Default::default()
         };
         let classification = classifier.classify_fallback(&error);
         assert_eq!(classification.category, ErrorCategory::TranspilerGap);
@@ -389,6 +405,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 25,
             column: 12,
+            ..Default::default()
         };
         let classification = classifier.classify_fallback(&error);
         assert_eq!(classification.category, ErrorCategory::TranspilerGap);
@@ -404,6 +421,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 30,
             column: 5,
+            ..Default::default()
         };
         let classification = classifier.classify_fallback(&error);
         assert_eq!(classification.category, ErrorCategory::TranspilerGap);
@@ -425,15 +443,14 @@ mod tests {
             CompilationResult {
                 source_file: PathBuf::from("a.py"),
                 success: false,
-                errors: vec![
-                    CompilationError {
-                        code: "E0599".to_string(),
-                        message: "no method".to_string(),
-                        file: PathBuf::from("a.rs"),
-                        line: 1,
-                        column: 1,
-                    }
-                ],
+                errors: vec![CompilationError {
+                    code: "E0599".to_string(),
+                    message: "no method".to_string(),
+                    file: PathBuf::from("a.rs"),
+                    line: 1,
+                    column: 1,
+                    ..Default::default()
+                }],
                 rust_file: None,
             },
             CompilationResult {
@@ -446,6 +463,7 @@ mod tests {
                         file: PathBuf::from("b.rs"),
                         line: 2,
                         column: 2,
+                        ..Default::default()
                     },
                     CompilationError {
                         code: "E0277".to_string(),
@@ -453,7 +471,8 @@ mod tests {
                         file: PathBuf::from("b.rs"),
                         line: 3,
                         column: 3,
-                    }
+                        ..Default::default()
+                    },
                 ],
                 rust_file: None,
             },
@@ -491,6 +510,7 @@ mod tests {
             file: PathBuf::from("test.rs"),
             line: 1,
             column: 1,
+            ..Default::default()
         };
         let suggestions = classifier.get_suggestions(&error);
         assert!(suggestions.is_empty());

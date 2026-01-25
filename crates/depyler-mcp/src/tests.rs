@@ -21,11 +21,8 @@ async fn test_transpile_tool_handler() {
         "mode": "inline"
     });
 
-    let extra = RequestHandlerExtra::new(
-        "test".to_string(),
-        CancellationToken::new(),
-    )
-    .with_session_id(Some("test-session".to_string()));
+    let extra = RequestHandlerExtra::new("test".to_string(), CancellationToken::new())
+        .with_session_id(Some("test-session".to_string()));
 
     let result = tool.handle(args, extra).await;
     assert!(result.is_ok());
@@ -54,11 +51,8 @@ async fn test_analyze_tool_handler() {
         "project_path": temp_dir.to_string_lossy()
     });
 
-    let extra = RequestHandlerExtra::new(
-        "test".to_string(),
-        CancellationToken::new(),
-    )
-    .with_session_id(Some("test-session".to_string()));
+    let extra = RequestHandlerExtra::new("test".to_string(), CancellationToken::new())
+        .with_session_id(Some("test-session".to_string()));
 
     let result = tool.handle(args, extra).await;
     assert!(result.is_ok());
@@ -82,11 +76,8 @@ async fn test_verify_tool_handler() {
         "rust_source": "pub fn add(a: i32, b: i32) -> i32 {\n    a + b\n}"
     });
 
-    let extra = RequestHandlerExtra::new(
-        "test".to_string(),
-        CancellationToken::new(),
-    )
-    .with_session_id(Some("test-session".to_string()));
+    let extra = RequestHandlerExtra::new("test".to_string(), CancellationToken::new())
+        .with_session_id(Some("test-session".to_string()));
 
     let result = tool.handle(args, extra).await;
     assert!(result.is_ok());
@@ -107,11 +98,8 @@ async fn test_transpile_tool_invalid_args() {
         "invalid_field": "value"
     });
 
-    let extra = RequestHandlerExtra::new(
-        "test".to_string(),
-        CancellationToken::new(),
-    )
-    .with_session_id(Some("test-session".to_string()));
+    let extra = RequestHandlerExtra::new("test".to_string(), CancellationToken::new())
+        .with_session_id(Some("test-session".to_string()));
 
     let result = tool.handle(args, extra).await;
     assert!(result.is_err());

@@ -214,6 +214,67 @@ impl DepylerGnnEncoder {
         self.stats.patterns_indexed += 1;
     }
 
+    /// Batch index multiple patterns efficiently
+    ///
+    /// This method indexes multiple patterns and rebuilds the HNSW index once
+    /// at the end, which is more efficient than calling `index_pattern` for
+    /// each pattern when adding many patterns at once.
+    ///
+    /// Returns the number of patterns successfully indexed.
+    pub fn batch_index_patterns(
+        &mut self,
+        patterns: &[(&ErrorPattern, &str)],
+    ) -> usize {
+        if patterns.is_empty() {
+            return 0;
+        }
+
+        let indexed = self.index_patterns_without_hnsw(patterns);
+
+        // Rebuild HNSW index once for all patterns
+        if self.config.use_hnsw && indexed > 0 {
+            self.rebuild_hnsw_index();
+        }
+
+        indexed
+    }
+
+    /// Index patterns into HashMap without updating HNSW (helper for batch)
+    fn index_patterns_without_hnsw(
+        &mut self,
+        patterns: &[(&ErrorPattern, &str)],
+    ) -> usize {
+        let mut count = 0;
+
+        for (pattern, source_context) in patterns {
+            let structural = self.create_structural_pattern(pattern, source_context);
+            self.patterns.insert(pattern.id.clone(), structural);
+            self.stats.patterns_indexed += 1;
+            count += 1;
+        }
+
+        count
+    }
+
+    /// Create a StructuralPattern from an ErrorPattern (helper)
+    fn create_structural_pattern(
+        &self,
+        pattern: &ErrorPattern,
+        source_context: &str,
+    ) -> StructuralPattern {
+        let diagnostic = self.pattern_to_diagnostic(pattern);
+        let embedding = self.encoder.encode(&diagnostic, source_context);
+
+        StructuralPattern {
+            id: pattern.id.clone(),
+            error_code: pattern.error_code.clone(),
+            embedding: embedding.vector.clone(),
+            error_pattern: Some(pattern.clone()),
+            match_count: 0,
+            success_rate: pattern.confidence,
+        }
+    }
+
     /// Encode a new error and find similar patterns
     ///
     /// GH-210 Phase 3: Uses HNSW index for O(log n) search when available,
@@ -1046,5 +1107,151 @@ fn add(a: i32, b: i32) -> i32 {
         assert_eq!(encoder.stats().queries_performed, 3);
         assert_eq!(encoder.stats().hnsw_queries, 3);
         assert_eq!(encoder.stats().linear_queries, 0);
+    }
+
+    // ==========================================================================
+    // Batch Indexing Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_batch_index_patterns_empty() {
+        let mut encoder = DepylerGnnEncoder::with_defaults();
+        let patterns: Vec<(&ErrorPattern, &str)> = vec![];
+
+        let count = encoder.batch_index_patterns(&patterns);
+
+        assert_eq!(count, 0);
+        assert_eq!(encoder.pattern_count(), 0);
+        assert!(!encoder.is_hnsw_active());
+    }
+
+    #[test]
+    fn test_batch_index_patterns_single() {
+        let mut encoder = DepylerGnnEncoder::with_defaults();
+        let pattern = ErrorPattern::new("E0308", "type mismatch", "+fix");
+        let patterns = vec![(&pattern, "let x: i32 = \"hello\";")];
+
+        let count = encoder.batch_index_patterns(&patterns);
+
+        assert_eq!(count, 1);
+        assert_eq!(encoder.pattern_count(), 1);
+        assert!(encoder.is_hnsw_active());
+        assert_eq!(encoder.hnsw_size(), 1);
+    }
+
+    #[test]
+    fn test_batch_index_patterns_multiple() {
+        let mut encoder = DepylerGnnEncoder::with_defaults();
+
+        let p1 = ErrorPattern::new("E0308", "type mismatch", "+fix1");
+        let p2 = ErrorPattern::new("E0382", "borrow error", "+fix2");
+        let p3 = ErrorPattern::new("E0433", "import error", "+fix3");
+
+        let patterns = vec![
+            (&p1, "let x: i32 = \"hello\";"),
+            (&p2, "let x = vec![1]; let y = x; x.push(1);"),
+            (&p3, "use unknown::module;"),
+        ];
+
+        let count = encoder.batch_index_patterns(&patterns);
+
+        assert_eq!(count, 3);
+        assert_eq!(encoder.pattern_count(), 3);
+        assert_eq!(encoder.hnsw_size(), 3);
+        assert_eq!(encoder.stats().patterns_indexed, 3);
+    }
+
+    #[test]
+    fn test_batch_index_patterns_searchable() {
+        let mut encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            similarity_threshold: 0.0, // Accept all matches
+            ..Default::default()
+        });
+
+        let p1 = ErrorPattern::new("E0308", "mismatched types", "+fix");
+        let p2 = ErrorPattern::new("E0382", "borrow of moved value", "+fix");
+        let patterns = vec![(&p1, "let x: i32 = s;"), (&p2, "let y = x; x.push(1);")];
+
+        encoder.batch_index_patterns(&patterns);
+
+        // Search should find indexed patterns
+        let results = encoder.find_similar("E0308", "mismatched types", "let z: i32 = t;");
+
+        assert!(!results.is_empty());
+        assert_eq!(encoder.stats().hnsw_queries, 1);
+    }
+
+    #[test]
+    fn test_batch_index_patterns_without_hnsw() {
+        let mut encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            use_hnsw: false,
+            similarity_threshold: 0.0,
+            ..Default::default()
+        });
+
+        let p1 = ErrorPattern::new("E0308", "type error", "+fix");
+        let p2 = ErrorPattern::new("E0277", "trait not implemented", "+fix");
+        let patterns = vec![(&p1, "source1"), (&p2, "source2")];
+
+        let count = encoder.batch_index_patterns(&patterns);
+
+        assert_eq!(count, 2);
+        assert_eq!(encoder.pattern_count(), 2);
+        assert!(!encoder.is_hnsw_active()); // HNSW disabled
+
+        // Linear search should still work
+        let results = encoder.find_similar("E0308", "type error", "source");
+        assert!(!results.is_empty());
+        assert_eq!(encoder.stats().linear_queries, 1);
+    }
+
+    #[test]
+    fn test_batch_index_patterns_preserves_pattern_data() {
+        let mut encoder = DepylerGnnEncoder::with_defaults();
+
+        let p1 = ErrorPattern::new("E0308", "expected i32, found String", "- String\n+ i32");
+        let patterns = vec![(&p1, "let x: i32 = \"hello\";")];
+
+        encoder.batch_index_patterns(&patterns);
+
+        // Verify pattern data is preserved
+        let stored = encoder.patterns().next().unwrap();
+        assert_eq!(stored.error_code, "E0308");
+        assert!(stored.error_pattern.is_some());
+
+        let original = stored.error_pattern.as_ref().unwrap();
+        assert_eq!(original.error_pattern, "expected i32, found String");
+        assert_eq!(original.fix_diff, "- String\n+ i32");
+    }
+
+    #[test]
+    fn test_batch_vs_individual_indexing_equivalence() {
+        // Create two encoders
+        let mut batch_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            use_hnsw: false, // Disable HNSW for deterministic comparison
+            ..Default::default()
+        });
+        let mut individual_encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            use_hnsw: false,
+            ..Default::default()
+        });
+
+        let p1 = ErrorPattern::new("E0308", "type error", "+fix1");
+        let p2 = ErrorPattern::new("E0382", "borrow error", "+fix2");
+
+        // Batch index
+        let patterns = vec![(&p1, "source1"), (&p2, "source2")];
+        batch_encoder.batch_index_patterns(&patterns);
+
+        // Individual index
+        individual_encoder.index_pattern(&p1, "source1");
+        individual_encoder.index_pattern(&p2, "source2");
+
+        // Both should have same pattern count
+        assert_eq!(batch_encoder.pattern_count(), individual_encoder.pattern_count());
+        assert_eq!(
+            batch_encoder.stats().patterns_indexed,
+            individual_encoder.stats().patterns_indexed
+        );
     }
 }

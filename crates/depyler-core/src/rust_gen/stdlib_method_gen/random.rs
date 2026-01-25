@@ -328,7 +328,11 @@ fn convert_random_method_nasa_stub(
         "choices" => {
             if !arg_exprs.is_empty() {
                 let seq = &arg_exprs[0];
-                let k = if arg_exprs.len() >= 2 { &arg_exprs[1] } else { &parse_quote! { 1 } };
+                let k = if arg_exprs.len() >= 2 {
+                    &arg_exprs[1]
+                } else {
+                    &parse_quote! { 1 }
+                };
                 parse_quote! { vec![#seq[0].clone(); #k as usize] }
             } else {
                 bail!("random.choices() requires a sequence argument")

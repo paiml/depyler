@@ -3,7 +3,9 @@
 //! DEPYLER-COVERAGE-95: Extracted from direct_rules.rs to reduce file size
 //! and improve testability. Contains body/statement/expression conversion.
 
-use crate::direct_rules::{extract_nested_indices, make_ident, parse_target_pattern, safe_class_name, type_to_rust_type};
+use crate::direct_rules::{
+    extract_nested_indices, make_ident, parse_target_pattern, safe_class_name, type_to_rust_type,
+};
 use crate::hir::*;
 use crate::rust_gen::keywords::safe_ident;
 use crate::type_mapper::TypeMapper;
@@ -13,8 +15,10 @@ use syn::{self, parse_quote};
 
 pub(crate) fn convert_body(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<Vec<syn::Stmt>> {
     // Use empty vararg_functions and param_types for backward compatibility
-    static EMPTY_SET: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
-    static EMPTY_MAP: std::sync::OnceLock<std::collections::HashMap<String, Type>> = std::sync::OnceLock::new();
+    static EMPTY_SET: std::sync::OnceLock<std::collections::HashSet<String>> =
+        std::sync::OnceLock::new();
+    static EMPTY_MAP: std::sync::OnceLock<std::collections::HashMap<String, Type>> =
+        std::sync::OnceLock::new();
     convert_body_with_context(
         stmts,
         type_mapper,
@@ -49,8 +53,8 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
                             declared.insert(name.clone());
                         }
                     }
-                    AssignTarget::Attribute { value: base, .. } |
-                    AssignTarget::Index { base, .. } => {
+                    AssignTarget::Attribute { value: base, .. }
+                    | AssignTarget::Index { base, .. } => {
                         // Attribute/index assignment requires base to be mutable
                         if let HirExpr::Var(var_name) = base.as_ref() {
                             mutable.insert(var_name.clone());
@@ -72,7 +76,11 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
             HirStmt::Expr(expr) => {
                 check_mutating_methods(expr, mutable);
             }
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 check_mutating_methods(condition, mutable);
                 for s in then_body {
                     analyze_stmt(s, declared, mutable);
@@ -99,7 +107,13 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
                     analyze_stmt(s, declared, mutable);
                 }
             }
-            HirStmt::Try { body, handlers, orelse, finalbody, .. } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+                ..
+            } => {
                 for s in body {
                     analyze_stmt(s, declared, mutable);
                 }
@@ -125,15 +139,37 @@ pub(crate) fn find_mutable_vars_in_body(stmts: &[HirStmt]) -> std::collections::
 
     fn check_mutating_methods(expr: &HirExpr, mutable: &mut std::collections::HashSet<String>) {
         match expr {
-            HirExpr::MethodCall { object, method, args, .. } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                ..
+            } => {
                 // Check if this is a mutating method
                 // DEPYLER-1002: Added hexdigest/digest for hashlib - finalize_reset() requires &mut self
                 let is_mutating = matches!(
                     method.as_str(),
-                    "append" | "extend" | "insert" | "remove" | "pop" | "clear" |
-                    "reverse" | "sort" | "update" | "setdefault" | "popitem" |
-                    "add" | "discard" | "write" | "write_all" | "writelines" | "flush" |
-                    "hexdigest" | "digest" | "finalize" | "finalize_reset"
+                    "append"
+                        | "extend"
+                        | "insert"
+                        | "remove"
+                        | "pop"
+                        | "clear"
+                        | "reverse"
+                        | "sort"
+                        | "update"
+                        | "setdefault"
+                        | "popitem"
+                        | "add"
+                        | "discard"
+                        | "write"
+                        | "write_all"
+                        | "writelines"
+                        | "flush"
+                        | "hexdigest"
+                        | "digest"
+                        | "finalize"
+                        | "finalize_reset"
                 );
                 if is_mutating {
                     if let HirExpr::Var(var_name) = object.as_ref() {
@@ -193,7 +229,16 @@ pub(crate) fn convert_body_with_context(
 
     stmts
         .iter()
-        .map(|stmt| convert_stmt_with_mutable_vars(stmt, type_mapper, is_classmethod, vararg_functions, param_types, &mutable_vars))
+        .map(|stmt| {
+            convert_stmt_with_mutable_vars(
+                stmt,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+                &mutable_vars,
+            )
+        })
         .collect()
 }
 
@@ -312,8 +357,14 @@ pub(crate) fn convert_assign_stmt_with_expr(
     type_mapper: &TypeMapper,
 ) -> Result<syn::Stmt> {
     // Backward compatibility - use empty mutable_vars (all variables get mut)
-    static EMPTY_MUTABLE: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
-    convert_assign_stmt_with_mutable_vars(target, value_expr, type_mapper, EMPTY_MUTABLE.get_or_init(std::collections::HashSet::new))
+    static EMPTY_MUTABLE: std::sync::OnceLock<std::collections::HashSet<String>> =
+        std::sync::OnceLock::new();
+    convert_assign_stmt_with_mutable_vars(
+        target,
+        value_expr,
+        type_mapper,
+        EMPTY_MUTABLE.get_or_init(std::collections::HashSet::new),
+    )
 }
 
 /// DEPYLER-0713: Convert assignment with proper mutability tracking
@@ -357,7 +408,11 @@ pub(crate) fn convert_assign_stmt_with_mutable_vars(
                                 syn::Pat::Ident(syn::PatIdent {
                                     attrs: vec![],
                                     by_ref: None,
-                                    mutability: if *needs_mut { Some(syn::token::Mut::default()) } else { None },
+                                    mutability: if *needs_mut {
+                                        Some(syn::token::Mut::default())
+                                    } else {
+                                        None
+                                    },
                                     ident: ident.clone(),
                                     subpat: None,
                                 })
@@ -483,8 +538,10 @@ pub(crate) fn is_pure_expression_direct(expr: &HirExpr) -> bool {
 #[allow(dead_code)]
 pub(crate) fn convert_stmt(stmt: &HirStmt, type_mapper: &TypeMapper) -> Result<syn::Stmt> {
     // Use empty vararg_functions and param_types for backward compatibility
-    static EMPTY_SET: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
-    static EMPTY_MAP: std::sync::OnceLock<std::collections::HashMap<String, Type>> = std::sync::OnceLock::new();
+    static EMPTY_SET: std::sync::OnceLock<std::collections::HashSet<String>> =
+        std::sync::OnceLock::new();
+    static EMPTY_MAP: std::sync::OnceLock<std::collections::HashMap<String, Type>> =
+        std::sync::OnceLock::new();
     convert_stmt_with_context(
         stmt,
         type_mapper,
@@ -505,12 +562,24 @@ pub(crate) fn convert_stmt_with_mutable_vars(
 ) -> Result<syn::Stmt> {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
-            let value_expr = convert_expr_with_param_types(value, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let value_expr = convert_expr_with_param_types(
+                value,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
             convert_assign_stmt_with_mutable_vars(target, value_expr, type_mapper, mutable_vars)
         }
         // For all other statement types, delegate to convert_stmt_with_context
         // They don't generate new variable bindings so mutable_vars doesn't matter
-        _ => convert_stmt_with_context(stmt, type_mapper, is_classmethod, vararg_functions, param_types),
+        _ => convert_stmt_with_context(
+            stmt,
+            type_mapper,
+            is_classmethod,
+            vararg_functions,
+            param_types,
+        ),
     }
 }
 
@@ -526,13 +595,25 @@ pub(crate) fn convert_stmt_with_context(
         HirStmt::Assign { target, value, .. } => {
             // For assignments, we need to convert the value expression with classmethod context
             // DEPYLER-0704: Pass param_types for type coercion
-            let value_expr = convert_expr_with_param_types(value, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let value_expr = convert_expr_with_param_types(
+                value,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
             convert_assign_stmt_with_expr(target, value_expr, type_mapper)
         }
         HirStmt::Return(expr) => {
             let ret_expr = if let Some(e) = expr {
                 // DEPYLER-0704: Pass param_types for type coercion in return expressions
-                convert_expr_with_param_types(e, type_mapper, is_classmethod, vararg_functions, param_types)?
+                convert_expr_with_param_types(
+                    e,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                )?
             } else {
                 parse_quote! { () }
             };
@@ -547,12 +628,29 @@ pub(crate) fn convert_stmt_with_context(
             else_body,
         } => {
             // DEPYLER-1096: Use convert_condition_expr for truthiness coercion
-            let cond = convert_condition_expr(condition, type_mapper, is_classmethod, vararg_functions, param_types)?;
-            let then_block = convert_block_with_context(then_body, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let cond = convert_condition_expr(
+                condition,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
+            let then_block = convert_block_with_context(
+                then_body,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
 
             let if_expr = if let Some(else_stmts) = else_body {
-                let else_block =
-                    convert_block_with_context(else_stmts, type_mapper, is_classmethod, vararg_functions, param_types)?;
+                let else_block = convert_block_with_context(
+                    else_stmts,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                )?;
                 parse_quote! {
                     if #cond #then_block else #else_block
                 }
@@ -566,8 +664,20 @@ pub(crate) fn convert_stmt_with_context(
         }
         HirStmt::While { condition, body } => {
             // DEPYLER-1096: Use convert_condition_expr for truthiness coercion
-            let cond = convert_condition_expr(condition, type_mapper, is_classmethod, vararg_functions, param_types)?;
-            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let cond = convert_condition_expr(
+                condition,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
+            let body_block = convert_block_with_context(
+                body,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
 
             let while_expr = parse_quote! {
                 while #cond #body_block
@@ -586,9 +696,7 @@ pub(crate) fn convert_stmt_with_context(
                     let idents: Vec<syn::Ident> = targets
                         .iter()
                         .map(|t| match t {
-                            AssignTarget::Symbol(s) => {
-                                Ok(make_ident(s))
-                            }
+                            AssignTarget::Symbol(s) => Ok(make_ident(s)),
                             _ => bail!("Nested tuple unpacking not supported in for loops"),
                         })
                         .collect::<Result<Vec<_>>>()?;
@@ -597,8 +705,20 @@ pub(crate) fn convert_stmt_with_context(
                 _ => bail!("Unsupported for loop target type"),
             };
 
-            let iter_expr = convert_expr_with_param_types(iter, type_mapper, is_classmethod, vararg_functions, param_types)?;
-            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let iter_expr = convert_expr_with_param_types(
+                iter,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
+            let body_block = convert_block_with_context(
+                body,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
 
             let for_expr = parse_quote! {
                 for #target_pattern in #iter_expr #body_block
@@ -610,7 +730,13 @@ pub(crate) fn convert_stmt_with_context(
             // DEPYLER-0701: Detect expressions without side effects and wrap with `let _ =`
             // to avoid "path statement with no effect" and "unused arithmetic operation" warnings
             if is_pure_expression_direct(expr) {
-                let rust_expr = convert_expr_with_param_types(expr, type_mapper, is_classmethod, vararg_functions, param_types)?;
+                let rust_expr = convert_expr_with_param_types(
+                    expr,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                )?;
                 Ok(syn::Stmt::Local(syn::Local {
                     attrs: vec![],
                     let_token: syn::Token![let](proc_macro2::Span::call_site()),
@@ -626,7 +752,13 @@ pub(crate) fn convert_stmt_with_context(
                     semi_token: syn::Token![;](proc_macro2::Span::call_site()),
                 }))
             } else {
-                let rust_expr = convert_expr_with_param_types(expr, type_mapper, is_classmethod, vararg_functions, param_types)?;
+                let rust_expr = convert_expr_with_param_types(
+                    expr,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                )?;
                 Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
             }
         }
@@ -636,7 +768,13 @@ pub(crate) fn convert_stmt_with_context(
         } => {
             // Convert to Rust panic for direct rules
             let panic_expr = if let Some(exc) = exception {
-                let exc_expr = convert_expr_with_param_types(exc, type_mapper, is_classmethod, vararg_functions, param_types)?;
+                let exc_expr = convert_expr_with_param_types(
+                    exc,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                )?;
                 parse_quote! { panic!("Exception: {}", #exc_expr) }
             } else {
                 parse_quote! { panic!("Exception raised") }
@@ -670,10 +808,22 @@ pub(crate) fn convert_stmt_with_context(
             ..
         } => {
             // Convert context expression
-            let context_expr = convert_expr_with_param_types(context, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let context_expr = convert_expr_with_param_types(
+                context,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
 
             // Convert body to a block
-            let body_block = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let body_block = convert_block_with_context(
+                body,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
 
             // Generate a scope block with optional variable binding
             let block_expr = if let Some(var_name) = target {
@@ -702,18 +852,37 @@ pub(crate) fn convert_stmt_with_context(
             finalbody,
         } => {
             // Convert try body
-            let try_stmts = convert_block_with_context(body, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let try_stmts = convert_block_with_context(
+                body,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
 
             // Convert finally block if present
             let finally_block = finalbody
                 .as_ref()
-                .map(|fb| convert_block_with_context(fb, type_mapper, is_classmethod, vararg_functions, param_types))
+                .map(|fb| {
+                    convert_block_with_context(
+                        fb,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                    )
+                })
                 .transpose()?;
 
             // Convert except handlers (use first handler for simplicity)
             if let Some(handler) = handlers.first() {
-                let handler_block =
-                    convert_block_with_context(&handler.body, type_mapper, is_classmethod, vararg_functions, param_types)?;
+                let handler_block = convert_block_with_context(
+                    &handler.body,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                )?;
 
                 // DEPYLER-0937: Use actual exception variable name if present
                 // This fixes E0425 where handler body references 'e' but pattern used '_e'
@@ -768,9 +937,21 @@ pub(crate) fn convert_stmt_with_context(
         }
         HirStmt::Assert { test, msg } => {
             // Generate assert! macro call
-            let test_expr = convert_expr_with_param_types(test, type_mapper, is_classmethod, vararg_functions, param_types)?;
+            let test_expr = convert_expr_with_param_types(
+                test,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+            )?;
             let assert_macro: syn::Stmt = if let Some(message) = msg {
-                let msg_expr = convert_expr_with_param_types(message, type_mapper, is_classmethod, vararg_functions, param_types)?;
+                let msg_expr = convert_expr_with_param_types(
+                    message,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                )?;
                 parse_quote! { assert!(#test_expr, "{}", #msg_expr); }
             } else {
                 parse_quote! { assert!(#test_expr); }
@@ -787,12 +968,24 @@ pub(crate) fn convert_stmt_with_context(
             if stmts.is_empty() {
                 Ok(syn::Stmt::Expr(parse_quote! { {} }, None))
             } else {
-                convert_stmt_with_context(&stmts[0], type_mapper, is_classmethod, vararg_functions, param_types)
+                convert_stmt_with_context(
+                    &stmts[0],
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                )
             }
         }
         // DEPYLER-0840: Properly generate nested functions as closures
         // Previously this just returned {} causing E0425 "cannot find value" errors
-        HirStmt::FunctionDef { name, params, ret_type, body, .. } => {
+        HirStmt::FunctionDef {
+            name,
+            params,
+            ret_type,
+            body,
+            ..
+        } => {
             let fn_name = safe_ident(name);
 
             // Generate parameter tokens
@@ -809,7 +1002,14 @@ pub(crate) fn convert_stmt_with_context(
             let body_stmts: Vec<syn::Stmt> = body
                 .iter()
                 .filter_map(|stmt| {
-                    convert_stmt_with_context(stmt, type_mapper, is_classmethod, vararg_functions, param_types).ok()
+                    convert_stmt_with_context(
+                        stmt,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                    )
+                    .ok()
                 })
                 .collect();
 
@@ -837,8 +1037,10 @@ pub(crate) fn convert_stmt_with_context(
 #[allow(dead_code)]
 pub(crate) fn convert_block(stmts: &[HirStmt], type_mapper: &TypeMapper) -> Result<syn::Block> {
     // Use empty vararg_functions for backward compatibility
-    static EMPTY_SET: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
-    static EMPTY_MAP: std::sync::OnceLock<std::collections::HashMap<String, Type>> = std::sync::OnceLock::new();
+    static EMPTY_SET: std::sync::OnceLock<std::collections::HashSet<String>> =
+        std::sync::OnceLock::new();
+    static EMPTY_MAP: std::sync::OnceLock<std::collections::HashMap<String, Type>> =
+        std::sync::OnceLock::new();
     convert_block_with_context(
         stmts,
         type_mapper,
@@ -856,7 +1058,13 @@ pub(crate) fn convert_block_with_context(
     vararg_functions: &std::collections::HashSet<String>,
     param_types: &std::collections::HashMap<String, Type>,
 ) -> Result<syn::Block> {
-    let rust_stmts = convert_body_with_context(stmts, type_mapper, is_classmethod, vararg_functions, param_types)?;
+    let rust_stmts = convert_body_with_context(
+        stmts,
+        type_mapper,
+        is_classmethod,
+        vararg_functions,
+        param_types,
+    )?;
     Ok(syn::Block {
         brace_token: Default::default(),
         stmts: rust_stmts,
@@ -875,7 +1083,15 @@ pub(crate) fn convert_method_body_block(
     class_field_types: &std::collections::HashMap<String, Type>,
     ret_type: &Type,
 ) -> Result<syn::Block> {
-    let rust_stmts = convert_method_body_stmts(stmts, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
+    let rust_stmts = convert_method_body_stmts(
+        stmts,
+        type_mapper,
+        is_classmethod,
+        vararg_functions,
+        param_types,
+        class_field_types,
+        ret_type,
+    )?;
     Ok(syn::Block {
         brace_token: Default::default(),
         stmts: rust_stmts,
@@ -898,7 +1114,18 @@ pub(crate) fn convert_method_body_stmts(
 
     stmts
         .iter()
-        .map(|stmt| convert_method_stmt(stmt, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, &mutable_vars, ret_type))
+        .map(|stmt| {
+            convert_method_stmt(
+                stmt,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+                class_field_types,
+                &mutable_vars,
+                ret_type,
+            )
+        })
         .collect()
 }
 
@@ -917,7 +1144,14 @@ pub(crate) fn convert_method_stmt(
 ) -> Result<syn::Stmt> {
     match stmt {
         HirStmt::Assign { target, value, .. } => {
-            let value_expr = convert_expr_with_class_fields(value, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+            let value_expr = convert_expr_with_class_fields(
+                value,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+                class_field_types,
+            )?;
             convert_assign_stmt_with_mutable_vars(target, value_expr, type_mapper, mutable_vars)
         }
         HirStmt::Return(expr) => {
@@ -950,13 +1184,31 @@ pub(crate) fn convert_method_stmt(
                 if is_bare_dict_return {
                     if let HirExpr::Dict(items) = e {
                         let converter = ExprConverter::new(type_mapper);
-                        converter.convert_dict_to_depyler_value(items, class_field_types, ret_type)?
+                        converter.convert_dict_to_depyler_value(
+                            items,
+                            class_field_types,
+                            ret_type,
+                        )?
                     } else {
                         // Not a dict literal, use normal conversion
-                        convert_expr_with_class_fields(e, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?
+                        convert_expr_with_class_fields(
+                            e,
+                            type_mapper,
+                            is_classmethod,
+                            vararg_functions,
+                            param_types,
+                            class_field_types,
+                        )?
                     }
                 } else {
-                    let converted = convert_expr_with_class_fields(e, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+                    let converted = convert_expr_with_class_fields(
+                        e,
+                        type_mapper,
+                        is_classmethod,
+                        vararg_functions,
+                        param_types,
+                        class_field_types,
+                    )?;
 
                     if is_optional_return && !is_none_literal {
                         // Wrap non-None values in Some() for Optional return types
@@ -983,12 +1235,34 @@ pub(crate) fn convert_method_stmt(
             then_body,
             else_body,
         } => {
-            let cond = convert_expr_with_class_fields(condition, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
-            let then_block = convert_method_body_block(then_body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
+            let cond = convert_expr_with_class_fields(
+                condition,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+                class_field_types,
+            )?;
+            let then_block = convert_method_body_block(
+                then_body,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+                class_field_types,
+                ret_type,
+            )?;
 
             let if_expr = if let Some(else_stmts) = else_body {
-                let else_block =
-                    convert_method_body_block(else_stmts, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
+                let else_block = convert_method_body_block(
+                    else_stmts,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                    class_field_types,
+                    ret_type,
+                )?;
                 parse_quote! {
                     if #cond #then_block else #else_block
                 }
@@ -1001,8 +1275,23 @@ pub(crate) fn convert_method_stmt(
             Ok(syn::Stmt::Expr(if_expr, Some(Default::default())))
         }
         HirStmt::While { condition, body } => {
-            let cond = convert_expr_with_class_fields(condition, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
-            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types, ret_type)?;
+            let cond = convert_expr_with_class_fields(
+                condition,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+                class_field_types,
+            )?;
+            let body_block = convert_method_body_block(
+                body,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+                class_field_types,
+                ret_type,
+            )?;
 
             let while_expr = parse_quote! {
                 while #cond #body_block
@@ -1021,9 +1310,7 @@ pub(crate) fn convert_method_stmt(
                     let idents: Vec<syn::Ident> = targets
                         .iter()
                         .map(|t| match t {
-                            AssignTarget::Symbol(s) => {
-                                Ok(make_ident(s))
-                            }
+                            AssignTarget::Symbol(s) => Ok(make_ident(s)),
                             _ => bail!("Nested tuple unpacking not supported in for loops"),
                         })
                         .collect::<Result<Vec<_>>>()?;
@@ -1053,8 +1340,12 @@ pub(crate) fn convert_method_stmt(
                     if let Some(HirExpr::Attribute { value, attr, .. }) = args.first() {
                         if matches!(value.as_ref(), HirExpr::Var(name) if name == "self") {
                             class_field_types.get(attr).and_then(|t| match t {
-                                Type::List(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
-                                Type::Set(elem_t) => Some(Type::Tuple(vec![Type::Int, *elem_t.clone()])),
+                                Type::List(elem_t) => {
+                                    Some(Type::Tuple(vec![Type::Int, *elem_t.clone()]))
+                                }
+                                Type::Set(elem_t) => {
+                                    Some(Type::Tuple(vec![Type::Int, *elem_t.clone()]))
+                                }
                                 _ => None,
                             })
                         } else {
@@ -1073,7 +1364,9 @@ pub(crate) fn convert_method_stmt(
                     (AssignTarget::Symbol(name), _) => {
                         loop_param_types.insert(name.clone(), elem_type);
                     }
-                    (AssignTarget::Tuple(targets), Type::Tuple(elem_types)) if targets.len() == elem_types.len() => {
+                    (AssignTarget::Tuple(targets), Type::Tuple(elem_types))
+                        if targets.len() == elem_types.len() =>
+                    {
                         for (t, typ) in targets.iter().zip(elem_types.iter()) {
                             if let AssignTarget::Symbol(s) = t {
                                 loop_param_types.insert(s.clone(), typ.clone());
@@ -1084,8 +1377,23 @@ pub(crate) fn convert_method_stmt(
                 }
             }
 
-            let iter_expr = convert_expr_with_class_fields(iter, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
-            let body_block = convert_method_body_block(body, type_mapper, is_classmethod, vararg_functions, &loop_param_types, class_field_types, ret_type)?;
+            let iter_expr = convert_expr_with_class_fields(
+                iter,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                param_types,
+                class_field_types,
+            )?;
+            let body_block = convert_method_body_block(
+                body,
+                type_mapper,
+                is_classmethod,
+                vararg_functions,
+                &loop_param_types,
+                class_field_types,
+                ret_type,
+            )?;
 
             let for_expr = parse_quote! {
                 for #target_pattern in #iter_expr #body_block
@@ -1095,7 +1403,14 @@ pub(crate) fn convert_method_stmt(
         }
         HirStmt::Expr(expr) => {
             if is_pure_expression_direct(expr) {
-                let rust_expr = convert_expr_with_class_fields(expr, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+                let rust_expr = convert_expr_with_class_fields(
+                    expr,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                    class_field_types,
+                )?;
                 Ok(syn::Stmt::Local(syn::Local {
                     attrs: vec![],
                     let_token: syn::Token![let](proc_macro2::Span::call_site()),
@@ -1111,12 +1426,25 @@ pub(crate) fn convert_method_stmt(
                     semi_token: syn::Token![;](proc_macro2::Span::call_site()),
                 }))
             } else {
-                let rust_expr = convert_expr_with_class_fields(expr, type_mapper, is_classmethod, vararg_functions, param_types, class_field_types)?;
+                let rust_expr = convert_expr_with_class_fields(
+                    expr,
+                    type_mapper,
+                    is_classmethod,
+                    vararg_functions,
+                    param_types,
+                    class_field_types,
+                )?;
                 Ok(syn::Stmt::Expr(rust_expr, Some(Default::default())))
             }
         }
         // For other statement types, fall back to existing conversion
-        _ => convert_stmt_with_context(stmt, type_mapper, is_classmethod, vararg_functions, param_types),
+        _ => convert_stmt_with_context(
+            stmt,
+            type_mapper,
+            is_classmethod,
+            vararg_functions,
+            param_types,
+        ),
     }
 }
 
@@ -1124,8 +1452,14 @@ pub(crate) fn convert_method_stmt(
 #[allow(dead_code)]
 pub(crate) fn convert_expr(expr: &HirExpr, type_mapper: &TypeMapper) -> Result<syn::Expr> {
     // Use empty vararg_functions for backward compatibility
-    static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
-    convert_expr_with_context(expr, type_mapper, false, EMPTY.get_or_init(std::collections::HashSet::new))
+    static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> =
+        std::sync::OnceLock::new();
+    convert_expr_with_context(
+        expr,
+        type_mapper,
+        false,
+        EMPTY.get_or_init(std::collections::HashSet::new),
+    )
 }
 
 /// Convert HIR expressions with classmethod context and vararg tracking
@@ -1215,7 +1549,8 @@ impl<'a> ExprConverter<'a> {
     #[allow(dead_code)]
     pub(crate) fn new(type_mapper: &'a TypeMapper) -> Self {
         // Use empty static HashSet for backwards compatibility
-        static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+        static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> =
+            std::sync::OnceLock::new();
         Self {
             type_mapper,
             is_classmethod: false,
@@ -1228,7 +1563,8 @@ impl<'a> ExprConverter<'a> {
     #[allow(dead_code)]
     fn with_classmethod(type_mapper: &'a TypeMapper, is_classmethod: bool) -> Self {
         // Use empty static HashSet for backwards compatibility
-        static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+        static EMPTY: std::sync::OnceLock<std::collections::HashSet<String>> =
+            std::sync::OnceLock::new();
         Self {
             type_mapper,
             is_classmethod,
@@ -1409,7 +1745,12 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Call { func, args, .. } => self.convert_call(func, args),
             HirExpr::Index { base, index } => self.convert_index(base, index),
             // DEPYLER-0596: Add Slice support for string slicing with negative indices
-            HirExpr::Slice { base, start, stop, step } => self.convert_slice(base, start, stop, step),
+            HirExpr::Slice {
+                base,
+                start,
+                stop,
+                step,
+            } => self.convert_slice(base, start, stop, step),
             HirExpr::List(elts) => self.convert_list(elts),
             HirExpr::Dict(items) => self.convert_dict(items),
             HirExpr::Tuple(elts) => self.convert_tuple(elts),
@@ -1423,9 +1764,7 @@ impl<'a> ExprConverter<'a> {
                 ..
             } => self.convert_method_call(object, method, args),
             // DEPYLER-0188: Dynamic function call (e.g., handlers[name](args))
-            HirExpr::DynamicCall { callee, args, .. } => {
-                self.convert_dynamic_call(callee, args)
-            }
+            HirExpr::DynamicCall { callee, args, .. } => self.convert_dynamic_call(callee, args),
             HirExpr::ListComp {
                 element,
                 generators,
@@ -1496,7 +1835,10 @@ impl<'a> ExprConverter<'a> {
             // DEPYLER-0764: GeneratorExp support for class methods
             // Python: (x for x in items) → Rust: items.iter().map(|x| x)
             // DEPYLER-1100: Propagate element type to loop variable for proper literal coercion
-            HirExpr::GeneratorExp { element, generators } => {
+            HirExpr::GeneratorExp {
+                element,
+                generators,
+            } => {
                 // Only support single generator for direct rules path
                 if generators.len() != 1 {
                     bail!("Multiple generators not supported in direct rules path");
@@ -1537,7 +1879,12 @@ impl<'a> ExprConverter<'a> {
                 }
             }
             // DEPYLER-0764: SortByKey support for sorted() with key parameter
-            HirExpr::SortByKey { iterable, key_params, key_body, reverse_expr } => {
+            HirExpr::SortByKey {
+                iterable,
+                key_params,
+                key_body,
+                reverse_expr,
+            } => {
                 let iter_expr = self.convert(iterable)?;
                 let key_body_expr = self.convert(key_body)?;
 
@@ -1607,9 +1954,10 @@ impl<'a> ExprConverter<'a> {
                     // DEPYLER-0832: For tuples/lists, convert to array and use .contains()
                     // Python: x in (A, B, C) -> Rust: [A, B, C].contains(&x)
                     let elements: Vec<syn::Expr> = match right {
-                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
-                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
-                        }
+                        HirExpr::Tuple(elems) | HirExpr::List(elems) => elems
+                            .iter()
+                            .map(|e| self.convert(e))
+                            .collect::<Result<Vec<_>>>()?,
                         _ => vec![right_expr.clone()],
                     };
                     Ok(parse_quote! { [#(#elements),*].contains(&#left_expr) })
@@ -1642,9 +1990,10 @@ impl<'a> ExprConverter<'a> {
                     // DEPYLER-0832: For tuples/lists, convert to array and use !.contains()
                     // Python: x not in (A, B, C) -> Rust: ![A, B, C].contains(&x)
                     let elements: Vec<syn::Expr> = match right {
-                        HirExpr::Tuple(elems) | HirExpr::List(elems) => {
-                            elems.iter().map(|e| self.convert(e)).collect::<Result<Vec<_>>>()?
-                        }
+                        HirExpr::Tuple(elems) | HirExpr::List(elems) => elems
+                            .iter()
+                            .map(|e| self.convert(e))
+                            .collect::<Result<Vec<_>>>()?,
                         _ => vec![right_expr.clone()],
                     };
                     Ok(parse_quote! { ![#(#elements),*].contains(&#left_expr) })
@@ -1884,7 +2233,10 @@ impl<'a> ExprConverter<'a> {
                     match expr {
                         HirExpr::Literal(Literal::Int(n)) => Some(*n),
                         // Handle -N which is represented as Unary(Neg, Literal(Int(N)))
-                        HirExpr::Unary { op: UnaryOp::Neg, operand } => {
+                        HirExpr::Unary {
+                            op: UnaryOp::Neg,
+                            operand,
+                        } => {
                             if let HirExpr::Literal(Literal::Int(n)) = operand.as_ref() {
                                 Some(-*n)
                             } else {
@@ -1900,7 +2252,10 @@ impl<'a> ExprConverter<'a> {
                     if let Some(n) = extract_int_value(right) {
                         // Integer literal: convert at compile time
                         // DEPYLER-1051: Use explicit f64 suffix to avoid tokenization issues with negative numbers
-                        let float_lit = syn::LitFloat::new(&format!("{}f64", n), proc_macro2::Span::call_site());
+                        let float_lit = syn::LitFloat::new(
+                            &format!("{}f64", n),
+                            proc_macro2::Span::call_site(),
+                        );
                         return Ok(parse_quote! { #safe_left #rust_op #float_lit });
                     }
                     // Integer variable or expression: cast to f64 at runtime
@@ -1912,7 +2267,10 @@ impl<'a> ExprConverter<'a> {
                     if let Some(n) = extract_int_value(left) {
                         // Integer literal: convert at compile time
                         // DEPYLER-1051: Use explicit f64 suffix to avoid tokenization issues with negative numbers
-                        let float_lit = syn::LitFloat::new(&format!("{}f64", n), proc_macro2::Span::call_site());
+                        let float_lit = syn::LitFloat::new(
+                            &format!("{}f64", n),
+                            proc_macro2::Span::call_site(),
+                        );
                         return Ok(parse_quote! { #float_lit #rust_op #safe_right });
                     }
                     // Integer variable or expression: cast to f64 at runtime
@@ -1968,7 +2326,13 @@ impl<'a> ExprConverter<'a> {
         }
 
         // Check for Not unary - it already returns bool
-        if matches!(expr, HirExpr::Unary { op: UnaryOp::Not, .. }) {
+        if matches!(
+            expr,
+            HirExpr::Unary {
+                op: UnaryOp::Not,
+                ..
+            }
+        ) {
             return rust_expr;
         }
 
@@ -1976,8 +2340,19 @@ impl<'a> ExprConverter<'a> {
         let is_bool_method = if let HirExpr::MethodCall { method, .. } = expr {
             matches!(
                 method.as_str(),
-                "startswith" | "endswith" | "contains" | "is_empty" | "is_some" | "is_none"
-                    | "is_ok" | "is_err" | "isalpha" | "isdigit" | "isalnum" | "isupper" | "islower"
+                "startswith"
+                    | "endswith"
+                    | "contains"
+                    | "is_empty"
+                    | "is_some"
+                    | "is_none"
+                    | "is_ok"
+                    | "is_err"
+                    | "isalpha"
+                    | "isdigit"
+                    | "isalnum"
+                    | "isupper"
+                    | "islower"
             )
         } else {
             false
@@ -2299,7 +2674,10 @@ impl<'a> ExprConverter<'a> {
             // This is the most common case in real code
             Ok(parse_quote! { vec![0u8; (#arg) as usize] })
         } else {
-            bail!("bytearray() takes at most 1 argument ({} given)", args.len())
+            bail!(
+                "bytearray() takes at most 1 argument ({} given)",
+                args.len()
+            )
         }
     }
 
@@ -2346,7 +2724,8 @@ impl<'a> ExprConverter<'a> {
         if args.len() == 2 {
             Ok(parse_quote! { #first.into_iter().zip(#second.into_iter()) })
         } else {
-            let mut zip_expr: syn::Expr = parse_quote! { #first.into_iter().zip(#second.into_iter()) };
+            let mut zip_expr: syn::Expr =
+                parse_quote! { #first.into_iter().zip(#second.into_iter()) };
             for iter in &args[2..] {
                 zip_expr = parse_quote! { #zip_expr.zip(#iter.into_iter()) };
             }
@@ -2402,17 +2781,17 @@ impl<'a> ExprConverter<'a> {
         match &hir_args[0] {
             // Generator expression: sum(x*x for x in items) → items.iter().map(|x| x*x).sum::<T>()
             // The generator is already converted to .iter().map(), so just append .sum()
-            HirExpr::GeneratorExp { .. } => {
-                Ok(parse_quote! { #arg_expr.sum::<#target_type>() })
-            }
+            HirExpr::GeneratorExp { .. } => Ok(parse_quote! { #arg_expr.sum::<#target_type>() }),
             // Range call: sum(range(n)) → (0..n).sum::<T>()
             HirExpr::Call { func, .. } if func == "range" => {
                 Ok(parse_quote! { (#arg_expr).sum::<#target_type>() })
             }
             // Method call: sum(d.values()) → d.values().cloned().sum::<T>()
-            HirExpr::MethodCall { method, args: method_args, .. }
-                if (method == "values" || method == "keys") && method_args.is_empty() =>
-            {
+            HirExpr::MethodCall {
+                method,
+                args: method_args,
+                ..
+            } if (method == "values" || method == "keys") && method_args.is_empty() => {
                 Ok(parse_quote! { #arg_expr.cloned().sum::<#target_type>() })
             }
             // Default: sum(iterable) → iterable.iter().sum::<T>()
@@ -2504,9 +2883,7 @@ impl<'a> ExprConverter<'a> {
         // Check if this is a generator expression
         match &hir_args[0] {
             // Generator expression: any(x > 0 for x in items) → items.iter().any(|x| x > 0)
-            HirExpr::GeneratorExp { .. } => {
-                Ok(parse_quote! { #arg_expr.any(|x| x) })
-            }
+            HirExpr::GeneratorExp { .. } => Ok(parse_quote! { #arg_expr.any(|x| x) }),
             _ => {
                 // Regular iterable: any(items) → items.iter().any(|&x| x)
                 Ok(parse_quote! { #arg_expr.iter().any(|&x| x) })
@@ -2580,7 +2957,6 @@ impl<'a> ExprConverter<'a> {
             _ => unreachable!(),
         }
     }
-
 
     fn convert_set_constructor(&self, args: &[syn::Expr]) -> Result<syn::Expr> {
         if args.is_empty() {
@@ -2800,7 +3176,12 @@ impl<'a> ExprConverter<'a> {
         })
     }
 
-    fn convert_generic_call(&self, func: &str, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+    fn convert_generic_call(
+        &self,
+        func: &str,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         // Special case: Python print() → Rust println!()
         if func == "print" {
             return if args.is_empty() {
@@ -2971,8 +3352,12 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Var(name) => {
                 // Heuristic: variable names that look like string keys
                 let n = name.as_str();
-                n == "key" || n.ends_with("_key") || n.starts_with("key_")
-                    || n == "name" || n == "field" || n == "attr"
+                n == "key"
+                    || n.ends_with("_key")
+                    || n.starts_with("key_")
+                    || n == "name"
+                    || n == "field"
+                    || n == "attr"
             }
             _ => false,
         };
@@ -2981,14 +3366,23 @@ impl<'a> ExprConverter<'a> {
         let base_is_dict = match base {
             HirExpr::Var(name) => {
                 let n = name.as_str();
-                n.contains("dict") || n.contains("map") || n.contains("data")
-                    || n == "result" || n == "config" || n == "settings"
-                    || n == "params" || n == "options" || n == "env"
+                n.contains("dict")
+                    || n.contains("map")
+                    || n.contains("data")
+                    || n == "result"
+                    || n == "config"
+                    || n == "settings"
+                    || n == "params"
+                    || n == "options"
+                    || n == "env"
             }
             HirExpr::Call { func, .. } => {
                 // Functions returning dicts
-                func.contains("dict") || func.contains("json") || func.contains("config")
-                    || func == "calculate_age" || func.contains("result")
+                func.contains("dict")
+                    || func.contains("json")
+                    || func.contains("config")
+                    || func == "calculate_age"
+                    || func.contains("result")
             }
             _ => false,
         };
@@ -3060,7 +3454,9 @@ impl<'a> ExprConverter<'a> {
             // Check if index is a negative literal
             let is_negative_literal = match index {
                 HirExpr::Literal(Literal::Int(idx)) => *idx < 0,
-                HirExpr::Unary { op: UnaryOp::Neg, .. } => true,
+                HirExpr::Unary {
+                    op: UnaryOp::Neg, ..
+                } => true,
                 _ => false,
             };
 
@@ -3318,7 +3714,11 @@ impl<'a> ExprConverter<'a> {
             // Use DepylerValue wrapping for mixed-type dicts
             // Use String keys since most Python dicts have string keys
             let nested_type = Type::Dict(Box::new(Type::String), Box::new(Type::Unknown));
-            return self.convert_dict_to_depyler_value(items, &std::collections::HashMap::new(), &nested_type);
+            return self.convert_dict_to_depyler_value(
+                items,
+                &std::collections::HashMap::new(),
+                &nested_type,
+            );
         }
 
         let insert_exprs: Vec<syn::Expr> = items
@@ -3347,9 +3747,9 @@ impl<'a> ExprConverter<'a> {
         }
 
         // Quick check: if any value is a dict or list, it's potentially mixed
-        let has_dict_or_list = items.iter().any(|(_, v)| {
-            matches!(v, HirExpr::Dict(_) | HirExpr::List(_))
-        });
+        let has_dict_or_list = items
+            .iter()
+            .any(|(_, v)| matches!(v, HirExpr::Dict(_) | HirExpr::List(_)));
 
         if has_dict_or_list {
             return true;
@@ -3364,7 +3764,7 @@ impl<'a> ExprConverter<'a> {
                 HirExpr::Literal(Literal::Bool(_)) => 4,
                 HirExpr::Literal(Literal::None) => 5,
                 HirExpr::Var(_) => 6, // Variables have unknown type
-                _ => 7, // Other expressions
+                _ => 7,               // Other expressions
             }
         };
 
@@ -3600,8 +4000,7 @@ impl<'a> ExprConverter<'a> {
             HirExpr::Var(name) => {
                 matches!(
                     name.as_str(),
-                    "s"
-                        | "url"
+                    "s" | "url"
                         | "path"
                         | "text"
                         | "remaining"
@@ -3672,15 +4071,27 @@ impl<'a> ExprConverter<'a> {
             // Variables with common dict-like names
             HirExpr::Var(name) => {
                 let n = name.as_str();
-                n.contains("dict") || n.contains("map") || n.contains("hash")
-                    || n == "config" || n == "settings" || n == "params"
-                    || n == "options" || n == "env" || n == "data"
-                    || n == "result" || n == "cache" || n == "d" || n == "m"
+                n.contains("dict")
+                    || n.contains("map")
+                    || n.contains("hash")
+                    || n == "config"
+                    || n == "settings"
+                    || n == "params"
+                    || n == "options"
+                    || n == "env"
+                    || n == "data"
+                    || n == "result"
+                    || n == "cache"
+                    || n == "d"
+                    || n == "m"
             }
             // Calls to dict() or functions returning dicts
             HirExpr::Call { func, .. } => {
-                func == "dict" || func.contains("json") || func.contains("config")
-                    || func.contains("load") || func.contains("parse")
+                func == "dict"
+                    || func.contains("json")
+                    || func.contains("config")
+                    || func.contains("load")
+                    || func.contains("parse")
             }
             _ => false,
         }
@@ -3757,7 +4168,10 @@ impl<'a> ExprConverter<'a> {
                     .collect::<Result<Vec<_>>>()?;
                 match method {
                     "exit" => {
-                        let code = arg_exprs.first().map(|e| quote::quote!(#e)).unwrap_or_else(|| quote::quote!(0));
+                        let code = arg_exprs
+                            .first()
+                            .map(|e| quote::quote!(#e))
+                            .unwrap_or_else(|| quote::quote!(0));
                         return Ok(parse_quote! { std::process::exit(#code as i32) });
                     }
                     "argv" => {
@@ -3818,15 +4232,21 @@ impl<'a> ExprConverter<'a> {
                             return if nasa_mode {
                                 Ok(parse_quote! { DepylerRegexMatch::search(#pattern, #text) })
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) })
+                                Ok(
+                                    parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) },
+                                )
                             };
                         } else {
                             let pattern_expr = self.convert(&args[0])?;
                             let text_expr = self.convert(&args[1])?;
                             return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::search(&#pattern_expr, &#text_expr) })
+                                Ok(
+                                    parse_quote! { DepylerRegexMatch::search(&#pattern_expr, &#text_expr) },
+                                )
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(&#pattern_expr).unwrap().find(&#text_expr) })
+                                Ok(
+                                    parse_quote! { regex::Regex::new(&#pattern_expr).unwrap().find(&#text_expr) },
+                                )
                             };
                         }
                     }
@@ -3838,15 +4258,21 @@ impl<'a> ExprConverter<'a> {
                             return if nasa_mode {
                                 Ok(parse_quote! { DepylerRegexMatch::match_start(#pattern, #text) })
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) })
+                                Ok(
+                                    parse_quote! { regex::Regex::new(#pattern).unwrap().find(#text) },
+                                )
                             };
                         } else {
                             let pattern_expr = self.convert(&args[0])?;
                             let text_expr = self.convert(&args[1])?;
                             return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::match_start(&#pattern_expr, &#text_expr) })
+                                Ok(
+                                    parse_quote! { DepylerRegexMatch::match_start(&#pattern_expr, &#text_expr) },
+                                )
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(&#pattern_expr).unwrap().find(&#text_expr) })
+                                Ok(
+                                    parse_quote! { regex::Regex::new(&#pattern_expr).unwrap().find(&#text_expr) },
+                                )
                             };
                         }
                     }
@@ -3859,15 +4285,21 @@ impl<'a> ExprConverter<'a> {
                                 // NASA mode: use DepylerRegexMatch::match_start for simplicity
                                 Ok(parse_quote! { DepylerRegexMatch::match_start(#pattern, #text) })
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(&format!("^(?:{})$", #pattern)).unwrap().find(#text) })
+                                Ok(
+                                    parse_quote! { regex::Regex::new(&format!("^(?:{})$", #pattern)).unwrap().find(#text) },
+                                )
                             };
                         } else {
                             let pattern_expr = self.convert(&args[0])?;
                             let text_expr = self.convert(&args[1])?;
                             return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::match_start(&#pattern_expr, &#text_expr) })
+                                Ok(
+                                    parse_quote! { DepylerRegexMatch::match_start(&#pattern_expr, &#text_expr) },
+                                )
                             } else {
-                                Ok(parse_quote! { regex::Regex::new(&format!("^(?:{})$", &#pattern_expr)).unwrap().find(&#text_expr) })
+                                Ok(
+                                    parse_quote! { regex::Regex::new(&format!("^(?:{})$", &#pattern_expr)).unwrap().find(&#text_expr) },
+                                )
                             };
                         }
                     }
@@ -3891,7 +4323,9 @@ impl<'a> ExprConverter<'a> {
                             let pattern_expr = self.convert(&args[0])?;
                             let text_expr = self.convert(&args[1])?;
                             return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr) })
+                                Ok(
+                                    parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr) },
+                                )
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(&#pattern_expr)
@@ -3909,7 +4343,9 @@ impl<'a> ExprConverter<'a> {
 
                         if let (Some(pattern), Some(text)) = (pattern_str, text_str) {
                             return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::findall(#pattern, #text).into_iter() })
+                                Ok(
+                                    parse_quote! { DepylerRegexMatch::findall(#pattern, #text).into_iter() },
+                                )
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(#pattern)
@@ -3923,7 +4359,9 @@ impl<'a> ExprConverter<'a> {
                             let pattern_expr = self.convert(&args[0])?;
                             let text_expr = self.convert(&args[1])?;
                             return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr).into_iter() })
+                                Ok(
+                                    parse_quote! { DepylerRegexMatch::findall(&#pattern_expr, &#text_expr).into_iter() },
+                                )
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(&#pattern_expr)
@@ -3958,7 +4396,9 @@ impl<'a> ExprConverter<'a> {
                             let repl_expr = self.convert(&args[1])?;
                             let text_expr = self.convert(&args[2])?;
                             return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::sub(&#pattern_expr, &#repl_expr, &#text_expr) })
+                                Ok(
+                                    parse_quote! { DepylerRegexMatch::sub(&#pattern_expr, &#repl_expr, &#text_expr) },
+                                )
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(&#pattern_expr)
@@ -4039,7 +4479,9 @@ impl<'a> ExprConverter<'a> {
                             let pattern_expr = self.convert(&args[0])?;
                             let text_expr = self.convert(&args[1])?;
                             return if nasa_mode {
-                                Ok(parse_quote! { DepylerRegexMatch::split(&#pattern_expr, &#text_expr) })
+                                Ok(
+                                    parse_quote! { DepylerRegexMatch::split(&#pattern_expr, &#text_expr) },
+                                )
                             } else {
                                 Ok(parse_quote! {
                                     regex::Regex::new(&#pattern_expr)
@@ -4518,9 +4960,13 @@ impl<'a> ExprConverter<'a> {
                         let _s = &arg_exprs[0];
                         // DEPYLER-1022/1051: NASA mode returns empty HashMap stub with DepylerValue
                         if self.type_mapper.nasa_mode {
-                            return Ok(parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() });
+                            return Ok(
+                                parse_quote! { std::collections::HashMap::<String, DepylerValue>::new() },
+                            );
                         }
-                        return Ok(parse_quote! { serde_json::from_str::<serde_json::Value>(&#_s).unwrap() });
+                        return Ok(
+                            parse_quote! { serde_json::from_str::<serde_json::Value>(&#_s).unwrap() },
+                        );
                     }
                     _ => {} // Fall through
                 }
@@ -4815,10 +5261,20 @@ impl<'a> ExprConverter<'a> {
         // Mutating methods: append, push, insert, pop, clear, extend, remove, add, update, etc.
         let is_mutating_method = matches!(
             method,
-            "append" | "push" | "push_back" | "push_front"
-                | "appendleft" | "popleft" | "pop"
-                | "insert" | "remove" | "clear" | "extend"
-                | "add" | "update" | "discard"
+            "append"
+                | "push"
+                | "push_back"
+                | "push_front"
+                | "appendleft"
+                | "popleft"
+                | "pop"
+                | "insert"
+                | "remove"
+                | "clear"
+                | "extend"
+                | "add"
+                | "update"
+                | "discard"
         );
 
         // Check if object is self.field pattern
@@ -4872,16 +5328,30 @@ impl<'a> ExprConverter<'a> {
                     // Wrap argument in DepylerValue based on argument type
                     let wrapped_arg: syn::Expr = if !args.is_empty() {
                         match &args[0] {
-                            HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                            HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
-                            HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
+                            HirExpr::Literal(Literal::Int(_)) => {
+                                parse_quote! { DepylerValue::Int(#arg as i64) }
+                            }
+                            HirExpr::Literal(Literal::Float(_)) => {
+                                parse_quote! { DepylerValue::Float(#arg as f64) }
+                            }
+                            HirExpr::Literal(Literal::String(_)) => {
+                                parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                            }
+                            HirExpr::Literal(Literal::Bool(_)) => {
+                                parse_quote! { DepylerValue::Bool(#arg) }
+                            }
                             HirExpr::Var(name) => {
                                 // Check parameter type
                                 match self.param_types.get(name) {
-                                    Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                                    Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                                    Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                                    Some(Type::Int) => {
+                                        parse_quote! { DepylerValue::Int(#arg as i64) }
+                                    }
+                                    Some(Type::Float) => {
+                                        parse_quote! { DepylerValue::Float(#arg as f64) }
+                                    }
+                                    Some(Type::String) => {
+                                        parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                                    }
                                     Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
                                     _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
                                 }
@@ -5180,14 +5650,25 @@ impl<'a> ExprConverter<'a> {
                 let is_dict_like = match object {
                     HirExpr::Var(name) => {
                         let n = name.as_str();
-                        n.contains("dict") || n.contains("map") || n.contains("data")
-                            || n == "result" || n == "config" || n == "settings"
-                            || n == "params" || n == "options" || n == "env"
-                            || n == "d" || n == "m" || n == "cache"
+                        n.contains("dict")
+                            || n.contains("map")
+                            || n.contains("data")
+                            || n == "result"
+                            || n == "config"
+                            || n == "settings"
+                            || n == "params"
+                            || n == "options"
+                            || n == "env"
+                            || n == "d"
+                            || n == "m"
+                            || n == "cache"
                     }
                     HirExpr::Call { func, .. } => {
-                        func.contains("dict") || func.contains("json") || func.contains("config")
-                            || func.contains("result") || func.contains("load")
+                        func.contains("dict")
+                            || func.contains("json")
+                            || func.contains("config")
+                            || func.contains("result")
+                            || func.contains("load")
                     }
                     _ => false,
                 };
@@ -5262,9 +5743,13 @@ impl<'a> ExprConverter<'a> {
                     // to match the cloned String type from HashMap<K, String>
                     let is_str_literal = matches!(&args[1], HirExpr::Literal(Literal::String(_)));
                     if is_str_literal {
-                        Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| (#default).to_string()) })
+                        Ok(
+                            parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| (#default).to_string()) },
+                        )
                     } else {
-                        Ok(parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| #default) })
+                        Ok(
+                            parse_quote! { #object_expr.get(&#key).cloned().unwrap_or_else(|| #default) },
+                        )
                     }
                 } else {
                     bail!("get() requires 1 or 2 arguments");
@@ -5279,10 +5764,16 @@ impl<'a> ExprConverter<'a> {
                     bail!("Empty method name in method call");
                 }
                 // Check if method is a valid identifier (starts with letter/underscore, alphanumeric)
-                let is_valid_ident = method.starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
-                    && method.chars().all(|c| c.is_ascii_alphanumeric() || c == '_');
+                let is_valid_ident = method
+                    .starts_with(|c: char| c.is_ascii_alphabetic() || c == '_')
+                    && method
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '_');
                 if !is_valid_ident {
-                    bail!("Invalid method name '{}' - not a valid Rust identifier", method);
+                    bail!(
+                        "Invalid method name '{}' - not a valid Rust identifier",
+                        method
+                    );
                 }
 
                 // DEPYLER-0823: Wrap cast expressions in parentheses before method calls
@@ -5480,7 +5971,9 @@ impl<'a> ExprConverter<'a> {
                     // DEPYLER-1025: In NASA mode, use std::time::Duration
                     if self.type_mapper.nasa_mode {
                         if let Some(arg) = arg_exprs.first() {
-                            Some(parse_quote! { std::time::Duration::from_secs((#arg as u64) * 86400) })
+                            Some(
+                                parse_quote! { std::time::Duration::from_secs((#arg as u64) * 86400) },
+                            )
                         } else {
                             Some(parse_quote! { std::time::Duration::from_secs(0) })
                         }
@@ -5537,7 +6030,9 @@ impl<'a> ExprConverter<'a> {
                         Some(parse_quote! { std::collections::HashMap::new() })
                     } else {
                         let arg = &arg_exprs[0];
-                        Some(parse_quote! { #arg.into_iter().collect::<std::collections::HashMap<_, _>>() })
+                        Some(
+                            parse_quote! { #arg.into_iter().collect::<std::collections::HashMap<_, _>>() },
+                        )
                     }
                 }
                 "defaultdict" => {
@@ -5632,23 +6127,33 @@ impl<'a> ExprConverter<'a> {
                 "dumps" | "dump" => {
                     if self.type_mapper.nasa_mode {
                         // NASA mode: simple string format
-                        arg_exprs.first().map(|arg| parse_quote! { format!("{:?}", #arg) })
+                        arg_exprs
+                            .first()
+                            .map(|arg| parse_quote! { format!("{:?}", #arg) })
                     } else {
-                        arg_exprs.first().map(|arg| parse_quote! { serde_json::to_string(&#arg).unwrap() })
+                        arg_exprs
+                            .first()
+                            .map(|arg| parse_quote! { serde_json::to_string(&#arg).unwrap() })
                     }
                 }
                 _ => None,
             },
             "os" => match constructor {
-                "getcwd" => Some(parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() }),
-                "getenv" => {
-                    arg_exprs.first().map(|arg| parse_quote! { std::env::var(#arg).ok() })
+                "getcwd" => {
+                    Some(parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() })
                 }
+                "getenv" => arg_exprs
+                    .first()
+                    .map(|arg| parse_quote! { std::env::var(#arg).ok() }),
                 "listdir" => {
                     if let Some(arg) = arg_exprs.first() {
-                        Some(parse_quote! { std::fs::read_dir(#arg)?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect::<Vec<_>>() })
+                        Some(
+                            parse_quote! { std::fs::read_dir(#arg)?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
+                        )
                     } else {
-                        Some(parse_quote! { std::fs::read_dir(".")?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect::<Vec<_>>() })
+                        Some(
+                            parse_quote! { std::fs::read_dir(".")?.map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect::<Vec<_>>() },
+                        )
                     }
                 }
                 _ => None,
@@ -5694,7 +6199,9 @@ impl<'a> ExprConverter<'a> {
                 } else {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
-                    Some(parse_quote! { std::env::var(#key).unwrap_or_else(|_| #default.to_string()) })
+                    Some(
+                        parse_quote! { std::env::var(#key).unwrap_or_else(|_| #default.to_string()) },
+                    )
                 }
             }
             "unlink" | "remove" => {
@@ -5780,7 +6287,11 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-0200: Convert os.path module method calls to Rust std::path equivalents
-    fn try_convert_os_path_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+    fn try_convert_os_path_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
             .map(|arg| self.convert(arg))
@@ -5871,7 +6382,11 @@ impl<'a> ExprConverter<'a> {
     }
 
     /// DEPYLER-0200: Convert os.environ method calls to Rust std::env equivalents
-    fn try_convert_os_environ_method(&self, method: &str, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+    fn try_convert_os_environ_method(
+        &self,
+        method: &str,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
         let arg_exprs: Vec<syn::Expr> = args
             .iter()
             .map(|arg| self.convert(arg))
@@ -5888,18 +6403,14 @@ impl<'a> ExprConverter<'a> {
                 } else {
                     let key = &arg_exprs[0];
                     let default = &arg_exprs[1];
-                    Some(parse_quote! { std::env::var(#key).unwrap_or_else(|_| #default.to_string()) })
+                    Some(
+                        parse_quote! { std::env::var(#key).unwrap_or_else(|_| #default.to_string()) },
+                    )
                 }
             }
-            "keys" => {
-                Some(parse_quote! { std::env::vars().map(|(k, _)| k).collect::<Vec<_>>() })
-            }
-            "values" => {
-                Some(parse_quote! { std::env::vars().map(|(_, v)| v).collect::<Vec<_>>() })
-            }
-            "items" => {
-                Some(parse_quote! { std::env::vars().collect::<Vec<_>>() })
-            }
+            "keys" => Some(parse_quote! { std::env::vars().map(|(k, _)| k).collect::<Vec<_>>() }),
+            "values" => Some(parse_quote! { std::env::vars().map(|(_, v)| v).collect::<Vec<_>>() }),
+            "items" => Some(parse_quote! { std::env::vars().collect::<Vec<_>>() }),
             "clear" => {
                 Some(parse_quote! { { /* env clear not implemented */ } })
             }
@@ -7373,9 +7884,15 @@ mod tests {
         let result_str = quote::quote!(#result).to_string();
 
         // Should contain SystemTime and UNIX_EPOCH
-        assert!(result_str.contains("SystemTime"), "Should use std::time::SystemTime");
+        assert!(
+            result_str.contains("SystemTime"),
+            "Should use std::time::SystemTime"
+        );
         assert!(result_str.contains("UNIX_EPOCH"), "Should use UNIX_EPOCH");
-        assert!(result_str.contains("as_secs_f64"), "Should return f64 seconds");
+        assert!(
+            result_str.contains("as_secs_f64"),
+            "Should return f64 seconds"
+        );
     }
 
     #[test]
@@ -7396,8 +7913,10 @@ mod tests {
         let result_str = quote::quote!(#result).to_string();
 
         // Should contain thread::sleep and Duration
-        assert!(result_str.contains("thread") && result_str.contains("sleep"),
-            "Should use std::thread::sleep");
+        assert!(
+            result_str.contains("thread") && result_str.contains("sleep"),
+            "Should use std::thread::sleep"
+        );
         assert!(result_str.contains("Duration"), "Should use Duration");
     }
 
@@ -7419,7 +7938,10 @@ mod tests {
         let result_str = quote::quote!(#result).to_string();
 
         // Should contain Instant::now
-        assert!(result_str.contains("Instant"), "Should use std::time::Instant");
+        assert!(
+            result_str.contains("Instant"),
+            "Should use std::time::Instant"
+        );
         assert!(result_str.contains("now"), "Should call now()");
     }
 
@@ -7444,9 +7966,15 @@ mod tests {
         let result_str = quote::quote!(#result).to_string();
 
         // Should contain regex::Regex
-        assert!(result_str.contains("regex") || result_str.contains("Regex"),
-            "Should use regex crate. Got: {}", result_str);
-        assert!(!result_str.contains("None"), "Should NOT generate None. Got: {}", result_str);
+        assert!(
+            result_str.contains("regex") || result_str.contains("Regex"),
+            "Should use regex crate. Got: {}",
+            result_str
+        );
+        assert!(
+            !result_str.contains("None"),
+            "Should NOT generate None. Got: {}",
+            result_str
+        );
     }
 }
-

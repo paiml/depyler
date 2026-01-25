@@ -178,8 +178,7 @@ impl KnowledgeDistiller {
                     .entry(pattern_id)
                     .and_modify(|existing| {
                         // Merge confidences via exponential moving average
-                        existing.confidence =
-                            existing.confidence * 0.7 + pattern.confidence * 0.3;
+                        existing.confidence = existing.confidence * 0.7 + pattern.confidence * 0.3;
                     })
                     .or_insert(pattern);
 
@@ -204,7 +203,11 @@ impl KnowledgeDistiller {
         let error_pattern = self.canonicalize_error_pattern(&example.error_message);
 
         // Generate pattern ID
-        let pattern_id = format!("distill_{}_{}", example.error_code, hash_str(&error_pattern));
+        let pattern_id = format!(
+            "distill_{}_{}",
+            example.error_code,
+            hash_str(&error_pattern)
+        );
 
         // Extract fix template
         let fix_template = self.extract_fix_template(&example.diff);
@@ -307,9 +310,15 @@ impl KnowledgeDistiller {
 
     /// Record a pattern application result
     pub fn record_application(&mut self, pattern_id: &str, success: bool) {
-        *self.application_counts.entry(pattern_id.to_string()).or_default() += 1;
+        *self
+            .application_counts
+            .entry(pattern_id.to_string())
+            .or_default() += 1;
         if success {
-            *self.success_counts.entry(pattern_id.to_string()).or_default() += 1;
+            *self
+                .success_counts
+                .entry(pattern_id.to_string())
+                .or_default() += 1;
         }
 
         // Update pattern confidence based on success rate
@@ -350,7 +359,11 @@ impl KnowledgeDistiller {
                 continue;
             }
 
-            let applications = self.application_counts.get(pattern_id).copied().unwrap_or(0);
+            let applications = self
+                .application_counts
+                .get(pattern_id)
+                .copied()
+                .unwrap_or(0);
             let successes = self.success_counts.get(pattern_id).copied().unwrap_or(0);
 
             let mut error_pattern = ErrorPattern::new(
@@ -399,7 +412,11 @@ impl KnowledgeDistiller {
     /// Classify error using distilled patterns (soft targets)
     ///
     /// Returns probability distribution over error categories
-    pub fn classify_soft(&self, error_code: &str, error_message: &str) -> Vec<(ErrorCategory, f64)> {
+    pub fn classify_soft(
+        &self,
+        error_code: &str,
+        error_message: &str,
+    ) -> Vec<(ErrorCategory, f64)> {
         let canonical = self.canonicalize_error_pattern(error_message);
         let mut scores: HashMap<ErrorCategory, f64> = HashMap::new();
 

@@ -412,7 +412,10 @@ fn test_function_with_append_has_side_effects() {
 
     let func = HirFunction {
         name: "appender".to_string(),
-        params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
+        params: smallvec![HirParam::new(
+            "items".to_string(),
+            Type::List(Box::new(Type::Int))
+        )],
         ret_type: Type::None,
         body: vec![HirStmt::Expr(HirExpr::MethodCall {
             object: Box::new(HirExpr::Var("items".to_string())),
@@ -531,7 +534,9 @@ fn test_mutual_recursion_detected() {
                 op: BinOp::Eq,
                 right: Box::new(HirExpr::Literal(Literal::Int(0))),
             },
-            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(false))))],
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Bool(
+                false,
+            ))))],
             else_body: Some(vec![HirStmt::Return(Some(HirExpr::Call {
                 func: "is_even".to_string(),
                 args: vec![HirExpr::Binary {

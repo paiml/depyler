@@ -32,19 +32,14 @@ pub enum DecisionType {
         constraints: Vec<String>,
     },
     /// Ownership/borrowing strategy
-    OwnershipChoice {
-        strategy: String,
-        reason: String,
-    },
+    OwnershipChoice { strategy: String, reason: String },
     /// Library mapping (Python API → Rust API)
     LibraryMapping {
         python_api: String,
         rust_api: String,
     },
     /// Lifetime elision/annotation
-    LifetimeElision {
-        pattern: String,
-    },
+    LifetimeElision { pattern: String },
     /// Trait bound selection
     TraitBoundSelection {
         trait_name: String,

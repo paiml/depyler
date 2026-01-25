@@ -1,5 +1,4 @@
 #![allow(clippy::assertions_on_constants)]
-
 // DEPYLER-1151: Result Normalization Pass
 //
 // Tests for Result<Option<T>> ambiguity in functions that mix:
@@ -20,7 +19,6 @@
 // This can produce `Result<Option<i32>, Box<dyn Error>>` which
 // is awkward and causes type mismatches when caller expects
 // simpler types.
-
 #![allow(non_snake_case)] // Test naming convention
 
 use depyler_core::DepylerPipeline;
@@ -80,8 +78,11 @@ def parse_int(s):
     // Should produce Result or handle exception properly
     // The transpiler may convert try/except to match blocks or Result types
     assert!(
-        rust.contains("Result") || rust.contains("Ok(") || rust.contains("Err(")
-        || rust.contains("parse") || rust.contains("match"),
+        rust.contains("Result")
+            || rust.contains("Ok(")
+            || rust.contains("Err(")
+            || rust.contains("parse")
+            || rust.contains("match"),
         "Should handle exception: {}",
         rust
     );

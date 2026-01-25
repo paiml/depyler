@@ -311,7 +311,10 @@ mod tests {
 
     #[test]
     fn test_string_conversion_match_expr() {
-        let expr: syn::Expr = parse_quote!(match x { Some(v) => v, None => "" });
+        let expr: syn::Expr = parse_quote!(match x {
+            Some(v) => v,
+            None => "",
+        });
         let result = apply_type_conversion(expr, &Type::String);
         assert!(expr_to_string(result).contains(".to_string()"));
     }
@@ -344,14 +347,20 @@ mod tests {
 
     #[test]
     fn test_block_expr_int_conversion() {
-        let expr: syn::Expr = parse_quote!({ let x = 1; x });
+        let expr: syn::Expr = parse_quote!({
+            let x = 1;
+            x
+        });
         let result = apply_type_conversion(expr, &Type::Int);
         assert!(expr_to_string(result).contains("asi32"));
     }
 
     #[test]
     fn test_block_expr_string_conversion() {
-        let expr: syn::Expr = parse_quote!({ let s = "hi"; s });
+        let expr: syn::Expr = parse_quote!({
+            let s = "hi";
+            s
+        });
         let result = apply_type_conversion(expr, &Type::String);
         assert!(expr_to_string(result).contains(".to_string()"));
     }

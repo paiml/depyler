@@ -313,7 +313,12 @@ impl BorrowingContext {
 
     /// DEPYLER-1217: Helper to check if an assignment target mutates a parameter
     /// Recursively handles index, attribute, and tuple targets
-    fn check_target_mutation(&mut self, target: &AssignTarget, in_loop: bool, in_conditional: bool) {
+    fn check_target_mutation(
+        &mut self,
+        target: &AssignTarget,
+        in_loop: bool,
+        in_conditional: bool,
+    ) {
         match target {
             AssignTarget::Symbol(symbol) => {
                 if let Some(usage) = self.param_usage.get_mut(symbol) {
@@ -1175,14 +1180,28 @@ mod tests {
 
     #[test]
     fn test_usage_type_function_arg_owned() {
-        let usage = UsageType::FunctionArg { takes_ownership: true };
-        assert!(matches!(usage, UsageType::FunctionArg { takes_ownership: true }));
+        let usage = UsageType::FunctionArg {
+            takes_ownership: true,
+        };
+        assert!(matches!(
+            usage,
+            UsageType::FunctionArg {
+                takes_ownership: true
+            }
+        ));
     }
 
     #[test]
     fn test_usage_type_function_arg_borrowed() {
-        let usage = UsageType::FunctionArg { takes_ownership: false };
-        assert!(matches!(usage, UsageType::FunctionArg { takes_ownership: false }));
+        let usage = UsageType::FunctionArg {
+            takes_ownership: false,
+        };
+        assert!(matches!(
+            usage,
+            UsageType::FunctionArg {
+                takes_ownership: false
+            }
+        ));
     }
 
     #[test]
@@ -1199,8 +1218,15 @@ mod tests {
 
     #[test]
     fn test_usage_type_closure() {
-        let usage = UsageType::Closure { captures_by_value: true };
-        assert!(matches!(usage, UsageType::Closure { captures_by_value: true }));
+        let usage = UsageType::Closure {
+            captures_by_value: true,
+        };
+        assert!(matches!(
+            usage,
+            UsageType::Closure {
+                captures_by_value: true
+            }
+        ));
     }
 
     #[test]
@@ -1232,12 +1258,17 @@ mod tests {
     #[test]
     fn test_borrowing_strategy_borrow_immutable() {
         let strategy = BorrowingStrategy::BorrowImmutable { lifetime: None };
-        assert!(matches!(strategy, BorrowingStrategy::BorrowImmutable { .. }));
+        assert!(matches!(
+            strategy,
+            BorrowingStrategy::BorrowImmutable { .. }
+        ));
     }
 
     #[test]
     fn test_borrowing_strategy_borrow_immutable_with_lifetime() {
-        let strategy = BorrowingStrategy::BorrowImmutable { lifetime: Some("'a".to_string()) };
+        let strategy = BorrowingStrategy::BorrowImmutable {
+            lifetime: Some("'a".to_string()),
+        };
         if let BorrowingStrategy::BorrowImmutable { lifetime } = &strategy {
             assert_eq!(lifetime, &Some("'a".to_string()));
         }
@@ -1251,7 +1282,9 @@ mod tests {
 
     #[test]
     fn test_borrowing_strategy_use_cow() {
-        let strategy = BorrowingStrategy::UseCow { lifetime: "'a".to_string() };
+        let strategy = BorrowingStrategy::UseCow {
+            lifetime: "'a".to_string(),
+        };
         if let BorrowingStrategy::UseCow { lifetime } = &strategy {
             assert_eq!(lifetime, "'a");
         }
@@ -1259,7 +1292,9 @@ mod tests {
 
     #[test]
     fn test_borrowing_strategy_use_shared_ownership_arc() {
-        let strategy = BorrowingStrategy::UseSharedOwnership { is_thread_safe: true };
+        let strategy = BorrowingStrategy::UseSharedOwnership {
+            is_thread_safe: true,
+        };
         if let BorrowingStrategy::UseSharedOwnership { is_thread_safe } = strategy {
             assert!(is_thread_safe);
         }
@@ -1267,7 +1302,9 @@ mod tests {
 
     #[test]
     fn test_borrowing_strategy_use_shared_ownership_rc() {
-        let strategy = BorrowingStrategy::UseSharedOwnership { is_thread_safe: false };
+        let strategy = BorrowingStrategy::UseSharedOwnership {
+            is_thread_safe: false,
+        };
         if let BorrowingStrategy::UseSharedOwnership { is_thread_safe } = strategy {
             assert!(!is_thread_safe);
         }
@@ -1293,7 +1330,10 @@ mod tests {
             param: "s".to_string(),
             suggestion: "Use 'a".to_string(),
         };
-        assert!(matches!(insight, BorrowingInsight::LifetimeOptimization { .. }));
+        assert!(matches!(
+            insight,
+            BorrowingInsight::LifetimeOptimization { .. }
+        ));
     }
 
     #[test]
@@ -1308,7 +1348,10 @@ mod tests {
             param: "data".to_string(),
             locations: vec!["line 10".to_string(), "line 20".to_string()],
         };
-        assert!(matches!(insight, BorrowingInsight::PotentialBorrowConflict { .. }));
+        assert!(matches!(
+            insight,
+            BorrowingInsight::PotentialBorrowConflict { .. }
+        ));
     }
 
     #[test]
@@ -1600,14 +1643,21 @@ mod tests {
 
     #[test]
     fn test_usage_type_closure_variants() {
-        let by_value = UsageType::Closure { captures_by_value: true };
-        let by_ref = UsageType::Closure { captures_by_value: false };
+        let by_value = UsageType::Closure {
+            captures_by_value: true,
+        };
+        let by_ref = UsageType::Closure {
+            captures_by_value: false,
+        };
         assert_ne!(by_value, by_ref);
     }
 
     #[test]
     fn test_borrowing_strategy_eq() {
-        assert_eq!(BorrowingStrategy::TakeOwnership, BorrowingStrategy::TakeOwnership);
+        assert_eq!(
+            BorrowingStrategy::TakeOwnership,
+            BorrowingStrategy::TakeOwnership
+        );
         assert_ne!(
             BorrowingStrategy::TakeOwnership,
             BorrowingStrategy::BorrowMutable { lifetime: None }
@@ -1619,10 +1669,16 @@ mod tests {
         let strategies = [
             BorrowingStrategy::TakeOwnership,
             BorrowingStrategy::BorrowImmutable { lifetime: None },
-            BorrowingStrategy::BorrowImmutable { lifetime: Some("a".to_string()) },
+            BorrowingStrategy::BorrowImmutable {
+                lifetime: Some("a".to_string()),
+            },
             BorrowingStrategy::BorrowMutable { lifetime: None },
-            BorrowingStrategy::UseCow { lifetime: "b".to_string() },
-            BorrowingStrategy::UseSharedOwnership { is_thread_safe: true },
+            BorrowingStrategy::UseCow {
+                lifetime: "b".to_string(),
+            },
+            BorrowingStrategy::UseSharedOwnership {
+                is_thread_safe: true,
+            },
         ];
         for strategy in strategies {
             let debug = format!("{:?}", strategy);

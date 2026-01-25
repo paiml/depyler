@@ -114,8 +114,7 @@ fn test_hashset_string() {
     let result = type_to_string(&ty);
     // DEPYLER-0685: Accept both short and fully qualified paths
     assert!(
-        result == "HashSet < String >"
-            || result == "std :: collections :: HashSet < String >",
+        result == "HashSet < String >" || result == "std :: collections :: HashSet < String >",
         "Expected HashSet or std::collections::HashSet, got: {}",
         result
     );

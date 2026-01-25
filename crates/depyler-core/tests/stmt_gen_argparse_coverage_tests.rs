@@ -97,11 +97,10 @@ fn shim_add_argument_with_choices() {
         object: Box::new(HirExpr::Var("parser".into())),
         method: "add_argument".into(),
         args: vec![str_lit("--level")],
-        kwargs: vec![("choices".into(), HirExpr::List(vec![
-            str_lit("debug"),
-            str_lit("info"),
-            str_lit("warn"),
-        ]))],
+        kwargs: vec![(
+            "choices".into(),
+            HirExpr::List(vec![str_lit("debug"), str_lit("info"), str_lit("warn")]),
+        )],
     };
 }
 

@@ -46,6 +46,7 @@ fn create_sample_module() -> HirModule {
         }],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     }
 }
 

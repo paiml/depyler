@@ -155,7 +155,8 @@ mod builtin_functions {
 
     #[test]
     fn test_zip() {
-        let code = "def f(a: list[int], b: list[str]) -> None:\n    for x, y in zip(a, b):\n        pass";
+        let code =
+            "def f(a: list[int], b: list[str]) -> None:\n    for x, y in zip(a, b):\n        pass";
         let _ = transpile(code);
     }
 
@@ -1081,19 +1082,22 @@ mod lambda_expressions {
 
     #[test]
     fn test_lambda_in_map() {
-        let code = "def f(lst: list[int]) -> list[int]:\n    return list(map(lambda x: x * 2, lst))";
+        let code =
+            "def f(lst: list[int]) -> list[int]:\n    return list(map(lambda x: x * 2, lst))";
         let _ = transpile(code);
     }
 
     #[test]
     fn test_lambda_in_filter() {
-        let code = "def f(lst: list[int]) -> list[int]:\n    return list(filter(lambda x: x > 0, lst))";
+        let code =
+            "def f(lst: list[int]) -> list[int]:\n    return list(filter(lambda x: x > 0, lst))";
         let _ = transpile(code);
     }
 
     #[test]
     fn test_lambda_in_sorted_key() {
-        let code = "def f(lst: list[str]) -> list[str]:\n    return sorted(lst, key=lambda x: len(x))";
+        let code =
+            "def f(lst: list[str]) -> list[str]:\n    return sorted(lst, key=lambda x: len(x))";
         let _ = transpile(code);
     }
 }

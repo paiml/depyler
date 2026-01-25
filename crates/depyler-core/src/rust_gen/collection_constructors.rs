@@ -99,7 +99,9 @@ pub fn convert_frozenset_constructor(
 pub fn convert_counter_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
     ctx.needs_hashmap = true;
     if args.is_empty() {
-        Ok(parse_quote! { HashMap::new() })
+        // GH-204: Use default type parameters for empty Counter to avoid E0282
+        // Counter() in Python typically counts hashable items with integer counts
+        Ok(parse_quote! { HashMap::<i32, i32>::new() })
     } else if args.len() == 1 {
         let arg = &args[0];
         Ok(parse_quote! {
@@ -130,9 +132,10 @@ pub fn convert_defaultdict_builtin(
     _args: &[syn::Expr],
 ) -> Result<syn::Expr> {
     ctx.needs_hashmap = true;
+    // GH-204: Use default type parameters for empty defaultdict to avoid E0282
     // defaultdict(int), defaultdict(list), defaultdict(str), defaultdict()
     // All translate to HashMap::new() since Rust uses entry API for defaults
-    Ok(parse_quote! { HashMap::new() })
+    Ok(parse_quote! { HashMap::<String, i32>::new() })
 }
 
 /// Convert Python dict() constructor to Rust HashMap
@@ -170,7 +173,8 @@ pub fn convert_dict_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Res
 pub fn convert_deque_builtin(ctx: &mut CodeGenContext, args: &[syn::Expr]) -> Result<syn::Expr> {
     ctx.needs_vecdeque = true;
     if args.is_empty() {
-        Ok(parse_quote! { VecDeque::new() })
+        // GH-204: Use default type parameter for empty deque to avoid E0282
+        Ok(parse_quote! { VecDeque::<i32>::new() })
     } else if args.len() == 1 {
         let arg = &args[0];
         // DEPYLER-1185: Don't wrap in DepylerValue - let Rust infer element types
@@ -453,7 +457,9 @@ mod tests {
         let mut ctx = make_ctx();
         let result = convert_counter_builtin(&mut ctx, &[]).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("HashMap :: new"));
+        // GH-204: Now generates HashMap::<i32, i32>::new() to avoid E0282
+        assert!(code.contains("HashMap"));
+        assert!(code.contains("new"));
         assert!(ctx.needs_hashmap);
     }
 
@@ -484,7 +490,9 @@ mod tests {
         let mut ctx = make_ctx();
         let result = convert_defaultdict_builtin(&mut ctx, &[]).unwrap();
         let code = quote::quote!(#result).to_string();
-        assert!(code.contains("HashMap :: new"));
+        // GH-204: Now generates HashMap::<String, i32>::new() to avoid E0282
+        assert!(code.contains("HashMap"));
+        assert!(code.contains("new"));
         assert!(ctx.needs_hashmap);
     }
 
@@ -494,8 +502,9 @@ mod tests {
         let arg: syn::Expr = parse_quote! { int };
         let result = convert_defaultdict_builtin(&mut ctx, &[arg]).unwrap();
         let code = quote::quote!(#result).to_string();
-        // Always generates HashMap::new()
-        assert!(code.contains("HashMap :: new"));
+        // GH-204: Always generates HashMap::<String, i32>::new() to avoid E0282
+        assert!(code.contains("HashMap"));
+        assert!(code.contains("new"));
     }
 
     // ========== convert_dict_builtin tests ==========

@@ -74,14 +74,18 @@ impl<'a> TranspileRunner<'a> {
                 if pattern.contains("__pycache__") && path_str.contains("__pycache__") {
                     return true;
                 }
-                if pattern.contains("test_") && path.file_name().is_some_and(|n| {
-                    n.to_string_lossy().starts_with("test_")
-                }) {
+                if pattern.contains("test_")
+                    && path
+                        .file_name()
+                        .is_some_and(|n| n.to_string_lossy().starts_with("test_"))
+                {
                     return true;
                 }
-                if pattern.contains("__init__") && path.file_name().is_some_and(|n| {
-                    n.to_string_lossy() == "__init__.py"
-                }) {
+                if pattern.contains("__init__")
+                    && path
+                        .file_name()
+                        .is_some_and(|n| n.to_string_lossy() == "__init__.py")
+                {
                     return true;
                 }
                 false

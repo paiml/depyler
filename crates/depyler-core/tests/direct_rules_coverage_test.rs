@@ -86,7 +86,12 @@ def process_type(type: str) -> str:
     println!("Generated keyword-as-var code:\n{}", rust_code);
 
     // Should use raw identifier r#type or rename
-    assert!(rust_code.contains("r#type") || rust_code.contains("type_") || rust_code.contains("_type") || rust_code.contains("fn "));
+    assert!(
+        rust_code.contains("r#type")
+            || rust_code.contains("type_")
+            || rust_code.contains("_type")
+            || rust_code.contains("fn ")
+    );
 }
 
 #[test]
@@ -100,7 +105,9 @@ def process_loop(loop: int) -> int:
     println!("Generated loop keyword code:\n{}", rust_code);
 
     // Should handle 'loop' as raw identifier
-    assert!(rust_code.contains("r#loop") || rust_code.contains("loop_") || rust_code.contains("fn "));
+    assert!(
+        rust_code.contains("r#loop") || rust_code.contains("loop_") || rust_code.contains("fn ")
+    );
 }
 
 // ============================================================================
@@ -282,7 +289,9 @@ def process_data(data: Dict[str, List[int]]) -> int:
     let rust_code = pipeline.transpile(python_code).unwrap();
     println!("Generated nested type code:\n{}", rust_code);
 
-    assert!(rust_code.contains("HashMap") || rust_code.contains("Vec") || rust_code.contains("for"));
+    assert!(
+        rust_code.contains("HashMap") || rust_code.contains("Vec") || rust_code.contains("for")
+    );
 }
 
 #[test]

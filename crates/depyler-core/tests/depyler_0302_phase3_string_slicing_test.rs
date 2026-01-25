@@ -21,7 +21,9 @@ def get_last_char(s: str) -> str:
 
     // DEPYLER-1127: Check only the get_last_char function, not entire file
     // (DepylerValue and other impls may have legitimate .to_vec() calls)
-    let fn_start = rust_code.find("fn get_last_char").expect("Should have get_last_char function");
+    let fn_start = rust_code
+        .find("fn get_last_char")
+        .expect("Should have get_last_char function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(200) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
@@ -29,7 +31,8 @@ def get_last_char(s: str) -> str:
     // Either .chars() based or index-based access
     assert!(
         fn_section.contains(".chars()") || fn_section.contains("get(") || fn_section.contains("["),
-        "Should use proper string/char access\nFunction:\n{}", fn_section
+        "Should use proper string/char access\nFunction:\n{}",
+        fn_section
     );
 
     println!("✅ Generated Rust code:\n{}", rust_code);
@@ -48,14 +51,17 @@ def get_last_n_chars(s: str, n: int) -> str:
         .expect("Transpilation failed");
 
     // DEPYLER-1127: Check only the get_last_n_chars function, not entire file
-    let fn_start = rust_code.find("fn get_last_n_chars").expect("Should have get_last_n_chars function");
+    let fn_start = rust_code
+        .find("fn get_last_n_chars")
+        .expect("Should have get_last_n_chars function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(500) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
     // Should use proper string operations in the function body
     assert!(
         fn_section.contains(".chars()") || fn_section.contains("skip") || fn_section.contains("["),
-        "Should use proper string slicing\nFunction:\n{}", fn_section
+        "Should use proper string slicing\nFunction:\n{}",
+        fn_section
     );
 
     println!("✅ Generated Rust code:\n{}", rust_code);
@@ -74,14 +80,17 @@ def get_all_but_last_n(s: str, n: int) -> str:
         .expect("Transpilation failed");
 
     // DEPYLER-1127: Check only the get_all_but_last_n function, not entire file
-    let fn_start = rust_code.find("fn get_all_but_last_n").expect("Should have get_all_but_last_n function");
+    let fn_start = rust_code
+        .find("fn get_all_but_last_n")
+        .expect("Should have get_all_but_last_n function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(500) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
     // Should use proper string operations in the function body
     assert!(
         fn_section.contains(".chars()") || fn_section.contains("take") || fn_section.contains("["),
-        "Should use proper string slicing\nFunction:\n{}", fn_section
+        "Should use proper string slicing\nFunction:\n{}",
+        fn_section
     );
 
     println!("✅ Generated Rust code:\n{}", rust_code);

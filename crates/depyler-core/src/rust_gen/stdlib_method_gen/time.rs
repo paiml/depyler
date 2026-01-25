@@ -151,7 +151,11 @@ fn convert_ctime(arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> 
 }
 
 /// time.strftime(format, time_tuple) → std::time formatting (NASA) or chrono (non-NASA)
-fn convert_strftime(args: &[HirExpr], arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
+fn convert_strftime(
+    args: &[HirExpr],
+    arg_exprs: &[syn::Expr],
+    nasa_mode: bool,
+) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("time.strftime() requires at least 2 arguments (format, time_tuple)");
     }
@@ -173,7 +177,11 @@ fn convert_strftime(args: &[HirExpr], arg_exprs: &[syn::Expr], nasa_mode: bool) 
 }
 
 /// time.strptime(string, format) → std::time parsing (NASA) or chrono (non-NASA)
-fn convert_strptime(args: &[HirExpr], arg_exprs: &[syn::Expr], nasa_mode: bool) -> Result<syn::Expr> {
+fn convert_strptime(
+    args: &[HirExpr],
+    arg_exprs: &[syn::Expr],
+    nasa_mode: bool,
+) -> Result<syn::Expr> {
     if arg_exprs.len() < 2 {
         bail!("time.strptime() requires at least 2 arguments (string, format)");
     }
@@ -372,8 +380,8 @@ mod tests {
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
         assert!(code.contains("UNIX_EPOCH")); // NASA mode uses std::time
-        // DEPYLER-1086: NASA mode (default) uses std::time, not chrono
-        // chrono::Utc is only generated when nasa_mode=false
+                                              // DEPYLER-1086: NASA mode (default) uses std::time, not chrono
+                                              // chrono::Utc is only generated when nasa_mode=false
     }
 
     #[test]
@@ -476,8 +484,8 @@ mod tests {
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
         assert!(code.contains("UNIX_EPOCH")); // NASA mode uses std::time
-        // DEPYLER-1086: NASA mode (default) uses std::time, not chrono
-        // chrono::Utc is only generated when nasa_mode=false
+                                              // DEPYLER-1086: NASA mode (default) uses std::time, not chrono
+                                              // chrono::Utc is only generated when nasa_mode=false
     }
 
     #[test]
@@ -504,8 +512,8 @@ mod tests {
         let expr = result.unwrap().unwrap();
         let code = quote::quote!(#expr).to_string();
         assert!(code.contains("UNIX_EPOCH")); // NASA mode uses std::time
-        // DEPYLER-1086: NASA mode (default) uses std::time, not chrono
-        // chrono::Local is only generated when nasa_mode=false
+                                              // DEPYLER-1086: NASA mode (default) uses std::time, not chrono
+                                              // chrono::Local is only generated when nasa_mode=false
     }
 
     #[test]

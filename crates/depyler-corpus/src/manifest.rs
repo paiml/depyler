@@ -94,7 +94,10 @@ impl ReportManifest {
     }
 
     /// Compute the source hash from Python files.
-    pub fn compute_source_hash(&mut self, python_files: &[std::path::PathBuf]) -> anyhow::Result<()> {
+    pub fn compute_source_hash(
+        &mut self,
+        python_files: &[std::path::PathBuf],
+    ) -> anyhow::Result<()> {
         let mut hasher = Hasher::new();
 
         // Sort files for deterministic ordering
@@ -193,7 +196,11 @@ mod tests {
     #[test]
     fn test_add_artifact() {
         let mut manifest = ReportManifest::new("test", Path::new("."), 0);
-        manifest.add_artifact(Path::new("report.json"), b"test content", "application/json");
+        manifest.add_artifact(
+            Path::new("report.json"),
+            b"test content",
+            "application/json",
+        );
 
         assert_eq!(manifest.artifacts.len(), 1);
         assert_eq!(manifest.artifacts[0].path, "report.json");

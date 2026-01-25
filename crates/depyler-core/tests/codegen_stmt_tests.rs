@@ -4,7 +4,9 @@
 use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> Result<String, String> {
-    DepylerPipeline::new().transpile(code).map_err(|e| e.to_string())
+    DepylerPipeline::new()
+        .transpile(code)
+        .map_err(|e| e.to_string())
 }
 
 fn transpile_ok(code: &str) -> bool {

@@ -79,7 +79,11 @@ pub struct TextCorpusSource {
 
 impl TextCorpusSource {
     /// Create a new corpus source.
-    pub fn new(name: impl Into<String>, samples: Vec<TrainingSample>, source_type: TextSampleSource) -> Self {
+    pub fn new(
+        name: impl Into<String>,
+        samples: Vec<TrainingSample>,
+        source_type: TextSampleSource,
+    ) -> Self {
         Self {
             name: name.into(),
             samples,
@@ -219,10 +223,9 @@ impl TextCorpusMerger {
             let original_count = source.samples.len();
             let effective_count = (original_count as f64 * source.weight).round() as usize;
 
-            provenance.sources.insert(
-                source.name.clone(),
-                (original_count, effective_count),
-            );
+            provenance
+                .sources
+                .insert(source.name.clone(), (original_count, effective_count));
 
             // Apply weight (repeat samples if weight > 1)
             if source.weight >= 1.0 {
@@ -301,24 +304,36 @@ pub fn build_unified_corpus(config: &UnifiedTrainingConfig) -> UnifiedTrainingRe
     let synthetic = generate_synthetic_corpus_sized(config.synthetic_samples);
     stats.synthetic_count = synthetic.samples().len();
     merger.add_source(
-        TextCorpusSource::new("synthetic", synthetic.samples().to_vec(), TextSampleSource::Synthetic)
-            .with_priority(0),
+        TextCorpusSource::new(
+            "synthetic",
+            synthetic.samples().to_vec(),
+            TextSampleSource::Synthetic,
+        )
+        .with_priority(0),
     );
 
     // 2. Depyler corpus (highest priority - hand-crafted from tickets)
     let depyler = build_depyler_corpus();
     stats.depyler_count = depyler.samples().len();
     merger.add_source(
-        TextCorpusSource::new("depyler", depyler.samples().to_vec(), TextSampleSource::HandCrafted)
-            .with_priority(2),
+        TextCorpusSource::new(
+            "depyler",
+            depyler.samples().to_vec(),
+            TextSampleSource::HandCrafted,
+        )
+        .with_priority(2),
     );
 
     // 3. Verificar corpus (medium priority)
     let verificar = build_verificar_corpus();
     stats.verificar_count = verificar.samples().len();
     merger.add_source(
-        TextCorpusSource::new("verificar", verificar.samples().to_vec(), TextSampleSource::External)
-            .with_priority(1),
+        TextCorpusSource::new(
+            "verificar",
+            verificar.samples().to_vec(),
+            TextSampleSource::External,
+        )
+        .with_priority(1),
     );
 
     // 4. OIP GitHub corpus (if available)
@@ -327,8 +342,12 @@ pub fn build_unified_corpus(config: &UnifiedTrainingConfig) -> UnifiedTrainingRe
             let oip_corpus = convert_oip_to_depyler(&oip_data);
             stats.oip_count = oip_corpus.samples().len();
             merger.add_source(
-                TextCorpusSource::new("oip_github", oip_corpus.samples().to_vec(), TextSampleSource::Production)
-                    .with_priority(1),
+                TextCorpusSource::new(
+                    "oip_github",
+                    oip_corpus.samples().to_vec(),
+                    TextSampleSource::Production,
+                )
+                .with_priority(1),
             );
         }
     }
@@ -393,7 +412,8 @@ pub fn build_unified_corpus(config: &UnifiedTrainingConfig) -> UnifiedTrainingRe
 fn sample_hash(sample: &TrainingSample) -> u64 {
     let mut hasher = DefaultHasher::new();
     // Normalize: lowercase, remove extra whitespace
-    let normalized = sample.message
+    let normalized = sample
+        .message
         .to_lowercase()
         .split_whitespace()
         .collect::<Vec<_>>()
@@ -422,7 +442,10 @@ fn deterministic_shuffle(mut samples: Vec<TrainingSample>, seed: u64) -> Vec<Tra
 }
 
 /// Balance classes by limiting samples per category.
-fn balance_classes(samples: Vec<TrainingSample>, max_per_class: Option<usize>) -> Vec<TrainingSample> {
+fn balance_classes(
+    samples: Vec<TrainingSample>,
+    max_per_class: Option<usize>,
+) -> Vec<TrainingSample> {
     let max = max_per_class.unwrap_or(usize::MAX);
 
     let mut by_category: HashMap<ErrorCategory, Vec<TrainingSample>> = HashMap::new();
@@ -504,21 +527,48 @@ pub fn print_merge_stats(stats: &MergeStats) {
     println!("│          Unified Corpus Statistics                  │");
     println!("├─────────────────────────────────────────────────────┤");
     println!("│  Data Sources:                                      │");
-    println!("│    Synthetic:     {:>6} samples                     │", stats.synthetic_count);
-    println!("│    Depyler:       {:>6} samples (priority=2)        │", stats.depyler_count);
-    println!("│    Verificar:     {:>6} samples (priority=1)        │", stats.verificar_count);
-    println!("│    OIP GitHub:    {:>6} samples                     │", stats.oip_count);
-    println!("│    Real Errors:   {:>6} samples (priority=2)        │", stats.real_errors_count);
+    println!(
+        "│    Synthetic:     {:>6} samples                     │",
+        stats.synthetic_count
+    );
+    println!(
+        "│    Depyler:       {:>6} samples (priority=2)        │",
+        stats.depyler_count
+    );
+    println!(
+        "│    Verificar:     {:>6} samples (priority=1)        │",
+        stats.verificar_count
+    );
+    println!(
+        "│    OIP GitHub:    {:>6} samples                     │",
+        stats.oip_count
+    );
+    println!(
+        "│    Real Errors:   {:>6} samples (priority=2)        │",
+        stats.real_errors_count
+    );
     println!("├─────────────────────────────────────────────────────┤");
     println!("│  Merge Results:                                     │");
-    println!("│    Before dedupe: {:>6} samples                     │", stats.total_before_dedupe);
-    println!("│    Duplicates:    {:>6} removed                     │", stats.duplicates_removed);
-    println!("│    Final count:   {:>6} samples                     │", stats.final_count);
+    println!(
+        "│    Before dedupe: {:>6} samples                     │",
+        stats.total_before_dedupe
+    );
+    println!(
+        "│    Duplicates:    {:>6} removed                     │",
+        stats.duplicates_removed
+    );
+    println!(
+        "│    Final count:   {:>6} samples                     │",
+        stats.final_count
+    );
     println!("├─────────────────────────────────────────────────────┤");
     println!("│  By Source Type (Provenance):                       │");
     for (source_type, count) in &stats.provenance.by_source_type {
         let pct = (*count as f64 / stats.final_count.max(1) as f64) * 100.0;
-        println!("│    {:?}: {} ({:.1}%)                    │", source_type, count, pct);
+        println!(
+            "│    {:?}: {} ({:.1}%)                    │",
+            source_type, count, pct
+        );
     }
     println!("├─────────────────────────────────────────────────────┤");
     println!("│  By Category:                                       │");
@@ -542,16 +592,26 @@ mod tests {
 
     #[test]
     fn test_text_corpus_merger_basic() {
-        let samples1 = vec![
-            TrainingSample::new("error[E0308]: type mismatch", ErrorCategory::TypeMismatch),
-        ];
-        let samples2 = vec![
-            TrainingSample::new("error[E0382]: moved value", ErrorCategory::BorrowChecker),
-        ];
+        let samples1 = vec![TrainingSample::new(
+            "error[E0308]: type mismatch",
+            ErrorCategory::TypeMismatch,
+        )];
+        let samples2 = vec![TrainingSample::new(
+            "error[E0382]: moved value",
+            ErrorCategory::BorrowChecker,
+        )];
 
         let mut merger = TextCorpusMerger::new();
-        merger.add_source(TextCorpusSource::new("src1", samples1, TextSampleSource::Synthetic));
-        merger.add_source(TextCorpusSource::new("src2", samples2, TextSampleSource::HandCrafted));
+        merger.add_source(TextCorpusSource::new(
+            "src1",
+            samples1,
+            TextSampleSource::Synthetic,
+        ));
+        merger.add_source(TextCorpusSource::new(
+            "src2",
+            samples2,
+            TextSampleSource::HandCrafted,
+        ));
 
         let (merged, provenance) = merger.merge();
         assert_eq!(merged.len(), 2);
@@ -561,9 +621,10 @@ mod tests {
 
     #[test]
     fn test_text_corpus_merger_deduplication() {
-        let samples1 = vec![
-            TrainingSample::new("error[E0308]: type mismatch", ErrorCategory::TypeMismatch),
-        ];
+        let samples1 = vec![TrainingSample::new(
+            "error[E0308]: type mismatch",
+            ErrorCategory::TypeMismatch,
+        )];
         let samples2 = vec![
             TrainingSample::new("error[E0308]: type mismatch", ErrorCategory::TypeMismatch), // Duplicate
         ];
@@ -571,11 +632,11 @@ mod tests {
         let mut merger = TextCorpusMerger::new();
         merger.add_source(
             TextCorpusSource::new("high_priority", samples1, TextSampleSource::HandCrafted)
-                .with_priority(2)
+                .with_priority(2),
         );
         merger.add_source(
             TextCorpusSource::new("low_priority", samples2, TextSampleSource::Synthetic)
-                .with_priority(0)
+                .with_priority(0),
         );
 
         let (merged, provenance) = merger.merge();
@@ -585,19 +646,33 @@ mod tests {
 
     #[test]
     fn test_text_corpus_merger_no_deduplication() {
-        let samples1 = vec![
-            TrainingSample::new("error[E0308]: type mismatch", ErrorCategory::TypeMismatch),
-        ];
-        let samples2 = vec![
-            TrainingSample::new("error[E0308]: type mismatch", ErrorCategory::TypeMismatch),
-        ];
+        let samples1 = vec![TrainingSample::new(
+            "error[E0308]: type mismatch",
+            ErrorCategory::TypeMismatch,
+        )];
+        let samples2 = vec![TrainingSample::new(
+            "error[E0308]: type mismatch",
+            ErrorCategory::TypeMismatch,
+        )];
 
         let mut merger = TextCorpusMerger::new().deduplicate(false);
-        merger.add_source(TextCorpusSource::new("src1", samples1, TextSampleSource::Synthetic));
-        merger.add_source(TextCorpusSource::new("src2", samples2, TextSampleSource::HandCrafted));
+        merger.add_source(TextCorpusSource::new(
+            "src1",
+            samples1,
+            TextSampleSource::Synthetic,
+        ));
+        merger.add_source(TextCorpusSource::new(
+            "src2",
+            samples2,
+            TextSampleSource::HandCrafted,
+        ));
 
         let (merged, provenance) = merger.merge();
-        assert_eq!(merged.len(), 2, "Should keep duplicates when dedup disabled");
+        assert_eq!(
+            merged.len(),
+            2,
+            "Should keep duplicates when dedup disabled"
+        );
         assert_eq!(provenance.duplicates_removed, 0);
     }
 
@@ -609,13 +684,23 @@ mod tests {
         ];
 
         let mut merger = TextCorpusMerger::new();
-        merger.add_source(TextCorpusSource::new("test_source", samples, TextSampleSource::Production));
+        merger.add_source(TextCorpusSource::new(
+            "test_source",
+            samples,
+            TextSampleSource::Production,
+        ));
 
         let (_, provenance) = merger.merge();
 
         assert!(provenance.sources.contains_key("test_source"));
         assert_eq!(provenance.sources["test_source"], (2, 2)); // (original, effective)
-        assert_eq!(*provenance.by_source_type.get(&TextSampleSource::Production).unwrap_or(&0), 2);
+        assert_eq!(
+            *provenance
+                .by_source_type
+                .get(&TextSampleSource::Production)
+                .unwrap_or(&0),
+            2
+        );
     }
 
     #[test]
@@ -625,8 +710,14 @@ mod tests {
 
     #[test]
     fn test_sample_hash_normalization() {
-        let s1 = TrainingSample::new("error[E0308]:   mismatched  types", ErrorCategory::TypeMismatch);
-        let s2 = TrainingSample::new("error[E0308]: mismatched types", ErrorCategory::TypeMismatch);
+        let s1 = TrainingSample::new(
+            "error[E0308]:   mismatched  types",
+            ErrorCategory::TypeMismatch,
+        );
+        let s2 = TrainingSample::new(
+            "error[E0308]: mismatched types",
+            ErrorCategory::TypeMismatch,
+        );
         assert_eq!(sample_hash(&s1), sample_hash(&s2));
     }
 
@@ -659,7 +750,8 @@ mod tests {
         let balanced = balance_classes(samples, Some(2));
 
         // TypeMismatch should be limited to 2
-        let type_count = balanced.iter()
+        let type_count = balanced
+            .iter()
             .filter(|s| s.category == ErrorCategory::TypeMismatch)
             .count();
         assert_eq!(type_count, 2);
@@ -725,9 +817,7 @@ mod tests {
 
     #[test]
     fn test_text_corpus_source_new() {
-        let samples = vec![
-            TrainingSample::new("error", ErrorCategory::TypeMismatch),
-        ];
+        let samples = vec![TrainingSample::new("error", ErrorCategory::TypeMismatch)];
         let source = TextCorpusSource::new("test", samples, TextSampleSource::Synthetic);
 
         assert_eq!(source.name, "test");
@@ -739,15 +829,15 @@ mod tests {
 
     #[test]
     fn test_text_corpus_source_with_weight() {
-        let source = TextCorpusSource::new("test", vec![], TextSampleSource::Synthetic)
-            .with_weight(2.5);
+        let source =
+            TextCorpusSource::new("test", vec![], TextSampleSource::Synthetic).with_weight(2.5);
         assert!((source.weight - 2.5).abs() < f64::EPSILON);
     }
 
     #[test]
     fn test_text_corpus_source_with_priority() {
-        let source = TextCorpusSource::new("test", vec![], TextSampleSource::Synthetic)
-            .with_priority(5);
+        let source =
+            TextCorpusSource::new("test", vec![], TextSampleSource::Synthetic).with_priority(5);
         assert_eq!(source.priority, 5);
     }
 
@@ -795,6 +885,7 @@ mod tests {
             synthetic_samples: 5000,
             oip_data_path: Some("/path/to/oip".to_string()),
             real_errors_path: Some("/path/to/errors".to_string()),
+            graph_corpus_path: Some("/path/to/graph".to_string()),
             balance_classes: true,
             max_per_class: Some(100),
         };
@@ -879,10 +970,18 @@ mod tests {
         ];
 
         let mut merger1 = TextCorpusMerger::new().shuffle_seed(123);
-        merger1.add_source(TextCorpusSource::new("src", samples.clone(), TextSampleSource::Synthetic));
+        merger1.add_source(TextCorpusSource::new(
+            "src",
+            samples.clone(),
+            TextSampleSource::Synthetic,
+        ));
 
         let mut merger2 = TextCorpusMerger::new().shuffle_seed(123);
-        merger2.add_source(TextCorpusSource::new("src", samples, TextSampleSource::Synthetic));
+        merger2.add_source(TextCorpusSource::new(
+            "src",
+            samples,
+            TextSampleSource::Synthetic,
+        ));
 
         let (result1, _) = merger1.merge();
         let (result2, _) = merger2.merge();
@@ -895,14 +994,11 @@ mod tests {
 
     #[test]
     fn test_text_corpus_merger_weight_multiply() {
-        let samples = vec![
-            TrainingSample::new("a", ErrorCategory::TypeMismatch),
-        ];
+        let samples = vec![TrainingSample::new("a", ErrorCategory::TypeMismatch)];
 
         let mut merger = TextCorpusMerger::new().deduplicate(false);
         merger.add_source(
-            TextCorpusSource::new("src", samples, TextSampleSource::Synthetic)
-                .with_weight(3.0)
+            TextCorpusSource::new("src", samples, TextSampleSource::Synthetic).with_weight(3.0),
         );
 
         let (merged, _) = merger.merge();
@@ -920,8 +1016,7 @@ mod tests {
 
         let mut merger = TextCorpusMerger::new();
         merger.add_source(
-            TextCorpusSource::new("src", samples, TextSampleSource::Synthetic)
-                .with_weight(0.5)
+            TextCorpusSource::new("src", samples, TextSampleSource::Synthetic).with_weight(0.5),
         );
 
         let (merged, _) = merger.merge();
@@ -931,9 +1026,10 @@ mod tests {
     #[test]
     fn test_text_corpus_merger_priority_dedup() {
         // High priority sample should be kept, low priority duplicate removed
-        let high_priority = vec![
-            TrainingSample::new("error[E0308]: type mismatch", ErrorCategory::TypeMismatch),
-        ];
+        let high_priority = vec![TrainingSample::new(
+            "error[E0308]: type mismatch",
+            ErrorCategory::TypeMismatch,
+        )];
         let low_priority = vec![
             TrainingSample::new("error[E0308]: TYPE MISMATCH", ErrorCategory::TypeMismatch), // Same after normalization
         ];
@@ -941,11 +1037,11 @@ mod tests {
         let mut merger = TextCorpusMerger::new();
         merger.add_source(
             TextCorpusSource::new("high", high_priority, TextSampleSource::HandCrafted)
-                .with_priority(10)
+                .with_priority(10),
         );
         merger.add_source(
             TextCorpusSource::new("low", low_priority, TextSampleSource::Synthetic)
-                .with_priority(1)
+                .with_priority(1),
         );
 
         let (merged, provenance) = merger.merge();
@@ -980,9 +1076,7 @@ mod tests {
 
     #[test]
     fn test_deterministic_shuffle_single() {
-        let samples = vec![
-            TrainingSample::new("only", ErrorCategory::TypeMismatch),
-        ];
+        let samples = vec![TrainingSample::new("only", ErrorCategory::TypeMismatch)];
         let result = deterministic_shuffle(samples.clone(), 42);
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].message, "only");
@@ -1001,7 +1095,9 @@ mod tests {
         let result2 = deterministic_shuffle(samples.clone(), 2);
 
         // Different seeds should produce different orders (most likely)
-        let same_order = result1.iter().zip(result2.iter())
+        let same_order = result1
+            .iter()
+            .zip(result2.iter())
             .all(|(a, b)| a.message == b.message);
         // With 4 elements, probability of same order is very low
         assert!(!same_order);
@@ -1051,13 +1147,28 @@ mod tests {
         assert_eq!(parse_category("type"), ErrorCategory::TypeMismatch);
 
         // BorrowChecker
-        assert_eq!(parse_category("borrowchecker"), ErrorCategory::BorrowChecker);
-        assert_eq!(parse_category("BorrowChecker"), ErrorCategory::BorrowChecker);
-        assert_eq!(parse_category("borrow_checker"), ErrorCategory::BorrowChecker);
+        assert_eq!(
+            parse_category("borrowchecker"),
+            ErrorCategory::BorrowChecker
+        );
+        assert_eq!(
+            parse_category("BorrowChecker"),
+            ErrorCategory::BorrowChecker
+        );
+        assert_eq!(
+            parse_category("borrow_checker"),
+            ErrorCategory::BorrowChecker
+        );
 
         // MissingImport
-        assert_eq!(parse_category("missingimport"), ErrorCategory::MissingImport);
-        assert_eq!(parse_category("missing_import"), ErrorCategory::MissingImport);
+        assert_eq!(
+            parse_category("missingimport"),
+            ErrorCategory::MissingImport
+        );
+        assert_eq!(
+            parse_category("missing_import"),
+            ErrorCategory::MissingImport
+        );
         assert_eq!(parse_category("import"), ErrorCategory::MissingImport);
 
         // SyntaxError
@@ -1066,8 +1177,14 @@ mod tests {
         assert_eq!(parse_category("syntax"), ErrorCategory::SyntaxError);
 
         // LifetimeError
-        assert_eq!(parse_category("lifetimeerror"), ErrorCategory::LifetimeError);
-        assert_eq!(parse_category("lifetime_error"), ErrorCategory::LifetimeError);
+        assert_eq!(
+            parse_category("lifetimeerror"),
+            ErrorCategory::LifetimeError
+        );
+        assert_eq!(
+            parse_category("lifetime_error"),
+            ErrorCategory::LifetimeError
+        );
         assert_eq!(parse_category("lifetime"), ErrorCategory::LifetimeError);
 
         // TraitBound
@@ -1133,8 +1250,14 @@ mod tests {
         stats.final_count = 180;
         stats.by_category.insert(ErrorCategory::TypeMismatch, 100);
         stats.by_category.insert(ErrorCategory::BorrowChecker, 80);
-        stats.provenance.by_source_type.insert(TextSampleSource::Synthetic, 100);
-        stats.provenance.by_source_type.insert(TextSampleSource::HandCrafted, 80);
+        stats
+            .provenance
+            .by_source_type
+            .insert(TextSampleSource::Synthetic, 100);
+        stats
+            .provenance
+            .by_source_type
+            .insert(TextSampleSource::HandCrafted, 80);
 
         // Just ensure it doesn't panic
         print_merge_stats(&stats);

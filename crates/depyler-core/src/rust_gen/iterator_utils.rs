@@ -127,8 +127,21 @@ pub fn is_iterator_method(method: &str) -> bool {
 pub fn is_collection_consuming_method(method: &str) -> bool {
     matches!(
         method,
-        "collect" | "count" | "sum" | "product" | "max" | "min" | "last" | "nth" | "all" | "any"
-            | "find" | "position" | "fold" | "reduce" | "for_each"
+        "collect"
+            | "count"
+            | "sum"
+            | "product"
+            | "max"
+            | "min"
+            | "last"
+            | "nth"
+            | "all"
+            | "any"
+            | "find"
+            | "position"
+            | "fold"
+            | "reduce"
+            | "for_each"
     )
 }
 
@@ -136,9 +149,24 @@ pub fn is_collection_consuming_method(method: &str) -> bool {
 pub fn is_iterator_adapter(method: &str) -> bool {
     matches!(
         method,
-        "map" | "filter" | "filter_map" | "flat_map" | "flatten" | "take" | "skip" | "take_while"
-            | "skip_while" | "enumerate" | "zip" | "chain" | "cycle" | "rev" | "peekable"
-            | "inspect" | "fuse" | "by_ref"
+        "map"
+            | "filter"
+            | "filter_map"
+            | "flat_map"
+            | "flatten"
+            | "take"
+            | "skip"
+            | "take_while"
+            | "skip_while"
+            | "enumerate"
+            | "zip"
+            | "chain"
+            | "cycle"
+            | "rev"
+            | "peekable"
+            | "inspect"
+            | "fuse"
+            | "by_ref"
     )
 }
 

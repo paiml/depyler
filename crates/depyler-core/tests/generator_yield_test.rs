@@ -16,7 +16,9 @@ use rustpython_parser::{parse, Mode};
 /// Transpile with optimizer (matches CLI behavior)
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new()
+        .python_to_hir(ast)
+        .map_err(|e| e.to_string())?;
 
     let hir_program = depyler_core::hir::HirProgram {
         functions: hir.functions.clone(),
@@ -34,6 +36,7 @@ fn transpile(python: &str) -> Result<String, String> {
         constants: hir.constants,
         type_aliases: hir.type_aliases,
         protocols: hir.protocols,
+        top_level_stmts: hir.top_level_stmts,
     };
 
     let type_mapper = TypeMapper::default();
@@ -54,7 +57,11 @@ def counter(n: int):
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile yield generator: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile yield generator: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     // Should contain iterator or generator pattern
@@ -75,7 +82,11 @@ def squares_gen(n: int) -> list:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile gen expr return: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile gen expr return: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(
@@ -95,7 +106,11 @@ def sum_squares(n: int) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile sum with gen: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile sum with gen: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(
@@ -115,7 +130,11 @@ def has_positive(items: list) -> bool:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile any with gen: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile any with gen: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(
@@ -135,7 +154,11 @@ def all_positive(items: list) -> bool:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile all with gen: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile all with gen: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(
@@ -155,7 +178,11 @@ def flatten(lists: list) -> list:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile flatten: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile flatten: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(
@@ -180,7 +207,11 @@ def running_sum(items: list) -> list:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile running sum: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile running sum: {:?}",
+        result.err()
+    );
 }
 
 /// Test generator expression with filter and transform
@@ -193,7 +224,11 @@ def even_squares(items: list) -> list:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile filter+transform: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile filter+transform: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(

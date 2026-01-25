@@ -28,7 +28,9 @@ fn test_func_multiple_params() {
 
 #[test]
 fn test_func_typed_params() {
-    assert!(transpiles("def f(x: int, y: float) -> float:\n    return x + y"));
+    assert!(transpiles(
+        "def f(x: int, y: float) -> float:\n    return x + y"
+    ));
 }
 
 #[test]
@@ -53,7 +55,9 @@ fn test_func_kwargs() {
 
 #[test]
 fn test_func_varargs_and_kwargs() {
-    assert!(transpiles("def f(*args, **kwargs):\n    return (args, kwargs)"));
+    assert!(transpiles(
+        "def f(*args, **kwargs):\n    return (args, kwargs)"
+    ));
 }
 
 #[test]
@@ -102,12 +106,16 @@ fn test_func_return_list() {
 
 #[test]
 fn test_func_return_dict() {
-    assert!(transpiles("def f() -> dict[str, int]:\n    return {'a': 1}"));
+    assert!(transpiles(
+        "def f() -> dict[str, int]:\n    return {'a': 1}"
+    ));
 }
 
 #[test]
 fn test_func_return_tuple() {
-    assert!(transpiles("def f() -> tuple[int, str]:\n    return (1, 'a')"));
+    assert!(transpiles(
+        "def f() -> tuple[int, str]:\n    return (1, 'a')"
+    ));
 }
 
 #[test]
@@ -117,12 +125,16 @@ fn test_func_return_set() {
 
 #[test]
 fn test_func_return_optional() {
-    assert!(transpiles("from typing import Optional\ndef f() -> Optional[int]:\n    return None"));
+    assert!(transpiles(
+        "from typing import Optional\ndef f() -> Optional[int]:\n    return None"
+    ));
 }
 
 #[test]
 fn test_func_return_union() {
-    assert!(transpiles("from typing import Union\ndef f() -> Union[int, str]:\n    return 'hello'"));
+    assert!(transpiles(
+        "from typing import Union\ndef f() -> Union[int, str]:\n    return 'hello'"
+    ));
 }
 
 // =============================================================================
@@ -131,12 +143,16 @@ fn test_func_return_union() {
 
 #[test]
 fn test_func_with_docstring() {
-    assert!(transpiles("def f():\n    \"\"\"This is a docstring.\"\"\"\n    pass"));
+    assert!(transpiles(
+        "def f():\n    \"\"\"This is a docstring.\"\"\"\n    pass"
+    ));
 }
 
 #[test]
 fn test_func_with_multiline_docstring() {
-    assert!(transpiles("def f():\n    \"\"\"\n    Multi-line\n    docstring.\n    \"\"\"\n    pass"));
+    assert!(transpiles(
+        "def f():\n    \"\"\"\n    Multi-line\n    docstring.\n    \"\"\"\n    pass"
+    ));
 }
 
 // =============================================================================
@@ -145,17 +161,23 @@ fn test_func_with_multiline_docstring() {
 
 #[test]
 fn test_func_staticmethod() {
-    assert!(transpiles("class C:\n    @staticmethod\n    def f():\n        return 1"));
+    assert!(transpiles(
+        "class C:\n    @staticmethod\n    def f():\n        return 1"
+    ));
 }
 
 #[test]
 fn test_func_classmethod() {
-    assert!(transpiles("class C:\n    @classmethod\n    def f(cls):\n        return cls"));
+    assert!(transpiles(
+        "class C:\n    @classmethod\n    def f(cls):\n        return cls"
+    ));
 }
 
 #[test]
 fn test_func_property() {
-    assert!(transpiles("class C:\n    @property\n    def value(self):\n        return self._value"));
+    assert!(transpiles(
+        "class C:\n    @property\n    def value(self):\n        return self._value"
+    ));
 }
 
 #[test]
@@ -165,7 +187,9 @@ fn test_func_property_setter() {
 
 #[test]
 fn test_func_custom_decorator() {
-    assert!(transpiles("def deco(f):\n    return f\n\n@deco\ndef func():\n    pass"));
+    assert!(transpiles(
+        "def deco(f):\n    return f\n\n@deco\ndef func():\n    pass"
+    ));
 }
 
 #[test]
@@ -189,7 +213,9 @@ fn test_async_func_simple() {
 
 #[test]
 fn test_async_func_await() {
-    assert!(transpiles("async def f():\n    result = await other()\n    return result"));
+    assert!(transpiles(
+        "async def f():\n    result = await other()\n    return result"
+    ));
 }
 
 #[test]
@@ -199,7 +225,9 @@ fn test_async_func_typed() {
 
 #[test]
 fn test_async_func_multiple_awaits() {
-    assert!(transpiles("async def f():\n    a = await get_a()\n    b = await get_b()\n    return a + b"));
+    assert!(transpiles(
+        "async def f():\n    a = await get_a()\n    b = await get_b()\n    return a + b"
+    ));
 }
 
 // =============================================================================
@@ -213,17 +241,23 @@ fn test_generator_simple() {
 
 #[test]
 fn test_generator_loop() {
-    assert!(transpiles("def gen(n):\n    for i in range(n):\n        yield i"));
+    assert!(transpiles(
+        "def gen(n):\n    for i in range(n):\n        yield i"
+    ));
 }
 
 #[test]
 fn test_generator_conditional() {
-    assert!(transpiles("def gen(n):\n    for i in range(n):\n        if i % 2 == 0:\n            yield i"));
+    assert!(transpiles(
+        "def gen(n):\n    for i in range(n):\n        if i % 2 == 0:\n            yield i"
+    ));
 }
 
 #[test]
 fn test_generator_with_return() {
-    assert!(transpiles("def gen():\n    yield 1\n    yield 2\n    return"));
+    assert!(transpiles(
+        "def gen():\n    yield 1\n    yield 2\n    return"
+    ));
 }
 
 // =============================================================================
@@ -232,7 +266,9 @@ fn test_generator_with_return() {
 
 #[test]
 fn test_recursive_simple() {
-    assert!(transpiles("def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)"));
+    assert!(transpiles(
+        "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)"
+    ));
 }
 
 #[test]
@@ -256,17 +292,23 @@ fn test_lambda_as_return() {
 
 #[test]
 fn test_lambda_in_map() {
-    assert!(transpiles("def f(lst):\n    return list(map(lambda x: x * 2, lst))"));
+    assert!(transpiles(
+        "def f(lst):\n    return list(map(lambda x: x * 2, lst))"
+    ));
 }
 
 #[test]
 fn test_lambda_in_filter() {
-    assert!(transpiles("def f(lst):\n    return list(filter(lambda x: x > 0, lst))"));
+    assert!(transpiles(
+        "def f(lst):\n    return list(filter(lambda x: x > 0, lst))"
+    ));
 }
 
 #[test]
 fn test_lambda_in_sorted() {
-    assert!(transpiles("def f(lst):\n    return sorted(lst, key=lambda x: x[1])"));
+    assert!(transpiles(
+        "def f(lst):\n    return sorted(lst, key=lambda x: x[1])"
+    ));
 }
 
 // =============================================================================
@@ -275,12 +317,16 @@ fn test_lambda_in_sorted() {
 
 #[test]
 fn test_nested_func_simple() {
-    assert!(transpiles("def outer():\n    def inner():\n        return 1\n    return inner()"));
+    assert!(transpiles(
+        "def outer():\n    def inner():\n        return 1\n    return inner()"
+    ));
 }
 
 #[test]
 fn test_nested_func_closure() {
-    assert!(transpiles("def outer(x):\n    def inner():\n        return x * 2\n    return inner()"));
+    assert!(transpiles(
+        "def outer(x):\n    def inner():\n        return x * 2\n    return inner()"
+    ));
 }
 
 #[test]
@@ -290,7 +336,9 @@ fn test_nested_func_multiple_levels() {
 
 #[test]
 fn test_nested_func_with_args() {
-    assert!(transpiles("def outer(x):\n    def inner(y):\n        return x + y\n    return inner"));
+    assert!(transpiles(
+        "def outer(x):\n    def inner(y):\n        return x + y\n    return inner"
+    ));
 }
 
 // =============================================================================
@@ -299,7 +347,9 @@ fn test_nested_func_with_args() {
 
 #[test]
 fn test_func_with_try() {
-    assert!(transpiles("def f():\n    try:\n        return 1\n    except:\n        return 0"));
+    assert!(transpiles(
+        "def f():\n    try:\n        return 1\n    except:\n        return 0"
+    ));
 }
 
 #[test]
@@ -318,17 +368,23 @@ fn test_func_catches_specific() {
 
 #[test]
 fn test_func_all_param_types() {
-    assert!(transpiles("def f(a, b=1, *args, c, d=2, **kwargs):\n    pass"));
+    assert!(transpiles(
+        "def f(a, b=1, *args, c, d=2, **kwargs):\n    pass"
+    ));
 }
 
 #[test]
 fn test_func_typed_defaults() {
-    assert!(transpiles("def f(x: int = 0, y: str = '') -> tuple:\n    return (x, y)"));
+    assert!(transpiles(
+        "def f(x: int = 0, y: str = '') -> tuple:\n    return (x, y)"
+    ));
 }
 
 #[test]
 fn test_func_complex_default() {
-    assert!(transpiles("def f(lst: list = None):\n    if lst is None:\n        lst = []\n    return lst"));
+    assert!(transpiles(
+        "def f(lst: list = None):\n    if lst is None:\n        lst = []\n    return lst"
+    ));
 }
 
 // =============================================================================
@@ -337,12 +393,16 @@ fn test_func_complex_default() {
 
 #[test]
 fn test_method_self() {
-    assert!(transpiles("class C:\n    def method(self):\n        return self"));
+    assert!(transpiles(
+        "class C:\n    def method(self):\n        return self"
+    ));
 }
 
 #[test]
 fn test_method_with_params() {
-    assert!(transpiles("class C:\n    def method(self, x, y):\n        return x + y"));
+    assert!(transpiles(
+        "class C:\n    def method(self, x, y):\n        return x + y"
+    ));
 }
 
 #[test]
@@ -352,7 +412,9 @@ fn test_method_modifies_self() {
 
 #[test]
 fn test_method_returns_self() {
-    assert!(transpiles("class C:\n    def method(self):\n        self.value = 1\n        return self"));
+    assert!(transpiles(
+        "class C:\n    def method(self):\n        self.value = 1\n        return self"
+    ));
 }
 
 // =============================================================================
@@ -361,72 +423,100 @@ fn test_method_returns_self() {
 
 #[test]
 fn test_dunder_init() {
-    assert!(transpiles("class C:\n    def __init__(self, x):\n        self.x = x"));
+    assert!(transpiles(
+        "class C:\n    def __init__(self, x):\n        self.x = x"
+    ));
 }
 
 #[test]
 fn test_dunder_str() {
-    assert!(transpiles("class C:\n    def __str__(self):\n        return 'C'"));
+    assert!(transpiles(
+        "class C:\n    def __str__(self):\n        return 'C'"
+    ));
 }
 
 #[test]
 fn test_dunder_repr() {
-    assert!(transpiles("class C:\n    def __repr__(self):\n        return 'C()'"));
+    assert!(transpiles(
+        "class C:\n    def __repr__(self):\n        return 'C()'"
+    ));
 }
 
 #[test]
 fn test_dunder_len() {
-    assert!(transpiles("class C:\n    def __len__(self):\n        return 0"));
+    assert!(transpiles(
+        "class C:\n    def __len__(self):\n        return 0"
+    ));
 }
 
 #[test]
 fn test_dunder_getitem() {
-    assert!(transpiles("class C:\n    def __getitem__(self, key):\n        return key"));
+    assert!(transpiles(
+        "class C:\n    def __getitem__(self, key):\n        return key"
+    ));
 }
 
 #[test]
 fn test_dunder_setitem() {
-    assert!(transpiles("class C:\n    def __setitem__(self, key, value):\n        pass"));
+    assert!(transpiles(
+        "class C:\n    def __setitem__(self, key, value):\n        pass"
+    ));
 }
 
 #[test]
 fn test_dunder_eq() {
-    assert!(transpiles("class C:\n    def __eq__(self, other):\n        return True"));
+    assert!(transpiles(
+        "class C:\n    def __eq__(self, other):\n        return True"
+    ));
 }
 
 #[test]
 fn test_dunder_hash() {
-    assert!(transpiles("class C:\n    def __hash__(self):\n        return 0"));
+    assert!(transpiles(
+        "class C:\n    def __hash__(self):\n        return 0"
+    ));
 }
 
 #[test]
 fn test_dunder_add() {
-    assert!(transpiles("class C:\n    def __add__(self, other):\n        return self"));
+    assert!(transpiles(
+        "class C:\n    def __add__(self, other):\n        return self"
+    ));
 }
 
 #[test]
 fn test_dunder_sub() {
-    assert!(transpiles("class C:\n    def __sub__(self, other):\n        return self"));
+    assert!(transpiles(
+        "class C:\n    def __sub__(self, other):\n        return self"
+    ));
 }
 
 #[test]
 fn test_dunder_mul() {
-    assert!(transpiles("class C:\n    def __mul__(self, other):\n        return self"));
+    assert!(transpiles(
+        "class C:\n    def __mul__(self, other):\n        return self"
+    ));
 }
 
 #[test]
 fn test_dunder_call() {
-    assert!(transpiles("class C:\n    def __call__(self, x):\n        return x"));
+    assert!(transpiles(
+        "class C:\n    def __call__(self, x):\n        return x"
+    ));
 }
 
 #[test]
 fn test_dunder_iter() {
-    assert!(transpiles("class C:\n    def __iter__(self):\n        return iter([])"));
+    assert!(transpiles(
+        "class C:\n    def __iter__(self):\n        return iter([])"
+    ));
 }
 
 #[test]
 fn test_dunder_next() {
-    assert!(transpiles("class C:\n    def __next__(self):\n        raise StopIteration"));
+    assert!(transpiles(
+        "class C:\n    def __next__(self):\n        raise StopIteration"
+    ));
 }
 
 #[test]
@@ -440,22 +530,30 @@ fn test_dunder_enter_exit() {
 
 #[test]
 fn test_annotation_list_generic() {
-    assert!(transpiles("def f(lst: list[int]) -> list[int]:\n    return lst"));
+    assert!(transpiles(
+        "def f(lst: list[int]) -> list[int]:\n    return lst"
+    ));
 }
 
 #[test]
 fn test_annotation_dict_generic() {
-    assert!(transpiles("def f(d: dict[str, int]) -> dict[str, int]:\n    return d"));
+    assert!(transpiles(
+        "def f(d: dict[str, int]) -> dict[str, int]:\n    return d"
+    ));
 }
 
 #[test]
 fn test_annotation_tuple_generic() {
-    assert!(transpiles("def f(t: tuple[int, str, bool]) -> tuple[int, str, bool]:\n    return t"));
+    assert!(transpiles(
+        "def f(t: tuple[int, str, bool]) -> tuple[int, str, bool]:\n    return t"
+    ));
 }
 
 #[test]
 fn test_annotation_optional() {
-    assert!(transpiles("from typing import Optional\ndef f(x: Optional[int]) -> Optional[int]:\n    return x"));
+    assert!(transpiles(
+        "from typing import Optional\ndef f(x: Optional[int]) -> Optional[int]:\n    return x"
+    ));
 }
 
 #[test]
@@ -465,7 +563,9 @@ fn test_annotation_callable() {
 
 #[test]
 fn test_annotation_typevar() {
-    assert!(transpiles("from typing import TypeVar\nT = TypeVar('T')\ndef f(x: T) -> T:\n    return x"));
+    assert!(transpiles(
+        "from typing import TypeVar\nT = TypeVar('T')\ndef f(x: T) -> T:\n    return x"
+    ));
 }
 
 // =============================================================================
@@ -489,7 +589,9 @@ fn test_function_many_stmts() {
 
 #[test]
 fn test_function_early_return() {
-    assert!(transpiles("def f(x):\n    if x < 0:\n        return None\n    return x"));
+    assert!(transpiles(
+        "def f(x):\n    if x < 0:\n        return None\n    return x"
+    ));
 }
 
 #[test]

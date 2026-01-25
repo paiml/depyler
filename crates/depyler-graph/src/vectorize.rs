@@ -260,10 +260,7 @@ pub fn serialize_to_json(failures: &[VectorizedFailure]) -> Result<String, serde
 
 /// Serialize failures to NDJSON (newline-delimited JSON) for streaming
 pub fn serialize_to_ndjson(failures: &[VectorizedFailure]) -> Result<String, serde_json::Error> {
-    let lines: Result<Vec<String>, _> = failures
-        .iter()
-        .map(serde_json::to_string)
-        .collect();
+    let lines: Result<Vec<String>, _> = failures.iter().map(serde_json::to_string).collect();
     Ok(lines?.join("\n"))
 }
 
@@ -284,9 +281,7 @@ def foo():
         let graph = builder.build_from_source(python).unwrap();
 
         let overlay = ErrorOverlay::new(&graph);
-        let raw_errors = vec![
-            ("E0308".to_string(), "mismatched types".to_string(), 20),
-        ];
+        let raw_errors = vec![("E0308".to_string(), "mismatched types".to_string(), 20)];
         let overlaid = overlay.overlay_errors(&raw_errors);
 
         let vectorized = vectorize_failures(&graph, &overlaid, python);
@@ -319,8 +314,7 @@ def foo():
             source: "",
         };
 
-        let (cat, sub, _, _) =
-            context.classify_error("E0308", "expected f64, found DepylerValue");
+        let (cat, sub, _, _) = context.classify_error("E0308", "expected f64, found DepylerValue");
 
         assert_eq!(cat, "type_mismatch");
         assert_eq!(sub, "depyler_value_leak");
@@ -366,38 +360,36 @@ def foo():
 
     #[test]
     fn test_serialize_to_ndjson() {
-        let failures = vec![
-            VectorizedFailure {
-                id: "f1".to_string(),
-                error_code: "E0308".to_string(),
-                error_message: "test1".to_string(),
-                ast_context: AstContext {
-                    containing_function: None,
-                    containing_class: None,
-                    return_type: None,
-                    parameter_types: vec![],
-                    local_types: vec![],
-                    statement_kind: "".to_string(),
-                    expression_kind: "".to_string(),
-                    ast_depth: 0,
-                },
-                graph_context: GraphContext {
-                    node_id: None,
-                    in_degree: 0,
-                    out_degree: 0,
-                    callees: vec![],
-                    callers: vec![],
-                    inheritance_chain: vec![],
-                },
-                source_snippet: "".to_string(),
-                labels: FailureLabels {
-                    category: "".to_string(),
-                    subcategory: "".to_string(),
-                    fix_type: "".to_string(),
-                    confidence: 0.0,
-                },
+        let failures = vec![VectorizedFailure {
+            id: "f1".to_string(),
+            error_code: "E0308".to_string(),
+            error_message: "test1".to_string(),
+            ast_context: AstContext {
+                containing_function: None,
+                containing_class: None,
+                return_type: None,
+                parameter_types: vec![],
+                local_types: vec![],
+                statement_kind: "".to_string(),
+                expression_kind: "".to_string(),
+                ast_depth: 0,
             },
-        ];
+            graph_context: GraphContext {
+                node_id: None,
+                in_degree: 0,
+                out_degree: 0,
+                callees: vec![],
+                callers: vec![],
+                inheritance_chain: vec![],
+            },
+            source_snippet: "".to_string(),
+            labels: FailureLabels {
+                category: "".to_string(),
+                subcategory: "".to_string(),
+                fix_type: "".to_string(),
+                confidence: 0.0,
+            },
+        }];
 
         let ndjson = serialize_to_ndjson(&failures).unwrap();
         // NDJSON should have one line per record

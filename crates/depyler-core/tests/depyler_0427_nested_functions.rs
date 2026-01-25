@@ -117,9 +117,18 @@ def outer(y):
 
     let rust = result.unwrap();
 
-    // Should use closure syntax (let inner = |x| ...)
-    // Note: This is a simplified check - actual implementation may vary
-    assert!(rust.contains("x + y"), "Should contain capture usage");
+    // Should use closure syntax (let inner = move |x| ...)
+    // The closure should capture y from the outer scope
+    // Note: The actual addition might be via .py_add() method or + operator
+    assert!(
+        rust.contains("move |x") || rust.contains("|x|"),
+        "Should contain closure syntax"
+    );
+    // Check that y is used inside the closure (could be via .py_add(y) or + y)
+    assert!(
+        rust.contains("py_add(y)") || rust.contains("+ y"),
+        "Should contain capture usage of y"
+    );
 }
 
 #[test]

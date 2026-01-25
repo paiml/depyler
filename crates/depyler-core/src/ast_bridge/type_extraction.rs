@@ -484,9 +484,9 @@ impl TypeExtractor {
             },
             // DEPYLER-1025: Queue module - use std types (NASA mode default)
             "queue" => match type_name {
-                "Queue" | "LifoQueue" | "PriorityQueue" => {
-                    Some(Type::Custom("std::collections::VecDeque<String>".to_string()))
-                }
+                "Queue" | "LifoQueue" | "PriorityQueue" => Some(Type::Custom(
+                    "std::collections::VecDeque<String>".to_string(),
+                )),
                 _ => Some(Type::Custom("String".to_string())),
             },
             // DEPYLER-1025: Multiprocessing - use String placeholder
@@ -495,7 +495,9 @@ impl TypeExtractor {
             "asyncio" => match type_name {
                 "Task" => Some(Type::Custom("std::thread::JoinHandle<()>".to_string())),
                 "Event" => Some(Type::Custom("std::sync::Condvar".to_string())),
-                "Queue" => Some(Type::Custom("std::sync::mpsc::Receiver<String>".to_string())),
+                "Queue" => Some(Type::Custom(
+                    "std::sync::mpsc::Receiver<String>".to_string(),
+                )),
                 "Lock" => Some(Type::Custom("std::sync::Mutex<()>".to_string())),
                 "Semaphore" => Some(Type::Custom("std::sync::Mutex<i32>".to_string())),
                 _ => Some(Type::Custom("String".to_string())),
@@ -508,8 +510,8 @@ impl TypeExtractor {
             },
             // DEPYLER-1025: Catch-all for other stdlib modules - use String (NASA mode default)
             "collections" | "collections.abc" | "typing" | "types" | "functools" | "itertools"
-            | "pathlib" | "os" | "sys" | "io" | "re" | "json" | "pickle"
-            | "socket" | "ssl" | "http" | "urllib" => {
+            | "pathlib" | "os" | "sys" | "io" | "re" | "json" | "pickle" | "socket" | "ssl"
+            | "http" | "urllib" => {
                 // For most stdlib types, use String as placeholder (NASA mode)
                 Some(Type::Custom("String".to_string()))
             }

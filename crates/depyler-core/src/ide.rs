@@ -414,7 +414,10 @@ mod tests {
 
     #[test]
     fn test_diagnostic_severity_information() {
-        assert_eq!(DiagnosticSeverity::Information, DiagnosticSeverity::Information);
+        assert_eq!(
+            DiagnosticSeverity::Information,
+            DiagnosticSeverity::Information
+        );
     }
 
     #[test]
@@ -740,6 +743,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         ide.index_symbols(&module, "");
@@ -767,6 +771,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let ide = create_ide_integration(&module, "");
@@ -842,6 +847,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         ide.index_symbols(&module, "def test_func(x: int) -> int:\n    pass");

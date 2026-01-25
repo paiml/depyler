@@ -59,9 +59,18 @@ fn main() -> anyhow::Result<()> {
     let config = UnifiedTrainingConfig {
         seed: args.seed,
         synthetic_samples: args.synthetic_samples,
-        oip_data_path: args.oip.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()),
-        real_errors_path: args.errors.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()),
-        graph_corpus_path: args.graph.as_ref().map(|p: &PathBuf| p.to_string_lossy().to_string()),
+        oip_data_path: args
+            .oip
+            .as_ref()
+            .map(|p: &PathBuf| p.to_string_lossy().to_string()),
+        real_errors_path: args
+            .errors
+            .as_ref()
+            .map(|p: &PathBuf| p.to_string_lossy().to_string()),
+        graph_corpus_path: args
+            .graph
+            .as_ref()
+            .map(|p: &PathBuf| p.to_string_lossy().to_string()),
         balance_classes: args.balance,
         max_per_class: if args.balance {
             Some(args.max_per_class)
@@ -99,9 +108,15 @@ fn main() -> anyhow::Result<()> {
     println!();
     println!("=== Training Data Statistics ===");
     println!("Sources:");
-    println!("  Synthetic:    {:>6} samples", result.stats.synthetic_count);
+    println!(
+        "  Synthetic:    {:>6} samples",
+        result.stats.synthetic_count
+    );
     println!("  Depyler:      {:>6} samples", result.stats.depyler_count);
-    println!("  Verificar:    {:>6} samples", result.stats.verificar_count);
+    println!(
+        "  Verificar:    {:>6} samples",
+        result.stats.verificar_count
+    );
     println!("  OIP GitHub:   {:>6} samples", result.stats.oip_count);
     println!(
         "  Real errors:  {:>6} samples",

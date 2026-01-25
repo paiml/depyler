@@ -18,14 +18,17 @@ def strip_leading(s: str) -> str:
 
     // DEPYLER-1128: Check only the strip_leading function, not entire file
     // (PyStringMethods trait may have lstrip method definitions)
-    let fn_start = rust_code.find("fn strip_leading").expect("Should have strip_leading function");
+    let fn_start = rust_code
+        .find("fn strip_leading")
+        .expect("Should have strip_leading function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(200) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
     // Should use .trim_start() in the function body
     assert!(
         fn_section.contains("trim_start()") || fn_section.contains("lstrip"),
-        "Should use trim_start() or lstrip method\nFunction:\n{}", fn_section
+        "Should use trim_start() or lstrip method\nFunction:\n{}",
+        fn_section
     );
 
     // Should compile
@@ -45,14 +48,17 @@ def strip_trailing(s: str) -> str:
         .expect("Transpilation failed");
 
     // DEPYLER-1128: Check only the strip_trailing function, not entire file
-    let fn_start = rust_code.find("fn strip_trailing").expect("Should have strip_trailing function");
+    let fn_start = rust_code
+        .find("fn strip_trailing")
+        .expect("Should have strip_trailing function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(200) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
     // Should use .trim_end() in the function body
     assert!(
         fn_section.contains("trim_end()") || fn_section.contains("rstrip"),
-        "Should use trim_end() or rstrip method\nFunction:\n{}", fn_section
+        "Should use trim_end() or rstrip method\nFunction:\n{}",
+        fn_section
     );
 
     println!("Generated Rust code:\n{}", rust_code);
@@ -71,14 +77,17 @@ def is_alphanumeric(s: str) -> bool:
         .expect("Transpilation failed");
 
     // DEPYLER-1128: Check only the is_alphanumeric function, not entire file
-    let fn_start = rust_code.find("fn is_alphanumeric").expect("Should have is_alphanumeric function");
+    let fn_start = rust_code
+        .find("fn is_alphanumeric")
+        .expect("Should have is_alphanumeric function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(300) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
     // Should use .chars().all(|c| c.is_alphanumeric()) or isalnum method
     assert!(
         fn_section.contains("chars()") || fn_section.contains("isalnum"),
-        "Should use chars() or isalnum method\nFunction:\n{}", fn_section
+        "Should use chars() or isalnum method\nFunction:\n{}",
+        fn_section
     );
 
     println!("Generated Rust code:\n{}", rust_code);

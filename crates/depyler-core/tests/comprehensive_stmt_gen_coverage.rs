@@ -23,7 +23,8 @@ mod if_statements {
 
     #[test]
     fn test_if_else() {
-        let code = "def f(x: int) -> int:\n    if x > 0:\n        return 1\n    else:\n        return -1";
+        let code =
+            "def f(x: int) -> int:\n    if x > 0:\n        return 1\n    else:\n        return -1";
         assert!(transpile(code).is_ok());
     }
 
@@ -65,13 +66,15 @@ mod if_statements {
 
     #[test]
     fn test_if_truthiness_list() {
-        let code = "def f(lst: list[int]) -> bool:\n    if lst:\n        return True\n    return False";
+        let code =
+            "def f(lst: list[int]) -> bool:\n    if lst:\n        return True\n    return False";
         assert!(transpile(code).is_ok());
     }
 
     #[test]
     fn test_if_truthiness_dict() {
-        let code = "def f(d: dict[str, int]) -> bool:\n    if d:\n        return True\n    return False";
+        let code =
+            "def f(d: dict[str, int]) -> bool:\n    if d:\n        return True\n    return False";
         assert!(transpile(code).is_ok());
     }
 
@@ -133,7 +136,8 @@ mod for_loops {
 
     #[test]
     fn test_for_enumerate() {
-        let code = "def f(lst: list[str]) -> None:\n    for i, x in enumerate(lst):\n        print(i, x)";
+        let code =
+            "def f(lst: list[str]) -> None:\n    for i, x in enumerate(lst):\n        print(i, x)";
         let _ = transpile(code);
     }
 
@@ -177,7 +181,8 @@ mod while_loops {
 
     #[test]
     fn test_while_simple() {
-        let code = "def f() -> int:\n    x: int = 0\n    while x < 10:\n        x += 1\n    return x";
+        let code =
+            "def f() -> int:\n    x: int = 0\n    while x < 10:\n        x += 1\n    return x";
         assert!(transpile(code).is_ok());
     }
 
@@ -233,7 +238,8 @@ mod assignments {
 
     #[test]
     fn test_multiple_assign() {
-        let code = "def f() -> int:\n    x: int = 1\n    y: int = 2\n    z: int = 3\n    return x + y + z";
+        let code =
+            "def f() -> int:\n    x: int = 1\n    y: int = 2\n    z: int = 3\n    return x + y + z";
         assert!(transpile(code).is_ok());
     }
 
@@ -349,7 +355,8 @@ mod try_except {
 
     #[test]
     fn test_try_except_bare() {
-        let code = "def f() -> int:\n    try:\n        return 1 // 0\n    except:\n        return 0";
+        let code =
+            "def f() -> int:\n    try:\n        return 1 // 0\n    except:\n        return 0";
         let _ = transpile(code);
     }
 
@@ -429,7 +436,8 @@ mod with_statements {
 
     #[test]
     fn test_with_multiple() {
-        let code = "def f() -> None:\n    with open(\"a.txt\") as a, open(\"b.txt\") as b:\n        pass";
+        let code =
+            "def f() -> None:\n    with open(\"a.txt\") as a, open(\"b.txt\") as b:\n        pass";
         let _ = transpile(code);
     }
 
@@ -691,7 +699,8 @@ mod import_statements {
 
     #[test]
     fn test_import_multiple() {
-        let code = "from os import getcwd, listdir\n\ndef f() -> list[str]:\n    return listdir(getcwd())";
+        let code =
+            "from os import getcwd, listdir\n\ndef f() -> list[str]:\n    return listdir(getcwd())";
         let _ = transpile(code);
     }
 }

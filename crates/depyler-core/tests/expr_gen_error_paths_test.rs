@@ -107,7 +107,9 @@ fn test_filter_one_arg() {
 
 #[test]
 fn test_filter_three_args() {
-    assert!(transpile_err("def f(): return list(filter(lambda x: x, [1], [2]))"));
+    assert!(transpile_err(
+        "def f(): return list(filter(lambda x: x, [1], [2]))"
+    ));
 }
 
 #[test]
@@ -284,34 +286,46 @@ fn test_open_no_args() {
 
 #[test]
 fn test_open_three_args() {
-    assert!(transpile_err("def f(): return open('file.txt', 'r', 'extra')"));
+    assert!(transpile_err(
+        "def f(): return open('file.txt', 'r', 'extra')"
+    ));
 }
 
 // ============ struct module error paths ============
 
 #[test]
 fn test_struct_pack_no_args() {
-    assert!(transpile_err("import struct\ndef f(): return struct.pack()"));
+    assert!(transpile_err(
+        "import struct\ndef f(): return struct.pack()"
+    ));
 }
 
 #[test]
 fn test_struct_unpack_one_arg() {
-    assert!(transpile_err("import struct\ndef f(): return struct.unpack('i')"));
+    assert!(transpile_err(
+        "import struct\ndef f(): return struct.unpack('i')"
+    ));
 }
 
 #[test]
 fn test_struct_unpack_three_args() {
-    assert!(transpile_err("import struct\ndef f(): return struct.unpack('i', b'data', 'extra')"));
+    assert!(transpile_err(
+        "import struct\ndef f(): return struct.unpack('i', b'data', 'extra')"
+    ));
 }
 
 #[test]
 fn test_struct_calcsize_no_args() {
-    assert!(transpile_err("import struct\ndef f(): return struct.calcsize()"));
+    assert!(transpile_err(
+        "import struct\ndef f(): return struct.calcsize()"
+    ));
 }
 
 #[test]
 fn test_struct_calcsize_two_args() {
-    assert!(transpile_err("import struct\ndef f(): return struct.calcsize('i', 'i')"));
+    assert!(transpile_err(
+        "import struct\ndef f(): return struct.calcsize('i', 'i')"
+    ));
 }
 
 // ============ json module error paths ============
@@ -323,7 +337,9 @@ fn test_json_dumps_no_args() {
 
 #[test]
 fn test_json_dumps_three_args() {
-    assert!(transpile_err("import json\ndef f(): return json.dumps({}, 2, 3)"));
+    assert!(transpile_err(
+        "import json\ndef f(): return json.dumps({}, 2, 3)"
+    ));
 }
 
 #[test]
@@ -333,17 +349,23 @@ fn test_json_loads_no_args() {
 
 #[test]
 fn test_json_loads_two_args() {
-    assert!(transpile_err("import json\ndef f(): return json.loads('{}', 'extra')"));
+    assert!(transpile_err(
+        "import json\ndef f(): return json.loads('{}', 'extra')"
+    ));
 }
 
 #[test]
 fn test_json_dump_one_arg() {
-    assert!(transpile_err("import json\ndef f(fp): return json.dump({})"));
+    assert!(transpile_err(
+        "import json\ndef f(fp): return json.dump({})"
+    ));
 }
 
 #[test]
 fn test_json_dump_three_args() {
-    assert!(transpile_err("import json\ndef f(fp): return json.dump({}, fp, 'extra')"));
+    assert!(transpile_err(
+        "import json\ndef f(fp): return json.dump({}, fp, 'extra')"
+    ));
 }
 
 #[test]
@@ -353,7 +375,9 @@ fn test_json_load_no_args() {
 
 #[test]
 fn test_json_load_two_args() {
-    assert!(transpile_err("import json\ndef f(fp): return json.load(fp, 'extra')"));
+    assert!(transpile_err(
+        "import json\ndef f(fp): return json.load(fp, 'extra')"
+    ));
 }
 
 // ============ re module error paths ============
@@ -365,7 +389,9 @@ fn test_re_search_no_args() {
 
 #[test]
 fn test_re_search_one_arg() {
-    assert!(transpile_err("import re\ndef f(): return re.search('pattern')"));
+    assert!(transpile_err(
+        "import re\ndef f(): return re.search('pattern')"
+    ));
 }
 
 #[test]
@@ -375,7 +401,9 @@ fn test_re_match_no_args() {
 
 #[test]
 fn test_re_match_one_arg() {
-    assert!(transpile_err("import re\ndef f(): return re.match('pattern')"));
+    assert!(transpile_err(
+        "import re\ndef f(): return re.match('pattern')"
+    ));
 }
 
 #[test]
@@ -385,7 +413,9 @@ fn test_re_findall_no_args() {
 
 #[test]
 fn test_re_findall_one_arg() {
-    assert!(transpile_err("import re\ndef f(): return re.findall('pattern')"));
+    assert!(transpile_err(
+        "import re\ndef f(): return re.findall('pattern')"
+    ));
 }
 
 #[test]
@@ -395,7 +425,9 @@ fn test_re_finditer_no_args() {
 
 #[test]
 fn test_re_finditer_one_arg() {
-    assert!(transpile_err("import re\ndef f(): return re.finditer('pattern')"));
+    assert!(transpile_err(
+        "import re\ndef f(): return re.finditer('pattern')"
+    ));
 }
 
 #[test]
@@ -405,7 +437,9 @@ fn test_re_sub_no_args() {
 
 #[test]
 fn test_re_sub_two_args() {
-    assert!(transpile_err("import re\ndef f(): return re.sub('pattern', 'repl')"));
+    assert!(transpile_err(
+        "import re\ndef f(): return re.sub('pattern', 'repl')"
+    ));
 }
 
 #[test]
@@ -415,7 +449,9 @@ fn test_re_subn_no_args() {
 
 #[test]
 fn test_re_subn_two_args() {
-    assert!(transpile_err("import re\ndef f(): return re.subn('pattern', 'repl')"));
+    assert!(transpile_err(
+        "import re\ndef f(): return re.subn('pattern', 'repl')"
+    ));
 }
 
 #[test]
@@ -426,7 +462,9 @@ fn test_re_compile_no_args() {
 #[test]
 fn test_re_split_success() {
     // re.split requires 2 args and is supported
-    assert!(transpile_ok("import re\ndef f(s: str) -> list: return re.split('\\\\s+', s)"));
+    assert!(transpile_ok(
+        "import re\ndef f(s: str) -> list: return re.split('\\\\s+', s)"
+    ));
 }
 
 #[test]
@@ -436,7 +474,9 @@ fn test_re_escape_no_args() {
 
 #[test]
 fn test_re_escape_two_args() {
-    assert!(transpile_err("import re\ndef f(): return re.escape('text', 'extra')"));
+    assert!(transpile_err(
+        "import re\ndef f(): return re.escape('text', 'extra')"
+    ));
 }
 
 // ============ time module error paths ============
@@ -448,23 +488,31 @@ fn test_time_sleep_no_args() {
 
 #[test]
 fn test_time_sleep_two_args() {
-    assert!(transpile_err("import time\ndef f(): return time.sleep(1, 2)"));
+    assert!(transpile_err(
+        "import time\ndef f(): return time.sleep(1, 2)"
+    ));
 }
 
 #[test]
 fn test_time_ctime_two_args() {
-    assert!(transpile_err("import time\ndef f(): return time.ctime(1, 2)"));
+    assert!(transpile_err(
+        "import time\ndef f(): return time.ctime(1, 2)"
+    ));
 }
 
 #[test]
 fn test_time_strftime_success() {
     // time.strftime with format and time_tuple is supported
-    assert!(transpile_ok("import time\ndef f(t): return time.strftime('%Y', t)"));
+    assert!(transpile_ok(
+        "import time\ndef f(t): return time.strftime('%Y', t)"
+    ));
 }
 
 #[test]
 fn test_time_strptime_one_arg() {
-    assert!(transpile_err("import time\ndef f(): return time.strptime('2024')"));
+    assert!(transpile_err(
+        "import time\ndef f(): return time.strptime('2024')"
+    ));
 }
 
 #[test]
@@ -474,7 +522,9 @@ fn test_time_mktime_no_args() {
 
 #[test]
 fn test_time_mktime_two_args() {
-    assert!(transpile_err("import time\ndef f(): return time.mktime((1,2,3,4,5,6,7,8,9), 2)"));
+    assert!(transpile_err(
+        "import time\ndef f(): return time.mktime((1,2,3,4,5,6,7,8,9), 2)"
+    ));
 }
 
 #[test]
@@ -484,64 +534,86 @@ fn test_time_asctime_no_args() {
 
 #[test]
 fn test_time_asctime_two_args() {
-    assert!(transpile_err("import time\ndef f(): return time.asctime((1,2,3,4,5,6,7,8,9), 2)"));
+    assert!(transpile_err(
+        "import time\ndef f(): return time.asctime((1,2,3,4,5,6,7,8,9), 2)"
+    ));
 }
 
 // ============ shutil module error paths ============
 
 #[test]
 fn test_shutil_copy_one_arg() {
-    assert!(transpile_err("import shutil\ndef f(): return shutil.copy('src')"));
+    assert!(transpile_err(
+        "import shutil\ndef f(): return shutil.copy('src')"
+    ));
 }
 
 #[test]
 fn test_shutil_copy_success() {
     // shutil.copy with two args is supported
-    assert!(transpile_ok("import shutil\ndef f(s: str, d: str): shutil.copy(s, d)"));
+    assert!(transpile_ok(
+        "import shutil\ndef f(s: str, d: str): shutil.copy(s, d)"
+    ));
 }
 
 #[test]
 fn test_shutil_move_one_arg() {
-    assert!(transpile_err("import shutil\ndef f(): return shutil.move('src')"));
+    assert!(transpile_err(
+        "import shutil\ndef f(): return shutil.move('src')"
+    ));
 }
 
 #[test]
 fn test_shutil_move_success() {
     // shutil.move with two args is supported
-    assert!(transpile_ok("import shutil\ndef f(s: str, d: str): shutil.move(s, d)"));
+    assert!(transpile_ok(
+        "import shutil\ndef f(s: str, d: str): shutil.move(s, d)"
+    ));
 }
 
 #[test]
 fn test_shutil_rmtree_no_args() {
-    assert!(transpile_err("import shutil\ndef f(): return shutil.rmtree()"));
+    assert!(transpile_err(
+        "import shutil\ndef f(): return shutil.rmtree()"
+    ));
 }
 
 #[test]
 fn test_shutil_rmtree_success() {
     // shutil.rmtree with one arg is supported
-    assert!(transpile_ok("import shutil\ndef f(p: str): shutil.rmtree(p)"));
+    assert!(transpile_ok(
+        "import shutil\ndef f(p: str): shutil.rmtree(p)"
+    ));
 }
 
 #[test]
 fn test_shutil_copytree_one_arg() {
-    assert!(transpile_err("import shutil\ndef f(): return shutil.copytree('src')"));
+    assert!(transpile_err(
+        "import shutil\ndef f(): return shutil.copytree('src')"
+    ));
 }
 
 #[test]
 fn test_shutil_copytree_success() {
     // shutil.copytree with two args is supported
-    assert!(transpile_ok("import shutil\ndef f(s: str, d: str): shutil.copytree(s, d)"));
+    assert!(transpile_ok(
+        "import shutil\ndef f(s: str, d: str): shutil.copytree(s, d)"
+    ));
 }
 
 #[test]
 fn test_shutil_which_no_args() {
-    assert!(transpile_err("import shutil\ndef f(): return shutil.which()"));
+    assert!(transpile_err(
+        "import shutil\ndef f(): return shutil.which()"
+    ));
 }
 
 #[test]
 fn test_shutil_which_success() {
     // shutil.which with one arg is supported
-    assert!(transpile_ok("import shutil\ndef f(c: str) -> str: return shutil.which(c)"));
+    assert!(transpile_ok(
+        "import shutil\ndef f(c: str) -> str: return shutil.which(c)"
+    ));
 }
 
 // ============ csv module error paths ============
@@ -558,12 +630,16 @@ fn test_csv_writer_no_args() {
 
 #[test]
 fn test_csv_dictreader_no_args() {
-    assert!(transpile_err("import csv\ndef f(): return csv.DictReader()"));
+    assert!(transpile_err(
+        "import csv\ndef f(): return csv.DictReader()"
+    ));
 }
 
 #[test]
 fn test_csv_dictwriter_no_args() {
-    assert!(transpile_err("import csv\ndef f(fp): return csv.DictWriter()"));
+    assert!(transpile_err(
+        "import csv\ndef f(fp): return csv.DictWriter()"
+    ));
 }
 
 // ============ os module error paths ============
@@ -575,7 +651,9 @@ fn test_os_getenv_no_args() {
 
 #[test]
 fn test_os_getenv_three_args() {
-    assert!(transpile_err("import os\ndef f(): return os.getenv('KEY', 'default', 'extra')"));
+    assert!(transpile_err(
+        "import os\ndef f(): return os.getenv('KEY', 'default', 'extra')"
+    ));
 }
 
 #[test]
@@ -585,7 +663,9 @@ fn test_os_remove_no_args() {
 
 #[test]
 fn test_os_remove_two_args() {
-    assert!(transpile_err("import os\ndef f(): return os.remove('path', 'extra')"));
+    assert!(transpile_err(
+        "import os\ndef f(): return os.remove('path', 'extra')"
+    ));
 }
 
 #[test]
@@ -605,7 +685,9 @@ fn test_os_rmdir_no_args() {
 
 #[test]
 fn test_os_rmdir_two_args() {
-    assert!(transpile_err("import os\ndef f(): return os.rmdir('path', 'extra')"));
+    assert!(transpile_err(
+        "import os\ndef f(): return os.rmdir('path', 'extra')"
+    ));
 }
 
 #[test]
@@ -615,12 +697,16 @@ fn test_os_rename_one_arg() {
 
 #[test]
 fn test_os_rename_three_args() {
-    assert!(transpile_err("import os\ndef f(): return os.rename('src', 'dst', 'extra')"));
+    assert!(transpile_err(
+        "import os\ndef f(): return os.rename('src', 'dst', 'extra')"
+    ));
 }
 
 #[test]
 fn test_os_getcwd_one_arg() {
-    assert!(transpile_err("import os\ndef f(): return os.getcwd('extra')"));
+    assert!(transpile_err(
+        "import os\ndef f(): return os.getcwd('extra')"
+    ));
 }
 
 #[test]
@@ -630,7 +716,9 @@ fn test_os_chdir_no_args() {
 
 #[test]
 fn test_os_chdir_two_args() {
-    assert!(transpile_err("import os\ndef f(): return os.chdir('path', 'extra')"));
+    assert!(transpile_err(
+        "import os\ndef f(): return os.chdir('path', 'extra')"
+    ));
 }
 
 #[test]
@@ -645,7 +733,9 @@ fn test_os_urandom_no_args() {
 
 #[test]
 fn test_os_urandom_two_args() {
-    assert!(transpile_err("import os\ndef f(): return os.urandom(16, 32)"));
+    assert!(transpile_err(
+        "import os\ndef f(): return os.urandom(16, 32)"
+    ));
 }
 
 #[test]
@@ -655,19 +745,25 @@ fn test_os_environ_get_no_args() {
 
 #[test]
 fn test_os_environ_get_three_args() {
-    assert!(transpile_err("import os\ndef f(): return os.environ.get('KEY', 'default', 'extra')"));
+    assert!(transpile_err(
+        "import os\ndef f(): return os.environ.get('KEY', 'default', 'extra')"
+    ));
 }
 
 // ============ subprocess module error paths ============
 
 #[test]
 fn test_subprocess_run_no_args() {
-    assert!(transpile_err("import subprocess\ndef f(): return subprocess.run()"));
+    assert!(transpile_err(
+        "import subprocess\ndef f(): return subprocess.run()"
+    ));
 }
 
 #[test]
 fn test_subprocess_popen_no_args() {
-    assert!(transpile_err("import subprocess\ndef f(): return subprocess.Popen()"));
+    assert!(transpile_err(
+        "import subprocess\ndef f(): return subprocess.Popen()"
+    ));
 }
 
 // ============ Success paths for completeness ============
@@ -694,7 +790,9 @@ fn test_enumerate_success() {
 
 #[test]
 fn test_zip_success() {
-    assert!(transpile_ok("def f(a: list, b: list): return list(zip(a, b))"));
+    assert!(transpile_ok(
+        "def f(a: list, b: list): return list(zip(a, b))"
+    ));
 }
 
 #[test]
@@ -709,7 +807,9 @@ fn test_sorted_success() {
 
 #[test]
 fn test_filter_success() {
-    assert!(transpile_ok("def f(x: list): return list(filter(lambda n: n > 0, x))"));
+    assert!(transpile_ok(
+        "def f(x: list): return list(filter(lambda n: n > 0, x))"
+    ));
 }
 
 #[test]
@@ -729,17 +829,23 @@ fn test_abs_success() {
 
 #[test]
 fn test_min_success() {
-    assert!(transpile_ok("def f(a: int, b: int) -> int: return min(a, b)"));
+    assert!(transpile_ok(
+        "def f(a: int, b: int) -> int: return min(a, b)"
+    ));
 }
 
 #[test]
 fn test_max_success() {
-    assert!(transpile_ok("def f(a: int, b: int) -> int: return max(a, b)"));
+    assert!(transpile_ok(
+        "def f(a: int, b: int) -> int: return max(a, b)"
+    ));
 }
 
 #[test]
 fn test_pow_success() {
-    assert!(transpile_ok("def f(a: int, b: int) -> int: return pow(a, b)"));
+    assert!(transpile_ok(
+        "def f(a: int, b: int) -> int: return pow(a, b)"
+    ));
 }
 
 #[test]
@@ -784,5 +890,7 @@ fn test_iter_success() {
 
 #[test]
 fn test_type_success() {
-    assert!(transpile_ok("def f(x: int) -> str: return type(x).__name__"));
+    assert!(transpile_ok(
+        "def f(x: int) -> str: return type(x).__name__"
+    ));
 }

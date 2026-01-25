@@ -29,7 +29,11 @@ class Decoder:
 
     // This should NOT panic - it should generate valid Rust
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 }
 
 /// Test with bytes type
@@ -50,7 +54,11 @@ class Decoder:
 "#;
 
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 }
 
 /// Test arithmetic expression with cast in comparison
@@ -73,5 +81,9 @@ class Decoder:
 "#;
 
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 }

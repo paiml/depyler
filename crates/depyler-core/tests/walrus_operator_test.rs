@@ -16,7 +16,9 @@ use rustpython_parser::{parse, Mode};
 /// Transpile with optimizer (matches CLI behavior)
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new()
+        .python_to_hir(ast)
+        .map_err(|e| e.to_string())?;
 
     let hir_program = depyler_core::hir::HirProgram {
         functions: hir.functions.clone(),
@@ -34,6 +36,7 @@ fn transpile(python: &str) -> Result<String, String> {
         constants: hir.constants,
         type_aliases: hir.type_aliases,
         protocols: hir.protocols,
+        top_level_stmts: hir.top_level_stmts,
     };
 
     let type_mapper = TypeMapper::default();
@@ -55,7 +58,11 @@ def check_length(text: str) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile walrus in if: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile walrus in if: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     // Should have assignment for n before/outside the if (hoisted correctly)
@@ -72,7 +79,9 @@ def check_length(text: str) -> int:
     );
     // The comparison should involve n (either directly or via CSE temp)
     assert!(
-        rust.contains("n >") || rust.contains("n>") || (rust.contains("let n") && rust.contains("> 5")),
+        rust.contains("n >")
+            || rust.contains("n>")
+            || (rust.contains("let n") && rust.contains("> 5")),
         "Should compare walrus value with 5. Got:\n{}",
         rust
     );
@@ -92,7 +101,11 @@ def find_first_long(text: str, min_len: int) -> str:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile walrus in for-if: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile walrus in for-if: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     // Should have assignment before if inside the for loop
@@ -115,7 +128,11 @@ def check_value(data: dict) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile walrus with None check: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile walrus with None check: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     // Should use if let or Option pattern
@@ -155,7 +172,11 @@ def check(x: int) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile simple walrus if: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile simple walrus if: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(
@@ -176,7 +197,11 @@ def has_items(items: list) -> bool:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile walrus boolean: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile walrus boolean: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(
@@ -198,7 +223,11 @@ def process(a: int, b: int) -> int:
 "#;
 
     let result = transpile(python);
-    assert!(result.is_ok(), "Should transpile nested walrus: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile nested walrus: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(

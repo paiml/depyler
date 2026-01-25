@@ -72,7 +72,9 @@ impl TypeDatabase {
         let columns: Vec<ArrayRef> = vec![
             Arc::new(StringArray::from(modules)),
             Arc::new(StringArray::from(symbols)),
-            Arc::new(StringArray::from(kinds.iter().map(|s| s.as_str()).collect::<Vec<_>>())),
+            Arc::new(StringArray::from(
+                kinds.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+            )),
             Arc::new(StringArray::from(signatures)),
             Arc::new(StringArray::from(return_types)),
         ];
@@ -132,7 +134,9 @@ impl TypeDatabase {
             .column(4)
             .as_any()
             .downcast_ref::<StringArray>()
-            .ok_or_else(|| KnowledgeError::DatabaseError("Invalid return_type column".to_string()))?;
+            .ok_or_else(|| {
+                KnowledgeError::DatabaseError("Invalid return_type column".to_string())
+            })?;
 
         let mut facts = Vec::with_capacity(batch.num_rows());
         for i in 0..batch.num_rows() {
@@ -200,7 +204,13 @@ mod tests {
         let facts = vec![
             TypeFact::function("requests", "get", "(url: str) -> Response", "Response"),
             TypeFact::class("requests.models", "Response"),
-            TypeFact::method("requests.models", "Response", "json", "(self) -> dict", "dict"),
+            TypeFact::method(
+                "requests.models",
+                "Response",
+                "json",
+                "(self) -> dict",
+                "dict",
+            ),
         ];
 
         db.write(&facts).unwrap();
@@ -220,9 +230,12 @@ mod tests {
         let db_path = temp.path().join("test.parquet");
         let db = TypeDatabase::new(&db_path).unwrap();
 
-        let facts = vec![
-            TypeFact::function("requests", "get", "(url: str, **kwargs) -> Response", "Response"),
-        ];
+        let facts = vec![TypeFact::function(
+            "requests",
+            "get",
+            "(url: str, **kwargs) -> Response",
+            "Response",
+        )];
 
         db.write(&facts).unwrap();
 

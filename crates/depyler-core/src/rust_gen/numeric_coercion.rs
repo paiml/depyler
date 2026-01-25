@@ -178,10 +178,7 @@ mod tests {
     #[test]
     fn test_is_int_var_type_custom_i32() {
         let var_types = make_var_types();
-        assert!(is_int_var(
-            &HirExpr::Var("i32_var".to_string()),
-            &var_types
-        ));
+        assert!(is_int_var(&HirExpr::Var("i32_var".to_string()), &var_types));
     }
 
     #[test]
@@ -259,10 +256,7 @@ mod tests {
     #[test]
     fn test_is_float_var_heuristic_alpha() {
         let var_types = HashMap::new();
-        assert!(is_float_var(
-            &HirExpr::Var("Alpha".to_string()),
-            &var_types
-        ));
+        assert!(is_float_var(&HirExpr::Var("Alpha".to_string()), &var_types));
     }
 
     #[test]

@@ -118,7 +118,11 @@ impl OracleLineage {
         };
 
         // Check commit SHA change
-        let stored_sha = latest.tags.get(TAG_COMMIT_SHA).map(String::as_str).unwrap_or("");
+        let stored_sha = latest
+            .tags
+            .get(TAG_COMMIT_SHA)
+            .map(String::as_str)
+            .unwrap_or("");
         if stored_sha != current_sha {
             return true;
         }
@@ -153,11 +157,7 @@ impl OracleLineage {
             .map(|d| d.as_millis() as u64)
             .unwrap_or(0);
 
-        let model_id = format!(
-            "oracle-{}-{}",
-            env!("CARGO_PKG_VERSION"),
-            now
-        );
+        let model_id = format!("oracle-{}-{}", env!("CARGO_PKG_VERSION"), now);
 
         let mut tags = HashMap::new();
         tags.insert(TAG_COMMIT_SHA.to_string(), commit_sha);
@@ -331,12 +331,8 @@ mod tests {
         let mut lineage = OracleLineage::new();
         assert_eq!(lineage.model_count(), 0);
 
-        let model_id = lineage.record_training(
-            "abc123".to_string(),
-            "hash456".to_string(),
-            1000,
-            0.85,
-        );
+        let model_id =
+            lineage.record_training("abc123".to_string(), "hash456".to_string(), 1000, 0.85);
 
         assert_eq!(lineage.model_count(), 1);
         assert!(model_id.starts_with("oracle-"));
@@ -368,12 +364,7 @@ mod tests {
         let lineage_path = temp_dir.path().join(".depyler").join("oracle_lineage.json");
 
         let mut lineage = OracleLineage::new();
-        lineage.record_training(
-            "abc123".to_string(),
-            "hash456".to_string(),
-            1000,
-            0.85,
-        );
+        lineage.record_training("abc123".to_string(), "hash456".to_string(), 1000, 0.85);
 
         // Save
         lineage.save(&lineage_path).expect("save should work");
@@ -471,7 +462,10 @@ mod tests {
 
         // Regression should be detected
         let regression = lineage.find_regression();
-        assert!(regression.is_some(), "Should detect regression: 0.85 -> 0.75");
+        assert!(
+            regression.is_some(),
+            "Should detect regression: 0.85 -> 0.75"
+        );
 
         let (_, delta) = regression.unwrap();
         assert!(delta < 0.0, "Delta should be negative for regression");

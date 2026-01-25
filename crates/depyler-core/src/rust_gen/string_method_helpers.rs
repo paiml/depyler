@@ -94,14 +94,20 @@ mod tests {
     fn test_simple_string_method() {
         assert_eq!(simple_string_method("upper"), Some("to_uppercase"));
         assert_eq!(simple_string_method("lower"), Some("to_lowercase"));
-        assert_eq!(simple_string_method("isalpha"), Some("chars().all(|c| c.is_alphabetic())"));
+        assert_eq!(
+            simple_string_method("isalpha"),
+            Some("chars().all(|c| c.is_alphabetic())")
+        );
         assert_eq!(simple_string_method("unknown"), None);
     }
 
     #[test]
     fn test_trim_string_method() {
         assert_eq!(trim_string_method("strip"), Some("trim().to_string()"));
-        assert_eq!(trim_string_method("lstrip"), Some("trim_start().to_string()"));
+        assert_eq!(
+            trim_string_method("lstrip"),
+            Some("trim_start().to_string()")
+        );
         assert_eq!(trim_string_method("rstrip"), Some("trim_end().to_string()"));
         assert_eq!(trim_string_method("unknown"), None);
     }
@@ -115,7 +121,11 @@ mod tests {
         let result = extract_pattern_arg(&hir_arg, &rust_arg, &fn_str_params);
         // Result should be the literal string directly
         let result_str = quote::quote!(#result).to_string();
-        assert!(result_str.contains("test"), "Expected literal, got: {}", result_str);
+        assert!(
+            result_str.contains("test"),
+            "Expected literal, got: {}",
+            result_str
+        );
     }
 
     #[test]
@@ -128,7 +138,11 @@ mod tests {
         let result = extract_pattern_arg(&hir_arg, &rust_arg, &fn_str_params);
         // Result should be the variable directly (not borrowed)
         let result_str = quote::quote!(#result).to_string();
-        assert!(result_str.contains("prefix"), "Expected var, got: {}", result_str);
+        assert!(
+            result_str.contains("prefix"),
+            "Expected var, got: {}",
+            result_str
+        );
         assert!(!result_str.contains("&"), "Should not borrow &str param");
     }
 
@@ -141,6 +155,10 @@ mod tests {
         let result = extract_pattern_arg(&hir_arg, &rust_arg, &fn_str_params);
         // Result should be borrowed
         let result_str = quote::quote!(#result).to_string();
-        assert!(result_str.contains("&"), "Should borrow owned String, got: {}", result_str);
+        assert!(
+            result_str.contains("&"),
+            "Should borrow owned String, got: {}",
+            result_str
+        );
     }
 }

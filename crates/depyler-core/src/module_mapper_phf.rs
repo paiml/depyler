@@ -391,7 +391,8 @@ mod tests {
 
     #[test]
     fn test_module_lookup_sklearn() {
-        let mapping = get_module_mapping("sklearn.linear_model").expect("sklearn.linear_model should be mapped");
+        let mapping = get_module_mapping("sklearn.linear_model")
+            .expect("sklearn.linear_model should be mapped");
         assert_eq!(mapping.rust_path, "aprender::linear");
         assert!(mapping.is_external);
     }
@@ -410,7 +411,10 @@ mod tests {
 
     #[test]
     fn test_item_lookup_numpy() {
-        assert_eq!(get_item_mapping("numpy", "array"), Some("Vector::from_slice"));
+        assert_eq!(
+            get_item_mapping("numpy", "array"),
+            Some("Vector::from_slice")
+        );
         assert_eq!(get_item_mapping("numpy", "sum"), Some("Vector::sum"));
     }
 
@@ -427,6 +431,10 @@ mod tests {
     #[test]
     fn test_supported_modules_count() {
         let count = supported_modules().count();
-        assert!(count >= 30, "Should have at least 30 modules, got {}", count);
+        assert!(
+            count >= 30,
+            "Should have at least 30 modules, got {}",
+            count
+        );
     }
 }

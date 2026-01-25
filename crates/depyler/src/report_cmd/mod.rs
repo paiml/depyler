@@ -3,11 +3,11 @@
 //! Minimal report implementation focused on testable pure functions.
 //! GH-209: Extended with ML clustering and semantic domain analysis.
 
-pub mod analysis;
 pub mod advanced_report; // GH-209 Phase 5: Advanced Report Output
-pub mod clustering;      // GH-209 Phase 2: ML Clustering
-pub mod graph_analysis;  // GH-209 Phase 4: Graph Analysis
+pub mod analysis;
+pub mod clustering; // GH-209 Phase 2: ML Clustering
 pub mod filter;
+pub mod graph_analysis; // GH-209 Phase 4: Graph Analysis
 
 use anyhow::Result;
 use colored::Colorize;
@@ -112,7 +112,10 @@ pub fn extract_error(stderr: &str) -> (String, String) {
     for line in stderr.lines() {
         if line.starts_with("Error: Failed to transpile") {
             for cause_line in stderr.lines() {
-                if cause_line.trim().starts_with("Expression type not yet supported") {
+                if cause_line
+                    .trim()
+                    .starts_with("Expression type not yet supported")
+                {
                     return ("TRANSPILE".to_string(), strip_ansi(cause_line.trim()));
                 }
                 if cause_line.trim().starts_with("Unsupported") {
@@ -138,7 +141,9 @@ pub fn extract_error(stderr: &str) -> (String, String) {
 }
 
 /// Analyze compilation results
-pub fn analyze_results(results: &[CompileResult]) -> (usize, usize, HashMap<String, ErrorTaxonomy>) {
+pub fn analyze_results(
+    results: &[CompileResult],
+) -> (usize, usize, HashMap<String, ErrorTaxonomy>) {
     let mut pass = 0;
     let mut fail = 0;
     let mut taxonomy: HashMap<String, ErrorTaxonomy> = HashMap::new();
@@ -212,7 +217,11 @@ pub fn fix_recommendation(code: &str) -> &'static str {
 pub fn ascii_bar(ratio: f64, width: usize) -> String {
     let filled = (ratio.clamp(0.0, 1.0) * width as f64).round() as usize;
     let empty = width.saturating_sub(filled);
-    format!("{}{}", "█".repeat(filled).green(), "░".repeat(empty).dimmed())
+    format!(
+        "{}{}",
+        "█".repeat(filled).green(),
+        "░".repeat(empty).dimmed()
+    )
 }
 
 /// Print terminal report
@@ -305,7 +314,8 @@ mod tests {
 
     #[test]
     fn test_extract_error_transpile() {
-        let stderr = "Error: Failed to transpile\nCaused by:\n  Expression type not yet supported: Lambda";
+        let stderr =
+            "Error: Failed to transpile\nCaused by:\n  Expression type not yet supported: Lambda";
         let (code, msg) = extract_error(stderr);
         assert_eq!(code, "TRANSPILE");
         assert!(msg.contains("Expression type not yet supported"));
@@ -356,8 +366,18 @@ mod tests {
     #[test]
     fn test_analyze_results_all_pass() {
         let results = vec![
-            CompileResult { name: "a".into(), success: true, error_code: None, error_message: None },
-            CompileResult { name: "b".into(), success: true, error_code: None, error_message: None },
+            CompileResult {
+                name: "a".into(),
+                success: true,
+                error_code: None,
+                error_message: None,
+            },
+            CompileResult {
+                name: "b".into(),
+                success: true,
+                error_code: None,
+                error_message: None,
+            },
         ];
         let (pass, fail, taxonomy) = analyze_results(&results);
         assert_eq!(pass, 2);
@@ -368,10 +388,30 @@ mod tests {
     #[test]
     fn test_analyze_results_with_failures() {
         let results = vec![
-            CompileResult { name: "a".into(), success: true, error_code: None, error_message: None },
-            CompileResult { name: "b".into(), success: false, error_code: Some("E0425".into()), error_message: Some("not found".into()) },
-            CompileResult { name: "c".into(), success: false, error_code: Some("E0425".into()), error_message: Some("not found".into()) },
-            CompileResult { name: "d".into(), success: false, error_code: Some("E0308".into()), error_message: Some("type mismatch".into()) },
+            CompileResult {
+                name: "a".into(),
+                success: true,
+                error_code: None,
+                error_message: None,
+            },
+            CompileResult {
+                name: "b".into(),
+                success: false,
+                error_code: Some("E0425".into()),
+                error_message: Some("not found".into()),
+            },
+            CompileResult {
+                name: "c".into(),
+                success: false,
+                error_code: Some("E0425".into()),
+                error_message: Some("not found".into()),
+            },
+            CompileResult {
+                name: "d".into(),
+                success: false,
+                error_code: Some("E0308".into()),
+                error_message: Some("type mismatch".into()),
+            },
         ];
         let (pass, fail, taxonomy) = analyze_results(&results);
         assert_eq!(pass, 1);
@@ -490,10 +530,13 @@ mod tests {
     #[test]
     fn test_print_terminal_report_with_errors() {
         let mut taxonomy = HashMap::new();
-        taxonomy.insert("E0425".to_string(), ErrorTaxonomy {
-            count: 5,
-            samples: vec!["sample1: error".to_string()],
-        });
+        taxonomy.insert(
+            "E0425".to_string(),
+            ErrorTaxonomy {
+                count: 5,
+                samples: vec!["sample1: error".to_string()],
+            },
+        );
         print_terminal_report(10, 2, 8, 20.0, &taxonomy, 0.8);
     }
 
@@ -519,10 +562,13 @@ mod tests {
     #[test]
     fn test_print_json_report_with_data() {
         let mut taxonomy = HashMap::new();
-        taxonomy.insert("E0425".to_string(), ErrorTaxonomy {
-            count: 2,
-            samples: vec!["sample: error".to_string()],
-        });
+        taxonomy.insert(
+            "E0425".to_string(),
+            ErrorTaxonomy {
+                count: 2,
+                samples: vec!["sample: error".to_string()],
+            },
+        );
         let result = print_json_report(2, 1, 1, 50.0, &taxonomy, 0.8);
         assert!(result.is_ok());
     }

@@ -183,6 +183,8 @@ impl AstBridge {
         let mut protocols = Vec::new();
         let mut classes = Vec::new();
         let mut constants = Vec::new();
+        // DEPYLER-1216: Capture top-level statements for script-style Python
+        let mut top_level_stmts = Vec::new();
 
         for stmt in module.body {
             match stmt {
@@ -239,12 +241,50 @@ impl AstBridge {
                     if !has_main_function {
                         if let Some(main_fn) = self.try_convert_if_main(&if_stmt)? {
                             functions.push(main_fn);
+                        } else {
+                            // DEPYLER-1216: Not an `if __name__ == "__main__":` pattern,
+                            // so capture as a top-level statement for script-style Python
+                            if let Ok(hir_stmt) = convert_stmt(ast::Stmt::If(if_stmt)) {
+                                top_level_stmts.push(hir_stmt);
+                            }
                         }
                     }
-                    // Skip other if statements at module level
+                }
+                // DEPYLER-1216: Capture executable top-level statements for script-style Python
+                // These will be wrapped into a synthetic main() if no explicit main exists
+                ast::Stmt::Expr(expr) => {
+                    if let Ok(hir_stmt) = convert_stmt(ast::Stmt::Expr(expr)) {
+                        top_level_stmts.push(hir_stmt);
+                    }
+                }
+                ast::Stmt::For(for_stmt) => {
+                    if let Ok(hir_stmt) = convert_stmt(ast::Stmt::For(for_stmt)) {
+                        top_level_stmts.push(hir_stmt);
+                    }
+                }
+                ast::Stmt::While(while_stmt) => {
+                    if let Ok(hir_stmt) = convert_stmt(ast::Stmt::While(while_stmt)) {
+                        top_level_stmts.push(hir_stmt);
+                    }
+                }
+                ast::Stmt::Try(try_stmt) => {
+                    if let Ok(hir_stmt) = convert_stmt(ast::Stmt::Try(try_stmt)) {
+                        top_level_stmts.push(hir_stmt);
+                    }
+                }
+                ast::Stmt::With(with_stmt) => {
+                    if let Ok(hir_stmt) = convert_stmt(ast::Stmt::With(with_stmt)) {
+                        top_level_stmts.push(hir_stmt);
+                    }
+                }
+                ast::Stmt::Return(ret_stmt) => {
+                    // Top-level return (unusual but valid in scripts executed via exec())
+                    if let Ok(hir_stmt) = convert_stmt(ast::Stmt::Return(ret_stmt)) {
+                        top_level_stmts.push(hir_stmt);
+                    }
                 }
                 _ => {
-                    // Skip other statements for now
+                    // Skip other statements (Pass, Break, Continue, etc.)
                 }
             }
         }
@@ -260,6 +300,7 @@ impl AstBridge {
             protocols,
             classes,
             constants,
+            top_level_stmts,
         })
     }
 
@@ -612,8 +653,7 @@ impl AstBridge {
                 };
 
                 // Check operator is `==`
-                let op_is_eq = compare.ops.len() == 1
-                    && matches!(compare.ops[0], ast::CmpOp::Eq);
+                let op_is_eq = compare.ops.len() == 1 && matches!(compare.ops[0], ast::CmpOp::Eq);
 
                 // Check right side is `"__main__"`
                 let right_is_main = compare.comparators.len() == 1
@@ -904,10 +944,29 @@ impl AstBridge {
             && name.ends_with("__")
             && !matches!(
                 name.as_str(),
-                "__init__" | "__iter__" | "__next__" | "__enter__" | "__exit__" |
-                "__len__" | "__str__" | "__repr__" | "__getitem__" | "__setitem__" | "__contains__" |
-                "__eq__" | "__ne__" | "__lt__" | "__le__" | "__gt__" | "__ge__" | "__hash__" |
-                "__add__" | "__sub__" | "__mul__" | "__truediv__" | "__neg__"
+                "__init__"
+                    | "__iter__"
+                    | "__next__"
+                    | "__enter__"
+                    | "__exit__"
+                    | "__len__"
+                    | "__str__"
+                    | "__repr__"
+                    | "__getitem__"
+                    | "__setitem__"
+                    | "__contains__"
+                    | "__eq__"
+                    | "__ne__"
+                    | "__lt__"
+                    | "__le__"
+                    | "__gt__"
+                    | "__ge__"
+                    | "__hash__"
+                    | "__add__"
+                    | "__sub__"
+                    | "__mul__"
+                    | "__truediv__"
+                    | "__neg__"
             )
         {
             return Ok(None);
@@ -1035,11 +1094,33 @@ impl AstBridge {
             && name.ends_with("__")
             && !matches!(
                 name.as_str(),
-                "__init__" | "__iter__" | "__next__" | "__enter__" | "__exit__" |
-                "__aenter__" | "__aexit__" | "__anext__" | "__aiter__" |
-                "__len__" | "__str__" | "__repr__" | "__getitem__" | "__setitem__" | "__contains__" |
-                "__eq__" | "__ne__" | "__lt__" | "__le__" | "__gt__" | "__ge__" | "__hash__" |
-                "__add__" | "__sub__" | "__mul__" | "__truediv__" | "__neg__"
+                "__init__"
+                    | "__iter__"
+                    | "__next__"
+                    | "__enter__"
+                    | "__exit__"
+                    | "__aenter__"
+                    | "__aexit__"
+                    | "__anext__"
+                    | "__aiter__"
+                    | "__len__"
+                    | "__str__"
+                    | "__repr__"
+                    | "__getitem__"
+                    | "__setitem__"
+                    | "__contains__"
+                    | "__eq__"
+                    | "__ne__"
+                    | "__lt__"
+                    | "__le__"
+                    | "__gt__"
+                    | "__ge__"
+                    | "__hash__"
+                    | "__add__"
+                    | "__sub__"
+                    | "__mul__"
+                    | "__truediv__"
+                    | "__neg__"
             )
         {
             return Ok(None);
@@ -1200,7 +1281,8 @@ impl AstBridge {
         // Example: source: Iter[T] with T not yet collected -> add T
         for stmt in &class.body {
             if let ast::Stmt::AnnAssign(ann_assign) = stmt {
-                let field_type_vars = self.extract_type_vars_from_annotation(&ann_assign.annotation);
+                let field_type_vars =
+                    self.extract_type_vars_from_annotation(&ann_assign.annotation);
                 for tv in field_type_vars {
                     if !type_params.contains(&tv) {
                         type_params.push(tv);
@@ -1281,7 +1363,6 @@ impl AstBridge {
         self.collect_type_vars_from_expr(annotation, &mut params);
         params
     }
-
 
     fn convert_protocol_method(&self, func: &ast::StmtFunctionDef) -> Result<ProtocolMethod> {
         let name = func.name.to_string();
@@ -1373,18 +1454,19 @@ impl AstBridge {
                                     }
 
                                     // Try to infer type from the assigned value
-                                    let field_type =
-                                        if let ast::Expr::Name(value_name) = assign.value.as_ref() {
-                                            // If assigning a parameter, use its type
-                                            param_types
-                                                .get(value_name.id.as_str())
-                                                .cloned()
-                                                .unwrap_or(Type::Unknown)
-                                        } else {
-                                            // Otherwise, try to infer from literal or default to Unknown
-                                            self.infer_type_from_expr(assign.value.as_ref())
-                                                .unwrap_or(Type::Unknown)
-                                        };
+                                    let field_type = if let ast::Expr::Name(value_name) =
+                                        assign.value.as_ref()
+                                    {
+                                        // If assigning a parameter, use its type
+                                        param_types
+                                            .get(value_name.id.as_str())
+                                            .cloned()
+                                            .unwrap_or(Type::Unknown)
+                                    } else {
+                                        // Otherwise, try to infer from literal or default to Unknown
+                                        self.infer_type_from_expr(assign.value.as_ref())
+                                            .unwrap_or(Type::Unknown)
+                                    };
 
                                     fields.push(HirField {
                                         name: field_name,
@@ -1527,12 +1609,12 @@ impl AstBridge {
                                 let field_name = attr.attr.to_string();
 
                                 // Use the annotation for the type
-                                let field_type = TypeExtractor::extract_type(&ann_assign.annotation)
-                                    .unwrap_or(Type::Unknown);
+                                let field_type =
+                                    TypeExtractor::extract_type(&ann_assign.annotation)
+                                        .unwrap_or(Type::Unknown);
 
                                 // DEPYLER-0603: Create a default value based on the type
-                                let default_value =
-                                    self.create_default_value_for_type(&field_type);
+                                let default_value = self.create_default_value_for_type(&field_type);
 
                                 // Deduplicate within this method
                                 if !fields.iter().any(|f: &HirField| f.name == field_name) {
@@ -1820,36 +1902,57 @@ fn convert_parameters(args: &ast::Arguments) -> Result<Vec<HirParam>> {
                     // This prevents Option<serde_json::Value> which causes E0308/E0599 errors
                     let param_lower = name.to_lowercase();
 
-                    let inferred_type = if param_lower.contains("file") || param_lower.contains("path")
-                        || param_lower.contains("output") || param_lower.contains("input")
-                        || param_lower.contains("dir") || param_lower.contains("folder")
+                    let inferred_type = if param_lower.contains("file")
+                        || param_lower.contains("path")
+                        || param_lower.contains("output")
+                        || param_lower.contains("input")
+                        || param_lower.contains("dir")
+                        || param_lower.contains("folder")
                     {
                         // File/path parameters → Option<String>
                         Type::String
-                    } else if param_lower.contains("name") || param_lower.contains("title")
-                        || param_lower.contains("text") || param_lower.contains("message")
-                        || param_lower.contains("content") || param_lower.contains("label")
-                        || param_lower.contains("description") || param_lower.contains("prefix")
-                        || param_lower.contains("suffix") || param_lower.contains("format")
-                        || param_lower == "value" || param_lower.contains("column")
+                    } else if param_lower.contains("name")
+                        || param_lower.contains("title")
+                        || param_lower.contains("text")
+                        || param_lower.contains("message")
+                        || param_lower.contains("content")
+                        || param_lower.contains("label")
+                        || param_lower.contains("description")
+                        || param_lower.contains("prefix")
+                        || param_lower.contains("suffix")
+                        || param_lower.contains("format")
+                        || param_lower == "value"
+                        || param_lower.contains("column")
                         || param_lower.contains("key") && !param_lower.contains("keys")
                     {
                         // String-like parameters → Option<String>
                         Type::String
-                    } else if param_lower.contains("count") || param_lower.contains("num")
-                        || param_lower.contains("index") || param_lower.contains("size")
-                        || param_lower.contains("limit") || param_lower.contains("max")
-                        || param_lower.contains("min") || param_lower.contains("port")
-                        || param_lower.contains("timeout") || param_lower.contains("depth")
-                        || param_lower == "n" || param_lower == "i" || param_lower == "j"
+                    } else if param_lower.contains("count")
+                        || param_lower.contains("num")
+                        || param_lower.contains("index")
+                        || param_lower.contains("size")
+                        || param_lower.contains("limit")
+                        || param_lower.contains("max")
+                        || param_lower.contains("min")
+                        || param_lower.contains("port")
+                        || param_lower.contains("timeout")
+                        || param_lower.contains("depth")
+                        || param_lower == "n"
+                        || param_lower == "i"
+                        || param_lower == "j"
                     {
                         // Numeric parameters → Option<i64>
                         Type::Int
-                    } else if param_lower.contains("flag") || param_lower.contains("enabled")
-                        || param_lower.contains("verbose") || param_lower.contains("debug")
-                        || param_lower.contains("quiet") || param_lower.contains("force")
-                        || param_lower.starts_with("is_") || param_lower.starts_with("has_")
-                        || param_lower.starts_with("use_") || param_lower.starts_with("allow_")
+                    } else if param_lower.contains("flag")
+                        || param_lower.contains("enabled")
+                        || param_lower.contains("verbose")
+                        || param_lower.contains("debug")
+                        || param_lower.contains("quiet")
+                        || param_lower.contains("force")
+                        || param_lower.starts_with("is_")
+                        || param_lower.starts_with("has_")
+                        || param_lower.starts_with("use_")
+                        || param_lower.starts_with("allow_")
                     {
                         // Boolean parameters → Option<bool>
                         Type::Bool
@@ -3020,7 +3123,9 @@ def outer(x: int) -> int:
         let result = bridge.create_default_value_for_type(&crate::hir::Type::Bool);
         assert!(matches!(
             result,
-            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Bool(false)))
+            Some(crate::hir::HirExpr::Literal(crate::hir::Literal::Bool(
+                false
+            )))
         ));
     }
 

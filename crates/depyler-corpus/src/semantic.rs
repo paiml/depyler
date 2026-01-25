@@ -392,11 +392,7 @@ import numpy as np
         let classifier = SemanticClassifier::new();
 
         let files = vec![
-            (
-                "core.py".to_string(),
-                "def hello(): pass".to_string(),
-                true,
-            ),
+            ("core.py".to_string(), "def hello(): pass".to_string(), true),
             (
                 "stdlib.py".to_string(),
                 "import json\ndef load(): pass".to_string(),
@@ -411,7 +407,10 @@ import numpy as np
 
         let result = classifier.classify_corpus(&files);
 
-        assert_eq!(result.file_domains.get("core.py"), Some(&PythonDomain::Core));
+        assert_eq!(
+            result.file_domains.get("core.py"),
+            Some(&PythonDomain::Core)
+        );
         assert_eq!(
             result.file_domains.get("stdlib.py"),
             Some(&PythonDomain::Stdlib)

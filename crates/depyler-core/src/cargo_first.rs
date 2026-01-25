@@ -218,10 +218,7 @@ impl EphemeralWorkspace {
                     .to_string(),
                 line_start: s.get("line_start").and_then(|l| l.as_u64()).unwrap_or(0) as u32,
                 line_end: s.get("line_end").and_then(|l| l.as_u64()).unwrap_or(0) as u32,
-                column_start: s
-                    .get("column_start")
-                    .and_then(|c| c.as_u64())
-                    .unwrap_or(0) as u32,
+                column_start: s.get("column_start").and_then(|c| c.as_u64()).unwrap_or(0) as u32,
                 column_end: s.get("column_end").and_then(|c| c.as_u64()).unwrap_or(0) as u32,
             });
 
@@ -825,13 +822,19 @@ serde = { version = "1.0", features = ["derive"] }
             "borrow of moved value"
         ));
 
-        assert!(!EphemeralWorkspace::is_dependency_error(&None, "some other error message"));
+        assert!(!EphemeralWorkspace::is_dependency_error(
+            &None,
+            "some other error message"
+        ));
     }
 
     #[test]
     fn test_is_dependency_error_none_code() {
         // With None code, relies on message
-        assert!(!EphemeralWorkspace::is_dependency_error(&None, "type mismatch"));
+        assert!(!EphemeralWorkspace::is_dependency_error(
+            &None,
+            "type mismatch"
+        ));
     }
 
     // === compile_with_cargo integration tests ===
@@ -848,7 +851,10 @@ serde = { version = "1.0", features = ["derive"] }
             }
         "#;
         let result = compile_with_cargo("test_default", rust_code, None).unwrap();
-        assert!(result.success, "Simple code should compile with default toml");
+        assert!(
+            result.success,
+            "Simple code should compile with default toml"
+        );
     }
 
     #[test]

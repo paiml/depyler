@@ -140,7 +140,11 @@ pub fn type_to_rust_string(ty: &Type) -> String {
         Type::Custom(name) => name.clone(),
         Type::Function { params, ret } => {
             let param_strs: Vec<_> = params.iter().map(type_to_rust_string).collect();
-            format!("fn({}) -> {}", param_strs.join(", "), type_to_rust_string(ret))
+            format!(
+                "fn({}) -> {}",
+                param_strs.join(", "),
+                type_to_rust_string(ret)
+            )
         }
         Type::TypeVar(name) => name.clone(),
         Type::UnificationVar(id) => format!("?T{}", id),
@@ -460,7 +464,11 @@ mod tests {
             "s: &String"
         );
         assert_eq!(
-            generate_param_signature("v", &Type::List(Box::new(Type::Int)), &BorrowingPattern::MutableBorrow),
+            generate_param_signature(
+                "v",
+                &Type::List(Box::new(Type::Int)),
+                &BorrowingPattern::MutableBorrow
+            ),
             "v: &mut Vec<i64>"
         );
     }
@@ -508,11 +516,17 @@ mod tests {
         assert_eq!(usage.get_pattern(&Type::String), BorrowingPattern::Borrowed);
 
         usage.mark_mutated();
-        assert_eq!(usage.get_pattern(&Type::String), BorrowingPattern::MutableBorrow);
+        assert_eq!(
+            usage.get_pattern(&Type::String),
+            BorrowingPattern::MutableBorrow
+        );
 
         let mut escaping_usage = ParamUsage::new();
         escaping_usage.mark_escaping();
-        assert_eq!(escaping_usage.get_pattern(&Type::String), BorrowingPattern::Owned);
+        assert_eq!(
+            escaping_usage.get_pattern(&Type::String),
+            BorrowingPattern::Owned
+        );
     }
 
     #[test]

@@ -87,8 +87,7 @@ fn convert_loads(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<sy
     // DEPYLER-0962: Check if return type is a Union of dict|list
     if let Some(union_name) = return_type_is_dict_list_union(ctx) {
         ctx.needs_hashmap = true;
-        let union_ident: syn::Ident =
-            syn::Ident::new(&union_name, proc_macro2::Span::call_site());
+        let union_ident: syn::Ident = syn::Ident::new(&union_name, proc_macro2::Span::call_site());
         Ok(parse_quote! {
             {
                 let __json_val = serde_json::from_str::<serde_json::Value>(&#s).unwrap();
@@ -102,7 +101,9 @@ fn convert_loads(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<sy
     } else if return_type_needs_json_dict(ctx) {
         // DEPYLER-0703: Check if return type is Dict[str, Any] → HashMap<String, Value>
         ctx.needs_hashmap = true;
-        Ok(parse_quote! { serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#s).unwrap() })
+        Ok(
+            parse_quote! { serde_json::from_str::<std::collections::HashMap<String, serde_json::Value>>(&#s).unwrap() },
+        )
     } else {
         // json.loads(s) → serde_json::from_str::<Value>(&s).unwrap()
         Ok(parse_quote! { serde_json::from_str::<serde_json::Value>(&#s).unwrap() })
@@ -129,8 +130,7 @@ fn convert_load(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Result<syn
     // DEPYLER-0962: Check if return type is a Union of dict|list
     if let Some(union_name) = return_type_is_dict_list_union(ctx) {
         ctx.needs_hashmap = true;
-        let union_ident: syn::Ident =
-            syn::Ident::new(&union_name, proc_macro2::Span::call_site());
+        let union_ident: syn::Ident = syn::Ident::new(&union_name, proc_macro2::Span::call_site());
         Ok(parse_quote! {
             {
                 let __json_val = serde_json::from_reader::<_, serde_json::Value>(#file).unwrap();
@@ -240,8 +240,8 @@ fn convert_loads_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Resu
     let _s = &arg_exprs[0];
     ctx.needs_hashmap = true;
     ctx.needs_depyler_value_enum = true; // DEPYLER-1051: Need DepylerValue enum
-    // Return empty HashMap as stub - actual parsing requires serde_json
-    // DEPYLER-1153: Check if return type expects DepylerValue keys (bare Dict)
+                                         // Return empty HashMap as stub - actual parsing requires serde_json
+                                         // DEPYLER-1153: Check if return type expects DepylerValue keys (bare Dict)
     if return_type_needs_depyler_value_keys(ctx) {
         Ok(parse_quote! { std::collections::HashMap::<DepylerValue, DepylerValue>::new() })
     } else {
@@ -271,8 +271,8 @@ fn convert_load_nasa(arg_exprs: &[syn::Expr], ctx: &mut CodeGenContext) -> Resul
     let _file = &arg_exprs[0];
     ctx.needs_hashmap = true;
     ctx.needs_depyler_value_enum = true; // DEPYLER-1051: Need DepylerValue enum
-    // Return empty HashMap as stub
-    // DEPYLER-1153: Check if return type expects DepylerValue keys (bare Dict)
+                                         // Return empty HashMap as stub
+                                         // DEPYLER-1153: Check if return type expects DepylerValue keys (bare Dict)
     if return_type_needs_depyler_value_keys(ctx) {
         Ok(parse_quote! { std::collections::HashMap::<DepylerValue, DepylerValue>::new() })
     } else {
@@ -404,7 +404,7 @@ mod tests {
         let mut ctx = ctx_with_serde_json();
         ctx.current_return_type = Some(Type::Dict(
             Box::new(Type::String),
-            Box::new(Type::Unknown),  // Unknown represents Any
+            Box::new(Type::Unknown), // Unknown represents Any
         ));
         let args = vec![HirExpr::Var("json_str".to_string())];
 
@@ -545,7 +545,7 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         ctx.current_return_type = Some(Type::Dict(
             Box::new(Type::String),
-            Box::new(Type::Custom("Any".to_string())),  // Any as custom type
+            Box::new(Type::Custom("Any".to_string())), // Any as custom type
         ));
 
         assert!(return_type_needs_json_dict(&ctx));
@@ -554,10 +554,7 @@ mod tests {
     #[test]
     fn test_return_type_needs_json_dict_true_unknown() {
         let mut ctx = CodeGenContext::default();
-        ctx.current_return_type = Some(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Unknown),
-        ));
+        ctx.current_return_type = Some(Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)));
 
         assert!(return_type_needs_json_dict(&ctx));
     }
@@ -573,10 +570,7 @@ mod tests {
     #[test]
     fn test_return_type_needs_json_dict_false_int_value() {
         let mut ctx = CodeGenContext::default();
-        ctx.current_return_type = Some(Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int),
-        ));
+        ctx.current_return_type = Some(Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
 
         assert!(!return_type_needs_json_dict(&ctx));
     }
@@ -600,7 +594,7 @@ mod tests {
         let mut ctx = CodeGenContext::default();
         ctx.current_assign_type = Some(Type::Dict(
             Box::new(Type::String),
-            Box::new(Type::Unknown),  // Unknown represents Any
+            Box::new(Type::Unknown), // Unknown represents Any
         ));
 
         assert!(return_type_needs_json_dict(&ctx));

@@ -439,9 +439,7 @@ mod tests {
             name: "regular".to_string(),
             params: smallvec![],
             ret_type: Type::Int,
-            body: vec![
-                HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42)))),
-            ],
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
             docstring: None,

@@ -147,7 +147,10 @@ mod tests {
             root: HirExpr::Literal(HirLiteral::Integer(42)),
             metadata: HirMetadata::default(),
         };
-        assert!(matches!(hir.root, HirExpr::Literal(HirLiteral::Integer(42))));
+        assert!(matches!(
+            hir.root,
+            HirExpr::Literal(HirLiteral::Integer(42))
+        ));
     }
 
     #[test]
@@ -242,7 +245,13 @@ mod tests {
             op: HirBinaryOp::Add,
             right: Box::new(HirExpr::Literal(HirLiteral::Integer(2))),
         };
-        assert!(matches!(expr, HirExpr::Binary { op: HirBinaryOp::Add, .. }));
+        assert!(matches!(
+            expr,
+            HirExpr::Binary {
+                op: HirBinaryOp::Add,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -251,7 +260,13 @@ mod tests {
             op: HirUnaryOp::Negate,
             operand: Box::new(HirExpr::Literal(HirLiteral::Integer(5))),
         };
-        assert!(matches!(expr, HirExpr::Unary { op: HirUnaryOp::Negate, .. }));
+        assert!(matches!(
+            expr,
+            HirExpr::Unary {
+                op: HirUnaryOp::Negate,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -566,7 +581,10 @@ mod tests {
         assert!(matches!(HirBinaryOp::Less, HirBinaryOp::Less));
         assert!(matches!(HirBinaryOp::LessEqual, HirBinaryOp::LessEqual));
         assert!(matches!(HirBinaryOp::Greater, HirBinaryOp::Greater));
-        assert!(matches!(HirBinaryOp::GreaterEqual, HirBinaryOp::GreaterEqual));
+        assert!(matches!(
+            HirBinaryOp::GreaterEqual,
+            HirBinaryOp::GreaterEqual
+        ));
     }
 
     #[test]

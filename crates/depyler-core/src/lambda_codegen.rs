@@ -651,14 +651,16 @@ mod tests {
 
     #[test]
     fn test_lambda_template_variants() {
-        let templates = [LambdaTemplate::BasicHandler,
+        let templates = [
+            LambdaTemplate::BasicHandler,
             LambdaTemplate::StreamingHandler,
             LambdaTemplate::BatchProcessor,
             LambdaTemplate::EventBridgeHandler,
             LambdaTemplate::CargoToml,
             LambdaTemplate::BuildScript,
             LambdaTemplate::SamTemplate,
-            LambdaTemplate::CdkConstruct];
+            LambdaTemplate::CdkConstruct,
+        ];
         assert_eq!(templates.len(), 8);
     }
 
@@ -1083,8 +1085,9 @@ mod tests {
     #[test]
     fn test_event_type_mapping_eventbridge_custom() {
         let generator = LambdaCodeGenerator::new();
-        let (module, rust_type) =
-            generator.get_event_type_mapping(&LambdaEventType::EventBridgeEvent(Some("OrderEvent".to_string())));
+        let (module, rust_type) = generator.get_event_type_mapping(
+            &LambdaEventType::EventBridgeEvent(Some("OrderEvent".to_string())),
+        );
         assert_eq!(module, "eventbridge");
         assert_eq!(rust_type, "EventBridgeEvent<OrderEvent>");
     }

@@ -17,7 +17,9 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new()
+        .python_to_hir(ast)
+        .map_err(|e| e.to_string())?;
 
     let hir_program = depyler_core::hir::HirProgram {
         functions: hir.functions.clone(),
@@ -35,6 +37,7 @@ fn transpile(python: &str) -> Result<String, String> {
         constants: hir.constants,
         type_aliases: hir.type_aliases,
         protocols: hir.protocols,
+        top_level_stmts: hir.top_level_stmts,
     };
 
     let type_mapper = TypeMapper::default();
@@ -106,8 +109,8 @@ SCRIPT = "second.py"
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Should NOT contain TWO SCRIPT definitions
-    let script_count = rust.matches("pub const SCRIPT").count()
-        + rust.matches("pub static SCRIPT").count();
+    let script_count =
+        rust.matches("pub const SCRIPT").count() + rust.matches("pub static SCRIPT").count();
     assert_eq!(
         script_count, 1,
         "Should have exactly one SCRIPT definition. Generated:\n{}",
@@ -179,10 +182,10 @@ VERSION = "2.0"
     let rust = transpile(python).expect("Transpilation should succeed");
 
     // Each should appear exactly once as a definition
-    let name_defs = rust.matches("pub const NAME").count()
-        + rust.matches("pub static NAME").count();
-    let version_defs = rust.matches("pub const VERSION").count()
-        + rust.matches("pub static VERSION").count();
+    let name_defs =
+        rust.matches("pub const NAME").count() + rust.matches("pub static NAME").count();
+    let version_defs =
+        rust.matches("pub const VERSION").count() + rust.matches("pub static VERSION").count();
 
     assert_eq!(
         name_defs, 1,

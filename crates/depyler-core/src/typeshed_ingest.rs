@@ -71,20 +71,53 @@ impl Default for CrateMappingConfig {
     fn default() -> Self {
         let mut crate_map = HashMap::new();
         // Standard library -> Rust stdlib or well-known crates
-        crate_map.insert("json".to_string(), ("serde_json".to_string(), true, Some("1.0".to_string())));
+        crate_map.insert(
+            "json".to_string(),
+            ("serde_json".to_string(), true, Some("1.0".to_string())),
+        );
         crate_map.insert("os".to_string(), ("std".to_string(), false, None));
         crate_map.insert("sys".to_string(), ("std".to_string(), false, None));
         crate_map.insert("math".to_string(), ("std::f64".to_string(), false, None));
-        crate_map.insert("re".to_string(), ("regex".to_string(), true, Some("1.10".to_string())));
-        crate_map.insert("random".to_string(), ("rand".to_string(), true, Some("0.8".to_string())));
-        crate_map.insert("datetime".to_string(), ("chrono".to_string(), true, Some("0.4".to_string())));
-        crate_map.insert("collections".to_string(), ("std::collections".to_string(), false, None));
-        crate_map.insert("itertools".to_string(), ("itertools".to_string(), true, Some("0.12".to_string())));
-        crate_map.insert("hashlib".to_string(), ("sha2".to_string(), true, Some("0.10".to_string())));
-        crate_map.insert("base64".to_string(), ("base64".to_string(), true, Some("0.21".to_string())));
-        crate_map.insert("csv".to_string(), ("csv".to_string(), true, Some("1.3".to_string())));
-        crate_map.insert("pathlib".to_string(), ("std::path".to_string(), false, None));
-        crate_map.insert("tempfile".to_string(), ("tempfile".to_string(), true, Some("3.0".to_string())));
+        crate_map.insert(
+            "re".to_string(),
+            ("regex".to_string(), true, Some("1.10".to_string())),
+        );
+        crate_map.insert(
+            "random".to_string(),
+            ("rand".to_string(), true, Some("0.8".to_string())),
+        );
+        crate_map.insert(
+            "datetime".to_string(),
+            ("chrono".to_string(), true, Some("0.4".to_string())),
+        );
+        crate_map.insert(
+            "collections".to_string(),
+            ("std::collections".to_string(), false, None),
+        );
+        crate_map.insert(
+            "itertools".to_string(),
+            ("itertools".to_string(), true, Some("0.12".to_string())),
+        );
+        crate_map.insert(
+            "hashlib".to_string(),
+            ("sha2".to_string(), true, Some("0.10".to_string())),
+        );
+        crate_map.insert(
+            "base64".to_string(),
+            ("base64".to_string(), true, Some("0.21".to_string())),
+        );
+        crate_map.insert(
+            "csv".to_string(),
+            ("csv".to_string(), true, Some("1.3".to_string())),
+        );
+        crate_map.insert(
+            "pathlib".to_string(),
+            ("std::path".to_string(), false, None),
+        );
+        crate_map.insert(
+            "tempfile".to_string(),
+            ("tempfile".to_string(), true, Some("3.0".to_string())),
+        );
 
         Self { crate_map }
     }
@@ -103,31 +136,70 @@ impl Default for FunctionMappingConfig {
         let mut func_map = HashMap::new();
 
         // json module
-        func_map.insert(("json".to_string(), "loads".to_string()), "from_str".to_string());
-        func_map.insert(("json".to_string(), "dumps".to_string()), "to_string".to_string());
-        func_map.insert(("json".to_string(), "load".to_string()), "from_reader".to_string());
-        func_map.insert(("json".to_string(), "dump".to_string()), "to_writer".to_string());
+        func_map.insert(
+            ("json".to_string(), "loads".to_string()),
+            "from_str".to_string(),
+        );
+        func_map.insert(
+            ("json".to_string(), "dumps".to_string()),
+            "to_string".to_string(),
+        );
+        func_map.insert(
+            ("json".to_string(), "load".to_string()),
+            "from_reader".to_string(),
+        );
+        func_map.insert(
+            ("json".to_string(), "dump".to_string()),
+            "to_writer".to_string(),
+        );
 
         // os module
-        func_map.insert(("os".to_string(), "getcwd".to_string()), "env::current_dir".to_string());
-        func_map.insert(("os".to_string(), "getenv".to_string()), "env::var".to_string());
-        func_map.insert(("os".to_string(), "listdir".to_string()), "fs::read_dir".to_string());
+        func_map.insert(
+            ("os".to_string(), "getcwd".to_string()),
+            "env::current_dir".to_string(),
+        );
+        func_map.insert(
+            ("os".to_string(), "getenv".to_string()),
+            "env::var".to_string(),
+        );
+        func_map.insert(
+            ("os".to_string(), "listdir".to_string()),
+            "fs::read_dir".to_string(),
+        );
 
         // math module
         func_map.insert(("math".to_string(), "sqrt".to_string()), "sqrt".to_string());
         func_map.insert(("math".to_string(), "sin".to_string()), "sin".to_string());
         func_map.insert(("math".to_string(), "cos".to_string()), "cos".to_string());
-        func_map.insert(("math".to_string(), "floor".to_string()), "floor".to_string());
+        func_map.insert(
+            ("math".to_string(), "floor".to_string()),
+            "floor".to_string(),
+        );
         func_map.insert(("math".to_string(), "ceil".to_string()), "ceil".to_string());
         func_map.insert(("math".to_string(), "abs".to_string()), "abs".to_string());
         func_map.insert(("math".to_string(), "pow".to_string()), "powf".to_string());
 
         // re module
-        func_map.insert(("re".to_string(), "compile".to_string()), "Regex::new".to_string());
-        func_map.insert(("re".to_string(), "match".to_string()), "Regex::is_match".to_string());
-        func_map.insert(("re".to_string(), "search".to_string()), "Regex::find".to_string());
-        func_map.insert(("re".to_string(), "findall".to_string()), "Regex::find_iter".to_string());
-        func_map.insert(("re".to_string(), "sub".to_string()), "Regex::replace_all".to_string());
+        func_map.insert(
+            ("re".to_string(), "compile".to_string()),
+            "Regex::new".to_string(),
+        );
+        func_map.insert(
+            ("re".to_string(), "match".to_string()),
+            "Regex::is_match".to_string(),
+        );
+        func_map.insert(
+            ("re".to_string(), "search".to_string()),
+            "Regex::find".to_string(),
+        );
+        func_map.insert(
+            ("re".to_string(), "findall".to_string()),
+            "Regex::find_iter".to_string(),
+        );
+        func_map.insert(
+            ("re".to_string(), "sub".to_string()),
+            "Regex::replace_all".to_string(),
+        );
 
         Self { func_map }
     }
@@ -173,7 +245,10 @@ pub fn parse_pyi_with_config(
 
     for func in &functions {
         // Check if we have a known mapping for this function
-        if let Some(rust_func) = func_config.func_map.get(&(module_name.to_string(), func.name.clone())) {
+        if let Some(rust_func) = func_config
+            .func_map
+            .get(&(module_name.to_string(), func.name.clone()))
+        {
             item_map.insert(func.name.clone(), rust_func.clone());
         } else {
             // Default: use same name (snake_case preserved)
@@ -258,7 +333,10 @@ fn normalize_multiline_functions(content: &str) -> String {
         }
 
         // Check if function definition is complete (parens balanced and has closing pattern)
-        if in_def && paren_depth == 0 && (current_def.ends_with(": ...") || current_def.ends_with("):")) {
+        if in_def
+            && paren_depth == 0
+            && (current_def.ends_with(": ...") || current_def.ends_with("):"))
+        {
             result.push_str(&current_def);
             result.push('\n');
             current_def.clear();
@@ -458,8 +536,14 @@ def dump(
 
         // Verify function mappings
         assert_eq!(mapping.item_map.get("loads"), Some(&"from_str".to_string()));
-        assert_eq!(mapping.item_map.get("dumps"), Some(&"to_string".to_string()));
-        assert_eq!(mapping.item_map.get("load"), Some(&"from_reader".to_string()));
+        assert_eq!(
+            mapping.item_map.get("dumps"),
+            Some(&"to_string".to_string())
+        );
+        assert_eq!(
+            mapping.item_map.get("load"),
+            Some(&"from_reader".to_string())
+        );
         assert_eq!(mapping.item_map.get("dump"), Some(&"to_writer".to_string()));
     }
 
@@ -549,9 +633,18 @@ def listdir(path: str = ".") -> list[str]: ...
         assert_eq!(mapping.rust_path, "std");
         assert!(!mapping.is_external);
 
-        assert_eq!(mapping.item_map.get("getcwd"), Some(&"env::current_dir".to_string()));
-        assert_eq!(mapping.item_map.get("getenv"), Some(&"env::var".to_string()));
-        assert_eq!(mapping.item_map.get("listdir"), Some(&"fs::read_dir".to_string()));
+        assert_eq!(
+            mapping.item_map.get("getcwd"),
+            Some(&"env::current_dir".to_string())
+        );
+        assert_eq!(
+            mapping.item_map.get("getenv"),
+            Some(&"env::var".to_string())
+        );
+        assert_eq!(
+            mapping.item_map.get("listdir"),
+            Some(&"fs::read_dir".to_string())
+        );
     }
 
     #[test]
@@ -567,7 +660,10 @@ def custom_func(x: int) -> int: ...
         assert!(mapping.is_external);
 
         // Unknown function should map to itself
-        assert_eq!(mapping.item_map.get("custom_func"), Some(&"custom_func".to_string()));
+        assert_eq!(
+            mapping.item_map.get("custom_func"),
+            Some(&"custom_func".to_string())
+        );
     }
 
     // ============================================================
@@ -591,8 +687,14 @@ def custom_func(x: int) -> int: ...
     fn test_type_mapping_config_generic_types() {
         let config = TypeMappingConfig::default();
 
-        assert_eq!(config.type_map.get("Any"), Some(&"serde_json::Value".to_string()));
-        assert_eq!(config.type_map.get("object"), Some(&"serde_json::Value".to_string()));
+        assert_eq!(
+            config.type_map.get("Any"),
+            Some(&"serde_json::Value".to_string())
+        );
+        assert_eq!(
+            config.type_map.get("object"),
+            Some(&"serde_json::Value".to_string())
+        );
     }
 
     #[test]
@@ -756,43 +858,136 @@ def custom_func(x: int) -> int: ...
     fn test_function_mapping_config_json() {
         let config = FunctionMappingConfig::default();
 
-        assert_eq!(config.func_map.get(&("json".to_string(), "loads".to_string())), Some(&"from_str".to_string()));
-        assert_eq!(config.func_map.get(&("json".to_string(), "dumps".to_string())), Some(&"to_string".to_string()));
-        assert_eq!(config.func_map.get(&("json".to_string(), "load".to_string())), Some(&"from_reader".to_string()));
-        assert_eq!(config.func_map.get(&("json".to_string(), "dump".to_string())), Some(&"to_writer".to_string()));
+        assert_eq!(
+            config
+                .func_map
+                .get(&("json".to_string(), "loads".to_string())),
+            Some(&"from_str".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("json".to_string(), "dumps".to_string())),
+            Some(&"to_string".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("json".to_string(), "load".to_string())),
+            Some(&"from_reader".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("json".to_string(), "dump".to_string())),
+            Some(&"to_writer".to_string())
+        );
     }
 
     #[test]
     fn test_function_mapping_config_os() {
         let config = FunctionMappingConfig::default();
 
-        assert_eq!(config.func_map.get(&("os".to_string(), "getcwd".to_string())), Some(&"env::current_dir".to_string()));
-        assert_eq!(config.func_map.get(&("os".to_string(), "getenv".to_string())), Some(&"env::var".to_string()));
-        assert_eq!(config.func_map.get(&("os".to_string(), "listdir".to_string())), Some(&"fs::read_dir".to_string()));
+        assert_eq!(
+            config
+                .func_map
+                .get(&("os".to_string(), "getcwd".to_string())),
+            Some(&"env::current_dir".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("os".to_string(), "getenv".to_string())),
+            Some(&"env::var".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("os".to_string(), "listdir".to_string())),
+            Some(&"fs::read_dir".to_string())
+        );
     }
 
     #[test]
     fn test_function_mapping_config_math() {
         let config = FunctionMappingConfig::default();
 
-        assert_eq!(config.func_map.get(&("math".to_string(), "sqrt".to_string())), Some(&"sqrt".to_string()));
-        assert_eq!(config.func_map.get(&("math".to_string(), "sin".to_string())), Some(&"sin".to_string()));
-        assert_eq!(config.func_map.get(&("math".to_string(), "cos".to_string())), Some(&"cos".to_string()));
-        assert_eq!(config.func_map.get(&("math".to_string(), "floor".to_string())), Some(&"floor".to_string()));
-        assert_eq!(config.func_map.get(&("math".to_string(), "ceil".to_string())), Some(&"ceil".to_string()));
-        assert_eq!(config.func_map.get(&("math".to_string(), "abs".to_string())), Some(&"abs".to_string()));
-        assert_eq!(config.func_map.get(&("math".to_string(), "pow".to_string())), Some(&"powf".to_string()));
+        assert_eq!(
+            config
+                .func_map
+                .get(&("math".to_string(), "sqrt".to_string())),
+            Some(&"sqrt".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("math".to_string(), "sin".to_string())),
+            Some(&"sin".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("math".to_string(), "cos".to_string())),
+            Some(&"cos".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("math".to_string(), "floor".to_string())),
+            Some(&"floor".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("math".to_string(), "ceil".to_string())),
+            Some(&"ceil".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("math".to_string(), "abs".to_string())),
+            Some(&"abs".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("math".to_string(), "pow".to_string())),
+            Some(&"powf".to_string())
+        );
     }
 
     #[test]
     fn test_function_mapping_config_re() {
         let config = FunctionMappingConfig::default();
 
-        assert_eq!(config.func_map.get(&("re".to_string(), "compile".to_string())), Some(&"Regex::new".to_string()));
-        assert_eq!(config.func_map.get(&("re".to_string(), "match".to_string())), Some(&"Regex::is_match".to_string()));
-        assert_eq!(config.func_map.get(&("re".to_string(), "search".to_string())), Some(&"Regex::find".to_string()));
-        assert_eq!(config.func_map.get(&("re".to_string(), "findall".to_string())), Some(&"Regex::find_iter".to_string()));
-        assert_eq!(config.func_map.get(&("re".to_string(), "sub".to_string())), Some(&"Regex::replace_all".to_string()));
+        assert_eq!(
+            config
+                .func_map
+                .get(&("re".to_string(), "compile".to_string())),
+            Some(&"Regex::new".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("re".to_string(), "match".to_string())),
+            Some(&"Regex::is_match".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("re".to_string(), "search".to_string())),
+            Some(&"Regex::find".to_string())
+        );
+        assert_eq!(
+            config
+                .func_map
+                .get(&("re".to_string(), "findall".to_string())),
+            Some(&"Regex::find_iter".to_string())
+        );
+        assert_eq!(
+            config.func_map.get(&("re".to_string(), "sub".to_string())),
+            Some(&"Regex::replace_all".to_string())
+        );
     }
 
     #[test]
@@ -980,11 +1175,12 @@ def __init__(self, x: int) -> None: ...
         let mut crate_config = CrateMappingConfig::default();
         crate_config.crate_map.insert(
             "custom".to_string(),
-            ("my_crate".to_string(), true, Some("2.0".to_string()))
+            ("my_crate".to_string(), true, Some("2.0".to_string())),
         );
         let func_config = FunctionMappingConfig::default();
 
-        let mapping = parse_pyi_with_config(content, "custom", &type_config, &crate_config, &func_config);
+        let mapping =
+            parse_pyi_with_config(content, "custom", &type_config, &crate_config, &func_config);
 
         assert_eq!(mapping.rust_path, "my_crate");
         assert!(mapping.is_external);
@@ -1007,11 +1203,26 @@ def sub(pattern: str, repl: str, string: str) -> str: ...
         assert!(mapping.is_external);
         assert_eq!(mapping.version, Some("1.10".to_string()));
 
-        assert_eq!(mapping.item_map.get("compile"), Some(&"Regex::new".to_string()));
-        assert_eq!(mapping.item_map.get("match"), Some(&"Regex::is_match".to_string()));
-        assert_eq!(mapping.item_map.get("search"), Some(&"Regex::find".to_string()));
-        assert_eq!(mapping.item_map.get("findall"), Some(&"Regex::find_iter".to_string()));
-        assert_eq!(mapping.item_map.get("sub"), Some(&"Regex::replace_all".to_string()));
+        assert_eq!(
+            mapping.item_map.get("compile"),
+            Some(&"Regex::new".to_string())
+        );
+        assert_eq!(
+            mapping.item_map.get("match"),
+            Some(&"Regex::is_match".to_string())
+        );
+        assert_eq!(
+            mapping.item_map.get("search"),
+            Some(&"Regex::find".to_string())
+        );
+        assert_eq!(
+            mapping.item_map.get("findall"),
+            Some(&"Regex::find_iter".to_string())
+        );
+        assert_eq!(
+            mapping.item_map.get("sub"),
+            Some(&"Regex::replace_all".to_string())
+        );
     }
 
     #[test]

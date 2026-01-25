@@ -19,47 +19,51 @@ pub mod automl_tuning;
 pub mod citl_fixer;
 pub mod classifier;
 pub mod corpus_citl;
-pub mod github_corpus;
-pub mod moe_oracle;
 pub mod data_store;
 pub mod depyler_training;
 pub mod estimator;
 pub mod features;
+pub mod github_corpus;
 pub mod hybrid;
+pub mod moe_oracle;
 // pub mod mlp_classifier; // TODO: GH-XXX - Implement GPU-accelerated MLP classifier
-pub mod ngram;
-pub mod params_persistence;
-pub mod patterns;
-pub mod self_supervised;
-pub mod synthetic;
-pub mod tfidf;
-pub mod hybrid_retrieval;
-pub mod hansei;
-pub mod training;
-pub mod oracle_lineage;  // Issue #212: OracleLineage using entrenar::monitor::ModelLineage
-pub mod tuning;
-pub mod unified_training;
-pub mod verificar_integration;
-pub mod query_loop;
+pub mod acceleration_pipeline;
+pub mod ast_embeddings; // Issue #210: Code2Vec-style AST embeddings
 pub mod corpus_extract;
 pub mod curriculum;
 pub mod distillation;
 pub mod error_patterns;
 pub mod gnn_encoder;
-pub mod ast_embeddings;  // Issue #210: Code2Vec-style AST embeddings
+pub mod graph_corpus;
+pub mod hansei;
+pub mod hybrid_retrieval;
+pub mod ngram;
+pub mod oip_export;
+pub mod oracle_lineage; // Issue #212: OracleLineage using entrenar::monitor::ModelLineage
+pub mod params_persistence;
+pub mod patterns;
+pub mod query_loop;
+pub mod self_supervised;
+pub mod synthetic;
 pub mod tarantula;
 pub mod tarantula_bridge;
 pub mod tarantula_corpus;
-pub mod oip_export;
-pub mod acceleration_pipeline;
-pub mod utol;  // UTOL-001: Unified Training Oracle Loop
-pub mod graph_corpus;  // DEPYLER-1303: Graph-aware corpus integration
+pub mod tfidf;
+pub mod training;
+pub mod tuning;
+pub mod unified_training;
+pub mod utol; // UTOL-001: Unified Training Oracle Loop
+pub mod verificar_integration; // DEPYLER-1303: Graph-aware corpus integration
 
 pub use autofixer::{AutoFixer, FixContext, FixResult, TransformRule};
 pub use automl_tuning::{automl_full, automl_optimize, automl_quick, AutoMLConfig, AutoMLResult};
 pub use citl_fixer::{CITLFixer, CITLFixerConfig, IterativeFixResult};
 pub use corpus_citl::{CorpusCITL, IngestionStats};
 pub use estimator::{message_to_features, samples_to_features, OracleEstimator};
+pub use graph_corpus::{
+    analyze_graph_corpus, build_graph_corpus, convert_to_training_samples,
+    load_vectorized_failures, GraphCorpusStats, VectorizedFailure,
+};
 pub use params_persistence::{
     default_params_path, load_params, params_exist, save_params, OptimizedParams,
 };
@@ -67,53 +71,50 @@ pub use synthetic::{
     generate_synthetic_corpus, generate_synthetic_corpus_sized, SyntheticConfig, SyntheticGenerator,
 };
 pub use tuning::{find_best_config, quick_tune, TuningConfig, TuningResult};
-pub use graph_corpus::{
-    build_graph_corpus, convert_to_training_samples, load_vectorized_failures,
-    analyze_graph_corpus, GraphCorpusStats, VectorizedFailure,
-};
 
 #[cfg(test)]
 mod proptests;
 
 pub use classifier::{ErrorCategory, ErrorClassifier};
 pub use features::ErrorFeatures;
-pub use hybrid::{
-    HybridConfig, HybridTranspiler, PatternComplexity, Strategy, TrainingDataCollector,
-    TranslationPair, TranspileError, TranspileResult, TranspileStats,
-};
-pub use ngram::{FixPattern, FixSuggestion, NgramFixPredictor};
-pub use patterns::{CodeTransform, FixTemplate, FixTemplateRegistry};
-pub use tfidf::{CombinedFeatureExtractor, TfidfConfig, TfidfFeatureExtractor};
-pub use hybrid_retrieval::{Bm25Scorer, HybridRetriever, RrfResult, reciprocal_rank_fusion};
 pub use hansei::{
     CategorySummary, HanseiConfig, HanseiReport, IssueSeverity, TranspileHanseiAnalyzer,
     TranspileIssue, TranspileOutcome, Trend,
 };
-pub use training::{TrainingDataset, TrainingSample};
-pub use oracle_lineage::OracleLineage;  // Issue #212: Model lineage tracking
+pub use hybrid::{
+    HybridConfig, HybridTranspiler, PatternComplexity, Strategy, TrainingDataCollector,
+    TranslationPair, TranspileError, TranspileResult, TranspileStats,
+};
+pub use hybrid_retrieval::{reciprocal_rank_fusion, Bm25Scorer, HybridRetriever, RrfResult};
+pub use ngram::{FixPattern, FixSuggestion, NgramFixPredictor};
+pub use oracle_lineage::OracleLineage;
+pub use patterns::{CodeTransform, FixTemplate, FixTemplateRegistry};
+pub use tfidf::{CombinedFeatureExtractor, TfidfConfig, TfidfFeatureExtractor};
+pub use training::{TrainingDataset, TrainingSample}; // Issue #212: Model lineage tracking
 
 // MoE Oracle exports
+pub use depyler_training::{
+    classify_with_moe, load_real_corpus, train_moe_on_real_corpus, train_moe_oracle,
+};
 pub use moe_oracle::{ExpertDomain, MoeClassificationResult, MoeOracle, MoeOracleConfig};
-pub use depyler_training::{classify_with_moe, load_real_corpus, train_moe_on_real_corpus, train_moe_oracle};
 
 // Oracle Query Loop exports (Issue #172)
 pub use query_loop::{
-    apply_simple_diff, auto_fix_loop, AutoFixResult, ErrorContext, OracleMetrics,
-    OracleQueryError, OracleQueryLoop, OracleSuggestion, OracleStats, ParseRustErrorCodeError,
-    QueryLoopConfig, RustErrorCode,
+    apply_simple_diff, auto_fix_loop, AutoFixResult, ErrorContext, OracleMetrics, OracleQueryError,
+    OracleQueryLoop, OracleStats, OracleSuggestion, ParseRustErrorCodeError, QueryLoopConfig,
+    RustErrorCode,
 };
 
 // GitHub corpus integration (via OIP)
 pub use github_corpus::{
-    build_github_corpus, convert_oip_to_depyler, load_oip_training_data,
-    OipDefectCategory, OipTrainingDataset, OipTrainingExample,
-    analyze_corpus, get_moe_samples_from_oip, CorpusStats,
+    analyze_corpus, build_github_corpus, convert_oip_to_depyler, get_moe_samples_from_oip,
+    load_oip_training_data, CorpusStats, OipDefectCategory, OipTrainingDataset, OipTrainingExample,
 };
 
 // Unified training pipeline
 pub use unified_training::{
-    build_unified_corpus, build_default_unified_corpus, build_unified_corpus_with_oip,
-    print_merge_stats, UnifiedTrainingConfig, UnifiedTrainingResult, MergeStats,
+    build_default_unified_corpus, build_unified_corpus, build_unified_corpus_with_oip,
+    print_merge_stats, MergeStats, UnifiedTrainingConfig, UnifiedTrainingResult,
 };
 
 // Tarantula fault localization (Strategy #1 - DEPYLER-0631)
@@ -123,51 +124,47 @@ pub use tarantula::{
 };
 
 // Tarantula corpus analysis for batch processing
-pub use tarantula_corpus::{
-    CorpusAnalysisReport, CorpusAnalyzer, TranspilationResult,
-};
+pub use tarantula_corpus::{CorpusAnalysisReport, CorpusAnalyzer, TranspilationResult};
 
 // Tarantula bridge for depyler-core decision trace integration
 pub use tarantula_bridge::{
-    category_to_decision, decision_to_record, decisions_to_records,
-    infer_decisions_from_error, synthetic_decisions_from_errors,
+    category_to_decision, decision_to_record, decisions_to_records, infer_decisions_from_error,
+    synthetic_decisions_from_errors,
 };
 
 // Error Pattern Library (Strategy #2 - DEPYLER-0632)
 pub use error_patterns::{
-    CorpusEntry, ErrorPattern, ErrorPatternConfig, ErrorPatternLibrary,
-    ErrorPatternStats, GoldenTraceEntry,
+    CorpusEntry, ErrorPattern, ErrorPatternConfig, ErrorPatternLibrary, ErrorPatternStats,
+    GoldenTraceEntry,
 };
 
 // Curriculum Learning (Strategy #3 - DEPYLER-0633)
 pub use curriculum::{
-    classify_error_difficulty, classify_from_category, CurriculumEntry,
-    CurriculumScheduler, CurriculumStats, DifficultyLevel,
+    classify_error_difficulty, classify_from_category, CurriculumEntry, CurriculumScheduler,
+    CurriculumStats, DifficultyLevel,
 };
 
 // Knowledge Distillation (Strategy #4 - DEPYLER-0634)
 pub use distillation::{
-    DistillationConfig, DistillationStats, ExtractedPattern,
-    KnowledgeDistiller, LlmFixExample,
+    DistillationConfig, DistillationStats, ExtractedPattern, KnowledgeDistiller, LlmFixExample,
 };
 
 // GNN Error Encoder (Strategy #5 - DEPYLER-0635)
 pub use gnn_encoder::{
-    DepylerGnnEncoder, GnnEncoderConfig, GnnEncoderStats,
-    SimilarPattern, StructuralPattern, infer_decision_from_match,
-    map_error_category,
+    infer_decision_from_match, map_error_category, DepylerGnnEncoder, GnnEncoderConfig,
+    GnnEncoderStats, SimilarPattern, StructuralPattern,
 };
 
 // AST Embeddings (Issue #210 - Code2Vec-style embeddings)
 pub use ast_embeddings::{
-    AstEmbedder, AstEmbedding, AstEmbeddingConfig, CombinedEmbeddingExtractor,
-    CombinedFeatures, PathContext,
+    AstEmbedder, AstEmbedding, AstEmbeddingConfig, CombinedEmbeddingExtractor, CombinedFeatures,
+    PathContext,
 };
 
 // OIP CITL Export (Strategy #6 - DEPYLER-0636)
 pub use oip_export::{
-    BatchExporter, DepylerExport, ErrorCodeClass, ExportStats,
-    SpanInfo, SuggestionInfo, export_to_jsonl,
+    export_to_jsonl, BatchExporter, DepylerExport, ErrorCodeClass, ExportStats, SpanInfo,
+    SuggestionInfo,
 };
 
 // Acceleration Pipeline (DEPYLER-0637) - Unified strategy integration
@@ -395,7 +392,10 @@ impl Oracle {
 
         // Save model for next time
         if let Err(e) = oracle.save(&model_path) {
-            eprintln!("Warning: Failed to cache model to {}: {e}", model_path.display());
+            eprintln!(
+                "Warning: Failed to cache model to {}: {e}",
+                model_path.display()
+            );
         }
 
         // Record training in lineage (Issue #212)
@@ -422,8 +422,7 @@ impl Oracle {
         } else {
             eprintln!(
                 "📊 Oracle: Training complete ({} samples), lineage recorded as {}",
-                sample_count,
-                model_id
+                sample_count, model_id
             );
         }
 
@@ -734,31 +733,24 @@ impl Oracle {
         gnn_encoder: &mut DepylerGnnEncoder,
     ) -> EnhancedClassificationResult {
         // 1. Get base classification using Random Forest
-        let base_result = self.classify_message(error_message)
-            .unwrap_or_else(|_| ClassificationResult {
-                category: ErrorCategory::Other,
-                confidence: 0.5,
-                suggested_fix: None,
-                related_patterns: vec![],
-            });
+        let base_result =
+            self.classify_message(error_message)
+                .unwrap_or_else(|_| ClassificationResult {
+                    category: ErrorCategory::Other,
+                    confidence: 0.5,
+                    suggested_fix: None,
+                    related_patterns: vec![],
+                });
 
         // 2. Extract enhanced 73-dim features
         let enhanced_features = features::EnhancedErrorFeatures::from_error_message(error_message);
 
         // 3. Get GNN structural similarity matches (HNSW O(log n))
-        let similar_patterns = gnn_encoder.find_similar(
-            error_code,
-            error_message,
-            rust_source,
-        );
+        let similar_patterns = gnn_encoder.find_similar(error_code, error_message, rust_source);
 
         // 4. Get combined embedding for downstream use
-        let combined_embedding = gnn_encoder.encode_combined(
-            error_code,
-            error_message,
-            python_source,
-            rust_source,
-        );
+        let combined_embedding =
+            gnn_encoder.encode_combined(error_code, error_message, python_source, rust_source);
 
         // 5. Compute enhanced confidence
         // Boost confidence if we found structurally similar patterns
@@ -773,7 +765,10 @@ impl Oracle {
         let pattern_fixes: Vec<String> = similar_patterns
             .iter()
             .filter_map(|sp| {
-                sp.pattern.error_pattern.as_ref().map(|ep| ep.fix_diff.clone())
+                sp.pattern
+                    .error_pattern
+                    .as_ref()
+                    .map(|ep| ep.fix_diff.clone())
             })
             .filter(|fix| !fix.is_empty())
             .take(3)
@@ -838,10 +833,22 @@ pub fn print_drift_status(stats: &DriftStats, status: &DriftStatus) {
     println!("│            Drift Detection Status                   │");
     println!("├─────────────────────────────────────────────────────┤");
     println!("│  Status: {:^40} │", status_indicator);
-    println!("│  Samples: {:>8}                                 │", stats.n_samples);
-    println!("│  Error Rate: {:>6.2}%                               │", stats.error_rate * 100.0);
-    println!("│  Min Error Rate: {:>6.2}%                           │", stats.min_error_rate * 100.0);
-    println!("│  Std Dev: {:>8.4}                                 │", stats.std_dev);
+    println!(
+        "│  Samples: {:>8}                                 │",
+        stats.n_samples
+    );
+    println!(
+        "│  Error Rate: {:>6.2}%                               │",
+        stats.error_rate * 100.0
+    );
+    println!(
+        "│  Min Error Rate: {:>6.2}%                           │",
+        stats.min_error_rate * 100.0
+    );
+    println!(
+        "│  Std Dev: {:>8.4}                                 │",
+        stats.std_dev
+    );
     println!("╰─────────────────────────────────────────────────────╯");
 }
 
@@ -858,15 +865,40 @@ pub fn print_retrain_status(stats: &RetrainStats) {
     println!("╭─────────────────────────────────────────────────────╮");
     println!("│            Retrain Trigger Status                   │");
     println!("├─────────────────────────────────────────────────────┤");
-    println!("│  {} Drift Status: {:?}                           │", status_indicator, stats.drift_status);
-    println!("│  Predictions: {:>8}                              │", stats.predictions_observed);
-    println!("│  Correct:     {:>8}                              │", stats.correct_predictions);
-    println!("│  Errors:      {:>8}                              │", stats.errors);
-    println!("│  Consecutive: {:>8}                              │", stats.consecutive_errors);
-    println!("│  Drift Count: {:>8}                              │", stats.drift_count);
+    println!(
+        "│  {} Drift Status: {:?}                           │",
+        status_indicator, stats.drift_status
+    );
+    println!(
+        "│  Predictions: {:>8}                              │",
+        stats.predictions_observed
+    );
+    println!(
+        "│  Correct:     {:>8}                              │",
+        stats.correct_predictions
+    );
+    println!(
+        "│  Errors:      {:>8}                              │",
+        stats.errors
+    );
+    println!(
+        "│  Consecutive: {:>8}                              │",
+        stats.consecutive_errors
+    );
+    println!(
+        "│  Drift Count: {:>8}                              │",
+        stats.drift_count
+    );
     println!("├─────────────────────────────────────────────────────┤");
-    println!("│  Accuracy: {:>6.2}% {}                    │", stats.accuracy() * 100.0, accuracy_bar);
-    println!("│  Error Rate: {:>6.2}%                               │", stats.error_rate() * 100.0);
+    println!(
+        "│  Accuracy: {:>6.2}% {}                    │",
+        stats.accuracy() * 100.0,
+        accuracy_bar
+    );
+    println!(
+        "│  Error Rate: {:>6.2}%                               │",
+        stats.error_rate() * 100.0
+    );
     println!("╰─────────────────────────────────────────────────────╯");
 }
 
@@ -875,13 +907,29 @@ pub fn print_lineage_history(lineage: &OracleLineage) {
     println!("╭─────────────────────────────────────────────────────╮");
     println!("│            Model Lineage History                    │");
     println!("├─────────────────────────────────────────────────────┤");
-    println!("│  Total Models: {:>6}                               │", lineage.model_count());
+    println!(
+        "│  Total Models: {:>6}                               │",
+        lineage.model_count()
+    );
 
     if let Some(latest) = lineage.latest_model() {
-        let commit_sha = latest.tags.get("commit_sha").map(|s| &s[..8.min(s.len())]).unwrap_or("unknown");
-        println!("│  Latest Model: {}                     │", latest.model_id.chars().take(30).collect::<String>());
-        println!("│  Version: {}                              │", latest.version);
-        println!("│  Accuracy: {:>6.2}%                                 │", latest.accuracy * 100.0);
+        let commit_sha = latest
+            .tags
+            .get("commit_sha")
+            .map(|s| &s[..8.min(s.len())])
+            .unwrap_or("unknown");
+        println!(
+            "│  Latest Model: {}                     │",
+            latest.model_id.chars().take(30).collect::<String>()
+        );
+        println!(
+            "│  Version: {}                              │",
+            latest.version
+        );
+        println!(
+            "│  Accuracy: {:>6.2}%                                 │",
+            latest.accuracy * 100.0
+        );
         println!("│  Commit: {}                                │", commit_sha);
     }
 
@@ -889,21 +937,38 @@ pub fn print_lineage_history(lineage: &OracleLineage) {
     if let Some((reason, delta)) = lineage.find_regression() {
         let indicator = if delta < 0.0 { "🔴" } else { "🟢" };
         println!("├─────────────────────────────────────────────────────┤");
-        println!("│  {} Regression: {:+.2}%                             │", indicator, delta * 100.0);
-        println!("│  Reason: {:40} │", reason.chars().take(40).collect::<String>());
+        println!(
+            "│  {} Regression: {:+.2}%                             │",
+            indicator,
+            delta * 100.0
+        );
+        println!(
+            "│  Reason: {:40} │",
+            reason.chars().take(40).collect::<String>()
+        );
     }
 
     // Show lineage chain
     let chain = lineage.get_lineage_chain();
     if !chain.is_empty() {
         println!("├─────────────────────────────────────────────────────┤");
-        println!("│  Lineage Chain ({} models):                        │", chain.len());
+        println!(
+            "│  Lineage Chain ({} models):                        │",
+            chain.len()
+        );
         for (i, model_id) in chain.iter().take(5).enumerate() {
             let arrow = if i == 0 { "└" } else { "├" };
-            println!("│    {} {}               │", arrow, model_id.chars().take(35).collect::<String>());
+            println!(
+                "│    {} {}               │",
+                arrow,
+                model_id.chars().take(35).collect::<String>()
+            );
         }
         if chain.len() > 5 {
-            println!("│    ... and {} more                               │", chain.len() - 5);
+            println!(
+                "│    ... and {} more                               │",
+                chain.len() - 5
+            );
         }
     }
 
@@ -1153,7 +1218,11 @@ mod tests {
         let lineage_path = temp_dir.path().join(".depyler").join("oracle_lineage.json");
 
         let lineage = OracleLineage::load(&lineage_path).expect("load should not error");
-        assert_eq!(lineage.model_count(), 0, "No lineage file should return empty lineage");
+        assert_eq!(
+            lineage.model_count(),
+            0,
+            "No lineage file should return empty lineage"
+        );
 
         // Empty lineage should need retraining
         assert!(
@@ -1229,16 +1298,21 @@ mod tests {
         lineage.save(&lineage_path).expect("save should work");
 
         // Verify it was saved
-        assert!(lineage_path.exists(), "Lineage file should exist after save");
+        assert!(
+            lineage_path.exists(),
+            "Lineage file should exist after save"
+        );
 
         // Load and verify
-        let loaded = OracleLineage::load(&lineage_path)
-            .expect("load should work");
+        let loaded = OracleLineage::load(&lineage_path).expect("load should work");
         assert_eq!(loaded.model_count(), 1);
 
         // Verify latest model has correct metadata
         let latest = loaded.latest_model().expect("should have model");
-        assert_eq!(latest.tags.get("commit_sha"), Some(&"test_sha_12345".to_string()));
+        assert_eq!(
+            latest.tags.get("commit_sha"),
+            Some(&"test_sha_12345".to_string())
+        );
         assert_eq!(latest.config_hash, "test_hash_67890");
         assert_eq!(latest.tags.get("sample_count"), Some(&"500".to_string()));
     }
@@ -1283,7 +1357,10 @@ mod tests {
             );
         }
 
-        assert!(!oracle.needs_retraining(), "Should not need retraining with all correct");
+        assert!(
+            !oracle.needs_retraining(),
+            "Should not need retraining with all correct"
+        );
     }
 
     #[test]
@@ -1537,7 +1614,10 @@ mod tests {
         let class_err = OracleError::Classification("class error".to_string());
         assert!(class_err.to_string().contains("Classification error"));
 
-        let io_err = OracleError::Io(std::io::Error::new(std::io::ErrorKind::NotFound, "not found"));
+        let io_err = OracleError::Io(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            "not found",
+        ));
         assert!(io_err.to_string().contains("IO error"));
     }
 
@@ -1733,11 +1813,8 @@ mod tests {
         });
 
         // Index a sample pattern
-        let pattern = error_patterns::ErrorPattern::new(
-            "E0308",
-            "mismatched types",
-            "+let x: i32 = 42;",
-        );
+        let pattern =
+            error_patterns::ErrorPattern::new("E0308", "mismatched types", "+let x: i32 = 42;");
         gnn_encoder.index_pattern(&pattern, "let x: i32 = \"hello\";");
 
         let result = oracle.classify_enhanced(
@@ -1760,11 +1837,7 @@ mod tests {
         let mut gnn_encoder = DepylerGnnEncoder::with_defaults();
 
         // Index pattern to enable HNSW
-        let pattern = error_patterns::ErrorPattern::new(
-            "E0308",
-            "type mismatch",
-            "+fix",
-        );
+        let pattern = error_patterns::ErrorPattern::new("E0308", "type mismatch", "+fix");
         gnn_encoder.index_pattern(&pattern, "source");
 
         let result = oracle.classify_enhanced(
@@ -1775,7 +1848,10 @@ mod tests {
             &mut gnn_encoder,
         );
 
-        assert!(result.hnsw_used, "HNSW should be used when patterns are indexed");
+        assert!(
+            result.hnsw_used,
+            "HNSW should be used when patterns are indexed"
+        );
     }
 
     #[test]

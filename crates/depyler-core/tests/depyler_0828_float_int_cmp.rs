@@ -91,7 +91,11 @@ def test_ne(x: float, y: int) -> bool:
 "#;
 
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Should transpile all comparisons: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Should transpile all comparisons: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 

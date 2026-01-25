@@ -334,7 +334,10 @@ fn test_DEPYLER_0903_registry_module_count() {
 
 #[test]
 fn test_DEPYLER_0903_confidence_levels() {
-    assert_eq!(MappingConfidence::default(), MappingConfidence::Experimental);
+    assert_eq!(
+        MappingConfidence::default(),
+        MappingConfidence::Experimental
+    );
 
     let verified = MappingConfidence::Verified;
     let community = MappingConfidence::Community;

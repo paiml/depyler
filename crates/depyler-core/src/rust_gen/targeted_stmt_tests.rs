@@ -7,7 +7,9 @@ use crate::DepylerPipeline;
 #[allow(dead_code)]
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).expect("transpilation should succeed")
+    pipeline
+        .transpile(code)
+        .expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -21,12 +23,16 @@ fn transpile_ok(code: &str) -> bool {
 
 #[test]
 fn test_if_is_none_check() {
-    assert!(transpile_ok("def foo(x):\n    if x is None:\n        return 0\n    return x"));
+    assert!(transpile_ok(
+        "def foo(x):\n    if x is None:\n        return 0\n    return x"
+    ));
 }
 
 #[test]
 fn test_if_is_not_none_check() {
-    assert!(transpile_ok("def foo(x):\n    if x is not None:\n        return x\n    return 0"));
+    assert!(transpile_ok(
+        "def foo(x):\n    if x is not None:\n        return x\n    return 0"
+    ));
 }
 
 #[test]
@@ -113,17 +119,23 @@ fn test_while_counter() {
 
 #[test]
 fn test_assign_dict_index() {
-    assert!(transpile_ok("def foo(d: dict[str, int]):\n    d['new_key'] = 42"));
+    assert!(transpile_ok(
+        "def foo(d: dict[str, int]):\n    d['new_key'] = 42"
+    ));
 }
 
 #[test]
 fn test_assign_nested_dict_index() {
-    assert!(transpile_ok("def foo(d: dict[str, dict[str, int]]):\n    d['outer']['inner'] = 42"));
+    assert!(transpile_ok(
+        "def foo(d: dict[str, dict[str, int]]):\n    d['outer']['inner'] = 42"
+    ));
 }
 
 #[test]
 fn test_assign_list_slice() {
-    assert!(transpile_ok("def foo(items: list[int]):\n    items[1:3] = [10, 20]"));
+    assert!(transpile_ok(
+        "def foo(items: list[int]):\n    items[1:3] = [10, 20]"
+    ));
 }
 
 #[test]
@@ -133,7 +145,9 @@ fn test_assign_multiple_targets() {
 
 #[test]
 fn test_assign_from_function() {
-    assert!(transpile_ok("def bar() -> int:\n    return 42\n\ndef foo():\n    x = bar()"));
+    assert!(transpile_ok(
+        "def bar() -> int:\n    return 42\n\ndef foo():\n    x = bar()"
+    ));
 }
 
 #[test]
@@ -143,17 +157,23 @@ fn test_assign_from_method() {
 
 #[test]
 fn test_assign_from_list_comprehension() {
-    assert!(transpile_ok("def foo(items: list[int]):\n    doubled = [x * 2 for x in items]"));
+    assert!(transpile_ok(
+        "def foo(items: list[int]):\n    doubled = [x * 2 for x in items]"
+    ));
 }
 
 #[test]
 fn test_assign_from_dict_comprehension() {
-    assert!(transpile_ok("def foo(items: list[str]):\n    mapping = {item: len(item) for item in items}"));
+    assert!(transpile_ok(
+        "def foo(items: list[str]):\n    mapping = {item: len(item) for item in items}"
+    ));
 }
 
 #[test]
 fn test_assign_from_generator() {
-    assert!(transpile_ok("def foo(items: list[int]):\n    total = sum(x for x in items if x > 0)"));
+    assert!(transpile_ok(
+        "def foo(items: list[int]):\n    total = sum(x for x in items if x > 0)"
+    ));
 }
 
 // ============================================================================
@@ -220,12 +240,16 @@ fn test_return_none_explicit() {
 
 #[test]
 fn test_return_conditional_expr() {
-    assert!(transpile_ok("def foo(x: int) -> str:\n    return 'positive' if x > 0 else 'non-positive'"));
+    assert!(transpile_ok(
+        "def foo(x: int) -> str:\n    return 'positive' if x > 0 else 'non-positive'"
+    ));
 }
 
 #[test]
 fn test_return_complex_expr() {
-    assert!(transpile_ok("def foo(x: int, y: int) -> int:\n    return (x + y) * 2 - 1"));
+    assert!(transpile_ok(
+        "def foo(x: int, y: int) -> int:\n    return (x + y) * 2 - 1"
+    ));
 }
 
 // ============================================================================
@@ -239,7 +263,9 @@ fn test_expr_stmt_method_call() {
 
 #[test]
 fn test_expr_stmt_function_call() {
-    assert!(transpile_ok("def bar():\n    pass\n\ndef foo():\n    bar()"));
+    assert!(transpile_ok(
+        "def bar():\n    pass\n\ndef foo():\n    bar()"
+    ));
 }
 
 #[test]
@@ -258,7 +284,9 @@ fn test_raise_exception_with_args() {
 
 #[test]
 fn test_raise_custom_exception() {
-    let _ = transpile_ok("class CustomError(Exception):\n    pass\n\ndef foo():\n    raise CustomError('custom')");
+    let _ = transpile_ok(
+        "class CustomError(Exception):\n    pass\n\ndef foo():\n    raise CustomError('custom')",
+    );
 }
 
 // ============================================================================
@@ -267,7 +295,9 @@ fn test_raise_custom_exception() {
 
 #[test]
 fn test_del_from_dict() {
-    assert!(transpile_ok("def foo(d: dict[str, int]):\n    if 'key' in d:\n        del d['key']"));
+    assert!(transpile_ok(
+        "def foo(d: dict[str, int]):\n    if 'key' in d:\n        del d['key']"
+    ));
 }
 
 #[test]
@@ -281,12 +311,16 @@ fn test_del_from_list_slice() {
 
 #[test]
 fn test_assert_comparison() {
-    assert!(transpile_ok("def foo(x: int, y: int):\n    assert x == y, f'Expected {x} == {y}'"));
+    assert!(transpile_ok(
+        "def foo(x: int, y: int):\n    assert x == y, f'Expected {x} == {y}'"
+    ));
 }
 
 #[test]
 fn test_assert_membership() {
-    assert!(transpile_ok("def foo(item: int, items: list[int]):\n    assert item in items, f'{item} not found'"));
+    assert!(transpile_ok(
+        "def foo(item: int, items: list[int]):\n    assert item in items, f'{item} not found'"
+    ));
 }
 
 // ============================================================================
@@ -295,7 +329,9 @@ fn test_assert_membership() {
 
 #[test]
 fn test_augassign_dict_value() {
-    assert!(transpile_ok("def foo(d: dict[str, int]):\n    d['count'] = d.get('count', 0) + 1"));
+    assert!(transpile_ok(
+        "def foo(d: dict[str, int]):\n    d['count'] = d.get('count', 0) + 1"
+    ));
 }
 
 #[test]
@@ -309,12 +345,16 @@ fn test_augassign_nested_attr() {
 
 #[test]
 fn test_pass_in_except() {
-    assert!(transpile_ok("def foo():\n    try:\n        x = 1\n    except:\n        pass"));
+    assert!(transpile_ok(
+        "def foo():\n    try:\n        x = 1\n    except:\n        pass"
+    ));
 }
 
 #[test]
 fn test_pass_in_else() {
-    assert!(transpile_ok("def foo(x: int):\n    if x > 0:\n        print('positive')\n    else:\n        pass"));
+    assert!(transpile_ok(
+        "def foo(x: int):\n    if x > 0:\n        print('positive')\n    else:\n        pass"
+    ));
 }
 
 // ============================================================================
@@ -337,7 +377,9 @@ fn test_continue_in_nested_if() {
 
 #[test]
 fn test_import_as() {
-    assert!(transpile_ok("import os as operating_system\n\ndef foo() -> str:\n    return operating_system.getcwd()"));
+    assert!(transpile_ok(
+        "import os as operating_system\n\ndef foo() -> str:\n    return operating_system.getcwd()"
+    ));
 }
 
 #[test]
@@ -347,7 +389,9 @@ fn test_from_import_as() {
 
 #[test]
 fn test_import_multiple() {
-    assert!(transpile_ok("import os, sys\n\ndef foo() -> list[str]:\n    return sys.argv"));
+    assert!(transpile_ok(
+        "import os, sys\n\ndef foo() -> list[str]:\n    return sys.argv"
+    ));
 }
 
 // ============================================================================
@@ -356,7 +400,9 @@ fn test_import_multiple() {
 
 #[test]
 fn test_global_in_function() {
-    assert!(transpile_ok("counter = 0\n\ndef increment():\n    global counter\n    counter += 1\n    return counter"));
+    assert!(transpile_ok(
+        "counter = 0\n\ndef increment():\n    global counter\n    counter += 1\n    return counter"
+    ));
 }
 
 #[test]
@@ -370,7 +416,9 @@ fn test_nonlocal_in_nested() {
 
 #[test]
 fn test_class_with_classvar() {
-    assert!(transpile_ok("class Counter:\n    count: int = 0\n    def increment(self):\n        self.count += 1"));
+    assert!(transpile_ok(
+        "class Counter:\n    count: int = 0\n    def increment(self):\n        self.count += 1"
+    ));
 }
 
 #[test]
@@ -384,12 +432,16 @@ fn test_class_with_property_setter() {
 
 #[test]
 fn test_async_with() {
-    assert!(transpile_ok("async def foo():\n    async with open('file.txt') as f:\n        pass"));
+    assert!(transpile_ok(
+        "async def foo():\n    async with open('file.txt') as f:\n        pass"
+    ));
 }
 
 #[test]
 fn test_async_for() {
-    assert!(transpile_ok("async def foo(items):\n    async for item in items:\n        print(item)"));
+    assert!(transpile_ok(
+        "async def foo(items):\n    async for item in items:\n        print(item)"
+    ));
 }
 
 // ============================================================================
@@ -398,7 +450,9 @@ fn test_async_for() {
 
 #[test]
 fn test_yield_with_value() {
-    assert!(transpile_ok("def gen(n: int):\n    for i in range(n):\n        yield i * 2"));
+    assert!(transpile_ok(
+        "def gen(n: int):\n    for i in range(n):\n        yield i * 2"
+    ));
 }
 
 #[test]
@@ -408,7 +462,9 @@ fn test_yield_from_list() {
 
 #[test]
 fn test_yield_from_generator() {
-    assert!(transpile_ok("def inner():\n    yield 1\n    yield 2\n\ndef outer():\n    yield from inner()"));
+    assert!(transpile_ok(
+        "def inner():\n    yield 1\n    yield 2\n\ndef outer():\n    yield from inner()"
+    ));
 }
 
 // ============================================================================
@@ -441,7 +497,9 @@ fn test_mutual_recursion() {
 
 #[test]
 fn test_function_with_docstring() {
-    assert!(transpile_ok("def foo(x: int) -> int:\n    \"\"\"Returns double of x.\"\"\"\n    return x * 2"));
+    assert!(transpile_ok(
+        "def foo(x: int) -> int:\n    \"\"\"Returns double of x.\"\"\"\n    return x * 2"
+    ));
 }
 
 // ============================================================================
@@ -455,12 +513,16 @@ fn test_infer_list_type_from_append() {
 
 #[test]
 fn test_infer_dict_type_from_assignment() {
-    assert!(transpile_ok("def foo() -> dict[str, int]:\n    d = {}\n    d['a'] = 1\n    d['b'] = 2\n    return d"));
+    assert!(transpile_ok(
+        "def foo() -> dict[str, int]:\n    d = {}\n    d['a'] = 1\n    d['b'] = 2\n    return d"
+    ));
 }
 
 #[test]
 fn test_infer_type_from_binary_op() {
-    assert!(transpile_ok("def foo(a: int, b: int):\n    result = a + b\n    return result"));
+    assert!(transpile_ok(
+        "def foo(a: int, b: int):\n    result = a + b\n    return result"
+    ));
 }
 
 // ============================================================================
@@ -498,7 +560,9 @@ fn test_early_return_on_error() {
 
 #[test]
 fn test_default_value_pattern() {
-    assert!(transpile_ok("def foo(d: dict[str, int], key: str) -> int:\n    return d.get(key, 0)"));
+    assert!(transpile_ok(
+        "def foo(d: dict[str, int], key: str) -> int:\n    return d.get(key, 0)"
+    ));
 }
 
 // ============================================================================
@@ -526,17 +590,23 @@ fn test_set_operations_chained() {
 
 #[test]
 fn test_string_split_join() {
-    assert!(transpile_ok("def foo(s: str) -> str:\n    parts = s.split(',')\n    return '-'.join(parts)"));
+    assert!(transpile_ok(
+        "def foo(s: str) -> str:\n    parts = s.split(',')\n    return '-'.join(parts)"
+    ));
 }
 
 #[test]
 fn test_string_strip_split() {
-    assert!(transpile_ok("def foo(line: str) -> list[str]:\n    return line.strip().split()"));
+    assert!(transpile_ok(
+        "def foo(line: str) -> list[str]:\n    return line.strip().split()"
+    ));
 }
 
 #[test]
 fn test_string_format_multiple() {
-    assert!(transpile_ok("def foo(name: str, age: int) -> str:\n    return f'{name} is {age} years old'"));
+    assert!(transpile_ok(
+        "def foo(name: str, age: int) -> str:\n    return f'{name} is {age} years old'"
+    ));
 }
 
 // ============================================================================
@@ -550,10 +620,14 @@ fn test_math_operations() {
 
 #[test]
 fn test_integer_division() {
-    assert!(transpile_ok("def foo(a: int, b: int) -> tuple[int, int]:\n    return a // b, a % b"));
+    assert!(transpile_ok(
+        "def foo(a: int, b: int) -> tuple[int, int]:\n    return a // b, a % b"
+    ));
 }
 
 #[test]
 fn test_power_operation() {
-    assert!(transpile_ok("def foo(base: float, exp: int) -> float:\n    return base ** exp"));
+    assert!(transpile_ok(
+        "def foo(base: float, exp: int) -> float:\n    return base ** exp"
+    ));
 }

@@ -528,10 +528,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_chain_two() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("a".to_string()),
-            HirExpr::Var("b".to_string()),
-        ];
+        let args = vec![HirExpr::Var("a".to_string()), HirExpr::Var("b".to_string())];
         let result = convert_itertools_method("chain", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -893,10 +890,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_product() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("a".to_string()),
-            HirExpr::Var("b".to_string()),
-        ];
+        let args = vec![HirExpr::Var("a".to_string()), HirExpr::Var("b".to_string())];
         let result = convert_itertools_method("product", &args, &mut ctx);
         assert!(result.is_ok());
         assert!(ctx.needs_itertools);
@@ -919,10 +913,7 @@ mod tests {
     fn test_convert_product_sets_needs_itertools() {
         let mut ctx = CodeGenContext::default();
         assert!(!ctx.needs_itertools);
-        let args = vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Var("y".to_string()),
-        ];
+        let args = vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())];
         let _ = convert_itertools_method("product", &args, &mut ctx);
         assert!(ctx.needs_itertools);
     }
@@ -1073,10 +1064,7 @@ mod tests {
     #[test]
     fn test_convert_itertools_zip_longest() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![
-            HirExpr::Var("a".to_string()),
-            HirExpr::Var("b".to_string()),
-        ];
+        let args = vec![HirExpr::Var("a".to_string()), HirExpr::Var("b".to_string())];
         let result = convert_itertools_method("zip_longest", &args, &mut ctx);
         assert!(result.is_ok());
         assert!(ctx.needs_itertools);
@@ -1099,10 +1087,7 @@ mod tests {
     fn test_convert_zip_longest_sets_needs_itertools() {
         let mut ctx = CodeGenContext::default();
         assert!(!ctx.needs_itertools);
-        let args = vec![
-            HirExpr::Var("x".to_string()),
-            HirExpr::Var("y".to_string()),
-        ];
+        let args = vec![HirExpr::Var("x".to_string()), HirExpr::Var("y".to_string())];
         let _ = convert_itertools_method("zip_longest", &args, &mut ctx);
         assert!(ctx.needs_itertools);
     }

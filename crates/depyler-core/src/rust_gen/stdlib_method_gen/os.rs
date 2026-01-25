@@ -128,7 +128,9 @@ fn convert_getcwd(arg_exprs: &[syn::Expr], ctx: &CodeGenContext) -> Result<syn::
     if ctx.current_function_can_fail {
         Ok(parse_quote! { std::env::current_dir()?.to_string_lossy().to_string() })
     } else {
-        Ok(parse_quote! { std::env::current_dir().expect("Failed to get current directory").to_string_lossy().to_string() })
+        Ok(
+            parse_quote! { std::env::current_dir().expect("Failed to get current directory").to_string_lossy().to_string() },
+        )
     }
 }
 
@@ -292,7 +294,9 @@ mod tests {
     #[test]
     fn test_convert_os_unlink_basic() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::String("/tmp/file.txt".to_string()))];
+        let args = vec![HirExpr::Literal(Literal::String(
+            "/tmp/file.txt".to_string(),
+        ))];
         let result = convert_os_method("unlink", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();
@@ -303,7 +307,9 @@ mod tests {
     #[test]
     fn test_convert_os_remove_basic() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::String("/tmp/file.txt".to_string()))];
+        let args = vec![HirExpr::Literal(Literal::String(
+            "/tmp/file.txt".to_string(),
+        ))];
         let result = convert_os_method("remove", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();

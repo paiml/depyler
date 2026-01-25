@@ -298,7 +298,12 @@ mod tests {
         annotations.string_strategy = StringStrategy::Conservative;
         annotations.ownership_model = OwnershipModel::Borrowed;
         let result = mapper.map_type_with_annotations(&PythonType::String, &annotations);
-        assert_eq!(result, RustType::Str { lifetime: Some("'a".to_string()) });
+        assert_eq!(
+            result,
+            RustType::Str {
+                lifetime: Some("'a".to_string())
+            }
+        );
     }
 
     #[test]
@@ -331,7 +336,10 @@ mod tests {
         let annotations = create_test_annotations();
         let list_type = PythonType::List(Box::new(PythonType::Unknown));
         let result = mapper.map_type_with_annotations(&list_type, &annotations);
-        assert_eq!(result, RustType::Vec(Box::new(RustType::Custom("DepylerValue".to_string()))));
+        assert_eq!(
+            result,
+            RustType::Vec(Box::new(RustType::Custom("DepylerValue".to_string())))
+        );
     }
 
     // === Dict ownership tests ===
@@ -344,11 +352,18 @@ mod tests {
         let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Int));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
         match result {
-            RustType::Reference { lifetime, mutable, inner } => {
+            RustType::Reference {
+                lifetime,
+                mutable,
+                inner,
+            } => {
                 assert_eq!(lifetime, Some("'a".to_string()));
                 assert!(!mutable);
                 // String is mapped to &'a str when borrowed
-                assert_eq!(*inner, RustType::Custom("HashMap<&'a str, i32>".to_string()));
+                assert_eq!(
+                    *inner,
+                    RustType::Custom("HashMap<&'a str, i32>".to_string())
+                );
             }
             _ => panic!("Expected reference type"),
         }
@@ -362,7 +377,10 @@ mod tests {
         annotations.thread_safety = ThreadSafety::NotRequired;
         let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Int));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(result, RustType::Custom("Rc<HashMap<String, i32>>".to_string()));
+        assert_eq!(
+            result,
+            RustType::Custom("Rc<HashMap<String, i32>>".to_string())
+        );
     }
 
     #[test]
@@ -373,7 +391,10 @@ mod tests {
         annotations.thread_safety = ThreadSafety::Required;
         let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Int));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(result, RustType::Custom("Arc<HashMap<String, i32>>".to_string()));
+        assert_eq!(
+            result,
+            RustType::Custom("Arc<HashMap<String, i32>>".to_string())
+        );
     }
 
     #[test]
@@ -391,9 +412,13 @@ mod tests {
         // DEPYLER-0776/1015/1051: Dict with Unknown value should use DepylerValue in NASA mode (Hybrid Fallback)
         let mapper = AnnotationAwareTypeMapper::new();
         let annotations = create_test_annotations();
-        let dict_type = PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Unknown));
+        let dict_type =
+            PythonType::Dict(Box::new(PythonType::String), Box::new(PythonType::Unknown));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(result, RustType::Custom("HashMap<String, DepylerValue>".to_string()));
+        assert_eq!(
+            result,
+            RustType::Custom("HashMap<String, DepylerValue>".to_string())
+        );
     }
 
     #[test]
@@ -401,9 +426,13 @@ mod tests {
         // DEPYLER-0776/1015/1051: Dict with both Unknown key/value - DepylerValue in NASA mode (Hybrid Fallback)
         let mapper = AnnotationAwareTypeMapper::new();
         let annotations = create_test_annotations();
-        let dict_type = PythonType::Dict(Box::new(PythonType::Unknown), Box::new(PythonType::Unknown));
+        let dict_type =
+            PythonType::Dict(Box::new(PythonType::Unknown), Box::new(PythonType::Unknown));
         let result = mapper.map_type_with_annotations(&dict_type, &annotations);
-        assert_eq!(result, RustType::Custom("HashMap<String, DepylerValue>".to_string()));
+        assert_eq!(
+            result,
+            RustType::Custom("HashMap<String, DepylerValue>".to_string())
+        );
     }
 
     // === needs_reference_with_annotations tests ===

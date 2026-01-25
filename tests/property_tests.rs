@@ -25,6 +25,7 @@ fn prop_transpiled_functions_are_valid_rust(func: ArbitraryFunction) -> TestResu
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -65,6 +66,7 @@ fn prop_type_preservation(expr: ArbitraryTypedExpr) -> TestResult {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     match apply_rules(&module, &type_mapper) {
@@ -95,6 +97,7 @@ fn prop_pure_functions_have_no_side_effects(func: ArbitraryPureFunction) -> Test
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -126,6 +129,7 @@ fn prop_panic_free_functions_dont_panic(func: ArbitraryPanicFreeFunction) -> boo
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();

@@ -453,8 +453,7 @@ mod tests {
 
     #[test]
     fn test_result_ext_err() {
-        let result: Result<i32, TranspileError> =
-            Err(TranspileError::new(ErrorKind::ParseError));
+        let result: Result<i32, TranspileError> = Err(TranspileError::new(ErrorKind::ParseError));
         let with_ctx = result.with_context("added context");
         let err = with_ctx.unwrap_err();
         assert_eq!(err.context.len(), 1);

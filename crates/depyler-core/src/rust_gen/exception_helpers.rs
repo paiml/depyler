@@ -71,7 +71,9 @@ mod tests {
     fn test_extract_exception_type_indexerror_call() {
         let expr = HirExpr::Call {
             func: "IndexError".to_string(),
-            args: vec![HirExpr::Literal(Literal::String("out of range".to_string()))],
+            args: vec![HirExpr::Literal(Literal::String(
+                "out of range".to_string(),
+            ))],
             kwargs: vec![],
         };
         assert_eq!(extract_exception_type(&expr), "IndexError");
@@ -81,7 +83,9 @@ mod tests {
     fn test_extract_exception_type_runtimeerror_call() {
         let expr = HirExpr::Call {
             func: "RuntimeError".to_string(),
-            args: vec![HirExpr::Literal(Literal::String("runtime issue".to_string()))],
+            args: vec![HirExpr::Literal(Literal::String(
+                "runtime issue".to_string(),
+            ))],
             kwargs: vec![],
         };
         assert_eq!(extract_exception_type(&expr), "RuntimeError");
@@ -175,7 +179,10 @@ mod tests {
         let expr = HirExpr::Call {
             func: "ValidationError".to_string(),
             args: vec![],
-            kwargs: vec![("message".to_string(), HirExpr::Literal(Literal::String("bad".to_string())))],
+            kwargs: vec![(
+                "message".to_string(),
+                HirExpr::Literal(Literal::String("bad".to_string())),
+            )],
         };
         assert_eq!(extract_exception_type(&expr), "ValidationError");
     }
@@ -355,9 +362,10 @@ mod tests {
 
     #[test]
     fn test_extract_exception_type_dict() {
-        let expr = HirExpr::Dict(vec![
-            (HirExpr::Literal(Literal::String("key".to_string())), HirExpr::Literal(Literal::Int(1))),
-        ]);
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]);
         assert_eq!(extract_exception_type(&expr), "Exception");
     }
 
@@ -425,9 +433,7 @@ mod tests {
 
     #[test]
     fn test_extract_exception_type_fstring() {
-        let expr = HirExpr::FString {
-            parts: vec![],
-        };
+        let expr = HirExpr::FString { parts: vec![] };
         assert_eq!(extract_exception_type(&expr), "Exception");
     }
 
@@ -478,9 +484,7 @@ mod tests {
 
     #[test]
     fn test_extract_exception_type_yield_none() {
-        let expr = HirExpr::Yield {
-            value: None,
-        };
+        let expr = HirExpr::Yield { value: None };
         assert_eq!(extract_exception_type(&expr), "Exception");
     }
 }

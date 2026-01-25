@@ -44,14 +44,50 @@ pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::
         Type::String => quote! { String },
         Type::Bool => quote! { bool },
         Type::None => quote! { () },
-        Type::Unknown => quote! { () },
+        // DEPYLER-1314: Unknown type should be DepylerValue in NASA mode, not ()
+        // This prevents type mismatches like HashMap<(), ()> when type inference is incomplete
+        Type::Unknown => {
+            if nasa_mode {
+                quote! { DepylerValue }
+            } else {
+                quote! { () }
+            }
+        }
         Type::List(elem) => {
-            let elem_ty = hir_type_to_tokens_with_mode(elem, nasa_mode);
+            // DEPYLER-1203: In NASA mode, Unknown element type defaults to DepylerValue
+            // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+            // DEPYLER-1209: Also check for UnificationVar
+            let elem_ty = if nasa_mode && matches!(**elem, Type::Unknown | Type::UnificationVar(_))
+            {
+                quote! { DepylerValue }
+            } else {
+                hir_type_to_tokens_with_mode(elem, nasa_mode)
+            };
             quote! { Vec<#elem_ty> }
         }
         Type::Dict(key, value) => {
-            let key_ty = hir_type_to_tokens_with_mode(key, nasa_mode);
-            let val_ty = hir_type_to_tokens_with_mode(value, nasa_mode);
+            // DEPYLER-1203: In NASA mode, handle Unknown types in dicts specially
+            // Unknown key type defaults to String (most common pattern)
+            // Unknown value type defaults to DepylerValue (for heterogeneous dicts)
+            // DEPYLER-1314: Also handle UnificationVar as Unknown - prevents HashMap<(), ()>
+            let key_ty =
+                if nasa_mode && matches!(key.as_ref(), Type::Unknown | Type::UnificationVar(_)) {
+                    quote! { String }
+                } else if matches!(key.as_ref(), Type::Unknown | Type::UnificationVar(_)) {
+                    // Even without NASA mode, Unknown dict keys should be String not ()
+                    quote! { String }
+                } else {
+                    hir_type_to_tokens_with_mode(key, nasa_mode)
+                };
+            let val_ty =
+                if nasa_mode && matches!(value.as_ref(), Type::Unknown | Type::UnificationVar(_)) {
+                    quote! { DepylerValue }
+                } else if matches!(value.as_ref(), Type::Unknown | Type::UnificationVar(_)) {
+                    // Even without NASA mode, Unknown dict values should be DepylerValue not ()
+                    quote! { DepylerValue }
+                } else {
+                    hir_type_to_tokens_with_mode(value, nasa_mode)
+                };
             quote! { std::collections::HashMap<#key_ty, #val_ty> }
         }
         Type::Tuple(types) => {
@@ -179,7 +215,16 @@ mod tests {
 
     #[test]
     fn test_unknown_type() {
+        // DEPYLER-1314: In NASA mode (default), Unknown maps to DepylerValue
+        // This prevents type mismatches like HashMap<(), ()> when type inference is incomplete
         let result = hir_type_to_tokens(&Type::Unknown);
+        assert_eq!(tokens_to_string(result), "DepylerValue");
+    }
+
+    #[test]
+    fn test_unknown_type_non_nasa_mode() {
+        // In non-NASA mode, Unknown maps to ()
+        let result = hir_type_to_tokens_with_mode(&Type::Unknown, false);
         assert_eq!(tokens_to_string(result), "()");
     }
 
@@ -217,10 +262,7 @@ mod tests {
 
     #[test]
     fn test_dict_string_int() {
-        let result = hir_type_to_tokens(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int),
-        ));
+        let result = hir_type_to_tokens(&Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
         assert_eq!(
             tokens_to_string(result),
             "std::collections::HashMap<String,i32>"
@@ -229,10 +271,7 @@ mod tests {
 
     #[test]
     fn test_dict_int_string() {
-        let result = hir_type_to_tokens(&Type::Dict(
-            Box::new(Type::Int),
-            Box::new(Type::String),
-        ));
+        let result = hir_type_to_tokens(&Type::Dict(Box::new(Type::Int), Box::new(Type::String)));
         assert_eq!(
             tokens_to_string(result),
             "std::collections::HashMap<i32,String>"
@@ -241,10 +280,7 @@ mod tests {
 
     #[test]
     fn test_dict_string_float() {
-        let result = hir_type_to_tokens(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Float),
-        ));
+        let result = hir_type_to_tokens(&Type::Dict(Box::new(Type::String), Box::new(Type::Float)));
         assert_eq!(
             tokens_to_string(result),
             "std::collections::HashMap<String,f64>"
@@ -321,8 +357,9 @@ mod tests {
 
     #[test]
     fn test_optional_nested() {
-        let result =
-            hir_type_to_tokens(&Type::Optional(Box::new(Type::Optional(Box::new(Type::Int)))));
+        let result = hir_type_to_tokens(&Type::Optional(Box::new(Type::Optional(Box::new(
+            Type::Int,
+        )))));
         assert_eq!(tokens_to_string(result), "Option<Option<i32>>");
     }
 
@@ -589,12 +626,14 @@ mod tests {
 
     #[test]
     fn test_deeply_nested() {
-        let result = hir_type_to_tokens(&Type::Optional(Box::new(Type::List(Box::new(
-            Type::Dict(
+        let result =
+            hir_type_to_tokens(&Type::Optional(Box::new(Type::List(Box::new(Type::Dict(
                 Box::new(Type::String),
-                Box::new(Type::Tuple(vec![Type::Int, Type::Optional(Box::new(Type::Float))])),
-            ),
-        )))));
+                Box::new(Type::Tuple(vec![
+                    Type::Int,
+                    Type::Optional(Box::new(Type::Float)),
+                ])),
+            ))))));
         assert_eq!(
             tokens_to_string(result),
             "Option<Vec<std::collections::HashMap<String,(i32,Option<f64>)>>>"

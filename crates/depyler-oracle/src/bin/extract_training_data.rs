@@ -77,7 +77,12 @@ fn main() -> anyhow::Result<()> {
 
         // Try to transpile
         let transpile_result = Command::new(&args.depyler)
-            .args(["transpile", &py_file.to_string_lossy(), "-o", &rs_file.to_string_lossy()])
+            .args([
+                "transpile",
+                &py_file.to_string_lossy(),
+                "-o",
+                &rs_file.to_string_lossy(),
+            ])
             .output();
 
         match transpile_result {
@@ -86,7 +91,15 @@ fn main() -> anyhow::Result<()> {
 
                 // Try to compile the generated Rust
                 let compile_result = Command::new("rustc")
-                    .args(["--edition", "2021", "--crate-type", "lib", &rs_file.to_string_lossy(), "-o", "/dev/null"])
+                    .args([
+                        "--edition",
+                        "2021",
+                        "--crate-type",
+                        "lib",
+                        &rs_file.to_string_lossy(),
+                        "-o",
+                        "/dev/null",
+                    ])
                     .output();
 
                 match compile_result {
@@ -109,7 +122,10 @@ fn main() -> anyhow::Result<()> {
                             if corpus.insert(error) {
                                 stats.errors_harvested += 1;
                                 if args.verbose {
-                                    println!("  ✓ {} -> {} ({})", name, category, stats.errors_harvested);
+                                    println!(
+                                        "  ✓ {} -> {} ({})",
+                                        name, category, stats.errors_harvested
+                                    );
                                 }
                             }
                         }
@@ -139,7 +155,10 @@ fn main() -> anyhow::Result<()> {
     println!("=== Extraction Complete ===");
     println!();
     println!("📊 Results:");
-    println!("   Files processed: {}", stats.transpile_success + stats.transpile_fail);
+    println!(
+        "   Files processed: {}",
+        stats.transpile_success + stats.transpile_fail
+    );
     println!("   Transpile success: {}", stats.transpile_success);
     println!("   Transpile fail: {}", stats.transpile_fail);
     println!("   Compile success: {}", stats.compile_success);
@@ -188,7 +207,8 @@ fn classify_error(error: &str) -> &'static str {
         "BorrowChecker"
     } else if error.contains("lifetime") {
         "LifetimeError"
-    } else if error.contains("expected") && error.contains("found") || error.contains("mismatched") {
+    } else if error.contains("expected") && error.contains("found") || error.contains("mismatched")
+    {
         "TypeMismatch"
     } else if error.contains("cannot find") {
         "MissingImport"

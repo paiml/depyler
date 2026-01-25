@@ -865,8 +865,14 @@ mod tests {
 
     #[test]
     fn test_warning_category_eq() {
-        assert_eq!(WarningCategory::StringPerformance, WarningCategory::StringPerformance);
-        assert_ne!(WarningCategory::StringPerformance, WarningCategory::MemoryAllocation);
+        assert_eq!(
+            WarningCategory::StringPerformance,
+            WarningCategory::StringPerformance
+        );
+        assert_ne!(
+            WarningCategory::StringPerformance,
+            WarningCategory::MemoryAllocation
+        );
     }
 
     #[test]
@@ -919,10 +925,12 @@ mod tests {
 
     #[test]
     fn test_severity_ord_all() {
-        let mut severities = [WarningSeverity::Medium,
+        let mut severities = [
+            WarningSeverity::Medium,
             WarningSeverity::Critical,
             WarningSeverity::Low,
-            WarningSeverity::High];
+            WarningSeverity::High,
+        ];
         severities.sort();
         assert_eq!(severities[0], WarningSeverity::Low);
         assert_eq!(severities[3], WarningSeverity::Critical);
@@ -1341,9 +1349,7 @@ mod tests {
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
 
-        assert!(warnings
-            .iter()
-            .any(|w| w.message.contains("range(len")));
+        assert!(warnings.iter().any(|w| w.message.contains("range(len")));
     }
 
     #[test]
@@ -1421,9 +1427,7 @@ mod tests {
         let mut analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
         let warnings = analyzer.analyze_program(&program);
 
-        assert!(warnings
-            .iter()
-            .any(|w| w.message.contains("Linear search")));
+        assert!(warnings.iter().any(|w| w.message.contains("Linear search")));
     }
 
     #[test]
@@ -1468,10 +1472,7 @@ mod tests {
     #[test]
     fn test_is_large_type_dict() {
         let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
-        assert!(analyzer.is_large_type(&Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Int)
-        )));
+        assert!(analyzer.is_large_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
     }
 
     #[test]
@@ -1527,10 +1528,22 @@ mod tests {
     #[test]
     fn test_severity_color() {
         let analyzer = PerformanceAnalyzer::new(PerformanceConfig::default());
-        assert_eq!(analyzer.get_severity_color(WarningSeverity::Critical), "red");
-        assert_eq!(analyzer.get_severity_color(WarningSeverity::High), "bright red");
-        assert_eq!(analyzer.get_severity_color(WarningSeverity::Medium), "yellow");
-        assert_eq!(analyzer.get_severity_color(WarningSeverity::Low), "bright yellow");
+        assert_eq!(
+            analyzer.get_severity_color(WarningSeverity::Critical),
+            "red"
+        );
+        assert_eq!(
+            analyzer.get_severity_color(WarningSeverity::High),
+            "bright red"
+        );
+        assert_eq!(
+            analyzer.get_severity_color(WarningSeverity::Medium),
+            "yellow"
+        );
+        assert_eq!(
+            analyzer.get_severity_color(WarningSeverity::Low),
+            "bright yellow"
+        );
     }
 
     #[test]
@@ -1712,9 +1725,18 @@ mod tests {
     #[test]
     fn test_warning_category_ne() {
         // Test inequality between different categories
-        assert_ne!(WarningCategory::StringPerformance, WarningCategory::IoPerformance);
-        assert_ne!(WarningCategory::MemoryAllocation, WarningCategory::CollectionUsage);
-        assert_ne!(WarningCategory::AlgorithmComplexity, WarningCategory::RedundantComputation);
+        assert_ne!(
+            WarningCategory::StringPerformance,
+            WarningCategory::IoPerformance
+        );
+        assert_ne!(
+            WarningCategory::MemoryAllocation,
+            WarningCategory::CollectionUsage
+        );
+        assert_ne!(
+            WarningCategory::AlgorithmComplexity,
+            WarningCategory::RedundantComputation
+        );
     }
 
     #[test]

@@ -141,31 +141,58 @@ pub mod feature_config {
     /// Error codes for one-hot encoding.
     pub const ERROR_CODES: &[&str] = &[
         // Type mismatch errors
-        "E0308", "E0282", "E0609", "E0606", "E0631",
-        // Import/resolution errors
-        "E0432", "E0433", "E0412", "E0425",
-        // Trait bound errors
-        "E0277", "E0599",
-        // Borrow checker errors
+        "E0308", "E0282", "E0609", "E0606", "E0631", // Import/resolution errors
+        "E0432", "E0433", "E0412", "E0425", // Trait bound errors
+        "E0277", "E0599", // Borrow checker errors
         "E0502", "E0499", "E0507", "E0382", "E0596", "E0597", "E0505", "E0503", "E0594",
         // Syntax errors
-        "E0423", "E0658", "E0627",
-        // Move/ownership
+        "E0423", "E0658", "E0627", // Move/ownership
         "E0373", "E0061",
     ];
 
     /// Keywords for occurrence counting.
     pub const KEYWORDS: &[&str] = &[
         // Type-related
-        "mismatch", "expected", "found", "type", "types", "i32", "f64", "String", "Value",
+        "mismatch",
+        "expected",
+        "found",
+        "type",
+        "types",
+        "i32",
+        "f64",
+        "String",
+        "Value",
         // Trait-related
-        "trait", "bound", "satisfied", "implement", "Display", "Copy",
+        "trait",
+        "bound",
+        "satisfied",
+        "implement",
+        "Display",
+        "Copy",
         // Borrow-related
-        "borrow", "borrowed", "mut", "mutable", "move", "moved", "lifetime", "reference",
+        "borrow",
+        "borrowed",
+        "mut",
+        "mutable",
+        "move",
+        "moved",
+        "lifetime",
+        "reference",
         // Import-related
-        "import", "unresolved", "undeclared", "crate", "module",
+        "import",
+        "unresolved",
+        "undeclared",
+        "crate",
+        "module",
         // Misc
-        "method", "field", "closure", "async", "Option", "Result", "HashMap", "Vec",
+        "method",
+        "field",
+        "closure",
+        "async",
+        "Option",
+        "Result",
+        "HashMap",
+        "Vec",
     ];
 
     /// Total number of features.
@@ -460,9 +487,8 @@ mod tests {
         assert!(!feature_config::ERROR_CODES.is_empty());
         assert!(!feature_config::KEYWORDS.is_empty());
         // Verify total features calculation (TOTAL_FEATURES > 0 is verified by the equality check)
-        let expected = feature_config::ERROR_CODES.len()
-            + feature_config::KEYWORDS.len()
-            + ErrorFeatures::DIM;
+        let expected =
+            feature_config::ERROR_CODES.len() + feature_config::KEYWORDS.len() + ErrorFeatures::DIM;
         assert_eq!(feature_config::TOTAL_FEATURES, expected);
     }
 

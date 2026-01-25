@@ -97,7 +97,8 @@ impl AutoFixer {
             vec![
                 TransformRule {
                     name: "regex_new_str".to_string(),
-                    error_pattern: Regex::new(r"Regex::new.*expected `&str`, found `String`").unwrap(),
+                    error_pattern: Regex::new(r"Regex::new.*expected `&str`, found `String`")
+                        .unwrap(),
                     transform: fix_regex_new_str,
                 },
                 TransformRule {
@@ -281,7 +282,10 @@ fn fix_pre_compute_is_some(ctx: &mut FixContext) -> bool {
             // Insert pre-computation before this line
             let indent = line.len() - line.trim_start().len();
             let indent_str: String = " ".repeat(indent);
-            new_lines.push(format!("{}let {} = {};", indent_str, fix_var, is_some_pattern));
+            new_lines.push(format!(
+                "{}let {} = {};",
+                indent_str, fix_var, is_some_pattern
+            ));
             inserted = true;
         }
         new_lines.push(line.to_string());
@@ -321,7 +325,10 @@ fn fix_pre_compute_is_none(ctx: &mut FixContext) -> bool {
         {
             let indent = line.len() - line.trim_start().len();
             let indent_str: String = " ".repeat(indent);
-            new_lines.push(format!("{}let {} = {}.is_none();", indent_str, fix_var, var));
+            new_lines.push(format!(
+                "{}let {} = {}.is_none();",
+                indent_str, fix_var, var
+            ));
             inserted = true;
         }
         new_lines.push(line.to_string());
@@ -363,7 +370,9 @@ fn fix_regex_new_str(ctx: &mut FixContext) -> bool {
     let re = Regex::new(r#"Regex::new\(\s*"([^"]+)"\.to_string\(\)\s*\)"#).unwrap();
 
     if re.is_match(ctx.source) {
-        *ctx.source = re.replace_all(ctx.source, r#"Regex::new("$1")"#).to_string();
+        *ctx.source = re
+            .replace_all(ctx.source, r#"Regex::new("$1")"#)
+            .to_string();
         return true;
     }
 
@@ -383,13 +392,14 @@ fn fix_add_command_factory(ctx: &mut FixContext) -> bool {
         // Need to add CommandFactory import
         if !ctx.source.contains("CommandFactory") {
             // Update the use statement
-            *ctx.source = ctx.source.replace(
-                "use clap::Parser;",
-                "use clap::{CommandFactory, Parser};"
-            );
+            *ctx.source = ctx
+                .source
+                .replace("use clap::Parser;", "use clap::{CommandFactory, Parser};");
         }
         // Replace parser.print_help() with Args::command().print_help()
-        *ctx.source = ctx.source.replace("parser.print_help()", "Args::command().print_help()?");
+        *ctx.source = ctx
+            .source
+            .replace("parser.print_help()", "Args::command().print_help()?");
         return true;
     }
     false

@@ -1193,7 +1193,10 @@ mod tests {
 
     #[test]
     fn test_type_to_rust_string_custom_types() {
-        assert_eq!(type_to_rust_string(&Type::Custom("MyType".to_string())), "MyType");
+        assert_eq!(
+            type_to_rust_string(&Type::Custom("MyType".to_string())),
+            "MyType"
+        );
         assert_eq!(type_to_rust_string(&Type::TypeVar("T".to_string())), "T");
     }
 
@@ -1311,12 +1314,10 @@ mod tests {
     fn test_check_expr_contracts_call() {
         let violations = check_expr_contracts(&HirExpr::Call {
             func: "func".to_string(),
-            args: vec![
-                HirExpr::Index {
-                    base: Box::new(HirExpr::Var("arr".to_string())),
-                    index: Box::new(HirExpr::Literal(Literal::Int(0))),
-                },
-            ],
+            args: vec![HirExpr::Index {
+                base: Box::new(HirExpr::Var("arr".to_string())),
+                index: Box::new(HirExpr::Literal(Literal::Int(0))),
+            }],
             kwargs: vec![],
         });
         assert_eq!(violations.len(), 1);

@@ -168,16 +168,8 @@ impl ErrorGraph {
 
                 graph.edges.push(ErrorEdge { from, to, weight });
 
-                graph
-                    .adjacency
-                    .entry(from)
-                    .or_default()
-                    .push((to, weight));
-                graph
-                    .adjacency
-                    .entry(to)
-                    .or_default()
-                    .push((from, weight));
+                graph.adjacency.entry(from).or_default().push((to, weight));
+                graph.adjacency.entry(to).or_default().push((from, weight));
             }
         }
 
@@ -211,11 +203,8 @@ impl ErrorGraph {
                 // Sum contributions from neighbors
                 if let Some(neighbors) = self.adjacency.get(&i) {
                     for &(j, weight) in neighbors {
-                        let out_degree = self
-                            .adjacency
-                            .get(&j)
-                            .map(|n| n.len())
-                            .unwrap_or(1) as f64;
+                        let out_degree =
+                            self.adjacency.get(&j).map(|n| n.len()).unwrap_or(1) as f64;
                         sum += scores[j] * weight / out_degree;
                     }
                 }
@@ -281,10 +270,7 @@ impl ErrorGraph {
 
             let centrality_sum: f64 = component.iter().map(|&i| self.nodes[i].centrality).sum();
 
-            let total_files: usize = component
-                .iter()
-                .map(|&i| self.nodes[i].files.len())
-                .sum();
+            let total_files: usize = component.iter().map(|&i| self.nodes[i].files.len()).sum();
 
             let name = generate_community_name(&error_codes, &self.nodes, &component);
 
@@ -475,9 +461,7 @@ mod tests {
 
     #[test]
     fn test_error_graph_single_error() {
-        let results = vec![
-            make_result("a.py", false, Some("E0308")),
-        ];
+        let results = vec![make_result("a.py", false, Some("E0308"))];
         let graph = ErrorGraph::from_results(&results);
 
         assert_eq!(graph.node_count(), 1);
@@ -508,7 +492,11 @@ mod tests {
         ];
         let graph = ErrorGraph::from_results(&results);
 
-        let e0308_node = graph.nodes.iter().find(|n| n.error_code == "E0308").unwrap();
+        let e0308_node = graph
+            .nodes
+            .iter()
+            .find(|n| n.error_code == "E0308")
+            .unwrap();
         assert_eq!(e0308_node.file_count(), 3);
     }
 
@@ -599,11 +587,8 @@ mod tests {
                 domain: SemanticDomain::CoreLanguage,
             },
         ];
-        let name = generate_community_name(
-            &["E0308".to_string(), "E0425".to_string()],
-            &nodes,
-            &[0, 1],
-        );
+        let name =
+            generate_community_name(&["E0308".to_string(), "E0425".to_string()], &nodes, &[0, 1]);
         assert!(name.contains("Cluster"));
         assert!(name.contains("2 errors"));
     }

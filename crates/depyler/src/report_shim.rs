@@ -27,7 +27,11 @@ impl CompileResult {
     }
 
     /// Create a failed result
-    pub fn failure(name: impl Into<String>, code: impl Into<String>, message: impl Into<String>) -> Self {
+    pub fn failure(
+        name: impl Into<String>,
+        code: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
         Self {
             name: name.into(),
             success: false,
@@ -75,7 +79,9 @@ impl ErrorTaxonomy {
 }
 
 /// Analyze compilation results (pure function)
-pub fn analyze_results(results: &[CompileResult]) -> (usize, usize, HashMap<String, ErrorTaxonomy>) {
+pub fn analyze_results(
+    results: &[CompileResult],
+) -> (usize, usize, HashMap<String, ErrorTaxonomy>) {
     let mut pass = 0;
     let mut fail = 0;
     let mut taxonomy: HashMap<String, ErrorTaxonomy> = HashMap::new();
@@ -270,9 +276,7 @@ impl ReportSummary {
         let (passed, failed, taxonomy) = analyze_results(results);
         let rate = calculate_rate(passed, failed);
 
-        let mut top_errors: Vec<_> = taxonomy.iter()
-            .map(|(k, v)| (k.clone(), v.count))
-            .collect();
+        let mut top_errors: Vec<_> = taxonomy.iter().map(|(k, v)| (k.clone(), v.count)).collect();
         top_errors.sort_by(|a, b| b.1.cmp(&a.1));
         top_errors.truncate(5);
 
@@ -351,13 +355,19 @@ impl SemanticTag {
     /// Check if file content matches this tag
     pub fn matches_content(&self, content: &str) -> bool {
         match self {
-            Self::Dict => content.contains("dict") || content.contains("Dict") || content.contains("{:"),
-            Self::List => content.contains("list") || content.contains("List") || content.contains("["),
+            Self::Dict => {
+                content.contains("dict") || content.contains("Dict") || content.contains("{:")
+            }
+            Self::List => {
+                content.contains("list") || content.contains("List") || content.contains("[")
+            }
             Self::Tuple => content.contains("tuple") || content.contains("Tuple"),
             Self::Set => content.contains("set") || content.contains("Set"),
             Self::String => content.contains("str") || content.contains("String"),
             Self::Numeric => content.contains("int") || content.contains("float"),
-            Self::IO => content.contains("open(") || content.contains("read(") || content.contains("write("),
+            Self::IO => {
+                content.contains("open(") || content.contains("read(") || content.contains("write(")
+            }
             Self::Argparse => content.contains("argparse") || content.contains("ArgumentParser"),
             Self::Regex => content.contains("import re") || content.contains("re."),
             Self::Json => content.contains("import json") || content.contains("json."),
@@ -391,8 +401,7 @@ mod tests {
 
     #[test]
     fn test_compile_result_with_source() {
-        let result = CompileResult::success("test.py")
-            .with_source("print('hello')");
+        let result = CompileResult::success("test.py").with_source("print('hello')");
         assert_eq!(result.python_source, Some("print('hello')".to_string()));
     }
 
@@ -488,7 +497,12 @@ mod tests {
 
     #[test]
     fn test_bisection_state_new() {
-        let files = vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string()];
+        let files = vec![
+            "a".to_string(),
+            "b".to_string(),
+            "c".to_string(),
+            "d".to_string(),
+        ];
         let state = BisectionState::new(files);
 
         assert_eq!(state.low, 0);
@@ -566,13 +580,15 @@ mod tests {
 
     #[test]
     fn test_report_summary_files_to_fix() {
-        let results: Vec<_> = (0..100).map(|i| {
-            if i < 70 {
-                CompileResult::success(format!("file{}.py", i))
-            } else {
-                CompileResult::failure(format!("file{}.py", i), "E0308", "error")
-            }
-        }).collect();
+        let results: Vec<_> = (0..100)
+            .map(|i| {
+                if i < 70 {
+                    CompileResult::success(format!("file{}.py", i))
+                } else {
+                    CompileResult::failure(format!("file{}.py", i), "E0308", "error")
+                }
+            })
+            .collect();
 
         let summary = ReportSummary::from_results(&results, 0.80);
         assert_eq!(summary.files_to_fix(), 10); // Need 80 passed, have 70
@@ -584,7 +600,10 @@ mod tests {
         assert_eq!(SemanticTag::from_str("Dict"), SemanticTag::Dict);
         assert_eq!(SemanticTag::from_str("list"), SemanticTag::List);
         assert_eq!(SemanticTag::from_str("argparse"), SemanticTag::Argparse);
-        assert!(matches!(SemanticTag::from_str("unknown"), SemanticTag::Other(_)));
+        assert!(matches!(
+            SemanticTag::from_str("unknown"),
+            SemanticTag::Other(_)
+        ));
     }
 
     #[test]
@@ -631,8 +650,7 @@ mod tests {
 
     #[test]
     fn test_compile_result_chain() {
-        let result = CompileResult::failure("x.py", "E0001", "msg")
-            .with_source("def foo(): pass");
+        let result = CompileResult::failure("x.py", "E0001", "msg").with_source("def foo(): pass");
         assert!(!result.success);
         assert!(result.python_source.is_some());
     }

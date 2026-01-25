@@ -86,14 +86,29 @@ pub fn show_status(config: &UtolConfig) -> Result<()> {
     println!("UTOL Status Report");
     println!("==================");
 
-    let corpus_status = if config.corpus.path.exists() { "OK" } else { "Missing" };
-    println!("Corpus: {} ({})", config.corpus.path.display(), corpus_status);
+    let corpus_status = if config.corpus.path.exists() {
+        "OK"
+    } else {
+        "Missing"
+    };
+    println!(
+        "Corpus: {} ({})",
+        config.corpus.path.display(),
+        corpus_status
+    );
 
-    let model_status = if config.model.path.exists() { "OK" } else { "Missing" };
+    let model_status = if config.model.path.exists() {
+        "OK"
+    } else {
+        "Missing"
+    };
     println!("Model:  {} ({})", config.model.path.display(), model_status);
 
     println!();
-    println!("Target Rate:    {:.1}%", config.convergence.target_rate * 100.0);
+    println!(
+        "Target Rate:    {:.1}%",
+        config.convergence.target_rate * 100.0
+    );
     println!("Max Iterations: {}", config.convergence.max_iterations);
     println!("Patience:       {}", config.convergence.patience);
 
@@ -123,7 +138,11 @@ pub fn print_final_summary(result: &UtolResult, config: &UtolConfig) {
     println!("=================");
     println!(
         "Status:     {}",
-        if result.converged { "CONVERGED" } else { "NOT CONVERGED" }
+        if result.converged {
+            "CONVERGED"
+        } else {
+            "NOT CONVERGED"
+        }
     );
     println!("Final Rate: {:.1}%", result.compile_rate * 100.0);
     println!("Iterations: {}", result.iterations);
@@ -197,7 +216,8 @@ mod tests {
 
     #[test]
     fn test_show_status_with_nonexistent_corpus() {
-        let config = build_config(Some(PathBuf::from("/nonexistent")), 0.80, 50, 5, "rich").unwrap();
+        let config =
+            build_config(Some(PathBuf::from("/nonexistent")), 0.80, 50, 5, "rich").unwrap();
         let result = show_status(&config);
         assert!(result.is_ok());
     }

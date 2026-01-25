@@ -67,16 +67,27 @@ pub fn collect_nested_function_names(stmts: &[HirStmt], names: &mut Vec<String>)
                 }
                 collect_nested_function_names(body, names);
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 collect_nested_function_names(then_body, names);
                 if let Some(else_stmts) = else_body {
                     collect_nested_function_names(else_stmts, names);
                 }
             }
-            HirStmt::While { body, .. } | HirStmt::For { body, .. } | HirStmt::With { body, .. } => {
+            HirStmt::While { body, .. }
+            | HirStmt::For { body, .. }
+            | HirStmt::With { body, .. } => {
                 collect_nested_function_names(body, names);
             }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
                 collect_nested_function_names(body, names);
                 for handler in handlers {
                     collect_nested_function_names(&handler.body, names);
@@ -99,7 +110,11 @@ pub fn collect_if_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
 
     for (i, stmt) in stmts.iter().enumerate() {
         let if_assigned_vars = match stmt {
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 let then_vars = extract_toplevel_assigned_symbols(then_body);
                 let else_vars = if let Some(else_stmts) = else_body {
                     extract_toplevel_assigned_symbols(else_stmts)
@@ -121,7 +136,12 @@ pub fn collect_if_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
                 escaping_vars.extend(collect_if_escaping_variables(body));
                 continue;
             }
-            HirStmt::Try { body, handlers, finalbody, .. } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
                 let mut vars = collect_if_escaping_variables(body);
                 for handler in handlers {
                     vars.extend(collect_if_escaping_variables(&handler.body));
@@ -156,7 +176,11 @@ pub fn collect_loop_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
         let loop_assigned_vars = match stmt {
             HirStmt::For { body, .. } => collect_all_assigned_variables(body),
             HirStmt::While { body, .. } => collect_all_assigned_variables(body),
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 let mut vars = collect_loop_escaping_variables(then_body);
                 if let Some(else_stmts) = else_body {
                     vars.extend(collect_loop_escaping_variables(else_stmts));
@@ -169,7 +193,12 @@ pub fn collect_loop_escaping_variables(stmts: &[HirStmt]) -> HashSet<String> {
                 }
                 continue;
             }
-            HirStmt::Try { body, handlers, finalbody, .. } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
                 let mut vars = collect_loop_escaping_variables(body);
                 for handler in handlers {
                     vars.extend(collect_loop_escaping_variables(&handler.body));
@@ -207,17 +236,27 @@ pub fn collect_all_assigned_variables(stmts: &[HirStmt]) -> HashSet<String> {
 
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                ..
+            } => {
                 vars.insert(name.clone());
             }
-            HirStmt::Assign { target: AssignTarget::Tuple(targets), .. } => {
+            HirStmt::Assign {
+                target: AssignTarget::Tuple(targets),
+                ..
+            } => {
                 for t in targets {
                     if let AssignTarget::Symbol(name) = t {
                         vars.insert(name.clone());
                     }
                 }
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 vars.extend(collect_all_assigned_variables(then_body));
                 if let Some(else_stmts) = else_body {
                     vars.extend(collect_all_assigned_variables(else_stmts));
@@ -226,7 +265,12 @@ pub fn collect_all_assigned_variables(stmts: &[HirStmt]) -> HashSet<String> {
             HirStmt::For { body, .. } | HirStmt::While { body, .. } => {
                 vars.extend(collect_all_assigned_variables(body));
             }
-            HirStmt::Try { body, handlers, finalbody, .. } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
                 vars.extend(collect_all_assigned_variables(body));
                 for handler in handlers {
                     vars.extend(collect_all_assigned_variables(&handler.body));
@@ -249,23 +293,38 @@ pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
 
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                ..
+            } => {
                 vars.insert(name.clone());
             }
-            HirStmt::Assign { target: AssignTarget::Tuple(targets), .. } => {
+            HirStmt::Assign {
+                target: AssignTarget::Tuple(targets),
+                ..
+            } => {
                 for t in targets {
                     if let AssignTarget::Symbol(name) = t {
                         vars.insert(name.clone());
                     }
                 }
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 vars.extend(extract_toplevel_assigned_symbols(then_body));
                 if let Some(else_stmts) = else_body {
                     vars.extend(extract_toplevel_assigned_symbols(else_stmts));
                 }
             }
-            HirStmt::Try { body, handlers, finalbody, .. } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
                 vars.extend(extract_toplevel_assigned_symbols(body));
                 for handler in handlers {
                     vars.extend(extract_toplevel_assigned_symbols(&handler.body));
@@ -285,7 +344,9 @@ pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
 
 /// Check if a variable is used in any of the remaining statements
 pub fn is_var_used_in_remaining_stmts(var_name: &str, stmts: &[HirStmt]) -> bool {
-    stmts.iter().any(|stmt| is_var_used_anywhere(var_name, stmt))
+    stmts
+        .iter()
+        .any(|stmt| is_var_used_anywhere(var_name, stmt))
 }
 
 /// Check if a variable is used anywhere in a statement (recursive)
@@ -294,12 +355,16 @@ pub fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
         HirStmt::Assign { target, value, .. } => {
             is_var_used_in_target(var_name, target) || is_var_used_in_expr(var_name, value)
         }
-        HirStmt::If { condition, then_body, else_body } => {
+        HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
             is_var_used_in_expr(var_name, condition)
                 || then_body.iter().any(|s| is_var_used_anywhere(var_name, s))
-                || else_body.as_ref().is_some_and(|body| {
-                    body.iter().any(|s| is_var_used_anywhere(var_name, s))
-                })
+                || else_body
+                    .as_ref()
+                    .is_some_and(|body| body.iter().any(|s| is_var_used_anywhere(var_name, s)))
         }
         HirStmt::While { condition, body } => {
             is_var_used_in_expr(var_name, condition)
@@ -311,24 +376,31 @@ pub fn is_var_used_anywhere(var_name: &str, stmt: &HirStmt) -> bool {
         }
         HirStmt::Return(Some(expr)) => is_var_used_in_expr(var_name, expr),
         HirStmt::Expr(expr) => is_var_used_in_expr(var_name, expr),
-        HirStmt::Raise { exception, .. } => {
-            exception.as_ref().is_some_and(|e| is_var_used_in_expr(var_name, e))
-        }
+        HirStmt::Raise { exception, .. } => exception
+            .as_ref()
+            .is_some_and(|e| is_var_used_in_expr(var_name, e)),
         HirStmt::Assert { test, msg, .. } => {
             is_var_used_in_expr(var_name, test)
-                || msg.as_ref().is_some_and(|m| is_var_used_in_expr(var_name, m))
+                || msg
+                    .as_ref()
+                    .is_some_and(|m| is_var_used_in_expr(var_name, m))
         }
-        HirStmt::Try { body, handlers, orelse, finalbody } => {
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+        } => {
             body.iter().any(|s| is_var_used_anywhere(var_name, s))
-                || handlers.iter().any(|h| {
-                    h.body.iter().any(|s| is_var_used_anywhere(var_name, s))
-                })
-                || orelse.as_ref().is_some_and(|stmts| {
-                    stmts.iter().any(|s| is_var_used_anywhere(var_name, s))
-                })
-                || finalbody.as_ref().is_some_and(|stmts| {
-                    stmts.iter().any(|s| is_var_used_anywhere(var_name, s))
-                })
+                || handlers
+                    .iter()
+                    .any(|h| h.body.iter().any(|s| is_var_used_anywhere(var_name, s)))
+                || orelse
+                    .as_ref()
+                    .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_anywhere(var_name, s)))
+                || finalbody
+                    .as_ref()
+                    .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_anywhere(var_name, s)))
         }
         HirStmt::With { body, .. } => body.iter().any(|s| is_var_used_anywhere(var_name, s)),
         _ => false,
@@ -367,9 +439,9 @@ fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
         HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => {
             elements.iter().any(|e| is_var_used_in_expr(var_name, e))
         }
-        HirExpr::Dict(pairs) => pairs.iter().any(|(k, v)| {
-            is_var_used_in_expr(var_name, k) || is_var_used_in_expr(var_name, v)
-        }),
+        HirExpr::Dict(pairs) => pairs
+            .iter()
+            .any(|(k, v)| is_var_used_in_expr(var_name, k) || is_var_used_in_expr(var_name, v)),
         HirExpr::IfExpr { test, body, orelse } => {
             is_var_used_in_expr(var_name, test)
                 || is_var_used_in_expr(var_name, body)

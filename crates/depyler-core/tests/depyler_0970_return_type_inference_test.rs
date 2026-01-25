@@ -22,13 +22,18 @@ def run_command(cmd: list[str]) -> tuple[int, str, str]:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 
     // With explicit type annotation, should have correct return type
     assert!(
-        rust_code.contains("-> (i32, String, String)") || rust_code.contains("-> (i64, String, String)"),
+        rust_code.contains("-> (i32, String, String)")
+            || rust_code.contains("-> (i64, String, String)"),
         "Return type should be (i32, String, String) with explicit annotation\n\nGenerated:\n{}",
         rust_code
     );
@@ -47,7 +52,11 @@ def run_command(cmd):
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -81,7 +90,11 @@ def get_exit_code(cmd: list[str]) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -106,13 +119,18 @@ def get_stats(n: int) -> tuple[int, str, bool]:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 
     // Should correctly infer tuple type from body
     assert!(
-        rust_code.contains("-> (i32, String, bool)") || rust_code.contains("-> (i64, String, bool)"),
+        rust_code.contains("-> (i32, String, bool)")
+            || rust_code.contains("-> (i64, String, bool)"),
         "Return type should be inferred from body expressions\n\nGenerated:\n{}",
         rust_code
     );

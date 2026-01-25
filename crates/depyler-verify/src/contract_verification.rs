@@ -1135,7 +1135,11 @@ mod tests {
             }),
         };
         let forall_assertion = checker.predicate_to_assertion(&forall);
-        assert!(forall_assertion.contains("all") || forall_assertion.contains("forall") || !forall_assertion.is_empty());
+        assert!(
+            forall_assertion.contains("all")
+                || forall_assertion.contains("forall")
+                || !forall_assertion.is_empty()
+        );
 
         let exists = Predicate::Exists {
             var: "i".to_string(),
@@ -1147,7 +1151,11 @@ mod tests {
             }),
         };
         let exists_assertion = checker.predicate_to_assertion(&exists);
-        assert!(exists_assertion.contains("any") || exists_assertion.contains("exists") || !exists_assertion.is_empty());
+        assert!(
+            exists_assertion.contains("any")
+                || exists_assertion.contains("exists")
+                || !exists_assertion.is_empty()
+        );
     }
 
     #[test]
@@ -1206,7 +1214,10 @@ mod tests {
     fn test_value_formatting() {
         assert_eq!(value_to_rust(&Value::Int(42)), "42");
         assert!(value_to_rust(&Value::Float(3.15)).contains("3.15"));
-        assert_eq!(value_to_rust(&Value::String("hello".to_string())), "\"hello\"");
+        assert_eq!(
+            value_to_rust(&Value::String("hello".to_string())),
+            "\"hello\""
+        );
         assert_eq!(value_to_rust(&Value::Bool(true)), "true");
         assert_eq!(value_to_rust(&Value::Bool(false)), "false");
         assert_eq!(value_to_rust(&Value::Var("x".to_string())), "x");
@@ -1330,7 +1341,10 @@ mod tests {
             description: "x must be positive".to_string(),
         });
         assert_eq!(checker.invariants.len(), 1);
-        assert!(matches!(checker.invariants[0].scope, InvariantScope::Function(_)));
+        assert!(matches!(
+            checker.invariants[0].scope,
+            InvariantScope::Function(_)
+        ));
     }
 
     #[test]
@@ -1520,13 +1534,11 @@ mod tests {
         });
 
         let contract = Contract {
-            preconditions: vec![
-                Condition {
-                    name: "x_positive".to_string(),
-                    expression: "x > 0".to_string(),
-                    description: "x must be positive".to_string(),
-                },
-            ],
+            preconditions: vec![Condition {
+                name: "x_positive".to_string(),
+                expression: "x > 0".to_string(),
+                description: "x must be positive".to_string(),
+            }],
             postconditions: vec![],
             invariants: vec![],
         };

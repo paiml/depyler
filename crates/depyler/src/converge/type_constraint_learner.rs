@@ -110,7 +110,8 @@ pub fn parse_e0308_constraint(
     // Pattern 1: "expected `X`, found `Y`"
     if let Some((expected, found)) = extract_expected_found(error_message) {
         // Try to extract variable name from error message
-        let target = extract_target_variable(error_message).unwrap_or_else(|| "unknown".to_string());
+        let target =
+            extract_target_variable(error_message).unwrap_or_else(|| "unknown".to_string());
 
         return Some(TypeConstraint {
             target,
@@ -296,11 +297,7 @@ mod tests {
                 "expected `f64`, found `{integer}`".to_string(),
                 10,
             ),
-            (
-                "E0599".to_string(),
-                "no method named `foo`".to_string(),
-                20,
-            ),
+            ("E0599".to_string(), "no method named `foo`".to_string(), 20),
             (
                 "E0308".to_string(),
                 "expected `String`, found `&str`".to_string(),

@@ -28,7 +28,10 @@ mod hybrid_config_tests {
         // Clear any existing key for deterministic test
         let config = HybridConfig::with_api();
         // enable_api should depend on ANTHROPIC_API_KEY env var
-        assert_eq!(config.enable_api, std::env::var("ANTHROPIC_API_KEY").is_ok());
+        assert_eq!(
+            config.enable_api,
+            std::env::var("ANTHROPIC_API_KEY").is_ok()
+        );
         assert!(!config.enable_local_model);
     }
 
@@ -84,7 +87,10 @@ mod pattern_complexity_tests {
         assert_eq!(PatternComplexity::Simple, PatternComplexity::Simple);
         assert_eq!(PatternComplexity::Medium, PatternComplexity::Medium);
         assert_eq!(PatternComplexity::Complex, PatternComplexity::Complex);
-        assert_eq!(PatternComplexity::Unsupported, PatternComplexity::Unsupported);
+        assert_eq!(
+            PatternComplexity::Unsupported,
+            PatternComplexity::Unsupported
+        );
     }
 
     #[test]
@@ -575,11 +581,7 @@ mod training_data_collector_tests {
     #[test]
     fn test_export_alpaca() {
         let mut collector = TrainingDataCollector::new();
-        collector.add_pair(
-            "x = 1".to_string(),
-            "let x = 1;".to_string(),
-            "test",
-        );
+        collector.add_pair("x = 1".to_string(), "let x = 1;".to_string(), "test");
         let alpaca = collector.export_alpaca();
         assert!(alpaca.contains("instruction"));
         assert!(alpaca.contains("input"));

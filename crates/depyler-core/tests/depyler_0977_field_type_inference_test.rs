@@ -43,10 +43,7 @@ class Logger:
                 "messages should be List[String] from append(msg: str)"
             );
         }
-        _ => panic!(
-            "messages should be List type, got {:?}",
-            field.field_type
-        ),
+        _ => panic!("messages should be List type, got {:?}", field.field_type),
     }
 }
 
@@ -116,16 +113,8 @@ class Cache:
     // Should be Dict[String, Int] from self.data[key: str] = value: int
     match &field.field_type {
         Type::Dict(key_type, value_type) => {
-            assert_eq!(
-                **key_type,
-                Type::String,
-                "dict key should be String"
-            );
-            assert_eq!(
-                **value_type,
-                Type::Int,
-                "dict value should be Int"
-            );
+            assert_eq!(**key_type, Type::String, "dict key should be String");
+            assert_eq!(**value_type, Type::Int, "dict value should be Int");
         }
         _ => panic!("data should be Dict type, got {:?}", field.field_type),
     }

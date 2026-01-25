@@ -66,7 +66,11 @@ fn test_complexity_rating_very_high() {
 fn test_analyze_command_valid_file() {
     let temp = TempDir::new().unwrap();
     let py_file = temp.path().join("analyze.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+    std::fs::write(
+        &py_file,
+        "def add(a: int, b: int) -> int:\n    return a + b\n",
+    )
+    .unwrap();
 
     let result = analyze_command(py_file, "text".to_string());
     let _ = result;
@@ -96,7 +100,11 @@ fn test_analyze_command_nonexistent() {
 fn test_check_command_valid_file() {
     let temp = TempDir::new().unwrap();
     let py_file = temp.path().join("check.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+    std::fs::write(
+        &py_file,
+        "def add(a: int, b: int) -> int:\n    return a + b\n",
+    )
+    .unwrap();
 
     let result = check_command(py_file);
     let _ = result;
@@ -116,7 +124,11 @@ fn test_check_command_nonexistent() {
 fn test_transpile_command_valid_file() {
     let temp = TempDir::new().unwrap();
     let py_file = temp.path().join("transpile.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+    std::fs::write(
+        &py_file,
+        "def add(a: int, b: int) -> int:\n    return a + b\n",
+    )
+    .unwrap();
 
     let result = transpile_command(py_file, None, false, false, false, false);
     assert!(result.is_ok());
@@ -136,7 +148,14 @@ fn test_transpile_command_with_output() {
 
 #[test]
 fn test_transpile_command_nonexistent() {
-    let result = transpile_command(PathBuf::from("/nonexistent.py"), None, false, false, false, false);
+    let result = transpile_command(
+        PathBuf::from("/nonexistent.py"),
+        None,
+        false,
+        false,
+        false,
+        false,
+    );
     assert!(result.is_err());
 }
 
@@ -144,7 +163,11 @@ fn test_transpile_command_nonexistent() {
 fn test_transpile_command_with_verify_flag() {
     let temp = TempDir::new().unwrap();
     let py_file = temp.path().join("verify.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+    std::fs::write(
+        &py_file,
+        "def add(a: int, b: int) -> int:\n    return a + b\n",
+    )
+    .unwrap();
 
     let result = transpile_command(py_file, None, true, false, false, false);
     let _ = result;
@@ -154,7 +177,11 @@ fn test_transpile_command_with_verify_flag() {
 fn test_transpile_command_with_gen_tests_flag() {
     let temp = TempDir::new().unwrap();
     let py_file = temp.path().join("tests.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+    std::fs::write(
+        &py_file,
+        "def add(a: int, b: int) -> int:\n    return a + b\n",
+    )
+    .unwrap();
 
     let result = transpile_command(py_file, None, false, true, false, false);
     let _ = result;
@@ -164,7 +191,11 @@ fn test_transpile_command_with_gen_tests_flag() {
 fn test_transpile_command_with_debug_flag() {
     let temp = TempDir::new().unwrap();
     let py_file = temp.path().join("debug.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+    std::fs::write(
+        &py_file,
+        "def add(a: int, b: int) -> int:\n    return a + b\n",
+    )
+    .unwrap();
 
     let result = transpile_command(py_file, None, false, false, true, false);
     let _ = result;
@@ -174,7 +205,11 @@ fn test_transpile_command_with_debug_flag() {
 fn test_transpile_command_with_source_map_flag() {
     let temp = TempDir::new().unwrap();
     let py_file = temp.path().join("sourcemap.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+    std::fs::write(
+        &py_file,
+        "def add(a: int, b: int) -> int:\n    return a + b\n",
+    )
+    .unwrap();
 
     let result = transpile_command(py_file, None, false, false, false, true);
     let _ = result;
@@ -186,7 +221,11 @@ fn test_transpile_command_with_source_map_flag() {
 
 #[test]
 fn test_compile_command_nonexistent() {
-    let result = compile_command(PathBuf::from("/nonexistent.py"), None, "release".to_string());
+    let result = compile_command(
+        PathBuf::from("/nonexistent.py"),
+        None,
+        "release".to_string(),
+    );
     assert!(result.is_err());
 }
 
@@ -194,7 +233,11 @@ fn test_compile_command_nonexistent() {
 fn test_compile_command_empty_profile() {
     let temp = TempDir::new().unwrap();
     let py_file = temp.path().join("compile.py");
-    std::fs::write(&py_file, "def add(a: int, b: int) -> int:\n    return a + b\n").unwrap();
+    std::fs::write(
+        &py_file,
+        "def add(a: int, b: int) -> int:\n    return a + b\n",
+    )
+    .unwrap();
 
     // Empty profile should default to release
     let result = compile_command(py_file, None, "".to_string());
@@ -339,7 +382,11 @@ fn test_cache_commands_gc_with_max_age() {
     use clap::Parser;
     let args = vec!["depyler", "cache", "gc", "--max-age-days", "7"];
     let cli = Cli::try_parse_from(args).unwrap();
-    if let Commands::Cache(CacheCommands::Gc { max_age_days, dry_run }) = cli.command {
+    if let Commands::Cache(CacheCommands::Gc {
+        max_age_days,
+        dry_run,
+    }) = cli.command
+    {
         assert_eq!(max_age_days, 7);
         assert!(!dry_run);
     } else {
@@ -380,7 +427,13 @@ fn test_converge_command_defaults() {
     use clap::Parser;
     let args = vec!["depyler", "converge", "--input-dir", "/tmp"];
     let cli = Cli::try_parse_from(args).unwrap();
-    if let Commands::Converge { target_rate, max_iterations, display, .. } = cli.command {
+    if let Commands::Converge {
+        target_rate,
+        max_iterations,
+        display,
+        ..
+    } = cli.command
+    {
         assert_eq!(target_rate, 100.0);
         assert_eq!(max_iterations, 50);
         assert_eq!(display, "rich");
@@ -394,7 +447,12 @@ fn test_report_command_defaults() {
     use clap::Parser;
     let args = vec!["depyler", "report", "--input-dir", "/tmp"];
     let cli = Cli::try_parse_from(args).unwrap();
-    if let Commands::Report { format, failures_only, .. } = cli.command {
+    if let Commands::Report {
+        format,
+        failures_only,
+        ..
+    } = cli.command
+    {
         assert_eq!(format, "text");
         assert!(!failures_only);
     } else {
@@ -407,7 +465,15 @@ fn test_utol_command_defaults() {
     use clap::Parser;
     let args = vec!["depyler", "utol"];
     let cli = Cli::try_parse_from(args).unwrap();
-    if let Commands::Utol { target_rate, max_iterations, patience, display, status, .. } = cli.command {
+    if let Commands::Utol {
+        target_rate,
+        max_iterations,
+        patience,
+        display,
+        status,
+        ..
+    } = cli.command
+    {
         assert_eq!(target_rate, 0.80);
         assert_eq!(max_iterations, 50);
         assert_eq!(patience, 5);

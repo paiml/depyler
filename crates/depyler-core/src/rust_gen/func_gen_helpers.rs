@@ -44,9 +44,7 @@ pub fn codegen_generic_params(
                 .map(|b| {
                     syn::parse_str::<syn::TypeParamBound>(b)
                         .map(|bound| quote! { #bound })
-                        .or_else(|_| {
-                            syn::parse_str::<syn::Path>(b).map(|path| quote! { #path })
-                        })
+                        .or_else(|_| syn::parse_str::<syn::Path>(b).map(|path| quote! { #path }))
                         .unwrap_or_else(|_| quote! { Clone })
                 })
                 .collect();
@@ -151,16 +149,21 @@ pub fn infer_expr_type_simple(expr: &HirExpr) -> Type {
                 Type::Set(Box::new(infer_expr_type_simple(&elems[0])))
             }
         }
-        HirExpr::Tuple(elems) => {
-            Type::Tuple(elems.iter().map(infer_expr_type_simple).collect())
-        }
+        HirExpr::Tuple(elems) => Type::Tuple(elems.iter().map(infer_expr_type_simple).collect()),
         HirExpr::FString { .. } => Type::String,
         HirExpr::Binary { op, .. } => {
             use crate::hir::BinOp;
             match op {
-                BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq 
-                | BinOp::Gt | BinOp::GtEq | BinOp::And | BinOp::Or
-                | BinOp::In | BinOp::NotIn => Type::Bool,
+                BinOp::Eq
+                | BinOp::NotEq
+                | BinOp::Lt
+                | BinOp::LtEq
+                | BinOp::Gt
+                | BinOp::GtEq
+                | BinOp::And
+                | BinOp::Or
+                | BinOp::In
+                | BinOp::NotIn => Type::Bool,
                 BinOp::Div => Type::Float,
                 _ => Type::Unknown,
             }
@@ -374,11 +377,8 @@ mod tests {
             always_terminates: true,
             ..Default::default()
         };
-        let result = codegen_function_attrs(
-            &Some("Docs".to_string()),
-            &props,
-            &["inline".to_string()],
-        );
+        let result =
+            codegen_function_attrs(&Some("Docs".to_string()), &props, &["inline".to_string()]);
         assert_eq!(result.len(), 4); // doc, panic-free, terminates, inline
     }
 
@@ -419,19 +419,28 @@ mod tests {
     #[test]
     fn test_infer_expr_type_simple_bytes() {
         let expr = HirExpr::Literal(Literal::Bytes(vec![1, 2, 3]));
-        assert_eq!(infer_expr_type_simple(&expr), Type::Custom("Vec<u8>".to_string()));
+        assert_eq!(
+            infer_expr_type_simple(&expr),
+            Type::Custom("Vec<u8>".to_string())
+        );
     }
 
     #[test]
     fn test_infer_expr_type_simple_empty_list() {
         let expr = HirExpr::List(vec![]);
-        assert_eq!(infer_expr_type_simple(&expr), Type::List(Box::new(Type::Unknown)));
+        assert_eq!(
+            infer_expr_type_simple(&expr),
+            Type::List(Box::new(Type::Unknown))
+        );
     }
 
     #[test]
     fn test_infer_expr_type_simple_int_list() {
         let expr = HirExpr::List(vec![HirExpr::Literal(Literal::Int(1))]);
-        assert_eq!(infer_expr_type_simple(&expr), Type::List(Box::new(Type::Int)));
+        assert_eq!(
+            infer_expr_type_simple(&expr),
+            Type::List(Box::new(Type::Int))
+        );
     }
 
     #[test]
@@ -458,13 +467,19 @@ mod tests {
     #[test]
     fn test_infer_expr_type_simple_empty_set() {
         let expr = HirExpr::Set(vec![]);
-        assert_eq!(infer_expr_type_simple(&expr), Type::Set(Box::new(Type::Unknown)));
+        assert_eq!(
+            infer_expr_type_simple(&expr),
+            Type::Set(Box::new(Type::Unknown))
+        );
     }
 
     #[test]
     fn test_infer_expr_type_simple_int_set() {
         let expr = HirExpr::Set(vec![HirExpr::Literal(Literal::Int(1))]);
-        assert_eq!(infer_expr_type_simple(&expr), Type::Set(Box::new(Type::Int)));
+        assert_eq!(
+            infer_expr_type_simple(&expr),
+            Type::Set(Box::new(Type::Int))
+        );
     }
 
     #[test]

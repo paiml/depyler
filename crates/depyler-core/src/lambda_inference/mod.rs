@@ -731,7 +731,11 @@ def handler(event, context):
     fn test_calculate_pattern_confidence_partial_match() {
         let inferencer = LambdaTypeInferencer::new();
         let observed = Pattern {
-            access_chain: vec!["Records".to_string(), "s3".to_string(), "bucket".to_string()],
+            access_chain: vec![
+                "Records".to_string(),
+                "s3".to_string(),
+                "bucket".to_string(),
+            ],
             pattern_type: PatternType::Mixed,
         };
         let registered = Pattern {

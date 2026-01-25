@@ -202,7 +202,10 @@ mod benchmark_results {
         assert_eq!(results.iterations, cloned.iterations);
         assert_eq!(results.total_time_ms, cloned.total_time_ms);
         assert!((results.avg_time_ms - cloned.avg_time_ms).abs() < f64::EPSILON);
-        assert_eq!(results.throughput_ops_per_sec, cloned.throughput_ops_per_sec);
+        assert_eq!(
+            results.throughput_ops_per_sec,
+            cloned.throughput_ops_per_sec
+        );
     }
 
     #[test]

@@ -13,6 +13,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         }
     }
 
@@ -423,6 +424,7 @@ mod property_tests {
                 type_aliases: vec![],
                 protocols: vec![],
                 constants: vec![],
+            top_level_stmts: vec![],
             };
 
             for i in 0..num_functions {

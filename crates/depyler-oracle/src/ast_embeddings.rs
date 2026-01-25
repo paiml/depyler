@@ -89,6 +89,40 @@ impl AstEmbedding {
         Matrix::from_vec(1, self.vector.len(), self.vector.clone())
             .expect("Embedding dimensions are correct")
     }
+
+    /// Compute cosine similarity between this embedding and another.
+    ///
+    /// Returns a value in [-1.0, 1.0] where:
+    /// - 1.0 means identical direction (most similar)
+    /// - 0.0 means orthogonal (unrelated)
+    /// - -1.0 means opposite direction (least similar)
+    ///
+    /// Since embeddings are L2-normalized, this is simply the dot product.
+    /// Returns 0.0 if either embedding is a zero vector.
+    #[must_use]
+    pub fn cosine_similarity(&self, other: &Self) -> f32 {
+        if self.vector.len() != other.vector.len() {
+            return 0.0;
+        }
+
+        // For normalized vectors, cosine similarity = dot product
+        let dot_product: f32 = self
+            .vector
+            .iter()
+            .zip(&other.vector)
+            .map(|(a, b)| a * b)
+            .sum();
+
+        dot_product
+    }
+
+    /// Check if this embedding is similar to another above a threshold.
+    ///
+    /// Default threshold of 0.8 indicates high structural similarity.
+    #[must_use]
+    pub fn is_similar_to(&self, other: &Self, threshold: f32) -> bool {
+        self.cosine_similarity(other) >= threshold
+    }
 }
 
 // =============================================================================
@@ -1218,6 +1252,230 @@ class DataProcessor:
             embedding.path_count >= 6,
             "Should extract class structure: got {}",
             embedding.path_count
+        );
+    }
+
+    // ==========================================================================
+    // Cosine Similarity Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_cosine_similarity_identical_embeddings() {
+        let embedder = AstEmbedder::with_defaults();
+        let source = "def foo(x): return x * 2";
+        let emb = embedder.embed_python(source);
+
+        let similarity = emb.cosine_similarity(&emb);
+
+        // Identical embeddings should have similarity ~1.0
+        assert!(
+            (similarity - 1.0).abs() < 0.01,
+            "Identical embeddings should have similarity ~1.0, got {}",
+            similarity
+        );
+    }
+
+    #[test]
+    fn test_cosine_similarity_similar_code() {
+        let embedder = AstEmbedder::with_defaults();
+
+        let source1 = r#"
+def add(a, b):
+    result = a + b
+    return result
+"#;
+        let source2 = r#"
+def add(x, y):
+    sum = x + y
+    return sum
+"#;
+
+        let emb1 = embedder.embed_python(source1);
+        let emb2 = embedder.embed_python(source2);
+
+        let similarity = emb1.cosine_similarity(&emb2);
+
+        // Similar functions should have high similarity
+        assert!(
+            similarity > 0.5,
+            "Similar functions should have similarity > 0.5, got {}",
+            similarity
+        );
+    }
+
+    #[test]
+    fn test_cosine_similarity_different_code() {
+        let embedder = AstEmbedder::with_defaults();
+
+        let source1 = r#"
+def simple_add(a, b):
+    return a + b
+"#;
+        let source2 = r#"
+class ComplexProcessor:
+    def __init__(self):
+        self.data = []
+        self.cache = {}
+
+    def process(self, items):
+        for item in items:
+            self.data.append(item)
+        return self.data
+"#;
+
+        let emb1 = embedder.embed_python(source1);
+        let emb2 = embedder.embed_python(source2);
+
+        let similarity = emb1.cosine_similarity(&emb2);
+
+        // Different structures should have lower similarity
+        assert!(
+            similarity < 0.8,
+            "Different code structures should have similarity < 0.8, got {}",
+            similarity
+        );
+    }
+
+    #[test]
+    fn test_cosine_similarity_empty_embeddings() {
+        let emb1 = AstEmbedding::empty(128);
+        let emb2 = AstEmbedding::empty(128);
+
+        let similarity = emb1.cosine_similarity(&emb2);
+
+        // Empty (zero) vectors have dot product 0
+        assert!(
+            similarity.abs() < 0.01,
+            "Empty embeddings should have similarity ~0, got {}",
+            similarity
+        );
+    }
+
+    #[test]
+    fn test_cosine_similarity_mismatched_dimensions() {
+        let emb1 = AstEmbedding::empty(128);
+        let emb2 = AstEmbedding::empty(64);
+
+        let similarity = emb1.cosine_similarity(&emb2);
+
+        // Mismatched dimensions should return 0
+        assert_eq!(
+            similarity, 0.0,
+            "Mismatched dimensions should return 0"
+        );
+    }
+
+    #[test]
+    fn test_cosine_similarity_range() {
+        let embedder = AstEmbedder::with_defaults();
+
+        let sources = vec![
+            "def foo(): pass",
+            "def bar(x): return x",
+            "class Baz: pass",
+            "x = 1 + 2",
+        ];
+
+        let embeddings: Vec<_> = sources
+            .iter()
+            .map(|s| embedder.embed_python(s))
+            .collect();
+
+        // All similarities should be in valid range [-1, 1]
+        for (i, emb1) in embeddings.iter().enumerate() {
+            for (j, emb2) in embeddings.iter().enumerate() {
+                let sim = emb1.cosine_similarity(emb2);
+                assert!(
+                    (-1.0..=1.0).contains(&sim),
+                    "Similarity at ({}, {}) out of range: {}",
+                    i, j, sim
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_is_similar_to_above_threshold() {
+        let embedder = AstEmbedder::with_defaults();
+        let source = "def foo(x): return x * 2";
+        let emb = embedder.embed_python(source);
+
+        // Identical embedding should be similar at any positive threshold
+        assert!(
+            emb.is_similar_to(&emb, 0.99),
+            "Identical embeddings should be similar"
+        );
+    }
+
+    #[test]
+    fn test_is_similar_to_below_threshold() {
+        let embedder = AstEmbedder::with_defaults();
+
+        let source1 = "def simple(): pass";
+        let source2 = r#"
+class Complex:
+    def __init__(self):
+        self.data = []
+    def method(self, x):
+        return x
+"#;
+
+        let emb1 = embedder.embed_python(source1);
+        let emb2 = embedder.embed_python(source2);
+
+        // Different structures with high threshold should not be similar
+        assert!(
+            !emb1.is_similar_to(&emb2, 0.95),
+            "Different structures should not be similar at 0.95 threshold"
+        );
+    }
+
+    #[test]
+    fn test_cosine_similarity_symmetry() {
+        let embedder = AstEmbedder::with_defaults();
+
+        let emb1 = embedder.embed_python("def foo(a): return a + 1");
+        let emb2 = embedder.embed_python("class Bar: pass");
+
+        let sim_1_2 = emb1.cosine_similarity(&emb2);
+        let sim_2_1 = emb2.cosine_similarity(&emb1);
+
+        assert!(
+            (sim_1_2 - sim_2_1).abs() < 0.0001,
+            "Cosine similarity should be symmetric: {} vs {}",
+            sim_1_2, sim_2_1
+        );
+    }
+
+    #[test]
+    fn test_cosine_similarity_cross_language() {
+        let embedder = AstEmbedder::with_defaults();
+
+        let python_source = r#"
+def fibonacci(n):
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+"#;
+        let rust_source = r#"
+fn fibonacci(n: i32) -> i32 {
+    if n <= 1 {
+        return n;
+    }
+    fibonacci(n - 1) + fibonacci(n - 2)
+}
+"#;
+
+        let py_emb = embedder.embed_python(python_source);
+        let rs_emb = embedder.embed_rust(rust_source);
+
+        let similarity = py_emb.cosine_similarity(&rs_emb);
+
+        // Cross-language similarity should be valid (may be lower due to AST diff)
+        assert!(
+            (-1.0..=1.0).contains(&similarity),
+            "Cross-language similarity should be valid: {}",
+            similarity
         );
     }
 }

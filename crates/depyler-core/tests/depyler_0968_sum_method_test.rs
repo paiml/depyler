@@ -27,7 +27,11 @@ class Vector:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -62,7 +66,11 @@ class Stats:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -99,7 +107,11 @@ def add_vectors(v1: Vector, v2: Vector) -> Vector:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -141,7 +153,11 @@ class Container:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 

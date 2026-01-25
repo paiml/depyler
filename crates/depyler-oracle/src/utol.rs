@@ -64,10 +64,7 @@ impl Default for CorpusConfig {
         Self {
             path: PathBuf::from("../reprorusted-python-cli"),
             include_patterns: vec!["**/*.py".to_string()],
-            exclude_patterns: vec![
-                "**/test_*.py".to_string(),
-                "**/__pycache__/**".to_string(),
-            ],
+            exclude_patterns: vec!["**/test_*.py".to_string(), "**/__pycache__/**".to_string()],
         }
     }
 }
@@ -279,8 +276,8 @@ impl ConvergenceEstimator {
     /// Create new estimator with target rate
     pub fn new(target: f64) -> Self {
         Self {
-            estimate: 0.5,      // Initial estimate at 50%
-            error_cov: 1.0,     // High initial uncertainty
+            estimate: 0.5,  // Initial estimate at 50%
+            error_cov: 1.0, // High initial uncertainty
             process_noise: 0.01,
             measurement_noise: 0.1,
             history: Vec::new(),
@@ -545,7 +542,9 @@ impl AndonDisplay {
 
     /// Format metrics with sparklines
     pub fn format_metrics(&self, state: &LoopState, drift_status: DriftStatus) -> String {
-        if !self.config.show_sparklines || matches!(self.config.mode, DisplayMode::Silent | DisplayMode::Json) {
+        if !self.config.show_sparklines
+            || matches!(self.config.mode, DisplayMode::Silent | DisplayMode::Json)
+        {
             return String::new();
         }
 
@@ -733,9 +732,9 @@ pub fn extract_training_samples(results: &[CompileResult]) -> Vec<TrainingSample
 // ============================================================================
 
 use depyler_core::DepylerPipeline;
+use glob::Pattern;
 use std::process::Command;
 use walkdir::WalkDir;
-use glob::Pattern;
 
 /// Compile all Python files in a corpus directory
 pub fn compile_corpus(config: &CorpusConfig, classifier: &crate::Oracle) -> Vec<CompileResult> {
@@ -769,8 +768,8 @@ pub fn compile_corpus(config: &CorpusConfig, classifier: &crate::Oracle) -> Vec<
         let path_str = path.to_string_lossy();
 
         // Check include patterns
-        let included = include_patterns.is_empty()
-            || include_patterns.iter().any(|p| p.matches(&path_str));
+        let included =
+            include_patterns.is_empty() || include_patterns.iter().any(|p| p.matches(&path_str));
         if !included {
             continue;
         }
@@ -935,13 +934,9 @@ impl TypeConstraintLearner {
         Self {
             constraints: Vec::new(),
             // Pattern: "expected `Type1`, found `Type2`"
-            e0308_pattern: regex::Regex::new(
-                r"expected `([^`]+)`, found `([^`]+)`"
-            ).unwrap(),
+            e0308_pattern: regex::Regex::new(r"expected `([^`]+)`, found `([^`]+)`").unwrap(),
             // Pattern: "--> file.rs:123:45"
-            location_pattern: regex::Regex::new(
-                r"--> ([^:]+):(\d+):\d+"
-            ).unwrap(),
+            location_pattern: regex::Regex::new(r"--> ([^:]+):(\d+):\d+").unwrap(),
         }
     }
 
@@ -953,7 +948,8 @@ impl TypeConstraintLearner {
         for (i, line) in lines.iter().enumerate() {
             // Extract line number from location
             if let Some(caps) = self.location_pattern.captures(line) {
-                current_line = caps.get(2)
+                current_line = caps
+                    .get(2)
                     .and_then(|m| m.as_str().parse().ok())
                     .unwrap_or(0);
             }
@@ -1030,15 +1026,23 @@ impl TypeConstraintLearner {
 
         let mut type_pairs: HashMap<(String, String), usize> = HashMap::new();
         for c in &self.constraints {
-            *type_pairs.entry((c.expected_type.clone(), c.found_type.clone())).or_insert(0) += 1;
+            *type_pairs
+                .entry((c.expected_type.clone(), c.found_type.clone()))
+                .or_insert(0) += 1;
         }
 
-        let mut lines = vec![format!("Learned {} type constraints:", self.constraints.len())];
+        let mut lines = vec![format!(
+            "Learned {} type constraints:",
+            self.constraints.len()
+        )];
         let mut pairs: Vec<_> = type_pairs.into_iter().collect();
         pairs.sort_by(|a, b| b.1.cmp(&a.1));
 
         for ((expected, found), count) in pairs.iter().take(10) {
-            lines.push(format!("  {} × expected `{}`, found `{}`", count, expected, found));
+            lines.push(format!(
+                "  {} × expected `{}`, found `{}`",
+                count, expected, found
+            ));
         }
 
         lines.join("\n")
@@ -1354,7 +1358,10 @@ mod tests {
 
         // Corpus defaults
         assert!(config.corpus.path.to_string_lossy().contains("reprorusted"));
-        assert!(config.corpus.include_patterns.contains(&"**/*.py".to_string()));
+        assert!(config
+            .corpus
+            .include_patterns
+            .contains(&"**/*.py".to_string()));
 
         // Training defaults
         assert_eq!(config.training.synthetic_samples, 12_000);
@@ -1498,8 +1505,15 @@ mod tests {
 
         // The smoothed estimate should be above target after strong trend
         // Note: Kalman smoothing means estimate lags behind actual values
-        assert!(final_est.smoothed > 0.70, "Smoothed estimate should track up: {}", final_est.smoothed);
-        assert!(final_est.current >= 0.80, "Current should be at/above target");
+        assert!(
+            final_est.smoothed > 0.70,
+            "Smoothed estimate should track up: {}",
+            final_est.smoothed
+        );
+        assert!(
+            final_est.current >= 0.80,
+            "Current should be at/above target"
+        );
     }
 
     #[test]
@@ -1794,8 +1808,20 @@ mod tests {
     #[test]
     fn test_compilation_metrics_all_success() {
         let results = vec![
-            CompileResult { file: "a.py".into(), success: true, error: None, category: None, rust_code: Some("".into()) },
-            CompileResult { file: "b.py".into(), success: true, error: None, category: None, rust_code: Some("".into()) },
+            CompileResult {
+                file: "a.py".into(),
+                success: true,
+                error: None,
+                category: None,
+                rust_code: Some("".into()),
+            },
+            CompileResult {
+                file: "b.py".into(),
+                success: true,
+                error: None,
+                category: None,
+                rust_code: Some("".into()),
+            },
         ];
 
         let metrics = CompilationMetrics::from_results(&results);
@@ -1809,10 +1835,34 @@ mod tests {
     #[test]
     fn test_compilation_metrics_mixed() {
         let results = vec![
-            CompileResult { file: "a.py".into(), success: true, error: None, category: None, rust_code: Some("".into()) },
-            CompileResult { file: "b.py".into(), success: false, error: Some("E0308".into()), category: Some(ErrorCategory::TypeMismatch), rust_code: None },
-            CompileResult { file: "c.py".into(), success: false, error: Some("E0277".into()), category: Some(ErrorCategory::TraitBound), rust_code: None },
-            CompileResult { file: "d.py".into(), success: true, error: None, category: None, rust_code: Some("".into()) },
+            CompileResult {
+                file: "a.py".into(),
+                success: true,
+                error: None,
+                category: None,
+                rust_code: Some("".into()),
+            },
+            CompileResult {
+                file: "b.py".into(),
+                success: false,
+                error: Some("E0308".into()),
+                category: Some(ErrorCategory::TypeMismatch),
+                rust_code: None,
+            },
+            CompileResult {
+                file: "c.py".into(),
+                success: false,
+                error: Some("E0277".into()),
+                category: Some(ErrorCategory::TraitBound),
+                rust_code: None,
+            },
+            CompileResult {
+                file: "d.py".into(),
+                success: true,
+                error: None,
+                category: None,
+                rust_code: Some("".into()),
+            },
         ];
 
         let metrics = CompilationMetrics::from_results(&results);
@@ -1821,8 +1871,14 @@ mod tests {
         assert_eq!(metrics.successful, 2);
         assert_eq!(metrics.failed, 2);
         assert!((metrics.compile_rate - 0.5).abs() < 0.001);
-        assert_eq!(metrics.category_counts.get(&ErrorCategory::TypeMismatch), Some(&1));
-        assert_eq!(metrics.category_counts.get(&ErrorCategory::TraitBound), Some(&1));
+        assert_eq!(
+            metrics.category_counts.get(&ErrorCategory::TypeMismatch),
+            Some(&1)
+        );
+        assert_eq!(
+            metrics.category_counts.get(&ErrorCategory::TraitBound),
+            Some(&1)
+        );
     }
 
     #[test]
@@ -1845,14 +1901,14 @@ mod tests {
                 success: true,
                 error: None,
                 category: None,
-                rust_code: Some("fn main() {}".into())
+                rust_code: Some("fn main() {}".into()),
             },
             CompileResult {
                 file: "fail.py".into(),
                 success: false,
                 error: Some("error[E0308]: mismatched types".into()),
                 category: Some(ErrorCategory::TypeMismatch),
-                rust_code: None
+                rust_code: None,
             },
         ];
 
@@ -1865,9 +1921,13 @@ mod tests {
 
     #[test]
     fn test_extract_training_samples_empty_on_all_success() {
-        let results = vec![
-            CompileResult { file: "a.py".into(), success: true, error: None, category: None, rust_code: Some("".into()) },
-        ];
+        let results = vec![CompileResult {
+            file: "a.py".into(),
+            success: true,
+            error: None,
+            category: None,
+            rust_code: Some("".into()),
+        }];
 
         let samples = extract_training_samples(&results);
         assert!(samples.is_empty());
@@ -1969,7 +2029,12 @@ mod tests {
 
     #[test]
     fn test_display_mode_serialization_all_variants() {
-        let modes = [DisplayMode::Rich, DisplayMode::Minimal, DisplayMode::Json, DisplayMode::Silent];
+        let modes = [
+            DisplayMode::Rich,
+            DisplayMode::Minimal,
+            DisplayMode::Json,
+            DisplayMode::Silent,
+        ];
         for mode in modes {
             let json = serde_json::to_string(&mode).unwrap();
             let restored: DisplayMode = serde_json::from_str(&json).unwrap();
@@ -2024,7 +2089,9 @@ mod tests {
     #[test]
     fn test_loop_state_category_rates() {
         let mut state = LoopState::new();
-        state.category_rates.insert(ErrorCategory::TypeMismatch, 0.9);
+        state
+            .category_rates
+            .insert(ErrorCategory::TypeMismatch, 0.9);
         state.category_rates.insert(ErrorCategory::TraitBound, 0.8);
 
         assert_eq!(state.category_rates.len(), 2);
@@ -2215,13 +2282,19 @@ mod tests {
         assert_eq!(Action::Plateau, Action::Plateau);
         assert_eq!(Action::NoImprovement, Action::NoImprovement);
         assert_eq!(Action::Continue, Action::Continue);
-        assert_eq!(Action::Retrain { failing_count: 10 }, Action::Retrain { failing_count: 10 });
+        assert_eq!(
+            Action::Retrain { failing_count: 10 },
+            Action::Retrain { failing_count: 10 }
+        );
     }
 
     #[test]
     fn test_action_inequality() {
         assert_ne!(Action::Converged, Action::Plateau);
-        assert_ne!(Action::Retrain { failing_count: 5 }, Action::Retrain { failing_count: 10 });
+        assert_ne!(
+            Action::Retrain { failing_count: 5 },
+            Action::Retrain { failing_count: 10 }
+        );
     }
 
     #[test]
@@ -2541,14 +2614,14 @@ mod tests {
                 success: false,
                 error: Some("E0308".into()),
                 category: Some(ErrorCategory::TypeMismatch),
-                rust_code: None
+                rust_code: None,
             },
             CompileResult {
                 file: "b.py".into(),
                 success: false,
                 error: Some("E0277".into()),
                 category: Some(ErrorCategory::TraitBound),
-                rust_code: None
+                rust_code: None,
             },
         ];
 
@@ -2561,15 +2634,13 @@ mod tests {
 
     #[test]
     fn test_compilation_metrics_with_no_category() {
-        let results = vec![
-            CompileResult {
-                file: "a.py".into(),
-                success: false,
-                error: Some("Unknown error".into()),
-                category: None, // No category
-                rust_code: None
-            },
-        ];
+        let results = vec![CompileResult {
+            file: "a.py".into(),
+            success: false,
+            error: Some("Unknown error".into()),
+            category: None, // No category
+            rust_code: None,
+        }];
 
         let metrics = CompilationMetrics::from_results(&results);
         assert_eq!(metrics.failed, 1);
@@ -2605,15 +2676,13 @@ mod tests {
 
     #[test]
     fn test_extract_training_samples_skips_no_category() {
-        let results = vec![
-            CompileResult {
-                file: "fail.py".into(),
-                success: false,
-                error: Some("error".into()),
-                category: None, // No category
-                rust_code: None
-            },
-        ];
+        let results = vec![CompileResult {
+            file: "fail.py".into(),
+            success: false,
+            error: Some("error".into()),
+            category: None, // No category
+            rust_code: None,
+        }];
 
         let samples = extract_training_samples(&results);
         assert!(samples.is_empty()); // Skipped due to no category
@@ -2621,15 +2690,13 @@ mod tests {
 
     #[test]
     fn test_extract_training_samples_skips_no_error() {
-        let results = vec![
-            CompileResult {
-                file: "fail.py".into(),
-                success: false,
-                error: None, // No error message
-                category: Some(ErrorCategory::TypeMismatch),
-                rust_code: None
-            },
-        ];
+        let results = vec![CompileResult {
+            file: "fail.py".into(),
+            success: false,
+            error: None, // No error message
+            category: Some(ErrorCategory::TypeMismatch),
+            rust_code: None,
+        }];
 
         let samples = extract_training_samples(&results);
         assert!(samples.is_empty()); // Skipped due to no error
@@ -2643,21 +2710,21 @@ mod tests {
                 success: false,
                 error: Some("E0308".into()),
                 category: Some(ErrorCategory::TypeMismatch),
-                rust_code: None
+                rust_code: None,
             },
             CompileResult {
                 file: "b.py".into(),
                 success: false,
                 error: Some("E0277".into()),
                 category: Some(ErrorCategory::TraitBound),
-                rust_code: None
+                rust_code: None,
             },
             CompileResult {
                 file: "c.py".into(),
                 success: false,
                 error: Some("E0599".into()),
                 category: Some(ErrorCategory::SyntaxError),
-                rust_code: None
+                rust_code: None,
             },
         ];
 

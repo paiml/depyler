@@ -101,7 +101,9 @@ def check_buffer(buffer: list) -> bool:
     // Should NOT use raw collection in if condition
     // Should use .is_empty() or len() > 0
     assert!(
-        rust.contains("is_empty()") || rust.contains(".len()") || rust.contains("!buffer.is_empty()"),
+        rust.contains("is_empty()")
+            || rust.contains(".len()")
+            || rust.contains("!buffer.is_empty()"),
         "Boolean context should use proper emptiness check.\nGenerated:\n{}",
         rust
     );
@@ -230,10 +232,7 @@ def add(a: int, b: int) -> int:
     return a + b
 "#;
 
-    assert!(
-        compiles(python),
-        "Simple arithmetic should compile"
-    );
+    assert!(compiles(python), "Simple arithmetic should compile");
 }
 
 #[test]
@@ -245,10 +244,7 @@ def greet(name: str) -> str:
     return "Hello, " + name + "!"
 "#;
 
-    assert!(
-        compiles(python),
-        "String operations should compile"
-    );
+    assert!(compiles(python), "String operations should compile");
 }
 
 #[test]
@@ -263,10 +259,7 @@ def sum_list(nums: list[int]) -> int:
     return total
 "#;
 
-    assert!(
-        compiles(python),
-        "List operations should compile"
-    );
+    assert!(compiles(python), "List operations should compile");
 }
 
 // ============================================================================

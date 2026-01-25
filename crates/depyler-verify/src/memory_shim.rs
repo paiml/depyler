@@ -68,11 +68,20 @@ impl AllocationTracker {
 pub enum MemoryViolation {
     UseAfterFree(String),
     DoubleFree(String),
-    BufferOverflow { index: i64, size: usize },
-    BufferUnderflow { index: i64 },
+    BufferOverflow {
+        index: i64,
+        size: usize,
+    },
+    BufferUnderflow {
+        index: i64,
+    },
     NullDereference,
     UninitializedAccess(String),
-    DataRace { var: String, op1: String, op2: String },
+    DataRace {
+        var: String,
+        op1: String,
+        op2: String,
+    },
 }
 
 impl MemoryViolation {
@@ -114,7 +123,9 @@ impl MemoryViolation {
             Self::BufferOverflow { index, size } => {
                 format!("Buffer overflow: index {} >= size {}", index, size)
             }
-            Self::BufferUnderflow { index } => format!("Buffer underflow: negative index {}", index),
+            Self::BufferUnderflow { index } => {
+                format!("Buffer underflow: negative index {}", index)
+            }
             Self::NullDereference => "Null pointer dereference".to_string(),
             Self::UninitializedAccess(var) => format!("Access to uninitialized variable '{}'", var),
             Self::DataRace { var, op1, op2 } => {
@@ -148,10 +159,7 @@ impl BoundsChecker {
 
         if let Some(&size) = self.array_sizes.get(name) {
             if index as usize >= size {
-                return Some(MemoryViolation::BufferOverflow {
-                    index,
-                    size,
-                });
+                return Some(MemoryViolation::BufferOverflow { index, size });
             }
         }
 
@@ -435,10 +443,7 @@ mod tests {
             MemoryViolation::BufferOverflow { index: 10, size: 5 }.cwe_id(),
             787
         );
-        assert_eq!(
-            MemoryViolation::BufferUnderflow { index: -1 }.cwe_id(),
-            125
-        );
+        assert_eq!(MemoryViolation::BufferUnderflow { index: -1 }.cwe_id(), 125);
         assert_eq!(MemoryViolation::NullDereference.cwe_id(), 476);
         assert_eq!(
             MemoryViolation::DataRace {
@@ -490,7 +495,10 @@ mod tests {
         let violation = checker.check_bounds("arr", 10);
         assert!(matches!(
             violation,
-            Some(MemoryViolation::BufferOverflow { index: 10, size: 10 })
+            Some(MemoryViolation::BufferOverflow {
+                index: 10,
+                size: 10
+            })
         ));
     }
 

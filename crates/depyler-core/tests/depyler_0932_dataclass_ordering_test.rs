@@ -23,7 +23,11 @@ def create_person() -> Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     // The new() method should have parameters in order: name, age, email
@@ -53,7 +57,11 @@ def create_config() -> Config:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     assert!(
@@ -82,7 +90,11 @@ def create_item(id: int, name: str) -> Item:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     // Should generate struct with fields in correct order
@@ -111,7 +123,11 @@ def origin() -> Point:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     // Should generate new() call with correct argument order
@@ -139,7 +155,11 @@ def square(size: float) -> Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     assert!(
@@ -172,7 +192,11 @@ def create_person() -> Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     assert!(

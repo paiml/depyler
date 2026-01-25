@@ -153,7 +153,8 @@ pub struct OipTrainingDataset {
 /// Returns error if file cannot be read or parsed
 pub fn load_oip_training_data(path: &Path) -> Result<OipTrainingDataset, std::io::Error> {
     let content = fs::read_to_string(path)?;
-    serde_json::from_str(&content).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    serde_json::from_str(&content)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
 /// Convert OIP training data to depyler TrainingDataset
@@ -279,9 +280,7 @@ fn infer_error_code_from_category(category: OipDefectCategory) -> String {
             "E0308".to_string()
         }
         OipDefectCategory::TraitBounds => "E0277".to_string(),
-        OipDefectCategory::OwnershipBorrow | OipDefectCategory::MemorySafety => {
-            "E0382".to_string()
-        }
+        OipDefectCategory::OwnershipBorrow | OipDefectCategory::MemorySafety => "E0382".to_string(),
         OipDefectCategory::StdlibMapping | OipDefectCategory::ASTTransform => "E0433".to_string(),
         OipDefectCategory::ApiMisuse | OipDefectCategory::IteratorChain => "E0599".to_string(),
         OipDefectCategory::ConfigurationErrors | OipDefectCategory::IntegrationFailures => {

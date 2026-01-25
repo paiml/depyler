@@ -1125,7 +1125,9 @@ mod tests {
         let static_str = OptimalStringType::StaticStr;
         assert!(format!("{:?}", static_str).contains("StaticStr"));
 
-        let borrowed = OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) };
+        let borrowed = OptimalStringType::BorrowedStr {
+            lifetime: Some("'a".to_string()),
+        };
         assert!(format!("{:?}", borrowed).contains("BorrowedStr"));
         assert!(format!("{:?}", borrowed).contains("'a"));
 
@@ -1138,7 +1140,9 @@ mod tests {
 
     #[test]
     fn test_optimal_string_type_clone() {
-        let original = OptimalStringType::BorrowedStr { lifetime: Some("'b".to_string()) };
+        let original = OptimalStringType::BorrowedStr {
+            lifetime: Some("'b".to_string()),
+        };
         let cloned = original.clone();
         assert_eq!(original, cloned);
     }
@@ -1146,14 +1150,23 @@ mod tests {
     #[test]
     fn test_optimal_string_type_partial_eq() {
         assert_eq!(OptimalStringType::StaticStr, OptimalStringType::StaticStr);
-        assert_eq!(OptimalStringType::OwnedString, OptimalStringType::OwnedString);
+        assert_eq!(
+            OptimalStringType::OwnedString,
+            OptimalStringType::OwnedString
+        );
         assert_eq!(OptimalStringType::CowStr, OptimalStringType::CowStr);
         assert_ne!(OptimalStringType::StaticStr, OptimalStringType::OwnedString);
         assert_ne!(OptimalStringType::CowStr, OptimalStringType::StaticStr);
 
-        let borrowed1 = OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) };
-        let borrowed2 = OptimalStringType::BorrowedStr { lifetime: Some("'a".to_string()) };
-        let borrowed3 = OptimalStringType::BorrowedStr { lifetime: Some("'b".to_string()) };
+        let borrowed1 = OptimalStringType::BorrowedStr {
+            lifetime: Some("'a".to_string()),
+        };
+        let borrowed2 = OptimalStringType::BorrowedStr {
+            lifetime: Some("'a".to_string()),
+        };
+        let borrowed3 = OptimalStringType::BorrowedStr {
+            lifetime: Some("'b".to_string()),
+        };
         let borrowed_none = OptimalStringType::BorrowedStr { lifetime: None };
 
         assert_eq!(borrowed1, borrowed2);

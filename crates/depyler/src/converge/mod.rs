@@ -180,20 +180,25 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
 
         // DEPYLER-1308: Apply transpiler patches if enabled
         if let Some(ref mut patcher) = transpiler_patcher {
-            tracing::info!("DEPYLER-1312: Checking for transpiler patches, {} clusters available", state.error_clusters.len());
+            tracing::info!(
+                "DEPYLER-1312: Checking for transpiler patches, {} clusters available",
+                state.error_clusters.len()
+            );
             // Find applicable patches based on highest-impact error cluster
             // DEPYLER-1312: Sort by impact_score instead of using arbitrary first()
             if let Some(top_cluster) = state.error_clusters.iter().max_by(|a, b| {
-                a.impact_score().partial_cmp(&b.impact_score()).unwrap_or(std::cmp::Ordering::Equal)
+                a.impact_score()
+                    .partial_cmp(&b.impact_score())
+                    .unwrap_or(std::cmp::Ordering::Equal)
             }) {
                 let error_code = top_cluster.error_code.clone();
                 let sample_error = top_cluster.sample_errors.first();
-                let sample_message = sample_error
-                    .map(|e| e.message.clone())
-                    .unwrap_or_default();
+                let sample_message = sample_error.map(|e| e.message.clone()).unwrap_or_default();
 
                 // DEPYLER-1310: Extract context_keywords from all sample errors
-                let context_keywords: Vec<String> = top_cluster.sample_errors.iter()
+                let context_keywords: Vec<String> = top_cluster
+                    .sample_errors
+                    .iter()
                     .flat_map(|e| e.context_keywords.iter().cloned())
                     .collect();
 
@@ -206,7 +211,8 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
                 );
 
                 // Clone patches to avoid borrow conflict
-                let patches: Vec<_> = patcher.find_patches(&error_code, &sample_message, &context_keywords)
+                let patches: Vec<_> = patcher
+                    .find_patches(&error_code, &sample_message, &context_keywords)
                     .into_iter()
                     .cloned()
                     .collect();
@@ -312,10 +318,7 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     reporter.report_failure_analysis(&last_results);
 
     // DEPYLER-1301: Write Oracle ROI metrics
-    let session_name = format!(
-        "converge-{}",
-        chrono::Utc::now().format("%Y%m%d-%H%M%S")
-    );
+    let session_name = format!("converge-{}", chrono::Utc::now().format("%Y%m%d-%H%M%S"));
     let roi_metrics = roi_metrics::OracleRoiMetrics::from_convergence(
         &state,
         &all_classifications,

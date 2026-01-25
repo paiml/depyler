@@ -490,8 +490,10 @@ fn test_add_class_name() {
 fn test_add_result_returning_function() {
     let mut ctx = test_helpers::test_context();
 
-    ctx.result_returning_functions.insert("open_file".to_string());
-    ctx.result_returning_functions.insert("parse_json".to_string());
+    ctx.result_returning_functions
+        .insert("open_file".to_string());
+    ctx.result_returning_functions
+        .insert("parse_json".to_string());
 
     assert!(ctx.result_returning_functions.contains("open_file"));
     assert!(ctx.result_returning_functions.contains("parse_json"));

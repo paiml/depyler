@@ -150,9 +150,7 @@ def foo():
         let graph = builder.build_from_source(python).unwrap();
 
         let overlay = ErrorOverlay::new(&graph);
-        let errors = vec![
-            ("E0308".to_string(), "mismatched types".to_string(), 20),
-        ];
+        let errors = vec![("E0308".to_string(), "mismatched types".to_string(), 20)];
 
         let overlaid = overlay.overlay_errors(&errors);
         assert_eq!(overlaid.len(), 1);

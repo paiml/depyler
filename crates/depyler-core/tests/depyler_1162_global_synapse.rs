@@ -1,5 +1,4 @@
 #![allow(clippy::assertions_on_constants)]
-
 // DEPYLER-1162: Global Synapse Activation
 //
 // Tests for cross-module type propagation using the GlobalTypeGraph.
@@ -8,7 +7,6 @@
 //
 // The "Global Synapse" refers to the neural-link-like connection between
 // function return types and caller expectations across module boundaries.
-
 #![allow(non_snake_case)] // Test naming convention
 
 use depyler_core::DepylerPipeline;
@@ -373,8 +371,7 @@ def double_number() -> int:
 
     let rust = result.unwrap();
     // With explicit type annotations, we should see concrete types, not DepylerValue
-    let has_concrete_types =
-        rust.contains("i64") || rust.contains("i32") || rust.contains("-> i");
+    let has_concrete_types = rust.contains("i64") || rust.contains("i32") || rust.contains("-> i");
     assert!(
         has_concrete_types,
         "Should use concrete types when annotated: {}",

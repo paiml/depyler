@@ -151,9 +151,7 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
                     // Prefix node ID with file path for uniqueness
                     let prefixed_id = format!(
                         "{}::{}",
-                        path.file_stem()
-                            .unwrap_or_default()
-                            .to_string_lossy(),
+                        path.file_stem().unwrap_or_default().to_string_lossy(),
                         node_id
                     );
                     let mut prefixed_node = node.clone();

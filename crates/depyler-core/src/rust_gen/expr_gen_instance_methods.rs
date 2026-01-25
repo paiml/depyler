@@ -3,6 +3,8 @@
 //! DEPYLER-COVERAGE-95: Extracted from expr_gen.rs to reduce file size
 //! and improve testability. Contains collection and instance method handlers.
 
+#[cfg(feature = "decision-tracing")]
+use crate::decision_trace::DecisionCategory;
 use crate::direct_rules::type_to_rust_type;
 use crate::hir::*;
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
@@ -14,8 +16,6 @@ use crate::rust_gen::truthiness_helpers::{
 };
 use crate::rust_gen::walrus_helpers;
 use crate::trace_decision;
-#[cfg(feature = "decision-tracing")]
-use crate::decision_trace::DecisionCategory;
 use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
 use syn::{self, parse_quote};
@@ -80,7 +80,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // This is the "bridge" that respects Oracle/annotation types
                 if let Some(elem_type) = concrete_element_type {
                     // Generate the appropriate push based on element type
-                    let push_expr = self.generate_typed_push(object_expr, arg, &elem_type, hir_args)?;
+                    let push_expr =
+                        self.generate_typed_push(object_expr, arg, &elem_type, hir_args)?;
                     return Ok(push_expr);
                 }
 
@@ -110,17 +111,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // DEPYLER-1210: Avoid double .to_string() - arg_exprs already converts literals
                     let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
                         match &hir_args[0] {
-                            HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                            HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                            HirExpr::Literal(Literal::Int(_)) => {
+                                parse_quote! { DepylerValue::Int(#arg as i64) }
+                            }
+                            HirExpr::Literal(Literal::Float(_)) => {
+                                parse_quote! { DepylerValue::Float(#arg as f64) }
+                            }
                             // String literals are already converted to String by arg_exprs, just wrap
-                            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg) },
-                            HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
+                            HirExpr::Literal(Literal::String(_)) => {
+                                parse_quote! { DepylerValue::Str(#arg) }
+                            }
+                            HirExpr::Literal(Literal::Bool(_)) => {
+                                parse_quote! { DepylerValue::Bool(#arg) }
+                            }
                             HirExpr::Var(name) => {
                                 // Check variable type
                                 match self.ctx.var_types.get(name) {
-                                    Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                                    Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                                    Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
+                                    Some(Type::Int) => {
+                                        parse_quote! { DepylerValue::Int(#arg as i64) }
+                                    }
+                                    Some(Type::Float) => {
+                                        parse_quote! { DepylerValue::Float(#arg as f64) }
+                                    }
+                                    Some(Type::String) => {
+                                        parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                                    }
                                     Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
                                     _ => parse_quote! { DepylerValue::Str(format!("{:?}", #arg)) },
                                 }
@@ -442,44 +457,32 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // width was inferred). Casting to i64 causes E0308 when the Vec is Vec<i32>.
             // Trust the type system - if there's a mismatch, it's a type inference issue
             // that should be fixed at the source, not papered over with casts.
-            Type::Int => {
-                Ok(parse_quote! { #object_expr.push(#arg) })
-            }
+            Type::Int => Ok(parse_quote! { #object_expr.push(#arg) }),
             // DEPYLER-1135: For Vec<f64>, push directly without cast
             // Same reasoning - trust the type system
-            Type::Float => {
-                Ok(parse_quote! { #object_expr.push(#arg) })
-            }
+            Type::Float => Ok(parse_quote! { #object_expr.push(#arg) }),
             // For Vec<bool>, direct push
-            Type::Bool => {
-                Ok(parse_quote! { #object_expr.push(#arg) })
-            }
+            Type::Bool => Ok(parse_quote! { #object_expr.push(#arg) }),
             // For nested Vec<Vec<T>>, push directly (arg should already be Vec<T>)
             Type::List(_inner) => {
                 // The arg should be the inner list type already
                 Ok(parse_quote! { #object_expr.push(#arg) })
             }
             // For Vec<HashMap<K, V>>, push directly
-            Type::Dict(_k, _v) => {
-                Ok(parse_quote! { #object_expr.push(#arg) })
-            }
+            Type::Dict(_k, _v) => Ok(parse_quote! { #object_expr.push(#arg) }),
             // For custom types, use try_into for safe conversion
             Type::Custom(type_name) => {
                 let type_ident: syn::Type = syn::parse_str(type_name)?;
-                Ok(parse_quote! { #object_expr.push(<#type_ident>::try_from(#arg).expect("Type conversion failed")) })
+                Ok(
+                    parse_quote! { #object_expr.push(<#type_ident>::try_from(#arg).expect("Type conversion failed")) },
+                )
             }
             // For Optional types, push directly
-            Type::Optional(_inner) => {
-                Ok(parse_quote! { #object_expr.push(#arg) })
-            }
+            Type::Optional(_inner) => Ok(parse_quote! { #object_expr.push(#arg) }),
             // For Tuple types, push directly
-            Type::Tuple(_) => {
-                Ok(parse_quote! { #object_expr.push(#arg) })
-            }
+            Type::Tuple(_) => Ok(parse_quote! { #object_expr.push(#arg) }),
             // Fallback: direct push (trust the type system)
-            _ => {
-                Ok(parse_quote! { #object_expr.push(#arg) })
-            }
+            _ => Ok(parse_quote! { #object_expr.push(#arg) }),
         }
     }
 
@@ -637,7 +640,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // 2. Convert to the expected type (usually String)
                         // Pattern: dict.get(key).and_then(|v| v.as_str()).unwrap_or(default).to_string()
                         self.ctx.needs_serde_json = true;
-                        if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(s))) if !s.is_empty()) {
+                        if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(s))) if !s.is_empty())
+                        {
                             // String default - extract as string with fallback
                             if let Some(HirExpr::Literal(Literal::String(s))) = hir_args.get(1) {
                                 let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
@@ -649,7 +653,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             // Non-string default - use json!() and keep as Value
                             parse_quote! { #object_expr.get(#key_expr).cloned().unwrap_or(serde_json::json!(#default)) }
                         }
-                    } else if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(_)))) {
+                    } else if matches!(hir_args.get(1), Some(HirExpr::Literal(Literal::String(_))))
+                    {
                         // DEPYLER-0729: String literal default
                         // Check if dict value type is String (needs .to_string()) or &str (bare literal ok)
                         let dict_value_is_string = self.dict_value_type_is_string(hir_object);
@@ -1099,7 +1104,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0597: Vecs don't have .collect(), only iterators do
                 let needs_collect = match &hir_args[0] {
                     HirExpr::GeneratorExp { .. } => true,
-                    HirExpr::Call { func, .. } if func == "map" || func == "filter" || func == "iter" || func == "enumerate" => true,
+                    HirExpr::Call { func, .. }
+                        if func == "map"
+                            || func == "filter"
+                            || func == "iter"
+                            || func == "enumerate" =>
+                    {
+                        true
+                    }
                     _ => false,
                 };
                 if needs_collect {
@@ -1265,7 +1277,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #object_expr.trim_start().to_string() })
                 } else {
                     let chars = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.trim_start_matches(|c: char| #chars.contains(c)).to_string() })
+                    Ok(
+                        parse_quote! { #object_expr.trim_start_matches(|c: char| #chars.contains(c)).to_string() },
+                    )
                 }
             }
             "rstrip" => {
@@ -1274,7 +1288,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     Ok(parse_quote! { #object_expr.trim_end().to_string() })
                 } else {
                     let chars = &arg_exprs[0];
-                    Ok(parse_quote! { #object_expr.trim_end_matches(|c: char| #chars.contains(c)).to_string() })
+                    Ok(
+                        parse_quote! { #object_expr.trim_end_matches(|c: char| #chars.contains(c)).to_string() },
+                    )
                 }
             }
             "encode" => {
@@ -1574,7 +1590,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0796: If object is a char from string iteration, use direct char method
                 if let HirExpr::Var(var_name) = hir_object {
                     if self.ctx.char_iter_vars.contains(var_name) {
-                        return Ok(parse_quote! { !#object_expr.is_control() || #object_expr == '\t' || #object_expr == '\n' || #object_expr == '\r' });
+                        return Ok(
+                            parse_quote! { !#object_expr.is_control() || #object_expr == '\t' || #object_expr == '\n' || #object_expr == '\r' },
+                        );
                     }
                 }
                 Ok(parse_quote! {
@@ -1589,10 +1607,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0796: If object is a char from string iteration, use direct char method
                 if let HirExpr::Var(var_name) = hir_object {
                     if self.ctx.char_iter_vars.contains(var_name) {
-                        return Ok(parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_uppercase() });
+                        return Ok(
+                            parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_uppercase() },
+                        );
                     }
                 }
-                Ok(parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) })
+                Ok(
+                    parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_uppercase()) },
+                )
             }
             "islower" => {
                 if !arg_exprs.is_empty() {
@@ -1601,10 +1623,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0796: If object is a char from string iteration, use direct char method
                 if let HirExpr::Var(var_name) = hir_object {
                     if self.ctx.char_iter_vars.contains(var_name) {
-                        return Ok(parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_lowercase() });
+                        return Ok(
+                            parse_quote! { !#object_expr.is_alphabetic() || #object_expr.is_lowercase() },
+                        );
                     }
                 }
-                Ok(parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()) })
+                Ok(
+                    parse_quote! { #object_expr.chars().all(|c| !c.is_alphabetic() || c.is_lowercase()) },
+                )
             }
             "istitle" => {
                 if !arg_exprs.is_empty() {
@@ -1755,19 +1781,27 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if is_set_depyler_value && !hir_args.is_empty() {
                     // Wrap argument in DepylerValue based on argument type
                     let wrapped_arg: syn::Expr = match &hir_args[0] {
-                        HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                        HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                        HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
-                        HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
-                        HirExpr::Var(name) => {
-                            match self.ctx.var_types.get(name) {
-                                Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                                Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                                Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
-                                Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
-                                _ => parse_quote! { DepylerValue::from(#arg) },
-                            }
+                        HirExpr::Literal(Literal::Int(_)) => {
+                            parse_quote! { DepylerValue::Int(#arg as i64) }
                         }
+                        HirExpr::Literal(Literal::Float(_)) => {
+                            parse_quote! { DepylerValue::Float(#arg as f64) }
+                        }
+                        HirExpr::Literal(Literal::String(_)) => {
+                            parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                        }
+                        HirExpr::Literal(Literal::Bool(_)) => {
+                            parse_quote! { DepylerValue::Bool(#arg) }
+                        }
+                        HirExpr::Var(name) => match self.ctx.var_types.get(name) {
+                            Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                            Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
+                            Some(Type::String) => {
+                                parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                            }
+                            Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                            _ => parse_quote! { DepylerValue::from(#arg) },
+                        },
                         _ => parse_quote! { DepylerValue::from(#arg) },
                     };
                     self.ctx.needs_depyler_value_enum = true;
@@ -2140,7 +2174,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         hir_args: &[HirExpr],
         kwargs: &[(String, HirExpr)],
     ) -> Result<syn::Expr> {
-
         // DEPYLER-0363: Handle parse_args() → Skip for now, will be replaced with Args::parse()
         // ArgumentParser.parse_args() requires full struct transformation
         // For now, return unit to allow compilation
@@ -2250,9 +2283,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0666: Also check if var_name is an UNWRAPPED name (value in map)
             let is_option_content = if let HirExpr::Var(var_name) = &hir_args[0] {
                 // Check if variable is already unwrapped (inside if-let body)
-                let is_unwrapped =
-                    self.ctx.option_unwrap_map.contains_key(var_name)
-                        || self.ctx.option_unwrap_map.values().any(|v| v == var_name);
+                let is_unwrapped = self.ctx.option_unwrap_map.contains_key(var_name)
+                    || self.ctx.option_unwrap_map.values().any(|v| v == var_name);
                 if is_unwrapped {
                     false // Already unwrapped, not Option
                 } else {
@@ -2337,11 +2369,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 || var_name.ends_with("_date")
                 || var_name.ends_with("_time")
                 || var_name.starts_with("date_")  // DEPYLER-0620: date_xyz pattern
-                || var_name.starts_with("time_")  // DEPYLER-0620: time_xyz pattern
+                || var_name.starts_with("time_") // DEPYLER-0620: time_xyz pattern
         } else {
             // DEPYLER-0620: Also detect datetime methods being called regardless of variable name
             // If the method is datetime-specific (strftime, isoformat), assume datetime object
-            matches!(method, "strftime" | "isoformat" | "timestamp" | "weekday" | "isoweekday")
+            matches!(
+                method,
+                "strftime" | "isoformat" | "timestamp" | "weekday" | "isoweekday"
+            )
         };
 
         if is_datetime_object {
@@ -2375,7 +2410,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // dt.timestamp() → Unix timestamp
                 "timestamp" if arg_exprs.is_empty() => {
                     if nasa_mode {
-                        return Ok(parse_quote! { #object_expr.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as f64 });
+                        return Ok(
+                            parse_quote! { #object_expr.duration_since(std::time::UNIX_EPOCH).unwrap().as_secs() as f64 },
+                        );
                     } else {
                         return Ok(parse_quote! { #object_expr.and_utc().timestamp() as f64 });
                     }
@@ -2500,7 +2537,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 | "hex"
                 | "format"
                 | "encode"  // DEPYLER-0621: str.encode() → .as_bytes().to_vec()
-                | "decode"  // DEPYLER-0621: bytes.decode() → String::from_utf8_lossy()
+                | "decode" // DEPYLER-0621: bytes.decode() → String::from_utf8_lossy()
         ) {
             // DEPYLER-1064: Check if object is a DepylerValue variable
             // If so, extract string before calling string method
@@ -2520,7 +2557,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 object_expr.clone()
             };
 
-            return self.convert_string_method(object, &adjusted_object_expr, method, arg_exprs, hir_args);
+            return self.convert_string_method(
+                object,
+                &adjusted_object_expr,
+                method,
+                arg_exprs,
+                hir_args,
+            );
         }
 
         // DEPYLER-0232 FIX: Check for user-defined class instances
@@ -2573,7 +2616,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 | "issubset"
                 | "issuperset"
                 | "isdisjoint" => {
-                    return self.convert_set_method(object_expr, object, method, arg_exprs, hir_args);
+                    return self.convert_set_method(
+                        object_expr,
+                        object,
+                        method,
+                        arg_exprs,
+                        hir_args,
+                    );
                 }
                 _ => {}
             }
@@ -2621,19 +2670,29 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Wrap argument in DepylerValue based on argument type
                     let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
                         match &hir_args[0] {
-                            HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                            HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                            HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
-                            HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
-                            HirExpr::Var(name) => {
-                                match self.ctx.var_types.get(name) {
-                                    Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                                    Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                                    Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
-                                    Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
-                                    _ => parse_quote! { DepylerValue::from(#arg) },
-                                }
+                            HirExpr::Literal(Literal::Int(_)) => {
+                                parse_quote! { DepylerValue::Int(#arg as i64) }
                             }
+                            HirExpr::Literal(Literal::Float(_)) => {
+                                parse_quote! { DepylerValue::Float(#arg as f64) }
+                            }
+                            HirExpr::Literal(Literal::String(_)) => {
+                                parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                            }
+                            HirExpr::Literal(Literal::Bool(_)) => {
+                                parse_quote! { DepylerValue::Bool(#arg) }
+                            }
+                            HirExpr::Var(name) => match self.ctx.var_types.get(name) {
+                                Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
+                                Some(Type::Float) => {
+                                    parse_quote! { DepylerValue::Float(#arg as f64) }
+                                }
+                                Some(Type::String) => {
+                                    parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                                }
+                                Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                                _ => parse_quote! { DepylerValue::from(#arg) },
+                            },
                             _ => parse_quote! { DepylerValue::from(#arg) },
                         }
                     } else {
@@ -2694,19 +2753,31 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Wrap argument in DepylerValue based on argument type
                         let wrapped_arg: syn::Expr = if !hir_args.is_empty() {
                             match &hir_args[0] {
-                                HirExpr::Literal(Literal::Int(_)) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                                HirExpr::Literal(Literal::Float(_)) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                                HirExpr::Literal(Literal::String(_)) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
-                                HirExpr::Literal(Literal::Bool(_)) => parse_quote! { DepylerValue::Bool(#arg) },
-                                HirExpr::Var(name) => {
-                                    match self.ctx.var_types.get(name) {
-                                        Some(Type::Int) => parse_quote! { DepylerValue::Int(#arg as i64) },
-                                        Some(Type::Float) => parse_quote! { DepylerValue::Float(#arg as f64) },
-                                        Some(Type::String) => parse_quote! { DepylerValue::Str(#arg.to_string()) },
-                                        Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
-                                        _ => parse_quote! { DepylerValue::from(#arg) },
-                                    }
+                                HirExpr::Literal(Literal::Int(_)) => {
+                                    parse_quote! { DepylerValue::Int(#arg as i64) }
                                 }
+                                HirExpr::Literal(Literal::Float(_)) => {
+                                    parse_quote! { DepylerValue::Float(#arg as f64) }
+                                }
+                                HirExpr::Literal(Literal::String(_)) => {
+                                    parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                                }
+                                HirExpr::Literal(Literal::Bool(_)) => {
+                                    parse_quote! { DepylerValue::Bool(#arg) }
+                                }
+                                HirExpr::Var(name) => match self.ctx.var_types.get(name) {
+                                    Some(Type::Int) => {
+                                        parse_quote! { DepylerValue::Int(#arg as i64) }
+                                    }
+                                    Some(Type::Float) => {
+                                        parse_quote! { DepylerValue::Float(#arg as f64) }
+                                    }
+                                    Some(Type::String) => {
+                                        parse_quote! { DepylerValue::Str(#arg.to_string()) }
+                                    }
+                                    Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#arg) },
+                                    _ => parse_quote! { DepylerValue::from(#arg) },
+                                },
                                 _ => parse_quote! { DepylerValue::from(#arg) },
                             }
                         } else {
@@ -2718,7 +2789,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { #object_expr.push_back(#arg) })
                     }
                 } else {
-                    self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
+                    self.convert_list_method(
+                        object_expr,
+                        object,
+                        method,
+                        arg_exprs,
+                        hir_args,
+                        kwargs,
+                    )
                 }
             }
             "pop" => {
@@ -2728,13 +2806,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     }
                     Ok(parse_quote! { #object_expr.pop_back().unwrap_or_default() })
                 } else {
-                    self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
+                    self.convert_list_method(
+                        object_expr,
+                        object,
+                        method,
+                        arg_exprs,
+                        hir_args,
+                        kwargs,
+                    )
                 }
             }
 
             // List methods (remaining)
-            "extend" | "insert" | "remove" | "index" | "copy" | "clear"
-            | "reverse" | "sort" => {
+            "extend" | "insert" | "remove" | "index" | "copy" | "clear" | "reverse" | "sort" => {
                 self.convert_list_method(object_expr, object, method, arg_exprs, hir_args, kwargs)
             }
 
@@ -2802,11 +2886,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Note: "count" handled separately above with disambiguation logic
             // Note: "index" handled in list methods above (lists take precedence)
             "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "startswith" | "endswith"
-            | "split" | "rsplit" | "splitlines" | "join" | "replace" | "find" | "rfind" | "rindex"
-            | "isdigit" | "isalpha" | "isalnum" | "isspace" | "isupper" | "islower" | "istitle"
-            | "isnumeric" | "isascii" | "isdecimal" | "isidentifier" | "isprintable"
-            | "title" | "capitalize" | "swapcase" | "casefold" | "center" | "ljust" | "rjust"
-            | "zfill" | "hex" | "encode" | "decode" => {
+            | "split" | "rsplit" | "splitlines" | "join" | "replace" | "find" | "rfind"
+            | "rindex" | "isdigit" | "isalpha" | "isalnum" | "isspace" | "isupper" | "islower"
+            | "istitle" | "isnumeric" | "isascii" | "isdecimal" | "isidentifier"
+            | "isprintable" | "title" | "capitalize" | "swapcase" | "casefold" | "center"
+            | "ljust" | "rjust" | "zfill" | "hex" | "encode" | "decode" => {
                 self.convert_string_method(object, object_expr, method, arg_exprs, hir_args)
             }
 
@@ -2824,7 +2908,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             | "symmetric_difference"
             | "issubset"
             | "issuperset"
-            | "isdisjoint" => self.convert_set_method(object_expr, object, method, arg_exprs, hir_args),
+            | "isdisjoint" => {
+                self.convert_set_method(object_expr, object, method, arg_exprs, hir_args)
+            }
 
             // DEPYLER-0431: Regex methods (compiled Regex + Match object)
             // Compiled Regex: findall, match, search (note: "find" conflicts with string.find())
@@ -2863,9 +2949,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 match method {
                     // Python string methods that might not be translated
                     "lower" | "upper" | "strip" | "lstrip" | "rstrip" | "split_py"
-                    | "startswith" | "endswith" | "find" | "isalpha" | "isdigit"
-                    | "isalnum" | "isspace" | "islower" | "isupper" | "capitalize"
-                    | "title" | "swapcase" | "center" | "ljust" | "rjust" | "zfill" => {
+                    | "startswith" | "endswith" | "find" | "isalpha" | "isdigit" | "isalnum"
+                    | "isspace" | "islower" | "isupper" | "capitalize" | "title" | "swapcase"
+                    | "center" | "ljust" | "rjust" | "zfill" => {
                         self.ctx.needs_python_string_ops = true;
                     }
                     // Python int methods
@@ -2970,10 +3056,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else {
                             Type::Unknown
                         };
-                        self.ctx.var_types.insert(
-                            var_name.clone(),
-                            Type::List(Box::new(element_type.clone())),
-                        );
+                        self.ctx
+                            .var_types
+                            .insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
                         tracing::debug!(
                             "DEPYLER-1211: Inferred {} as List<{:?}> (via append())",
                             var_name,
@@ -2987,10 +3072,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         } else {
                             Type::Unknown
                         };
-                        self.ctx.var_types.insert(
-                            var_name.clone(),
-                            Type::List(Box::new(element_type.clone())),
-                        );
+                        self.ctx
+                            .var_types
+                            .insert(var_name.clone(), Type::List(Box::new(element_type.clone())));
                         tracing::debug!(
                             "DEPYLER-1211: Inferred {} as List<{:?}> (via insert())",
                             var_name,
@@ -2998,13 +3082,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         );
                     }
                     // Other list methods - element type remains unknown
-                    "extend" | "pop" | "remove" | "sort" | "reverse"
-                    | "clear" | "copy" | "index" | "count" => {
+                    "extend" | "pop" | "remove" | "sort" | "reverse" | "clear" | "copy"
+                    | "index" | "count" => {
                         // This variable must be a list
-                        self.ctx.var_types.insert(
-                            var_name.clone(),
-                            Type::List(Box::new(Type::Unknown)),
-                        );
+                        self.ctx
+                            .var_types
+                            .insert(var_name.clone(), Type::List(Box::new(Type::Unknown)));
                         tracing::debug!(
                             "DEPYLER-1205: Inferred {} as List (via {}())",
                             var_name,
@@ -3025,8 +3108,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         );
                     }
                     // Dict-indicator methods
-                    "keys" | "values" | "items" | "get" | "setdefault" | "update"
-                    | "popitem" => {
+                    "keys" | "values" | "items" | "get" | "setdefault" | "update" | "popitem" => {
                         // This variable must be a dict
                         self.ctx.var_types.insert(
                             var_name.clone(),
@@ -3041,23 +3123,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     // Iterator-indicator methods (could be list, set, or dict)
                     "iter" => {
                         // Default to list for iter()
-                        self.ctx.var_types.insert(
-                            var_name.clone(),
-                            Type::List(Box::new(Type::Unknown)),
-                        );
-                        tracing::debug!(
-                            "DEPYLER-1205: Inferred {} as List (via iter())",
-                            var_name
-                        );
+                        self.ctx
+                            .var_types
+                            .insert(var_name.clone(), Type::List(Box::new(Type::Unknown)));
+                        tracing::debug!("DEPYLER-1205: Inferred {} as List (via iter())", var_name);
                     }
                     // Set-indicator methods
-                    "add" | "discard" | "difference" | "intersection" | "union"
-                    | "symmetric_difference" | "issubset" | "issuperset" | "isdisjoint" => {
+                    "add"
+                    | "discard"
+                    | "difference"
+                    | "intersection"
+                    | "union"
+                    | "symmetric_difference"
+                    | "issubset"
+                    | "issuperset"
+                    | "isdisjoint" => {
                         // This variable must be a set
-                        self.ctx.var_types.insert(
-                            var_name.clone(),
-                            Type::Set(Box::new(Type::Unknown)),
-                        );
+                        self.ctx
+                            .var_types
+                            .insert(var_name.clone(), Type::Set(Box::new(Type::Unknown)));
                         tracing::debug!(
                             "DEPYLER-1205: Inferred {} as Set (via {}())",
                             var_name,
@@ -3658,7 +3742,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0728: hasher.update() handler should NOT intercept dict/set.update()
         // Only apply to hash objects (Sha256, Md5, etc.), not collections
-        if method == "update" && !args.is_empty() && !self.is_dict_expr(object) && !self.is_set_expr(object) {
+        if method == "update"
+            && !args.is_empty()
+            && !self.is_dict_expr(object)
+            && !self.is_set_expr(object)
+        {
             let object_expr = object.to_rust_expr(self.ctx)?;
             let arg_exprs: Vec<syn::Expr> = args
                 .iter()
@@ -3680,10 +3768,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         let is_stdlib_module = if let HirExpr::Var(name) = object {
             matches!(
                 name.as_str(),
-                "re" | "json" | "math" | "random" | "os" | "sys" | "time" | "datetime"
-                    | "pathlib" | "struct" | "statistics" | "fractions" | "decimal"
-                    | "collections" | "itertools" | "functools" | "shutil" | "csv"
-                    | "base64" | "hashlib" | "subprocess" | "string" | "tempfile"
+                "re" | "json"
+                    | "math"
+                    | "random"
+                    | "os"
+                    | "sys"
+                    | "time"
+                    | "datetime"
+                    | "pathlib"
+                    | "struct"
+                    | "statistics"
+                    | "fractions"
+                    | "decimal"
+                    | "collections"
+                    | "itertools"
+                    | "functools"
+                    | "shutil"
+                    | "csv"
+                    | "base64"
+                    | "hashlib"
+                    | "subprocess"
+                    | "string"
+                    | "tempfile"
             )
         } else {
             false
@@ -3865,14 +3971,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 match method {
                     "Counter" => {
                         return crate::rust_gen::collection_constructors::convert_counter_builtin(
-                            self.ctx,
-                            &arg_exprs,
+                            self.ctx, &arg_exprs,
                         );
                     }
                     "deque" => {
                         return crate::rust_gen::collection_constructors::convert_deque_builtin(
-                            self.ctx,
-                            &arg_exprs,
+                            self.ctx, &arg_exprs,
                         );
                     }
                     "defaultdict" => {
@@ -3900,7 +4004,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         if rust_name.ends_with('!') {
                             // Macro call - generate macro_name!(args)
                             let macro_name_str = rust_name.trim_end_matches('!');
-                            let macro_ident = syn::Ident::new(macro_name_str, proc_macro2::Span::call_site());
+                            let macro_ident =
+                                syn::Ident::new(macro_name_str, proc_macro2::Span::call_site());
 
                             let arg_exprs: Vec<syn::Expr> = args
                                 .iter()
@@ -4061,7 +4166,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-1319: Add .into() to convert DepylerValue to target type
             if let HirExpr::Literal(Literal::String(s)) = index {
                 let lit = syn::LitStr::new(s, proc_macro2::Span::call_site());
-                return Ok(parse_quote! { #base_expr.get_str(#lit).cloned().unwrap_or_default().into() });
+                return Ok(
+                    parse_quote! { #base_expr.get_str(#lit).cloned().unwrap_or_default().into() },
+                );
             }
             // DEPYLER-1316: Check for string variable keys - use get_str() for dict access
             // DEPYLER-1319: Add .into() to convert DepylerValue to target type
@@ -4106,7 +4213,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         if is_depyler_value_key {
             // Need to convert index to Rust expression if we haven't yet (we haven't in this block)
             let index_expr = index.to_rust_expr(self.ctx)?;
-            
+
             // Wrap index in DepylerValue
             let wrapped_index: syn::Expr = match index {
                 HirExpr::Literal(Literal::String(s)) => {
@@ -4123,13 +4230,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 _ => {
                     // For variables, fallback to generic conversion
-                     parse_quote! { &DepylerValue::Str(format!("{:?}", #index_expr)) }
+                    parse_quote! { &DepylerValue::Str(format!("{:?}", #index_expr)) }
                 }
             };
             // DEPYLER-1146: Add unwrap_or_default() to match Python's dict["key"] semantics
             // Python raises KeyError for missing keys, but in Rust we use Default (DepylerValue::None)
             // to avoid panics. This matches the string-key case at line 3752.
-            return Ok(parse_quote! { #base_expr.get(#wrapped_index).cloned().unwrap_or_default() });
+            return Ok(
+                parse_quote! { #base_expr.get(#wrapped_index).cloned().unwrap_or_default() },
+            );
         }
 
         // DEPYLER-0422 Fix #3 & #4: Handle tuple indexing with actual type information
@@ -4330,8 +4439,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let index_expr = index.to_rust_expr(self.ctx)?;
 
                 // Generate array from tuple elements: [t.0, t.1, ...]
-                let indices: Vec<syn::Index> =
-                    (0..tuple_size).map(syn::Index::from).collect();
+                let indices: Vec<syn::Index> = (0..tuple_size).map(syn::Index::from).collect();
 
                 return Ok(parse_quote! {
                     [#(#base_expr.#indices),*][#index_expr as usize]
@@ -4757,7 +4865,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 } else {
                     // Heuristic: common tuple variable names
                     let name = sym.as_str();
-                    matches!(name, "pair" | "tuple" | "entry" | "item" | "elem" | "row" | "t")
+                    matches!(
+                        name,
+                        "pair" | "tuple" | "entry" | "item" | "elem" | "row" | "t"
+                    )
                 }
             }
             // Method call returning tuple (e.g., dict.items() element)
@@ -5340,7 +5451,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // When target type expects Vec<DepylerValue> (from List[Any], List[Unknown], etc.),
         // wrap ALL elements in DepylerValue constructors to prevent E0308 type mismatches.
         // This enforces strict type boundaries: `1` → `DepylerValue::Int(1)` when needed.
-        let target_needs_depyler_value = if let Some(Type::List(elem_type)) = &self.ctx.current_assign_type {
+        let target_needs_depyler_value = if let Some(Type::List(elem_type)) =
+            &self.ctx.current_assign_type
+        {
             matches!(elem_type.as_ref(), Type::Unknown)
                 || matches!(elem_type.as_ref(), Type::UnificationVar(_))
                 || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "object")
@@ -5349,7 +5462,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         };
 
         // Also check current_return_type for function return context
-        let return_needs_depyler_value = if let Some(Type::List(elem_type)) = &self.ctx.current_return_type {
+        let return_needs_depyler_value = if let Some(Type::List(elem_type)) =
+            &self.ctx.current_return_type
+        {
             matches!(elem_type.as_ref(), Type::Unknown)
                 || matches!(elem_type.as_ref(), Type::UnificationVar(_))
                 || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "object")
@@ -5369,7 +5484,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             false
         };
 
-        if nasa_mode && (target_needs_depyler_value || return_needs_depyler_value || inferred_needs_depyler_value) {
+        if nasa_mode
+            && (target_needs_depyler_value
+                || return_needs_depyler_value
+                || inferred_needs_depyler_value)
+        {
             self.ctx.needs_depyler_value_enum = true;
 
             let elt_exprs: Vec<syn::Expr> = elts
@@ -5405,11 +5524,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         HirExpr::Var(name) => {
                             match self.ctx.var_types.get(name) {
                                 Some(Type::Int) => parse_quote! { DepylerValue::Int(#expr as i64) },
-                                Some(Type::Float) => parse_quote! { DepylerValue::Float(#expr as f64) },
-                                Some(Type::String) => parse_quote! { DepylerValue::Str(#expr.to_string()) },
+                                Some(Type::Float) => {
+                                    parse_quote! { DepylerValue::Float(#expr as f64) }
+                                }
+                                Some(Type::String) => {
+                                    parse_quote! { DepylerValue::Str(#expr.to_string()) }
+                                }
                                 Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#expr) },
                                 // For &String references (from match arms), clone and wrap
-                                _ => parse_quote! { DepylerValue::Str(#expr.to_string()) }
+                                _ => parse_quote! { DepylerValue::Str(#expr.to_string()) },
                             }
                         }
                         _ => {
@@ -5517,7 +5640,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-1144: Convert list literal with explicit f64 coercion for integer elements
     /// Used when the target type is known to be Vec<f64> (e.g., class field typed as list[float])
     /// Converts `[0, 1, 2]` → `vec![0.0, 1.0, 2.0]`
-    pub(crate) fn convert_list_with_float_coercion(&mut self, elts: &[HirExpr]) -> Result<syn::Expr> {
+    pub(crate) fn convert_list_with_float_coercion(
+        &mut self,
+        elts: &[HirExpr],
+    ) -> Result<syn::Expr> {
         let elt_exprs: Vec<syn::Expr> = elts
             .iter()
             .map(|e| {
@@ -5528,9 +5654,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Ok(parse_quote! { #float_val })
                     }
                     // Float literals: use as-is
-                    HirExpr::Literal(Literal::Float(f)) => {
-                        Ok(parse_quote! { #f })
-                    }
+                    HirExpr::Literal(Literal::Float(f)) => Ok(parse_quote! { #f }),
                     // Variables: cast to f64 at runtime
                     HirExpr::Var(name) => {
                         let var_ident = syn::Ident::new(name, proc_macro2::Span::call_site());
@@ -5617,9 +5741,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 HirExpr::Literal(Literal::Float(_)) => Type::Float,
                 HirExpr::Literal(Literal::String(_)) => Type::String,
                 HirExpr::Literal(Literal::None) => continue, // Skip None for type inference
-                HirExpr::Var(name) => {
-                    self.ctx.var_types.get(name).cloned().unwrap_or(Type::Unknown)
-                }
+                HirExpr::Var(name) => self
+                    .ctx
+                    .var_types
+                    .get(name)
+                    .cloned()
+                    .unwrap_or(Type::Unknown),
                 _ => Type::Unknown,
             };
             types.push(elem_type);
@@ -5632,7 +5759,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // Check if all types are the same (ignoring Unknown)
         let first_known = types.iter().find(|t| !matches!(t, Type::Unknown));
         if let Some(first) = first_known {
-            if types.iter().all(|t| matches!(t, Type::Unknown) || t == first) {
+            if types
+                .iter()
+                .all(|t| matches!(t, Type::Unknown) || t == first)
+            {
                 return Some(first.clone());
             }
         }
@@ -5688,18 +5818,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // For mixed types or json context, use serde_json::json! instead of HashMap
         // DEPYLER-1023: In NASA mode, still detect mixed types but convert to String instead of json
         let has_mixed_types = self.dict_has_mixed_types(items)?;
-        let in_json_context = if nasa_mode { false } else { self.ctx.in_json_context };
+        let in_json_context = if nasa_mode {
+            false
+        } else {
+            self.ctx.in_json_context
+        };
 
         // DEPYLER-0560: Check if return type requires serde_json::Value
         // If function returns Dict[str, Any] → HashMap<String, serde_json::Value>
         // DEPYLER-1015: Skip in NASA mode
-        let return_needs_json = if nasa_mode { false } else { self.return_type_needs_json_dict() };
+        let return_needs_json = if nasa_mode {
+            false
+        } else {
+            self.return_type_needs_json_dict()
+        };
 
         // DEPYLER-1045: Check if target type annotation requires DepylerValue
         // When `values: dict = {...}`, the type annotation maps to DepylerValue values
         // even if all literal values are strings (homogeneous)
         // DEPYLER-1166: Also check for Type::Custom("DepylerValue") which is what Dict[str, Any] maps to in NASA mode
-        let target_needs_depyler_value = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type {
+        let target_needs_depyler_value = if let Some(Type::Dict(_, val_type)) =
+            &self.ctx.current_assign_type
+        {
             // Unknown or DepylerValue value type → use DepylerValue wrapping
             matches!(val_type.as_ref(), Type::Unknown)
                 || matches!(val_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "serde_json::Value")
@@ -5713,17 +5853,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // This enables Python's implicit int→float coercion.
         // DEPYLER-1153: ALSO check for nested Dict/List with concrete element types
         // e.g., Dict[str, Dict[str, int]] should NOT use DepylerValue wrapping
-        let target_has_concrete_value_type = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type {
-            self.is_concrete_type(val_type.as_ref())
-        } else {
-            false
-        };
+        let target_has_concrete_value_type =
+            if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type {
+                self.is_concrete_type(val_type.as_ref())
+            } else {
+                false
+            };
 
         // DEPYLER-1050: Check if function return type requires DepylerValue
         // When function returns HashMap<String, DepylerValue>, ALL dict literals in the
         // function body must use DepylerValue wrapping (even in nested return statements)
         // DEPYLER-1166: Also check for Type::Custom("DepylerValue") which is what Dict[str, Any] maps to in NASA mode
-        let return_needs_depyler_value = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_return_type {
+        let return_needs_depyler_value = if let Some(Type::Dict(_, val_type)) =
+            &self.ctx.current_return_type
+        {
             // Unknown or DepylerValue value type → use DepylerValue wrapping
             matches!(val_type.as_ref(), Type::Unknown)
                 || matches!(val_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any" || name == "serde_json::Value")
@@ -5733,9 +5876,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-1060: Check if dict has non-string keys
         // Point 14: {1: "a"} requires DepylerValue keys, not String keys
-        let has_non_string_keys = items.iter().any(|(key, _)| {
-            !matches!(key, HirExpr::Literal(Literal::String(_)))
-        });
+        let has_non_string_keys = items
+            .iter()
+            .any(|(key, _)| !matches!(key, HirExpr::Literal(Literal::String(_))));
 
         // DEPYLER-1023: In NASA mode with mixed types, use DepylerValue enum
         // This ensures proper type fidelity for heterogeneous Python dicts
@@ -5744,7 +5887,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-1060: Also use DepylerValue when dict has non-string keys
         // DEPYLER-1141: BUT skip DepylerValue when target has CONCRETE value type
         // This allows `Dict[str, float]` to coerce int→float instead of wrapping in DepylerValue
-        if nasa_mode && !target_has_concrete_value_type && (has_mixed_types || target_needs_depyler_value || return_needs_depyler_value || has_non_string_keys) {
+        if nasa_mode
+            && !target_has_concrete_value_type
+            && (has_mixed_types
+                || target_needs_depyler_value
+                || return_needs_depyler_value
+                || has_non_string_keys)
+        {
             self.ctx.needs_hashmap = true;
             self.ctx.needs_depyler_value_enum = true;
 
@@ -5769,7 +5918,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 Some(Type::Custom(name)) if name == "dict" || name == "Dict" => true,
                 _ => false,
             };
-            let use_string_keys = (return_expects_string_keys || target_expects_string_keys) && !has_non_string_keys;
+            let use_string_keys =
+                (return_expects_string_keys || target_expects_string_keys) && !has_non_string_keys;
 
             let mut insert_stmts = Vec::new();
             for (key, value) in items {
@@ -5781,10 +5931,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let prev_assign_type = self.ctx.current_assign_type.clone();
                 if matches!(value, HirExpr::Dict(_) | HirExpr::List(_)) {
                     // Set context to Dict with Unknown value type → triggers DepylerValue
-                    self.ctx.current_assign_type = Some(Type::Dict(
-                        Box::new(Type::String),
-                        Box::new(Type::Unknown)
-                    ));
+                    self.ctx.current_assign_type =
+                        Some(Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)));
                 }
                 let val_expr = value.to_rust_expr(self.ctx)?;
                 // Restore context
@@ -5851,15 +5999,23 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         let var_type = self.ctx.var_types.get(name);
                         match var_type {
                             Some(Type::Int) => parse_quote! { DepylerValue::Int(#val_expr as i64) },
-                            Some(Type::Float) => parse_quote! { DepylerValue::Float(#val_expr as f64) },
+                            Some(Type::Float) => {
+                                parse_quote! { DepylerValue::Float(#val_expr as f64) }
+                            }
                             Some(Type::Bool) => parse_quote! { DepylerValue::Bool(#val_expr) },
-                            Some(Type::String) => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
-                            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                            Some(Type::String) => {
+                                parse_quote! { DepylerValue::Str(#val_expr.to_string()) }
+                            }
+                            _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
                         }
                     }
                     // DEPYLER-1040: Handle struct field access (e.g., args.debug, args.count)
                     // DEPYLER-1143: Also check argparse field types for proper wrapping
-                    HirExpr::Attribute { value: attr_value, attr, .. } => {
+                    HirExpr::Attribute {
+                        value: attr_value,
+                        attr,
+                        ..
+                    } => {
                         // First try class_field_types
                         let found_type: Option<&Type> = self.ctx.class_field_types.get(attr);
                         let mut inferred_type_str: Option<String> = None;
@@ -5890,55 +6046,71 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         if let Some(field_type) = found_type {
                             match field_type {
                                 Type::Int => parse_quote! { DepylerValue::Int(#val_expr as i64) },
-                                Type::Float => parse_quote! { DepylerValue::Float(#val_expr as f64) },
-                                Type::Bool => parse_quote! { DepylerValue::Bool(#val_expr) },
-                                Type::String => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
-                                Type::Optional(inner) => {
-                                    match inner.as_ref() {
-                                        Type::Int => parse_quote! {
-                                            match #val_expr {
-                                                Some(v) => DepylerValue::Int(v as i64),
-                                                None => DepylerValue::None,
-                                            }
-                                        },
-                                        Type::String => parse_quote! {
-                                            match #val_expr {
-                                                Some(v) => DepylerValue::Str(v.to_string()),
-                                                None => DepylerValue::None,
-                                            }
-                                        },
-                                        _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
-                                    }
+                                Type::Float => {
+                                    parse_quote! { DepylerValue::Float(#val_expr as f64) }
                                 }
+                                Type::Bool => parse_quote! { DepylerValue::Bool(#val_expr) },
+                                Type::String => {
+                                    parse_quote! { DepylerValue::Str(#val_expr.to_string()) }
+                                }
+                                Type::Optional(inner) => match inner.as_ref() {
+                                    Type::Int => parse_quote! {
+                                        match #val_expr {
+                                            Some(v) => DepylerValue::Int(v as i64),
+                                            None => DepylerValue::None,
+                                        }
+                                    },
+                                    Type::String => parse_quote! {
+                                        match #val_expr {
+                                            Some(v) => DepylerValue::Str(v.to_string()),
+                                            None => DepylerValue::None,
+                                        }
+                                    },
+                                    _ => {
+                                        parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                                    }
+                                },
                                 Type::List(_) => parse_quote! {
                                     DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect())
                                 },
-                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
                             }
                         } else if let Some(type_str) = inferred_type_str {
                             // DEPYLER-1143: Handle inferred types from argparse rust_type()
                             match type_str.as_str() {
                                 "bool" => parse_quote! { DepylerValue::Bool(#val_expr) },
-                                "i32" | "i64" | "isize" => parse_quote! { DepylerValue::Int(#val_expr as i64) },
-                                "u8" | "u32" | "u64" => parse_quote! { DepylerValue::Int(#val_expr as i64) },
-                                "f32" | "f64" => parse_quote! { DepylerValue::Float(#val_expr as f64) },
-                                "String" => parse_quote! { DepylerValue::Str(#val_expr.to_string()) },
+                                "i32" | "i64" | "isize" => {
+                                    parse_quote! { DepylerValue::Int(#val_expr as i64) }
+                                }
+                                "u8" | "u32" | "u64" => {
+                                    parse_quote! { DepylerValue::Int(#val_expr as i64) }
+                                }
+                                "f32" | "f64" => {
+                                    parse_quote! { DepylerValue::Float(#val_expr as f64) }
+                                }
+                                "String" => {
+                                    parse_quote! { DepylerValue::Str(#val_expr.to_string()) }
+                                }
                                 s if s.starts_with("Vec<") => parse_quote! {
                                     DepylerValue::List(#val_expr.iter().map(|v| DepylerValue::Str(v.to_string())).collect())
                                 },
-                                s if s.starts_with("Option<") && s.contains("String") => parse_quote! {
-                                    match #val_expr {
-                                        Some(v) => DepylerValue::Str(v.to_string()),
-                                        None => DepylerValue::None,
+                                s if s.starts_with("Option<") && s.contains("String") => {
+                                    parse_quote! {
+                                        match #val_expr {
+                                            Some(v) => DepylerValue::Str(v.to_string()),
+                                            None => DepylerValue::None,
+                                        }
                                     }
-                                },
+                                }
                                 // DEPYLER-1143: Handle Option<i32/i64/f32/f64> with proper numeric wrapping
-                                s if s.starts_with("Option<i") || s.starts_with("Option<u") => parse_quote! {
-                                    match #val_expr {
-                                        Some(v) => DepylerValue::Int(v as i64),
-                                        None => DepylerValue::None,
+                                s if s.starts_with("Option<i") || s.starts_with("Option<u") => {
+                                    parse_quote! {
+                                        match #val_expr {
+                                            Some(v) => DepylerValue::Int(v as i64),
+                                            None => DepylerValue::None,
+                                        }
                                     }
-                                },
+                                }
                                 s if s.starts_with("Option<f") => parse_quote! {
                                     match #val_expr {
                                         Some(v) => DepylerValue::Float(v as f64),
@@ -5951,7 +6123,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                         None => DepylerValue::None,
                                     }
                                 },
-                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                                _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
                             }
                         } else {
                             // DEPYLER-1040: Without explicit type info, use safe stringify
@@ -6018,7 +6190,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         parse_quote! { DepylerValue::List(vec![#(#wrapped_elements),*]) }
                     }
                     // Fallback for other complex types
-                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) }
+                    _ => parse_quote! { DepylerValue::Str(format!("{:?}", #val_expr)) },
                 };
 
                 insert_stmts.push(quote! { map.insert(#key_expr, #wrapped_val); });
@@ -6088,7 +6260,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-0669: Check if val_expr is a HashMap block (can't go in json!())
                 let val_str = quote! { #val_expr }.to_string();
-                let wrapped_val = if val_str.contains("HashMap") || val_str.contains("let mut map") {
+                let wrapped_val = if val_str.contains("HashMap") || val_str.contains("let mut map")
+                {
                     // Use serde_json::to_value() for HashMap block expressions
                     quote! { serde_json::to_value(#val_expr).unwrap() }
                 } else {
@@ -6160,7 +6333,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0953: String literal values are now always converted to String
         // (Previously DEPYLER-0729 only converted when target type required it)
         // DEPYLER-1141: Get target value type for coercion
-        let target_value_type = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type {
+        let target_value_type = if let Some(Type::Dict(_, val_type)) = &self.ctx.current_assign_type
+        {
             Some(val_type.as_ref().clone())
         } else {
             None
@@ -6292,12 +6466,30 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         } else {
             // DEPYLER-1159: Add type annotations when target/return type is known
             // to help Rust's type inference in complex expressions
-            let key_type = self.ctx.current_assign_type.as_ref()
+            let key_type = self
+                .ctx
+                .current_assign_type
+                .as_ref()
                 .or(self.ctx.current_return_type.as_ref())
-                .and_then(|t| if let Type::Dict(k, _) = t { Some(k.as_ref()) } else { None });
-            let val_type = self.ctx.current_assign_type.as_ref()
+                .and_then(|t| {
+                    if let Type::Dict(k, _) = t {
+                        Some(k.as_ref())
+                    } else {
+                        None
+                    }
+                });
+            let val_type = self
+                .ctx
+                .current_assign_type
+                .as_ref()
                 .or(self.ctx.current_return_type.as_ref())
-                .and_then(|t| if let Type::Dict(_, v) = t { Some(v.as_ref()) } else { None });
+                .and_then(|t| {
+                    if let Type::Dict(_, v) = t {
+                        Some(v.as_ref())
+                    } else {
+                        None
+                    }
+                });
 
             if let (Some(k), Some(v)) = (key_type, val_type) {
                 let key_tokens = type_to_rust_type(k, self.ctx.type_mapper);
@@ -6470,7 +6662,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // DEPYLER-1143: Handle inferred types from argparse rust_type()
                         match type_str.as_str() {
                             "bool" => has_bool_literal = true,
-                            "i32" | "i64" | "isize" | "u8" | "u32" | "u64" => has_int_literal = true,
+                            "i32" | "i64" | "isize" | "u8" | "u32" | "u64" => {
+                                has_int_literal = true
+                            }
                             "f32" | "f64" => has_float_literal = true,
                             "String" => has_string_literal = true,
                             s if s.starts_with("Vec<") => has_complex_expr = true,
@@ -6645,9 +6839,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-1163: Detect if elements need DepylerValue wrapping
         // In NASA mode, sets with mixed or unknown types use HashSet<DepylerValue>
         // We must wrap elements in DepylerValue to match the type annotation in stmt_gen
-        let needs_depyler_value_wrap = self.ctx.type_mapper.nasa_mode
-            && !has_none
-            && !self.elements_are_homogeneous(elts);
+        let needs_depyler_value_wrap =
+            self.ctx.type_mapper.nasa_mode && !has_none && !self.elements_are_homogeneous(elts);
 
         let mut insert_stmts = Vec::new();
         for elem in elts {
@@ -6715,21 +6908,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-1163: Wrap an expression in the appropriate DepylerValue variant
     fn wrap_in_depyler_value(&mut self, expr: &HirExpr) -> Result<syn::Expr> {
         match expr {
-            HirExpr::Literal(Literal::Int(n)) => {
-                Ok(parse_quote! { DepylerValue::Int(#n as i64) })
-            }
-            HirExpr::Literal(Literal::Float(f)) => {
-                Ok(parse_quote! { DepylerValue::Float(#f) })
-            }
+            HirExpr::Literal(Literal::Int(n)) => Ok(parse_quote! { DepylerValue::Int(#n as i64) }),
+            HirExpr::Literal(Literal::Float(f)) => Ok(parse_quote! { DepylerValue::Float(#f) }),
             HirExpr::Literal(Literal::String(s)) => {
                 Ok(parse_quote! { DepylerValue::Str(#s.to_string()) })
             }
-            HirExpr::Literal(Literal::Bool(b)) => {
-                Ok(parse_quote! { DepylerValue::Bool(#b) })
-            }
-            HirExpr::Literal(Literal::None) => {
-                Ok(parse_quote! { DepylerValue::None })
-            }
+            HirExpr::Literal(Literal::Bool(b)) => Ok(parse_quote! { DepylerValue::Bool(#b) }),
+            HirExpr::Literal(Literal::None) => Ok(parse_quote! { DepylerValue::None }),
             _ => {
                 // For complex expressions, convert to Rust and wrap with From trait
                 let inner_expr = expr.to_rust_expr(self.ctx)?;
@@ -6778,7 +6963,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // The handler function now takes individual field parameters instead of &Args
         if self.ctx.in_cmd_handler {
             if let HirExpr::Var(var_name) = value {
-                if var_name == "args" && self.ctx.cmd_handler_args_fields.contains(&attr.to_string())
+                if var_name == "args"
+                    && self.ctx.cmd_handler_args_fields.contains(&attr.to_string())
                 {
                     // Transform args.field → field (the field is now a direct parameter)
                     // DEPYLER-0941: Handle Rust keywords like "type" with raw identifier syntax
@@ -6815,7 +7001,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // timedelta.min → DepylerTimeDelta::new(-999999999, 0, 0)
         if let HirExpr::Var(var_name) = value {
             let nasa_mode = self.ctx.type_mapper.nasa_mode;
-            if (var_name == "date" || var_name == "datetime" || var_name == "time" || var_name == "timedelta")
+            if (var_name == "date"
+                || var_name == "datetime"
+                || var_name == "time"
+                || var_name == "timedelta")
                 && (attr == "min" || attr == "max" || attr == "resolution")
             {
                 if var_name == "date" {
@@ -7488,7 +7677,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // and if the element expression uses that walrus variable.
             // If so, we must use filter_map instead of filter + map, because
             // the walrus variable is defined in the filter closure but needed in map.
-            let walrus_vars_in_conditions = walrus_helpers::collect_walrus_vars_from_conditions(&gen.conditions);
+            let walrus_vars_in_conditions =
+                walrus_helpers::collect_walrus_vars_from_conditions(&gen.conditions);
             let element_uses_walrus = !walrus_vars_in_conditions.is_empty()
                 && walrus_helpers::expr_uses_any_var(element, &walrus_vars_in_conditions);
 
@@ -7595,7 +7785,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     ///
     /// Note: Currently unused but kept for potential future use with filter optimization
     #[allow(dead_code)]
-    pub(crate) fn add_deref_to_var_uses(&mut self, expr: &HirExpr, target: &str) -> Result<syn::Expr> {
+    pub(crate) fn add_deref_to_var_uses(
+        &mut self,
+        expr: &HirExpr,
+        target: &str,
+    ) -> Result<syn::Expr> {
         use crate::hir::{BinOp, HirExpr, UnaryOp};
 
         match expr {
@@ -7680,7 +7874,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     "abs" | "sqrt" | "sin" | "cos" | "exp" | "log" | "clip" | "clamp" | "normalize"
                 ) =>
             {
-                args.first().is_some_and(|arg| self.is_numpy_array_expr(arg))
+                args.first()
+                    .is_some_and(|arg| self.is_numpy_array_expr(arg))
             }
             // DEPYLER-1044: Method calls on numpy arrays return numpy arrays
             // BUT scalar.abs() returns scalar, not vector
@@ -7724,9 +7919,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Rust scalar types are NOT numpy arrays
                         if matches!(
                             tn,
-                            "i8" | "i16" | "i32" | "i64" | "i128" | "isize"
-                                | "u8" | "u16" | "u32" | "u64" | "u128" | "usize"
-                                | "f32" | "f64"
+                            "i8" | "i16"
+                                | "i32"
+                                | "i64"
+                                | "i128"
+                                | "isize"
+                                | "u8"
+                                | "u16"
+                                | "u32"
+                                | "u64"
+                                | "u128"
+                                | "usize"
+                                | "f32"
+                                | "f64"
                                 | "bool"
                         ) {
                             return false;
@@ -7753,8 +7958,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-1044: Removed "a", "b", "result" - WAY too generic, causes CSE failures
                 // Only use truly unambiguous numpy-like names
                 matches!(n, "arr" | "array" | "data" | "values" | "vec" | "vector")
-                    || n.starts_with("arr_") || n.ends_with("_arr")
-                    || n.starts_with("vec_") || n.ends_with("_vec")
+                    || n.starts_with("arr_")
+                    || n.ends_with("_arr")
+                    || n.starts_with("vec_")
+                    || n.ends_with("_vec")
             }
             // Recursive: binary op on vector yields vector
             HirExpr::Binary { left, .. } => self.is_numpy_array_expr(left),
@@ -7770,14 +7977,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         match expr {
             // Path() or pathlib.Path() call
             HirExpr::Call { func, .. } => {
-                matches!(func.as_str(), "Path" | "PurePath" | "PurePosixPath" | "PureWindowsPath")
+                matches!(
+                    func.as_str(),
+                    "Path" | "PurePath" | "PurePosixPath" | "PureWindowsPath"
+                )
             }
             // Method calls that return paths
             // Note: "resolve" and "absolute" are NOT included because they are converted
             // with .to_string_lossy().to_string() and thus return String, not PathBuf
             HirExpr::MethodCall { method, .. } => {
-                matches!(method.as_str(), "parent" | "expanduser" |
-                         "with_name" | "with_suffix" | "with_stem" | "joinpath")
+                matches!(
+                    method.as_str(),
+                    "parent"
+                        | "expanduser"
+                        | "with_name"
+                        | "with_suffix"
+                        | "with_stem"
+                        | "joinpath"
+                )
             }
             // Attribute access like Path(__file__).parent
             HirExpr::Attribute { attr, .. } => {
@@ -7800,16 +8017,37 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Fall back to name-based heuristics
                 let n = name.as_str();
                 let n_lower = n.to_lowercase();
-                matches!(n, "path" | "filepath" | "dir_path" | "file_path" | "base_path" | "root_path"
-                         | "SCRIPT" | "SCRIPT_PATH" | "SCRIPT_DIR" | "SCRIPT_FILE"
-                         | "ROOT" | "ROOT_DIR" | "ROOT_PATH" | "BASE" | "BASE_DIR")
-                    || n.starts_with("path_") || n.ends_with("_path")
-                    || n.starts_with("dir_") || n.ends_with("_dir")
-                    || n_lower.ends_with("_path") || n_lower.ends_with("_dir")
+                matches!(
+                    n,
+                    "path"
+                        | "filepath"
+                        | "dir_path"
+                        | "file_path"
+                        | "base_path"
+                        | "root_path"
+                        | "SCRIPT"
+                        | "SCRIPT_PATH"
+                        | "SCRIPT_DIR"
+                        | "SCRIPT_FILE"
+                        | "ROOT"
+                        | "ROOT_DIR"
+                        | "ROOT_PATH"
+                        | "BASE"
+                        | "BASE_DIR"
+                ) || n.starts_with("path_")
+                    || n.ends_with("_path")
+                    || n.starts_with("dir_")
+                    || n.ends_with("_dir")
+                    || n_lower.ends_with("_path")
+                    || n_lower.ends_with("_dir")
                     || n_lower.starts_with("script")
             }
             // Recursive: path / segment is still a path
-            HirExpr::Binary { left, op: BinOp::Div, .. } => self.is_path_expr(left),
+            HirExpr::Binary {
+                left,
+                op: BinOp::Div,
+                ..
+            } => self.is_path_expr(left),
             _ => false,
         }
     }
@@ -7854,7 +8092,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // Method chains that yield JSON Value
             HirExpr::MethodCall { object, method, .. } => {
-                let is_chain_method = matches!(method.as_str(),
+                let is_chain_method = matches!(
+                    method.as_str(),
                     "get" | "cloned" | "unwrap_or_default" | "unwrap_or" | "unwrap"
                 );
                 if is_chain_method {
@@ -8163,7 +8402,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         return true;
                     }
                     // Custom type that is serde_json::Value or HashMap with Value
-                    if matches!(var_type, Type::Custom(ref s) if s.contains("serde_json::Value") || (s.contains("HashMap") && s.contains("Value"))) {
+                    if matches!(var_type, Type::Custom(ref s) if s.contains("serde_json::Value") || (s.contains("HashMap") && s.contains("Value")))
+                    {
                         return true;
                     }
                 }
@@ -8416,8 +8656,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // DEPYLER-0928: Added min_val, max_val for Vector-scalar operations
                 matches!(
                     name.as_str(),
-                    "mean" | "std" | "variance" | "sum" | "norm" | "norm_a" | "norm_b"
-                        | "stddev" | "var" | "denom" | "dot" | "min_val" | "max_val"
+                    "mean"
+                        | "std"
+                        | "variance"
+                        | "sum"
+                        | "norm"
+                        | "norm_a"
+                        | "norm_b"
+                        | "stddev"
+                        | "var"
+                        | "denom"
+                        | "dot"
+                        | "min_val"
+                        | "max_val"
                 )
             }
             // DEPYLER-0577: Attribute access (e.g., args.x) - check if attr is float type
@@ -8440,8 +8691,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::MethodCall { method, .. } => {
                 matches!(
                     method.as_str(),
-                    "mean" | "sum" | "std" | "stddev" | "var" | "variance" | "min" | "max"
-                        | "norm" | "norm_l2" | "dot"
+                    "mean"
+                        | "sum"
+                        | "std"
+                        | "stddev"
+                        | "var"
+                        | "variance"
+                        | "min"
+                        | "max"
+                        | "norm"
+                        | "norm_l2"
+                        | "dot"
                 )
             }
             // DEPYLER-0799: Function calls - check return type from function_return_types
@@ -8471,7 +8731,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // The math functions below ALWAYS return float, but abs() is type-preserving
                 matches!(
                     func.as_str(),
-                    "sqrt" | "sin" | "cos" | "tan" | "exp" | "log" | "log10" | "log2"
+                    "sqrt"
+                        | "sin"
+                        | "cos"
+                        | "tan"
+                        | "exp"
+                        | "log"
+                        | "log10"
+                        | "log2"
                         | "floor"
                         | "ceil"
                         | "pow"
@@ -8503,16 +8770,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 matches!(
                     name.as_str(),
-                    "mean" | "std" | "variance" | "sum" | "norm" | "norm_a" | "norm_b"
-                        | "stddev" | "var" | "denom" | "dot"
+                    "mean"
+                        | "std"
+                        | "variance"
+                        | "sum"
+                        | "norm"
+                        | "norm_a"
+                        | "norm_b"
+                        | "stddev"
+                        | "var"
+                        | "denom"
+                        | "dot"
                 )
             }
             // Method calls on trueno Vectors return f32
             HirExpr::MethodCall { method, .. } => {
                 matches!(
                     method.as_str(),
-                    "mean" | "sum" | "std" | "stddev" | "var" | "variance" | "min" | "max"
-                        | "norm" | "norm_l2" | "dot"
+                    "mean"
+                        | "sum"
+                        | "std"
+                        | "stddev"
+                        | "var"
+                        | "variance"
+                        | "min"
+                        | "max"
+                        | "norm"
+                        | "norm_l2"
+                        | "dot"
                 )
             }
             _ => false,
@@ -8553,8 +8838,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 if let HirExpr::Var(name) = base.as_ref() {
                     if let Some(ty) = self.ctx.var_types.get(name) {
                         return match ty {
-                            Type::List(elem) => matches!(**elem, Type::Unknown | Type::UnificationVar(_)),
-                            Type::Dict(_, value) => matches!(**value, Type::Unknown | Type::UnificationVar(_)),
+                            Type::List(elem) => {
+                                matches!(**elem, Type::Unknown | Type::UnificationVar(_))
+                            }
+                            Type::Dict(_, value) => {
+                                matches!(**value, Type::Unknown | Type::UnificationVar(_))
+                            }
                             _ => false,
                         };
                     }
@@ -8608,15 +8897,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Literal(Literal::Float(_)) => Some(Type::Float),
             HirExpr::Literal(Literal::String(_)) => Some(Type::String),
             HirExpr::Literal(Literal::Bool(_)) => Some(Type::Bool),
-            HirExpr::Var(name) => {
-                self.ctx.var_types.get(name).and_then(|ty| {
-                    if matches!(ty, Type::Unknown) {
-                        None
-                    } else {
-                        Some(ty.clone())
-                    }
-                })
-            }
+            HirExpr::Var(name) => self.ctx.var_types.get(name).and_then(|ty| {
+                if matches!(ty, Type::Unknown) {
+                    None
+                } else {
+                    Some(ty.clone())
+                }
+            }),
             _ => None,
         }
     }
@@ -8647,7 +8934,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Type::Float => parse_quote! { DepylerValue::Float(#rust_expr as f64) },
                         Type::String => parse_quote! { DepylerValue::Str(#rust_expr.to_string()) },
                         Type::Bool => parse_quote! { DepylerValue::Bool(#rust_expr) },
-                        Type::List(_) => parse_quote! { DepylerValue::List(#rust_expr.into_iter().map(|x| DepylerValue::from(x)).collect()) },
+                        Type::List(_) => {
+                            parse_quote! { DepylerValue::List(#rust_expr.into_iter().map(|x| DepylerValue::from(x)).collect()) }
+                        }
                         _ => parse_quote! { DepylerValue::from(#rust_expr) },
                     }
                 } else {
@@ -8725,13 +9014,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Call { func, .. } => {
                 matches!(
                     func.as_str(),
-                    "isinstance"
-                        | "hasattr"
-                        | "callable"
-                        | "issubclass"
-                        | "all"
-                        | "any"
-                        | "bool"
+                    "isinstance" | "hasattr" | "callable" | "issubclass" | "all" | "any" | "bool"
                 )
             }
             // Method calls that return bool
@@ -8835,15 +9118,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 self.expr_might_be_depyler_value(object)
             }
             // Variables not tracked in var_types - could be anything
-            HirExpr::Var(name) => {
-                !self.ctx.var_types.contains_key(name)
-            }
+            HirExpr::Var(name) => !self.ctx.var_types.contains_key(name),
             // Any subscript access could return DepylerValue
             HirExpr::Index { .. } => true,
             // Any attribute access on unknown objects
-            HirExpr::Attribute { value, .. } => {
-                self.expr_might_be_depyler_value(value)
-            }
+            HirExpr::Attribute { value, .. } => self.expr_might_be_depyler_value(value),
             _ => false,
         }
     }
@@ -8902,7 +9181,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Unknown, Any, DepylerValue, serde_json::Value are NOT concrete
             Type::Unknown => false,
-            Type::Custom(name) if name == "Any" || name == "DepylerValue" || name == "serde_json::Value" => false,
+            Type::Custom(name)
+                if name == "Any" || name == "DepylerValue" || name == "serde_json::Value" =>
+            {
+                false
+            }
 
             // Other custom types are considered concrete (user-defined classes, etc.)
             Type::Custom(_) => true,
@@ -9180,9 +9463,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Literal(Literal::None) => Type::Optional(Box::new(Type::Unknown)),
 
             // Variable - look up in context
-            HirExpr::Var(name) => {
-                self.ctx.var_types.get(name).cloned().unwrap_or(Type::Unknown)
-            }
+            HirExpr::Var(name) => self
+                .ctx
+                .var_types
+                .get(name)
+                .cloned()
+                .unwrap_or(Type::Unknown),
 
             // List literal - infer element type from first element
             HirExpr::List(elements) => {
@@ -9233,25 +9519,25 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             HirExpr::Binary { left, op, right: _ } => {
                 match op {
                     // Comparison ops always return bool
-                    BinOp::Eq | BinOp::NotEq
-                    | BinOp::Lt | BinOp::LtEq
-                    | BinOp::Gt | BinOp::GtEq
-                    | BinOp::In | BinOp::NotIn => Type::Bool,
+                    BinOp::Eq
+                    | BinOp::NotEq
+                    | BinOp::Lt
+                    | BinOp::LtEq
+                    | BinOp::Gt
+                    | BinOp::GtEq
+                    | BinOp::In
+                    | BinOp::NotIn => Type::Bool,
                     // Arithmetic ops - infer from left operand
                     _ => self.infer_type_from_hir_expr(left),
                 }
             }
 
             // Unary operations
-            HirExpr::Unary { op, operand } => {
-                match op {
-                    UnaryOp::Not => Type::Bool,
-                    UnaryOp::Neg | UnaryOp::Pos => {
-                        self.infer_type_from_hir_expr(operand)
-                    }
-                    UnaryOp::BitNot => Type::Int,
-                }
-            }
+            HirExpr::Unary { op, operand } => match op {
+                UnaryOp::Not => Type::Bool,
+                UnaryOp::Neg | UnaryOp::Pos => self.infer_type_from_hir_expr(operand),
+                UnaryOp::BitNot => Type::Int,
+            },
 
             // Ternary/conditional - infer from body
             HirExpr::IfExpr { body, .. } => self.infer_type_from_hir_expr(body),
@@ -9273,9 +9559,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // Attribute access - check class field types
-            HirExpr::Attribute { attr, .. } => {
-                self.ctx.class_field_types.get(attr).cloned().unwrap_or(Type::Unknown)
-            }
+            HirExpr::Attribute { attr, .. } => self
+                .ctx
+                .class_field_types
+                .get(attr)
+                .cloned()
+                .unwrap_or(Type::Unknown),
 
             // Index (subscript) - try to infer element type
             HirExpr::Index { base, .. } => {
@@ -9370,7 +9659,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Direct method call on the parameter (but not iter/map/filter)
             HirExpr::MethodCall { object, method, .. } => {
                 // Skip iterator methods - those indicate collection type
-                if matches!(method.as_str(), "iter" | "into_iter" | "map" | "filter" | "cloned") {
+                if matches!(
+                    method.as_str(),
+                    "iter" | "into_iter" | "map" | "filter" | "cloned"
+                ) {
                     return false;
                 }
                 self.is_direct_var(param, object)
@@ -9398,21 +9690,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     fn body_uses_iter_on_param(&self, param: &str, body: &HirExpr) -> bool {
         match body {
             // DEPYLER-1117: List comprehension `[x for x in param]` - param is iterable
-            HirExpr::ListComp { generators, .. } => {
-                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
-            }
+            HirExpr::ListComp { generators, .. } => generators
+                .iter()
+                .any(|gen| self.is_direct_var(param, &gen.iter)),
             // Set comprehension `{x for x in param}` - param is iterable
-            HirExpr::SetComp { generators, .. } => {
-                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
-            }
+            HirExpr::SetComp { generators, .. } => generators
+                .iter()
+                .any(|gen| self.is_direct_var(param, &gen.iter)),
             // Dict comprehension `{k: v for k, v in param}` - param is iterable
-            HirExpr::DictComp { generators, .. } => {
-                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
-            }
+            HirExpr::DictComp { generators, .. } => generators
+                .iter()
+                .any(|gen| self.is_direct_var(param, &gen.iter)),
             // Generator expression `(x for x in param)` - param is iterable
-            HirExpr::GeneratorExp { generators, .. } => {
-                generators.iter().any(|gen| self.is_direct_var(param, &gen.iter))
-            }
+            HirExpr::GeneratorExp { generators, .. } => generators
+                .iter()
+                .any(|gen| self.is_direct_var(param, &gen.iter)),
             // Method call - check for iter() or chained iterator methods
             HirExpr::MethodCall { object, method, .. } => {
                 // Check if this is an iterator method call directly on the parameter
@@ -9433,14 +9725,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 false
             }
             // Check in nested expressions
-            HirExpr::Call { args, .. } => {
-                args.iter().any(|arg| self.body_uses_iter_on_param(param, arg))
-            }
+            HirExpr::Call { args, .. } => args
+                .iter()
+                .any(|arg| self.body_uses_iter_on_param(param, arg)),
             _ => false,
         }
     }
 
-    pub(crate) fn convert_lambda(&mut self, params: &[String], body: &HirExpr) -> Result<syn::Expr> {
+    pub(crate) fn convert_lambda(
+        &mut self,
+        params: &[String],
+        body: &HirExpr,
+    ) -> Result<syn::Expr> {
         // CITL: Trace lambda/closure conversion decision
         trace_decision!(
             category = DecisionCategory::Ownership,
@@ -9462,7 +9758,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-1202: Generate clone statements for non-Copy captured variables
         let mut clone_stmts: Vec<proc_macro2::TokenStream> = Vec::new();
-        let mut clone_mappings: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        let mut clone_mappings: std::collections::HashMap<String, String> =
+            std::collections::HashMap::new();
 
         for var_name in &captured_vars {
             // Skip 'self' - it's handled differently
@@ -9586,7 +9883,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .map(|(k, v)| (k.clone(), self.substitute_captured_vars(v, mappings)))
                     .collect(),
             },
-            HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                kwargs,
+            } => HirExpr::MethodCall {
                 object: Box::new(self.substitute_captured_vars(object, mappings)),
                 method: method.clone(),
                 args: args
@@ -10195,7 +10497,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .collect(),
                 kwargs: kwargs
                     .iter()
-                    .map(|(k, v)| (k.clone(), self.substitute_var_in_expr(v, old_name, new_name)))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            self.substitute_var_in_expr(v, old_name, new_name),
+                        )
+                    })
                     .collect(),
             },
             HirExpr::Attribute { value, attr } => HirExpr::Attribute {
@@ -10210,7 +10517,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     .collect(),
                 kwargs: kwargs
                     .iter()
-                    .map(|(k, v)| (k.clone(), self.substitute_var_in_expr(v, old_name, new_name)))
+                    .map(|(k, v)| {
+                        (
+                            k.clone(),
+                            self.substitute_var_in_expr(v, old_name, new_name),
+                        )
+                    })
                     .collect(),
             },
             // For other expression types, return as-is (could be extended if needed)
@@ -10497,14 +10809,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-1074: Register target variable's element type so numeric coercion works
             // When iterating over List[float], target x is float, so x > 0 should coerce to x > 0.0
             let element_type = if let HirExpr::Var(iter_var) = &*gen.iter {
-                self.ctx
-                    .var_types
-                    .get(iter_var)
-                    .and_then(|ty| match ty {
-                        crate::hir::Type::List(elem) => Some(elem.as_ref().clone()),
-                        crate::hir::Type::Set(elem) => Some(elem.as_ref().clone()),
-                        _ => None,
-                    })
+                self.ctx.var_types.get(iter_var).and_then(|ty| match ty {
+                    crate::hir::Type::List(elem) => Some(elem.as_ref().clone()),
+                    crate::hir::Type::Set(elem) => Some(elem.as_ref().clone()),
+                    _ => None,
+                })
             } else {
                 None
             };
@@ -10512,7 +10821,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Temporarily register target variable with element type for condition conversion
             let target_var_name = gen.target.clone();
             if let Some(ref elem_ty) = element_type {
-                self.ctx.var_types.insert(target_var_name.clone(), elem_ty.clone());
+                self.ctx
+                    .var_types
+                    .insert(target_var_name.clone(), elem_ty.clone());
             }
 
             // DEPYLER-1076: When function returns impl Iterator, closures need `move`
@@ -10689,7 +11000,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-0188: Convert walrus operator (assignment expression)
     /// Python: (x := expr) assigns expr to x and evaluates to expr
     /// Rust: { let x = expr; x } - block expression that assigns and returns
-    pub(crate) fn convert_named_expr(&mut self, target: &str, value: &HirExpr) -> Result<syn::Expr> {
+    pub(crate) fn convert_named_expr(
+        &mut self,
+        target: &str,
+        value: &HirExpr,
+    ) -> Result<syn::Expr> {
         let ident = syn::Ident::new(target, proc_macro2::Span::call_site());
         let value_expr = value.to_rust_expr(self.ctx)?;
 
@@ -10714,7 +11029,9 @@ mod tests {
 
     fn transpile(code: &str) -> String {
         let pipeline = DepylerPipeline::new();
-        pipeline.transpile(code).expect("transpilation should succeed")
+        pipeline
+            .transpile(code)
+            .expect("transpilation should succeed")
     }
 
     fn transpile_ok(code: &str) -> bool {

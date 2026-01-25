@@ -56,9 +56,9 @@ def test():
 
     // CRITICAL: new() should take String, NOT serde_json::Value
     assert!(
-        rust_code.contains("message: String") ||
-        rust_code.contains("message: impl Into<String>") ||
-        rust_code.contains("fn new(message: String)"),
+        rust_code.contains("message: String")
+            || rust_code.contains("message: impl Into<String>")
+            || rust_code.contains("fn new(message: String)"),
         "Exception constructor should take String.\nGenerated:\n{}",
         rust_code
     );

@@ -153,7 +153,10 @@ mod tests {
         assert_eq!(format!("{}", ConstraintKind::Subtype), "<:");
         assert_eq!(format!("{}", ConstraintKind::Supertype), ":>");
         assert_eq!(format!("{}", ConstraintKind::Callable), "callable");
-        assert_eq!(format!("{}", ConstraintKind::HasField("x".into())), "has field x");
+        assert_eq!(
+            format!("{}", ConstraintKind::HasField("x".into())),
+            "has field x"
+        );
         assert_eq!(format!("{}", ConstraintKind::Arithmetic), "arithmetic");
     }
 
@@ -207,7 +210,7 @@ mod tests {
         let c = TypeConstraint::subtype(
             Type::Int,
             Type::Optional(Box::new(Type::Int)),
-            "int to optional int"
+            "int to optional int",
         );
         assert_eq!(c.kind, ConstraintKind::Subtype);
     }
@@ -217,7 +220,7 @@ mod tests {
         let c = TypeConstraint::eq(
             Type::List(Box::new(Type::Int)),
             Type::List(Box::new(Type::Int)),
-            "list equality"
+            "list equality",
         );
         assert_eq!(c.kind, ConstraintKind::Eq);
     }
@@ -227,7 +230,7 @@ mod tests {
         let c = TypeConstraint::eq(
             Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
             Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
-            "dict equality"
+            "dict equality",
         );
         assert_eq!(c.kind, ConstraintKind::Eq);
     }

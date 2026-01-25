@@ -324,9 +324,8 @@ pub fn export_to_jsonl<P: AsRef<Path>>(exports: &[DepylerExport], path: P) -> st
     let mut writer = std::io::BufWriter::new(file);
 
     for export in exports {
-        let json = serde_json::to_string(export).map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string())
-        })?;
+        let json = serde_json::to_string(export)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e.to_string()))?;
         writeln!(writer, "{}", json)?;
     }
 
@@ -456,20 +455,13 @@ pub fn export_to_parquet<P: AsRef<Path>>(
 
     // Build arrays
     let source_files: Vec<&str> = exports.iter().map(|e| e.source_file.as_str()).collect();
-    let error_codes: Vec<Option<&str>> = exports
-        .iter()
-        .map(|e| e.error_code.as_deref())
-        .collect();
-    let clippy_lints: Vec<Option<&str>> = exports
-        .iter()
-        .map(|e| e.clippy_lint.as_deref())
-        .collect();
+    let error_codes: Vec<Option<&str>> = exports.iter().map(|e| e.error_code.as_deref()).collect();
+    let clippy_lints: Vec<Option<&str>> =
+        exports.iter().map(|e| e.clippy_lint.as_deref()).collect();
     let levels: Vec<&str> = exports.iter().map(|e| e.level.as_str()).collect();
     let messages: Vec<&str> = exports.iter().map(|e| e.message.as_str()).collect();
-    let oip_categories: Vec<Option<&str>> = exports
-        .iter()
-        .map(|e| e.oip_category.as_deref())
-        .collect();
+    let oip_categories: Vec<Option<&str>> =
+        exports.iter().map(|e| e.oip_category.as_deref()).collect();
     let confidences: Vec<f32> = exports.iter().map(|e| e.confidence).collect();
     let span_lines: Vec<Option<u32>> = exports
         .iter()
@@ -583,33 +575,66 @@ mod tests {
 
     #[test]
     fn test_error_code_class_from_type_errors() {
-        assert_eq!(ErrorCodeClass::from_error_code("E0308"), ErrorCodeClass::Type);
-        assert_eq!(ErrorCodeClass::from_error_code("E0412"), ErrorCodeClass::Name);
-        assert_eq!(ErrorCodeClass::from_error_code("E0606"), ErrorCodeClass::Type);
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E0308"),
+            ErrorCodeClass::Type
+        );
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E0412"),
+            ErrorCodeClass::Name
+        );
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E0606"),
+            ErrorCodeClass::Type
+        );
     }
 
     #[test]
     fn test_error_code_class_from_borrow_errors() {
-        assert_eq!(ErrorCodeClass::from_error_code("E0502"), ErrorCodeClass::Borrow);
-        assert_eq!(ErrorCodeClass::from_error_code("E0382"), ErrorCodeClass::Borrow);
-        assert_eq!(ErrorCodeClass::from_error_code("E0507"), ErrorCodeClass::Borrow);
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E0502"),
+            ErrorCodeClass::Borrow
+        );
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E0382"),
+            ErrorCodeClass::Borrow
+        );
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E0507"),
+            ErrorCodeClass::Borrow
+        );
     }
 
     #[test]
     fn test_error_code_class_from_name_errors() {
-        assert_eq!(ErrorCodeClass::from_error_code("E0425"), ErrorCodeClass::Name);
-        assert_eq!(ErrorCodeClass::from_error_code("E0433"), ErrorCodeClass::Name);
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E0425"),
+            ErrorCodeClass::Name
+        );
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E0433"),
+            ErrorCodeClass::Name
+        );
     }
 
     #[test]
     fn test_error_code_class_from_trait_errors() {
-        assert_eq!(ErrorCodeClass::from_error_code("E0277"), ErrorCodeClass::Trait);
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E0277"),
+            ErrorCodeClass::Trait
+        );
     }
 
     #[test]
     fn test_error_code_class_from_unknown() {
-        assert_eq!(ErrorCodeClass::from_error_code("E9999"), ErrorCodeClass::Other);
-        assert_eq!(ErrorCodeClass::from_error_code("UNKNOWN"), ErrorCodeClass::Other);
+        assert_eq!(
+            ErrorCodeClass::from_error_code("E9999"),
+            ErrorCodeClass::Other
+        );
+        assert_eq!(
+            ErrorCodeClass::from_error_code("UNKNOWN"),
+            ErrorCodeClass::Other
+        );
     }
 
     #[test]
@@ -624,10 +649,19 @@ mod tests {
     #[test]
     fn test_error_code_class_to_one_hot() {
         assert_eq!(ErrorCodeClass::Type.to_one_hot(), [1.0, 0.0, 0.0, 0.0, 0.0]);
-        assert_eq!(ErrorCodeClass::Borrow.to_one_hot(), [0.0, 1.0, 0.0, 0.0, 0.0]);
+        assert_eq!(
+            ErrorCodeClass::Borrow.to_one_hot(),
+            [0.0, 1.0, 0.0, 0.0, 0.0]
+        );
         assert_eq!(ErrorCodeClass::Name.to_one_hot(), [0.0, 0.0, 1.0, 0.0, 0.0]);
-        assert_eq!(ErrorCodeClass::Trait.to_one_hot(), [0.0, 0.0, 0.0, 1.0, 0.0]);
-        assert_eq!(ErrorCodeClass::Other.to_one_hot(), [0.0, 0.0, 0.0, 0.0, 1.0]);
+        assert_eq!(
+            ErrorCodeClass::Trait.to_one_hot(),
+            [0.0, 0.0, 0.0, 1.0, 0.0]
+        );
+        assert_eq!(
+            ErrorCodeClass::Other.to_one_hot(),
+            [0.0, 0.0, 0.0, 0.0, 1.0]
+        );
     }
 
     #[test]
@@ -673,8 +707,7 @@ mod tests {
 
     #[test]
     fn test_depyler_export_with_oip_category() {
-        let export = DepylerExport::new("E0308", "msg", "file.py")
-            .with_oip_category("TypeErrors");
+        let export = DepylerExport::new("E0308", "msg", "file.py").with_oip_category("TypeErrors");
         assert_eq!(export.oip_category, Some("TypeErrors".to_string()));
     }
 
@@ -689,7 +722,10 @@ mod tests {
         let suggestion = SuggestionInfo::machine_applicable(".parse::<i32>()");
         let export = DepylerExport::new("E0308", "msg", "file.py").with_suggestion(suggestion);
         assert!(export.suggestion.is_some());
-        assert_eq!(export.suggestion.unwrap().applicability, "MachineApplicable");
+        assert_eq!(
+            export.suggestion.unwrap().applicability,
+            "MachineApplicable"
+        );
     }
 
     #[test]

@@ -201,6 +201,8 @@ impl FixTemplateRegistry {
         register_trait_bound_templates(&mut registry);
         register_import_templates(&mut registry);
         register_syntax_templates(&mut registry);
+        // DEPYLER-1309: Bootstrap top 50 transpiler-specific patterns
+        register_transpiler_patterns(&mut registry);
         registry
     }
 
@@ -653,6 +655,779 @@ fn register_syntax_templates(registry: &mut FixTemplateRegistry) {
             "Check recent changes for missing brackets",
         ])
         .with_priority(85)
+        .build(),
+    );
+}
+
+// ============================================
+// DEPYLER-1309: Transpiler-Specific Patterns
+// Bootstrap the top 50 error patterns from corpus analysis
+// ============================================
+
+fn register_transpiler_patterns(registry: &mut FixTemplateRegistry) {
+    // === E0599: No method found patterns ===
+
+    // Pattern 1: datetime methods on tuples (hour, minute, second)
+    registry.register(
+        FixTemplate::builder(
+            "e0599-datetime-tuple",
+            "Datetime Methods on Tuple",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "hour", "minute", "second", "tuple"])
+        .with_explanation(
+            "Python datetime.time objects have hour/minute/second attributes. \
+             The transpiler incorrectly inferred a tuple type instead of a time type.",
+        )
+        .with_suggestions(&[
+            "Change type annotation from tuple to chrono::NaiveTime",
+            "Use tuple destructuring: let (hour, minute, second) = time;",
+            "Access tuple elements: time.0, time.1, time.2",
+        ])
+        .with_priority(90)
+        .build(),
+    );
+
+    // Pattern 2: year/month/day on tuples
+    registry.register(
+        FixTemplate::builder(
+            "e0599-date-tuple",
+            "Date Methods on Tuple",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "year", "month", "day", "tuple"])
+        .with_explanation(
+            "Python datetime.date objects have year/month/day attributes. \
+             The transpiler incorrectly inferred a tuple type instead of a date type.",
+        )
+        .with_suggestions(&[
+            "Change type annotation from tuple to chrono::NaiveDate",
+            "Use tuple destructuring: let (year, month, day) = date;",
+            "Access tuple elements: date.0, date.1, date.2",
+        ])
+        .with_priority(90)
+        .build(),
+    );
+
+    // Pattern 3: as_i64 doesn't exist (should be cast)
+    registry.register(
+        FixTemplate::builder(
+            "e0599-as-i64-cast",
+            "as_i64 Method Missing",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "as_i64", "i32", "i64"])
+        .with_explanation(
+            "Rust doesn't have an as_i64() method. Use the `as` keyword for numeric casts.",
+        )
+        .with_transform(CodeTransform::new(
+            "Replace .as_i64() with cast",
+            r"\.as_i64\(\)",
+            " as i64",
+            "value.as_i64()",
+            "value as i64",
+        ))
+        .with_suggestions(&[
+            "Use `value as i64` instead of `value.as_i64()`",
+            "For Option<i64>, use `.map(|v| v as i64)`",
+        ])
+        .with_priority(95)
+        .build(),
+    );
+
+    // Pattern 4: is_some on Vec (should be Option)
+    registry.register(
+        FixTemplate::builder(
+            "e0599-is-some-vec",
+            "is_some on Vec",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "is_some", "Vec"])
+        .with_explanation(
+            "is_some() is an Option method, not a Vec method. \
+             The transpiler incorrectly inferred Vec instead of Option.",
+        )
+        .with_suggestions(&[
+            "Change Vec<T> to Option<T> if checking for presence",
+            "Use !vec.is_empty() to check if Vec has elements",
+            "Wrap the Vec in Option if it's optional: Option<Vec<T>>",
+        ])
+        .with_priority(90)
+        .build(),
+    );
+
+    // Pattern 5: display on String (should be Path)
+    registry.register(
+        FixTemplate::builder(
+            "e0599-display-string",
+            "display on String",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "display", "String"])
+        .with_explanation(
+            "display() is a Path method, not a String method. \
+             For String formatting, just use the String directly or &str.",
+        )
+        .with_suggestions(&[
+            "Remove .display() - String implements Display directly",
+            "If this should be a Path, change the type to PathBuf",
+            "Use std::path::Path::new(&string).display()",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // Pattern 6: ok on ReadDir
+    registry.register(
+        FixTemplate::builder(
+            "e0599-ok-readdir",
+            "ok() on ReadDir",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "ok", "ReadDir"])
+        .with_explanation(
+            "ReadDir doesn't have an ok() method. It's already a Result that was unwrapped. \
+             The ok() call is redundant.",
+        )
+        .with_suggestions(&[
+            "Remove the .ok() call - the iterator is already available",
+            "If the fs::read_dir() result needs error handling, use ? or match",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // Pattern 7: duration_since on datetime types
+    registry.register(
+        FixTemplate::builder(
+            "e0599-duration-since",
+            "duration_since Missing",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "duration_since", "DateTime"])
+        .with_explanation(
+            "Python's timedelta arithmetic uses the - operator. \
+             In Rust, use signed_duration_since() or subtract with chrono types.",
+        )
+        .with_suggestions(&[
+            "Use .signed_duration_since(other) for chrono types",
+            "Use datetime1 - datetime2 for Duration",
+            "Check if the type is std::time::Instant vs chrono::DateTime",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // Pattern 8: toordinal on date types
+    registry.register(
+        FixTemplate::builder(
+            "e0599-toordinal",
+            "toordinal Missing",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "toordinal"])
+        .with_explanation(
+            "Python's date.toordinal() returns days since year 1. \
+             In Rust/chrono, use .num_days_from_ce() for similar functionality.",
+        )
+        .with_suggestions(&[
+            "Use .num_days_from_ce() for chrono NaiveDate",
+            "Calculate manually: (date - NaiveDate::from_ymd(1, 1, 1)).num_days()",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // Pattern 9: replace on date types
+    registry.register(
+        FixTemplate::builder(
+            "e0599-date-replace",
+            "date replace Missing",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "replace", "Date"])
+        .with_explanation(
+            "Python's date.replace() creates a new date with some fields changed. \
+             In Rust/chrono, use .with_year(), .with_month(), .with_day().",
+        )
+        .with_suggestions(&[
+            "Use .with_year(2024) to change year",
+            "Use .with_month(6) to change month",
+            "Use .with_day(15) to change day",
+            "Chain multiple: date.with_year(2024).with_month(6)",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // === E0308: Type mismatch patterns ===
+
+    // Pattern 10: Vec to &[T] conversion
+    registry.register(
+        FixTemplate::builder(
+            "e0308-vec-slice",
+            "Vec to Slice Conversion",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["expected", "&[", "found", "Vec"])
+        .with_explanation(
+            "Function expects a slice &[T] but received Vec<T>. \
+             Use &vec or vec.as_slice() to convert.",
+        )
+        .with_transform(CodeTransform::new(
+            "Convert Vec to slice",
+            r"(\w+)",
+            "&$1",
+            "function(my_vec)",
+            "function(&my_vec)",
+        ))
+        .with_suggestions(&[
+            "Use &vec to borrow as slice",
+            "Use vec.as_slice() for explicit conversion",
+        ])
+        .with_priority(90)
+        .build(),
+    );
+
+    // Pattern 11: Wrong argument count
+    registry.register(
+        FixTemplate::builder(
+            "e0308-arg-count",
+            "Arguments to Function Incorrect",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["arguments to this function are incorrect"])
+        .with_explanation(
+            "The function is being called with wrong number or types of arguments. \
+             Check the function signature and adjust the call.",
+        )
+        .with_suggestions(&[
+            "Check the function signature for expected argument types",
+            "Verify argument order matches the function definition",
+            "Add missing arguments or remove extra ones",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // Pattern 12: DepylerValue type inference
+    registry.register(
+        FixTemplate::builder(
+            "e0308-depyler-value",
+            "DepylerValue Type Inference",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["DepylerValue", "expected", "found"])
+        .with_explanation(
+            "DepylerValue is a dynamic type wrapper. The transpiler needs better type \
+             inference to determine the concrete type at compile time.",
+        )
+        .with_suggestions(&[
+            "Add type annotation to help inference",
+            "Use .to_i64(), .to_f64(), .to_string() to extract concrete type",
+            "Check Python source for type hints",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // === E0277: Trait not implemented patterns ===
+
+    // Pattern 13: AsRef<OsStr> not implemented
+    registry.register(
+        FixTemplate::builder(
+            "e0277-asref-osstr",
+            "AsRef<OsStr> Not Implemented",
+            ErrorCategory::TraitBound,
+        )
+        .with_keywords(&["AsRef<OsStr>", "not implemented", "Value"])
+        .with_explanation(
+            "subprocess/Command functions expect string-like types that implement AsRef<OsStr>. \
+             serde_json::Value doesn't implement this.",
+        )
+        .with_suggestions(&[
+            "Convert to String first: value.as_str().unwrap().to_string()",
+            "Change type inference to Vec<String> instead of Vec<Value>",
+            "Use explicit type annotation: let args: Vec<String>",
+        ])
+        .with_priority(90)
+        .build(),
+    );
+
+    // Pattern 14: Iterator trait missing
+    registry.register(
+        FixTemplate::builder(
+            "e0277-iterator",
+            "Iterator Trait Not Implemented",
+            ErrorCategory::TraitBound,
+        )
+        .with_keywords(&["Iterator", "not implemented", "for loop"])
+        .with_explanation(
+            "The for loop requires an Iterator. The type doesn't implement IntoIterator.",
+        )
+        .with_suggestions(&[
+            "Use .iter() for borrowed iteration",
+            "Use .into_iter() for consuming iteration",
+            "Check if the type should be a collection",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // Pattern 15: Display trait missing
+    registry.register(
+        FixTemplate::builder(
+            "e0277-display",
+            "Display Trait Not Implemented",
+            ErrorCategory::TraitBound,
+        )
+        .with_keywords(&["Display", "not implemented", "format", "println"])
+        .with_explanation(
+            "The type doesn't implement Display for formatting with {} in format strings.",
+        )
+        .with_suggestions(&[
+            "Use {:?} for Debug formatting instead",
+            "Implement Display trait for the type",
+            "Convert to String first",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // === E0609: No field on type patterns ===
+
+    // Pattern 16: No field on tuple
+    registry.register(
+        FixTemplate::builder(
+            "e0609-tuple-field",
+            "No Named Field on Tuple",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no field", "tuple", "did you mean"])
+        .with_explanation(
+            "Tuples use numeric indices (0, 1, 2), not named fields. \
+             For named fields, use a struct.",
+        )
+        .with_suggestions(&[
+            "Use tuple.0, tuple.1, etc. for positional access",
+            "Destructure: let (a, b, c) = tuple;",
+            "Consider using a struct with named fields",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // Pattern 17: No field on reference
+    registry.register(
+        FixTemplate::builder(
+            "e0609-ref-field",
+            "Field Access on Reference",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no field", "&", "reference"])
+        .with_explanation(
+            "Dereferencing happens automatically for method calls but not for field access. \
+             The type might be a reference to something without that field.",
+        )
+        .with_suggestions(&[
+            "Dereference explicitly: (*ref).field",
+            "Check if the base type has the field",
+            "The reference might be to a different type than expected",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // === E0282: Type annotation needed patterns ===
+
+    // Pattern 18: Cannot infer type
+    registry.register(
+        FixTemplate::builder(
+            "e0282-cannot-infer",
+            "Cannot Infer Type",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["cannot infer type", "type annotation needed"])
+        .with_explanation(
+            "Rust's type inference couldn't determine the type. Add explicit annotations.",
+        )
+        .with_suggestions(&[
+            "Add type annotation: let x: i32 = ...;",
+            "Use turbofish syntax: collect::<Vec<_>>()",
+            "Provide more context with explicit types",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // Pattern 19: Collection type ambiguous
+    registry.register(
+        FixTemplate::builder(
+            "e0282-collect",
+            "Collect Type Ambiguous",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["collect", "cannot infer", "type"])
+        .with_explanation(
+            "The collect() method can produce many container types. Specify which one.",
+        )
+        .with_transform(CodeTransform::new(
+            "Add turbofish to collect",
+            r"\.collect\(\)",
+            ".collect::<Vec<_>>()",
+            "iter.map(f).collect()",
+            "iter.map(f).collect::<Vec<_>>()",
+        ))
+        .with_suggestions(&[
+            "Use .collect::<Vec<_>>() for vectors",
+            "Use .collect::<HashMap<_, _>>() for maps",
+            "Use .collect::<HashSet<_>>() for sets",
+        ])
+        .with_priority(90)
+        .build(),
+    );
+
+    // === E0061: Wrong argument count patterns ===
+
+    // Pattern 20: This function takes N arguments
+    registry.register(
+        FixTemplate::builder(
+            "e0061-arg-count",
+            "Wrong Number of Arguments",
+            ErrorCategory::SyntaxError,
+        )
+        .with_keywords(&["this function takes", "arguments", "supplied"])
+        .with_explanation("The function was called with the wrong number of arguments.")
+        .with_suggestions(&[
+            "Check the function definition for required arguments",
+            "Some Python default arguments may need explicit values in Rust",
+            "Optional parameters might need Option<T> wrapping",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // === E0605: Invalid cast patterns ===
+
+    // Pattern 21: Non-primitive cast
+    registry.register(
+        FixTemplate::builder(
+            "e0605-non-primitive",
+            "Non-Primitive Cast",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["non-primitive cast", "as", "cannot cast"])
+        .with_explanation(
+            "The `as` keyword only works for primitive types. Use From/Into traits \
+             or constructor methods for complex types.",
+        )
+        .with_suggestions(&[
+            "Use .into() for types implementing From/Into",
+            "Use Type::from(value) explicitly",
+            "Implement From trait for custom conversions",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // === E0369: Binary operation not applicable patterns ===
+
+    // Pattern 22: Cannot apply binary operation
+    registry.register(
+        FixTemplate::builder(
+            "e0369-binary-op",
+            "Binary Operation Not Applicable",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["cannot be applied to type", "binary operation"])
+        .with_explanation(
+            "The binary operator (+, -, *, /, etc.) isn't defined for these types. \
+             Implement the corresponding trait or convert types.",
+        )
+        .with_suggestions(&[
+            "Convert types to match (both i32, both f64, etc.)",
+            "Use PyOps traits for Python-style operations",
+            "Implement Add/Sub/Mul/Div traits for custom types",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // === E0600: Unary operation not applicable patterns ===
+
+    // Pattern 23: Cannot apply unary operator
+    registry.register(
+        FixTemplate::builder(
+            "e0600-unary-op",
+            "Unary Operation Not Applicable",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["cannot apply unary operator", "-", "!"])
+        .with_explanation(
+            "The unary operator (-, !) isn't defined for this type. \
+             Check the type and implement Neg or Not traits if needed.",
+        )
+        .with_suggestions(&[
+            "Check if the type is correct for negation",
+            "Use explicit conversion before applying operator",
+            "Implement Neg/Not traits for custom types",
+        ])
+        .with_priority(75)
+        .build(),
+    );
+
+    // === E0425: Unresolved name patterns ===
+
+    // Pattern 24: Not found in this scope
+    registry.register(
+        FixTemplate::builder(
+            "e0425-not-found",
+            "Name Not Found in Scope",
+            ErrorCategory::MissingImport,
+        )
+        .with_keywords(&["cannot find value", "in this scope"])
+        .with_explanation("The variable or function is not defined or not in scope.")
+        .with_suggestions(&[
+            "Check for typos in the name",
+            "Import the item with `use`",
+            "Ensure the variable is defined before use",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // === Additional common transpiler patterns ===
+
+    // Pattern 25: PyOps trait missing
+    registry.register(
+        FixTemplate::builder(
+            "e0599-pyops-missing",
+            "PyOps Trait Method Missing",
+            ErrorCategory::TraitBound,
+        )
+        .with_keywords(&["no method named", "py_add", "py_sub", "py_mul", "py_div"])
+        .with_explanation(
+            "Python-style operations require PyOps traits. The transpiler should \
+             generate these trait implementations inline.",
+        )
+        .with_suggestions(&[
+            "Check if PyOps traits are included in generated code",
+            "Verify the types implement the required PyOps trait",
+            "For Vec operations, ensure element-wise impls exist",
+        ])
+        .with_priority(95)
+        .build(),
+    );
+
+    // Pattern 26: serde_json::Value method missing
+    registry.register(
+        FixTemplate::builder(
+            "e0599-json-value",
+            "serde_json::Value Method Missing",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["no method named", "Value", "serde_json"])
+        .with_explanation(
+            "serde_json::Value is a dynamic JSON type. Python dict methods don't \
+             map directly. Use as_object(), as_array(), etc.",
+        )
+        .with_suggestions(&[
+            "Use .as_object() to get Option<&Map>",
+            "Use .as_array() to get Option<&Vec>",
+            "Use .as_str(), .as_i64(), .as_f64() for primitives",
+            "Use .get(key) for dictionary-like access",
+        ])
+        .with_priority(90)
+        .build(),
+    );
+
+    // Pattern 27: std::time vs chrono confusion
+    registry.register(
+        FixTemplate::builder(
+            "e0308-time-types",
+            "Time Type Mismatch",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["std::time", "chrono", "Duration", "Instant"])
+        .with_explanation(
+            "Rust has two time libraries: std::time and chrono. They're not interchangeable. \
+             Python datetime maps better to chrono types.",
+        )
+        .with_suggestions(&[
+            "Use chrono for date/time: NaiveDate, NaiveTime, DateTime",
+            "Use std::time for durations: Duration, Instant",
+            "Convert: chrono::Duration::to_std() / from_std()",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // Pattern 28: Optional argument handling
+    registry.register(
+        FixTemplate::builder(
+            "e0308-optional-arg",
+            "Optional Argument Type Mismatch",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["Option", "expected", "found", "argument"])
+        .with_explanation(
+            "Python's optional parameters with defaults need special handling. \
+             Use Option<T> and provide defaults with .unwrap_or().",
+        )
+        .with_suggestions(&[
+            "Wrap optional params in Option<T>",
+            "Use .unwrap_or(default) for defaults",
+            "Consider builder pattern for many optional args",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // Pattern 29: Closure type inference
+    registry.register(
+        FixTemplate::builder(
+            "e0282-closure",
+            "Closure Type Cannot Be Inferred",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["closure", "cannot infer", "type"])
+        .with_explanation(
+            "Rust closures need type annotations when the type can't be inferred \
+             from usage context.",
+        )
+        .with_suggestions(&[
+            "Add parameter types: |x: i32| x + 1",
+            "Add return type: |x| -> i32 { x + 1 }",
+            "Use the closure immediately to provide context",
+        ])
+        .with_priority(75)
+        .build(),
+    );
+
+    // Pattern 30: String vs &str in HashMap keys
+    registry.register(
+        FixTemplate::builder(
+            "e0308-hashmap-key",
+            "HashMap Key Type Mismatch",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["HashMap", "expected", "&str", "String", "key"])
+        .with_explanation(
+            "HashMap<String, V> needs owned String keys, not &str. \
+             Use .to_string() when inserting string literals.",
+        )
+        .with_transform(CodeTransform::new(
+            "Convert &str key to String",
+            r#""([^"]+)""#,
+            r#""$1".to_string()"#,
+            r#"map.insert("key", value);"#,
+            r#"map.insert("key".to_string(), value);"#,
+        ))
+        .with_suggestions(&[
+            "Use .to_string() for literal keys",
+            "Consider HashMap<&str, V> if all keys are static",
+        ])
+        .with_priority(85)
+        .build(),
+    );
+
+    // Pattern 31: Vec::new() vs vec![] type inference
+    registry.register(
+        FixTemplate::builder(
+            "e0282-vec-new",
+            "Vec::new() Type Inference",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["Vec::new", "cannot infer", "type"])
+        .with_explanation(
+            "Vec::new() without elements can't infer the element type. \
+             Add a type annotation or use vec![].",
+        )
+        .with_suggestions(&[
+            "Add type: let v: Vec<i32> = Vec::new();",
+            "Use turbofish: Vec::<i32>::new()",
+            "Use vec![] with elements if possible",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // Pattern 32: Result error type mismatch
+    registry.register(
+        FixTemplate::builder(
+            "e0308-result-error",
+            "Result Error Type Mismatch",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["Result", "expected", "found", "Err"])
+        .with_explanation(
+            "Different Result types have different error types. \
+             Use .map_err() to convert between error types.",
+        )
+        .with_suggestions(&[
+            "Use .map_err(|e| e.into()) for Into-compatible errors",
+            "Use anyhow::Result for uniform error handling",
+            "Consider using thiserror for custom error types",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // Pattern 33: Index vs get for arrays/vectors
+    registry.register(
+        FixTemplate::builder(
+            "e0277-index",
+            "Index Trait Not Implemented",
+            ErrorCategory::TraitBound,
+        )
+        .with_keywords(&["Index", "not implemented", "cannot index"])
+        .with_explanation("The type doesn't support indexing with []. Use .get() for safe access.")
+        .with_suggestions(&[
+            "Use .get(index) which returns Option<&T>",
+            "Check if the type should be a Vec or array",
+            "For HashMap, use .get(&key)",
+        ])
+        .with_priority(80)
+        .build(),
+    );
+
+    // Pattern 34: Deref coercion failure
+    registry.register(
+        FixTemplate::builder(
+            "e0308-deref",
+            "Deref Coercion Failure",
+            ErrorCategory::TypeMismatch,
+        )
+        .with_keywords(&["expected", "&", "found", "Box", "Rc", "Arc"])
+        .with_explanation(
+            "Smart pointers (Box, Rc, Arc) deref automatically but sometimes need explicit deref.",
+        )
+        .with_suggestions(&[
+            "Use &*ptr to explicitly deref",
+            "Use .as_ref() for &T from smart pointer",
+            "Clone if you need an owned value",
+        ])
+        .with_priority(75)
+        .build(),
+    );
+
+    // Pattern 35: Lifetime elision failure
+    registry.register(
+        FixTemplate::builder(
+            "e0106-lifetime",
+            "Missing Lifetime Specifier",
+            ErrorCategory::LifetimeError,
+        )
+        .with_keywords(&["missing lifetime specifier", "'"])
+        .with_explanation(
+            "The compiler can't infer the lifetime. Add explicit lifetime annotations.",
+        )
+        .with_suggestions(&[
+            "Add lifetime parameter: fn foo<'a>(x: &'a str)",
+            "Consider if you can use owned types instead",
+            "Use 'static for literals and constants",
+        ])
+        .with_priority(80)
         .build(),
     );
 }

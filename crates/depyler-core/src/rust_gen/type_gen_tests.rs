@@ -6,7 +6,9 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).expect("transpilation should succeed")
+    pipeline
+        .transpile(code)
+        .expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -59,31 +61,38 @@ fn test_type_none() {
 
 #[test]
 fn test_type_list_int() {
-    let code = transpile("from typing import List\n\ndef foo(x: List[int]) -> List[int]:\n    return x");
+    let code =
+        transpile("from typing import List\n\ndef foo(x: List[int]) -> List[int]:\n    return x");
     assert!(code.contains("Vec") || code.contains("i64"));
 }
 
 #[test]
 fn test_type_list_str() {
-    let code = transpile("from typing import List\n\ndef foo(x: List[str]) -> List[str]:\n    return x");
+    let code =
+        transpile("from typing import List\n\ndef foo(x: List[str]) -> List[str]:\n    return x");
     assert!(code.contains("Vec") || code.contains("String"));
 }
 
 #[test]
 fn test_type_dict_str_int() {
-    let code = transpile("from typing import Dict\n\ndef foo(x: Dict[str, int]) -> Dict[str, int]:\n    return x");
+    let code = transpile(
+        "from typing import Dict\n\ndef foo(x: Dict[str, int]) -> Dict[str, int]:\n    return x",
+    );
     assert!(code.contains("HashMap") || code.contains("String"));
 }
 
 #[test]
 fn test_type_set_int() {
-    let code = transpile("from typing import Set\n\ndef foo(x: Set[int]) -> Set[int]:\n    return x");
+    let code =
+        transpile("from typing import Set\n\ndef foo(x: Set[int]) -> Set[int]:\n    return x");
     assert!(code.contains("HashSet") || code.contains("i64"));
 }
 
 #[test]
 fn test_type_tuple_int_str() {
-    let code = transpile("from typing import Tuple\n\ndef foo(x: Tuple[int, str]) -> Tuple[int, str]:\n    return x");
+    let code = transpile(
+        "from typing import Tuple\n\ndef foo(x: Tuple[int, str]) -> Tuple[int, str]:\n    return x",
+    );
     assert!(code.contains("(") || code.contains("i64"));
 }
 
@@ -121,13 +130,17 @@ fn test_type_tuple_lowercase() {
 
 #[test]
 fn test_type_optional_int() {
-    let code = transpile("from typing import Optional\n\ndef foo(x: Optional[int]) -> Optional[int]:\n    return x");
+    let code = transpile(
+        "from typing import Optional\n\ndef foo(x: Optional[int]) -> Optional[int]:\n    return x",
+    );
     assert!(code.contains("Option") || code.contains("i64"));
 }
 
 #[test]
 fn test_type_optional_str() {
-    let code = transpile("from typing import Optional\n\ndef foo(x: Optional[str]) -> Optional[str]:\n    return x");
+    let code = transpile(
+        "from typing import Optional\n\ndef foo(x: Optional[str]) -> Optional[str]:\n    return x",
+    );
     assert!(code.contains("Option") || code.contains("String"));
 }
 
@@ -143,7 +156,9 @@ fn test_type_optional_list() {
 
 #[test]
 fn test_type_union_int_str() {
-    assert!(transpile_ok("from typing import Union\n\ndef foo(x: Union[int, str]) -> Union[int, str]:\n    return x"));
+    assert!(transpile_ok(
+        "from typing import Union\n\ndef foo(x: Union[int, str]) -> Union[int, str]:\n    return x"
+    ));
 }
 
 #[test]
@@ -162,12 +177,16 @@ fn test_type_union_multiple() {
 
 #[test]
 fn test_type_pep604_union() {
-    assert!(transpile_ok("def foo(x: int | str) -> int | str:\n    return x"));
+    assert!(transpile_ok(
+        "def foo(x: int | str) -> int | str:\n    return x"
+    ));
 }
 
 #[test]
 fn test_type_pep604_optional() {
-    assert!(transpile_ok("def foo(x: int | None) -> int | None:\n    return x"));
+    assert!(transpile_ok(
+        "def foo(x: int | None) -> int | None:\n    return x"
+    ));
 }
 
 // ============================================================================
@@ -176,12 +195,16 @@ fn test_type_pep604_optional() {
 
 #[test]
 fn test_type_callable_no_args() {
-    assert!(transpile_ok("from typing import Callable\n\ndef foo(f: Callable[[], int]) -> int:\n    return f()"));
+    assert!(transpile_ok(
+        "from typing import Callable\n\ndef foo(f: Callable[[], int]) -> int:\n    return f()"
+    ));
 }
 
 #[test]
 fn test_type_callable_with_args() {
-    assert!(transpile_ok("from typing import Callable\n\ndef foo(f: Callable[[int], int]) -> int:\n    return f(1)"));
+    assert!(transpile_ok(
+        "from typing import Callable\n\ndef foo(f: Callable[[int], int]) -> int:\n    return f(1)"
+    ));
 }
 
 #[test]
@@ -195,17 +218,23 @@ fn test_type_callable_multiple_args() {
 
 #[test]
 fn test_type_iterator_int() {
-    assert!(transpile_ok("from typing import Iterator\n\ndef foo() -> Iterator[int]:\n    yield 1"));
+    assert!(transpile_ok(
+        "from typing import Iterator\n\ndef foo() -> Iterator[int]:\n    yield 1"
+    ));
 }
 
 #[test]
 fn test_type_generator() {
-    assert!(transpile_ok("from typing import Generator\n\ndef foo() -> Generator[int, None, None]:\n    yield 1"));
+    assert!(transpile_ok(
+        "from typing import Generator\n\ndef foo() -> Generator[int, None, None]:\n    yield 1"
+    ));
 }
 
 #[test]
 fn test_type_iterable() {
-    assert!(transpile_ok("from typing import Iterable\n\ndef foo(x: Iterable[int]) -> int:\n    return sum(x)"));
+    assert!(transpile_ok(
+        "from typing import Iterable\n\ndef foo(x: Iterable[int]) -> int:\n    return sum(x)"
+    ));
 }
 
 // ============================================================================
@@ -214,12 +243,16 @@ fn test_type_iterable() {
 
 #[test]
 fn test_type_any() {
-    assert!(transpile_ok("from typing import Any\n\ndef foo(x: Any) -> Any:\n    return x"));
+    assert!(transpile_ok(
+        "from typing import Any\n\ndef foo(x: Any) -> Any:\n    return x"
+    ));
 }
 
 #[test]
 fn test_type_any_list() {
-    assert!(transpile_ok("from typing import Any, List\n\ndef foo(x: List[Any]) -> List[Any]:\n    return x"));
+    assert!(transpile_ok(
+        "from typing import Any, List\n\ndef foo(x: List[Any]) -> List[Any]:\n    return x"
+    ));
 }
 
 // ============================================================================
@@ -228,7 +261,9 @@ fn test_type_any_list() {
 
 #[test]
 fn test_type_list_of_lists() {
-    assert!(transpile_ok("from typing import List\n\ndef foo(x: List[List[int]]) -> List[List[int]]:\n    return x"));
+    assert!(transpile_ok(
+        "from typing import List\n\ndef foo(x: List[List[int]]) -> List[List[int]]:\n    return x"
+    ));
 }
 
 #[test]
@@ -252,7 +287,9 @@ fn test_type_optional_dict() {
 
 #[test]
 fn test_type_class_param() {
-    assert!(transpile_ok("class Point:\n    pass\n\ndef foo(p: Point) -> Point:\n    return p"));
+    assert!(transpile_ok(
+        "class Point:\n    pass\n\ndef foo(p: Point) -> Point:\n    return p"
+    ));
 }
 
 #[test]
@@ -271,13 +308,17 @@ fn test_type_dataclass() {
 
 #[test]
 fn test_type_literal_str() {
-    assert!(transpile_ok("from typing import Literal\n\ndef foo(mode: Literal['r', 'w']) -> str:\n    return mode"));
+    assert!(transpile_ok(
+        "from typing import Literal\n\ndef foo(mode: Literal['r', 'w']) -> str:\n    return mode"
+    ));
 }
 
 #[test]
 fn test_type_literal_int() {
     // Literal with int values may not be fully supported - check it doesn't crash
-    let _ = transpile_ok("from typing import Literal\n\ndef foo(n: Literal[0, 1, 2]) -> int:\n    return n");
+    let _ = transpile_ok(
+        "from typing import Literal\n\ndef foo(n: Literal[0, 1, 2]) -> int:\n    return n",
+    );
 }
 
 // ============================================================================
@@ -286,7 +327,9 @@ fn test_type_literal_int() {
 
 #[test]
 fn test_type_final() {
-    assert!(transpile_ok("from typing import Final\n\nVALUE: Final[int] = 42"));
+    assert!(transpile_ok(
+        "from typing import Final\n\nVALUE: Final[int] = 42"
+    ));
 }
 
 // ============================================================================
@@ -309,7 +352,9 @@ fn test_type_typevar_bound() {
 
 #[test]
 fn test_type_sequence() {
-    assert!(transpile_ok("from typing import Sequence\n\ndef foo(x: Sequence[int]) -> int:\n    return x[0]"));
+    assert!(transpile_ok(
+        "from typing import Sequence\n\ndef foo(x: Sequence[int]) -> int:\n    return x[0]"
+    ));
 }
 
 #[test]
@@ -323,7 +368,9 @@ fn test_type_mutablesequence() {
 
 #[test]
 fn test_type_mapping() {
-    assert!(transpile_ok("from typing import Mapping\n\ndef foo(x: Mapping[str, int]) -> int:\n    return x['key']"));
+    assert!(transpile_ok(
+        "from typing import Mapping\n\ndef foo(x: Mapping[str, int]) -> int:\n    return x['key']"
+    ));
 }
 
 #[test]
@@ -337,12 +384,16 @@ fn test_type_mutablemapping() {
 
 #[test]
 fn test_type_empty_tuple() {
-    assert!(transpile_ok("from typing import Tuple\n\ndef foo() -> Tuple[()]:\n    return ()"));
+    assert!(transpile_ok(
+        "from typing import Tuple\n\ndef foo() -> Tuple[()]:\n    return ()"
+    ));
 }
 
 #[test]
 fn test_type_variadic_tuple() {
-    assert!(transpile_ok("from typing import Tuple\n\ndef foo(x: Tuple[int, ...]) -> int:\n    return sum(x)"));
+    assert!(transpile_ok(
+        "from typing import Tuple\n\ndef foo(x: Tuple[int, ...]) -> int:\n    return sum(x)"
+    ));
 }
 
 #[test]
@@ -352,5 +403,7 @@ fn test_type_forward_reference() {
 
 #[test]
 fn test_type_self_reference() {
-    assert!(transpile_ok("class Node:\n    def __init__(self, next: 'Node'):\n        self.next = next"));
+    assert!(transpile_ok(
+        "class Node:\n    def __init__(self, next: 'Node'):\n        self.next = next"
+    ));
 }

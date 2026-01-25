@@ -480,7 +480,9 @@ warning: unused variable"#;
     fn test_error_taxonomy_classify_with_errors() {
         let results = vec![
             make_result(Some("error[E0308]: mismatched types")),
-            make_result(Some("error[E0308]: mismatched types\nerror[E0412]: cannot find type")),
+            make_result(Some(
+                "error[E0308]: mismatched types\nerror[E0412]: cannot find type",
+            )),
             make_result(None), // Success case
         ];
 

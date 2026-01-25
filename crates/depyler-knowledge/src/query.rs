@@ -166,7 +166,11 @@ impl TypeQuery {
         Ok(self
             .cache
             .values()
-            .filter(|f| f.module == module && f.kind == TypeFactKind::Method && f.symbol.starts_with(&prefix))
+            .filter(|f| {
+                f.module == module
+                    && f.kind == TypeFactKind::Method
+                    && f.symbol.starts_with(&prefix)
+            })
             .cloned()
             .collect())
     }
@@ -234,11 +238,33 @@ mod tests {
         let db = TypeDatabase::new(&db_path).unwrap();
 
         let facts = vec![
-            TypeFact::function("requests", "get", "(url: str, **kwargs) -> Response", "Response"),
-            TypeFact::function("requests", "post", "(url: str, data: dict) -> Response", "Response"),
+            TypeFact::function(
+                "requests",
+                "get",
+                "(url: str, **kwargs) -> Response",
+                "Response",
+            ),
+            TypeFact::function(
+                "requests",
+                "post",
+                "(url: str, data: dict) -> Response",
+                "Response",
+            ),
             TypeFact::class("requests.models", "Response"),
-            TypeFact::method("requests.models", "Response", "json", "(self) -> dict", "dict"),
-            TypeFact::method("requests.models", "Response", "text", "(self) -> str", "str"),
+            TypeFact::method(
+                "requests.models",
+                "Response",
+                "json",
+                "(self) -> dict",
+                "dict",
+            ),
+            TypeFact::method(
+                "requests.models",
+                "Response",
+                "text",
+                "(self) -> str",
+                "str",
+            ),
         ];
 
         db.write(&facts).unwrap();

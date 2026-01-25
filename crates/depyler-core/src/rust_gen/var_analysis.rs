@@ -7,7 +7,7 @@
 //! - Hoisting variable declarations for scope-based patterns
 //! - Extracting walrus operator assignments
 
-use crate::hir::{AssignTarget, BinOp, HirExpr, HirStmt, FStringPart};
+use crate::hir::{AssignTarget, BinOp, FStringPart, HirExpr, HirStmt};
 use std::collections::HashSet;
 
 /// Check if a variable is used in an expression
@@ -35,9 +35,7 @@ pub fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
         HirExpr::List(elements)
         | HirExpr::Tuple(elements)
         | HirExpr::Set(elements)
-        | HirExpr::FrozenSet(elements) => {
-            elements.iter().any(|e| is_var_used_in_expr(var_name, e))
-        }
+        | HirExpr::FrozenSet(elements) => elements.iter().any(|e| is_var_used_in_expr(var_name, e)),
         HirExpr::Dict(pairs) => pairs
             .iter()
             .any(|(k, v)| is_var_used_in_expr(var_name, k) || is_var_used_in_expr(var_name, v)),
@@ -54,38 +52,63 @@ pub fn is_var_used_in_expr(var_name: &str, expr: &HirExpr) -> bool {
             step,
         } => {
             is_var_used_in_expr(var_name, base)
-                || start.as_ref().is_some_and(|s| is_var_used_in_expr(var_name, s))
-                || stop.as_ref().is_some_and(|s| is_var_used_in_expr(var_name, s))
-                || step.as_ref().is_some_and(|s| is_var_used_in_expr(var_name, s))
+                || start
+                    .as_ref()
+                    .is_some_and(|s| is_var_used_in_expr(var_name, s))
+                || stop
+                    .as_ref()
+                    .is_some_and(|s| is_var_used_in_expr(var_name, s))
+                || step
+                    .as_ref()
+                    .is_some_and(|s| is_var_used_in_expr(var_name, s))
         }
         HirExpr::FString { parts } => parts.iter().any(|part| match part {
             FStringPart::Expr(expr) => is_var_used_in_expr(var_name, expr),
             FStringPart::Literal(_) => false,
         }),
         // DEPYLER-0569: Handle generator expressions and comprehensions
-        HirExpr::GeneratorExp { element, generators }
-        | HirExpr::ListComp { element, generators }
-        | HirExpr::SetComp { element, generators } => {
+        HirExpr::GeneratorExp {
+            element,
+            generators,
+        }
+        | HirExpr::ListComp {
+            element,
+            generators,
+        }
+        | HirExpr::SetComp {
+            element,
+            generators,
+        } => {
             is_var_used_in_expr(var_name, element)
                 || generators.iter().any(|gen| {
                     is_var_used_in_expr(var_name, &gen.iter)
-                        || gen.conditions.iter().any(|cond| is_var_used_in_expr(var_name, cond))
+                        || gen
+                            .conditions
+                            .iter()
+                            .any(|cond| is_var_used_in_expr(var_name, cond))
                 })
         }
-        HirExpr::DictComp { key, value, generators } => {
+        HirExpr::DictComp {
+            key,
+            value,
+            generators,
+        } => {
             is_var_used_in_expr(var_name, key)
                 || is_var_used_in_expr(var_name, value)
                 || generators.iter().any(|gen| {
                     is_var_used_in_expr(var_name, &gen.iter)
-                        || gen.conditions.iter().any(|cond| is_var_used_in_expr(var_name, cond))
+                        || gen
+                            .conditions
+                            .iter()
+                            .any(|cond| is_var_used_in_expr(var_name, cond))
                 })
         }
         // DEPYLER-0619: Handle await expressions
         HirExpr::Await { value } => is_var_used_in_expr(var_name, value),
         // DEPYLER-0768: Handle yield expressions
-        HirExpr::Yield { value } => {
-            value.as_ref().is_some_and(|v| is_var_used_in_expr(var_name, v))
-        }
+        HirExpr::Yield { value } => value
+            .as_ref()
+            .is_some_and(|v| is_var_used_in_expr(var_name, v)),
         _ => false, // Literals and other expressions don't reference variables
     }
 }
@@ -129,12 +152,22 @@ pub fn is_var_used_as_dict_key_in_expr(var_name: &str, expr: &HirExpr) -> bool {
             }
         }
         // Check dict.get(var) pattern
-        HirExpr::MethodCall { method, args, object, .. } if method == "get" => {
-            if args.first().is_some_and(|arg| is_var_direct_or_simple_in_expr(var_name, arg)) {
+        HirExpr::MethodCall {
+            method,
+            args,
+            object,
+            ..
+        } if method == "get" => {
+            if args
+                .first()
+                .is_some_and(|arg| is_var_direct_or_simple_in_expr(var_name, arg))
+            {
                 true
             } else {
                 is_var_used_as_dict_key_in_expr(var_name, object)
-                    || args.iter().any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
+                    || args
+                        .iter()
+                        .any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
             }
         }
         // Recurse into other expressions
@@ -143,21 +176,23 @@ pub fn is_var_used_as_dict_key_in_expr(var_name: &str, expr: &HirExpr) -> bool {
                 || is_var_used_as_dict_key_in_expr(var_name, right)
         }
         HirExpr::Unary { operand, .. } => is_var_used_as_dict_key_in_expr(var_name, operand),
-        HirExpr::Call { args, .. } => {
-            args.iter().any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
-        }
+        HirExpr::Call { args, .. } => args
+            .iter()
+            .any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg)),
         HirExpr::MethodCall { object, args, .. } => {
             is_var_used_as_dict_key_in_expr(var_name, object)
-                || args.iter().any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
+                || args
+                    .iter()
+                    .any(|arg| is_var_used_as_dict_key_in_expr(var_name, arg))
         }
         HirExpr::IfExpr { test, body, orelse } => {
             is_var_used_as_dict_key_in_expr(var_name, test)
                 || is_var_used_as_dict_key_in_expr(var_name, body)
                 || is_var_used_as_dict_key_in_expr(var_name, orelse)
         }
-        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => {
-            elements.iter().any(|e| is_var_used_as_dict_key_in_expr(var_name, e))
-        }
+        HirExpr::List(elements) | HirExpr::Tuple(elements) | HirExpr::Set(elements) => elements
+            .iter()
+            .any(|e| is_var_used_as_dict_key_in_expr(var_name, e)),
         _ => false,
     }
 }
@@ -176,20 +211,31 @@ pub fn is_var_used_as_dict_key_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
             }
             is_var_used_as_dict_key_in_expr(var_name, value)
         }
-        HirStmt::If { condition, then_body, else_body } => {
+        HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
             is_var_used_as_dict_key_in_expr(var_name, condition)
-                || then_body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
+                || then_body
+                    .iter()
+                    .any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
                 || else_body.as_ref().is_some_and(|body| {
-                    body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
+                    body.iter()
+                        .any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
                 })
         }
         HirStmt::While { condition, body } => {
             is_var_used_as_dict_key_in_expr(var_name, condition)
-                || body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
+                || body
+                    .iter()
+                    .any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
         }
         HirStmt::For { iter, body, .. } => {
             is_var_used_as_dict_key_in_expr(var_name, iter)
-                || body.iter().any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
+                || body
+                    .iter()
+                    .any(|s| is_var_used_as_dict_key_in_stmt(var_name, s))
         }
         HirStmt::Return(Some(expr)) => is_var_used_as_dict_key_in_expr(var_name, expr),
         HirStmt::Expr(expr) => is_var_used_as_dict_key_in_expr(var_name, expr),
@@ -204,11 +250,12 @@ pub fn is_var_used_as_func_arg_in_expr(var_name: &str, expr: &HirExpr) -> bool {
     match expr {
         HirExpr::Call { args, .. } => {
             // Check if var is directly used as an argument
-            args.iter().any(|arg| matches!(arg, HirExpr::Var(name) if name == var_name))
+            args.iter()
+                .any(|arg| matches!(arg, HirExpr::Var(name) if name == var_name))
         }
-        HirExpr::MethodCall { args, .. } => {
-            args.iter().any(|arg| matches!(arg, HirExpr::Var(name) if name == var_name))
-        }
+        HirExpr::MethodCall { args, .. } => args
+            .iter()
+            .any(|arg| matches!(arg, HirExpr::Var(name) if name == var_name)),
         HirExpr::Binary { left, right, .. } => {
             is_var_used_as_func_arg_in_expr(var_name, left)
                 || is_var_used_as_func_arg_in_expr(var_name, right)
@@ -227,20 +274,31 @@ pub fn is_var_used_as_func_arg_in_expr(var_name: &str, expr: &HirExpr) -> bool {
 pub fn is_var_used_as_func_arg_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { value, .. } => is_var_used_as_func_arg_in_expr(var_name, value),
-        HirStmt::If { condition, then_body, else_body } => {
+        HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
             is_var_used_as_func_arg_in_expr(var_name, condition)
-                || then_body.iter().any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
+                || then_body
+                    .iter()
+                    .any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
                 || else_body.as_ref().is_some_and(|body| {
-                    body.iter().any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
+                    body.iter()
+                        .any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
                 })
         }
         HirStmt::While { condition, body } => {
             is_var_used_as_func_arg_in_expr(var_name, condition)
-                || body.iter().any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
+                || body
+                    .iter()
+                    .any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
         }
         HirStmt::For { iter, body, .. } => {
             is_var_used_as_func_arg_in_expr(var_name, iter)
-                || body.iter().any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
+                || body
+                    .iter()
+                    .any(|s| is_var_used_as_func_arg_in_stmt(var_name, s))
         }
         HirStmt::Return(Some(expr)) => is_var_used_as_func_arg_in_expr(var_name, expr),
         HirStmt::Expr(expr) => is_var_used_as_func_arg_in_expr(var_name, expr),
@@ -273,12 +331,14 @@ pub fn is_var_in_comparison_in_expr(var_name: &str, expr: &HirExpr) -> bool {
                 || is_var_in_comparison_in_expr(var_name, body)
                 || is_var_in_comparison_in_expr(var_name, orelse)
         }
-        HirExpr::Call { args, .. } => {
-            args.iter().any(|arg| is_var_in_comparison_in_expr(var_name, arg))
-        }
+        HirExpr::Call { args, .. } => args
+            .iter()
+            .any(|arg| is_var_in_comparison_in_expr(var_name, arg)),
         HirExpr::MethodCall { object, args, .. } => {
             is_var_in_comparison_in_expr(var_name, object)
-                || args.iter().any(|arg| is_var_in_comparison_in_expr(var_name, arg))
+                || args
+                    .iter()
+                    .any(|arg| is_var_in_comparison_in_expr(var_name, arg))
         }
         _ => false,
     }
@@ -288,20 +348,31 @@ pub fn is_var_in_comparison_in_expr(var_name: &str, expr: &HirExpr) -> bool {
 pub fn is_var_in_comparison_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Assign { value, .. } => is_var_in_comparison_in_expr(var_name, value),
-        HirStmt::If { condition, then_body, else_body } => {
+        HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
             is_var_in_comparison_in_expr(var_name, condition)
-                || then_body.iter().any(|s| is_var_in_comparison_in_stmt(var_name, s))
+                || then_body
+                    .iter()
+                    .any(|s| is_var_in_comparison_in_stmt(var_name, s))
                 || else_body.as_ref().is_some_and(|body| {
-                    body.iter().any(|s| is_var_in_comparison_in_stmt(var_name, s))
+                    body.iter()
+                        .any(|s| is_var_in_comparison_in_stmt(var_name, s))
                 })
         }
         HirStmt::While { condition, body } => {
             is_var_in_comparison_in_expr(var_name, condition)
-                || body.iter().any(|s| is_var_in_comparison_in_stmt(var_name, s))
+                || body
+                    .iter()
+                    .any(|s| is_var_in_comparison_in_stmt(var_name, s))
         }
         HirStmt::For { iter, body, .. } => {
             is_var_in_comparison_in_expr(var_name, iter)
-                || body.iter().any(|s| is_var_in_comparison_in_stmt(var_name, s))
+                || body
+                    .iter()
+                    .any(|s| is_var_in_comparison_in_stmt(var_name, s))
         }
         HirStmt::Return(Some(expr)) => is_var_in_comparison_in_expr(var_name, expr),
         HirStmt::Expr(expr) => is_var_in_comparison_in_expr(var_name, expr),
@@ -317,18 +388,32 @@ pub fn is_var_reassigned_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
             // Only count as reassignment if the target is the exact variable
             matches!(target, AssignTarget::Symbol(name) if name == var_name)
         }
-        HirStmt::If { then_body, else_body, .. } => {
-            then_body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
-                || else_body.as_ref().is_some_and(|body| {
-                    body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
-                })
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
+            then_body
+                .iter()
+                .any(|s| is_var_reassigned_in_stmt(var_name, s))
+                || else_body
+                    .as_ref()
+                    .is_some_and(|body| body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)))
         }
         HirStmt::While { body, .. } => body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)),
         HirStmt::For { body, .. } => body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s)),
-        HirStmt::Try { body, handlers, orelse, finalbody, .. } => {
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+            ..
+        } => {
             body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
                 || handlers.iter().any(|h| {
-                    h.body.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
+                    h.body
+                        .iter()
+                        .any(|s| is_var_reassigned_in_stmt(var_name, s))
                 })
                 || orelse.as_ref().is_some_and(|stmts| {
                     stmts.iter().any(|s| is_var_reassigned_in_stmt(var_name, s))
@@ -350,12 +435,16 @@ pub fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
             // Check both target (e.g., d[k]) and value (e.g., v)
             is_var_used_in_assign_target(var_name, target) || is_var_used_in_expr(var_name, value)
         }
-        HirStmt::If { condition, then_body, else_body } => {
+        HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } => {
             is_var_used_in_expr(var_name, condition)
                 || then_body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                || else_body.as_ref().is_some_and(|body| {
-                    body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                })
+                || else_body
+                    .as_ref()
+                    .is_some_and(|body| body.iter().any(|s| is_var_used_in_stmt(var_name, s)))
         }
         HirStmt::While { condition, body } => {
             is_var_used_in_expr(var_name, condition)
@@ -372,20 +461,28 @@ pub fn is_var_used_in_stmt(var_name: &str, stmt: &HirStmt) -> bool {
             .is_some_and(|e| is_var_used_in_expr(var_name, e)),
         HirStmt::Assert { test, msg, .. } => {
             is_var_used_in_expr(var_name, test)
-                || msg.as_ref().is_some_and(|m| is_var_used_in_expr(var_name, m))
+                || msg
+                    .as_ref()
+                    .is_some_and(|m| is_var_used_in_expr(var_name, m))
         }
         // DEPYLER-0593: Handle Try statements for variable usage detection
-        HirStmt::Try { body, handlers, orelse, finalbody, .. } => {
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+            ..
+        } => {
             body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                || handlers.iter().any(|h| {
-                    h.body.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                })
-                || orelse.as_ref().is_some_and(|stmts| {
-                    stmts.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                })
-                || finalbody.as_ref().is_some_and(|stmts| {
-                    stmts.iter().any(|s| is_var_used_in_stmt(var_name, s))
-                })
+                || handlers
+                    .iter()
+                    .any(|h| h.body.iter().any(|s| is_var_used_in_stmt(var_name, s)))
+                || orelse
+                    .as_ref()
+                    .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_in_stmt(var_name, s)))
+                || finalbody
+                    .as_ref()
+                    .is_some_and(|stmts| stmts.iter().any(|s| is_var_used_in_stmt(var_name, s)))
         }
         HirStmt::With { body, .. } => body.iter().any(|s| is_var_used_in_stmt(var_name, s)),
         _ => false,
@@ -398,10 +495,17 @@ pub fn extract_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
 
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                ..
+            } => {
                 symbols.insert(name.clone());
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 symbols.extend(extract_assigned_symbols(then_body));
                 if let Some(else_stmts) = else_body {
                     symbols.extend(extract_assigned_symbols(else_stmts));
@@ -410,7 +514,12 @@ pub fn extract_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
             HirStmt::While { body, .. } | HirStmt::For { body, .. } => {
                 symbols.extend(extract_assigned_symbols(body));
             }
-            HirStmt::Try { body, handlers, finalbody, .. } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
                 symbols.extend(extract_assigned_symbols(body));
                 for handler in handlers {
                     symbols.extend(extract_assigned_symbols(&handler.body));
@@ -436,11 +545,17 @@ pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
 
     for stmt in stmts {
         match stmt {
-            HirStmt::Assign { target: AssignTarget::Symbol(name), .. } => {
+            HirStmt::Assign {
+                target: AssignTarget::Symbol(name),
+                ..
+            } => {
                 symbols.insert(name.clone());
             }
             // DEPYLER-0939: Handle tuple unpacking assignments
-            HirStmt::Assign { target: AssignTarget::Tuple(targets), .. } => {
+            HirStmt::Assign {
+                target: AssignTarget::Tuple(targets),
+                ..
+            } => {
                 for t in targets {
                     if let AssignTarget::Symbol(name) = t {
                         symbols.insert(name.clone());
@@ -448,14 +563,23 @@ pub fn extract_toplevel_assigned_symbols(stmts: &[HirStmt]) -> HashSet<String> {
                 }
             }
             // Recursively check nested if/else blocks
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 symbols.extend(extract_toplevel_assigned_symbols(then_body));
                 if let Some(else_stmts) = else_body {
                     symbols.extend(extract_toplevel_assigned_symbols(else_stmts));
                 }
             }
             // Recursively check try/except blocks
-            HirStmt::Try { body, handlers, finalbody, .. } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                finalbody,
+                ..
+            } => {
                 symbols.extend(extract_toplevel_assigned_symbols(body));
                 for handler in handlers {
                     symbols.extend(extract_toplevel_assigned_symbols(&handler.body));
@@ -505,7 +629,12 @@ fn collect_vars_recursive(expr: &HirExpr, vars: &mut HashSet<String>) {
                 collect_vars_recursive(v, vars);
             }
         }
-        HirExpr::MethodCall { object, args, kwargs, .. } => {
+        HirExpr::MethodCall {
+            object,
+            args,
+            kwargs,
+            ..
+        } => {
             collect_vars_recursive(object, vars);
             for arg in args {
                 collect_vars_recursive(arg, vars);
@@ -543,7 +672,12 @@ fn collect_vars_recursive(expr: &HirExpr, vars: &mut HashSet<String>) {
         HirExpr::Lambda { body, .. } => {
             collect_vars_recursive(body, vars);
         }
-        HirExpr::Slice { base, start, stop, step } => {
+        HirExpr::Slice {
+            base,
+            start,
+            stop,
+            step,
+        } => {
             collect_vars_recursive(base, vars);
             if let Some(s) = start {
                 collect_vars_recursive(s, vars);
@@ -562,9 +696,18 @@ fn collect_vars_recursive(expr: &HirExpr, vars: &mut HashSet<String>) {
                 }
             }
         }
-        HirExpr::GeneratorExp { element, generators }
-        | HirExpr::ListComp { element, generators }
-        | HirExpr::SetComp { element, generators } => {
+        HirExpr::GeneratorExp {
+            element,
+            generators,
+        }
+        | HirExpr::ListComp {
+            element,
+            generators,
+        }
+        | HirExpr::SetComp {
+            element,
+            generators,
+        } => {
             collect_vars_recursive(element, vars);
             for gen in generators {
                 collect_vars_recursive(&gen.iter, vars);
@@ -573,7 +716,11 @@ fn collect_vars_recursive(expr: &HirExpr, vars: &mut HashSet<String>) {
                 }
             }
         }
-        HirExpr::DictComp { key, value, generators } => {
+        HirExpr::DictComp {
+            key,
+            value,
+            generators,
+        } => {
             collect_vars_recursive(key, vars);
             collect_vars_recursive(value, vars);
             for gen in generators {
@@ -602,7 +749,12 @@ fn collect_vars_recursive(expr: &HirExpr, vars: &mut HashSet<String>) {
                 collect_vars_recursive(arg, vars);
             }
         }
-        HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
+        HirExpr::SortByKey {
+            iterable,
+            key_body,
+            reverse_expr,
+            ..
+        } => {
             collect_vars_recursive(iterable, vars);
             collect_vars_recursive(key_body, vars);
             if let Some(r) = reverse_expr {
@@ -647,17 +799,28 @@ pub fn extract_walrus_recursive(expr: &HirExpr, assigns: &mut Vec<(String, HirEx
         // Recursively process call arguments
         HirExpr::Call { func, args, kwargs } => HirExpr::Call {
             func: func.clone(),
-            args: args.iter().map(|a| extract_walrus_recursive(a, assigns)).collect(),
+            args: args
+                .iter()
+                .map(|a| extract_walrus_recursive(a, assigns))
+                .collect(),
             kwargs: kwargs
                 .iter()
                 .map(|(k, v)| (k.clone(), extract_walrus_recursive(v, assigns)))
                 .collect(),
         },
         // Recursively process method call arguments
-        HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
+        HirExpr::MethodCall {
+            object,
+            method,
+            args,
+            kwargs,
+        } => HirExpr::MethodCall {
             object: Box::new(extract_walrus_recursive(object, assigns)),
             method: method.clone(),
-            args: args.iter().map(|a| extract_walrus_recursive(a, assigns)).collect(),
+            args: args
+                .iter()
+                .map(|a| extract_walrus_recursive(a, assigns))
+                .collect(),
             kwargs: kwargs
                 .iter()
                 .map(|(k, v)| (k.clone(), extract_walrus_recursive(v, assigns)))
@@ -720,7 +883,7 @@ pub fn needs_boxed_dyn_write(var_name: &str, then_body: &[HirStmt], else_body: &
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{BinOp, UnaryOp, Literal, HirComprehension};
+    use crate::hir::{BinOp, HirComprehension, Literal, UnaryOp};
 
     // Helper functions for creating test expressions
     fn lit_int(n: i64) -> HirExpr {
@@ -839,18 +1002,17 @@ mod tests {
 
     #[test]
     fn test_var_used_in_list() {
-        let expr = HirExpr::List(vec![
-            lit_int(1),
-            HirExpr::Var("x".to_string()),
-            lit_int(3),
-        ]);
+        let expr = HirExpr::List(vec![lit_int(1), HirExpr::Var("x".to_string()), lit_int(3)]);
         assert!(is_var_used_in_expr("x", &expr));
         assert!(!is_var_used_in_expr("y", &expr));
     }
 
     #[test]
     fn test_var_used_in_tuple() {
-        let expr = HirExpr::Tuple(vec![HirExpr::Var("a".to_string()), HirExpr::Var("b".to_string())]);
+        let expr = HirExpr::Tuple(vec![
+            HirExpr::Var("a".to_string()),
+            HirExpr::Var("b".to_string()),
+        ]);
         assert!(is_var_used_in_expr("a", &expr));
         assert!(is_var_used_in_expr("b", &expr));
     }
@@ -2371,7 +2533,10 @@ mod tests {
                     AssignTarget::Symbol("c".to_string()),
                 ]),
             ]),
-            value: HirExpr::Tuple(vec![lit_int(1), HirExpr::Tuple(vec![lit_int(2), lit_int(3)])]),
+            value: HirExpr::Tuple(vec![
+                lit_int(1),
+                HirExpr::Tuple(vec![lit_int(2), lit_int(3)]),
+            ]),
             type_annotation: None,
         }];
         let symbols = extract_toplevel_assigned_symbols(&stmts);
@@ -2456,7 +2621,10 @@ mod tests {
         }];
         let result = find_assigned_expr("x", &stmts);
         assert!(result.is_some());
-        assert!(matches!(result.unwrap(), HirExpr::Literal(Literal::Int(42))));
+        assert!(matches!(
+            result.unwrap(),
+            HirExpr::Literal(Literal::Int(42))
+        ));
     }
 
     #[test]

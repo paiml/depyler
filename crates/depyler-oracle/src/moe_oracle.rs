@@ -313,17 +313,8 @@ impl MoeOracle {
 
         // Context features (5-15): keyword presence
         let keywords = [
-            "type",
-            "mismatch",
-            "expected",
-            "found",
-            "trait",
-            "method",
-            "field",
-            "scope",
-            "cannot",
-            "borrow",
-            "move",
+            "type", "mismatch", "expected", "found", "trait", "method", "field", "scope", "cannot",
+            "borrow", "move",
         ];
         for (i, kw) in keywords.iter().enumerate() {
             if context.to_lowercase().contains(kw) {
@@ -407,7 +398,10 @@ impl MoeOracle {
                 _ => 0.0,
             };
 
-            domain_samples.entry(domain).or_default().push((features, label));
+            domain_samples
+                .entry(domain)
+                .or_default()
+                .push((features, label));
         }
 
         // Train each expert on its domain samples
@@ -441,10 +435,7 @@ impl MoeOracle {
                 }
                 Err(e) => {
                     // This should rarely happen with Ridge regression
-                    eprintln!(
-                        "Warning: Expert {:?} training failed: {}",
-                        domain, e
-                    );
+                    eprintln!("Warning: Expert {:?} training failed: {}", domain, e);
                 }
             }
         }
@@ -596,9 +587,21 @@ mod tests {
         let mut oracle = MoeOracle::new();
 
         let samples = vec![
-            ("E0308".to_string(), "type mismatch".to_string(), ErrorCategory::TypeMismatch),
-            ("E0425".to_string(), "cannot find value".to_string(), ErrorCategory::MissingImport),
-            ("E0599".to_string(), "method not found".to_string(), ErrorCategory::TraitBound),
+            (
+                "E0308".to_string(),
+                "type mismatch".to_string(),
+                ErrorCategory::TypeMismatch,
+            ),
+            (
+                "E0425".to_string(),
+                "cannot find value".to_string(),
+                ErrorCategory::MissingImport,
+            ),
+            (
+                "E0599".to_string(),
+                "method not found".to_string(),
+                ErrorCategory::TraitBound,
+            ),
         ];
 
         let result = oracle.train(&samples);

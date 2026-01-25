@@ -1138,7 +1138,10 @@ mod tests {
     fn test_borrowing_pattern_partial_eq() {
         assert_eq!(BorrowingPattern::Owned, BorrowingPattern::Owned);
         assert_eq!(BorrowingPattern::Borrowed, BorrowingPattern::Borrowed);
-        assert_eq!(BorrowingPattern::MutableBorrow, BorrowingPattern::MutableBorrow);
+        assert_eq!(
+            BorrowingPattern::MutableBorrow,
+            BorrowingPattern::MutableBorrow
+        );
 
         assert_ne!(BorrowingPattern::Owned, BorrowingPattern::Borrowed);
         assert_ne!(BorrowingPattern::Borrowed, BorrowingPattern::MutableBorrow);

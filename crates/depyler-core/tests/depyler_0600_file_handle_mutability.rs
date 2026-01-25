@@ -17,7 +17,9 @@ use rustpython_parser::{parse, Mode};
 
 fn transpile(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new()
+        .python_to_hir(ast)
+        .map_err(|e| e.to_string())?;
     let type_mapper = TypeMapper::default();
     let (rust_code, _deps) = generate_rust_file(&hir, &type_mapper).map_err(|e| e.to_string())?;
     Ok(rust_code)
@@ -63,7 +65,8 @@ def main():
     // The call should use &mut f, not f
     assert!(
         rust.contains("&mut f") || rust.contains("&mut f,"),
-        "Should pass file handle as &mut. Generated:\n{}", rust
+        "Should pass file handle as &mut. Generated:\n{}",
+        rust
     );
 
     assert_compiles(&rust, "file_handle_to_mut_param");

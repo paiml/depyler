@@ -19,13 +19,16 @@ def parse_number(s: str) -> int:
 
     // DEPYLER-1125: Check only the parse_number function, not entire file
     // (PyOps trait implementations have legitimate 'as i32' casts)
-    let fn_start = rust_code.find("fn parse_number").expect("Should have parse_number function");
+    let fn_start = rust_code
+        .find("fn parse_number")
+        .expect("Should have parse_number function");
     let fn_section = &rust_code[fn_start..fn_start + 200.min(rust_code.len() - fn_start)];
 
     // Should use .parse::<i32>() with turbofish
     assert!(
         fn_section.contains(".parse::<i32>()"),
-        "Should use .parse::<i32>() for int(str)\nFunction:\n{}", fn_section
+        "Should use .parse::<i32>() for int(str)\nFunction:\n{}",
+        fn_section
     );
     // In the function body, should not have direct 'as i32' cast for string
     // (This assertion is redundant since .parse::<i32>() is confirmed above, but keeping for clarity)
@@ -203,14 +206,17 @@ def double_int(x: int) -> int:
 
     // DEPYLER-1125: Check only the double_int function, not entire file
     // (Other parts of generated code may legitimately use .parse)
-    let fn_start = rust_code.find("fn double_int").expect("Should have double_int function");
+    let fn_start = rust_code
+        .find("fn double_int")
+        .expect("Should have double_int function");
     let fn_end = rust_code[fn_start..].find("\n}").unwrap_or(200) + fn_start + 2;
     let fn_section = &rust_code[fn_start..fn_end.min(rust_code.len())];
 
     // For int→int, should NOT use .parse() in the function body
     assert!(
         !fn_section.contains(".parse"),
-        "Should NOT use .parse() for int(int)\nFunction:\n{}", fn_section
+        "Should NOT use .parse() for int(int)\nFunction:\n{}",
+        fn_section
     );
 }
 

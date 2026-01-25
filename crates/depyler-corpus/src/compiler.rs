@@ -43,7 +43,10 @@ impl<'a> CompilationVerifier<'a> {
     }
 
     /// Verify compilation for all transpiled files.
-    pub fn verify(&self, transpile_results: &[TranspilationResult]) -> Result<Vec<CompilationResult>> {
+    pub fn verify(
+        &self,
+        transpile_results: &[TranspilationResult],
+    ) -> Result<Vec<CompilationResult>> {
         let mut results = Vec::new();
 
         for tr in transpile_results {
@@ -66,7 +69,11 @@ impl<'a> CompilationVerifier<'a> {
     }
 
     /// Verify using cargo build (Cargo-First path).
-    pub fn verify_with_cargo(&self, cargo_dir: &Path, python_file: &Path) -> Result<CompilationResult> {
+    pub fn verify_with_cargo(
+        &self,
+        cargo_dir: &Path,
+        python_file: &Path,
+    ) -> Result<CompilationResult> {
         let start = Instant::now();
 
         let output = Command::new("cargo")
@@ -95,7 +102,11 @@ impl<'a> CompilationVerifier<'a> {
     }
 
     /// Verify using rustc directly (fallback path).
-    pub fn verify_with_rustc(&self, rs_file: &Path, python_file: &Path) -> Result<CompilationResult> {
+    pub fn verify_with_rustc(
+        &self,
+        rs_file: &Path,
+        python_file: &Path,
+    ) -> Result<CompilationResult> {
         let start = Instant::now();
 
         // Create a unique temp dir for output (rustc doesn't support -o /dev/null for libs)
@@ -221,7 +232,11 @@ mod tests {
             eprintln!("rustc stderr: {:?}", result.stderr);
             eprintln!("rustc exit code: {:?}", result.exit_code);
         }
-        assert!(result.success, "rustc should compile valid code: {:?}", result.stderr);
+        assert!(
+            result.success,
+            "rustc should compile valid code: {:?}",
+            result.stderr
+        );
         assert!(!result.cargo_first);
     }
 

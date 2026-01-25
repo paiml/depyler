@@ -243,6 +243,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let result = analyzer.analyze(&module).unwrap();
@@ -263,6 +264,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let result = analyzer.analyze(&module).unwrap();
@@ -317,6 +319,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let coverage = analyzer.calculate_type_coverage(&module);

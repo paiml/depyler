@@ -1047,10 +1047,7 @@ mod tests {
     fn test_rust_type_to_syn_generic() {
         let ty = RustType::Generic {
             base: "Container".to_string(),
-            params: vec![
-                RustType::Primitive(PrimitiveType::I32),
-                RustType::String,
-            ],
+            params: vec![RustType::Primitive(PrimitiveType::I32), RustType::String],
         };
         let result = rust_type_to_syn(&ty).unwrap();
         let tokens = result.to_token_stream().to_string();

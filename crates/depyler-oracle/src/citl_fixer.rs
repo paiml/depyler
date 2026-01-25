@@ -273,10 +273,7 @@ impl CITLFixer {
     }
 
     /// Compile source code and return structured result.
-    fn compile(
-        &self,
-        source: &str,
-    ) -> Result<CompilationResult, aprender::citl::CITLError> {
+    fn compile(&self, source: &str) -> Result<CompilationResult, aprender::citl::CITLError> {
         self.compiler.compile(source, &CompileOptions::default())
     }
 
@@ -338,12 +335,9 @@ impl CITLFixer {
     }
 
     /// Record a successful fix to the pattern library for self-training.
-    pub fn record_success(
-        &mut self,
-        error_embedding: ErrorEmbedding,
-        fix_template: FixTemplate,
-    ) {
-        self.pattern_library.add_pattern(error_embedding, fix_template);
+    pub fn record_success(&mut self, error_embedding: ErrorEmbedding, fix_template: FixTemplate) {
+        self.pattern_library
+            .add_pattern(error_embedding, fix_template);
     }
 
     /// Save the pattern library to disk.
@@ -450,11 +444,8 @@ mod tests {
 
     #[test]
     fn test_iterative_fix_result_success() {
-        let result = IterativeFixResult::success(
-            "fn main() {}".to_string(),
-            3,
-            vec!["fix1".to_string()],
-        );
+        let result =
+            IterativeFixResult::success("fn main() {}".to_string(), 3, vec!["fix1".to_string()]);
         assert!(result.success);
         assert_eq!(result.iterations, 3);
         assert_eq!(result.remaining_errors, 0);
@@ -471,8 +462,7 @@ mod tests {
 
     #[test]
     fn test_iterative_fix_result_with_duration() {
-        let result = IterativeFixResult::success("code".to_string(), 1, vec![])
-            .with_duration(150);
+        let result = IterativeFixResult::success("code".to_string(), 1, vec![]).with_duration(150);
         assert_eq!(result.fix_duration_ms, 150);
     }
 
@@ -504,8 +494,7 @@ mod tests {
 
     #[test]
     fn test_config_with_pattern_library() {
-        let config = CITLFixerConfig::default()
-            .with_pattern_library("patterns.citl");
+        let config = CITLFixerConfig::default().with_pattern_library("patterns.citl");
         assert_eq!(
             config.pattern_library_path,
             Some("patterns.citl".to_string())

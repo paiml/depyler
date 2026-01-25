@@ -47,7 +47,10 @@ fn main() -> anyhow::Result<()> {
     };
     println!("   Cache directory: {}", cache_dir.display());
     println!("   Max size: {} MB", config.max_size_bytes / (1024 * 1024));
-    println!("   Max age: {} days\n", config.max_age_secs / (24 * 60 * 60));
+    println!(
+        "   Max age: {} days\n",
+        config.max_age_secs / (24 * 60 * 60)
+    );
 
     // Open the cache
     println!("2. Opening SQLite cache with CAS backend...");
@@ -89,7 +92,7 @@ edition = "2021"
 
     // Create a cache entry (blobs will be computed by store())
     let entry = CacheEntry {
-        rust_code_blob: String::new(), // Computed by store()
+        rust_code_blob: String::new(),  // Computed by store()
         cargo_toml_blob: String::new(), // Computed by store()
         dependencies: vec!["std".to_string()],
         status: CompilationStatus::Success,
@@ -108,10 +111,7 @@ edition = "2021"
         Some(cached) => {
             println!("   CACHE HIT!");
             println!("   Status: {:?}", cached.status);
-            println!(
-                "   Transpilation time: {}ms",
-                cached.transpilation_time_ms
-            );
+            println!("   Transpilation time: {}ms", cached.transpilation_time_ms);
             println!("   Rust code blob: {}...\n", &cached.rust_code_blob[..16]);
         }
         None => {

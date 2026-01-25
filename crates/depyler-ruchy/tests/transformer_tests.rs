@@ -1,8 +1,8 @@
 //! Comprehensive tests for ruchy transformer module
 //! DEPYLER-COVERAGE-95: Extreme TDD test coverage
 
-use depyler_ruchy::ast::{Literal, Param, RuchyExpr};
 use depyler_ruchy::ast::RuchyType as Type;
+use depyler_ruchy::ast::{Literal, Param, RuchyExpr};
 use depyler_ruchy::transformer::PatternTransformer;
 use depyler_ruchy::RuchyConfig;
 
@@ -42,14 +42,21 @@ fn make_binary(left: RuchyExpr, _op: &str, right: RuchyExpr) -> RuchyExpr {
     // Real implementation would parse the op string
     RuchyExpr::Binary {
         left: Box::new(left),
-        op: depyler_ruchy::ast::BinaryOp::Add, 
+        op: depyler_ruchy::ast::BinaryOp::Add,
         right: Box::new(right),
     }
 }
 
 fn make_lambda(params: Vec<&str>, body: RuchyExpr) -> RuchyExpr {
     RuchyExpr::Lambda {
-        params: params.into_iter().map(|s| Param { name: s.to_string(), typ: None, default: None }).collect(),
+        params: params
+            .into_iter()
+            .map(|s| Param {
+                name: s.to_string(),
+                typ: None,
+                default: None,
+            })
+            .collect(),
         body: Box::new(body),
     }
 }
@@ -131,7 +138,10 @@ fn test_transform_int_literal() {
     let expr = make_int(42);
     let result = transformer.transform(expr);
     assert!(result.is_ok());
-    assert!(matches!(result.unwrap(), RuchyExpr::Literal(Literal::Integer(42))));
+    assert!(matches!(
+        result.unwrap(),
+        RuchyExpr::Literal(Literal::Integer(42))
+    ));
 }
 
 #[test]
@@ -299,11 +309,7 @@ fn test_transform_single_expr_block() {
 #[test]
 fn test_transform_multiple_expr_block() {
     let transformer = PatternTransformer::new();
-    let expr = RuchyExpr::Block(vec![
-        make_int(1),
-        make_int(2),
-        make_int(3),
-    ]);
+    let expr = RuchyExpr::Block(vec![make_int(1), make_int(2), make_int(3)]);
     let result = transformer.transform(expr);
     assert!(result.is_ok());
 }
@@ -392,7 +398,10 @@ fn test_transform_lambda_single_param() {
 #[test]
 fn test_transform_lambda_multiple_params() {
     let transformer = PatternTransformer::new();
-    let expr = make_lambda(vec!["a", "b"], make_binary(make_ident("a"), "+", make_ident("b")));
+    let expr = make_lambda(
+        vec!["a", "b"],
+        make_binary(make_ident("a"), "+", make_ident("b")),
+    );
     let result = transformer.transform(expr);
     assert!(result.is_ok());
 }
@@ -400,7 +409,10 @@ fn test_transform_lambda_multiple_params() {
 #[test]
 fn test_transform_lambda_nested() {
     let transformer = PatternTransformer::new();
-    let inner = make_lambda(vec!["y"], make_binary(make_ident("x"), "+", make_ident("y")));
+    let inner = make_lambda(
+        vec!["y"],
+        make_binary(make_ident("x"), "+", make_ident("y")),
+    );
     let expr = make_lambda(vec!["x"], inner);
     let result = transformer.transform(expr);
     assert!(result.is_ok());
@@ -534,8 +546,16 @@ fn test_transform_function_with_params() {
     let expr = RuchyExpr::Function {
         name: "add".to_string(),
         params: vec![
-            Param { name: "a".to_string(), typ: Some(Type::I64), default: None },
-            Param { name: "b".to_string(), typ: Some(Type::I64), default: None },
+            Param {
+                name: "a".to_string(),
+                typ: Some(Type::I64),
+                default: None,
+            },
+            Param {
+                name: "b".to_string(),
+                typ: Some(Type::I64),
+                default: None,
+            },
         ],
         body: Box::new(make_binary(make_ident("a"), "+", make_ident("b"))),
         is_async: false,
@@ -582,11 +602,7 @@ fn test_transform_list_of_ints() {
 #[test]
 fn test_transform_list_of_strings() {
     let transformer = PatternTransformer::new();
-    let expr = RuchyExpr::List(vec![
-        make_string("a"),
-        make_string("b"),
-        make_string("c"),
-    ]);
+    let expr = RuchyExpr::List(vec![make_string("a"), make_string("b"), make_string("c")]);
     let result = transformer.transform(expr);
     assert!(result.is_ok());
 }

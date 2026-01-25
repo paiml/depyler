@@ -1,5 +1,4 @@
 #![allow(clippy::assertions_on_constants)]
-
 // DEPYLER-1161: Global Type Propagation Experiment
 //
 // Hypothesis: "Connecting the return type of function A to the expected parameter
@@ -25,7 +24,6 @@
 // 1. Transpile without E0308 type mismatches
 // 2. Compile without manual type annotations
 // 3. Execute with correct semantics
-
 #![allow(non_snake_case)] // Test naming convention
 
 use depyler_core::DepylerPipeline;

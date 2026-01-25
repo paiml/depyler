@@ -65,9 +65,10 @@ def use_gen() -> list:
         rust_code
     );
 
+    // Accept both operator syntax (* 2) and method call syntax (.py_mul(2))
     assert!(
-        rust_code.contains("* 2") || rust_code.contains("*2"),
-        "Should have multiplication.\\nGot:\\n{}",
+        rust_code.contains("* 2") || rust_code.contains("*2") || rust_code.contains(".py_mul(2)"),
+        "Should have multiplication (either * 2 or .py_mul(2)).\\nGot:\\n{}",
         rust_code
     );
 }
@@ -97,9 +98,11 @@ def use_gen() -> list:
         rust_code
     );
 
+    // Accept both operator syntax (% 2) and method call syntax (.py_mod(2))
     assert!(
-        rust_code.contains("% 2") && rust_code.contains("== 0"),
-        "Should have modulo check.\\nGot:\\n{}",
+        (rust_code.contains("% 2") && rust_code.contains("== 0"))
+            || rust_code.contains(".py_mod(2) == 0"),
+        "Should have modulo check (either % 2 == 0 or .py_mod(2) == 0).\\nGot:\\n{}",
         rust_code
     );
 }
@@ -155,10 +158,18 @@ def calculate() -> int:
         rust_code
     );
 
-    // Should NOT collect to Vec first
+    // Should NOT collect to Vec then sum - this is inefficient
+    // Check for patterns like .collect::<Vec<_>>().sum() or .collect().iter().sum()
+    // Note: The DepylerValue boilerplate may contain Vec, so we check for the
+    // specific anti-pattern of collecting before summing
+    let has_inefficient_collect_sum = rust_code.contains(".collect::<Vec")
+        && rust_code.contains(".sum()")
+        && rust_code
+            .lines()
+            .any(|line| line.contains(".collect::<Vec") && line.contains(".sum()"));
     assert!(
-        !rust_code.contains("Vec::new()") || rust_code.matches("Vec").count() <= 1,
-        "Should not create intermediate Vec.\\nGot:\\n{}",
+        !has_inefficient_collect_sum,
+        "Should not collect to Vec before sum().\\nGot:\\n{}",
         rust_code
     );
 }
@@ -271,9 +282,10 @@ def use_gen() -> list:
     let rust_code = result.unwrap();
 
     // Should generate tuple results
+    // Accept both (x, x * 2) and (x.clone(), (x).py_mul(2)) patterns
     assert!(
-        rust_code.contains("(x") && rust_code.contains("x *"),
-        "Should create tuples.\\nGot:\\n{}",
+        rust_code.contains("(x") && (rust_code.contains("x *") || rust_code.contains(".py_mul(2)")),
+        "Should create tuples with multiplication.\\nGot:\\n{}",
         rust_code
     );
 }

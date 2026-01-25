@@ -119,12 +119,19 @@ class Container(Generic[T]):
     );
 
     // Proper reference formatting (&self not & self)
+    // Note: We must exclude "&&" (logical AND) which contains "& " as a substring
+    let has_bad_ref_formatting = rust_code.lines().any(|line| {
+        // Remove logical AND operators to avoid false positives
+        let without_logical_and = line.replace("&&", "  ");
+        without_logical_and.contains("& self") || without_logical_and.contains("& mut")
+    });
     assert!(
-        !rust_code.contains("& self") && !rust_code.contains("& mut"),
+        !has_bad_ref_formatting,
         "Generated code has spaces after & in references: {:?}",
-        rust_code
-            .lines()
-            .find(|line| line.contains("& self") || line.contains("& mut"))
+        rust_code.lines().find(|line| {
+            let without_logical_and = line.replace("&&", "  ");
+            without_logical_and.contains("& self") || without_logical_and.contains("& mut")
+        })
     );
 
     println!("✅ Generic parameter formatting correct");

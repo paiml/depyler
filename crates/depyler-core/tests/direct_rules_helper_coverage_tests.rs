@@ -858,5 +858,7 @@ def process() -> set[int]:
     return {1, 2, 3}
 "#;
     let result = transpile(code).unwrap();
-    assert!(result.contains("HashSet") || result.contains("BTreeSet") || result.contains("collect"));
+    assert!(
+        result.contains("HashSet") || result.contains("BTreeSet") || result.contains("collect")
+    );
 }

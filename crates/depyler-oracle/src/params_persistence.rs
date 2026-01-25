@@ -28,7 +28,12 @@ pub struct OptimizedParams {
 impl OptimizedParams {
     /// Create new optimized params from generation params and metadata.
     #[must_use]
-    pub fn new(params: GenerationParams, fitness: f64, evaluations: usize, curriculum: bool) -> Self {
+    pub fn new(
+        params: GenerationParams,
+        fitness: f64,
+        evaluations: usize,
+        curriculum: bool,
+    ) -> Self {
         Self {
             params,
             fitness,
@@ -61,7 +66,10 @@ pub fn default_params_path() -> PathBuf {
 /// # Errors
 ///
 /// Returns error if directory creation or file writing fails.
-pub fn save_params(params: &OptimizedParams, path: Option<&PathBuf>) -> Result<PathBuf, std::io::Error> {
+pub fn save_params(
+    params: &OptimizedParams,
+    path: Option<&PathBuf>,
+) -> Result<PathBuf, std::io::Error> {
     let path = path.cloned().unwrap_or_else(default_params_path);
 
     // Create parent directory if needed
@@ -69,8 +77,7 @@ pub fn save_params(params: &OptimizedParams, path: Option<&PathBuf>) -> Result<P
         fs::create_dir_all(parent)?;
     }
 
-    let json = serde_json::to_string_pretty(params)
-        .map_err(std::io::Error::other)?;
+    let json = serde_json::to_string_pretty(params).map_err(std::io::Error::other)?;
 
     fs::write(&path, json)?;
     Ok(path)
@@ -86,8 +93,7 @@ pub fn load_params(path: Option<&PathBuf>) -> Result<OptimizedParams, std::io::E
 
     let json = fs::read_to_string(&path)?;
 
-    serde_json::from_str(&json)
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+    serde_json::from_str(&json).map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
 /// Check if optimized parameters exist at the default or given path.
@@ -172,7 +178,11 @@ mod tests {
     #[test]
     fn test_save_creates_directory() {
         let temp_dir = TempDir::new().unwrap();
-        let nested_path = temp_dir.path().join("nested").join("dir").join("params.json");
+        let nested_path = temp_dir
+            .path()
+            .join("nested")
+            .join("dir")
+            .join("params.json");
 
         let params = GenerationParams::default();
         let optimized = OptimizedParams::new(params, 0.8, 30, false);

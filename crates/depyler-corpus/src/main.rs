@@ -160,7 +160,10 @@ fn main() -> anyhow::Result<()> {
             );
 
             if dry_run {
-                println!("{} Dry run mode - no files will be deleted", "[INFO]".yellow());
+                println!(
+                    "{} Dry run mode - no files will be deleted",
+                    "[INFO]".yellow()
+                );
             }
 
             let cleaner = depyler_corpus::cleaner::ArtifactCleaner::new(&corpus_path);
@@ -171,8 +174,16 @@ fn main() -> anyhow::Result<()> {
             let target_dirs = cleaner.find_target_dirs()?;
 
             println!("{} Found {} .rs files", "  ->".cyan(), rs_files.len());
-            println!("{} Found {} Cargo.toml files", "  ->".cyan(), cargo_files.len());
-            println!("{} Found {} target/ directories", "  ->".cyan(), target_dirs.len());
+            println!(
+                "{} Found {} Cargo.toml files",
+                "  ->".cyan(),
+                cargo_files.len()
+            );
+            println!(
+                "{} Found {} target/ directories",
+                "  ->".cyan(),
+                target_dirs.len()
+            );
 
             if !dry_run {
                 let summary = cleaner.clean()?;
@@ -209,7 +220,10 @@ fn main() -> anyhow::Result<()> {
                 .count();
             let test_files = python_files
                 .iter()
-                .filter(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("test_")))
+                .filter(|p| {
+                    p.file_name()
+                        .is_some_and(|n| n.to_string_lossy().starts_with("test_"))
+                })
                 .count();
             let tool_files = python_files
                 .iter()
@@ -219,8 +233,11 @@ fn main() -> anyhow::Result<()> {
             println!("{} CLI files (*_cli.py): {}", "  ->".cyan(), cli_files);
             println!("{} Test files (test_*.py): {}", "  ->".cyan(), test_files);
             println!("{} Tool files (*_tool.py): {}", "  ->".cyan(), tool_files);
-            println!("{} Other files: {}", "  ->".cyan(),
-                python_files.len() - cli_files - test_files - tool_files);
+            println!(
+                "{} Other files: {}",
+                "  ->".cyan(),
+                python_files.len() - cli_files - test_files - tool_files
+            );
         }
     }
 

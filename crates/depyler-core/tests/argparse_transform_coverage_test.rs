@@ -10,11 +10,11 @@
 //! - Test generate_commands_enum for subcommands
 //! - Test edge cases: dest, metavar, choices, actions
 
-use depyler_core::rust_gen::{
-    ArgParserArgument, ArgParserInfo, ArgParserTracker, SubcommandInfo, SubparserInfo,
-    generate_args_struct, generate_commands_enum,
-};
 use depyler_core::hir::{HirExpr, Literal, Type};
+use depyler_core::rust_gen::{
+    generate_args_struct, generate_commands_enum, ArgParserArgument, ArgParserInfo,
+    ArgParserTracker, SubcommandInfo, SubparserInfo,
+};
 
 // ============================================================================
 // ArgParserInfo Tests
@@ -230,7 +230,11 @@ fn test_argparser_argument_with_metavar() {
 #[test]
 fn test_argparser_argument_with_choices() {
     let mut arg = ArgParserArgument::new("--format".to_string());
-    arg.choices = Some(vec!["json".to_string(), "yaml".to_string(), "toml".to_string()]);
+    arg.choices = Some(vec![
+        "json".to_string(),
+        "yaml".to_string(),
+        "toml".to_string(),
+    ]);
     assert_eq!(arg.choices.as_ref().unwrap().len(), 3);
 }
 
@@ -276,7 +280,10 @@ fn test_argparser_tracker_get_parser_mut() {
     let parser = tracker.get_parser_mut("parser").unwrap();
     parser.description = Some("Modified".to_string());
 
-    assert_eq!(tracker.get_parser("parser").unwrap().description, Some("Modified".to_string()));
+    assert_eq!(
+        tracker.get_parser("parser").unwrap().description,
+        Some("Modified".to_string())
+    );
 }
 
 #[test]
@@ -295,20 +302,26 @@ fn test_argparser_tracker_has_subcommands() {
     assert!(!tracker.has_subcommands());
 
     // Register subparsers first
-    tracker.register_subparsers("subparsers".to_string(), SubparserInfo {
-        parser_var: "parser".to_string(),
-        dest_field: "command".to_string(),
-        required: true,
-        help: None,
-    });
+    tracker.register_subparsers(
+        "subparsers".to_string(),
+        SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: true,
+            help: None,
+        },
+    );
 
     // Then register a subcommand (has_subcommands checks subcommands map)
-    tracker.register_subcommand("clone_parser".to_string(), SubcommandInfo {
-        name: "clone".to_string(),
-        help: None,
-        arguments: vec![],
-        subparsers_var: "subparsers".to_string(),
-    });
+    tracker.register_subcommand(
+        "clone_parser".to_string(),
+        SubcommandInfo {
+            name: "clone".to_string(),
+            help: None,
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        },
+    );
 
     assert!(tracker.has_subcommands());
 }
@@ -316,19 +329,25 @@ fn test_argparser_tracker_has_subcommands() {
 #[test]
 fn test_argparser_tracker_register_subcommand() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_subparsers("subparsers".to_string(), SubparserInfo {
-        parser_var: "parser".to_string(),
-        dest_field: "command".to_string(),
-        required: true,
-        help: None,
-    });
+    tracker.register_subparsers(
+        "subparsers".to_string(),
+        SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: true,
+            help: None,
+        },
+    );
 
-    tracker.register_subcommand("clone_parser".to_string(), SubcommandInfo {
-        name: "clone".to_string(),
-        help: Some("Clone a repository".to_string()),
-        arguments: vec![],
-        subparsers_var: "subparsers".to_string(),
-    });
+    tracker.register_subcommand(
+        "clone_parser".to_string(),
+        SubcommandInfo {
+            name: "clone".to_string(),
+            help: Some("Clone a repository".to_string()),
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        },
+    );
 
     assert!(tracker.get_subcommand("clone_parser").is_some());
 }
@@ -336,24 +355,33 @@ fn test_argparser_tracker_register_subcommand() {
 #[test]
 fn test_argparser_tracker_get_subcommand_mut() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_subparsers("subparsers".to_string(), SubparserInfo {
-        parser_var: "parser".to_string(),
-        dest_field: "command".to_string(),
-        required: true,
-        help: None,
-    });
+    tracker.register_subparsers(
+        "subparsers".to_string(),
+        SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: true,
+            help: None,
+        },
+    );
 
-    tracker.register_subcommand("push_parser".to_string(), SubcommandInfo {
-        name: "push".to_string(),
-        help: None,
-        arguments: vec![],
-        subparsers_var: "subparsers".to_string(),
-    });
+    tracker.register_subcommand(
+        "push_parser".to_string(),
+        SubcommandInfo {
+            name: "push".to_string(),
+            help: None,
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        },
+    );
 
     let subcmd = tracker.get_subcommand_mut("push_parser").unwrap();
     subcmd.help = Some("Push changes".to_string());
 
-    assert_eq!(tracker.get_subcommand("push_parser").unwrap().help, Some("Push changes".to_string()));
+    assert_eq!(
+        tracker.get_subcommand("push_parser").unwrap().help,
+        Some("Push changes".to_string())
+    );
 }
 
 // ============================================================================
@@ -369,7 +397,11 @@ fn test_generate_args_struct_empty() {
     let code = tokens.to_string();
 
     // Verify struct generation - check for actual output
-    assert!(code.contains("Args") || code.contains("struct"), "Should contain Args struct: {}", code);
+    assert!(
+        code.contains("Args") || code.contains("struct"),
+        "Should contain Args struct: {}",
+        code
+    );
 }
 
 #[test]
@@ -577,19 +609,25 @@ fn test_generate_commands_enum_empty() {
 #[test]
 fn test_generate_commands_enum_single_subcommand() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_subparsers("subparsers".to_string(), SubparserInfo {
-        parser_var: "parser".to_string(),
-        dest_field: "command".to_string(),
-        required: true,
-        help: None,
-    });
+    tracker.register_subparsers(
+        "subparsers".to_string(),
+        SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: true,
+            help: None,
+        },
+    );
 
-    tracker.register_subcommand("clone_parser".to_string(), SubcommandInfo {
-        name: "clone".to_string(),
-        help: Some("Clone a repository".to_string()),
-        arguments: vec![],
-        subparsers_var: "subparsers".to_string(),
-    });
+    tracker.register_subcommand(
+        "clone_parser".to_string(),
+        SubcommandInfo {
+            name: "clone".to_string(),
+            help: Some("Clone a repository".to_string()),
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        },
+    );
 
     let tokens = generate_commands_enum(&tracker);
     let code = tokens.to_string();
@@ -601,26 +639,35 @@ fn test_generate_commands_enum_single_subcommand() {
 #[test]
 fn test_generate_commands_enum_multiple_subcommands() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_subparsers("subparsers".to_string(), SubparserInfo {
-        parser_var: "parser".to_string(),
-        dest_field: "command".to_string(),
-        required: true,
-        help: None,
-    });
+    tracker.register_subparsers(
+        "subparsers".to_string(),
+        SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: true,
+            help: None,
+        },
+    );
 
-    tracker.register_subcommand("clone_parser".to_string(), SubcommandInfo {
-        name: "clone".to_string(),
-        help: None,
-        arguments: vec![],
-        subparsers_var: "subparsers".to_string(),
-    });
+    tracker.register_subcommand(
+        "clone_parser".to_string(),
+        SubcommandInfo {
+            name: "clone".to_string(),
+            help: None,
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        },
+    );
 
-    tracker.register_subcommand("push_parser".to_string(), SubcommandInfo {
-        name: "push".to_string(),
-        help: None,
-        arguments: vec![],
-        subparsers_var: "subparsers".to_string(),
-    });
+    tracker.register_subcommand(
+        "push_parser".to_string(),
+        SubcommandInfo {
+            name: "push".to_string(),
+            help: None,
+            arguments: vec![],
+            subparsers_var: "subparsers".to_string(),
+        },
+    );
 
     let tokens = generate_commands_enum(&tracker);
     let code = tokens.to_string();
@@ -632,20 +679,26 @@ fn test_generate_commands_enum_multiple_subcommands() {
 #[test]
 fn test_generate_commands_enum_with_args() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_subparsers("subparsers".to_string(), SubparserInfo {
-        parser_var: "parser".to_string(),
-        dest_field: "command".to_string(),
-        required: true,
-        help: None,
-    });
+    tracker.register_subparsers(
+        "subparsers".to_string(),
+        SubparserInfo {
+            parser_var: "parser".to_string(),
+            dest_field: "command".to_string(),
+            required: true,
+            help: None,
+        },
+    );
 
     let arg = ArgParserArgument::new("url".to_string());
-    tracker.register_subcommand("clone_parser".to_string(), SubcommandInfo {
-        name: "clone".to_string(),
-        help: None,
-        arguments: vec![arg],
-        subparsers_var: "subparsers".to_string(),
-    });
+    tracker.register_subcommand(
+        "clone_parser".to_string(),
+        SubcommandInfo {
+            name: "clone".to_string(),
+            help: None,
+            arguments: vec![arg],
+            subparsers_var: "subparsers".to_string(),
+        },
+    );
 
     let tokens = generate_commands_enum(&tracker);
     let code = tokens.to_string();

@@ -17,7 +17,9 @@ use std::sync::Arc;
 pub const DEFAULT_CORPUS_PATH: &str = "data/oracle_corpus.parquet";
 
 /// Convert TrainingDataset to Arrow RecordBatch for Parquet storage.
-pub fn dataset_to_arrow(dataset: &TrainingDataset) -> Result<RecordBatch, arrow::error::ArrowError> {
+pub fn dataset_to_arrow(
+    dataset: &TrainingDataset,
+) -> Result<RecordBatch, arrow::error::ArrowError> {
     let samples = dataset.samples();
 
     let messages: Vec<&str> = samples.iter().map(|s| s.message.as_str()).collect();
@@ -433,9 +435,21 @@ mod tests {
     #[test]
     fn test_multiple_messages_preservation() {
         let mut dataset = TrainingDataset::new();
-        dataset.add(TrainingSample::with_fix("msg1", ErrorCategory::TypeMismatch, "fix1"));
-        dataset.add(TrainingSample::with_fix("msg2", ErrorCategory::BorrowChecker, "fix2"));
-        dataset.add(TrainingSample::with_fix("msg3", ErrorCategory::MissingImport, "fix3"));
+        dataset.add(TrainingSample::with_fix(
+            "msg1",
+            ErrorCategory::TypeMismatch,
+            "fix1",
+        ));
+        dataset.add(TrainingSample::with_fix(
+            "msg2",
+            ErrorCategory::BorrowChecker,
+            "fix2",
+        ));
+        dataset.add(TrainingSample::with_fix(
+            "msg3",
+            ErrorCategory::MissingImport,
+            "fix3",
+        ));
 
         let batch = dataset_to_arrow(&dataset).unwrap();
         let messages = batch

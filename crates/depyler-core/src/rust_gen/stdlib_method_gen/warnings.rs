@@ -58,7 +58,9 @@ mod tests {
     #[test]
     fn test_convert_warnings_warn() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::String("Test warning".to_string()))];
+        let args = vec![HirExpr::Literal(Literal::String(
+            "Test warning".to_string(),
+        ))];
         let result = convert_warnings_method("warn", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();

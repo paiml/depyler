@@ -132,10 +132,15 @@ def test_membership(variable: str) -> bool:
     let fn_start = rust_code.find("fn test_membership").unwrap();
     let fn_body = &rust_code[fn_start..fn_start + 200.min(rust_code.len() - fn_start)];
     // Membership check should NOT use contains_key (that's for dicts)
-    assert!(!fn_body.contains("contains_key"), "Function should not use contains_key for list membership");
+    assert!(
+        !fn_body.contains("contains_key"),
+        "Function should not use contains_key for list membership"
+    );
     // Membership check can use either .contains() or .any(|x| x == value)
-    assert!(fn_body.contains("contains") || fn_body.contains("any(|"),
-        "Expected membership check using contains or any()");
+    assert!(
+        fn_body.contains("contains") || fn_body.contains("any(|"),
+        "Expected membership check using contains or any()"
+    );
 }
 
 #[test]

@@ -743,8 +743,14 @@ mod tests {
 
     #[test]
     fn test_optimization_strategy_equality() {
-        assert_eq!(OptimizationStrategy::BinarySize, OptimizationStrategy::BinarySize);
-        assert_ne!(OptimizationStrategy::BinarySize, OptimizationStrategy::ColdStart);
+        assert_eq!(
+            OptimizationStrategy::BinarySize,
+            OptimizationStrategy::BinarySize
+        );
+        assert_ne!(
+            OptimizationStrategy::BinarySize,
+            OptimizationStrategy::ColdStart
+        );
     }
 
     #[test]
@@ -780,10 +786,18 @@ mod tests {
     #[test]
     fn test_lambda_optimizer_default() {
         let optimizer = LambdaOptimizer::default();
-        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::BinarySize));
-        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::ColdStart));
-        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::PreWarming));
-        assert!(optimizer.strategies.contains_key(&OptimizationStrategy::MemoryUsage));
+        assert!(optimizer
+            .strategies
+            .contains_key(&OptimizationStrategy::BinarySize));
+        assert!(optimizer
+            .strategies
+            .contains_key(&OptimizationStrategy::ColdStart));
+        assert!(optimizer
+            .strategies
+            .contains_key(&OptimizationStrategy::PreWarming));
+        assert!(optimizer
+            .strategies
+            .contains_key(&OptimizationStrategy::MemoryUsage));
     }
 
     #[test]
@@ -802,7 +816,11 @@ mod tests {
     #[test]
     fn test_is_strategy_enabled_disabled() {
         let mut optimizer = LambdaOptimizer::new();
-        optimizer.strategies.get_mut(&OptimizationStrategy::PreWarming).unwrap().enabled = false;
+        optimizer
+            .strategies
+            .get_mut(&OptimizationStrategy::PreWarming)
+            .unwrap()
+            .enabled = false;
         assert!(!optimizer.is_strategy_enabled(&OptimizationStrategy::PreWarming));
     }
 
@@ -905,7 +923,8 @@ mod tests {
             init_array_code: String::new(),
             dependency_optimizations: vec![],
         };
-        plan.profile_overrides.insert("opt-level".to_string(), "z".to_string());
+        plan.profile_overrides
+            .insert("opt-level".to_string(), "z".to_string());
 
         let optimizer = LambdaOptimizer::new();
         let estimate = optimizer.estimate_performance_impact(&plan);

@@ -78,7 +78,9 @@ pub fn convert_datetime_method(
         ("time", "fromisoformat") => convert_time_fromisoformat(&arg_exprs, nasa_mode, ctx)?,
 
         // timedelta constructor
-        ("timedelta", "new" | "__init__") => convert_timedelta_new(args, &arg_exprs, nasa_mode, ctx)?,
+        ("timedelta", "new" | "__init__") => {
+            convert_timedelta_new(args, &arg_exprs, nasa_mode, ctx)?
+        }
 
         _ => bail!("datetime.{}.{} not implemented yet", class_name, method),
     };
@@ -630,7 +632,11 @@ mod tests {
         for component in &["year", "month", "day", "hour", "minute", "second"] {
             let result = convert_instance_component(component, false, &mut ctx).unwrap();
             let code = quote::quote!(#result).to_string();
-            assert!(code.contains(component), "Component {} not found", component);
+            assert!(
+                code.contains(component),
+                "Component {} not found",
+                component
+            );
         }
     }
 

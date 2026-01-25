@@ -217,10 +217,7 @@ mod tests {
     fn test_DEPYLER_1154_tuple_of_copy_types_no_borrow() {
         // Tuple(Int, Bool) is Copy - should NOT be borrowed
         let expr: syn::Expr = parse_quote! { pair };
-        let result = borrow_if_needed_typed(
-            &expr,
-            Some(&Type::Tuple(vec![Type::Int, Type::Bool])),
-        );
+        let result = borrow_if_needed_typed(&expr, Some(&Type::Tuple(vec![Type::Int, Type::Bool])));
         assert_eq!(
             result.to_token_stream().to_string(),
             "pair",
@@ -232,10 +229,8 @@ mod tests {
     fn test_DEPYLER_1154_tuple_with_string_borrows() {
         // Tuple(Int, String) is NOT Copy - should be borrowed
         let expr: syn::Expr = parse_quote! { pair };
-        let result = borrow_if_needed_typed(
-            &expr,
-            Some(&Type::Tuple(vec![Type::Int, Type::String])),
-        );
+        let result =
+            borrow_if_needed_typed(&expr, Some(&Type::Tuple(vec![Type::Int, Type::String])));
         assert_eq!(
             result.to_token_stream().to_string(),
             "& pair",
@@ -247,10 +242,7 @@ mod tests {
     fn test_DEPYLER_1154_optional_copy_no_borrow() {
         // Optional(Int) is still Copy - should NOT be borrowed
         let expr: syn::Expr = parse_quote! { maybe_count };
-        let result = borrow_if_needed_typed(
-            &expr,
-            Some(&Type::Optional(Box::new(Type::Int))),
-        );
+        let result = borrow_if_needed_typed(&expr, Some(&Type::Optional(Box::new(Type::Int))));
         assert_eq!(
             result.to_token_stream().to_string(),
             "maybe_count",

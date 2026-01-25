@@ -620,13 +620,25 @@ mod tests {
     #[test]
     fn test_binary_op_variants() {
         let ops = [
-            BinaryOp::Add, BinaryOp::Subtract, BinaryOp::Multiply,
-            BinaryOp::Divide, BinaryOp::Modulo, BinaryOp::Power,
-            BinaryOp::Equal, BinaryOp::NotEqual, BinaryOp::Less,
-            BinaryOp::LessEqual, BinaryOp::Greater, BinaryOp::GreaterEqual,
-            BinaryOp::And, BinaryOp::Or, BinaryOp::BitwiseAnd,
-            BinaryOp::BitwiseOr, BinaryOp::BitwiseXor,
-            BinaryOp::LeftShift, BinaryOp::RightShift,
+            BinaryOp::Add,
+            BinaryOp::Subtract,
+            BinaryOp::Multiply,
+            BinaryOp::Divide,
+            BinaryOp::Modulo,
+            BinaryOp::Power,
+            BinaryOp::Equal,
+            BinaryOp::NotEqual,
+            BinaryOp::Less,
+            BinaryOp::LessEqual,
+            BinaryOp::Greater,
+            BinaryOp::GreaterEqual,
+            BinaryOp::And,
+            BinaryOp::Or,
+            BinaryOp::BitwiseAnd,
+            BinaryOp::BitwiseOr,
+            BinaryOp::BitwiseXor,
+            BinaryOp::LeftShift,
+            BinaryOp::RightShift,
         ];
         for op in ops {
             assert_eq!(op, op);
@@ -655,11 +667,24 @@ mod tests {
     #[test]
     fn test_ruchy_type_primitives() {
         let types = [
-            RuchyType::I8, RuchyType::I16, RuchyType::I32, RuchyType::I64,
-            RuchyType::I128, RuchyType::ISize, RuchyType::U8, RuchyType::U16,
-            RuchyType::U32, RuchyType::U64, RuchyType::U128, RuchyType::USize,
-            RuchyType::F32, RuchyType::F64, RuchyType::Bool, RuchyType::Char,
-            RuchyType::String, RuchyType::Dynamic,
+            RuchyType::I8,
+            RuchyType::I16,
+            RuchyType::I32,
+            RuchyType::I64,
+            RuchyType::I128,
+            RuchyType::ISize,
+            RuchyType::U8,
+            RuchyType::U16,
+            RuchyType::U32,
+            RuchyType::U64,
+            RuchyType::U128,
+            RuchyType::USize,
+            RuchyType::F32,
+            RuchyType::F64,
+            RuchyType::Bool,
+            RuchyType::Char,
+            RuchyType::String,
+            RuchyType::Dynamic,
         ];
         for t in types {
             assert_eq!(t.clone(), t);
@@ -674,10 +699,7 @@ mod tests {
         let option_type = RuchyType::Option(Box::new(RuchyType::String));
         assert_eq!(option_type.clone(), option_type);
 
-        let result_type = RuchyType::Result(
-            Box::new(RuchyType::I64),
-            Box::new(RuchyType::String),
-        );
+        let result_type = RuchyType::Result(Box::new(RuchyType::I64), Box::new(RuchyType::String));
         assert_eq!(result_type.clone(), result_type);
     }
 
@@ -779,7 +801,9 @@ mod tests {
     #[test]
     fn test_ruchy_expr_break_continue() {
         let break_expr = RuchyExpr::Break { label: None };
-        let continue_expr = RuchyExpr::Continue { label: Some("outer".to_string()) };
+        let continue_expr = RuchyExpr::Continue {
+            label: Some("outer".to_string()),
+        };
         assert!(matches!(break_expr, RuchyExpr::Break { .. }));
         assert!(matches!(continue_expr, RuchyExpr::Continue { .. }));
     }
@@ -926,7 +950,10 @@ mod tests {
     fn test_builder_convert_literal_string() {
         let builder = RuchyAstBuilder::new();
         let result = builder.convert_literal(&HirLiteral::String("hello".to_string()));
-        assert_eq!(result, RuchyExpr::Literal(Literal::String("hello".to_string())));
+        assert_eq!(
+            result,
+            RuchyExpr::Literal(Literal::String("hello".to_string()))
+        );
     }
 
     #[test]
@@ -946,58 +973,138 @@ mod tests {
     #[test]
     fn test_builder_convert_binary_op_arithmetic() {
         let builder = RuchyAstBuilder::new();
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Add).unwrap(), BinaryOp::Add);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Subtract).unwrap(), BinaryOp::Subtract);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Multiply).unwrap(), BinaryOp::Multiply);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Divide).unwrap(), BinaryOp::Divide);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Modulo).unwrap(), BinaryOp::Modulo);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Power).unwrap(), BinaryOp::Power);
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Add).unwrap(),
+            BinaryOp::Add
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Subtract).unwrap(),
+            BinaryOp::Subtract
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Multiply).unwrap(),
+            BinaryOp::Multiply
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Divide).unwrap(),
+            BinaryOp::Divide
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Modulo).unwrap(),
+            BinaryOp::Modulo
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Power).unwrap(),
+            BinaryOp::Power
+        );
     }
 
     #[test]
     fn test_builder_convert_binary_op_comparison() {
         let builder = RuchyAstBuilder::new();
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Equal).unwrap(), BinaryOp::Equal);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::NotEqual).unwrap(), BinaryOp::NotEqual);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Less).unwrap(), BinaryOp::Less);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::LessEqual).unwrap(), BinaryOp::LessEqual);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Greater).unwrap(), BinaryOp::Greater);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::GreaterEqual).unwrap(), BinaryOp::GreaterEqual);
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Equal).unwrap(),
+            BinaryOp::Equal
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::NotEqual).unwrap(),
+            BinaryOp::NotEqual
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Less).unwrap(),
+            BinaryOp::Less
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::LessEqual).unwrap(),
+            BinaryOp::LessEqual
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Greater).unwrap(),
+            BinaryOp::Greater
+        );
+        assert_eq!(
+            builder
+                .convert_binary_op(&HirBinaryOp::GreaterEqual)
+                .unwrap(),
+            BinaryOp::GreaterEqual
+        );
     }
 
     #[test]
     fn test_builder_convert_binary_op_logical() {
         let builder = RuchyAstBuilder::new();
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::And).unwrap(), BinaryOp::And);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::Or).unwrap(), BinaryOp::Or);
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::And).unwrap(),
+            BinaryOp::And
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::Or).unwrap(),
+            BinaryOp::Or
+        );
     }
 
     #[test]
     fn test_builder_convert_binary_op_bitwise() {
         let builder = RuchyAstBuilder::new();
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::BitwiseAnd).unwrap(), BinaryOp::BitwiseAnd);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::BitwiseOr).unwrap(), BinaryOp::BitwiseOr);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::BitwiseXor).unwrap(), BinaryOp::BitwiseXor);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::LeftShift).unwrap(), BinaryOp::LeftShift);
-        assert_eq!(builder.convert_binary_op(&HirBinaryOp::RightShift).unwrap(), BinaryOp::RightShift);
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::BitwiseAnd).unwrap(),
+            BinaryOp::BitwiseAnd
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::BitwiseOr).unwrap(),
+            BinaryOp::BitwiseOr
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::BitwiseXor).unwrap(),
+            BinaryOp::BitwiseXor
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::LeftShift).unwrap(),
+            BinaryOp::LeftShift
+        );
+        assert_eq!(
+            builder.convert_binary_op(&HirBinaryOp::RightShift).unwrap(),
+            BinaryOp::RightShift
+        );
     }
 
     #[test]
     fn test_builder_convert_unary_op() {
         let builder = RuchyAstBuilder::new();
-        assert_eq!(builder.convert_unary_op(&HirUnaryOp::Not).unwrap(), UnaryOp::Not);
-        assert_eq!(builder.convert_unary_op(&HirUnaryOp::Negate).unwrap(), UnaryOp::Negate);
-        assert_eq!(builder.convert_unary_op(&HirUnaryOp::BitwiseNot).unwrap(), UnaryOp::BitwiseNot);
+        assert_eq!(
+            builder.convert_unary_op(&HirUnaryOp::Not).unwrap(),
+            UnaryOp::Not
+        );
+        assert_eq!(
+            builder.convert_unary_op(&HirUnaryOp::Negate).unwrap(),
+            UnaryOp::Negate
+        );
+        assert_eq!(
+            builder.convert_unary_op(&HirUnaryOp::BitwiseNot).unwrap(),
+            UnaryOp::BitwiseNot
+        );
     }
 
     #[test]
     fn test_builder_convert_type_primitives() {
         let builder = RuchyAstBuilder::new();
         assert_eq!(builder.convert_type(&HirType::Int).unwrap(), RuchyType::I64);
-        assert_eq!(builder.convert_type(&HirType::Float).unwrap(), RuchyType::F64);
-        assert_eq!(builder.convert_type(&HirType::String).unwrap(), RuchyType::String);
-        assert_eq!(builder.convert_type(&HirType::Bool).unwrap(), RuchyType::Bool);
-        assert_eq!(builder.convert_type(&HirType::Any).unwrap(), RuchyType::Dynamic);
+        assert_eq!(
+            builder.convert_type(&HirType::Float).unwrap(),
+            RuchyType::F64
+        );
+        assert_eq!(
+            builder.convert_type(&HirType::String).unwrap(),
+            RuchyType::String
+        );
+        assert_eq!(
+            builder.convert_type(&HirType::Bool).unwrap(),
+            RuchyType::Bool
+        );
+        assert_eq!(
+            builder.convert_type(&HirType::Any).unwrap(),
+            RuchyType::Dynamic
+        );
     }
 
     #[test]
@@ -1257,7 +1364,12 @@ mod tests {
             return_type: Some(HirType::Int),
         };
         let result = builder.convert_hir_expr(&expr).unwrap();
-        if let RuchyExpr::Function { is_async, return_type, .. } = result {
+        if let RuchyExpr::Function {
+            is_async,
+            return_type,
+            ..
+        } = result
+        {
             assert!(is_async);
             assert!(return_type.is_some());
         } else {
@@ -1274,7 +1386,10 @@ mod tests {
             is_mutable: true,
         };
         let result = builder.convert_statement(&stmt).unwrap();
-        if let RuchyExpr::Let { name, is_mutable, .. } = result {
+        if let RuchyExpr::Let {
+            name, is_mutable, ..
+        } = result
+        {
             assert_eq!(name, "x");
             assert!(is_mutable);
         } else {
@@ -1329,12 +1444,23 @@ mod tests {
     fn test_ruchy_expr_function() {
         let expr = RuchyExpr::Function {
             name: "foo".to_string(),
-            params: vec![Param { name: "x".to_string(), typ: Some(RuchyType::I64), default: None }],
+            params: vec![Param {
+                name: "x".to_string(),
+                typ: Some(RuchyType::I64),
+                default: None,
+            }],
             body: Box::new(RuchyExpr::Literal(Literal::Integer(1))),
             is_async: true,
             return_type: Some(RuchyType::I64),
         };
-        if let RuchyExpr::Function { name, params, is_async, return_type, .. } = &expr {
+        if let RuchyExpr::Function {
+            name,
+            params,
+            is_async,
+            return_type,
+            ..
+        } = &expr
+        {
             assert_eq!(name, "foo");
             assert_eq!(params.len(), 1);
             assert!(is_async);
@@ -1379,7 +1505,9 @@ mod tests {
     fn test_ruchy_expr_pipeline() {
         let expr = RuchyExpr::Pipeline {
             expr: Box::new(RuchyExpr::List(vec![])),
-            stages: vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier("f".to_string())))],
+            stages: vec![PipelineStage::Map(Box::new(RuchyExpr::Identifier(
+                "f".to_string(),
+            )))],
         };
         if let RuchyExpr::Pipeline { stages, .. } = &expr {
             assert_eq!(stages.len(), 1);
@@ -1409,7 +1537,10 @@ mod tests {
             body: Box::new(RuchyExpr::Identifier("x".to_string())),
             is_mutable: false,
         };
-        if let RuchyExpr::Let { name, is_mutable, .. } = &expr {
+        if let RuchyExpr::Let {
+            name, is_mutable, ..
+        } = &expr
+        {
             assert_eq!(name, "x");
             assert!(!is_mutable);
         }
@@ -1432,7 +1563,11 @@ mod tests {
     fn test_ruchy_expr_struct() {
         let expr = RuchyExpr::Struct {
             name: "Point".to_string(),
-            fields: vec![StructField { name: "x".to_string(), typ: RuchyType::I64, is_public: true }],
+            fields: vec![StructField {
+                name: "x".to_string(),
+                typ: RuchyType::I64,
+                is_public: true,
+            }],
         };
         if let RuchyExpr::Struct { name, fields } = &expr {
             assert_eq!(name, "Point");

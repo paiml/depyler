@@ -769,21 +769,27 @@ mod tests {
     #[test]
     fn test_map_bytes_type() {
         let mut mapper = TypeMapper::new();
-        let result = mapper.map_type(&PythonType::Named("bytes".to_string())).unwrap();
+        let result = mapper
+            .map_type(&PythonType::Named("bytes".to_string()))
+            .unwrap();
         assert_eq!(result, RuchyType::Vec(Box::new(RuchyType::U8)));
     }
 
     #[test]
     fn test_map_none_type() {
         let mut mapper = TypeMapper::new();
-        let result = mapper.map_type(&PythonType::Named("None".to_string())).unwrap();
+        let result = mapper
+            .map_type(&PythonType::Named("None".to_string()))
+            .unwrap();
         assert_eq!(result, RuchyType::Unit);
     }
 
     #[test]
     fn test_map_any_type() {
         let mut mapper = TypeMapper::new();
-        let result = mapper.map_type(&PythonType::Named("Any".to_string())).unwrap();
+        let result = mapper
+            .map_type(&PythonType::Named("Any".to_string()))
+            .unwrap();
         assert_eq!(result, RuchyType::Dynamic);
     }
 
@@ -803,7 +809,10 @@ mod tests {
             PythonType::Named("str".to_string()),
         ]);
         let result = mapper.map_type(&tuple_type).unwrap();
-        assert_eq!(result, RuchyType::Tuple(vec![RuchyType::I64, RuchyType::String]));
+        assert_eq!(
+            result,
+            RuchyType::Tuple(vec![RuchyType::I64, RuchyType::String])
+        );
     }
 
     #[test]
@@ -911,7 +920,10 @@ mod tests {
             ],
         );
         let result = mapper.map_type(&generic_type).unwrap();
-        assert_eq!(result, RuchyType::HashMap(Box::new(RuchyType::String), Box::new(RuchyType::I64)));
+        assert_eq!(
+            result,
+            RuchyType::HashMap(Box::new(RuchyType::String), Box::new(RuchyType::I64))
+        );
     }
 
     #[test]
@@ -977,10 +989,7 @@ mod tests {
     #[test]
     fn test_map_generic_dataframe() {
         let mut mapper = TypeMapper::new();
-        let generic_type = PythonType::Generic(
-            "DataFrame".to_string(),
-            vec![],
-        );
+        let generic_type = PythonType::Generic("DataFrame".to_string(), vec![]);
         let result = mapper.map_type(&generic_type).unwrap();
         assert_eq!(result, RuchyType::DataFrame);
     }
@@ -1020,7 +1029,9 @@ mod tests {
         let mut mapper = TypeMapper::new();
         mapper.register_type("CustomType".to_string(), RuchyType::I32);
 
-        let result = mapper.map_type(&PythonType::Named("CustomType".to_string())).unwrap();
+        let result = mapper
+            .map_type(&PythonType::Named("CustomType".to_string()))
+            .unwrap();
         assert_eq!(result, RuchyType::I32);
     }
 
@@ -1048,20 +1059,21 @@ mod tests {
     #[test]
     fn test_range_type_non_int() {
         let mapper = TypeMapper::new();
-        let result = mapper.map_range_type(
-            Some(PythonType::Named("float".to_string())),
-            Some(PythonType::Named("float".to_string())),
-        ).unwrap();
+        let result = mapper
+            .map_range_type(
+                Some(PythonType::Named("float".to_string())),
+                Some(PythonType::Named("float".to_string())),
+            )
+            .unwrap();
         assert_eq!(result, RuchyType::Range);
     }
 
     #[test]
     fn test_range_type_partial() {
         let mapper = TypeMapper::new();
-        let result = mapper.map_range_type(
-            Some(PythonType::Named("int".to_string())),
-            None,
-        ).unwrap();
+        let result = mapper
+            .map_range_type(Some(PythonType::Named("int".to_string())), None)
+            .unwrap();
         assert_eq!(result, RuchyType::Range);
     }
 
@@ -1370,7 +1382,10 @@ mod tests {
             vec![PythonType::Named("str".to_string())],
         );
         let result = mapper.map_type(&generic_type).unwrap();
-        assert_eq!(result, RuchyType::HashMap(Box::new(RuchyType::String), Box::new(RuchyType::Dynamic)));
+        assert_eq!(
+            result,
+            RuchyType::HashMap(Box::new(RuchyType::String), Box::new(RuchyType::Dynamic))
+        );
     }
 
     #[test]

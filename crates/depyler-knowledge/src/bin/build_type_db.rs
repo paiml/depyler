@@ -73,12 +73,20 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Set up logging
-    let level = if cli.verbose { Level::DEBUG } else { Level::INFO };
+    let level = if cli.verbose {
+        Level::DEBUG
+    } else {
+        Level::INFO
+    };
     let subscriber = FmtSubscriber::builder().with_max_level(level).finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
     match cli.command {
-        Commands::Build { packages, output, target } => {
+        Commands::Build {
+            packages,
+            output,
+            target,
+        } => {
             build_database(&packages, &output, target.as_deref())?;
         }
         Commands::Query { db, symbol } => {
@@ -92,7 +100,11 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn build_database(packages: &str, output: &PathBuf, target: Option<&std::path::Path>) -> Result<()> {
+fn build_database(
+    packages: &str,
+    output: &PathBuf,
+    target: Option<&std::path::Path>,
+) -> Result<()> {
     let package_list: Vec<&str> = packages.split(',').map(|s| s.trim()).collect();
     info!(packages = ?package_list, "Building type database");
 

@@ -290,7 +290,9 @@ impl TranspileHanseiAnalyzer {
         let mut feature_failures: HashMap<String, usize> = HashMap::new();
 
         for outcome in outcomes {
-            let entry = category_stats.entry(outcome.category.clone()).or_insert((0, 0));
+            let entry = category_stats
+                .entry(outcome.category.clone())
+                .or_insert((0, 0));
             if outcome.success {
                 entry.0 += 1;
             } else {
@@ -308,11 +310,8 @@ impl TranspileHanseiAnalyzer {
         let success_rate = successes as f32 / total_attempts as f32;
 
         // Build category summaries
-        let category_summaries = self.build_category_summaries(
-            &category_stats,
-            failures,
-            suspiciousness_scores,
-        );
+        let category_summaries =
+            self.build_category_summaries(&category_stats, failures, suspiciousness_scores);
 
         // Perform Pareto analysis
         let pareto_categories = self.pareto_analysis(&category_summaries, failures);
@@ -556,10 +555,9 @@ impl TranspileHanseiAnalyzer {
 
         // Default recommendation based on trend
         match summary.trend {
-            Trend::Degrading => format!(
-                "URGENT: {} is regressing. Review recent changes.",
-                category
-            ),
+            Trend::Degrading => {
+                format!("URGENT: {} is regressing. Review recent changes.", category)
+            }
             Trend::Oscillating => {
                 format!("Stabilize {} implementation to reduce variance.", category)
             }
@@ -585,9 +583,8 @@ impl TranspileHanseiAnalyzer {
                     .to_string(),
             );
         } else if success_rate < 0.8 {
-            recommendations.push(
-                "Target 80% success rate by addressing Pareto categories.".to_string(),
-            );
+            recommendations
+                .push("Target 80% success rate by addressing Pareto categories.".to_string());
         }
 
         // Count issues by severity
@@ -608,9 +605,8 @@ impl TranspileHanseiAnalyzer {
         }
 
         if error_count > 3 {
-            recommendations.push(
-                "Consider batch-fixing related error categories together.".to_string(),
-            );
+            recommendations
+                .push("Consider batch-fixing related error categories together.".to_string());
         }
 
         // Feature-specific recommendations from top issues
@@ -1106,7 +1102,9 @@ mod tests {
         let recs = analyzer.generate_recommendations(&issues, 0.3);
 
         // Should have recommendation about low success rate
-        assert!(recs.iter().any(|r| r.contains("50%") || r.contains("CRITICAL")));
+        assert!(recs
+            .iter()
+            .any(|r| r.contains("50%") || r.contains("CRITICAL")));
     }
 
     // ========================================================================

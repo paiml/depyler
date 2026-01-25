@@ -198,7 +198,9 @@ fn convert_rename(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
     }
     let path = &arg_exprs[0];
     let target = &arg_exprs[1];
-    Ok(parse_quote! { { std::fs::rename(&#path, #target).unwrap(); std::path::PathBuf::from(#target) } })
+    Ok(
+        parse_quote! { { std::fs::rename(&#path, #target).unwrap(); std::path::PathBuf::from(#target) } },
+    )
 }
 
 fn convert_as_posix(arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {

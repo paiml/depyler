@@ -409,7 +409,9 @@ pub fn generate_module_function(
         .collect();
 
     // Parse return type path into tokens (e.g., "models::Response")
-    let return_type: TokenStream = return_type_path.parse().unwrap_or_else(|_| quote! { String });
+    let return_type: TokenStream = return_type_path
+        .parse()
+        .unwrap_or_else(|_| quote! { String });
 
     // DEPYLER-1116: Construct the return type using its ::new() constructor
     // Phantom structs wrap String, so we create an instance with empty string
@@ -1113,11 +1115,17 @@ mod tests {
         let code = struct_tokens.to_string();
 
         // Should contain String wrapper for NASA mode compatibility
-        assert!(code.contains("pub String"),
-            "Expected String wrapper but got: {}", code);
+        assert!(
+            code.contains("pub String"),
+            "Expected String wrapper but got: {}",
+            code
+        );
         assert!(code.contains("pub struct TestResponse"));
-        assert!(code.contains("fn new (inner : String)"),
-            "Expected new(inner: String) constructor but got: {}", code);
+        assert!(
+            code.contains("fn new (inner : String)"),
+            "Expected new(inner: String) constructor but got: {}",
+            code
+        );
     }
 
     #[test]

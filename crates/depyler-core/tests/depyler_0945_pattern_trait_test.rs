@@ -25,7 +25,15 @@ fn compiles_with_rustc(code: &str) -> bool {
     std::fs::write(&temp_file, code).unwrap();
 
     let output = Command::new("rustc")
-        .args(["--edition", "2021", &temp_file, "--crate-type", "lib", "-o", &out_file])
+        .args([
+            "--edition",
+            "2021",
+            &temp_file,
+            "--crate-type",
+            "lib",
+            "-o",
+            &out_file,
+        ])
         .output()
         .expect("Failed to run rustc");
 
@@ -42,7 +50,15 @@ fn compile_errors(code: &str) -> String {
     std::fs::write(&temp_file, code).unwrap();
 
     let output = Command::new("rustc")
-        .args(["--edition", "2021", &temp_file, "--crate-type", "lib", "-o", &out_file])
+        .args([
+            "--edition",
+            "2021",
+            &temp_file,
+            "--crate-type",
+            "lib",
+            "-o",
+            &out_file,
+        ])
         .output()
         .expect("Failed to run rustc");
 
@@ -63,7 +79,11 @@ def check_prefix(text: str, pattern: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -94,7 +114,11 @@ def check_suffix(text: str, suffix: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -125,7 +149,11 @@ def find_pos(text: str, needle: str) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -156,7 +184,11 @@ def replace_text(text: str, old: str, new: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -189,7 +221,11 @@ def split_text(text: str, delimiter: str) -> List[str]:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -223,7 +259,11 @@ def split_comma(text: str) -> list:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -256,7 +296,11 @@ def check_dynamic_prefix(text: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 

@@ -154,7 +154,12 @@ pub fn process_module_imports(
         }
     }
 
-    (imported_modules, imported_items, unresolved_imports, module_aliases)
+    (
+        imported_modules,
+        imported_items,
+        unresolved_imports,
+        module_aliases,
+    )
 }
 
 #[cfg(test)]
@@ -385,6 +390,9 @@ mod tests {
             items: vec![],
         }];
         let (_, _, _, aliases) = process_module_imports(&imports, &mapper);
-        assert_eq!(aliases.get("ET"), Some(&"xml.etree.ElementTree".to_string()));
+        assert_eq!(
+            aliases.get("ET"),
+            Some(&"xml.etree.ElementTree".to_string())
+        );
     }
 }

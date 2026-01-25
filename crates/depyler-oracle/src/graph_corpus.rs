@@ -102,7 +102,10 @@ fn generate_fix_suggestion(failure: &VectorizedFailure) -> Option<String> {
             "In {}: Convert &str to String using .to_string()",
             node_id
         )),
-        "cast" => Some(format!("In {}: Add numeric type cast (as i64, as f64)", node_id)),
+        "cast" => Some(format!(
+            "In {}: Add numeric type cast (as i64, as f64)",
+            node_id
+        )),
         "add_trait_impl" => Some(format!(
             "In {}: Implement required trait or use trait object",
             node_id
@@ -183,8 +186,11 @@ pub fn convert_to_training_samples(failures: &[VectorizedFailure]) -> Vec<Traini
     failures
         .iter()
         .map(|failure| {
-            let category =
-                map_category(&failure.labels.category, &failure.labels.subcategory, &failure.error_code);
+            let category = map_category(
+                &failure.labels.category,
+                &failure.labels.subcategory,
+                &failure.error_code,
+            );
 
             let message = build_graph_enhanced_message(failure);
             let fix = generate_fix_suggestion(failure);

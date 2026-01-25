@@ -340,7 +340,11 @@ impl ConstraintCollector {
                     }
 
                     // Bitwise ops: Int
-                    BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift => {
+                    BinOp::BitAnd
+                    | BinOp::BitOr
+                    | BinOp::BitXor
+                    | BinOp::LShift
+                    | BinOp::RShift => {
                         self.constraints
                             .push(Constraint::Instance(left_var, Type::Int));
                         self.constraints
@@ -357,10 +361,7 @@ impl ConstraintCollector {
                 let result_var = self.fresh_var();
 
                 // Clone signature data to avoid borrow conflict
-                let sig_data = self
-                    .function_signatures
-                    .get(func.as_str())
-                    .cloned();
+                let sig_data = self.function_signatures.get(func.as_str()).cloned();
 
                 // If we know this function's signature, constrain args
                 if let Some((param_vars, ret_var)) = sig_data {
@@ -469,7 +470,12 @@ impl ConstraintCollector {
 
             // DEPYLER-1173: Usage-based type inference from method calls
             // If a method is called on an object, we can infer the object's type
-            HirExpr::MethodCall { object, method, args, .. } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                ..
+            } => {
                 let obj_var = self.collect_expr(object);
                 let result_var = self.fresh_var();
 
@@ -480,18 +486,19 @@ impl ConstraintCollector {
                 // Infer object type from method name
                 match method.as_str() {
                     // String methods → object must be String
-                    "split" | "rsplit" | "splitlines" | "upper" | "lower" | "strip"
-                    | "lstrip" | "rstrip" | "capitalize" | "title" | "swapcase"
-                    | "startswith" | "endswith" | "find" | "rfind" | "index" | "rindex"
-                    | "count" | "replace" | "join" | "encode" | "zfill" | "center"
-                    | "ljust" | "rjust" | "isalpha" | "isdigit" | "isalnum" | "isspace"
-                    | "isupper" | "islower" | "istitle" | "format" => {
-                        self.constraints.push(Constraint::Instance(obj_var, Type::String));
+                    "split" | "rsplit" | "splitlines" | "upper" | "lower" | "strip" | "lstrip"
+                    | "rstrip" | "capitalize" | "title" | "swapcase" | "startswith"
+                    | "endswith" | "find" | "rfind" | "index" | "rindex" | "count" | "replace"
+                    | "join" | "encode" | "zfill" | "center" | "ljust" | "rjust" | "isalpha"
+                    | "isdigit" | "isalnum" | "isspace" | "isupper" | "islower" | "istitle"
+                    | "format" => {
+                        self.constraints
+                            .push(Constraint::Instance(obj_var, Type::String));
                     }
 
                     // List methods → object must be List
-                    "append" | "extend" | "insert" | "pop" | "remove" | "clear"
-                    | "sort" | "reverse" => {
+                    "append" | "extend" | "insert" | "pop" | "remove" | "clear" | "sort"
+                    | "reverse" => {
                         // For list methods, we know it's a list but not the element type
                         // Create a fresh var for element type
                         let elem_var = self.fresh_var();
@@ -502,8 +509,7 @@ impl ConstraintCollector {
                     }
 
                     // Dict methods → object must be Dict
-                    "keys" | "values" | "items" | "get" | "setdefault" | "update"
-                    | "popitem" => {
+                    "keys" | "values" | "items" | "get" | "setdefault" | "update" | "popitem" => {
                         let key_var = self.fresh_var();
                         let val_var = self.fresh_var();
                         self.constraints.push(Constraint::Instance(
@@ -516,8 +522,14 @@ impl ConstraintCollector {
                     }
 
                     // Set methods → object must be Set
-                    "add" | "discard" | "union" | "intersection" | "difference"
-                    | "symmetric_difference" | "issubset" | "issuperset" => {
+                    "add"
+                    | "discard"
+                    | "union"
+                    | "intersection"
+                    | "difference"
+                    | "symmetric_difference"
+                    | "issubset"
+                    | "issuperset" => {
                         let elem_var = self.fresh_var();
                         self.constraints.push(Constraint::Instance(
                             obj_var,
@@ -541,11 +553,7 @@ impl ConstraintCollector {
                 self.collect_expr(operand)
             }
 
-            HirExpr::IfExpr {
-                test,
-                body,
-                orelse,
-            } => {
+            HirExpr::IfExpr { test, body, orelse } => {
                 let cond_var = self.collect_expr(test);
                 let then_var = self.collect_expr(body);
                 let else_var = self.collect_expr(orelse);
@@ -563,22 +571,30 @@ impl ConstraintCollector {
 
             // DEPYLER-1173: Usage-based type inference from slice operations
             // If s[1:4] is used, s must be either String or List
-            HirExpr::Slice { base, start, stop, step } => {
+            HirExpr::Slice {
+                base,
+                start,
+                stop,
+                step,
+            } => {
                 let base_var = self.collect_expr(base);
                 let result_var = self.fresh_var();
 
                 // Collect start/stop/step if present (they should be Int)
                 if let Some(start_expr) = start {
                     let start_var = self.collect_expr(start_expr);
-                    self.constraints.push(Constraint::Instance(start_var, Type::Int));
+                    self.constraints
+                        .push(Constraint::Instance(start_var, Type::Int));
                 }
                 if let Some(stop_expr) = stop {
                     let stop_var = self.collect_expr(stop_expr);
-                    self.constraints.push(Constraint::Instance(stop_var, Type::Int));
+                    self.constraints
+                        .push(Constraint::Instance(stop_var, Type::Int));
                 }
                 if let Some(step_expr) = step {
                     let step_var = self.collect_expr(step_expr);
-                    self.constraints.push(Constraint::Instance(step_var, Type::Int));
+                    self.constraints
+                        .push(Constraint::Instance(step_var, Type::Int));
                 }
 
                 // DEPYLER-1173: Key insight - slicing is most commonly on String in Python
@@ -588,10 +604,12 @@ impl ConstraintCollector {
                 // Future enhancement: Check if base is already constrained to List
                 // and propagate that. For now, String is the safe default for
                 // single-shot compilation (most slicing is on strings).
-                self.constraints.push(Constraint::Instance(base_var, Type::String));
+                self.constraints
+                    .push(Constraint::Instance(base_var, Type::String));
 
                 // Result of slicing a String is a String
-                self.constraints.push(Constraint::Instance(result_var, Type::String));
+                self.constraints
+                    .push(Constraint::Instance(result_var, Type::String));
 
                 result_var
             }
@@ -694,7 +712,11 @@ impl ConstraintCollector {
                     }
                 }
                 // Recursively apply to nested blocks
-                HirStmt::If { then_body, else_body, .. } => {
+                HirStmt::If {
+                    then_body,
+                    else_body,
+                    ..
+                } => {
                     applied_count += self.apply_to_statements(then_body, solution);
                     if let Some(else_stmts) = else_body {
                         applied_count += self.apply_to_statements(else_stmts, solution);
@@ -751,7 +773,11 @@ mod tests {
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
-    fn make_test_function(name: &str, params: Vec<(&str, Type)>, body: Vec<HirStmt>) -> HirFunction {
+    fn make_test_function(
+        name: &str,
+        params: Vec<(&str, Type)>,
+        body: Vec<HirStmt>,
+    ) -> HirFunction {
         HirFunction {
             name: name.to_string(),
             params: params
@@ -804,6 +830,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         }
     }
 
@@ -889,9 +916,10 @@ mod tests {
         let mut collector = ConstraintCollector::new();
         let var = collector.collect_expr(&HirExpr::Literal(Literal::Int(42)));
 
-        let has_int_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Int) if *v == var)
-        });
+        let has_int_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Int) if *v == var));
         assert!(has_int_constraint);
     }
 
@@ -900,9 +928,10 @@ mod tests {
         let mut collector = ConstraintCollector::new();
         let var = collector.collect_expr(&HirExpr::Literal(Literal::Float(3.15)));
 
-        let has_float_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Float) if *v == var)
-        });
+        let has_float_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Float) if *v == var));
         assert!(has_float_constraint);
     }
 
@@ -911,9 +940,10 @@ mod tests {
         let mut collector = ConstraintCollector::new();
         let var = collector.collect_expr(&HirExpr::Literal(Literal::String("hello".into())));
 
-        let has_string_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::String) if *v == var)
-        });
+        let has_string_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::String) if *v == var));
         assert!(has_string_constraint);
     }
 
@@ -922,9 +952,10 @@ mod tests {
         let mut collector = ConstraintCollector::new();
         let var = collector.collect_expr(&HirExpr::Literal(Literal::Bool(true)));
 
-        let has_bool_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Bool) if *v == var)
-        });
+        let has_bool_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Bool) if *v == var));
         assert!(has_bool_constraint);
     }
 
@@ -933,9 +964,10 @@ mod tests {
         let mut collector = ConstraintCollector::new();
         let var = collector.collect_expr(&HirExpr::Literal(Literal::None));
 
-        let has_none_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::None) if *v == var)
-        });
+        let has_none_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::None) if *v == var));
         assert!(has_none_constraint);
     }
 
@@ -945,9 +977,10 @@ mod tests {
         let var = collector.collect_expr(&HirExpr::Literal(Literal::Bytes(vec![1, 2, 3])));
 
         // Bytes maps to String
-        let has_string_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::String) if *v == var)
-        });
+        let has_string_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::String) if *v == var));
         assert!(has_string_constraint);
     }
 
@@ -1046,9 +1079,10 @@ mod tests {
             right: Box::new(HirExpr::Literal(Literal::Int(3))),
         });
 
-        let has_float = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Float) if *v == result)
-        });
+        let has_float = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Float) if *v == result));
         assert!(has_float);
     }
 
@@ -1061,9 +1095,10 @@ mod tests {
             right: Box::new(HirExpr::Var("b".into())),
         });
 
-        let has_bool = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Bool) if *v == result)
-        });
+        let has_bool = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Bool) if *v == result));
         assert!(has_bool);
     }
 
@@ -1076,9 +1111,10 @@ mod tests {
             right: Box::new(HirExpr::Var("b".into())),
         });
 
-        let has_bool = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Bool) if *v == result)
-        });
+        let has_bool = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Bool) if *v == result));
         assert!(has_bool);
     }
 
@@ -1091,9 +1127,10 @@ mod tests {
             right: Box::new(HirExpr::Var("b".into())),
         });
 
-        let has_bool = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Bool) if *v == result)
-        });
+        let has_bool = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Bool) if *v == result));
         assert!(has_bool);
     }
 
@@ -1106,9 +1143,10 @@ mod tests {
             right: Box::new(HirExpr::Var("list".into())),
         });
 
-        let has_bool = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Bool) if *v == result)
-        });
+        let has_bool = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Bool) if *v == result));
         assert!(has_bool);
     }
 
@@ -1122,9 +1160,11 @@ mod tests {
         });
 
         // Should have 3 Bool constraints (left, right, result)
-        let bool_count = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Instance(_, Type::Bool))
-        }).count();
+        let bool_count = collector
+            .constraints()
+            .iter()
+            .filter(|c| matches!(c, Constraint::Instance(_, Type::Bool)))
+            .count();
         assert_eq!(bool_count, 3);
     }
 
@@ -1137,9 +1177,11 @@ mod tests {
             right: Box::new(HirExpr::Var("b".into())),
         });
 
-        let bool_count = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Instance(_, Type::Bool))
-        }).count();
+        let bool_count = collector
+            .constraints()
+            .iter()
+            .filter(|c| matches!(c, Constraint::Instance(_, Type::Bool)))
+            .count();
         assert_eq!(bool_count, 3);
     }
 
@@ -1152,9 +1194,11 @@ mod tests {
             right: Box::new(HirExpr::Var("b".into())),
         });
 
-        let int_count = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Instance(_, Type::Int))
-        }).count();
+        let int_count = collector
+            .constraints()
+            .iter()
+            .filter(|c| matches!(c, Constraint::Instance(_, Type::Int)))
+            .count();
         assert_eq!(int_count, 3);
     }
 
@@ -1167,9 +1211,11 @@ mod tests {
             right: Box::new(HirExpr::Var("b".into())),
         });
 
-        let int_count = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Instance(_, Type::Int))
-        }).count();
+        let int_count = collector
+            .constraints()
+            .iter()
+            .filter(|c| matches!(c, Constraint::Instance(_, Type::Int)))
+            .count();
         assert_eq!(int_count, 3);
     }
 
@@ -1182,9 +1228,11 @@ mod tests {
             right: Box::new(HirExpr::Var("b".into())),
         });
 
-        let int_count = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Instance(_, Type::Int))
-        }).count();
+        let int_count = collector
+            .constraints()
+            .iter()
+            .filter(|c| matches!(c, Constraint::Instance(_, Type::Int)))
+            .count();
         assert_eq!(int_count, 3);
     }
 
@@ -1200,9 +1248,10 @@ mod tests {
             HirExpr::Literal(Literal::Int(2)),
         ]));
 
-        let has_list = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::List(_)) if *v == result)
-        });
+        let has_list = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::List(_)) if *v == result));
         assert!(has_list);
     }
 
@@ -1217,16 +1266,15 @@ mod tests {
     #[test]
     fn test_dict_constraint_with_pairs() {
         let mut collector = ConstraintCollector::new();
-        let result = collector.collect_expr(&HirExpr::Dict(vec![
-            (
-                HirExpr::Literal(Literal::String("key".into())),
-                HirExpr::Literal(Literal::Int(1)),
-            ),
-        ]));
+        let result = collector.collect_expr(&HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".into())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]));
 
-        let has_dict = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Dict(_, _)) if *v == result)
-        });
+        let has_dict = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Dict(_, _)) if *v == result));
         assert!(has_dict);
     }
 
@@ -1245,9 +1293,10 @@ mod tests {
             HirExpr::Literal(Literal::String("hello".into())),
         ]));
 
-        let has_tuple = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(v, Type::Tuple(_)) if *v == result)
-        });
+        let has_tuple = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(v, Type::Tuple(_)) if *v == result));
         assert!(has_tuple);
     }
 
@@ -1275,9 +1324,10 @@ mod tests {
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
 
-        let has_instance = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::Int))
-        });
+        let has_instance = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::Int)));
         assert!(has_instance);
     }
 
@@ -1347,9 +1397,10 @@ mod tests {
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
 
-        let has_bool = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::Bool))
-        });
+        let has_bool = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::Bool)));
         assert!(has_bool);
     }
 
@@ -1394,9 +1445,10 @@ mod tests {
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
 
-        let has_bool = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::Bool))
-        });
+        let has_bool = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::Bool)));
         assert!(has_bool);
     }
 
@@ -1488,9 +1540,10 @@ mod tests {
             index: Box::new(HirExpr::Var("i".into())),
         });
 
-        let has_int = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::Int))
-        });
+        let has_int = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::Int)));
         assert!(has_int);
     }
 
@@ -1540,9 +1593,10 @@ mod tests {
             orelse: Box::new(HirExpr::Literal(Literal::Int(2))),
         });
 
-        let has_bool = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::Bool))
-        });
+        let has_bool = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::Bool)));
         assert!(has_bool);
     }
 
@@ -1555,9 +1609,10 @@ mod tests {
             orelse: Box::new(HirExpr::Var("b".into())),
         });
 
-        let has_equality = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Equality(_, _))
-        });
+        let has_equality = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Equality(_, _)));
         assert!(has_equality);
     }
 
@@ -1727,9 +1782,10 @@ mod tests {
         collector.collect_module(&module);
 
         // Should have an Instance constraint for the param
-        let has_instance = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::Int))
-        });
+        let has_instance = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::Int)));
         assert!(has_instance);
     }
 
@@ -1745,16 +1801,21 @@ mod tests {
         let mut collector = ConstraintCollector::new();
         collector.collect_module(&module);
 
-        let has_string = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::String))
-        });
+        let has_string = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::String)));
         assert!(has_string);
     }
 
     #[test]
     fn test_multiple_functions() {
         let func1 = make_test_function("add", vec![("a", Type::Int), ("b", Type::Int)], vec![]);
-        let func2 = make_test_function("concat", vec![("s1", Type::String), ("s2", Type::String)], vec![]);
+        let func2 = make_test_function(
+            "concat",
+            vec![("s1", Type::String), ("s2", Type::String)],
+            vec![],
+        );
 
         let module = HirModule {
             functions: vec![func1, func2],
@@ -1881,9 +1942,11 @@ mod tests {
         ]));
 
         // Should have equality constraints for keys and values
-        let equality_count = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Equality(_, _))
-        }).count();
+        let equality_count = collector
+            .constraints()
+            .iter()
+            .filter(|c| matches!(c, Constraint::Equality(_, _)))
+            .count();
         assert!(equality_count >= 2);
     }
 
@@ -1897,9 +1960,11 @@ mod tests {
         ]));
 
         // Should have 2 equality constraints (b=a, c=a)
-        let equality_count = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Equality(_, _))
-        }).count();
+        let equality_count = collector
+            .constraints()
+            .iter()
+            .filter(|c| matches!(c, Constraint::Equality(_, _)))
+            .count();
         assert_eq!(equality_count, 2);
     }
 
@@ -1918,10 +1983,14 @@ mod tests {
         });
 
         // Base should be constrained to String
-        let has_string_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::String))
-        });
-        assert!(has_string_constraint, "Slice base should be constrained to String");
+        let has_string_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::String)));
+        assert!(
+            has_string_constraint,
+            "Slice base should be constrained to String"
+        );
     }
 
     #[test]
@@ -1935,11 +2004,16 @@ mod tests {
         });
 
         // start, stop, step should be constrained to Int
-        let int_constraints = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Instance(_, Type::Int))
-        }).count();
+        let int_constraints = collector
+            .constraints()
+            .iter()
+            .filter(|c| matches!(c, Constraint::Instance(_, Type::Int)))
+            .count();
         // At least 3 Int constraints (for start, stop, step)
-        assert!(int_constraints >= 3, "Slice indices should be constrained to Int");
+        assert!(
+            int_constraints >= 3,
+            "Slice indices should be constrained to Int"
+        );
     }
 
     #[test]
@@ -1952,10 +2026,14 @@ mod tests {
             kwargs: vec![],
         });
 
-        let has_string_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::String))
-        });
-        assert!(has_string_constraint, "split() receiver should be constrained to String");
+        let has_string_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::String)));
+        assert!(
+            has_string_constraint,
+            "split() receiver should be constrained to String"
+        );
     }
 
     #[test]
@@ -1968,10 +2046,14 @@ mod tests {
             kwargs: vec![],
         });
 
-        let has_string_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::String))
-        });
-        assert!(has_string_constraint, "upper() receiver should be constrained to String");
+        let has_string_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::String)));
+        assert!(
+            has_string_constraint,
+            "upper() receiver should be constrained to String"
+        );
     }
 
     #[test]
@@ -1984,10 +2066,14 @@ mod tests {
             kwargs: vec![],
         });
 
-        let has_list_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::List(_)))
-        });
-        assert!(has_list_constraint, "append() receiver should be constrained to List");
+        let has_list_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::List(_))));
+        assert!(
+            has_list_constraint,
+            "append() receiver should be constrained to List"
+        );
     }
 
     #[test]
@@ -2000,10 +2086,14 @@ mod tests {
             kwargs: vec![],
         });
 
-        let has_list_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::List(_)))
-        });
-        assert!(has_list_constraint, "pop() receiver should be constrained to List");
+        let has_list_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::List(_))));
+        assert!(
+            has_list_constraint,
+            "pop() receiver should be constrained to List"
+        );
     }
 
     #[test]
@@ -2016,10 +2106,14 @@ mod tests {
             kwargs: vec![],
         });
 
-        let has_dict_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::Dict(_, _)))
-        });
-        assert!(has_dict_constraint, "keys() receiver should be constrained to Dict");
+        let has_dict_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::Dict(_, _))));
+        assert!(
+            has_dict_constraint,
+            "keys() receiver should be constrained to Dict"
+        );
     }
 
     #[test]
@@ -2032,10 +2126,14 @@ mod tests {
             kwargs: vec![],
         });
 
-        let has_dict_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::Dict(_, _)))
-        });
-        assert!(has_dict_constraint, "values() receiver should be constrained to Dict");
+        let has_dict_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::Dict(_, _))));
+        assert!(
+            has_dict_constraint,
+            "values() receiver should be constrained to Dict"
+        );
     }
 
     #[test]
@@ -2048,10 +2146,14 @@ mod tests {
             kwargs: vec![],
         });
 
-        let has_set_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::Set(_)))
-        });
-        assert!(has_set_constraint, "add() receiver should be constrained to Set");
+        let has_set_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::Set(_))));
+        assert!(
+            has_set_constraint,
+            "add() receiver should be constrained to Set"
+        );
     }
 
     #[test]
@@ -2065,13 +2167,23 @@ mod tests {
         });
 
         // No type constraints should be added for unknown methods
-        let container_constraints = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Instance(_, Type::String)
-                | Constraint::Instance(_, Type::List(_))
-                | Constraint::Instance(_, Type::Dict(_, _))
-                | Constraint::Instance(_, Type::Set(_)))
-        }).count();
-        assert_eq!(container_constraints, 0, "Unknown method should not add type constraints");
+        let container_constraints = collector
+            .constraints()
+            .iter()
+            .filter(|c| {
+                matches!(
+                    c,
+                    Constraint::Instance(_, Type::String)
+                        | Constraint::Instance(_, Type::List(_))
+                        | Constraint::Instance(_, Type::Dict(_, _))
+                        | Constraint::Instance(_, Type::Set(_))
+                )
+            })
+            .count();
+        assert_eq!(
+            container_constraints, 0,
+            "Unknown method should not add type constraints"
+        );
     }
 
     #[test]
@@ -2085,10 +2197,14 @@ mod tests {
         });
 
         // Should still constrain base to String
-        let has_string_constraint = collector.constraints().iter().any(|c| {
-            matches!(c, Constraint::Instance(_, Type::String))
-        });
-        assert!(has_string_constraint, "Slice with step should still constrain to String");
+        let has_string_constraint = collector
+            .constraints()
+            .iter()
+            .any(|c| matches!(c, Constraint::Instance(_, Type::String)));
+        assert!(
+            has_string_constraint,
+            "Slice with step should still constrain to String"
+        );
     }
 
     #[test]
@@ -2114,10 +2230,16 @@ mod tests {
         });
 
         // Should have multiple String constraints
-        let string_constraints = collector.constraints().iter().filter(|c| {
-            matches!(c, Constraint::Instance(_, Type::String))
-        }).count();
-        assert!(string_constraints >= 2, "Chained string methods should add constraints: got {}", string_constraints);
+        let string_constraints = collector
+            .constraints()
+            .iter()
+            .filter(|c| matches!(c, Constraint::Instance(_, Type::String)))
+            .count();
+        assert!(
+            string_constraints >= 2,
+            "Chained string methods should add constraints: got {}",
+            string_constraints
+        );
 
         // Verify strip_result is used (suppress warning)
         let _ = strip_result;
@@ -2139,18 +2261,16 @@ mod tests {
                 is_vararg: false,
             }],
             ret_type: Type::Unknown,
-            body: vec![
-                HirStmt::Assign {
-                    target: AssignTarget::Symbol("x".into()),
-                    value: HirExpr::Slice {
-                        base: Box::new(HirExpr::Var("s".into())),
-                        start: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
-                        stop: Some(Box::new(HirExpr::Literal(Literal::Int(4)))),
-                        step: None,
-                    },
-                    type_annotation: None, // No explicit annotation
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".into()),
+                value: HirExpr::Slice {
+                    base: Box::new(HirExpr::Var("s".into())),
+                    start: Some(Box::new(HirExpr::Literal(Literal::Int(1)))),
+                    stop: Some(Box::new(HirExpr::Literal(Literal::Int(4)))),
+                    step: None,
                 },
-            ],
+                type_annotation: None, // No explicit annotation
+            }],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
             docstring: None,
@@ -2176,11 +2296,18 @@ mod tests {
         let applied = collector.apply_substitutions(&mut module, &solution);
 
         // Verify: Parameter 's' should be inferred as String (from slicing)
-        assert_eq!(module.functions[0].params[0].ty, Type::String,
-            "Parameter 's' should be inferred as String from slice usage");
+        assert_eq!(
+            module.functions[0].params[0].ty,
+            Type::String,
+            "Parameter 's' should be inferred as String from slice usage"
+        );
 
         // Verify: At least one substitution was applied
-        assert!(applied >= 1, "Should have applied at least 1 substitution, got {}", applied);
+        assert!(
+            applied >= 1,
+            "Should have applied at least 1 substitution, got {}",
+            applied
+        );
     }
 
     #[test]
@@ -2207,8 +2334,11 @@ mod tests {
         let var_types = collector.get_inferred_var_types(&solution);
 
         // Verify 'text' is inferred as String
-        assert_eq!(var_types.get("text"), Some(&Type::String),
-            "Variable 'text' should be inferred as String from split() call");
+        assert_eq!(
+            var_types.get("text"),
+            Some(&Type::String),
+            "Variable 'text' should be inferred as String from split() call"
+        );
     }
 
     #[test]
@@ -2218,13 +2348,11 @@ mod tests {
             name: "test".to_string(),
             params: smallvec![],
             ret_type: Type::Unknown,
-            body: vec![
-                HirStmt::Assign {
-                    target: AssignTarget::Symbol("x".into()),
-                    value: HirExpr::Literal(Literal::Int(42)),
-                    type_annotation: Some(Type::Float), // Explicit annotation
-                },
-            ],
+            body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".into()),
+                value: HirExpr::Literal(Literal::Int(42)),
+                type_annotation: Some(Type::Float), // Explicit annotation
+            }],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
             docstring: None,
@@ -2247,9 +2375,15 @@ mod tests {
         collector.apply_substitutions(&mut module, &solution);
 
         // Verify: Explicit annotation should be preserved
-        if let HirStmt::Assign { type_annotation, .. } = &module.functions[0].body[0] {
-            assert_eq!(*type_annotation, Some(Type::Float),
-                "Explicit type annotation should be preserved");
+        if let HirStmt::Assign {
+            type_annotation, ..
+        } = &module.functions[0].body[0]
+        {
+            assert_eq!(
+                *type_annotation,
+                Some(Type::Float),
+                "Explicit type annotation should be preserved"
+            );
         } else {
             panic!("Expected Assign statement");
         }
@@ -2262,24 +2396,20 @@ mod tests {
             name: "test".to_string(),
             params: smallvec![],
             ret_type: Type::Unknown,
-            body: vec![
-                HirStmt::If {
-                    condition: HirExpr::Literal(Literal::Bool(true)),
-                    then_body: vec![
-                        HirStmt::Assign {
-                            target: AssignTarget::Symbol("x".into()),
-                            value: HirExpr::MethodCall {
-                                object: Box::new(HirExpr::Var("s".into())),
-                                method: "upper".into(),
-                                args: vec![],
-                                kwargs: vec![],
-                            },
-                            type_annotation: None,
-                        },
-                    ],
-                    else_body: None,
-                },
-            ],
+            body: vec![HirStmt::If {
+                condition: HirExpr::Literal(Literal::Bool(true)),
+                then_body: vec![HirStmt::Assign {
+                    target: AssignTarget::Symbol("x".into()),
+                    value: HirExpr::MethodCall {
+                        object: Box::new(HirExpr::Var("s".into())),
+                        method: "upper".into(),
+                        args: vec![],
+                        kwargs: vec![],
+                    },
+                    type_annotation: None,
+                }],
+                else_body: None,
+            }],
             properties: FunctionProperties::default(),
             annotations: TranspilationAnnotations::default(),
             docstring: None,
@@ -2303,7 +2433,10 @@ mod tests {
         let var_types = collector.get_inferred_var_types(&solution);
 
         // Variable 's' should be inferred as String from .upper() call
-        assert_eq!(var_types.get("s"), Some(&Type::String),
-            "Variable 's' should be inferred as String from upper() in nested block");
+        assert_eq!(
+            var_types.get("s"),
+            Some(&Type::String),
+            "Variable 's' should be inferred as String from upper() in nested block"
+        );
     }
 }

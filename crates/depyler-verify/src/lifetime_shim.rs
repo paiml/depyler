@@ -513,13 +513,22 @@ mod tests {
 
     #[test]
     fn test_borrows_conflict() {
-        assert!(borrows_conflict(&BorrowState::MutableBorrow, &BorrowState::Unborrowed));
-        assert!(borrows_conflict(&BorrowState::Unborrowed, &BorrowState::MutableBorrow));
+        assert!(borrows_conflict(
+            &BorrowState::MutableBorrow,
+            &BorrowState::Unborrowed
+        ));
+        assert!(borrows_conflict(
+            &BorrowState::Unborrowed,
+            &BorrowState::MutableBorrow
+        ));
         assert!(borrows_conflict(
             &BorrowState::MutableBorrow,
             &BorrowState::SharedBorrow(1)
         ));
-        assert!(!borrows_conflict(&BorrowState::Unborrowed, &BorrowState::Unborrowed));
+        assert!(!borrows_conflict(
+            &BorrowState::Unborrowed,
+            &BorrowState::Unborrowed
+        ));
         assert!(!borrows_conflict(
             &BorrowState::SharedBorrow(1),
             &BorrowState::SharedBorrow(1)

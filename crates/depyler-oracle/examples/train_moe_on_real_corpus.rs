@@ -2,10 +2,7 @@
 //!
 //! Usage: cargo run --example train_moe_on_real_corpus
 
-use depyler_oracle::{
-    load_real_corpus, train_moe_on_real_corpus,
-    moe_oracle::ExpertDomain,
-};
+use depyler_oracle::{load_real_corpus, moe_oracle::ExpertDomain, train_moe_on_real_corpus};
 use std::collections::HashMap;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -58,13 +55,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let test_cases = [
         ("E0308", "mismatched types expected i32, found String"),
-        ("E0277", "the trait bound `String: AsRef<OsStr>` is not satisfied"),
+        (
+            "E0277",
+            "the trait bound `String: AsRef<OsStr>` is not satisfied",
+        ),
         ("E0425", "cannot find value `foo` in this scope"),
         ("E0599", "no method named `exists` found for type `String`"),
         ("E0609", "no field `x` on type `Value`"),
         ("E0027", "pattern does not mention field `y`"),
         ("E0382", "use of moved value: `data`"),
-        ("E0433", "failed to resolve: use of undeclared crate or module"),
+        (
+            "E0433",
+            "failed to resolve: use of undeclared crate or module",
+        ),
     ];
 
     let mut correct = 0;
@@ -77,8 +80,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         let status = if is_correct { "[PASS]" } else { "[FAIL]" };
-        println!("   {} {} -> {:?} (conf: {:.2})",
-            status, code, result.primary_expert, result.confidence);
+        println!(
+            "   {} {} -> {:?} (conf: {:.2})",
+            status, code, result.primary_expert, result.confidence
+        );
         if let Some(fix) = &result.suggested_fix {
             println!("        Fix: {}", fix);
         }
@@ -86,7 +91,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let accuracy = (correct as f64 / test_cases.len() as f64) * 100.0;
     println!("\n{}", "=".repeat(60));
-    println!("   ACCURACY: {}/{} ({:.1}%)", correct, test_cases.len(), accuracy);
+    println!(
+        "   ACCURACY: {}/{} ({:.1}%)",
+        correct,
+        test_cases.len(),
+        accuracy
+    );
     println!("{}", "=".repeat(60));
 
     Ok(())

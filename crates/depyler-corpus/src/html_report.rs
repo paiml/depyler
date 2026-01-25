@@ -402,7 +402,9 @@ impl HtmlReportGenerator {
         ));
 
         if report.toyota_way_metrics.hansei_items.is_empty() {
-            out.push_str("│    - No lessons recorded                                                    │\n");
+            out.push_str(
+                "│    - No lessons recorded                                                    │\n",
+            );
         } else {
             for item in &report.toyota_way_metrics.hansei_items {
                 out.push_str(&format!("│    - {:<70} │\n", truncate(item, 70)));
@@ -474,7 +476,13 @@ mod tests {
             total_errors: 25,
         };
 
-        CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics)
+        CorpusReport::new(
+            &config,
+            transpile_results,
+            compile_results,
+            taxonomy,
+            statistics,
+        )
     }
 
     #[test]

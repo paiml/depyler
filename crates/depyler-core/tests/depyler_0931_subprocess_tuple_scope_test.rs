@@ -58,7 +58,11 @@ fn compiles(code: &str) -> bool {
 /// Find serde_json rlib in target directories
 fn find_serde_json_rlib() -> Option<String> {
     // Check common locations for serde_json rlib
-    for base in ["target/debug/deps", "../../target/debug/deps", "target/release/deps"] {
+    for base in [
+        "target/debug/deps",
+        "../../target/debug/deps",
+        "target/release/deps",
+    ] {
         if let Ok(entries) = std::fs::read_dir(base) {
             for entry in entries.flatten() {
                 let path = entry.path();
@@ -130,7 +134,11 @@ def run_command(cmd: list) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     // Should properly scope stdout/stderr variables
@@ -166,7 +174,11 @@ def process_output() -> tuple:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     // Variables should be accessible in both branches
@@ -200,7 +212,11 @@ def safe_read(path: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     // 'data' should be accessible in both try and except context
@@ -237,7 +253,11 @@ def start_process(cmd: str) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     // Should handle subprocess.Popen
@@ -272,7 +292,11 @@ def process_with_fallback(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     assert!(
@@ -309,7 +333,11 @@ def nested_handler(x: int) -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
     // Both outer and inner should be properly scoped

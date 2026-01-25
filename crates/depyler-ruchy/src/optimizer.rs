@@ -1914,6 +1914,7 @@ mod tests {
             type_aliases: vec![],
             constants: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
 
         let result = optimizer.optimize_hir(hir.clone());
@@ -1993,19 +1994,17 @@ mod tests {
         let optimizer = RuchyOptimizer::new();
 
         // Create expression with unused variable
-        let expr = RuchyExpr::Block(vec![
-            RuchyExpr::Let {
-                name: "unused".to_string(),
-                value: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
-                body: Box::new(RuchyExpr::Let {
-                    name: "used".to_string(),
-                    value: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
-                    body: Box::new(RuchyExpr::Identifier("used".to_string())),
-                    is_mutable: false,
-                }),
+        let expr = RuchyExpr::Block(vec![RuchyExpr::Let {
+            name: "unused".to_string(),
+            value: Box::new(RuchyExpr::Literal(Literal::Integer(5))),
+            body: Box::new(RuchyExpr::Let {
+                name: "used".to_string(),
+                value: Box::new(RuchyExpr::Literal(Literal::Integer(10))),
+                body: Box::new(RuchyExpr::Identifier("used".to_string())),
                 is_mutable: false,
-            },
-        ]);
+            }),
+            is_mutable: false,
+        }]);
 
         let result = optimizer.eliminate_dead_code(expr);
         // The unused let should be eliminated

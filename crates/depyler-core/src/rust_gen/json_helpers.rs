@@ -13,7 +13,10 @@ pub fn is_json_value_type(ty: &Type) -> bool {
 
 /// Check if a type name indicates JSON value type
 pub fn is_json_value_type_name(type_name: &str) -> bool {
-    matches!(type_name, "serde_json::Value" | "Value" | "Any" | "object" | "unknown")
+    matches!(
+        type_name,
+        "serde_json::Value" | "Value" | "Any" | "object" | "unknown"
+    )
 }
 
 #[cfg(test)]
@@ -27,7 +30,9 @@ mod tests {
 
     #[test]
     fn test_serde_json_value_is_json_value() {
-        assert!(is_json_value_type(&Type::Custom("serde_json::Value".to_string())));
+        assert!(is_json_value_type(&Type::Custom(
+            "serde_json::Value".to_string()
+        )));
     }
 
     #[test]
@@ -67,7 +72,10 @@ mod tests {
 
     #[test]
     fn test_dict_is_not_json_value() {
-        assert!(!is_json_value_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
+        assert!(!is_json_value_type(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int)
+        )));
     }
 
     // Type name tests

@@ -275,7 +275,11 @@ pub fn reciprocal_rank_fusion(
         .collect();
 
     // Sort by RRF score descending
-    results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+    results.sort_by(|a, b| {
+        b.score
+            .partial_cmp(&a.score)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     // Return top-k
     results.truncate(top_k);
@@ -335,7 +339,11 @@ impl HybridRetriever {
     /// # Errors
     ///
     /// Returns error if retriever not fitted.
-    pub fn query(&self, query: &str, top_k: usize) -> Result<Vec<(String, RrfResult)>, OracleError> {
+    pub fn query(
+        &self,
+        query: &str,
+        top_k: usize,
+    ) -> Result<Vec<(String, RrfResult)>, OracleError> {
         if !self.is_fitted {
             return Err(OracleError::Feature(
                 "HybridRetriever not fitted. Call fit() first".to_string(),
@@ -354,11 +362,7 @@ impl HybridRetriever {
         // Map back to documents
         let results: Vec<(String, RrfResult)> = rrf_results
             .into_iter()
-            .filter_map(|r| {
-                self.documents
-                    .get(r.doc_idx)
-                    .map(|doc| (doc.clone(), r))
-            })
+            .filter_map(|r| self.documents.get(r.doc_idx).map(|doc| (doc.clone(), r)))
             .collect();
 
         Ok(results)
@@ -719,7 +723,10 @@ mod tests {
                 .unwrap();
 
         let sim = cosine_similarity(&matrix, 0, &matrix, 1);
-        assert!((sim - 1.0).abs() < 0.001, "Identical vectors should have similarity 1.0");
+        assert!(
+            (sim - 1.0).abs() < 0.001,
+            "Identical vectors should have similarity 1.0"
+        );
     }
 
     #[test]
@@ -728,7 +735,10 @@ mod tests {
             aprender::primitives::Matrix::from_vec(2, 2, vec![1.0, 0.0, 0.0, 1.0]).unwrap();
 
         let sim = cosine_similarity(&matrix, 0, &matrix, 1);
-        assert!((sim - 0.0).abs() < 0.001, "Orthogonal vectors should have similarity 0.0");
+        assert!(
+            (sim - 0.0).abs() < 0.001,
+            "Orthogonal vectors should have similarity 0.0"
+        );
     }
 
     #[test]
@@ -837,5 +847,434 @@ mod tests {
             "Top result should match type mismatch query"
         );
         assert!(top_result.score > 0.0);
+    }
+
+    // ========================================================================
+    // RRF Fusion Edge Case Tests (DEPYLER-HYBRID-001)
+    // ========================================================================
+
+    #[test]
+    fn test_rrf_both_rankings_empty() {
+        let bm25: Vec<(usize, f64)> = vec![];
+        let tfidf: Vec<(usize, f64)> = vec![];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        assert!(result.is_empty(), "Empty rankings should produce empty result");
+    }
+
+    #[test]
+    fn test_rrf_bm25_only_ranking() {
+        let bm25 = vec![(5, 2.5), (3, 1.8), (7, 0.9)];
+        let tfidf: Vec<(usize, f64)> = vec![];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        assert_eq!(result.len(), 3);
+        // Doc 5 should be first (rank 1 in BM25)
+        assert_eq!(result[0].doc_idx, 5);
+        assert_eq!(result[0].bm25_rank, 1);
+        assert_eq!(result[0].tfidf_rank, 0);
+
+        // Verify RRF score: 1/(60 + 1) = ~0.01639
+        let expected_score = 1.0 / (RRF_K + 1.0);
+        assert!((result[0].score - expected_score).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_rrf_tfidf_only_ranking() {
+        let bm25: Vec<(usize, f64)> = vec![];
+        let tfidf = vec![(2, 0.95), (8, 0.75), (1, 0.50)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        assert_eq!(result.len(), 3);
+        // Doc 2 should be first (rank 1 in TF-IDF)
+        assert_eq!(result[0].doc_idx, 2);
+        assert_eq!(result[0].bm25_rank, 0);
+        assert_eq!(result[0].tfidf_rank, 1);
+    }
+
+    #[test]
+    fn test_rrf_tie_breaking_by_earlier_appearance() {
+        // When documents have same RRF score, order depends on hash iteration
+        // But scores should be equal
+        let bm25 = vec![(0, 1.0), (1, 0.5)];
+        let tfidf = vec![(1, 1.0), (0, 0.5)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        // Both docs appear in both rankings
+        // Doc 0: rank 1 in BM25, rank 2 in TF-IDF -> 1/(61) + 1/(62)
+        // Doc 1: rank 2 in BM25, rank 1 in TF-IDF -> 1/(62) + 1/(61)
+        // Scores should be equal!
+        let doc0_score = result.iter().find(|r| r.doc_idx == 0).unwrap().score;
+        let doc1_score = result.iter().find(|r| r.doc_idx == 1).unwrap().score;
+
+        assert!(
+            (doc0_score - doc1_score).abs() < 0.0001,
+            "Symmetric rankings should produce equal scores"
+        );
+    }
+
+    #[test]
+    fn test_rrf_single_document_both_rankings() {
+        let bm25 = vec![(42, 5.0)];
+        let tfidf = vec![(42, 0.99)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].doc_idx, 42);
+        assert_eq!(result[0].bm25_rank, 1);
+        assert_eq!(result[0].tfidf_rank, 1);
+
+        // Score = 1/(60+1) + 1/(60+1) = 2/61
+        let expected = 2.0 / (RRF_K + 1.0);
+        assert!((result[0].score - expected).abs() < 0.0001);
+    }
+
+    #[test]
+    fn test_rrf_top_k_zero_returns_empty() {
+        let bm25 = vec![(0, 1.0), (1, 0.5)];
+        let tfidf = vec![(0, 0.9), (1, 0.4)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 0);
+
+        assert!(result.is_empty(), "top_k=0 should return empty result");
+    }
+
+    #[test]
+    fn test_rrf_top_k_larger_than_corpus() {
+        let bm25 = vec![(0, 1.0), (1, 0.5)];
+        let tfidf = vec![(0, 0.9), (1, 0.4)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 100);
+
+        assert_eq!(result.len(), 2, "Should return all docs when top_k > corpus");
+    }
+
+    #[test]
+    fn test_rrf_preserves_all_unique_docs() {
+        // BM25 has docs 0,1,2 and TF-IDF has docs 2,3,4
+        let bm25 = vec![(0, 1.0), (1, 0.8), (2, 0.6)];
+        let tfidf = vec![(2, 0.95), (3, 0.7), (4, 0.5)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        // Should have 5 unique docs
+        assert_eq!(result.len(), 5);
+
+        let doc_ids: std::collections::HashSet<_> =
+            result.iter().map(|r| r.doc_idx).collect();
+        assert!(doc_ids.contains(&0));
+        assert!(doc_ids.contains(&1));
+        assert!(doc_ids.contains(&2));
+        assert!(doc_ids.contains(&3));
+        assert!(doc_ids.contains(&4));
+    }
+
+    #[test]
+    fn test_rrf_overlapping_doc_ranks_higher() {
+        // Doc 2 appears in both rankings, should rank higher than docs in only one
+        let bm25 = vec![(0, 1.0), (2, 0.5)];
+        let tfidf = vec![(2, 0.9), (1, 0.4)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        // Doc 2: rank 2 in BM25, rank 1 in TF-IDF -> 1/62 + 1/61
+        // Doc 0: rank 1 in BM25 only -> 1/61
+        // Doc 1: rank 2 in TF-IDF only -> 1/62
+        // Doc 2 should be first due to appearing in both
+
+        assert_eq!(result[0].doc_idx, 2, "Doc in both rankings should rank first");
+        assert!(result[0].score > result[1].score);
+    }
+
+    #[test]
+    fn test_rrf_score_calculation_precision() {
+        let bm25 = vec![(0, 1.0), (1, 0.5), (2, 0.3)];
+        let tfidf = vec![(0, 0.9), (1, 0.4), (2, 0.2)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        // Doc 0: rank 1 in both -> 2 * 1/(60+1) = 2/61 = 0.032787...
+        let doc0 = result.iter().find(|r| r.doc_idx == 0).unwrap();
+        let expected_doc0 = 2.0 / 61.0;
+        assert!(
+            (doc0.score - expected_doc0).abs() < 0.00001,
+            "Doc 0 score precision: {} vs {}",
+            doc0.score,
+            expected_doc0
+        );
+
+        // Doc 1: rank 2 in both -> 2 * 1/(60+2) = 2/62 = 0.032258...
+        let doc1 = result.iter().find(|r| r.doc_idx == 1).unwrap();
+        let expected_doc1 = 2.0 / 62.0;
+        assert!(
+            (doc1.score - expected_doc1).abs() < 0.00001,
+            "Doc 1 score precision: {} vs {}",
+            doc1.score,
+            expected_doc1
+        );
+    }
+
+    #[test]
+    fn test_rrf_rank_fields_populated() {
+        let bm25 = vec![(0, 1.0), (1, 0.5)];
+        let tfidf = vec![(1, 0.9), (2, 0.4)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        // Verify rank fields are correctly populated
+        let doc0 = result.iter().find(|r| r.doc_idx == 0).unwrap();
+        assert_eq!(doc0.bm25_rank, 1, "Doc 0 should be rank 1 in BM25");
+        assert_eq!(doc0.tfidf_rank, 0, "Doc 0 should not be in TF-IDF");
+
+        let doc1 = result.iter().find(|r| r.doc_idx == 1).unwrap();
+        assert_eq!(doc1.bm25_rank, 2, "Doc 1 should be rank 2 in BM25");
+        assert_eq!(doc1.tfidf_rank, 1, "Doc 1 should be rank 1 in TF-IDF");
+
+        let doc2 = result.iter().find(|r| r.doc_idx == 2).unwrap();
+        assert_eq!(doc2.bm25_rank, 0, "Doc 2 should not be in BM25");
+        assert_eq!(doc2.tfidf_rank, 2, "Doc 2 should be rank 2 in TF-IDF");
+    }
+
+    #[test]
+    fn test_rrf_large_rank_values() {
+        // Test with documents at high ranks to verify formula handles large k+rank
+        let bm25: Vec<(usize, f64)> = (0..100)
+            .map(|i| (i, 1.0 / (i as f64 + 1.0)))
+            .collect();
+        let tfidf: Vec<(usize, f64)> = vec![];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 100);
+
+        // Doc at rank 100: score = 1/(60+100) = 1/160 = 0.00625
+        let doc99 = result.iter().find(|r| r.doc_idx == 99).unwrap();
+        let expected = 1.0 / (RRF_K + 100.0);
+        assert!(
+            (doc99.score - expected).abs() < 0.00001,
+            "Large rank calculation: {} vs {}",
+            doc99.score,
+            expected
+        );
+    }
+
+    #[test]
+    fn test_rrf_descending_order_guaranteed() {
+        let bm25 = vec![(0, 1.0), (1, 0.9), (2, 0.8), (3, 0.7), (4, 0.6)];
+        let tfidf = vec![(4, 1.0), (3, 0.9), (2, 0.8), (1, 0.7), (0, 0.6)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        // Verify strictly descending order
+        for i in 1..result.len() {
+            assert!(
+                result[i - 1].score >= result[i].score,
+                "Results should be in descending order: {} >= {}",
+                result[i - 1].score,
+                result[i].score
+            );
+        }
+    }
+
+    #[test]
+    fn test_rrf_duplicate_doc_in_same_ranking() {
+        // Edge case: what if BM25 returns same doc twice (shouldn't happen, but test robustness)
+        // The HashMap will deduplicate, keeping last rank
+        let bm25 = vec![(0, 1.0), (0, 0.5)]; // Doc 0 appears twice
+        let tfidf = vec![(1, 0.9)];
+
+        let result = reciprocal_rank_fusion(&bm25, &tfidf, 10);
+
+        // Doc 0 should appear once, with rank 2 (last occurrence)
+        let doc0_count = result.iter().filter(|r| r.doc_idx == 0).count();
+        assert_eq!(doc0_count, 1, "Duplicate should be deduplicated");
+
+        let doc0 = result.iter().find(|r| r.doc_idx == 0).unwrap();
+        assert_eq!(doc0.bm25_rank, 2, "Should use last rank for duplicates");
+    }
+
+    // ========================================================================
+    // BM25 Edge Case Tests (DEPYLER-HYBRID-002)
+    // ========================================================================
+
+    #[test]
+    fn test_bm25_single_document_corpus() {
+        let mut scorer = Bm25Scorer::new();
+        let docs = vec!["only document in corpus"];
+
+        scorer.fit(&docs).unwrap();
+
+        assert_eq!(scorer.num_docs(), 1);
+        assert!(scorer.avg_doc_len() > 0.0);
+
+        let scores = scorer.score("only");
+        assert_eq!(scores.len(), 1);
+        assert!(scores[0].1 > 0.0);
+    }
+
+    #[test]
+    fn test_bm25_empty_query() {
+        let mut scorer = Bm25Scorer::new();
+        let docs = vec!["document one", "document two"];
+        scorer.fit(&docs).unwrap();
+
+        let scores = scorer.score("");
+
+        // Empty query should produce zero scores
+        assert_eq!(scores.len(), 2);
+        assert_eq!(scores[0].1, 0.0);
+        assert_eq!(scores[1].1, 0.0);
+    }
+
+    #[test]
+    fn test_bm25_query_term_not_in_corpus() {
+        let mut scorer = Bm25Scorer::new();
+        let docs = vec!["apple banana cherry", "dog elephant fox"];
+        scorer.fit(&docs).unwrap();
+
+        let scores = scorer.score("zebra xyz unknown");
+
+        // Unknown terms should produce zero scores
+        for (_, score) in &scores {
+            assert_eq!(*score, 0.0, "Unknown terms should produce zero score");
+        }
+    }
+
+    #[test]
+    fn test_bm25_document_length_normalization() {
+        let mut scorer = Bm25Scorer::new();
+        // Short doc vs very long doc, both contain "target"
+        let docs = vec![
+            "target",
+            "target word word word word word word word word word word word",
+        ];
+        scorer.fit(&docs).unwrap();
+
+        let scores = scorer.score("target");
+
+        // Short doc should score higher due to length normalization
+        let short_score = scores.iter().find(|(idx, _)| *idx == 0).unwrap().1;
+        let long_score = scores.iter().find(|(idx, _)| *idx == 1).unwrap().1;
+
+        assert!(
+            short_score > long_score,
+            "Short doc should score higher: {} vs {}",
+            short_score,
+            long_score
+        );
+    }
+
+    #[test]
+    fn test_bm25_term_frequency_saturation() {
+        let mut scorer = Bm25Scorer::new();
+        // Same length docs, different term frequency
+        let docs = vec![
+            "word word word word word word word word word word",
+            "word other text here different content various",
+        ];
+        scorer.fit(&docs).unwrap();
+
+        let scores = scorer.score("word");
+
+        // Doc with more "word" should score higher
+        let high_tf_score = scores.iter().find(|(idx, _)| *idx == 0).unwrap().1;
+        let low_tf_score = scores.iter().find(|(idx, _)| *idx == 1).unwrap().1;
+
+        assert!(
+            high_tf_score > low_tf_score,
+            "High TF doc should score higher"
+        );
+    }
+
+    #[test]
+    fn test_bm25_refit_clears_state() {
+        let mut scorer = Bm25Scorer::new();
+
+        // First fit
+        scorer.fit(&["doc one", "doc two"]).unwrap();
+        assert_eq!(scorer.num_docs(), 2);
+
+        // Second fit should replace state
+        scorer.fit(&["new doc", "another", "third"]).unwrap();
+        assert_eq!(scorer.num_docs(), 3);
+    }
+
+    // ========================================================================
+    // Hybrid Retriever Edge Cases (DEPYLER-HYBRID-003)
+    // ========================================================================
+
+    #[test]
+    fn test_hybrid_retriever_single_doc_corpus() {
+        let mut retriever = HybridRetriever::new();
+        retriever.fit(&["single document"]).unwrap();
+
+        let results = retriever.query("single", 5).unwrap();
+
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0].0, "single document");
+    }
+
+    #[test]
+    fn test_hybrid_retriever_query_not_matching() {
+        let mut retriever = HybridRetriever::new();
+        retriever.fit(&["apple banana", "cherry date"]).unwrap();
+
+        let results = retriever.query("zebra xyz unknown", 5).unwrap();
+
+        // Should still return results, just with low scores
+        assert!(!results.is_empty());
+        // Scores should be very low (near zero)
+        for (_, rrf) in &results {
+            assert!(rrf.score < 0.05, "Non-matching query should have low scores");
+        }
+    }
+
+    #[test]
+    fn test_hybrid_retriever_default_trait() {
+        let retriever = HybridRetriever::default();
+        assert!(!retriever.is_fitted());
+    }
+
+    #[test]
+    fn test_bm25_default_trait() {
+        let scorer = Bm25Scorer::default();
+        assert_eq!(scorer.num_docs(), 0);
+    }
+
+    // ========================================================================
+    // RRF Result Structure Tests (DEPYLER-HYBRID-004)
+    // ========================================================================
+
+    #[test]
+    fn test_rrf_result_clone() {
+        let result = RrfResult {
+            doc_idx: 42,
+            score: 0.5,
+            bm25_rank: 1,
+            tfidf_rank: 2,
+        };
+
+        let cloned = result.clone();
+        assert_eq!(cloned.doc_idx, 42);
+        assert_eq!(cloned.score, 0.5);
+        assert_eq!(cloned.bm25_rank, 1);
+        assert_eq!(cloned.tfidf_rank, 2);
+    }
+
+    #[test]
+    fn test_rrf_result_debug() {
+        let result = RrfResult {
+            doc_idx: 1,
+            score: 0.033,
+            bm25_rank: 1,
+            tfidf_rank: 1,
+        };
+
+        let debug_str = format!("{:?}", result);
+        assert!(debug_str.contains("doc_idx"));
+        assert!(debug_str.contains("score"));
     }
 }

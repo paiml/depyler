@@ -4,7 +4,9 @@ use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline
+        .transpile(code)
+        .unwrap_or_else(|e| format!("ERROR: {}", e))
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -22,22 +24,30 @@ fn transpile_err(code: &str) -> bool {
 
 #[test]
 fn test_for_loop_simple() {
-    assert!(transpile_ok("def f(items: list):\n    for x in items:\n        print(x)"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    for x in items:\n        print(x)"
+    ));
 }
 
 #[test]
 fn test_for_loop_tuple_unpack() {
-    assert!(transpile_ok("def f(items: list):\n    for x, y in items:\n        print(x, y)"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    for x, y in items:\n        print(x, y)"
+    ));
 }
 
 #[test]
 fn test_for_loop_enumerate() {
-    assert!(transpile_ok("def f(items: list):\n    for i, x in enumerate(items):\n        print(i, x)"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    for i, x in enumerate(items):\n        print(i, x)"
+    ));
 }
 
 #[test]
 fn test_for_loop_with_break() {
-    assert!(transpile_ok("def f(items: list):\n    for x in items:\n        if x > 5:\n            break"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    for x in items:\n        if x > 5:\n            break"
+    ));
 }
 
 #[test]
@@ -52,24 +62,32 @@ fn test_for_loop_with_else() {
 
 #[test]
 fn test_for_loop_range() {
-    assert!(transpile_ok("def f(n: int):\n    for i in range(n):\n        print(i)"));
+    assert!(transpile_ok(
+        "def f(n: int):\n    for i in range(n):\n        print(i)"
+    ));
 }
 
 #[test]
 fn test_for_loop_range_start_stop() {
-    assert!(transpile_ok("def f(n: int):\n    for i in range(0, n):\n        print(i)"));
+    assert!(transpile_ok(
+        "def f(n: int):\n    for i in range(0, n):\n        print(i)"
+    ));
 }
 
 #[test]
 fn test_for_loop_range_step() {
-    assert!(transpile_ok("def f(n: int):\n    for i in range(0, n, 2):\n        print(i)"));
+    assert!(transpile_ok(
+        "def f(n: int):\n    for i in range(0, n, 2):\n        print(i)"
+    ));
 }
 
 // ============ While loop variations ============
 
 #[test]
 fn test_while_loop_simple() {
-    assert!(transpile_ok("def f():\n    x = 0\n    while x < 10:\n        x += 1"));
+    assert!(transpile_ok(
+        "def f():\n    x = 0\n    while x < 10:\n        x += 1"
+    ));
 }
 
 #[test]
@@ -84,14 +102,18 @@ fn test_while_loop_with_continue() {
 
 #[test]
 fn test_while_loop_with_else() {
-    assert!(transpile_ok("def f():\n    x = 0\n    while x < 10:\n        x += 1\n    else:\n        print('done')"));
+    assert!(transpile_ok(
+        "def f():\n    x = 0\n    while x < 10:\n        x += 1\n    else:\n        print('done')"
+    ));
 }
 
 // ============ If statement variations ============
 
 #[test]
 fn test_if_simple() {
-    assert!(transpile_ok("def f(x: int):\n    if x > 0:\n        print('positive')"));
+    assert!(transpile_ok(
+        "def f(x: int):\n    if x > 0:\n        print('positive')"
+    ));
 }
 
 #[test]
@@ -185,7 +207,9 @@ fn test_augmented_assignment_xor() {
 
 #[test]
 fn test_try_except_simple() {
-    assert!(transpile_ok("def f():\n    try:\n        x = 1/0\n    except:\n        print('error')"));
+    assert!(transpile_ok(
+        "def f():\n    try:\n        x = 1/0\n    except:\n        print('error')"
+    ));
 }
 
 #[test]
@@ -195,7 +219,9 @@ fn test_try_except_specific() {
 
 #[test]
 fn test_try_except_as() {
-    assert!(transpile_ok("def f():\n    try:\n        x = 1/0\n    except Exception as e:\n        print(e)"));
+    assert!(transpile_ok(
+        "def f():\n    try:\n        x = 1/0\n    except Exception as e:\n        print(e)"
+    ));
 }
 
 #[test]
@@ -210,7 +236,9 @@ fn test_try_except_else() {
 
 #[test]
 fn test_try_finally() {
-    assert!(transpile_ok("def f():\n    try:\n        x = 1\n    finally:\n        print('cleanup')"));
+    assert!(transpile_ok(
+        "def f():\n    try:\n        x = 1\n    finally:\n        print('cleanup')"
+    ));
 }
 
 #[test]
@@ -222,7 +250,9 @@ fn test_try_except_finally() {
 
 #[test]
 fn test_with_simple() {
-    assert!(transpile_ok("def f():\n    with open('file.txt') as f:\n        print(f.read())"));
+    assert!(transpile_ok(
+        "def f():\n    with open('file.txt') as f:\n        print(f.read())"
+    ));
 }
 
 #[test]
@@ -232,7 +262,9 @@ fn test_with_multiple() {
 
 #[test]
 fn test_with_no_as() {
-    assert!(transpile_ok("def f(lock):\n    with lock:\n        print('locked')"));
+    assert!(transpile_ok(
+        "def f(lock):\n    with lock:\n        print('locked')"
+    ));
 }
 
 // ============ Return statement variations ============
@@ -266,12 +298,16 @@ fn test_raise_simple() {
 
 #[test]
 fn test_raise_with_message() {
-    assert!(transpile_ok("def f():\n    raise ValueError('error message')"));
+    assert!(transpile_ok(
+        "def f():\n    raise ValueError('error message')"
+    ));
 }
 
 #[test]
 fn test_raise_bare() {
-    assert!(transpile_ok("def f():\n    try:\n        x = 1\n    except:\n        raise"));
+    assert!(transpile_ok(
+        "def f():\n    try:\n        x = 1\n    except:\n        raise"
+    ));
 }
 
 // ============ Assert statement ============
@@ -283,7 +319,9 @@ fn test_assert_simple() {
 
 #[test]
 fn test_assert_with_message() {
-    assert!(transpile_ok("def f(x: int):\n    assert x > 0, 'x must be positive'"));
+    assert!(transpile_ok(
+        "def f(x: int):\n    assert x > 0, 'x must be positive'"
+    ));
 }
 
 // ============ Pass statement ============
@@ -317,7 +355,9 @@ fn test_global_statement() {
 
 #[test]
 fn test_class_simple() {
-    assert!(transpile_ok("class Foo:\n    def __init__(self):\n        self.x = 0"));
+    assert!(transpile_ok(
+        "class Foo:\n    def __init__(self):\n        self.x = 0"
+    ));
 }
 
 #[test]
@@ -327,12 +367,16 @@ fn test_class_with_method() {
 
 #[test]
 fn test_class_with_class_method() {
-    assert!(transpile_ok("class Foo:\n    @classmethod\n    def create(cls) -> 'Foo':\n        return cls()"));
+    assert!(transpile_ok(
+        "class Foo:\n    @classmethod\n    def create(cls) -> 'Foo':\n        return cls()"
+    ));
 }
 
 #[test]
 fn test_class_with_static_method() {
-    assert!(transpile_ok("class Foo:\n    @staticmethod\n    def helper() -> int:\n        return 42"));
+    assert!(transpile_ok(
+        "class Foo:\n    @staticmethod\n    def helper() -> int:\n        return 42"
+    ));
 }
 
 #[test]
@@ -361,53 +405,71 @@ fn test_dict_augmented_mul() {
 
 #[test]
 fn test_list_comp_in_assignment() {
-    assert!(transpile_ok("def f(items: list):\n    result = [x * 2 for x in items]"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    result = [x * 2 for x in items]"
+    ));
 }
 
 #[test]
 fn test_list_comp_with_if() {
-    assert!(transpile_ok("def f(items: list):\n    result = [x for x in items if x > 0]"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    result = [x for x in items if x > 0]"
+    ));
 }
 
 #[test]
 fn test_list_comp_nested() {
-    assert!(transpile_ok("def f(matrix: list):\n    flat = [x for row in matrix for x in row]"));
+    assert!(transpile_ok(
+        "def f(matrix: list):\n    flat = [x for row in matrix for x in row]"
+    ));
 }
 
 // ============ Dict comprehension statements ============
 
 #[test]
 fn test_dict_comp_in_assignment() {
-    assert!(transpile_ok("def f(items: list):\n    result = {x: x*2 for x in items}"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    result = {x: x*2 for x in items}"
+    ));
 }
 
 #[test]
 fn test_dict_comp_with_if() {
-    assert!(transpile_ok("def f(items: list):\n    result = {x: x*2 for x in items if x > 0}"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    result = {x: x*2 for x in items if x > 0}"
+    ));
 }
 
 // ============ Set comprehension statements ============
 
 #[test]
 fn test_set_comp_in_assignment() {
-    assert!(transpile_ok("def f(items: list):\n    result = {x * 2 for x in items}"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    result = {x * 2 for x in items}"
+    ));
 }
 
 #[test]
 fn test_set_comp_with_if() {
-    assert!(transpile_ok("def f(items: list):\n    result = {x for x in items if x > 0}"));
+    assert!(transpile_ok(
+        "def f(items: list):\n    result = {x for x in items if x > 0}"
+    ));
 }
 
 // ============ Generator expression statements ============
 
 #[test]
 fn test_generator_in_function_call() {
-    assert!(transpile_ok("def f(items: list) -> int:\n    return sum(x for x in items)"));
+    assert!(transpile_ok(
+        "def f(items: list) -> int:\n    return sum(x for x in items)"
+    ));
 }
 
 #[test]
 fn test_generator_with_if() {
-    assert!(transpile_ok("def f(items: list) -> int:\n    return sum(x for x in items if x > 0)"));
+    assert!(transpile_ok(
+        "def f(items: list) -> int:\n    return sum(x for x in items if x > 0)"
+    ));
 }
 
 // ============ Match statement ============
@@ -431,19 +493,25 @@ fn test_import_simple() {
 
 #[test]
 fn test_import_from() {
-    assert!(transpile_ok("from os import path\ndef f():\n    print(path.exists('.'))"));
+    assert!(transpile_ok(
+        "from os import path\ndef f():\n    print(path.exists('.'))"
+    ));
 }
 
 #[test]
 fn test_import_as() {
-    assert!(transpile_ok("import numpy as np\ndef f():\n    x = np.array([1, 2, 3])"));
+    assert!(transpile_ok(
+        "import numpy as np\ndef f():\n    x = np.array([1, 2, 3])"
+    ));
 }
 
 // ============ Function with decorators ============
 
 #[test]
 fn test_function_with_staticmethod() {
-    assert!(transpile_ok("class Foo:\n    @staticmethod\n    def bar() -> int:\n        return 42"));
+    assert!(transpile_ok(
+        "class Foo:\n    @staticmethod\n    def bar() -> int:\n        return 42"
+    ));
 }
 
 // ============ Async variations (if supported) ============
@@ -482,7 +550,9 @@ fn test_variable_annotation_no_value() {
 
 #[test]
 fn test_walrus_in_if_stmt() {
-    assert!(transpile_ok("def f(data: list):\n    if (n := len(data)) > 0:\n        print(n)"));
+    assert!(transpile_ok(
+        "def f(data: list):\n    if (n := len(data)) > 0:\n        print(n)"
+    ));
 }
 
 #[test]
@@ -494,7 +564,9 @@ fn test_walrus_in_while_stmt() {
 
 #[test]
 fn test_floor_div_in_assignment() {
-    assert!(transpile_ok("def f(a: int, b: int) -> int:\n    return a // b"));
+    assert!(transpile_ok(
+        "def f(a: int, b: int) -> int:\n    return a // b"
+    ));
 }
 
 #[test]

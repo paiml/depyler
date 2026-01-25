@@ -981,7 +981,13 @@ pub fn train_moe_on_real_corpus() -> crate::Result<MoeOracle> {
     let synthetic_samples: Vec<(String, String, ErrorCategory)> = combined
         .samples()
         .iter()
-        .map(|s| (extract_error_code(&s.message), s.message.clone(), s.category))
+        .map(|s| {
+            (
+                extract_error_code(&s.message),
+                s.message.clone(),
+                s.category,
+            )
+        })
         .collect();
 
     // Combine all samples
@@ -1022,7 +1028,13 @@ pub fn train_moe_oracle() -> crate::Result<MoeOracle> {
     let samples: Vec<(String, String, ErrorCategory)> = corpus
         .samples()
         .iter()
-        .map(|s| (extract_error_code(&s.message), s.message.clone(), s.category))
+        .map(|s| {
+            (
+                extract_error_code(&s.message),
+                s.message.clone(),
+                s.category,
+            )
+        })
         .collect();
 
     oracle.train(&samples)?;

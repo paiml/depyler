@@ -1,5 +1,4 @@
 #![allow(clippy::assertions_on_constants)]
-
 // DEPYLER-1156: "Noise Floor" Deep Scan
 //
 // Analysis of E0308 type mismatch patterns contributing to compilation failures.
@@ -32,7 +31,6 @@
 //   - expected bool, found String/Option<String>/u8
 //   Root cause: Dict type inference defaulting to wrong value type
 // =========================================================================
-
 #![allow(non_snake_case)] // Test naming convention
 
 use depyler_core::DepylerPipeline;
@@ -46,7 +44,6 @@ fn transpile_python(python: &str) -> anyhow::Result<String> {
 /// Helper to check if transpiled code compiles
 #[allow(dead_code)]
 fn compiles_ok(rust_code: &str) -> bool {
-    
     use std::process::Command;
 
     let tmp_dir = std::env::temp_dir();
