@@ -137,7 +137,9 @@ impl PythonPathVisitor {
         use rustpython_parser::ast::*;
 
         match stmt {
-            Stmt::FunctionDef(StmtFunctionDef { name, args, body, .. }) => {
+            Stmt::FunctionDef(StmtFunctionDef {
+                name, args, body, ..
+            }) => {
                 self.current_path.push("FunctionDef".to_string());
 
                 // Path: FunctionDef -> name
@@ -163,7 +165,9 @@ impl PythonPathVisitor {
 
                 self.current_path.pop();
             }
-            Stmt::AsyncFunctionDef(StmtAsyncFunctionDef { name, args, body, .. }) => {
+            Stmt::AsyncFunctionDef(StmtAsyncFunctionDef {
+                name, args, body, ..
+            }) => {
                 self.current_path.push("AsyncFunctionDef".to_string());
 
                 self.paths.push(PathContext {
@@ -214,7 +218,12 @@ impl PythonPathVisitor {
                 }
                 self.visit_expr(value);
             }
-            Stmt::AnnAssign(StmtAnnAssign { target, value, annotation, .. }) => {
+            Stmt::AnnAssign(StmtAnnAssign {
+                target,
+                value,
+                annotation,
+                ..
+            }) => {
                 if let Expr::Name(ExprName { id, .. }) = target.as_ref() {
                     let ann_type = self.expr_type_name(annotation);
                     self.paths.push(PathContext {
@@ -227,18 +236,21 @@ impl PythonPathVisitor {
                     self.visit_expr(val);
                 }
             }
-            Stmt::Return(StmtReturn { value, .. }) => {
-                if let Some(val) = value {
-                    let val_type = self.expr_type_name(val);
-                    self.paths.push(PathContext {
-                        start_terminal: "Return".to_string(),
-                        path: "return".to_string(),
-                        end_terminal: val_type,
-                    });
-                    self.visit_expr(val);
-                }
+            Stmt::Return(StmtReturn {
+                value: Some(val), ..
+            }) => {
+                let val_type = self.expr_type_name(val);
+                self.paths.push(PathContext {
+                    start_terminal: "Return".to_string(),
+                    path: "return".to_string(),
+                    end_terminal: val_type,
+                });
+                self.visit_expr(val);
             }
-            Stmt::For(StmtFor { target, iter, body, .. }) => {
+            Stmt::Return(StmtReturn { value: None, .. }) => {}
+            Stmt::For(StmtFor {
+                target, iter, body, ..
+            }) => {
                 self.current_path.push("For".to_string());
 
                 if let Expr::Name(ExprName { id, .. }) = target.as_ref() {
@@ -255,7 +267,9 @@ impl PythonPathVisitor {
 
                 self.current_path.pop();
             }
-            Stmt::If(StmtIf { test, body, orelse, .. }) => {
+            Stmt::If(StmtIf {
+                test, body, orelse, ..
+            }) => {
                 self.current_path.push("If".to_string());
                 self.visit_expr(test);
 
@@ -315,7 +329,9 @@ impl PythonPathVisitor {
                     self.visit_expr(arg);
                 }
             }
-            Expr::BinOp(ExprBinOp { left, op, right, .. }) => {
+            Expr::BinOp(ExprBinOp {
+                left, op, right, ..
+            }) => {
                 let op_str = format!("{:?}", op);
                 self.paths.push(PathContext {
                     start_terminal: self.expr_type_name(left),
@@ -323,7 +339,12 @@ impl PythonPathVisitor {
                     end_terminal: self.expr_type_name(right),
                 });
             }
-            Expr::Compare(ExprCompare { left, ops, comparators, .. }) => {
+            Expr::Compare(ExprCompare {
+                left,
+                ops,
+                comparators,
+                ..
+            }) => {
                 if !ops.is_empty() && !comparators.is_empty() {
                     let op_str = format!("{:?}", ops[0]);
                     self.paths.push(PathContext {
@@ -435,7 +456,11 @@ impl<'ast> Visit<'ast> for RustPathVisitor {
                     self.paths.push(PathContext {
                         start_terminal: func_name.clone(),
                         path: "fn|param".to_string(),
-                        end_terminal: format!("{}:{}", param_name, type_str.chars().take(20).collect::<String>()),
+                        end_terminal: format!(
+                            "{}:{}",
+                            param_name,
+                            type_str.chars().take(20).collect::<String>()
+                        ),
                     });
                 }
             }
@@ -509,7 +534,11 @@ impl<'ast> Visit<'ast> for RustPathVisitor {
                 self.paths.push(PathContext {
                     start_terminal: struct_name.clone(),
                     path: "struct|field".to_string(),
-                    end_terminal: format!("{}:{}", field_name, type_str.chars().take(20).collect::<String>()),
+                    end_terminal: format!(
+                        "{}:{}",
+                        field_name,
+                        type_str.chars().take(20).collect::<String>()
+                    ),
                 });
             }
         }
@@ -540,7 +569,11 @@ impl<'ast> Visit<'ast> for RustPathVisitor {
 
         if let syn::Pat::Ident(pat_ident) = &node.pat {
             let var_name = pat_ident.ident.to_string();
-            let mutability = if pat_ident.mutability.is_some() { "mut " } else { "" };
+            let mutability = if pat_ident.mutability.is_some() {
+                "mut "
+            } else {
+                ""
+            };
 
             self.paths.push(PathContext {
                 start_terminal: "let".to_string(),
@@ -739,7 +772,10 @@ impl AstEmbedder {
 
         // Simple bag-of-paths embedding using hash-based features
         for path in paths {
-            let path_str = format!("{}|{}|{}", path.start_terminal, path.path, path.end_terminal);
+            let path_str = format!(
+                "{}|{}|{}",
+                path.start_terminal, path.path, path.end_terminal
+            );
             let hash = self.hash_string(&path_str);
 
             // Distribute hash across embedding dimensions

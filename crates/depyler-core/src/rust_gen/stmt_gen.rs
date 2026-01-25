@@ -9,29 +9,26 @@ use crate::hir::*;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen, ToRustExpr};
 use crate::rust_gen::exception_helpers::extract_exception_type;
 use crate::rust_gen::expr_analysis::{
-    expr_infers_float, expr_produces_depyler_value, is_native_depyler_tuple,
-    extract_kwarg_bool, extract_kwarg_string, extract_string_literal,
-    get_depyler_extraction_for_type, handler_ends_with_exit, is_dict_augassign_pattern,
-    is_dict_index_access, is_dict_with_value_type,
-    is_iterator_producing_expr, is_numpy_value_expr,
-    is_pure_expression, looks_like_option_expr, needs_type_conversion,
-    to_pascal_case,
+    expr_infers_float, expr_produces_depyler_value, extract_kwarg_bool, extract_kwarg_string,
+    extract_string_literal, get_depyler_extraction_for_type, handler_ends_with_exit,
+    is_dict_augassign_pattern, is_dict_index_access, is_dict_with_value_type,
+    is_iterator_producing_expr, is_native_depyler_tuple, is_numpy_value_expr, is_pure_expression,
+    looks_like_option_expr, needs_type_conversion, to_pascal_case,
 };
 use crate::rust_gen::keywords::safe_ident; // DEPYLER-0023: Keyword escaping
-use crate::rust_gen::type_gen::rust_type_to_syn;
-use crate::rust_gen::type_tokens::hir_type_to_tokens; // DEPYLER-1218: Dict type inference
-use crate::rust_gen::type_conversion_helpers::apply_type_conversion; // DEPYLER-0455: Extracted
+use crate::rust_gen::stmt_gen_complex::{is_subcommand_check, try_generate_subcommand_match}; // DEPYLER-COVERAGE-95: Split from stmt_gen
 use crate::rust_gen::truthiness_helpers::{
     is_collection_attr_name, is_collection_generic_base, is_collection_type_name,
     is_collection_var_name, is_dict_var_name, is_option_var_name, is_string_var_name,
 }; // DEPYLER-COVERAGE-95: Use centralized truthiness helpers
+use crate::rust_gen::type_conversion_helpers::apply_type_conversion; // DEPYLER-0455: Extracted
+use crate::rust_gen::type_gen::rust_type_to_syn;
+use crate::rust_gen::type_tokens::hir_type_to_tokens; // DEPYLER-1218: Dict type inference
 use crate::rust_gen::var_analysis::{
-    extract_toplevel_assigned_symbols, extract_walrus_from_condition,
-    find_var_position_in_tuple, is_var_reassigned_in_stmt,
-    is_var_used_as_dict_key_in_stmt, is_var_used_in_stmt,
+    extract_toplevel_assigned_symbols, extract_walrus_from_condition, find_var_position_in_tuple,
+    is_var_reassigned_in_stmt, is_var_used_as_dict_key_in_stmt, is_var_used_in_stmt,
     needs_boxed_dyn_write,
 }; // DEPYLER-0023: Centralized var analysis
-use crate::rust_gen::stmt_gen_complex::{try_generate_subcommand_match, is_subcommand_check}; // DEPYLER-COVERAGE-95: Split from stmt_gen
 use crate::trace_decision;
 use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
@@ -115,8 +112,10 @@ fn infer_collection_element_type_with_ctx(
                 if items.is_empty() {
                     Some(Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)))
                 } else {
-                    let key_type = get_elem_type_recursive(&items[0].0, var_types).unwrap_or(Type::Unknown);
-                    let val_type = get_elem_type_recursive(&items[0].1, var_types).unwrap_or(Type::Unknown);
+                    let key_type =
+                        get_elem_type_recursive(&items[0].0, var_types).unwrap_or(Type::Unknown);
+                    let val_type =
+                        get_elem_type_recursive(&items[0].1, var_types).unwrap_or(Type::Unknown);
                     Some(Type::Dict(Box::new(key_type), Box::new(val_type)))
                 }
             }
@@ -125,9 +124,7 @@ fn infer_collection_element_type_with_ctx(
     }
 
     // Use the recursive helper
-    let get_elem_type = |e: &HirExpr| -> Option<Type> {
-        get_elem_type_recursive(e, var_types)
-    };
+    let get_elem_type = |e: &HirExpr| -> Option<Type> { get_elem_type_recursive(e, var_types) };
 
     // Get type of first element
     let first_type = match get_elem_type(&elems[0]) {
@@ -151,7 +148,9 @@ fn infer_collection_element_type_with_ctx(
 
     if all_same {
         // Check if we need to promote int to float
-        let has_float = elems.iter().any(|e| matches!(get_elem_type(e), Some(Type::Float)));
+        let has_float = elems
+            .iter()
+            .any(|e| matches!(get_elem_type(e), Some(Type::Float)));
         if has_float && matches!(first_type, Type::Int) {
             Type::Float
         } else {
@@ -175,7 +174,8 @@ fn type_to_simple_token(t: &Type) -> proc_macro2::TokenStream {
             quote! { Vec<#inner_token> }
         }
         Type::Tuple(types) => {
-            let tuple_types: Vec<proc_macro2::TokenStream> = types.iter().map(type_to_simple_token).collect();
+            let tuple_types: Vec<proc_macro2::TokenStream> =
+                types.iter().map(type_to_simple_token).collect();
             quote! { (#(#tuple_types),*) }
         }
         Type::Dict(k, v) => {
@@ -199,13 +199,12 @@ fn type_to_vec_annotation(t: &Type) -> Option<proc_macro2::TokenStream> {
         Type::Float => Some(quote! { Vec<f64> }),
         Type::String => Some(quote! { Vec<String> }),
         Type::Bool => Some(quote! { Vec<bool> }),
-        Type::List(inner) => {
-            type_to_vec_annotation(inner).map(|inner_tokens| {
-                quote! { Vec<#inner_tokens> }
-            })
-        }
+        Type::List(inner) => type_to_vec_annotation(inner).map(|inner_tokens| {
+            quote! { Vec<#inner_tokens> }
+        }),
         Type::Tuple(types) => {
-            let tuple_types: Vec<proc_macro2::TokenStream> = types.iter().map(type_to_simple_token).collect();
+            let tuple_types: Vec<proc_macro2::TokenStream> =
+                types.iter().map(type_to_simple_token).collect();
             Some(quote! { Vec<(#(#tuple_types),*)> })
         }
         Type::Unknown | Type::UnificationVar(_) => None,
@@ -327,7 +326,11 @@ pub(crate) fn codegen_expr_stmt(
             {
                 if inner_method == "add_parser" {
                     if let HirExpr::Var(subparsers_var) = inner_obj.as_ref() {
-                        if ctx.argparser_tracker.get_subparsers(subparsers_var).is_some() {
+                        if ctx
+                            .argparser_tracker
+                            .get_subparsers(subparsers_var)
+                            .is_some()
+                        {
                             // Register the subcommand and skip code generation
                             if !inner_args.is_empty() {
                                 let command_name = extract_string_literal(&inner_args[0]);
@@ -725,7 +728,12 @@ pub(crate) fn codegen_return_stmt(
         category = DecisionCategory::TypeMapping,
         name = "return_stmt",
         chosen = "return_expr",
-        alternatives = ["return_unit", "return_result", "return_option", "implicit_return"],
+        alternatives = [
+            "return_unit",
+            "return_result",
+            "return_option",
+            "implicit_return"
+        ],
         confidence = 0.92
     );
 
@@ -749,8 +757,7 @@ pub(crate) fn codegen_return_stmt(
                     || matches!(t, Type::Custom(name) if name == "Any" || name == "object")
                     || matches!(t, Type::List(inner) if matches!(inner.as_ref(), Type::Unknown))
             });
-            if ctx.type_mapper.nasa_mode && has_depyler_related_types
-            {
+            if ctx.type_mapper.nasa_mode && has_depyler_related_types {
                 // DEPYLER-1158: Generate tuple with each element respecting expected type
                 // Use indexed iteration to avoid borrow checker issues with ctx
                 let mut wrapped_elems = Vec::with_capacity(elts.len());
@@ -1098,12 +1105,13 @@ pub(crate) fn codegen_return_stmt(
 
                     let test_tokens = test.to_rust_expr(ctx)?;
                     // DEPYLER-1079: Apply truthiness conversion for collection/string/optional conditions
-                    let test_tokens =
-                        apply_truthiness_conversion(test.as_ref(), test_tokens, ctx);
+                    let test_tokens = apply_truthiness_conversion(test.as_ref(), test_tokens, ctx);
                     let body_tokens = body.to_rust_expr(ctx)?;
 
                     if use_return_keyword {
-                        Ok(quote! { return Ok(if #test_tokens { Some(#body_tokens) } else { None }); })
+                        Ok(
+                            quote! { return Ok(if #test_tokens { Some(#body_tokens) } else { None }); },
+                        )
                     } else {
                         Ok(quote! { Ok(if #test_tokens { Some(#body_tokens) } else { None }) })
                     }
@@ -1180,7 +1188,11 @@ pub(crate) fn codegen_return_stmt(
                 // Final statement in void function: use unit value ()
                 Ok(quote! { () })
             }
-        } else if is_optional_return && !is_none_literal && !is_if_expr_with_none && !is_already_optional {
+        } else if is_optional_return
+            && !is_none_literal
+            && !is_if_expr_with_none
+            && !is_already_optional
+        {
             // Wrap value in Some() for Optional return types
             // DEPYLER-0498: Skip wrapping if if-expr has None arm (handled separately)
             // DEPYLER-0744: Skip wrapping if expression is already Option<T>
@@ -1229,15 +1241,16 @@ pub(crate) fn codegen_return_stmt(
                                 quote! { return #var_ident.as_ref().map(|#val_ident| #body_tokens); },
                             );
                         } else {
-                            return Ok(quote! { #var_ident.as_ref().map(|#val_ident| #body_tokens) });
+                            return Ok(
+                                quote! { #var_ident.as_ref().map(|#val_ident| #body_tokens) },
+                            );
                         }
                     }
                 }
 
                 let test_tokens = test.to_rust_expr(ctx)?;
                 // DEPYLER-1079: Apply truthiness conversion for collection/string/optional conditions
-                let test_tokens =
-                    apply_truthiness_conversion(test.as_ref(), test_tokens, ctx);
+                let test_tokens = apply_truthiness_conversion(test.as_ref(), test_tokens, ctx);
                 let body_tokens = body.to_rust_expr(ctx)?;
 
                 if use_return_keyword {
@@ -1903,10 +1916,35 @@ fn apply_truthiness_conversion(
                 // DEPYLER-0950: Fallback heuristic for self.* when field type is unknown
                 // Common String field names that need !.is_empty() check
                 let string_attr_names = [
-                    "email", "name", "text", "content", "message", "title", "description",
-                    "path", "url", "value", "data", "body", "subject", "address", "filename",
-                    "username", "password", "token", "key", "secret", "label", "output",
-                    "input", "stdout", "stderr", "error", "warning", "info", "debug",
+                    "email",
+                    "name",
+                    "text",
+                    "content",
+                    "message",
+                    "title",
+                    "description",
+                    "path",
+                    "url",
+                    "value",
+                    "data",
+                    "body",
+                    "subject",
+                    "address",
+                    "filename",
+                    "username",
+                    "password",
+                    "token",
+                    "key",
+                    "secret",
+                    "label",
+                    "output",
+                    "input",
+                    "stdout",
+                    "stderr",
+                    "error",
+                    "warning",
+                    "info",
+                    "debug",
                 ];
                 if string_attr_names.contains(&attr.as_str()) {
                     return parse_quote! { !#cond_expr.is_empty() };
@@ -1949,14 +1987,18 @@ fn apply_truthiness_conversion(
                 };
 
                 // Check main parsers
-                let is_optional_in_parser = ctx.argparser_tracker.parsers.values().any(|parser_info| {
-                    parser_info.arguments.iter().any(&check_optional)
-                });
+                let is_optional_in_parser = ctx
+                    .argparser_tracker
+                    .parsers
+                    .values()
+                    .any(|parser_info| parser_info.arguments.iter().any(&check_optional));
 
                 // DEPYLER-0722: Also check subcommands for optional fields
-                let is_optional_in_subcommand = ctx.argparser_tracker.subcommands.values().any(|subcommand_info| {
-                    subcommand_info.arguments.iter().any(&check_optional)
-                });
+                let is_optional_in_subcommand = ctx
+                    .argparser_tracker
+                    .subcommands
+                    .values()
+                    .any(|subcommand_info| subcommand_info.arguments.iter().any(&check_optional));
 
                 let is_optional_field = is_optional_in_parser || is_optional_in_subcommand;
 
@@ -2028,10 +2070,35 @@ fn apply_truthiness_conversion(
             // Pattern: if obj.email, obj.name, obj.text, etc.
             // These are typically String fields that need !.is_empty() check
             let string_attr_names = [
-                "email", "name", "text", "content", "message", "title", "description",
-                "path", "url", "value", "data", "body", "subject", "address", "filename",
-                "username", "password", "token", "key", "secret", "label", "output",
-                "input", "stdout", "stderr", "error", "warning", "info", "debug",
+                "email",
+                "name",
+                "text",
+                "content",
+                "message",
+                "title",
+                "description",
+                "path",
+                "url",
+                "value",
+                "data",
+                "body",
+                "subject",
+                "address",
+                "filename",
+                "username",
+                "password",
+                "token",
+                "key",
+                "secret",
+                "label",
+                "output",
+                "input",
+                "stdout",
+                "stderr",
+                "error",
+                "warning",
+                "info",
+                "debug",
             ];
             if string_attr_names.contains(&attr.as_str()) {
                 return parse_quote! { !#cond_expr.is_empty() };
@@ -2733,10 +2800,7 @@ fn generate_tuple_pattern(targets: &[AssignTarget], body: &[HirStmt]) -> syn::Pa
 }
 
 /// Generate the target pattern for a for loop
-fn generate_for_target_pattern(
-    target: &AssignTarget,
-    body: &[HirStmt],
-) -> Result<syn::Pat> {
+fn generate_for_target_pattern(target: &AssignTarget, body: &[HirStmt]) -> Result<syn::Pat> {
     match target {
         AssignTarget::Symbol(name) => Ok(generate_symbol_pattern(name, body)),
         AssignTarget::Tuple(targets) => Ok(generate_tuple_pattern(targets, body)),
@@ -2864,9 +2928,9 @@ fn extract_iterator_element_type(iter: &HirExpr, ctx: &CodeGenContext) -> Option
                 None
             }
         }
-        HirExpr::Call { func, args, .. } if func == "enumerate" => {
-            args.first().and_then(|arg| extract_enumerate_element_type(arg, ctx))
-        }
+        HirExpr::Call { func, args, .. } if func == "enumerate" => args
+            .first()
+            .and_then(|arg| extract_enumerate_element_type(arg, ctx)),
         HirExpr::MethodCall { object, method, .. } if method == "glob" => {
             extract_glob_element_type(object.as_ref(), ctx)
         }
@@ -2939,7 +3003,8 @@ fn needs_char_to_string_conversion(
     }
 
     if let AssignTarget::Symbol(loop_var_name) = target {
-        body.iter().any(|stmt| is_var_used_as_dict_key_in_stmt(loop_var_name, stmt))
+        body.iter()
+            .any(|stmt| is_var_used_as_dict_key_in_stmt(loop_var_name, stmt))
     } else {
         false
     }
@@ -3187,9 +3252,10 @@ pub(crate) fn codegen_for_stmt(
                 // Python's `for key in dict` iterates over keys only
                 // HashMap's .iter() returns (&K, &V) tuples which don't work with .cloned()
                 // Use .keys().cloned() to get an iterator over cloned keys
-                let is_dict_type = ctx.var_types.get(var_name).is_some_and(|t| {
-                    matches!(t, Type::Dict(_, _))
-                });
+                let is_dict_type = ctx
+                    .var_types
+                    .get(var_name)
+                    .is_some_and(|t| matches!(t, Type::Dict(_, _)));
 
                 if is_dict_type {
                     // DEPYLER-0710: For dicts, iterate over keys only (Python semantics)
@@ -3197,11 +3263,9 @@ pub(crate) fn codegen_for_stmt(
                 } else {
                     // DEPYLER-0836: Check if iterating over a trueno::Vector type
                     // Vector<T> doesn't have .iter() method, it uses .as_slice().iter()
-                    let is_vector_type = ctx.var_types.get(var_name).is_some_and(|t| {
-                        match t {
-                            Type::Custom(name) => name.starts_with("Vector<") || name == "Vector",
-                            _ => false,
-                        }
+                    let is_vector_type = ctx.var_types.get(var_name).is_some_and(|t| match t {
+                        Type::Custom(name) => name.starts_with("Vector<") || name == "Vector",
+                        _ => false,
                     });
 
                     if is_vector_type {
@@ -3351,11 +3415,27 @@ pub(crate) fn codegen_for_stmt(
     let needs_char_to_string = needs_char_to_string_conversion(target, iter, body, ctx);
 
     if needs_enumerate_cast {
-        Ok(generate_enumerate_cast_loop(target, &target_pattern, &iter_expr, body, &body_stmts))
+        Ok(generate_enumerate_cast_loop(
+            target,
+            &target_pattern,
+            &iter_expr,
+            body,
+            &body_stmts,
+        ))
     } else if needs_char_to_string {
-        Ok(generate_char_to_string_loop(target, &target_pattern, &iter_expr, &body_stmts))
+        Ok(generate_char_to_string_loop(
+            target,
+            &target_pattern,
+            &iter_expr,
+            &body_stmts,
+        ))
     } else if csv_yields_results {
-        Ok(generate_csv_result_loop(target, &target_pattern, &iter_expr, &body_stmts))
+        Ok(generate_csv_result_loop(
+            target,
+            &target_pattern,
+            &iter_expr,
+            &body_stmts,
+        ))
     } else {
         Ok(quote! {
             for #target_pattern in #iter_expr {
@@ -3510,7 +3590,11 @@ fn track_csv_reader_mutable(target: &AssignTarget, value: &HirExpr, ctx: &mut Co
 /// Handle None-placeholder assignments (DEPYLER-0440, DEPYLER-0823)
 /// Returns true if the assignment should be skipped (None placeholder)
 #[inline]
-fn handle_none_placeholder(target: &AssignTarget, value: &HirExpr, ctx: &mut CodeGenContext) -> bool {
+fn handle_none_placeholder(
+    target: &AssignTarget,
+    value: &HirExpr,
+    ctx: &mut CodeGenContext,
+) -> bool {
     if let AssignTarget::Symbol(var_name) = target {
         let is_none_literal = matches!(value, HirExpr::Literal(Literal::None));
         let is_mutable = ctx.mutable_vars.contains(var_name);
@@ -3525,7 +3609,13 @@ fn handle_none_placeholder(target: &AssignTarget, value: &HirExpr, ctx: &mut Cod
 /// Track os.environ types (DEPYLER-0479, DEPYLER-0907)
 #[inline]
 fn track_os_environ_type(var_name: &str, value: &HirExpr, ctx: &mut CodeGenContext) {
-    if let HirExpr::MethodCall { object, method, args, .. } = value {
+    if let HirExpr::MethodCall {
+        object,
+        method,
+        args,
+        ..
+    } = value
+    {
         // os.environ.get(key, default) - 2 args means String
         if method == "get" && args.len() == 2 && is_os_environ_attr(object.as_ref()) {
             ctx.var_types.insert(var_name.to_string(), Type::String);
@@ -3542,7 +3632,8 @@ fn track_os_environ_type(var_name: &str, value: &HirExpr, ctx: &mut CodeGenConte
         }
         // os.environ.get(key) - 1 arg means Option<String>
         if method == "get" && args.len() == 1 && is_os_environ_attr(object.as_ref()) {
-            ctx.var_types.insert(var_name.to_string(), Type::Optional(Box::new(Type::String)));
+            ctx.var_types
+                .insert(var_name.to_string(), Type::Optional(Box::new(Type::String)));
         }
     }
 }
@@ -3550,7 +3641,11 @@ fn track_os_environ_type(var_name: &str, value: &HirExpr, ctx: &mut CodeGenConte
 /// Check if expression is os.environ attribute access
 #[inline]
 fn is_os_environ_attr(expr: &HirExpr) -> bool {
-    if let HirExpr::Attribute { value: attr_obj, attr } = expr {
+    if let HirExpr::Attribute {
+        value: attr_obj,
+        attr,
+    } = expr
+    {
         if let HirExpr::Var(module) = attr_obj.as_ref() {
             return module == "os" && attr == "environ";
         }
@@ -3589,7 +3684,8 @@ fn track_deque_constructor(
 #[inline]
 fn get_deque_elem_type(type_annotation: &Option<Type>) -> String {
     if let Some(Type::Generic { base, params }) = type_annotation {
-        if (base == "deque" || base == "collections.deque" || base == "Deque") && !params.is_empty() {
+        if (base == "deque" || base == "collections.deque" || base == "Deque") && !params.is_empty()
+        {
             return type_to_rust_string(&params[0]);
         }
     }
@@ -3621,13 +3717,19 @@ fn track_value_index_type(var_name: &str, base: &HirExpr, ctx: &mut CodeGenConte
         if let Some(base_type) = ctx.var_types.get(base_var) {
             let is_value_type = matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value");
             if is_value_type {
-                ctx.var_types.insert(var_name.to_string(), Type::Custom("serde_json::Value".to_string()));
+                ctx.var_types.insert(
+                    var_name.to_string(),
+                    Type::Custom("serde_json::Value".to_string()),
+                );
                 return;
             }
             if let Type::Dict(_, v) = base_type {
                 let val_is_value = matches!(v.as_ref(), Type::Custom(name) if name == "serde_json::Value" || name == "Value");
                 if val_is_value {
-                    ctx.var_types.insert(var_name.to_string(), Type::Custom("serde_json::Value".to_string()));
+                    ctx.var_types.insert(
+                        var_name.to_string(),
+                        Type::Custom("serde_json::Value".to_string()),
+                    );
                 }
             }
         }
@@ -3684,7 +3786,8 @@ fn handle_argumentparser_constructor(
 ) -> Option<proc_macro2::TokenStream> {
     if let HirExpr::Var(module_name) = object {
         if module_name == "argparse" {
-            let mut info = crate::rust_gen::argparse_transform::ArgParserInfo::new(var_name.to_string());
+            let mut info =
+                crate::rust_gen::argparse_transform::ArgParserInfo::new(var_name.to_string());
             for (key, value_expr) in kwargs {
                 if key == "description" {
                     if let HirExpr::Literal(Literal::String(s)) = value_expr {
@@ -3696,7 +3799,8 @@ fn handle_argumentparser_constructor(
                     }
                 }
             }
-            ctx.argparser_tracker.register_parser(var_name.to_string(), info);
+            ctx.argparser_tracker
+                .register_parser(var_name.to_string(), info);
             return Some(quote! {});
         }
     }
@@ -3728,15 +3832,22 @@ fn handle_argument_group_method(
     object: &HirExpr,
     ctx: &mut CodeGenContext,
 ) -> Option<proc_macro2::TokenStream> {
-    if !matches!(method, "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults") {
+    if !matches!(
+        method,
+        "add_argument_group" | "add_mutually_exclusive_group" | "set_defaults"
+    ) {
         return None;
     }
     if let HirExpr::Var(parent_var) = object {
         let is_parser_or_group = ctx.argparser_tracker.get_parser(parent_var).is_some()
-            || ctx.argparser_tracker.get_parser_for_group(parent_var).is_some();
+            || ctx
+                .argparser_tracker
+                .get_parser_for_group(parent_var)
+                .is_some();
         if is_parser_or_group {
             if let AssignTarget::Symbol(group_var) = target {
-                ctx.argparser_tracker.register_group(group_var.clone(), parent_var.clone());
+                ctx.argparser_tracker
+                    .register_group(group_var.clone(), parent_var.clone());
             }
             return Some(quote! {});
         }
@@ -3754,7 +3865,8 @@ fn handle_add_subparsers_call(
 ) -> Option<proc_macro2::TokenStream> {
     if let HirExpr::Var(parser_var) = object {
         if ctx.argparser_tracker.get_parser(parser_var).is_some() {
-            let dest_field = extract_kwarg_string(kwargs, "dest").unwrap_or_else(|| "command".to_string());
+            let dest_field =
+                extract_kwarg_string(kwargs, "dest").unwrap_or_else(|| "command".to_string());
             let required = extract_kwarg_bool(kwargs, "required").unwrap_or(false);
             let help = extract_kwarg_string(kwargs, "help");
             if let AssignTarget::Symbol(subparsers_var) = target {
@@ -3785,7 +3897,12 @@ fn handle_add_parser_call(
     ctx: &mut CodeGenContext,
 ) -> Option<proc_macro2::TokenStream> {
     if let HirExpr::Var(subparsers_var) = object {
-        if ctx.argparser_tracker.get_subparsers(subparsers_var).is_some() && !args.is_empty() {
+        if ctx
+            .argparser_tracker
+            .get_subparsers(subparsers_var)
+            .is_some()
+            && !args.is_empty()
+        {
             let command_name = extract_string_literal(&args[0]);
             let help = extract_kwarg_string(kwargs, "help");
             if let AssignTarget::Symbol(subcommand_var) = target {
@@ -3802,7 +3919,9 @@ fn handle_add_parser_call(
                         },
                     );
                 }
-                ctx.argparser_tracker.subcommand_var_to_cmd.insert(subcommand_var.clone(), cmd_name);
+                ctx.argparser_tracker
+                    .subcommand_var_to_cmd
+                    .insert(subcommand_var.clone(), cmd_name);
             }
             return Some(quote! {});
         }
@@ -3884,8 +4003,23 @@ pub(crate) fn codegen_assign_stmt(
 
     // DEPYLER-REFACTOR: Use extracted helper for ArgumentParser patterns
     if let AssignTarget::Symbol(var_name) = target {
-        if let HirExpr::MethodCall { method, object, args, kwargs, .. } = value {
-            if let Some(result) = handle_argparser_method_call(target, var_name, method, object.as_ref(), args, kwargs, ctx) {
+        if let HirExpr::MethodCall {
+            method,
+            object,
+            args,
+            kwargs,
+            ..
+        } = value
+        {
+            if let Some(result) = handle_argparser_method_call(
+                target,
+                var_name,
+                method,
+                object.as_ref(),
+                args,
+                kwargs,
+                ctx,
+            ) {
                 return Ok(result);
             }
         }
@@ -3943,7 +4077,12 @@ pub(crate) fn codegen_assign_stmt(
                 // causing `capitalize_words(text)` to miss the `&` borrow.
                 // DEPYLER-1219: Added Type::Optional to track when variables are already Option<T>
                 // This prevents double wrapping in return statements (Some(Some(x)))
-                Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_) | Type::String | Type::Optional(_) => {
+                Type::List(_)
+                | Type::Dict(_, _)
+                | Type::Set(_)
+                | Type::Tuple(_)
+                | Type::String
+                | Type::Optional(_) => {
                     ctx.var_types.insert(var_name.clone(), annot_type.clone());
                 }
                 _ => {}
@@ -3985,7 +4124,17 @@ pub(crate) fn codegen_assign_stmt(
                         .insert(var_name.clone(), Type::Set(Box::new(elem_type)));
                 }
                 // DEPYLER-REFACTOR: Use extracted helper for deque/Queue tracking
-                else if matches!(func.as_str(), "deque" | "collections.deque" | "Deque" | "Queue" | "LifoQueue" | "PriorityQueue" | "heappush" | "heapify") {
+                else if matches!(
+                    func.as_str(),
+                    "deque"
+                        | "collections.deque"
+                        | "Deque"
+                        | "Queue"
+                        | "LifoQueue"
+                        | "PriorityQueue"
+                        | "heappush"
+                        | "heapify"
+                ) {
                     track_deque_constructor(var_name, func, type_annotation, ctx);
                 }
                 // DEPYLER-0269: Track user-defined function return types
@@ -3993,7 +4142,10 @@ pub(crate) fn codegen_assign_stmt(
                 // Enables: result = merge(&a, &b) where merge returns list[int]
                 // DEPYLER-0709: Also track Tuple return types for correct field access (.0, .1)
                 else if let Some(ret_type) = ctx.function_return_types.get(func) {
-                    if matches!(ret_type, Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)) {
+                    if matches!(
+                        ret_type,
+                        Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)
+                    ) {
                         ctx.var_types.insert(var_name.clone(), ret_type.clone());
                     }
                 }
@@ -4052,11 +4204,12 @@ pub(crate) fn codegen_assign_stmt(
                 // don't overwrite it with Unknown. This protects the Oracle's wisdom from local inference.
                 // DEPYLER-1207: Fixed pattern matching bug - use **existing_elem to dereference Box
                 let should_update = match ctx.var_types.get(var_name) {
-                    None => true, // No existing type, safe to insert
+                    None => true,                // No existing type, safe to insert
                     Some(Type::Unknown) => true, // Unknown can be overwritten
                     Some(Type::List(existing_elem)) => {
                         // Only overwrite if existing element type is Unknown AND new type is concrete
-                        matches!(**existing_elem, Type::Unknown) && !matches!(elem_type, Type::Unknown)
+                        matches!(**existing_elem, Type::Unknown)
+                            && !matches!(elem_type, Type::Unknown)
                     }
                     _ => false, // Don't overwrite any other concrete type with a list type
                 };
@@ -4071,28 +4224,29 @@ pub(crate) fn codegen_assign_stmt(
                 // When info = {"a": 1}, mark info as Dict(String, Int) so it gets borrowed
                 // DEPYLER-0560: Check function return type for Dict[str, Any] pattern
                 // DEPYLER-1219: Preserve Optional wrapper when annotation is Optional[Dict[...]]
-                let (key_type, val_type, is_optional) = if let Some(Type::Dict(k, v)) = type_annotation {
-                    (k.as_ref().clone(), v.as_ref().clone(), false)
-                } else if let Some(Type::Optional(inner)) = type_annotation {
-                    // Handle Optional[Dict[K, V]] - extract types but preserve Optional wrapper
-                    if let Type::Dict(k, v) = inner.as_ref() {
-                        (k.as_ref().clone(), v.as_ref().clone(), true)
+                let (key_type, val_type, is_optional) =
+                    if let Some(Type::Dict(k, v)) = type_annotation {
+                        (k.as_ref().clone(), v.as_ref().clone(), false)
+                    } else if let Some(Type::Optional(inner)) = type_annotation {
+                        // Handle Optional[Dict[K, V]] - extract types but preserve Optional wrapper
+                        if let Type::Dict(k, v) = inner.as_ref() {
+                            (k.as_ref().clone(), v.as_ref().clone(), true)
+                        } else {
+                            (Type::Unknown, Type::Unknown, true)
+                        }
+                    } else if let Some(Type::Dict(k, v)) = &ctx.current_return_type {
+                        // Use return type's dict value type (handles Dict[str, Any] → Unknown)
+                        (k.as_ref().clone(), v.as_ref().clone(), false)
+                    } else if !items.is_empty() {
+                        // DEPYLER-1143: Use Unknown value type for dicts without annotation
+                        // This allows dict_has_mixed_types to properly detect heterogeneous dicts
+                        // and use DepylerValue for argparse result dicts like:
+                        //   result = {"name": args.name, "debug": args.debug}  # String + bool
+                        // Using Type::Int here would incorrectly trigger target_has_concrete_value_type
+                        (Type::String, Type::Unknown, false)
                     } else {
-                        (Type::Unknown, Type::Unknown, true)
-                    }
-                } else if let Some(Type::Dict(k, v)) = &ctx.current_return_type {
-                    // Use return type's dict value type (handles Dict[str, Any] → Unknown)
-                    (k.as_ref().clone(), v.as_ref().clone(), false)
-                } else if !items.is_empty() {
-                    // DEPYLER-1143: Use Unknown value type for dicts without annotation
-                    // This allows dict_has_mixed_types to properly detect heterogeneous dicts
-                    // and use DepylerValue for argparse result dicts like:
-                    //   result = {"name": args.name, "debug": args.debug}  # String + bool
-                    // Using Type::Int here would incorrectly trigger target_has_concrete_value_type
-                    (Type::String, Type::Unknown, false)
-                } else {
-                    (Type::Unknown, Type::Unknown, false)
-                };
+                        (Type::Unknown, Type::Unknown, false)
+                    };
                 // DEPYLER-1219: Insert with Optional wrapper if annotation was Optional[Dict[...]]
                 let dict_type = Type::Dict(Box::new(key_type), Box::new(val_type));
                 let final_type = if is_optional {
@@ -4182,7 +4336,12 @@ pub(crate) fn codegen_assign_stmt(
             }
             // DEPYLER-0327 Fix #1: Track types for method call results
             // E.g., value_str = data.get(...) where data: Vec<String> → value_str: String
-            HirExpr::MethodCall { object, method, args, .. } => {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                ..
+            } => {
                 // Track .get() on Vec<String> returning String
                 if method == "get" {
                     if let HirExpr::Var(obj_var) = object.as_ref() {
@@ -4288,13 +4447,15 @@ pub(crate) fn codegen_assign_stmt(
         if let AssignTarget::Symbol(var_name) = target {
             // Check if variable is tracked as Value type
             if let Some(var_type) = ctx.var_types.get(var_name) {
-                if matches!(var_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
+                if matches!(var_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value")
+                {
                     ctx.in_json_context = true;
                 }
             }
             // Also check type annotation
             if let Some(annot) = type_annotation {
-                if matches!(annot, Type::Custom(name) if name == "serde_json::Value" || name == "Value" || name == "Any" || name == "any") {
+                if matches!(annot, Type::Custom(name) if name == "serde_json::Value" || name == "Value" || name == "Any" || name == "any")
+                {
                     ctx.in_json_context = true;
                 }
             }
@@ -4305,14 +4466,19 @@ pub(crate) fn codegen_assign_stmt(
             if let HirExpr::Var(base_name) = base.as_ref() {
                 // DEPYLER-0713: Check if base is typed as Value
                 if let Some(base_type) = ctx.var_types.get(base_name) {
-                    if matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value") {
+                    if matches!(base_type, Type::Custom(name) if name == "serde_json::Value" || name == "Value")
+                    {
                         ctx.in_json_context = true;
                     }
                     // Check if it's a HashMap with Value values OR Unknown values
                     if let Type::Dict(_, v) = base_type {
                         let val_is_json = match v.as_ref() {
                             Type::Unknown => true,
-                            Type::Custom(name) if name == "serde_json::Value" || name == "Value" => true,
+                            Type::Custom(name)
+                                if name == "serde_json::Value" || name == "Value" =>
+                            {
+                                true
+                            }
                             _ => false,
                         };
                         if val_is_json {
@@ -4440,7 +4606,8 @@ pub(crate) fn codegen_assign_stmt(
         if let Some(return_type_str) = ctx.last_external_call_return_type.take() {
             // Map the external type string to a Type
             // For now, use Type::Custom with the full qualified name
-            ctx.var_types.insert(var_name.clone(), Type::Custom(return_type_str));
+            ctx.var_types
+                .insert(var_name.clone(), Type::Custom(return_type_str));
         }
     }
 
@@ -4543,7 +4710,10 @@ pub(crate) fn codegen_assign_stmt(
                 if let HirExpr::Call { func, args, .. } = value {
                     if func == "list" && args.len() == 1 {
                         // Check if argument is range() - produces integers
-                        if let HirExpr::Call { func: inner_func, .. } = &args[0] {
+                        if let HirExpr::Call {
+                            func: inner_func, ..
+                        } = &args[0]
+                        {
                             if inner_func == "range" {
                                 Some(Type::List(Box::new(Type::Int)))
                             } else {
@@ -4592,8 +4762,10 @@ pub(crate) fn codegen_assign_stmt(
         // This ensures is_none() and print() calls handle the variable correctly
         if needs_option_wrap {
             if let AssignTarget::Symbol(var_name) = target {
-                ctx.var_types
-                    .insert(var_name.clone(), Type::Optional(Box::new(actual_type.clone())));
+                ctx.var_types.insert(
+                    var_name.clone(),
+                    Type::Optional(Box::new(actual_type.clone())),
+                );
             }
         }
 
@@ -4702,7 +4874,10 @@ pub(crate) fn codegen_assign_stmt(
                     if let Some(ty) = var_dict_type.or(return_dict_type) {
                         (Some(ty), false)
                     } else {
-                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                        (
+                            Some(quote! { : std::collections::HashMap<String, DepylerValue> }),
+                            false,
+                        )
                     }
                 }
                 // Dict literal with entries: infer from usage or default to DepylerValue values
@@ -4751,7 +4926,10 @@ pub(crate) fn codegen_assign_stmt(
                     if let Some(ty) = var_dict_type.or(return_dict_type) {
                         (Some(ty), false)
                     } else {
-                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                        (
+                            Some(quote! { : std::collections::HashMap<String, DepylerValue> }),
+                            false,
+                        )
                     }
                 }
                 // Dict comprehension: `x = {k: v for ...}` → infer from return type or default
@@ -4778,7 +4956,10 @@ pub(crate) fn codegen_assign_stmt(
                     if let Some(ty) = var_dict_type.or(return_dict_type) {
                         (Some(ty), false)
                     } else {
-                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                        (
+                            Some(quote! { : std::collections::HashMap<String, DepylerValue> }),
+                            false,
+                        )
                     }
                 }
                 // Empty list literal: `x = []` - DEPYLER-1206 Smart type inference
@@ -4823,19 +5004,21 @@ pub(crate) fn codegen_assign_stmt(
                         Some(Type::Bool) => (Some(quote! { : Vec<bool> }), false),
                         Some(Type::Tuple(types)) => {
                             // For List[Tuple[...]], generate Vec<(T1, T2, ...)>
-                            let tuple_types: Vec<proc_macro2::TokenStream> = types.iter().map(|t| {
-                                match t {
+                            let tuple_types: Vec<proc_macro2::TokenStream> = types
+                                .iter()
+                                .map(|t| match t {
                                     Type::String => quote! { String },
                                     Type::Int => quote! { i32 },
                                     Type::Float => quote! { f64 },
                                     Type::Bool => quote! { bool },
                                     Type::Custom(name) => {
-                                        let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                                        let ident =
+                                            syn::Ident::new(name, proc_macro2::Span::call_site());
                                         quote! { #ident }
                                     }
                                     _ => quote! { DepylerValue },
-                                }
-                            }).collect();
+                                })
+                                .collect();
                             (Some(quote! { : Vec<(#(#tuple_types),*)> }), false)
                         }
                         Some(Type::Custom(name)) => {
@@ -4867,9 +5050,8 @@ pub(crate) fn codegen_assign_stmt(
                         }
                         // DEPYLER-1313: Handle tuples in lists - generate Vec<(T1, T2, ...)>
                         Type::Tuple(types) => {
-                            let tuple_types: Vec<proc_macro2::TokenStream> = types.iter().map(|t| {
-                                type_to_simple_token(t)
-                            }).collect();
+                            let tuple_types: Vec<proc_macro2::TokenStream> =
+                                types.iter().map(type_to_simple_token).collect();
                             (Some(quote! { : Vec<(#(#tuple_types),*)> }), false)
                         }
                         _ => {
@@ -4959,18 +5141,20 @@ pub(crate) fn codegen_assign_stmt(
                         Type::Bool => (Some(quote! { : std::collections::HashSet<bool> }), false),
                         _ => {
                             // Unknown or mixed types - fall back to DepylerValue
-                            (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
+                            (
+                                Some(quote! { : std::collections::HashSet<DepylerValue> }),
+                                false,
+                            )
                         }
                     }
                 }
                 // Set comprehension: `x = {v for ...}` → `HashSet<DepylerValue>`
-                HirExpr::SetComp { .. } => {
-                    (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
-                }
+                HirExpr::SetComp { .. } => (
+                    Some(quote! { : std::collections::HashSet<DepylerValue> }),
+                    false,
+                ),
                 // Generator expression assigned to variable: force Vec<DepylerValue>
-                HirExpr::GeneratorExp { .. } => {
-                    (Some(quote! { : Vec<DepylerValue> }), false)
-                }
+                HirExpr::GeneratorExp { .. } => (Some(quote! { : Vec<DepylerValue> }), false),
                 // DEPYLER-1167: set() call with list argument - infer element type from list
                 // `x = set([1, 2, 3])` → `HashSet<i32>` if all ints (NOT HashSet<DepylerValue>)
                 // This prevents E0308 type mismatch between HashSet<DepylerValue> and HashSet<{integer}>
@@ -4979,15 +5163,27 @@ pub(crate) fn codegen_assign_stmt(
                     // If set() has a list argument, infer element type from the list
                     if args.len() == 1 {
                         if let HirExpr::List(elems) = &args[0] {
-                            let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
+                            let elem_type =
+                                infer_collection_element_type_with_ctx(elems, &ctx.var_types);
                             match elem_type {
-                                Type::Int => (Some(quote! { : std::collections::HashSet<i32> }), false),
-                                Type::Float => (Some(quote! { : std::collections::HashSet<f64> }), false),
-                                Type::String => (Some(quote! { : std::collections::HashSet<String> }), false),
-                                Type::Bool => (Some(quote! { : std::collections::HashSet<bool> }), false),
+                                Type::Int => {
+                                    (Some(quote! { : std::collections::HashSet<i32> }), false)
+                                }
+                                Type::Float => {
+                                    (Some(quote! { : std::collections::HashSet<f64> }), false)
+                                }
+                                Type::String => {
+                                    (Some(quote! { : std::collections::HashSet<String> }), false)
+                                }
+                                Type::Bool => {
+                                    (Some(quote! { : std::collections::HashSet<bool> }), false)
+                                }
                                 _ => {
                                     // Mixed or unknown types - fall back to DepylerValue
-                                    (Some(quote! { : std::collections::HashSet<DepylerValue> }), false)
+                                    (
+                                        Some(quote! { : std::collections::HashSet<DepylerValue> }),
+                                        false,
+                                    )
                                 }
                             }
                         } else {
@@ -5005,7 +5201,10 @@ pub(crate) fn codegen_assign_stmt(
                 HirExpr::Call { func, args, .. } if func == "list" => {
                     if args.len() == 1 {
                         // Check if argument is range()
-                        if let HirExpr::Call { func: inner_func, .. } = &args[0] {
+                        if let HirExpr::Call {
+                            func: inner_func, ..
+                        } = &args[0]
+                        {
                             if inner_func == "range" {
                                 // range() produces integers
                                 (Some(quote! { : Vec<i32> }), false)
@@ -5015,7 +5214,8 @@ pub(crate) fn codegen_assign_stmt(
                             }
                         } else if let HirExpr::List(elems) = &args[0] {
                             // list([1, 2, 3]) - infer from elements
-                            let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
+                            let elem_type =
+                                infer_collection_element_type_with_ctx(elems, &ctx.var_types);
                             match elem_type {
                                 Type::Int => (Some(quote! { : Vec<i32> }), false),
                                 Type::Float => (Some(quote! { : Vec<f64> }), false),
@@ -5033,7 +5233,7 @@ pub(crate) fn codegen_assign_stmt(
                     }
                 }
                 // Default: let Rust infer if possible
-                _ => (None, false)
+                _ => (None, false),
             }
         } else {
             (None, false)
@@ -5096,15 +5296,29 @@ pub(crate) fn codegen_assign_stmt(
                     if let Some(val_type) = get_subscript_value_type(base.as_ref(), ctx) {
                         // Value type is Dict or Unknown/DepylerValue → skip format wrapping
                         // DepylerValue dicts handle nested dicts via DepylerValue::Dict later
-                        matches!(val_type, Type::Dict(_, _) | Type::Unknown | Type::UnificationVar(_))
+                        matches!(
+                            val_type,
+                            Type::Dict(_, _) | Type::Unknown | Type::UnificationVar(_)
+                        )
                     } else if let HirExpr::Var(base_name) = &**base {
                         // Fallback: direct Var check for simple cases
                         ctx.var_types.get(base_name).is_some_and(|t| {
                             match t {
                                 // Dict[K, Dict[...]] - skip wrapping
-                                Type::Dict(_, val_type) if matches!(val_type.as_ref(), Type::Dict(_, _)) => true,
+                                Type::Dict(_, val_type)
+                                    if matches!(val_type.as_ref(), Type::Dict(_, _)) =>
+                                {
+                                    true
+                                }
                                 // Dict[K, Unknown] or Dict[K, DepylerValue-like] - skip wrapping
-                                Type::Dict(_, val_type) if matches!(val_type.as_ref(), Type::Unknown | Type::UnificationVar(_)) => true,
+                                Type::Dict(_, val_type)
+                                    if matches!(
+                                        val_type.as_ref(),
+                                        Type::Unknown | Type::UnificationVar(_)
+                                    ) =>
+                                {
+                                    true
+                                }
                                 _ => false,
                             }
                         })
@@ -5135,7 +5349,9 @@ pub(crate) fn codegen_assign_stmt(
             codegen_assign_symbol(symbol, value_expr, type_annotation_tokens, is_final, ctx)
         }
         // DEPYLER-1203: Pass original HirExpr for type-based DepylerValue wrapping
-        AssignTarget::Index { base, index } => codegen_assign_index(base, index, value_expr, value, ctx),
+        AssignTarget::Index { base, index } => {
+            codegen_assign_index(base, index, value_expr, value, ctx)
+        }
         AssignTarget::Attribute { value, attr } => {
             codegen_assign_attribute(value, attr, value_expr, ctx)
         }
@@ -5593,7 +5809,9 @@ pub(crate) fn codegen_assign_index(
     // DEPYLER-0560: Also wrap when dict value type is serde_json::Value
     // DEPYLER-1017: Skip serde_json in NASA mode
     // Check if value needs wrapping (not already json!() or Value variant)
-    let final_value_expr = if (needs_as_object_mut || needs_json_value_wrap) && !ctx.type_mapper.nasa_mode {
+    let final_value_expr = if (needs_as_object_mut || needs_json_value_wrap)
+        && !ctx.type_mapper.nasa_mode
+    {
         // Check if value_expr is already a json!() or Value expression
         let value_str = quote! { #value_expr }.to_string();
         if value_str.contains("serde_json :: json !") || value_str.contains("serde_json :: Value") {
@@ -5618,11 +5836,12 @@ pub(crate) fn codegen_assign_index(
     // This handles subscript assignments like `d["key"] = "value"` where d is returned as heterogeneous dict
     let final_value_expr = if ctx.type_mapper.nasa_mode {
         // Check if function return type requires DepylerValue
-        let return_needs_depyler_value = if let Some(Type::Dict(_, val_type)) = &ctx.current_return_type {
-            matches!(val_type.as_ref(), Type::Unknown)
-        } else {
-            false
-        };
+        let return_needs_depyler_value =
+            if let Some(Type::Dict(_, val_type)) = &ctx.current_return_type {
+                matches!(val_type.as_ref(), Type::Unknown)
+            } else {
+                false
+            };
 
         // Check if target variable requires DepylerValue
         let var_needs_depyler_value = if let HirExpr::Var(base_name) = base {
@@ -5692,18 +5911,18 @@ pub(crate) fn codegen_assign_index(
     // In NASA mode, only convert to String if the dict's key type is String
     // If dict has int keys (e.g., Dict[int, str]), keep keys as integers
     let dict_has_int_keys = if let HirExpr::Var(base_name) = base {
-        ctx.var_types.get(base_name).is_some_and(|t| {
-            matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Int))
-        })
+        ctx.var_types.get(base_name).is_some_and(
+            |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Int)),
+        )
     } else {
         false
     };
 
     // DEPYLER-1073: Check if dict has float keys (uses DepylerValue)
     let dict_has_float_keys = if let HirExpr::Var(base_name) = base {
-        ctx.var_types.get(base_name).is_some_and(|t| {
-            matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Float))
-        })
+        ctx.var_types.get(base_name).is_some_and(
+            |t| matches!(t, Type::Dict(key_type, _) if matches!(key_type.as_ref(), Type::Float)),
+        )
     } else {
         false
     };
@@ -5980,7 +6199,8 @@ pub(crate) fn codegen_assign_tuple(
                 .collect();
 
             // Add validation for tuple length at runtime
-            let num_lit = syn::LitInt::new(&num_targets.to_string(), proc_macro2::Span::call_site());
+            let num_lit =
+                syn::LitInt::new(&num_targets.to_string(), proc_macro2::Span::call_site());
 
             return Ok(quote! {
                 let #temp_var = #value_expr;
@@ -6349,13 +6569,11 @@ fn infer_expr_return_type(expr: &HirExpr, ctx: &CodeGenContext) -> Type {
                 _ => Type::Unknown,
             }
         }
-        HirExpr::Attribute { attr, .. } => {
-            match attr.as_str() {
-                "returncode" => Type::Int,
-                "stdout" | "stderr" => Type::String,
-                _ => Type::Unknown,
-            }
-        }
+        HirExpr::Attribute { attr, .. } => match attr.as_str() {
+            "returncode" => Type::Int,
+            "stdout" | "stderr" => Type::String,
+            _ => Type::Unknown,
+        },
         HirExpr::Call { func, .. } => {
             // Common function return types
             match func.as_str() {
@@ -6389,7 +6607,7 @@ pub(crate) fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
     // We can't easily construct a dummy context here, but we can call it if we update the signature.
     // However, since we can't update signature easily without changing all calls, let's duplicate
     // the delegation logic or simplified version.
-    
+
     // Better: Update to match hir_type_to_tokens logic for common types
     match ty {
         Type::Int => quote! { i32 },
@@ -6579,8 +6797,7 @@ mod tests {
     use crate::hir::{BinOp, HirExpr, Literal, Type};
     use crate::rust_gen::expr_analysis::{
         contains_floor_div, expr_returns_usize, extract_divisor_from_floor_div,
-        handler_contains_raise, is_file_creating_expr, is_nested_function_recursive,
-        is_stdio_expr,
+        handler_contains_raise, is_file_creating_expr, is_nested_function_recursive, is_stdio_expr,
     };
     use crate::rust_gen::stmt_gen_complex::{
         captures_outer_scope, extract_fields_from_expr, extract_fields_recursive,
@@ -7028,7 +7245,9 @@ mod tests {
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Int(42))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Float(3.15))));
         assert!(is_pure_expression(&HirExpr::Literal(Literal::Bool(true))));
-        assert!(is_pure_expression(&HirExpr::Literal(Literal::String("test".to_string()))));
+        assert!(is_pure_expression(&HirExpr::Literal(Literal::String(
+            "test".to_string()
+        ))));
     }
 
     #[test]
@@ -7228,13 +7447,11 @@ mod tests {
 
     #[test]
     fn test_extract_assigned_symbols_simple() {
-        let stmts = vec![
-            HirStmt::Assign {
-                target: AssignTarget::Symbol("x".to_string()),
-                value: HirExpr::Literal(Literal::Int(1)),
-                type_annotation: None,
-            },
-        ];
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        }];
         let symbols = extract_assigned_symbols(&stmts);
         assert!(symbols.contains("x"));
     }
@@ -7260,17 +7477,15 @@ mod tests {
 
     #[test]
     fn test_extract_assigned_symbols_in_if() {
-        let stmts = vec![
-            HirStmt::If {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![HirStmt::Assign {
-                    target: AssignTarget::Symbol("x".to_string()),
-                    value: HirExpr::Literal(Literal::Int(1)),
-                    type_annotation: None,
-                }],
-                else_body: None,
-            },
-        ];
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("x".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            }],
+            else_body: None,
+        }];
         let symbols = extract_assigned_symbols(&stmts);
         assert!(symbols.contains("x"));
     }
@@ -7279,30 +7494,26 @@ mod tests {
 
     #[test]
     fn test_extract_toplevel_assigned_symbols_simple() {
-        let stmts = vec![
-            HirStmt::Assign {
-                target: AssignTarget::Symbol("x".to_string()),
-                value: HirExpr::Literal(Literal::Int(1)),
-                type_annotation: None,
-            },
-        ];
+        let stmts = vec![HirStmt::Assign {
+            target: AssignTarget::Symbol("x".to_string()),
+            value: HirExpr::Literal(Literal::Int(1)),
+            type_annotation: None,
+        }];
         let symbols = extract_toplevel_assigned_symbols(&stmts);
         assert!(symbols.contains("x"));
     }
 
     #[test]
     fn test_extract_toplevel_assigned_symbols_in_if() {
-        let stmts = vec![
-            HirStmt::If {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![HirStmt::Assign {
-                    target: AssignTarget::Symbol("nested".to_string()),
-                    value: HirExpr::Literal(Literal::Int(1)),
-                    type_annotation: None,
-                }],
-                else_body: None,
-            },
-        ];
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Assign {
+                target: AssignTarget::Symbol("nested".to_string()),
+                value: HirExpr::Literal(Literal::Int(1)),
+                type_annotation: None,
+            }],
+            else_body: None,
+        }];
         let symbols = extract_toplevel_assigned_symbols(&stmts);
         // Includes assignments from if body (considered same scope level)
         assert!(symbols.contains("nested"));
@@ -7551,9 +7762,7 @@ mod tests {
     #[test]
     fn test_find_var_position_in_tuple_nested() {
         let targets = vec![
-            AssignTarget::Tuple(vec![
-                AssignTarget::Symbol("inner".to_string()),
-            ]),
+            AssignTarget::Tuple(vec![AssignTarget::Symbol("inner".to_string())]),
             AssignTarget::Symbol("outer".to_string()),
         ];
         // Does not search in nested tuples
@@ -8434,7 +8643,6 @@ mod tests {
         assert_eq!(result, None);
     }
 
-
     // ============ infer_expr_return_type extra tests ============
 
     #[test]
@@ -8612,25 +8820,28 @@ mod tests {
 
     #[test]
     fn test_extract_kwarg_string_found() {
-        let kwargs = vec![
-            ("name".to_string(), HirExpr::Literal(Literal::String("test".to_string()))),
-        ];
-        assert_eq!(extract_kwarg_string(&kwargs, "name"), Some("test".to_string()));
+        let kwargs = vec![(
+            "name".to_string(),
+            HirExpr::Literal(Literal::String("test".to_string())),
+        )];
+        assert_eq!(
+            extract_kwarg_string(&kwargs, "name"),
+            Some("test".to_string())
+        );
     }
 
     #[test]
     fn test_extract_kwarg_string_not_found() {
-        let kwargs = vec![
-            ("other".to_string(), HirExpr::Literal(Literal::String("test".to_string()))),
-        ];
+        let kwargs = vec![(
+            "other".to_string(),
+            HirExpr::Literal(Literal::String("test".to_string())),
+        )];
         assert_eq!(extract_kwarg_string(&kwargs, "name"), None);
     }
 
     #[test]
     fn test_extract_kwarg_string_not_string() {
-        let kwargs = vec![
-            ("name".to_string(), HirExpr::Literal(Literal::Int(42))),
-        ];
+        let kwargs = vec![("name".to_string(), HirExpr::Literal(Literal::Int(42)))];
         assert_eq!(extract_kwarg_string(&kwargs, "name"), None);
     }
 
@@ -8639,35 +8850,27 @@ mod tests {
     #[test]
     fn test_extract_kwarg_bool_true() {
         // Function expects HirExpr::Var("True") not Literal::Bool
-        let kwargs = vec![
-            ("flag".to_string(), HirExpr::Var("True".to_string())),
-        ];
+        let kwargs = vec![("flag".to_string(), HirExpr::Var("True".to_string()))];
         assert_eq!(extract_kwarg_bool(&kwargs, "flag"), Some(true));
     }
 
     #[test]
     fn test_extract_kwarg_bool_false() {
         // Function expects HirExpr::Var("False") not Literal::Bool
-        let kwargs = vec![
-            ("flag".to_string(), HirExpr::Var("False".to_string())),
-        ];
+        let kwargs = vec![("flag".to_string(), HirExpr::Var("False".to_string()))];
         assert_eq!(extract_kwarg_bool(&kwargs, "flag"), Some(false));
     }
 
     #[test]
     fn test_extract_kwarg_bool_not_found() {
-        let kwargs = vec![
-            ("other".to_string(), HirExpr::Var("True".to_string())),
-        ];
+        let kwargs = vec![("other".to_string(), HirExpr::Var("True".to_string()))];
         assert_eq!(extract_kwarg_bool(&kwargs, "flag"), None);
     }
 
     #[test]
     fn test_extract_kwarg_bool_not_bool() {
         // Literal::Bool doesn't match the Var("True")/Var("False") pattern
-        let kwargs = vec![
-            ("flag".to_string(), HirExpr::Literal(Literal::Bool(true))),
-        ];
+        let kwargs = vec![("flag".to_string(), HirExpr::Literal(Literal::Bool(true)))];
         assert_eq!(extract_kwarg_bool(&kwargs, "flag"), None);
     }
 
@@ -9063,10 +9266,7 @@ mod tests {
             left: Box::new(HirExpr::Literal(Literal::Int(10))),
             right: Box::new(HirExpr::Literal(Literal::Int(3))),
         };
-        let expr = HirExpr::List(vec![
-            HirExpr::Literal(Literal::Int(1)),
-            inner,
-        ]);
+        let expr = HirExpr::List(vec![HirExpr::Literal(Literal::Int(1)), inner]);
         assert!(contains_floor_div(&expr));
     }
 
@@ -9077,10 +9277,7 @@ mod tests {
             left: Box::new(HirExpr::Literal(Literal::Int(10))),
             right: Box::new(HirExpr::Literal(Literal::Int(3))),
         };
-        let expr = HirExpr::Tuple(vec![
-            HirExpr::Literal(Literal::Int(1)),
-            inner,
-        ]);
+        let expr = HirExpr::Tuple(vec![HirExpr::Literal(Literal::Int(1)), inner]);
         assert!(contains_floor_div(&expr));
     }
 
@@ -9819,13 +10016,11 @@ mod tests {
 
     #[test]
     fn test_handler_contains_raise_none() {
-        let body = vec![
-            HirStmt::Expr(HirExpr::Call {
-                func: "print".to_string(),
-                args: vec![],
-                kwargs: vec![],
-            }),
-        ];
+        let body = vec![HirStmt::Expr(HirExpr::Call {
+            func: "print".to_string(),
+            args: vec![],
+            kwargs: vec![],
+        })];
         assert!(!handler_contains_raise(&body));
     }
 
@@ -9842,19 +10037,13 @@ mod tests {
 
     #[test]
     fn test_is_dict_with_value_type_with_unknown() {
-        let t = Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::Unknown),
-        );
+        let t = Type::Dict(Box::new(Type::String), Box::new(Type::Unknown));
         assert!(is_dict_with_value_type(&t));
     }
 
     #[test]
     fn test_is_dict_with_value_type_string() {
-        let t = Type::Dict(
-            Box::new(Type::String),
-            Box::new(Type::String),
-        );
+        let t = Type::Dict(Box::new(Type::String), Box::new(Type::String));
         assert!(!is_dict_with_value_type(&t));
     }
 
@@ -9917,7 +10106,10 @@ mod tests {
 
     #[test]
     fn test_extract_string_literal_int_and_var() {
-        assert_eq!(extract_string_literal(&HirExpr::Literal(Literal::Int(42))), "");
+        assert_eq!(
+            extract_string_literal(&HirExpr::Literal(Literal::Int(42))),
+            ""
+        );
         assert_eq!(extract_string_literal(&HirExpr::Var("x".to_string())), "");
     }
 
@@ -9925,13 +10117,22 @@ mod tests {
 
     #[test]
     fn test_extract_kwarg_string_success() {
-        let kwargs = vec![("key".to_string(), HirExpr::Literal(Literal::String("value".to_string())))];
-        assert_eq!(extract_kwarg_string(&kwargs, "key"), Some("value".to_string()));
+        let kwargs = vec![(
+            "key".to_string(),
+            HirExpr::Literal(Literal::String("value".to_string())),
+        )];
+        assert_eq!(
+            extract_kwarg_string(&kwargs, "key"),
+            Some("value".to_string())
+        );
     }
 
     #[test]
     fn test_extract_kwarg_string_missing() {
-        let kwargs = vec![("other".to_string(), HirExpr::Literal(Literal::String("value".to_string())))];
+        let kwargs = vec![(
+            "other".to_string(),
+            HirExpr::Literal(Literal::String("value".to_string())),
+        )];
         assert_eq!(extract_kwarg_string(&kwargs, "key"), None);
     }
 
@@ -10379,7 +10580,10 @@ mod tests {
         let cond_expr: syn::Expr = syn::parse_quote! { !flag };
         let result = apply_negated_truthiness(&operand, cond_expr.clone(), &ctx);
         // Bool type should keep negation as-is
-        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
+        assert_eq!(
+            quote::quote!(#result).to_string(),
+            quote::quote!(#cond_expr).to_string()
+        );
     }
 
     #[test]
@@ -10397,7 +10601,8 @@ mod tests {
     #[test]
     fn test_apply_negated_truthiness_list_type() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types.insert("items".to_string(), Type::List(Box::new(Type::Int)));
+        ctx.var_types
+            .insert("items".to_string(), Type::List(Box::new(Type::Int)));
         let operand = HirExpr::Var("items".to_string());
         let cond_expr: syn::Expr = syn::parse_quote! { !items };
         let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
@@ -10408,7 +10613,8 @@ mod tests {
     #[test]
     fn test_apply_negated_truthiness_optional_type() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types.insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
+        ctx.var_types
+            .insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
         let operand = HirExpr::Var("opt".to_string());
         let cond_expr: syn::Expr = syn::parse_quote! { !opt };
         let result = apply_negated_truthiness(&operand, cond_expr, &ctx);
@@ -10446,7 +10652,10 @@ mod tests {
         let cond_expr: syn::Expr = syn::parse_quote! { items.is_empty() };
         let result = apply_negated_truthiness(&operand, cond_expr.clone(), &ctx);
         // Should return as-is
-        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
+        assert_eq!(
+            quote::quote!(#result).to_string(),
+            quote::quote!(#cond_expr).to_string()
+        );
     }
 
     #[test]
@@ -10457,7 +10666,10 @@ mod tests {
         let cond_expr: syn::Expr = syn::parse_quote! { opt.is_none() };
         let result = apply_negated_truthiness(&operand, cond_expr.clone(), &ctx);
         // Should return as-is
-        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
+        assert_eq!(
+            quote::quote!(#result).to_string(),
+            quote::quote!(#cond_expr).to_string()
+        );
     }
 
     #[test]
@@ -10484,7 +10696,10 @@ mod tests {
         let cond_expr: syn::Expr = syn::parse_quote! { flag };
         let result = apply_truthiness_conversion(&condition, cond_expr.clone(), &ctx);
         // Bool should not be converted
-        assert_eq!(quote::quote!(#result).to_string(), quote::quote!(#cond_expr).to_string());
+        assert_eq!(
+            quote::quote!(#result).to_string(),
+            quote::quote!(#cond_expr).to_string()
+        );
     }
 
     #[test]
@@ -10502,7 +10717,8 @@ mod tests {
     #[test]
     fn test_apply_truthiness_conversion_optional() {
         let mut ctx = CodeGenContext::default();
-        ctx.var_types.insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
+        ctx.var_types
+            .insert("opt".to_string(), Type::Optional(Box::new(Type::Int)));
         let condition = HirExpr::Var("opt".to_string());
         let cond_expr: syn::Expr = syn::parse_quote! { opt };
         let result = apply_truthiness_conversion(&condition, cond_expr, &ctx);
@@ -10527,7 +10743,8 @@ mod tests {
     fn test_apply_truthiness_conversion_not_expr() {
         // Test `not x` where x is non-boolean
         let mut ctx = CodeGenContext::default();
-        ctx.var_types.insert("items".to_string(), Type::List(Box::new(Type::Int)));
+        ctx.var_types
+            .insert("items".to_string(), Type::List(Box::new(Type::Int)));
         let condition = HirExpr::Unary {
             op: UnaryOp::Not,
             operand: Box::new(HirExpr::Var("items".to_string())),
@@ -10760,4 +10977,3 @@ mod tests {
         assert!(tokens_str.contains("Option"));
     }
 }
-

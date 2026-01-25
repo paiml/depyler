@@ -58,7 +58,7 @@ pub struct CodeGenContext<'a> {
     pub needs_cow: bool,
     pub needs_rand: bool,
     pub needs_slice_random: bool, // GH-207: Track rand::seq::SliceRandom trait for choose/shuffle
-    pub needs_rand_distr: bool,   // GH-207: Track rand_distr crate for distributions (gauss, triangular)
+    pub needs_rand_distr: bool, // GH-207: Track rand_distr crate for distributions (gauss, triangular)
     pub needs_serde_json: bool,
     pub needs_regex: bool,
     pub needs_chrono: bool,
@@ -70,7 +70,7 @@ pub struct CodeGenContext<'a> {
     pub needs_num_rational: bool,
     pub needs_base64: bool,
     pub needs_md5: bool,
-    pub needs_sha1: bool,  // DEPYLER-1001: sha1 crate for hashlib.sha1()
+    pub needs_sha1: bool, // DEPYLER-1001: sha1 crate for hashlib.sha1()
     pub needs_sha2: bool,
     pub needs_sha3: bool,
     pub needs_digest: bool, // DEPYLER-0558: For Box<dyn DynDigest> type-erased hashers
@@ -85,12 +85,12 @@ pub struct CodeGenContext<'a> {
     pub needs_bufread: bool, // DEPYLER-0522: Track std::io::BufRead trait for .lines() method
     pub needs_once_cell: bool, // DEPYLER-REARCH-001: Track once_cell for lazy static initialization
     pub needs_lazy_lock: bool, // DEPYLER-1016: Track std::sync::LazyLock for NASA mode (std-only)
-    pub needs_trueno: bool,    // Phase 3: NumPy→Trueno codegen (SIMD-accelerated tensor lib)
+    pub needs_trueno: bool,  // Phase 3: NumPy→Trueno codegen (SIMD-accelerated tensor lib)
     pub numpy_vars: HashSet<String>, // DEPYLER-0932: Track variables assigned from numpy operations
-    pub needs_tokio: bool,     // DEPYLER-0747: asyncio→tokio async runtime mapping
-    pub needs_glob: bool,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
-    pub needs_statrs: bool,    // DEPYLER-1001: statrs crate for statistics module
-    pub needs_url: bool,       // DEPYLER-1001: url crate for urllib.parse module
+    pub needs_tokio: bool,   // DEPYLER-0747: asyncio→tokio async runtime mapping
+    pub needs_glob: bool,    // DEPYLER-0829: glob crate for Path.glob()/rglob()
+    pub needs_statrs: bool,  // DEPYLER-1001: statrs crate for statistics module
+    pub needs_url: bool,     // DEPYLER-1001: url crate for urllib.parse module
     pub declared_vars: Vec<HashSet<String>>,
     pub current_function_can_fail: bool,
     pub current_return_type: Option<Type>,
@@ -110,12 +110,12 @@ pub struct CodeGenContext<'a> {
     pub needs_argumenttypeerror: bool,
     pub needs_runtimeerror: bool, // DEPYLER-0551: Python RuntimeError
     pub needs_filenotfounderror: bool, // DEPYLER-0551: Python FileNotFoundError
-    pub needs_syntaxerror: bool,    // GH-204: Python SyntaxError
-    pub needs_typeerror: bool,      // GH-204: Python TypeError
-    pub needs_keyerror: bool,       // GH-204: Python KeyError
-    pub needs_ioerror: bool,        // GH-204: Python IOError
+    pub needs_syntaxerror: bool,  // GH-204: Python SyntaxError
+    pub needs_typeerror: bool,    // GH-204: Python TypeError
+    pub needs_keyerror: bool,     // GH-204: Python KeyError
+    pub needs_ioerror: bool,      // GH-204: Python IOError
     pub needs_attributeerror: bool, // GH-204: Python AttributeError
-    pub needs_stopiteration: bool,  // GH-204: Python StopIteration
+    pub needs_stopiteration: bool, // GH-204: Python StopIteration
     pub is_classmethod: bool,
     pub in_generator: bool,
     pub generator_state_vars: HashSet<String>,
@@ -364,13 +364,13 @@ pub struct CodeGenContext<'a> {
     /// When a parameter has Optional<T> type and is mutated in the function body,
     /// it becomes &mut Option<T>. Assignments need dereferencing: `*param = value`
     pub mut_option_params: HashSet<String>,
-    pub needs_depyler_value_enum: bool,          // DEPYLER-FIX-RC2: Track need for DepylerValue enum
-    pub needs_python_string_ops: bool,           // DEPYLER-1202: Track need for PythonStringOps trait
-    pub needs_python_int_ops: bool,              // DEPYLER-1202: Track need for PythonIntOps trait
-    pub needs_depyler_date: bool,                // DEPYLER-1066: Track need for DepylerDate struct
-    pub needs_depyler_datetime: bool,            // DEPYLER-1067: Track need for DepylerDateTime struct
-    pub needs_depyler_timedelta: bool,           // DEPYLER-1068: Track need for DepylerTimeDelta struct
-    pub needs_depyler_regex_match: bool,         // DEPYLER-1070: Track need for DepylerRegexMatch struct
+    pub needs_depyler_value_enum: bool, // DEPYLER-FIX-RC2: Track need for DepylerValue enum
+    pub needs_python_string_ops: bool,  // DEPYLER-1202: Track need for PythonStringOps trait
+    pub needs_python_int_ops: bool,     // DEPYLER-1202: Track need for PythonIntOps trait
+    pub needs_depyler_date: bool,       // DEPYLER-1066: Track need for DepylerDate struct
+    pub needs_depyler_datetime: bool,   // DEPYLER-1067: Track need for DepylerDateTime struct
+    pub needs_depyler_timedelta: bool,  // DEPYLER-1068: Track need for DepylerTimeDelta struct
+    pub needs_depyler_regex_match: bool, // DEPYLER-1070: Track need for DepylerRegexMatch struct
     /// DEPYLER-1060: Track module-level constant types (dict, list, set)
     /// These persist across function boundaries and aren't cleared when processing functions.
     /// Used by is_dict_expr() to recognize module-level statics accessed from within functions.
@@ -645,7 +645,6 @@ pub trait ToRustExpr {
 /// Uses a static TypeMapper to allow Default trait implementation.
 /// This is primarily useful for unit testing.
 #[cfg(test)]
-#[cfg(test)]
 impl Default for CodeGenContext<'static> {
     fn default() -> Self {
         test_helpers::test_context()
@@ -801,18 +800,18 @@ pub mod test_helpers {
             mut_option_dict_params: HashSet::new(),
             mut_option_params: HashSet::new(), // DEPYLER-1126
             needs_depyler_value_enum: false,
-            needs_python_string_ops: false,  // DEPYLER-1202
-            needs_python_int_ops: false,     // DEPYLER-1202
-            needs_depyler_date: false,      // DEPYLER-1066
-            needs_depyler_datetime: false,  // DEPYLER-1067
-            needs_depyler_timedelta: false, // DEPYLER-1068
-            needs_depyler_regex_match: false, // DEPYLER-1070
+            needs_python_string_ops: false,        // DEPYLER-1202
+            needs_python_int_ops: false,           // DEPYLER-1202
+            needs_depyler_date: false,             // DEPYLER-1066
+            needs_depyler_datetime: false,         // DEPYLER-1067
+            needs_depyler_timedelta: false,        // DEPYLER-1068
+            needs_depyler_regex_match: false,      // DEPYLER-1070
             module_constant_types: HashMap::new(), // DEPYLER-1060
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
-            last_external_call_return_type: None, // DEPYLER-1113
-            type_overrides: HashMap::new(), // DEPYLER-1101
-            vars_used_later: HashSet::new(), // DEPYLER-1168
+            last_external_call_return_type: None,  // DEPYLER-1113
+            type_overrides: HashMap::new(),        // DEPYLER-1101
+            vars_used_later: HashSet::new(),       // DEPYLER-1168
         }
     }
 }
