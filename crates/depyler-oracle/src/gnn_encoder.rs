@@ -35,6 +35,10 @@ use aprender::citl::{
     Difficulty, ErrorCategory as AprenderErrorCategory, ErrorCode as AprenderErrorCode,
 };
 
+// GH-210 Phase 3: HNSW index for O(log n) similarity search
+use aprender::index::hnsw::HNSWIndex;
+use aprender::primitives::Vector;
+
 use crate::ast_embeddings::{AstEmbedder, AstEmbeddingConfig};
 use crate::classifier::ErrorCategory;
 use crate::error_patterns::ErrorPattern;
@@ -57,6 +61,10 @@ pub struct GnnEncoderConfig {
     pub use_ast_embeddings: bool,
     /// AST embedding dimension (default: 128)
     pub ast_embedding_dim: usize,
+    /// HNSW M parameter: max number of connections per node (default: 16)
+    pub hnsw_m: usize,
+    /// HNSW ef_construction: search width during index construction (default: 200)
+    pub hnsw_ef_construction: usize,
 }
 
 impl Default for GnnEncoderConfig {
@@ -69,6 +77,8 @@ impl Default for GnnEncoderConfig {
             use_hnsw: true,
             use_ast_embeddings: true,  // Issue #210: Enable by default
             ast_embedding_dim: 128,
+            hnsw_m: 16,               // GH-210 Phase 3: Good default for recall
+            hnsw_ef_construction: 200, // GH-210 Phase 3: Higher = better recall, slower build
         }
     }
 }
@@ -112,6 +122,10 @@ pub struct GnnEncoderStats {
     pub successful_matches: usize,
     /// Average similarity score
     pub avg_similarity: f64,
+    /// GH-210 Phase 3: Queries using HNSW index
+    pub hnsw_queries: usize,
+    /// GH-210 Phase 3: Queries using linear search (fallback)
+    pub linear_queries: usize,
 }
 
 /// GNN-based error encoder for structural pattern matching
@@ -123,6 +137,10 @@ pub struct DepylerGnnEncoder {
     ast_embedder: Option<AstEmbedder>,
     /// Indexed patterns with embeddings
     patterns: HashMap<String, StructuralPattern>,
+    /// GH-210 Phase 3: HNSW index for O(log n) similarity search
+    hnsw_index: Option<HNSWIndex>,
+    /// Mapping from HNSW index position to pattern ID
+    hnsw_id_map: Vec<String>,
     /// Statistics
     stats: GnnEncoderStats,
 }
@@ -143,11 +161,24 @@ impl DepylerGnnEncoder {
             None
         };
 
+        // GH-210 Phase 3: Initialize HNSW index if enabled
+        let hnsw_index = if config.use_hnsw {
+            Some(HNSWIndex::new(
+                config.hnsw_m,
+                config.hnsw_ef_construction,
+                0.0, // seed for reproducibility
+            ))
+        } else {
+            None
+        };
+
         Self {
             config,
             encoder,
             ast_embedder,
             patterns: HashMap::new(),
+            hnsw_index,
+            hnsw_id_map: Vec::new(),
             stats: GnnEncoderStats::default(),
         }
     }
@@ -166,17 +197,28 @@ impl DepylerGnnEncoder {
         let structural = StructuralPattern {
             id: pattern.id.clone(),
             error_code: pattern.error_code.clone(),
-            embedding: embedding.vector,
+            embedding: embedding.vector.clone(),
             error_pattern: Some(pattern.clone()),
             match_count: 0,
             success_rate: pattern.confidence,
         };
+
+        // GH-210 Phase 3: Add to HNSW index for O(log n) search
+        if let Some(ref mut hnsw) = self.hnsw_index {
+            // Convert f32 embedding to f64 Vector for HNSW
+            let vector_f64: Vec<f64> = embedding.vector.iter().map(|&x| x as f64).collect();
+            hnsw.add(pattern.id.clone(), Vector::from_slice(&vector_f64));
+            self.hnsw_id_map.push(pattern.id.clone());
+        }
 
         self.patterns.insert(pattern.id.clone(), structural);
         self.stats.patterns_indexed += 1;
     }
 
     /// Encode a new error and find similar patterns
+    ///
+    /// GH-210 Phase 3: Uses HNSW index for O(log n) search when available,
+    /// otherwise falls back to linear O(n) search.
     pub fn find_similar(
         &mut self,
         error_code: &str,
@@ -189,22 +231,19 @@ impl DepylerGnnEncoder {
         let diagnostic = self.build_diagnostic(error_code, error_message);
         let query_embedding = self.encoder.encode(&diagnostic, source_context);
 
-        // Find similar patterns
-        let mut results = Vec::new();
+        // Find similar patterns using HNSW (O(log n)) or linear search (O(n))
+        let mut results = if self.hnsw_index.is_some() && !self.hnsw_id_map.is_empty() {
+            self.stats.hnsw_queries += 1;
+            self.find_similar_hnsw(&query_embedding.vector)
+        } else {
+            self.stats.linear_queries += 1;
+            self.find_similar_linear(&query_embedding.vector)
+        };
 
-        for (id, pattern) in &self.patterns {
-            let similarity = self.cosine_similarity(&query_embedding.vector, &pattern.embedding);
+        // Filter by similarity threshold
+        results.retain(|r| r.similarity >= self.config.similarity_threshold);
 
-            if similarity >= self.config.similarity_threshold {
-                results.push(SimilarPattern {
-                    pattern_id: id.clone(),
-                    similarity,
-                    pattern: pattern.clone(),
-                });
-            }
-        }
-
-        // Sort by similarity (highest first)
+        // Sort by similarity (highest first) and truncate
         results.sort_by(|a, b| b.similarity.partial_cmp(&a.similarity).unwrap());
         results.truncate(self.config.max_similar);
 
@@ -215,6 +254,54 @@ impl DepylerGnnEncoder {
             let count = self.stats.successful_matches as f64;
             self.stats.avg_similarity =
                 (self.stats.avg_similarity * (count - 1.0) + total_sim / results.len() as f64) / count;
+        }
+
+        results
+    }
+
+    /// GH-210 Phase 3: O(log n) similarity search using HNSW index
+    fn find_similar_hnsw(&self, query_embedding: &[f32]) -> Vec<SimilarPattern> {
+        let mut results = Vec::new();
+
+        if let Some(ref hnsw) = self.hnsw_index {
+            // Convert f32 query to f64 Vector for HNSW
+            let query_f64: Vec<f64> = query_embedding.iter().map(|&x| x as f64).collect();
+            let query_vector = Vector::from_slice(&query_f64);
+
+            // Search for more candidates than needed (over-fetch for filtering)
+            let k = self.config.max_similar * 2;
+            let neighbors = hnsw.search(&query_vector, k);
+
+            for (pattern_id, distance) in neighbors {
+                // HNSW returns distance (lower = more similar), convert to similarity
+                // Using 1 - distance for cosine distance, clamp to [0, 1]
+                let similarity = (1.0 - distance as f32).clamp(0.0, 1.0);
+
+                if let Some(pattern) = self.patterns.get(&pattern_id) {
+                    results.push(SimilarPattern {
+                        pattern_id: pattern_id.clone(),
+                        similarity,
+                        pattern: pattern.clone(),
+                    });
+                }
+            }
+        }
+
+        results
+    }
+
+    /// O(n) linear similarity search (fallback when HNSW not available)
+    fn find_similar_linear(&self, query_embedding: &[f32]) -> Vec<SimilarPattern> {
+        let mut results = Vec::new();
+
+        for (id, pattern) in &self.patterns {
+            let similarity = self.cosine_similarity(query_embedding, &pattern.embedding);
+
+            results.push(SimilarPattern {
+                pattern_id: id.clone(),
+                similarity,
+                pattern: pattern.clone(),
+            });
         }
 
         results
@@ -312,6 +399,50 @@ impl DepylerGnnEncoder {
     #[must_use]
     pub fn stats(&self) -> &GnnEncoderStats {
         &self.stats
+    }
+
+    /// GH-210 Phase 3: Check if HNSW index is enabled and active
+    #[must_use]
+    pub fn is_hnsw_active(&self) -> bool {
+        self.hnsw_index.is_some() && !self.hnsw_id_map.is_empty()
+    }
+
+    /// GH-210 Phase 3: Get number of vectors in HNSW index
+    #[must_use]
+    pub fn hnsw_size(&self) -> usize {
+        self.hnsw_id_map.len()
+    }
+
+    /// GH-210 Phase 3: Rebuild HNSW index from all indexed patterns
+    ///
+    /// Call this after bulk indexing to ensure the index is optimized.
+    pub fn rebuild_hnsw_index(&mut self) {
+        if !self.config.use_hnsw {
+            return;
+        }
+
+        // Create fresh index
+        self.hnsw_index = Some(HNSWIndex::new(
+            self.config.hnsw_m,
+            self.config.hnsw_ef_construction,
+            0.0,
+        ));
+        self.hnsw_id_map.clear();
+
+        // Re-add all patterns in a consistent order
+        let mut pattern_ids: Vec<_> = self.patterns.keys().cloned().collect();
+        pattern_ids.sort(); // Ensure deterministic order
+
+        for pattern_id in pattern_ids {
+            if let Some(pattern) = self.patterns.get(&pattern_id) {
+                if let Some(ref mut hnsw) = self.hnsw_index {
+                    // Convert f32 embedding to f64 Vector for HNSW
+                    let vector_f64: Vec<f64> = pattern.embedding.iter().map(|&x| x as f64).collect();
+                    hnsw.add(pattern_id.clone(), Vector::from_slice(&vector_f64));
+                    self.hnsw_id_map.push(pattern_id);
+                }
+            }
+        }
     }
 
     /// Get configuration
@@ -791,5 +922,152 @@ fn add(a: i32, b: i32) -> i32 {
         };
         let encoder = DepylerGnnEncoder::new(config);
         assert!(encoder.ast_embedder.is_none());
+    }
+
+    // ==========================================================================
+    // GH-210 Phase 3: HNSW Index Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_phase3_hnsw_config_defaults() {
+        let config = GnnEncoderConfig::default();
+        assert!(config.use_hnsw);
+        assert_eq!(config.hnsw_m, 16);
+        assert_eq!(config.hnsw_ef_construction, 200);
+    }
+
+    #[test]
+    fn test_phase3_hnsw_initialization() {
+        let encoder = DepylerGnnEncoder::with_defaults();
+        assert!(encoder.hnsw_index.is_some());
+        assert!(!encoder.is_hnsw_active()); // No patterns indexed yet
+        assert_eq!(encoder.hnsw_size(), 0);
+    }
+
+    #[test]
+    fn test_phase3_hnsw_disabled() {
+        let config = GnnEncoderConfig {
+            use_hnsw: false,
+            ..Default::default()
+        };
+        let encoder = DepylerGnnEncoder::new(config);
+        assert!(encoder.hnsw_index.is_none());
+        assert!(!encoder.is_hnsw_active());
+    }
+
+    #[test]
+    fn test_phase3_hnsw_indexing() {
+        let mut encoder = DepylerGnnEncoder::with_defaults();
+
+        let pattern = ErrorPattern::new("E0308", "mismatched types", "+fix");
+        encoder.index_pattern(&pattern, "let x: i32 = \"hello\";");
+
+        assert!(encoder.is_hnsw_active());
+        assert_eq!(encoder.hnsw_size(), 1);
+    }
+
+    #[test]
+    fn test_phase3_hnsw_multiple_patterns() {
+        let mut encoder = DepylerGnnEncoder::with_defaults();
+
+        // Index multiple patterns
+        let patterns = [
+            ErrorPattern::new("E0308", "type mismatch 1", "+fix1"),
+            ErrorPattern::new("E0382", "borrow error", "+fix2"),
+            ErrorPattern::new("E0433", "import error", "+fix3"),
+        ];
+
+        for pattern in &patterns {
+            encoder.index_pattern(pattern, "source context");
+        }
+
+        assert_eq!(encoder.hnsw_size(), 3);
+        assert_eq!(encoder.pattern_count(), 3);
+    }
+
+    #[test]
+    fn test_phase3_hnsw_search_uses_index() {
+        let mut encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            similarity_threshold: 0.0, // Accept all matches
+            ..Default::default()
+        });
+
+        // Index a pattern
+        let pattern = ErrorPattern::new("E0308", "mismatched types", "+fix");
+        encoder.index_pattern(&pattern, "let x: i32 = \"hello\";");
+
+        // Search should use HNSW
+        let results = encoder.find_similar(
+            "E0308",
+            "mismatched types",
+            "let y: i32 = \"world\";",
+        );
+
+        // Verify HNSW was used
+        assert_eq!(encoder.stats().hnsw_queries, 1);
+        assert_eq!(encoder.stats().linear_queries, 0);
+        assert!(!results.is_empty());
+    }
+
+    #[test]
+    fn test_phase3_linear_fallback_when_hnsw_disabled() {
+        let mut encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            use_hnsw: false,
+            similarity_threshold: 0.0,
+            ..Default::default()
+        });
+
+        // Index a pattern (no HNSW)
+        let pattern = ErrorPattern::new("E0308", "mismatched types", "+fix");
+        encoder.index_pattern(&pattern, "source");
+
+        // Search should use linear
+        let _results = encoder.find_similar("E0308", "mismatched types", "source");
+
+        // Verify linear was used
+        assert_eq!(encoder.stats().hnsw_queries, 0);
+        assert_eq!(encoder.stats().linear_queries, 1);
+    }
+
+    #[test]
+    fn test_phase3_rebuild_hnsw_index() {
+        let mut encoder = DepylerGnnEncoder::with_defaults();
+
+        // Index some patterns
+        for i in 0..5 {
+            let pattern = ErrorPattern::new("E0308", &format!("error {}", i), "+fix");
+            encoder.index_pattern(&pattern, "source");
+        }
+
+        assert_eq!(encoder.hnsw_size(), 5);
+
+        // Rebuild the index
+        encoder.rebuild_hnsw_index();
+
+        // Should still have same number of entries
+        assert_eq!(encoder.hnsw_size(), 5);
+        assert!(encoder.is_hnsw_active());
+    }
+
+    #[test]
+    fn test_phase3_hnsw_stats_tracking() {
+        let mut encoder = DepylerGnnEncoder::new(GnnEncoderConfig {
+            similarity_threshold: 0.0,
+            ..Default::default()
+        });
+
+        // Index patterns
+        let pattern = ErrorPattern::new("E0308", "type error", "+fix");
+        encoder.index_pattern(&pattern, "source");
+
+        // Perform multiple searches
+        for _ in 0..3 {
+            let _ = encoder.find_similar("E0308", "error", "source");
+        }
+
+        // Check stats
+        assert_eq!(encoder.stats().queries_performed, 3);
+        assert_eq!(encoder.stats().hnsw_queries, 3);
+        assert_eq!(encoder.stats().linear_queries, 0);
     }
 }
