@@ -1,8 +1,10 @@
 //! Corpus Analysis Report Command
 //!
 //! Minimal report implementation focused on testable pure functions.
+//! GH-209: Extended with ML clustering and semantic domain analysis.
 
 pub mod analysis;
+pub mod clustering;  // GH-209 Phase 2: ML Clustering
 pub mod filter;
 
 use anyhow::Result;
