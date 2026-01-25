@@ -19,6 +19,7 @@ use crate::rust_gen::expr_analysis::{
 };
 use crate::rust_gen::keywords::safe_ident; // DEPYLER-0023: Keyword escaping
 use crate::rust_gen::type_gen::rust_type_to_syn;
+use crate::rust_gen::type_tokens::hir_type_to_tokens; // DEPYLER-1218: Dict type inference
 use crate::rust_gen::type_conversion_helpers::apply_type_conversion; // DEPYLER-0455: Extracted
 use crate::rust_gen::truthiness_helpers::{
     is_collection_attr_name, is_collection_generic_base, is_collection_type_name,
@@ -34,6 +35,7 @@ use crate::rust_gen::stmt_gen_complex::{try_generate_subcommand_match, is_subcom
 use crate::trace_decision;
 use anyhow::{bail, Result};
 use quote::{quote, ToTokens};
+use std::collections::HashMap;
 use syn::{self, parse_quote};
 
 /// DEPYLER-1185: Convert HIR Type to Rust type string
@@ -70,58 +72,144 @@ fn type_to_rust_string(ty: &Type) -> String {
 /// Returns the HIR Type of elements if homogeneous, or Type::Unknown if mixed/empty.
 /// This enables proper type inference for set literals to avoid HashSet<DepylerValue>.
 fn infer_collection_element_type(elems: &[HirExpr]) -> Type {
+    infer_collection_element_type_with_ctx(elems, &HashMap::new())
+}
+
+/// DEPYLER-0467: Enhanced element type inference that considers variable types.
+/// This fixes the Vec<DepylerValue> vs Vec<i32> bug by looking up variable types
+/// when the collection contains variables (e.g., `[a, b, c]` where a,b,c are i32).
+/// DEPYLER-1313: Extended to handle nested lists/tuples/dicts for proper Vec<Vec<T>> inference.
+fn infer_collection_element_type_with_ctx(
+    elems: &[HirExpr],
+    var_types: &HashMap<String, Type>,
+) -> Type {
     if elems.is_empty() {
         // Empty collection defaults to Unknown (will use DepylerValue)
         return Type::Unknown;
     }
 
-    // Check first element type and verify all elements match
-    match &elems[0] {
-        HirExpr::Literal(Literal::Int(_)) => {
-            // Verify all elements are integers
-            if elems
-                .iter()
-                .all(|e| matches!(e, HirExpr::Literal(Literal::Int(_))))
-            {
-                Type::Int
-            } else {
-                Type::Unknown // Heterogeneous
+    // Helper to get element type from expression (literal, variable, or nested collection)
+    fn get_elem_type_recursive(e: &HirExpr, var_types: &HashMap<String, Type>) -> Option<Type> {
+        match e {
+            HirExpr::Literal(Literal::Int(_)) => Some(Type::Int),
+            HirExpr::Literal(Literal::Float(_)) => Some(Type::Float),
+            HirExpr::Literal(Literal::String(_)) => Some(Type::String),
+            HirExpr::Literal(Literal::Bool(_)) => Some(Type::Bool),
+            // DEPYLER-0467: Look up variable types
+            HirExpr::Var(name) => var_types.get(name).cloned(),
+            // DEPYLER-1313: Handle nested lists - recursively infer inner element type
+            HirExpr::List(inner_elems) => {
+                let inner_type = infer_collection_element_type_with_ctx(inner_elems, var_types);
+                Some(Type::List(Box::new(inner_type)))
             }
-        }
-        HirExpr::Literal(Literal::Float(_)) => {
-            // Verify all elements are floats (or ints - promote to float)
-            if elems.iter().all(|e| {
-                matches!(
-                    e,
-                    HirExpr::Literal(Literal::Float(_)) | HirExpr::Literal(Literal::Int(_))
-                )
-            }) {
-                Type::Float
-            } else {
-                Type::Unknown
+            // DEPYLER-1313: Handle tuples - infer element types
+            HirExpr::Tuple(inner_elems) => {
+                let tuple_types: Vec<Type> = inner_elems
+                    .iter()
+                    .map(|elem| get_elem_type_recursive(elem, var_types).unwrap_or(Type::Unknown))
+                    .collect();
+                Some(Type::Tuple(tuple_types))
             }
-        }
-        HirExpr::Literal(Literal::String(_)) => {
-            if elems
-                .iter()
-                .all(|e| matches!(e, HirExpr::Literal(Literal::String(_))))
-            {
-                Type::String
-            } else {
-                Type::Unknown
+            // DEPYLER-1313: Handle dicts - infer key/value types
+            HirExpr::Dict(items) => {
+                if items.is_empty() {
+                    Some(Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown)))
+                } else {
+                    let key_type = get_elem_type_recursive(&items[0].0, var_types).unwrap_or(Type::Unknown);
+                    let val_type = get_elem_type_recursive(&items[0].1, var_types).unwrap_or(Type::Unknown);
+                    Some(Type::Dict(Box::new(key_type), Box::new(val_type)))
+                }
             }
+            _ => None,
         }
-        HirExpr::Literal(Literal::Bool(_)) => {
-            if elems
-                .iter()
-                .all(|e| matches!(e, HirExpr::Literal(Literal::Bool(_))))
-            {
-                Type::Bool
-            } else {
-                Type::Unknown
+    }
+
+    // Use the recursive helper
+    let get_elem_type = |e: &HirExpr| -> Option<Type> {
+        get_elem_type_recursive(e, var_types)
+    };
+
+    // Get type of first element
+    let first_type = match get_elem_type(&elems[0]) {
+        Some(t) => t,
+        None => return Type::Unknown,
+    };
+
+    // Verify all elements have the same type
+    let all_same = elems.iter().all(|e| {
+        match get_elem_type(e) {
+            Some(t) => {
+                // Int and Float can coexist - promote to Float
+                match (&first_type, &t) {
+                    (Type::Float, Type::Int) | (Type::Int, Type::Float) => true,
+                    _ => t == first_type,
+                }
             }
+            None => false, // Unknown element type breaks homogeneity
         }
-        _ => Type::Unknown, // Non-literal or complex expression
+    });
+
+    if all_same {
+        // Check if we need to promote int to float
+        let has_float = elems.iter().any(|e| matches!(get_elem_type(e), Some(Type::Float)));
+        if has_float && matches!(first_type, Type::Int) {
+            Type::Float
+        } else {
+            first_type
+        }
+    } else {
+        Type::Unknown // Heterogeneous
+    }
+}
+
+/// DEPYLER-1313: Convert a Type to a simple token stream for type annotations.
+/// Handles primitives, lists, tuples, and falls back to DepylerValue for unknown types.
+fn type_to_simple_token(t: &Type) -> proc_macro2::TokenStream {
+    match t {
+        Type::Int => quote! { i32 },
+        Type::Float => quote! { f64 },
+        Type::String => quote! { String },
+        Type::Bool => quote! { bool },
+        Type::List(inner) => {
+            let inner_token = type_to_simple_token(inner);
+            quote! { Vec<#inner_token> }
+        }
+        Type::Tuple(types) => {
+            let tuple_types: Vec<proc_macro2::TokenStream> = types.iter().map(type_to_simple_token).collect();
+            quote! { (#(#tuple_types),*) }
+        }
+        Type::Dict(k, v) => {
+            let key_token = type_to_simple_token(k);
+            let val_token = type_to_simple_token(v);
+            quote! { std::collections::HashMap<#key_token, #val_token> }
+        }
+        Type::Custom(name) => {
+            let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+            quote! { #ident }
+        }
+        _ => quote! { DepylerValue },
+    }
+}
+
+/// DEPYLER-1313: Convert a Type to a Vec inner type annotation.
+/// Returns Some(tokens) if the type is concrete, None if it should fall back to DepylerValue.
+fn type_to_vec_annotation(t: &Type) -> Option<proc_macro2::TokenStream> {
+    match t {
+        Type::Int => Some(quote! { Vec<i32> }),
+        Type::Float => Some(quote! { Vec<f64> }),
+        Type::String => Some(quote! { Vec<String> }),
+        Type::Bool => Some(quote! { Vec<bool> }),
+        Type::List(inner) => {
+            type_to_vec_annotation(inner).map(|inner_tokens| {
+                quote! { Vec<#inner_tokens> }
+            })
+        }
+        Type::Tuple(types) => {
+            let tuple_types: Vec<proc_macro2::TokenStream> = types.iter().map(type_to_simple_token).collect();
+            Some(quote! { Vec<(#(#tuple_types),*)> })
+        }
+        Type::Unknown | Type::UnificationVar(_) => None,
+        _ => Some(type_to_simple_token(t)),
     }
 }
 
@@ -807,9 +895,38 @@ pub(crate) fn codegen_return_stmt(
         // DEPYLER-0943: Convert serde_json::Value to String when return type is String
         // Dict subscript access returns serde_json::Value, but if the function return type
         // is String, we need to extract the string value from the JSON Value.
+        // DEPYLER-1221: Only apply this conversion when dict VALUE type is serde_json::Value.
+        // If the dict value type is already String, skip the conversion.
+        // DEPYLER-1320: Skip this conversion in NASA mode - DepylerValue uses .into() for type
+        // conversion which already handles String extraction via From<DepylerValue> trait.
         let is_string_return = matches!(ctx.current_return_type.as_ref(), Some(Type::String));
         let is_dict_subscript = is_dict_index_access(e);
-        if is_string_return && is_dict_subscript {
+        let needs_json_to_string_conversion = if ctx.type_mapper.nasa_mode {
+            // In NASA mode, .into() already handles DepylerValue to String conversion
+            false
+        } else if is_string_return && is_dict_subscript {
+            // Check if the dict has serde_json::Value value type
+            if let HirExpr::Index { base, .. } = e {
+                if let HirExpr::Var(var_name) = base.as_ref() {
+                    // Look up the dict type in var_types
+                    if let Some(dict_type) = ctx.var_types.get(var_name) {
+                        // Only convert if value type is serde_json::Value or Unknown
+                        is_dict_with_value_type(dict_type)
+                    } else {
+                        // Unknown dict type - assume needs conversion for safety
+                        true
+                    }
+                } else {
+                    // Complex base expression - assume needs conversion
+                    true
+                }
+            } else {
+                false
+            }
+        } else {
+            false
+        };
+        if needs_json_to_string_conversion {
             // Convert Value to String: value.as_str().unwrap_or("").to_string()
             expr_tokens = parse_quote! { #expr_tokens.as_str().unwrap_or("").to_string() };
         }
@@ -3818,12 +3935,15 @@ pub(crate) fn codegen_assign_stmt(
         // This enables correct {:?} vs {} selection in println! for collections
         // Example: result = merge(&a, &b) where merge returns Vec<i32>
         // DEPYLER-0709: Also track Tuple types for correct field access (.0, .1)
+        // DEPYLER-1219: Also track Optional types to prevent double Some() wrapping on return
         if let Some(annot_type) = type_annotation {
             match annot_type {
                 // DEPYLER-1045: Added Type::String to enable auto-borrow in function calls
                 // Without this, `text: str = "hello world"` wouldn't be tracked,
                 // causing `capitalize_words(text)` to miss the `&` borrow.
-                Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_) | Type::String => {
+                // DEPYLER-1219: Added Type::Optional to track when variables are already Option<T>
+                // This prevents double wrapping in return statements (Some(Some(x)))
+                Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_) | Type::String | Type::Optional(_) => {
                     ctx.var_types.insert(var_name.clone(), annot_type.clone());
                 }
                 _ => {}
@@ -3911,7 +4031,13 @@ pub(crate) fn codegen_assign_stmt(
             HirExpr::List(elements) => {
                 // DEPYLER-0269: Track list type from literal for auto-borrowing
                 // When v = [1, 2], mark v as List(Int) so it gets borrowed when calling f(&v)
+                // DEPYLER-1206: Also check current_return_type for type propagation
+                // Pattern: def f() -> List[ValidationError]: errors = []; return errors
+                // The empty list should get List[ValidationError] from return type, not Unknown
                 let elem_type = if let Some(Type::List(elem)) = type_annotation {
+                    elem.as_ref().clone()
+                } else if let Some(Type::List(elem)) = &ctx.current_return_type {
+                    // Use return type's list element type (handles List[CustomType])
                     elem.as_ref().clone()
                 } else if !elements.is_empty() {
                     // Infer from first element (assume homogeneous list)
@@ -3924,12 +4050,13 @@ pub(crate) fn codegen_assign_stmt(
                 // DEPYLER-1134: Guard against overwriting Oracle-seeded types
                 // If var_types already has a CONCRETE type (from Oracle or return type propagation),
                 // don't overwrite it with Unknown. This protects the Oracle's wisdom from local inference.
+                // DEPYLER-1207: Fixed pattern matching bug - use **existing_elem to dereference Box
                 let should_update = match ctx.var_types.get(var_name) {
                     None => true, // No existing type, safe to insert
                     Some(Type::Unknown) => true, // Unknown can be overwritten
                     Some(Type::List(existing_elem)) => {
                         // Only overwrite if existing element type is Unknown AND new type is concrete
-                        matches!(existing_elem.as_ref(), Type::Unknown) && !matches!(elem_type, Type::Unknown)
+                        matches!(**existing_elem, Type::Unknown) && !matches!(elem_type, Type::Unknown)
                     }
                     _ => false, // Don't overwrite any other concrete type with a list type
                 };
@@ -3943,25 +4070,37 @@ pub(crate) fn codegen_assign_stmt(
                 // DEPYLER-0269: Track dict type from literal for auto-borrowing
                 // When info = {"a": 1}, mark info as Dict(String, Int) so it gets borrowed
                 // DEPYLER-0560: Check function return type for Dict[str, Any] pattern
-                let (key_type, val_type) = if let Some(Type::Dict(k, v)) = type_annotation {
-                    (k.as_ref().clone(), v.as_ref().clone())
+                // DEPYLER-1219: Preserve Optional wrapper when annotation is Optional[Dict[...]]
+                let (key_type, val_type, is_optional) = if let Some(Type::Dict(k, v)) = type_annotation {
+                    (k.as_ref().clone(), v.as_ref().clone(), false)
+                } else if let Some(Type::Optional(inner)) = type_annotation {
+                    // Handle Optional[Dict[K, V]] - extract types but preserve Optional wrapper
+                    if let Type::Dict(k, v) = inner.as_ref() {
+                        (k.as_ref().clone(), v.as_ref().clone(), true)
+                    } else {
+                        (Type::Unknown, Type::Unknown, true)
+                    }
                 } else if let Some(Type::Dict(k, v)) = &ctx.current_return_type {
                     // Use return type's dict value type (handles Dict[str, Any] → Unknown)
-                    (k.as_ref().clone(), v.as_ref().clone())
+                    (k.as_ref().clone(), v.as_ref().clone(), false)
                 } else if !items.is_empty() {
                     // DEPYLER-1143: Use Unknown value type for dicts without annotation
                     // This allows dict_has_mixed_types to properly detect heterogeneous dicts
                     // and use DepylerValue for argparse result dicts like:
                     //   result = {"name": args.name, "debug": args.debug}  # String + bool
                     // Using Type::Int here would incorrectly trigger target_has_concrete_value_type
-                    (Type::String, Type::Unknown)
+                    (Type::String, Type::Unknown, false)
                 } else {
-                    (Type::Unknown, Type::Unknown)
+                    (Type::Unknown, Type::Unknown, false)
                 };
-                ctx.var_types.insert(
-                    var_name.clone(),
-                    Type::Dict(Box::new(key_type), Box::new(val_type)),
-                );
+                // DEPYLER-1219: Insert with Optional wrapper if annotation was Optional[Dict[...]]
+                let dict_type = Type::Dict(Box::new(key_type), Box::new(val_type));
+                let final_type = if is_optional {
+                    Type::Optional(Box::new(dict_type))
+                } else {
+                    dict_type
+                };
+                ctx.var_types.insert(var_name.clone(), final_type);
             }
             HirExpr::Set(elements) | HirExpr::FrozenSet(elements) => {
                 // Track set type from literal for proper method dispatch (DEPYLER-0224)
@@ -3990,7 +4129,18 @@ pub(crate) fn codegen_assign_stmt(
                 );
             }
             HirExpr::ListComp { element, .. } => {
-                let elem_type = crate::rust_gen::func_gen::infer_expr_type_simple(element);
+                // DEPYLER-1206: Use return type if element inference gives Unknown
+                let inferred_elem = crate::rust_gen::func_gen::infer_expr_type_simple(element);
+                let elem_type = if matches!(inferred_elem, Type::Unknown) {
+                    // Fall back to return type's element type
+                    if let Some(Type::List(ret_elem)) = &ctx.current_return_type {
+                        ret_elem.as_ref().clone()
+                    } else {
+                        inferred_elem
+                    }
+                } else {
+                    inferred_elem
+                };
                 ctx.var_types
                     .insert(var_name.clone(), Type::List(Box::new(elem_type)));
             }
@@ -4032,7 +4182,7 @@ pub(crate) fn codegen_assign_stmt(
             }
             // DEPYLER-0327 Fix #1: Track types for method call results
             // E.g., value_str = data.get(...) where data: Vec<String> → value_str: String
-            HirExpr::MethodCall { object, method, .. } => {
+            HirExpr::MethodCall { object, method, args, .. } => {
                 // Track .get() on Vec<String> returning String
                 if method == "get" {
                     if let HirExpr::Var(obj_var) = object.as_ref() {
@@ -4041,6 +4191,18 @@ pub(crate) fn codegen_assign_stmt(
                             // it becomes T, so track the element type
                             ctx.var_types
                                 .insert(var_name.clone(), elem_type.as_ref().clone());
+                        }
+                        // GH-226: Track dict.get(key, default) with 2 args as value type, not Optional
+                        // When dict.get has a default, the result is the value type, not Option
+                        else if args.len() == 2 {
+                            if let Some(Type::Dict(_, val_type)) = ctx.var_types.get(obj_var) {
+                                // dict.get(key, default) returns value type directly
+                                ctx.var_types
+                                    .insert(var_name.clone(), val_type.as_ref().clone());
+                            } else {
+                                // Dict type not tracked, default to String for str(val) compatibility
+                                ctx.var_types.insert(var_name.clone(), Type::String);
+                            }
                         }
                     }
                 }
@@ -4196,6 +4358,9 @@ pub(crate) fn codegen_assign_stmt(
     // DEPYLER-1045: For simple variable assignments, look up the target's type from var_types
     // Pattern: memo = {} where memo: Dict[int, int] (from parameter)
     // The empty dict should get type Dict[int, int], not default HashMap<String, String>
+    // DEPYLER-1206: Also handle List types for Smart Coercion boundary enforcement
+    // Pattern: nums = [a, b, c] where nums: List[Any] → Vec<DepylerValue>
+    // Elements a, b, c (i32) need .into() to become DepylerValue
     if ctx.current_assign_type.is_none() {
         if let AssignTarget::Symbol(name) = target {
             if let Some(var_type) = ctx.var_types.get(name.as_str()) {
@@ -4204,8 +4369,14 @@ pub(crate) fn codegen_assign_stmt(
                 if let Type::Optional(inner) = var_type {
                     if let Type::Dict(_, _) = inner.as_ref() {
                         ctx.current_assign_type = Some(inner.as_ref().clone());
+                    } else if let Type::List(_) = inner.as_ref() {
+                        // DEPYLER-1206: Also handle Optional<List<T>>
+                        ctx.current_assign_type = Some(inner.as_ref().clone());
                     }
                 } else if let Type::Dict(_, _) = var_type {
+                    ctx.current_assign_type = Some(var_type.clone());
+                } else if let Type::List(_) = var_type {
+                    // DEPYLER-1206: Handle List types for Smart Coercion
                     ctx.current_assign_type = Some(var_type.clone());
                 }
             }
@@ -4213,6 +4384,53 @@ pub(crate) fn codegen_assign_stmt(
     }
 
     let mut value_expr = value.to_rust_expr(ctx)?;
+
+    // DEPYLER-1315: Clone non-Copy variables when used as RHS of assignment
+    // Python: x = y creates a reference to the same object
+    // Rust: x = y moves y (ownership transfer) for non-Copy types
+    // Solution: x = y.clone() to preserve Python semantics (both vars valid)
+    // This fixes E0382 "use of moved value" when the same variable is used later
+    if ctx.type_mapper.nasa_mode {
+        if let HirExpr::Var(source_var) = value {
+            // Check if source variable has a non-Copy type
+            // Non-Copy types: String, Vec, HashMap, HashSet, Box, custom structs
+            if let Some(source_type) = ctx.var_types.get(source_var) {
+                let needs_clone = matches!(
+                    source_type,
+                    Type::String
+                        | Type::List(_)
+                        | Type::Dict(_, _)
+                        | Type::Set(_)
+                        | Type::Custom(_)
+                        | Type::Unknown // Conservative: Unknown might be non-Copy
+                );
+                if needs_clone {
+                    value_expr = parse_quote! { #value_expr.clone() };
+                }
+            } else {
+                // Variable type not known - conservatively clone if it looks like
+                // it could be a non-Copy type based on common naming patterns
+                // This handles cases where var_types wasn't populated
+                let var_lower = source_var.to_lowercase();
+                let likely_non_copy = var_lower.contains("path")
+                    || var_lower.contains("str")
+                    || var_lower.contains("list")
+                    || var_lower.contains("vec")
+                    || var_lower.contains("dict")
+                    || var_lower.contains("map")
+                    || var_lower.contains("set")
+                    || var_lower.contains("original")
+                    || var_lower.contains("copy")
+                    || var_lower.contains("data")
+                    || var_lower.contains("text")
+                    || var_lower.contains("name")
+                    || var_lower.contains("word");
+                if likely_non_copy {
+                    value_expr = parse_quote! { #value_expr.clone() };
+                }
+            }
+        }
+    }
 
     // DEPYLER-1113: Propagate external library return type to var_types
     // When the expression was a MethodCall on an external module (e.g., requests.get),
@@ -4292,8 +4510,9 @@ pub(crate) fn codegen_assign_stmt(
         //
         // DEPYLER-1168: Same for List(UnificationVar) - avoid Vec<DepylerValue>
         // Pattern: `from_range = list(range(5))` → Infer Vec<i32>, not Vec<DepylerValue>
+        // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
         let inferred_collection_type: Option<Type> = if let Type::Set(elem) = actual_type {
-            if matches!(elem.as_ref(), Type::UnificationVar(_) | Type::Unknown) {
+            if matches!(**elem, Type::UnificationVar(_) | Type::Unknown) {
                 // Try to infer from the value expression
                 if let HirExpr::Call { func, args, .. } = value {
                     if func == "set" && args.len() == 1 {
@@ -4319,7 +4538,8 @@ pub(crate) fn codegen_assign_stmt(
             }
         } else if let Type::List(elem) = actual_type {
             // DEPYLER-1168: List with unresolved element type
-            if matches!(elem.as_ref(), Type::UnificationVar(_) | Type::Unknown) {
+            // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
+            if matches!(**elem, Type::UnificationVar(_) | Type::Unknown) {
                 if let HirExpr::Call { func, args, .. } = value {
                     if func == "list" && args.len() == 1 {
                         // Check if argument is range() - produces integers
@@ -4390,7 +4610,14 @@ pub(crate) fn codegen_assign_stmt(
         // Example: x: int = data["count"] → let x: i32 = data["count"].to_i64() as i32;
         // DEPYLER-1064: Wrap in parentheses to ensure correct precedence for complex expressions
         // Example: x: int = count + 1 → let x: i32 = (count + 1).to_i64() as i32;
-        if expr_produces_depyler_value(value, ctx) {
+        //
+        // DEPYLER-1321: Skip extraction for dict index access - dict access already generates
+        // .into() which handles type conversion via From<DepylerValue> trait. Adding extra
+        // .to_i64() or .to_string() after .into() breaks type inference (E0282).
+        // The type annotation on the LHS (e.g., `let x: i32 = ...`) is sufficient for
+        // Rust to infer the target type of .into().
+        let is_dict_access = matches!(value, HirExpr::Index { .. }) && is_dict_index_access(value);
+        if expr_produces_depyler_value(value, ctx) && !is_dict_access {
             if let Some(extraction) = get_depyler_extraction_for_type(actual_type) {
                 let extraction_tokens: proc_macro2::TokenStream = extraction.parse().unwrap();
                 value_expr = parse_quote! { (#value_expr) #extraction_tokens };
@@ -4420,21 +4647,236 @@ pub(crate) fn codegen_assign_stmt(
             // E0308 (type mismatch) from DepylerValue can be fixed later.
             // It's better to compile with potential type mismatches than not compile at all.
             match value {
-                // Empty dict literal: `x = {}` → `let x: HashMap<String, DepylerValue> = HashMap::new();`
+                // Empty dict literal: `x = {}` - DEPYLER-1218 Smart type inference
+                // Priority: 1. Variable's known type (for params/prior assignments)
+                //           2. Function return type (if Dict)
+                //           3. Default to HashMap<String, DepylerValue>
                 HirExpr::Dict(entries) if entries.is_empty() => {
-                    (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                    // DEPYLER-1314: Helper to check if dict type has Unknown key/val types
+                    let has_unknown_types = |k: &Type, v: &Type| {
+                        matches!(k, Type::Unknown | Type::UnificationVar(_))
+                            || matches!(v, Type::Unknown | Type::UnificationVar(_))
+                    };
+                    // First check if var_types has a known type for this variable
+                    let var_dict_type = if let AssignTarget::Symbol(name) = target {
+                        if let Some(Type::Dict(key, val)) = ctx.var_types.get(name) {
+                            // DEPYLER-1314: Skip type annotation if key/val are Unknown
+                            // Let Rust infer from the expression to avoid HashMap<DepylerValue, DepylerValue>
+                            // conflicting with generated HashMap<String, DepylerValue>
+                            if has_unknown_types(key, val) {
+                                None // Fall through to default
+                            } else {
+                                let key_ty = hir_type_to_tokens(key);
+                                let val_ty = hir_type_to_tokens(val);
+                                Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                            }
+                        } else if let Some(Type::Optional(inner)) = ctx.var_types.get(name) {
+                            // Handle Option<Dict> case (like memo: Dict[int, int] = None)
+                            if let Type::Dict(key, val) = inner.as_ref() {
+                                if has_unknown_types(key, val) {
+                                    None
+                                } else {
+                                    let key_ty = hir_type_to_tokens(key);
+                                    let val_ty = hir_type_to_tokens(val);
+                                    Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    // Then check current_return_type for Dict type info
+                    // DEPYLER-1314: Skip if return type has Unknown key/val
+                    let return_dict_type = match &ctx.current_return_type {
+                        Some(Type::Dict(key, val)) if !has_unknown_types(key, val) => {
+                            let key_ty = hir_type_to_tokens(key);
+                            let val_ty = hir_type_to_tokens(val);
+                            Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                        }
+                        _ => None,
+                    };
+                    if let Some(ty) = var_dict_type.or(return_dict_type) {
+                        (Some(ty), false)
+                    } else {
+                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                    }
                 }
                 // Dict literal with entries: infer from usage or default to DepylerValue values
                 HirExpr::Dict(_) => {
-                    (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                    // DEPYLER-1314: Helper for unknown type check
+                    let has_unknown = |k: &Type, v: &Type| {
+                        matches!(k, Type::Unknown | Type::UnificationVar(_))
+                            || matches!(v, Type::Unknown | Type::UnificationVar(_))
+                    };
+                    // First check if var_types has a known type for this variable
+                    let var_dict_type = if let AssignTarget::Symbol(name) = target {
+                        if let Some(Type::Dict(key, val)) = ctx.var_types.get(name) {
+                            if has_unknown(key, val) {
+                                None
+                            } else {
+                                let key_ty = hir_type_to_tokens(key);
+                                let val_ty = hir_type_to_tokens(val);
+                                Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                            }
+                        } else if let Some(Type::Optional(inner)) = ctx.var_types.get(name) {
+                            if let Type::Dict(key, val) = inner.as_ref() {
+                                if has_unknown(key, val) {
+                                    None
+                                } else {
+                                    let key_ty = hir_type_to_tokens(key);
+                                    let val_ty = hir_type_to_tokens(val);
+                                    Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    let return_dict_type = match &ctx.current_return_type {
+                        Some(Type::Dict(key, val)) if !has_unknown(key, val) => {
+                            let key_ty = hir_type_to_tokens(key);
+                            let val_ty = hir_type_to_tokens(val);
+                            Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                        }
+                        _ => None,
+                    };
+                    if let Some(ty) = var_dict_type.or(return_dict_type) {
+                        (Some(ty), false)
+                    } else {
+                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                    }
                 }
-                // Dict comprehension: `x = {k: v for ...}` → `HashMap<String, DepylerValue>`
+                // Dict comprehension: `x = {k: v for ...}` → infer from return type or default
                 HirExpr::DictComp { .. } => {
-                    (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                    let var_dict_type = if let AssignTarget::Symbol(name) = target {
+                        if let Some(Type::Dict(key, val)) = ctx.var_types.get(name) {
+                            let key_ty = hir_type_to_tokens(key);
+                            let val_ty = hir_type_to_tokens(val);
+                            Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    };
+                    let return_dict_type = match &ctx.current_return_type {
+                        Some(Type::Dict(key, val)) => {
+                            let key_ty = hir_type_to_tokens(key);
+                            let val_ty = hir_type_to_tokens(val);
+                            Some(quote! { : std::collections::HashMap<#key_ty, #val_ty> })
+                        }
+                        _ => None,
+                    };
+                    if let Some(ty) = var_dict_type.or(return_dict_type) {
+                        (Some(ty), false)
+                    } else {
+                        (Some(quote! { : std::collections::HashMap<String, DepylerValue> }), false)
+                    }
                 }
-                // Empty list literal: `x = []` → `let x: Vec<DepylerValue> = Vec::new();`
+                // Empty list literal: `x = []` - DEPYLER-1206 Smart type inference
+                // Priority: 1. Variable's known type from var_types
+                //           2. Function return type (if List)
+                //           3. Default to Vec<DepylerValue>
                 HirExpr::List(elems) if elems.is_empty() => {
-                    (Some(quote! { : Vec<DepylerValue> }), false)
+                    // First check if var_types has a known type for this variable
+                    let var_type = if let AssignTarget::Symbol(name) = target {
+                        ctx.var_types.get(name).cloned()
+                    } else {
+                        None
+                    };
+
+                    // Then check current_return_type for List element type
+                    let return_list_type = match &ctx.current_return_type {
+                        Some(Type::List(elem)) => Some(elem.as_ref().clone()),
+                        Some(Type::Tuple(elems)) => {
+                            // For tuple returns, check if any element is a list we might be assigning
+                            elems.iter().find_map(|t| {
+                                if let Type::List(elem) = t {
+                                    Some(elem.as_ref().clone())
+                                } else {
+                                    None
+                                }
+                            })
+                        }
+                        _ => None,
+                    };
+
+                    // Use var_type if it's a List, else return_list_type, else default
+                    let elem_type = if let Some(Type::List(elem)) = var_type {
+                        Some(elem.as_ref().clone())
+                    } else {
+                        return_list_type
+                    };
+
+                    match elem_type {
+                        Some(Type::Int) => (Some(quote! { : Vec<i32> }), false),
+                        Some(Type::Float) => (Some(quote! { : Vec<f64> }), false),
+                        Some(Type::String) => (Some(quote! { : Vec<String> }), false),
+                        Some(Type::Bool) => (Some(quote! { : Vec<bool> }), false),
+                        Some(Type::Tuple(types)) => {
+                            // For List[Tuple[...]], generate Vec<(T1, T2, ...)>
+                            let tuple_types: Vec<proc_macro2::TokenStream> = types.iter().map(|t| {
+                                match t {
+                                    Type::String => quote! { String },
+                                    Type::Int => quote! { i32 },
+                                    Type::Float => quote! { f64 },
+                                    Type::Bool => quote! { bool },
+                                    Type::Custom(name) => {
+                                        let ident = syn::Ident::new(name, proc_macro2::Span::call_site());
+                                        quote! { #ident }
+                                    }
+                                    _ => quote! { DepylerValue },
+                                }
+                            }).collect();
+                            (Some(quote! { : Vec<(#(#tuple_types),*)> }), false)
+                        }
+                        Some(Type::Custom(name)) => {
+                            // For List[CustomType], generate Vec<CustomType>
+                            let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
+                            (Some(quote! { : Vec<#ident> }), false)
+                        }
+                        _ => (Some(quote! { : Vec<DepylerValue> }), false),
+                    }
+                }
+                // DEPYLER-0467: Non-empty list literal with type inference
+                // `x = [a, b, c]` where a,b,c are i32 → `Vec<i32>` (NOT Vec<DepylerValue>)
+                // This fixes the critical type inference bug for variable-containing lists
+                // DEPYLER-1313: Extended to handle nested lists (Vec<Vec<T>>)
+                HirExpr::List(elems) => {
+                    let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
+                    match &elem_type {
+                        Type::Int => (Some(quote! { : Vec<i32> }), false),
+                        Type::Float => (Some(quote! { : Vec<f64> }), false),
+                        Type::String => (Some(quote! { : Vec<String> }), false),
+                        Type::Bool => (Some(quote! { : Vec<bool> }), false),
+                        // DEPYLER-1313: Handle nested lists - generate Vec<Vec<T>>
+                        Type::List(inner) => {
+                            if let Some(inner_tokens) = type_to_vec_annotation(inner) {
+                                (Some(quote! { : Vec<#inner_tokens> }), false)
+                            } else {
+                                (Some(quote! { : Vec<DepylerValue> }), false)
+                            }
+                        }
+                        // DEPYLER-1313: Handle tuples in lists - generate Vec<(T1, T2, ...)>
+                        Type::Tuple(types) => {
+                            let tuple_types: Vec<proc_macro2::TokenStream> = types.iter().map(|t| {
+                                type_to_simple_token(t)
+                            }).collect();
+                            (Some(quote! { : Vec<(#(#tuple_types),*)> }), false)
+                        }
+                        _ => {
+                            // Unknown or mixed types - fall back to DepylerValue
+                            (Some(quote! { : Vec<DepylerValue> }), false)
+                        }
+                    }
                 }
                 // List comprehension: `x = [v for ...]` → infer from iterable type if possible
                 HirExpr::ListComp { generators, .. } => {
@@ -4505,8 +4947,9 @@ pub(crate) fn codegen_assign_stmt(
                 // `x = {1, 2, 3}` → `HashSet<i32>` if all ints
                 // `x = {"a", "b"}` → `HashSet<String>` if all strings
                 // `x = {1, "a"}` → `HashSet<DepylerValue>` if mixed
+                // DEPYLER-0467: Also infers type from variables (e.g., `{a, b, c}` where a,b,c are i32)
                 HirExpr::Set(elems) => {
-                    let elem_type = infer_collection_element_type(elems);
+                    let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
                     match elem_type {
                         Type::Int => (Some(quote! { : std::collections::HashSet<i32> }), false),
                         Type::Float => (Some(quote! { : std::collections::HashSet<f64> }), false),
@@ -4531,11 +4974,12 @@ pub(crate) fn codegen_assign_stmt(
                 // DEPYLER-1167: set() call with list argument - infer element type from list
                 // `x = set([1, 2, 3])` → `HashSet<i32>` if all ints (NOT HashSet<DepylerValue>)
                 // This prevents E0308 type mismatch between HashSet<DepylerValue> and HashSet<{integer}>
+                // DEPYLER-0467: Also supports variables in the list
                 HirExpr::Call { func, args, .. } if func == "set" => {
                     // If set() has a list argument, infer element type from the list
                     if args.len() == 1 {
                         if let HirExpr::List(elems) = &args[0] {
-                            let elem_type = infer_collection_element_type(elems);
+                            let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
                             match elem_type {
                                 Type::Int => (Some(quote! { : std::collections::HashSet<i32> }), false),
                                 Type::Float => (Some(quote! { : std::collections::HashSet<f64> }), false),
@@ -4557,6 +5001,7 @@ pub(crate) fn codegen_assign_stmt(
                 }
                 // DEPYLER-1168: list() call with range argument - infer element type
                 // `x = list(range(5))` → `Vec<i32>` (NOT Vec<DepylerValue>)
+                // DEPYLER-0467: Also supports variables in the list
                 HirExpr::Call { func, args, .. } if func == "list" => {
                     if args.len() == 1 {
                         // Check if argument is range()
@@ -4570,7 +5015,7 @@ pub(crate) fn codegen_assign_stmt(
                             }
                         } else if let HirExpr::List(elems) = &args[0] {
                             // list([1, 2, 3]) - infer from elements
-                            let elem_type = infer_collection_element_type(elems);
+                            let elem_type = infer_collection_element_type_with_ctx(elems, &ctx.var_types);
                             match elem_type {
                                 Type::Int => (Some(quote! { : Vec<i32> }), false),
                                 Type::Float => (Some(quote! { : Vec<f64> }), false),
@@ -4645,23 +5090,31 @@ pub(crate) fn codegen_assign_stmt(
                 // DEPYLER-1027/1034/1042: Handle dict value assignment in NASA mode
                 // Only DON'T wrap if we KNOW the outer dict expects Dict values (not String)
                 // DEPYLER-1042: Use get_subscript_value_type for nested subscripts
-                let has_dict_value_type = {
+                // DEPYLER-1314: Also skip wrapping for DepylerValue targets (handled later)
+                let skip_format_wrap = {
                     // Get the value type from the subscript chain
                     if let Some(val_type) = get_subscript_value_type(base.as_ref(), ctx) {
-                        // Value type is Dict → target expects Dict, skip wrapping
-                        matches!(val_type, Type::Dict(_, _))
+                        // Value type is Dict or Unknown/DepylerValue → skip format wrapping
+                        // DepylerValue dicts handle nested dicts via DepylerValue::Dict later
+                        matches!(val_type, Type::Dict(_, _) | Type::Unknown | Type::UnificationVar(_))
                     } else if let HirExpr::Var(base_name) = &**base {
                         // Fallback: direct Var check for simple cases
                         ctx.var_types.get(base_name).is_some_and(|t| {
-                            matches!(t, Type::Dict(_, val_type) if matches!(val_type.as_ref(), Type::Dict(_, _)))
+                            match t {
+                                // Dict[K, Dict[...]] - skip wrapping
+                                Type::Dict(_, val_type) if matches!(val_type.as_ref(), Type::Dict(_, _)) => true,
+                                // Dict[K, Unknown] or Dict[K, DepylerValue-like] - skip wrapping
+                                Type::Dict(_, val_type) if matches!(val_type.as_ref(), Type::Unknown | Type::UnificationVar(_)) => true,
+                                _ => false,
+                            }
                         })
                     } else {
                         false
                     }
                 };
 
-                if has_dict_value_type {
-                    // Keep as HashMap for Dict[K, Dict[...]] types
+                if skip_format_wrap {
+                    // Keep as HashMap - later code handles DepylerValue::Dict wrapping
                     value_expr
                 } else {
                     // Default: wrap in format! for HashMap<String, String> compatibility
@@ -4681,7 +5134,8 @@ pub(crate) fn codegen_assign_stmt(
         AssignTarget::Symbol(symbol) => {
             codegen_assign_symbol(symbol, value_expr, type_annotation_tokens, is_final, ctx)
         }
-        AssignTarget::Index { base, index } => codegen_assign_index(base, index, value_expr, ctx),
+        // DEPYLER-1203: Pass original HirExpr for type-based DepylerValue wrapping
+        AssignTarget::Index { base, index } => codegen_assign_index(base, index, value_expr, value, ctx),
         AssignTarget::Attribute { value, attr } => {
             codegen_assign_attribute(value, attr, value_expr, ctx)
         }
@@ -4920,11 +5374,13 @@ pub(crate) fn codegen_assign_symbol(
 }
 
 /// Generate code for index (dictionary/list subscript) assignment
+/// DEPYLER-1203: Added hir_value parameter for type-based DepylerValue wrapping
 #[inline]
 pub(crate) fn codegen_assign_index(
     base: &HirExpr,
     index: &HirExpr,
     value_expr: syn::Expr,
+    hir_value: &HirExpr,
     ctx: &mut CodeGenContext,
 ) -> Result<proc_macro2::TokenStream> {
     // DEPYLER-0964: Handle subscript assignment to &mut Option<HashMap<K, V>> parameters
@@ -5181,16 +5637,49 @@ pub(crate) fn codegen_assign_index(
 
         if return_needs_depyler_value || var_needs_depyler_value {
             ctx.needs_depyler_value_enum = true;
-            // Wrap based on value type
-            let value_str = quote! { #final_value_expr }.to_string();
-            if value_str.contains("DepylerValue::") {
-                // Already wrapped
-                final_value_expr
-            } else if value_str.contains(".to_string()") || value_str.starts_with('"') {
-                parse_quote! { DepylerValue::Str(#final_value_expr) }
-            } else {
-                // Default to Str wrapping with format for unknown types
-                parse_quote! { DepylerValue::Str(format!("{:?}", #final_value_expr)) }
+            // DEPYLER-1203: Type-based DepylerValue wrapping (matches DEPYLER-1201 pattern)
+            // Use HirExpr type instead of string inspection for correct wrapping
+            match hir_value {
+                HirExpr::Literal(crate::hir::Literal::Int(_)) => {
+                    parse_quote! { DepylerValue::Int(#final_value_expr as i64) }
+                }
+                HirExpr::Literal(crate::hir::Literal::Float(_)) => {
+                    parse_quote! { DepylerValue::Float(#final_value_expr) }
+                }
+                HirExpr::Literal(crate::hir::Literal::String(_)) => {
+                    parse_quote! { DepylerValue::Str(#final_value_expr.to_string()) }
+                }
+                HirExpr::Literal(crate::hir::Literal::Bool(_)) => {
+                    parse_quote! { DepylerValue::Bool(#final_value_expr) }
+                }
+                HirExpr::Literal(crate::hir::Literal::None) => {
+                    parse_quote! { DepylerValue::None }
+                }
+                HirExpr::List(_) => {
+                    // Nested list: wrap in DepylerValue::List
+                    parse_quote! { DepylerValue::List(#final_value_expr) }
+                }
+                HirExpr::Dict(_) => {
+                    // Nested dict: wrap in DepylerValue::Dict
+                    // DEPYLER-1314: Convert HashMap<String, DepylerValue> to HashMap<DepylerValue, DepylerValue>
+                    parse_quote! {
+                        DepylerValue::Dict(
+                            #final_value_expr.into_iter()
+                                .map(|(k, v)| (DepylerValue::Str(k), v))
+                                .collect()
+                        )
+                    }
+                }
+                _ => {
+                    // Check if already wrapped (for complex expressions)
+                    let value_str = quote! { #final_value_expr }.to_string();
+                    if value_str.contains("DepylerValue::") {
+                        final_value_expr
+                    } else {
+                        // For variables and complex expressions, use From trait
+                        parse_quote! { DepylerValue::from(#final_value_expr) }
+                    }
+                }
             }
         } else {
             final_value_expr
@@ -5919,9 +6408,10 @@ pub(crate) fn try_return_type_to_tokens(ty: &Type) -> proc_macro2::TokenStream {
                 if name == "serde_json::Value" || name == "Value" {
                     quote! { serde_json::Value }
                 } else if name == "Dict" {
-                    // DEPYLER-1157: Bare Dict annotation -> HashMap<DepylerValue, DepylerValue>
-                    // Must match function signature mapping (DEPYLER-1153)
-                    quote! { std::collections::HashMap<DepylerValue, DepylerValue> }
+                    // DEPYLER-1203: Bare Dict annotation -> HashMap<String, DepylerValue>
+                    // Keys default to String (most common pattern), values to DepylerValue
+                    // This matches dict literal generation for consistency
+                    quote! { std::collections::HashMap<String, DepylerValue> }
                 } else if name == "List" {
                     // DEPYLER-1157: Bare List annotation -> Vec<DepylerValue>
                     quote! { Vec<DepylerValue> }
