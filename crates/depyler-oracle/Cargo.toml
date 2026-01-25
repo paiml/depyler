@@ -47,6 +47,12 @@ thiserror.workspace = true
 # Regex for pattern matching in autofixer
 regex.workspace = true
 
+# AST parsing for Code2Vec (GH-210 Phase 2)
+syn = { workspace = true, features = ["full", "parsing", "visit"] }
+quote.workspace = true
+rustpython-parser.workspace = true
+rustpython-ast.workspace = true
+
 # Home directory detection
 dirs = "5"
 
