@@ -5,11 +5,13 @@
 //! a thin shim that calls these functions.
 //!
 //! DEPYLER-COVERAGE-95: Extracted for testability
+//! GH-209: Extended with ML clustering and semantic domain classification
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 /// Compilation result for analysis (borrowed/owned view)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AnalysisResult {
     pub name: String,
     pub success: bool,
@@ -22,6 +24,334 @@ pub struct AnalysisResult {
 pub struct ErrorEntry {
     pub count: usize,
     pub samples: Vec<String>,
+}
+
+// ============================================================================
+// GH-209: Semantic Domain Classification and ML Features
+// ============================================================================
+
+/// Semantic domain for Python code classification (GH-209)
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
+pub enum SemanticDomain {
+    /// Core Python language features: for, if, class, def, yield, lambda
+    CoreLanguage,
+    /// Common stdlib modules: sys, os, re, collections, json, io, pathlib
+    StdlibCommon,
+    /// Advanced stdlib: asyncio, multiprocessing, typing, dataclasses
+    StdlibAdvanced,
+    /// External packages: numpy, pandas, requests, django, flask
+    External,
+    /// Unknown or no clear domain
+    #[default]
+    Unknown,
+}
+
+impl SemanticDomain {
+    /// Get human-readable label for the domain
+    pub fn label(&self) -> &'static str {
+        match self {
+            Self::CoreLanguage => "Core Language",
+            Self::StdlibCommon => "Stdlib (Common)",
+            Self::StdlibAdvanced => "Stdlib (Advanced)",
+            Self::External => "External Packages",
+            Self::Unknown => "Unknown",
+        }
+    }
+}
+
+/// AST-derived features for ML clustering (GH-209)
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct AstFeatures {
+    /// Number of function definitions
+    pub function_count: usize,
+    /// Number of class definitions
+    pub class_count: usize,
+    /// Number of loop constructs (for, while)
+    pub loop_count: usize,
+    /// Number of async/await constructs
+    pub async_count: usize,
+    /// Number of comprehensions (list, dict, set, generator)
+    pub comprehension_count: usize,
+    /// Estimated cyclomatic complexity
+    pub complexity_score: f32,
+    /// Number of import statements
+    pub import_count: usize,
+    /// File size in lines
+    pub line_count: usize,
+}
+
+impl AstFeatures {
+    /// Convert to feature vector for ML clustering
+    pub fn to_feature_vector(&self) -> Vec<f32> {
+        vec![
+            self.function_count as f32,
+            self.class_count as f32,
+            self.loop_count as f32,
+            self.async_count as f32,
+            self.comprehension_count as f32,
+            self.complexity_score,
+            self.import_count as f32,
+            self.line_count as f32,
+        ]
+    }
+
+    /// Estimate complexity from counts
+    pub fn estimate_complexity(&mut self) {
+        // Simple complexity formula: branches + loops + 1
+        self.complexity_score = 1.0
+            + self.loop_count as f32 * 2.0
+            + self.function_count as f32
+            + self.class_count as f32 * 1.5
+            + self.async_count as f32 * 2.0;
+    }
+}
+
+/// Extended analysis result with ML features (GH-209)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtendedAnalysisResult {
+    /// Base analysis result
+    pub base: AnalysisResult,
+    /// Semantic domain classification
+    pub semantic_domain: SemanticDomain,
+    /// AST-derived features
+    pub ast_features: AstFeatures,
+    /// List of imported modules
+    pub imports: Vec<String>,
+}
+
+impl ExtendedAnalysisResult {
+    /// Create from base result with Python source for analysis
+    pub fn from_base_with_source(base: AnalysisResult, python_source: &str) -> Self {
+        let imports = extract_imports(python_source);
+        let semantic_domain = classify_domain(&imports);
+        let ast_features = extract_ast_features(python_source);
+
+        Self {
+            base,
+            semantic_domain,
+            ast_features,
+            imports,
+        }
+    }
+
+    /// Create from base without source (minimal features)
+    pub fn from_base(base: AnalysisResult) -> Self {
+        Self {
+            base,
+            semantic_domain: SemanticDomain::Unknown,
+            ast_features: AstFeatures::default(),
+            imports: Vec::new(),
+        }
+    }
+}
+
+// ============================================================================
+// GH-209: Import Extraction and Domain Classification
+// ============================================================================
+
+/// Common stdlib modules (tier 1 - very common)
+const STDLIB_COMMON: &[&str] = &[
+    "sys", "os", "re", "collections", "json", "io", "pathlib",
+    "time", "datetime", "math", "random", "copy", "itertools",
+    "functools", "operator", "string", "textwrap", "struct",
+];
+
+/// Advanced stdlib modules (tier 2 - complex features)
+const STDLIB_ADVANCED: &[&str] = &[
+    "asyncio", "multiprocessing", "threading", "concurrent",
+    "typing", "dataclasses", "abc", "contextlib", "inspect",
+    "unittest", "logging", "argparse", "configparser", "pickle",
+    "sqlite3", "socket", "http", "urllib", "email", "xml",
+];
+
+/// External packages (non-stdlib)
+const EXTERNAL_PACKAGES: &[&str] = &[
+    "numpy", "pandas", "scipy", "sklearn", "tensorflow", "torch",
+    "requests", "httpx", "aiohttp", "flask", "django", "fastapi",
+    "matplotlib", "seaborn", "plotly", "pillow", "cv2",
+    "boto3", "google", "azure", "aws", "pydantic", "sqlalchemy",
+];
+
+/// Extract imports from Python source code
+pub fn extract_imports(python_source: &str) -> Vec<String> {
+    let mut imports = Vec::new();
+
+    for line in python_source.lines() {
+        let trimmed = line.trim();
+
+        // Handle "import x" and "import x, y, z"
+        if let Some(rest) = trimmed.strip_prefix("import ") {
+            for part in rest.split(',') {
+                let module = part.trim().split_whitespace().next().unwrap_or("");
+                let base_module = module.split('.').next().unwrap_or("");
+                if !base_module.is_empty() && !imports.contains(&base_module.to_string()) {
+                    imports.push(base_module.to_string());
+                }
+            }
+        }
+        // Handle "from x import y"
+        else if let Some(rest) = trimmed.strip_prefix("from ") {
+            if let Some(module) = rest.split_whitespace().next() {
+                let base_module = module.split('.').next().unwrap_or("");
+                if !base_module.is_empty() && !imports.contains(&base_module.to_string()) {
+                    imports.push(base_module.to_string());
+                }
+            }
+        }
+    }
+
+    imports
+}
+
+/// Classify imports into semantic domain
+pub fn classify_domain(imports: &[String]) -> SemanticDomain {
+    let mut has_external = false;
+    let mut has_advanced = false;
+    let mut has_common = false;
+
+    for import in imports {
+        let module = import.as_str();
+
+        if EXTERNAL_PACKAGES.iter().any(|&e| module.starts_with(e)) {
+            has_external = true;
+        } else if STDLIB_ADVANCED.iter().any(|&a| module.starts_with(a)) {
+            has_advanced = true;
+        } else if STDLIB_COMMON.iter().any(|&c| module.starts_with(c)) {
+            has_common = true;
+        }
+    }
+
+    // Priority: External > Advanced > Common > Core
+    if has_external {
+        SemanticDomain::External
+    } else if has_advanced {
+        SemanticDomain::StdlibAdvanced
+    } else if has_common {
+        SemanticDomain::StdlibCommon
+    } else if imports.is_empty() {
+        SemanticDomain::CoreLanguage
+    } else {
+        SemanticDomain::Unknown
+    }
+}
+
+/// Extract AST features from Python source (heuristic - fast)
+pub fn extract_ast_features(python_source: &str) -> AstFeatures {
+    let mut features = AstFeatures::default();
+    features.line_count = python_source.lines().count();
+
+    for line in python_source.lines() {
+        let trimmed = line.trim();
+
+        // Function definitions
+        if trimmed.starts_with("def ") || trimmed.starts_with("async def ") {
+            features.function_count += 1;
+        }
+
+        // Class definitions
+        if trimmed.starts_with("class ") {
+            features.class_count += 1;
+        }
+
+        // Loops
+        if trimmed.starts_with("for ") || trimmed.starts_with("while ") {
+            features.loop_count += 1;
+        }
+
+        // Async constructs
+        if trimmed.starts_with("async ") || trimmed.contains("await ") {
+            features.async_count += 1;
+        }
+
+        // Comprehensions (simple heuristic)
+        if trimmed.contains(" for ") && (trimmed.contains('[') || trimmed.contains('{')) {
+            features.comprehension_count += 1;
+        }
+
+        // Imports
+        if trimmed.starts_with("import ") || trimmed.starts_with("from ") {
+            features.import_count += 1;
+        }
+    }
+
+    features.estimate_complexity();
+    features
+}
+
+/// Domain breakdown statistics (GH-209)
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct DomainBreakdown {
+    pub core_lang_pass: usize,
+    pub core_lang_fail: usize,
+    pub stdlib_common_pass: usize,
+    pub stdlib_common_fail: usize,
+    pub stdlib_advanced_pass: usize,
+    pub stdlib_advanced_fail: usize,
+    pub external_pass: usize,
+    pub external_fail: usize,
+    pub unknown_pass: usize,
+    pub unknown_fail: usize,
+}
+
+impl DomainBreakdown {
+    /// Calculate pass rate for a domain
+    pub fn pass_rate(&self, domain: SemanticDomain) -> f64 {
+        let (pass, fail) = match domain {
+            SemanticDomain::CoreLanguage => (self.core_lang_pass, self.core_lang_fail),
+            SemanticDomain::StdlibCommon => (self.stdlib_common_pass, self.stdlib_common_fail),
+            SemanticDomain::StdlibAdvanced => (self.stdlib_advanced_pass, self.stdlib_advanced_fail),
+            SemanticDomain::External => (self.external_pass, self.external_fail),
+            SemanticDomain::Unknown => (self.unknown_pass, self.unknown_fail),
+        };
+        calculate_rate(pass, pass + fail)
+    }
+
+    /// Add a result to the appropriate domain counter
+    pub fn add_result(&mut self, domain: SemanticDomain, success: bool) {
+        match (domain, success) {
+            (SemanticDomain::CoreLanguage, true) => self.core_lang_pass += 1,
+            (SemanticDomain::CoreLanguage, false) => self.core_lang_fail += 1,
+            (SemanticDomain::StdlibCommon, true) => self.stdlib_common_pass += 1,
+            (SemanticDomain::StdlibCommon, false) => self.stdlib_common_fail += 1,
+            (SemanticDomain::StdlibAdvanced, true) => self.stdlib_advanced_pass += 1,
+            (SemanticDomain::StdlibAdvanced, false) => self.stdlib_advanced_fail += 1,
+            (SemanticDomain::External, true) => self.external_pass += 1,
+            (SemanticDomain::External, false) => self.external_fail += 1,
+            (SemanticDomain::Unknown, true) => self.unknown_pass += 1,
+            (SemanticDomain::Unknown, false) => self.unknown_fail += 1,
+        }
+    }
+}
+
+/// Analyze extended results with domain breakdown (GH-209)
+pub fn analyze_extended_results(
+    results: &[ExtendedAnalysisResult],
+) -> (usize, usize, HashMap<String, ErrorEntry>, DomainBreakdown) {
+    let mut taxonomy: HashMap<String, ErrorEntry> = HashMap::new();
+    let mut pass = 0;
+    let mut fail = 0;
+    let mut breakdown = DomainBreakdown::default();
+
+    for result in results {
+        breakdown.add_result(result.semantic_domain, result.base.success);
+
+        if result.base.success {
+            pass += 1;
+        } else {
+            fail += 1;
+            let code = result.base.error_code.clone().unwrap_or_else(|| "UNKNOWN".to_string());
+            let entry = taxonomy.entry(code).or_default();
+            entry.count += 1;
+
+            if entry.samples.len() < 3 {
+                if let Some(msg) = &result.base.error_message {
+                    entry.samples.push(format!("{}: {}", result.base.name, msg));
+                }
+            }
+        }
+    }
+
+    (pass, fail, taxonomy, breakdown)
 }
 
 /// Extract error code and message from rustc/depyler stderr output
@@ -881,5 +1211,330 @@ mod tests {
         let e3 = ErrorEntry { count: 3, samples: vec![] };
         assert_eq!(e1, e2);
         assert_ne!(e1, e3);
+    }
+
+    // ========== GH-209: Semantic Domain Tests ==========
+
+    #[test]
+    fn test_semantic_domain_label() {
+        assert_eq!(SemanticDomain::CoreLanguage.label(), "Core Language");
+        assert_eq!(SemanticDomain::StdlibCommon.label(), "Stdlib (Common)");
+        assert_eq!(SemanticDomain::StdlibAdvanced.label(), "Stdlib (Advanced)");
+        assert_eq!(SemanticDomain::External.label(), "External Packages");
+        assert_eq!(SemanticDomain::Unknown.label(), "Unknown");
+    }
+
+    #[test]
+    fn test_semantic_domain_default() {
+        assert_eq!(SemanticDomain::default(), SemanticDomain::Unknown);
+    }
+
+    #[test]
+    fn test_extract_imports_empty() {
+        let imports = extract_imports("");
+        assert!(imports.is_empty());
+    }
+
+    #[test]
+    fn test_extract_imports_simple() {
+        let source = "import os\nimport sys";
+        let imports = extract_imports(source);
+        assert!(imports.contains(&"os".to_string()));
+        assert!(imports.contains(&"sys".to_string()));
+    }
+
+    #[test]
+    fn test_extract_imports_from() {
+        let source = "from collections import defaultdict\nfrom typing import List";
+        let imports = extract_imports(source);
+        assert!(imports.contains(&"collections".to_string()));
+        assert!(imports.contains(&"typing".to_string()));
+    }
+
+    #[test]
+    fn test_extract_imports_nested() {
+        let source = "from os.path import join\nimport xml.etree.ElementTree";
+        let imports = extract_imports(source);
+        assert!(imports.contains(&"os".to_string()));
+        assert!(imports.contains(&"xml".to_string()));
+    }
+
+    #[test]
+    fn test_extract_imports_no_duplicates() {
+        let source = "import os\nimport os\nfrom os import path";
+        let imports = extract_imports(source);
+        assert_eq!(imports.iter().filter(|&m| m == "os").count(), 1);
+    }
+
+    #[test]
+    fn test_classify_domain_core() {
+        let imports: Vec<String> = vec![];
+        assert_eq!(classify_domain(&imports), SemanticDomain::CoreLanguage);
+    }
+
+    #[test]
+    fn test_classify_domain_stdlib_common() {
+        let imports = vec!["os".to_string(), "json".to_string()];
+        assert_eq!(classify_domain(&imports), SemanticDomain::StdlibCommon);
+    }
+
+    #[test]
+    fn test_classify_domain_stdlib_advanced() {
+        let imports = vec!["asyncio".to_string(), "typing".to_string()];
+        assert_eq!(classify_domain(&imports), SemanticDomain::StdlibAdvanced);
+    }
+
+    #[test]
+    fn test_classify_domain_external() {
+        let imports = vec!["numpy".to_string(), "pandas".to_string()];
+        assert_eq!(classify_domain(&imports), SemanticDomain::External);
+    }
+
+    #[test]
+    fn test_classify_domain_priority() {
+        // External takes priority over stdlib
+        let imports = vec!["os".to_string(), "numpy".to_string()];
+        assert_eq!(classify_domain(&imports), SemanticDomain::External);
+    }
+
+    // ========== GH-209: AST Features Tests ==========
+
+    #[test]
+    fn test_ast_features_default() {
+        let f = AstFeatures::default();
+        assert_eq!(f.function_count, 0);
+        assert_eq!(f.class_count, 0);
+        assert_eq!(f.complexity_score, 0.0);
+    }
+
+    #[test]
+    fn test_ast_features_to_vector() {
+        let f = AstFeatures {
+            function_count: 2,
+            class_count: 1,
+            loop_count: 3,
+            async_count: 0,
+            comprehension_count: 1,
+            complexity_score: 5.0,
+            import_count: 4,
+            line_count: 50,
+        };
+        let vec = f.to_feature_vector();
+        assert_eq!(vec.len(), 8);
+        assert_eq!(vec[0], 2.0); // function_count
+        assert_eq!(vec[1], 1.0); // class_count
+    }
+
+    #[test]
+    fn test_extract_ast_features_functions() {
+        let source = "def foo():\n    pass\ndef bar():\n    pass\nasync def baz():\n    pass";
+        let features = extract_ast_features(source);
+        assert_eq!(features.function_count, 3);
+    }
+
+    #[test]
+    fn test_extract_ast_features_classes() {
+        let source = "class Foo:\n    pass\nclass Bar:\n    pass";
+        let features = extract_ast_features(source);
+        assert_eq!(features.class_count, 2);
+    }
+
+    #[test]
+    fn test_extract_ast_features_loops() {
+        let source = "for i in range(10):\n    pass\nwhile True:\n    break";
+        let features = extract_ast_features(source);
+        assert_eq!(features.loop_count, 2);
+    }
+
+    #[test]
+    fn test_extract_ast_features_async() {
+        let source = "async def foo():\n    await bar()\n    await baz()";
+        let features = extract_ast_features(source);
+        assert!(features.async_count >= 1);
+    }
+
+    #[test]
+    fn test_extract_ast_features_comprehensions() {
+        let source = "[x for x in range(10)]\n{k: v for k, v in items}";
+        let features = extract_ast_features(source);
+        assert_eq!(features.comprehension_count, 2);
+    }
+
+    #[test]
+    fn test_extract_ast_features_line_count() {
+        let source = "line1\nline2\nline3\nline4\nline5";
+        let features = extract_ast_features(source);
+        assert_eq!(features.line_count, 5);
+    }
+
+    #[test]
+    fn test_ast_features_complexity_estimation() {
+        let mut f = AstFeatures {
+            function_count: 2,
+            class_count: 1,
+            loop_count: 3,
+            async_count: 1,
+            ..Default::default()
+        };
+        f.estimate_complexity();
+        // 1 + 3*2 + 2 + 1*1.5 + 1*2 = 1 + 6 + 2 + 1.5 + 2 = 12.5
+        assert!((f.complexity_score - 12.5).abs() < 0.01);
+    }
+
+    // ========== GH-209: Extended Analysis Result Tests ==========
+
+    #[test]
+    fn test_extended_analysis_result_from_base() {
+        let base = AnalysisResult {
+            name: "test.py".to_string(),
+            success: true,
+            error_code: None,
+            error_message: None,
+        };
+        let extended = ExtendedAnalysisResult::from_base(base.clone());
+        assert_eq!(extended.base.name, base.name);
+        assert_eq!(extended.semantic_domain, SemanticDomain::Unknown);
+        assert!(extended.imports.is_empty());
+    }
+
+    #[test]
+    fn test_extended_analysis_result_with_source() {
+        let base = AnalysisResult {
+            name: "test.py".to_string(),
+            success: false,
+            error_code: Some("E0308".to_string()),
+            error_message: Some("type error".to_string()),
+        };
+        let source = "import numpy\nimport pandas\ndef foo():\n    pass";
+        let extended = ExtendedAnalysisResult::from_base_with_source(base, source);
+        assert_eq!(extended.semantic_domain, SemanticDomain::External);
+        assert!(extended.imports.contains(&"numpy".to_string()));
+        assert_eq!(extended.ast_features.function_count, 1);
+    }
+
+    // ========== GH-209: Domain Breakdown Tests ==========
+
+    #[test]
+    fn test_domain_breakdown_default() {
+        let b = DomainBreakdown::default();
+        assert_eq!(b.core_lang_pass, 0);
+        assert_eq!(b.external_fail, 0);
+    }
+
+    #[test]
+    fn test_domain_breakdown_add_result() {
+        let mut b = DomainBreakdown::default();
+        b.add_result(SemanticDomain::CoreLanguage, true);
+        b.add_result(SemanticDomain::CoreLanguage, false);
+        b.add_result(SemanticDomain::External, false);
+        assert_eq!(b.core_lang_pass, 1);
+        assert_eq!(b.core_lang_fail, 1);
+        assert_eq!(b.external_fail, 1);
+    }
+
+    #[test]
+    fn test_domain_breakdown_pass_rate() {
+        let mut b = DomainBreakdown::default();
+        b.core_lang_pass = 8;
+        b.core_lang_fail = 2;
+        let rate = b.pass_rate(SemanticDomain::CoreLanguage);
+        assert!((rate - 80.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn test_domain_breakdown_pass_rate_zero() {
+        let b = DomainBreakdown::default();
+        assert_eq!(b.pass_rate(SemanticDomain::External), 0.0);
+    }
+
+    // ========== GH-209: Extended Analysis Tests ==========
+
+    #[test]
+    fn test_analyze_extended_results_empty() {
+        let results: Vec<ExtendedAnalysisResult> = vec![];
+        let (pass, fail, taxonomy, breakdown) = analyze_extended_results(&results);
+        assert_eq!(pass, 0);
+        assert_eq!(fail, 0);
+        assert!(taxonomy.is_empty());
+        assert_eq!(breakdown.core_lang_pass, 0);
+    }
+
+    #[test]
+    fn test_analyze_extended_results_mixed() {
+        let results = vec![
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "a.py".to_string(),
+                    success: true,
+                    error_code: None,
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "b.py".to_string(),
+                    success: false,
+                    error_code: Some("E0308".to_string()),
+                    error_message: Some("type error".to_string()),
+                },
+                semantic_domain: SemanticDomain::External,
+                ast_features: AstFeatures::default(),
+                imports: vec!["numpy".to_string()],
+            },
+        ];
+
+        let (pass, fail, taxonomy, breakdown) = analyze_extended_results(&results);
+        assert_eq!(pass, 1);
+        assert_eq!(fail, 1);
+        assert_eq!(taxonomy.get("E0308").unwrap().count, 1);
+        assert_eq!(breakdown.core_lang_pass, 1);
+        assert_eq!(breakdown.external_fail, 1);
+    }
+
+    #[test]
+    fn test_analyze_extended_results_domain_rates() {
+        let results = vec![
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "core1.py".to_string(),
+                    success: true,
+                    error_code: None,
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "core2.py".to_string(),
+                    success: true,
+                    error_code: None,
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::CoreLanguage,
+                ast_features: AstFeatures::default(),
+                imports: vec![],
+            },
+            ExtendedAnalysisResult {
+                base: AnalysisResult {
+                    name: "ext1.py".to_string(),
+                    success: false,
+                    error_code: Some("E0599".to_string()),
+                    error_message: None,
+                },
+                semantic_domain: SemanticDomain::External,
+                ast_features: AstFeatures::default(),
+                imports: vec!["numpy".to_string()],
+            },
+        ];
+
+        let (_, _, _, breakdown) = analyze_extended_results(&results);
+        // Core: 2/2 = 100%, External: 0/1 = 0%
+        assert!((breakdown.pass_rate(SemanticDomain::CoreLanguage) - 100.0).abs() < 0.01);
+        assert!((breakdown.pass_rate(SemanticDomain::External) - 0.0).abs() < 0.01);
     }
 }
