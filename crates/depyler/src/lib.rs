@@ -142,6 +142,14 @@ pub enum Commands {
         /// Enable O(1) compilation cache
         #[arg(long, default_value = "true")]
         cache: bool,
+
+        /// DEPYLER-1308: Enable transpiler patching (modifies depyler-core source)
+        #[arg(long)]
+        patch_transpiler: bool,
+
+        /// DEPYLER-1308: Path to APR file with custom patches
+        #[arg(long)]
+        apr_file: Option<PathBuf>,
     },
 
     /// Generate deterministic corpus analysis report
@@ -327,9 +335,9 @@ pub fn transpile_command(
 
     println!("{} {}", "✓".green(), output_path.display());
 
-    // DEPYLER-0384: Automatically emit Cargo.toml if dependencies detected
-    if !dependencies.is_empty() || true {
-        // Always emit Cargo.toml for single-shot compile guarantee
+    // DEPYLER-0384: Automatically emit Cargo.toml for single-shot compile guarantee
+    // Always emit regardless of detected dependencies
+    {
         let package_name = output_path
             .file_stem()
             .and_then(|s| s.to_str())

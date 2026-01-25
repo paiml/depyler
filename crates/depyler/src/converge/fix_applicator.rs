@@ -214,11 +214,10 @@ impl GeneratedRustFixer {
                     }
                     ReplaceStrategy::Function(f) => {
                         // Apply custom function
-                        if let Some(caps) = transform.pattern.captures(&error.message) {
-                            Some(f(source, &caps))
-                        } else {
-                            None
-                        }
+                        transform
+                            .pattern
+                            .captures(&error.message)
+                            .map(|caps| f(source, &caps))
                     }
                 };
 
@@ -457,6 +456,7 @@ mod tests {
                 file: PathBuf::from("test.rs"),
                 line: 1,
                 column: 1,
+                ..Default::default()
             },
             category: super::super::classifier::ErrorCategory::TranspilerGap,
             subcategory: "type_inference".to_string(),
@@ -476,6 +476,7 @@ mod tests {
                 file: PathBuf::from("test.rs"),
                 line: 1,
                 column: 1,
+                ..Default::default()
             },
             category: super::super::classifier::ErrorCategory::Unknown,
             subcategory: "unknown".to_string(),

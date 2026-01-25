@@ -95,7 +95,7 @@ pub fn analyze_corpus(corpus_dir: &Path, top_n: usize, output: Option<&Path>) ->
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| {
-            e.path().extension().map_or(false, |ext| ext == "py")
+            e.path().extension().is_some_and(|ext| ext == "py")
                 && !e.path().to_string_lossy().contains("__pycache__")
         })
     {
@@ -226,7 +226,7 @@ pub fn vectorize_corpus(
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| {
-            e.path().extension().map_or(false, |ext| ext == "py")
+            e.path().extension().is_some_and(|ext| ext == "py")
                 && !e.path().to_string_lossy().contains("__pycache__")
         })
     {
