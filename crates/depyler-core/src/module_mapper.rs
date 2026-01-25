@@ -183,7 +183,10 @@ impl ModuleMapper {
                     ("VERBOSE".to_string(), "(?x)".to_string()),
                     ("X".to_string(), "(?x)".to_string()),
                 ]),
-                constructor_patterns: HashMap::new(),
+                // GH-204: Add constructor patterns for regex types
+                constructor_patterns: HashMap::from([
+                    ("Regex".to_string(), ConstructorPattern::Method("new".to_string())),
+                ]),
             },
         );
 
@@ -199,7 +202,13 @@ impl ModuleMapper {
                     ("time".to_string(), "NaiveTime".to_string()),
                     ("timedelta".to_string(), "Duration".to_string()),
                 ]),
-                constructor_patterns: HashMap::new(),
+                // GH-204: Add constructor patterns for datetime types
+                constructor_patterns: HashMap::from([
+                    ("DateTime".to_string(), ConstructorPattern::Method("now".to_string())),
+                    ("NaiveDate".to_string(), ConstructorPattern::Method("from_ymd_opt".to_string())),
+                    ("NaiveTime".to_string(), ConstructorPattern::Method("from_hms_opt".to_string())),
+                    ("Duration".to_string(), ConstructorPattern::Method("seconds".to_string())),
+                ]),
             },
         );
 
@@ -238,7 +247,18 @@ impl ModuleMapper {
                     // HashMap in Rust 1.36+ preserves insertion order, so this is semantically correct
                     ("OrderedDict".to_string(), "HashMap".to_string()),
                 ]),
-                constructor_patterns: HashMap::new(),
+                // GH-204: Add constructor patterns to prevent E0423 errors
+                constructor_patterns: HashMap::from([
+                    ("defaultdict".to_string(), ConstructorPattern::New),
+                    ("Counter".to_string(), ConstructorPattern::New),
+                    ("deque".to_string(), ConstructorPattern::New),
+                    ("OrderedDict".to_string(), ConstructorPattern::New),
+                    ("VecDeque".to_string(), ConstructorPattern::New),
+                    ("HashMap".to_string(), ConstructorPattern::New),
+                    ("HashSet".to_string(), ConstructorPattern::New),
+                    ("BTreeMap".to_string(), ConstructorPattern::New),
+                    ("BTreeSet".to_string(), ConstructorPattern::New),
+                ]),
             },
         );
 
@@ -388,7 +408,11 @@ impl ModuleMapper {
                     ("Path".to_string(), "PathBuf".to_string()),
                     ("PurePath".to_string(), "Path".to_string()),
                 ]),
-                constructor_patterns: HashMap::new(),
+                // GH-204: Add constructor patterns for path types
+                constructor_patterns: HashMap::from([
+                    ("PathBuf".to_string(), ConstructorPattern::Method("from".to_string())),
+                    ("Path".to_string(), ConstructorPattern::Method("new".to_string())),
+                ]),
             },
         );
 
