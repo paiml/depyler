@@ -4,7 +4,8 @@
 //! GH-209: Extended with ML clustering and semantic domain analysis.
 
 pub mod analysis;
-pub mod clustering;  // GH-209 Phase 2: ML Clustering
+pub mod clustering;      // GH-209 Phase 2: ML Clustering
+pub mod graph_analysis;  // GH-209 Phase 4: Graph Analysis
 pub mod filter;
 
 use anyhow::Result;
