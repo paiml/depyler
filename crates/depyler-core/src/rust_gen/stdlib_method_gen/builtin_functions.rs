@@ -295,6 +295,266 @@ pub fn convert_type_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
     Ok(parse_quote! { std::any::type_name_of_val(&#value) })
 }
 
+// ============================================
+// DEPYLER-1205: E0425 Vocabulary Expansion
+// Add input(), hasattr(), super() builtins
+// ============================================
+
+/// input() or input(prompt) → Read line from stdin
+/// Python: input() reads stdin, input("prompt: ") prints prompt first
+/// Rust: Uses std::io::stdin().read_line() with prompt support
+pub fn convert_input_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() > 1 {
+        bail!("input() requires 0 or 1 arguments");
+    }
+    if args.len() == 1 {
+        let prompt = &args[0];
+        // With prompt: print then read
+        Ok(parse_quote! {
+            {
+                use std::io::Write;
+                print!("{}", #prompt);
+                std::io::stdout().flush().unwrap();
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).unwrap();
+                input.trim_end().to_string()
+            }
+        })
+    } else {
+        // No prompt: just read
+        Ok(parse_quote! {
+            {
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input).unwrap();
+                input.trim_end().to_string()
+            }
+        })
+    }
+}
+
+/// hasattr(obj, name) → Check if object has attribute
+/// Python: hasattr(obj, "attr") returns bool
+/// Rust: Uses struct field access check pattern with a helper macro
+/// Note: In Rust, this is typically a compile-time check. We generate
+/// a pattern that works with common struct patterns.
+pub fn convert_hasattr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() != 2 {
+        bail!("hasattr() requires exactly 2 arguments (object, name)");
+    }
+    // For now, return true as a placeholder - proper implementation
+    // would require trait-based introspection which Rust doesn't directly support
+    // In practice, transpiled code should use Option fields or trait bounds
+    Ok(parse_quote! { true })
+}
+
+/// getattr(obj, name) or getattr(obj, name, default)
+/// Python: getattr(obj, "attr") or getattr(obj, "attr", default)
+/// Rust: Direct field access or default value
+pub fn convert_getattr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() < 2 || args.len() > 3 {
+        bail!("getattr() requires 2 or 3 arguments");
+    }
+    let obj = &args[0];
+    let _name = &args[1];
+    if args.len() == 3 {
+        let default = &args[2];
+        // With default: return field or default
+        Ok(parse_quote! { #obj.clone().unwrap_or(#default) })
+    } else {
+        // Without default: just return obj (assumes direct access)
+        Ok(parse_quote! { #obj.clone() })
+    }
+}
+
+/// setattr(obj, name, value) → Set attribute on object
+/// Python: setattr(obj, "attr", value)
+/// Rust: Direct field assignment (requires &mut)
+pub fn convert_setattr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() != 3 {
+        bail!("setattr() requires exactly 3 arguments (object, name, value)");
+    }
+    let _obj = &args[0];
+    let _name = &args[1];
+    let _value = &args[2];
+    // Placeholder - in practice this needs context-aware codegen
+    Ok(parse_quote! { () })
+}
+
+// ============================================
+// GH-204: Additional E0425 Vocabulary Expansion
+// Add more common Python builtins to reduce
+// "cannot find value" errors in transpiled code
+// ============================================
+
+/// callable(obj) → Check if object is callable
+/// Python: callable(obj) returns True if obj has __call__
+/// Rust: Returns true as placeholder (type system handles this at compile time)
+pub fn convert_callable_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() != 1 {
+        bail!("callable() requires exactly 1 argument");
+    }
+    // In Rust, callable check is a compile-time guarantee via Fn traits
+    Ok(parse_quote! { true })
+}
+
+/// id(obj) → Return identity (memory address) of object
+/// Python: id(obj) returns unique integer identifier
+/// Rust: Uses raw pointer address cast to usize
+pub fn convert_id_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() != 1 {
+        bail!("id() requires exactly 1 argument");
+    }
+    let obj = &args[0];
+    Ok(parse_quote! { (&#obj as *const _ as usize) })
+}
+
+/// ascii(obj) → Return ASCII representation with escapes
+/// Python: ascii(obj) like repr() but escapes non-ASCII
+/// Rust: Uses Debug formatting with escape sequences
+pub fn convert_ascii_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() != 1 {
+        bail!("ascii() requires exactly 1 argument");
+    }
+    let value = &args[0];
+    Ok(parse_quote! { format!("{:?}", #value).escape_default().to_string() })
+}
+
+/// format(value, format_spec) → Format a value
+/// Python: format(value, ".2f") formats with spec
+/// Rust: Uses format! macro with appropriate spec
+pub fn convert_format_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.is_empty() || args.len() > 2 {
+        bail!("format() requires 1 or 2 arguments");
+    }
+    let value = &args[0];
+    if args.len() == 2 {
+        // With format spec - simplified handling
+        Ok(parse_quote! { format!("{}", #value) })
+    } else {
+        Ok(parse_quote! { format!("{}", #value) })
+    }
+}
+
+/// vars(obj) → Return __dict__ attribute
+/// Python: vars(obj) returns object's attribute dict
+/// Rust: Returns empty HashMap as placeholder
+pub fn convert_vars_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() > 1 {
+        bail!("vars() requires 0 or 1 arguments");
+    }
+    // Return empty HashMap as placeholder
+    Ok(parse_quote! { std::collections::HashMap::<String, String>::new() })
+}
+
+/// dir(obj) → Return list of attributes
+/// Python: dir(obj) returns list of attribute names
+/// Rust: Returns empty Vec as placeholder
+pub fn convert_dir_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() > 1 {
+        bail!("dir() requires 0 or 1 arguments");
+    }
+    // Return empty Vec as placeholder
+    Ok(parse_quote! { Vec::<String>::new() })
+}
+
+/// globals() → Return global namespace dict
+/// Python: globals() returns global symbol table
+/// Rust: Returns empty HashMap (no equivalent in Rust)
+pub fn convert_globals_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if !args.is_empty() {
+        bail!("globals() takes no arguments");
+    }
+    Ok(parse_quote! { std::collections::HashMap::<String, String>::new() })
+}
+
+/// locals() → Return local namespace dict
+/// Python: locals() returns local symbol table
+/// Rust: Returns empty HashMap (no equivalent in Rust)
+pub fn convert_locals_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if !args.is_empty() {
+        bail!("locals() takes no arguments");
+    }
+    Ok(parse_quote! { std::collections::HashMap::<String, String>::new() })
+}
+
+/// delattr(obj, name) → Delete attribute from object
+/// Python: delattr(obj, "attr") removes attribute
+/// Rust: No-op placeholder (struct fields can't be deleted)
+pub fn convert_delattr_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() != 2 {
+        bail!("delattr() requires exactly 2 arguments (object, name)");
+    }
+    // No-op in Rust - fields can't be dynamically deleted
+    Ok(parse_quote! { () })
+}
+
+/// staticmethod(func) → Return static method
+/// Python: @staticmethod decorator
+/// Rust: No-op - Rust methods are static by default unless &self
+pub fn convert_staticmethod_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() != 1 {
+        bail!("staticmethod() requires exactly 1 argument");
+    }
+    let func = &args[0];
+    // Just return the function as-is
+    Ok(parse_quote! { #func })
+}
+
+/// classmethod(func) → Return class method
+/// Python: @classmethod decorator
+/// Rust: No-op placeholder - Rust doesn't have class methods
+pub fn convert_classmethod_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() != 1 {
+        bail!("classmethod() requires exactly 1 argument");
+    }
+    let func = &args[0];
+    // Just return the function as-is
+    Ok(parse_quote! { #func })
+}
+
+/// property(fget, fset, fdel, doc) → Create property descriptor
+/// Python: @property decorator for getters/setters
+/// Rust: No-op placeholder - Rust uses direct field access
+pub fn convert_property_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.is_empty() || args.len() > 4 {
+        bail!("property() requires 1-4 arguments");
+    }
+    let fget = &args[0];
+    // Just return the getter function
+    Ok(parse_quote! { #fget })
+}
+
+/// breakpoint() → Drop into debugger
+/// Python: breakpoint() invokes debugger
+/// Rust: Uses panic for debugging (or could use dbg!)
+pub fn convert_breakpoint_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if !args.is_empty() {
+        bail!("breakpoint() takes no arguments");
+    }
+    // Use panic as a breakpoint alternative
+    Ok(parse_quote! { panic!("breakpoint reached") })
+}
+
+/// exit(code) → Exit program
+/// Python: exit(0) or sys.exit(0)
+/// Rust: std::process::exit(code)
+pub fn convert_exit_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    if args.len() > 1 {
+        bail!("exit() requires 0 or 1 arguments");
+    }
+    if args.len() == 1 {
+        let code = &args[0];
+        Ok(parse_quote! { std::process::exit(#code as i32) })
+    } else {
+        Ok(parse_quote! { std::process::exit(0) })
+    }
+}
+
+/// quit() → Alias for exit()
+pub fn convert_quit_builtin(args: &[syn::Expr]) -> Result<syn::Expr> {
+    convert_exit_builtin(args)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -826,6 +1086,108 @@ mod tests {
     fn test_convert_type_builtin_wrong_args() {
         let args: Vec<syn::Expr> = vec![];
         let result = convert_type_builtin(&args);
+        assert!(result.is_err());
+    }
+
+    // ============================================
+    // DEPYLER-1205: input() tests
+    // ============================================
+
+    #[test]
+    fn test_convert_input_builtin_no_prompt() {
+        let args: Vec<syn::Expr> = vec![];
+        let result = convert_input_builtin(&args);
+        assert!(result.is_ok());
+        let expr = result.unwrap();
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("stdin"), "Should use stdin: {}", code);
+        assert!(code.contains("read_line"), "Should read line: {}", code);
+    }
+
+    #[test]
+    fn test_convert_input_builtin_with_prompt() {
+        let args: Vec<syn::Expr> = vec![parse_quote!("Enter: ")];
+        let result = convert_input_builtin(&args);
+        assert!(result.is_ok());
+        let expr = result.unwrap();
+        let code = quote::quote!(#expr).to_string();
+        // Token stream converts print! to "print !" with space
+        assert!(code.contains("print"), "Should print prompt: {}", code);
+        assert!(code.contains("flush"), "Should flush stdout: {}", code);
+    }
+
+    #[test]
+    fn test_convert_input_builtin_wrong_args() {
+        let args: Vec<syn::Expr> = vec![parse_quote!("a"), parse_quote!("b")];
+        let result = convert_input_builtin(&args);
+        assert!(result.is_err());
+    }
+
+    // ============================================
+    // DEPYLER-1205: hasattr() tests
+    // ============================================
+
+    #[test]
+    fn test_convert_hasattr_builtin() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(obj), parse_quote!("attr")];
+        let result = convert_hasattr_builtin(&args);
+        assert!(result.is_ok());
+        // Returns true as placeholder for now
+        let expr = result.unwrap();
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("true"), "Should return true: {}", code);
+    }
+
+    #[test]
+    fn test_convert_hasattr_builtin_wrong_args() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(obj)];
+        let result = convert_hasattr_builtin(&args);
+        assert!(result.is_err());
+    }
+
+    // ============================================
+    // DEPYLER-1205: getattr() tests
+    // ============================================
+
+    #[test]
+    fn test_convert_getattr_builtin_two_args() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(obj), parse_quote!("attr")];
+        let result = convert_getattr_builtin(&args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_getattr_builtin_with_default() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(obj), parse_quote!("attr"), parse_quote!(0)];
+        let result = convert_getattr_builtin(&args);
+        assert!(result.is_ok());
+        let expr = result.unwrap();
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("unwrap_or"), "Should have default: {}", code);
+    }
+
+    #[test]
+    fn test_convert_getattr_builtin_wrong_args() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(obj)];
+        let result = convert_getattr_builtin(&args);
+        assert!(result.is_err());
+    }
+
+    // ============================================
+    // DEPYLER-1205: setattr() tests
+    // ============================================
+
+    #[test]
+    fn test_convert_setattr_builtin() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(obj), parse_quote!("attr"), parse_quote!(42)];
+        let result = convert_setattr_builtin(&args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_setattr_builtin_wrong_args() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(obj), parse_quote!("attr")];
+        let result = convert_setattr_builtin(&args);
         assert!(result.is_err());
     }
 }

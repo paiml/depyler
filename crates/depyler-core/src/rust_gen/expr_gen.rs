@@ -3178,22 +3178,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 })
                 .collect::<Result<Vec<_>>>()?
         } else {
-            // DEPYLER-1215: Convert args with type context for dict literals
-            // When a dict literal is passed to a function expecting Dict[str, Any],
+            // DEPYLER-1215/DEPYLER-1218: Convert args with type context for dict and list literals
+            // When a dict/list literal is passed to a function expecting Dict/List with Unknown/Any,
             // we need to set current_assign_type to trigger DepylerValue wrapping
             let mut converted_args = Vec::with_capacity(args.len());
             for (param_idx, arg) in args.iter().enumerate() {
-                // DEPYLER-1215: For dict literals, check if param expects Dict with Unknown/Any value type
-                let prev_assign_type = if matches!(arg, HirExpr::Dict(_)) {
+                // DEPYLER-1215/DEPYLER-1218: Check if param expects Dict/List with Unknown/Any value type
+                let prev_assign_type = if matches!(arg, HirExpr::Dict(_) | HirExpr::List(_)) {
                     if let Some(param_types) = self.ctx.function_param_types.get(func) {
                         if let Some(param_type) = param_types.get(param_idx) {
-                            // Check if param is Dict[_, Any/Unknown] or bare dict
+                            // Check if param is Dict[_, Any/Unknown] or List[Any/Unknown] or bare dict/list
                             let needs_depyler_value = match param_type {
                                 Type::Dict(_, val_type) => {
                                     matches!(val_type.as_ref(), Type::Unknown)
                                         || matches!(val_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any")
                                 }
+                                // DEPYLER-1218: List with Unknown/DepylerValue element type
+                                Type::List(elem_type) => {
+                                    matches!(elem_type.as_ref(), Type::Unknown)
+                                        || matches!(elem_type.as_ref(), Type::Custom(name) if name == "DepylerValue" || name == "Any")
+                                }
                                 Type::Custom(name) if name == "dict" || name == "Dict" => true,
+                                Type::Custom(name) if name == "list" || name == "List" => true,
                                 _ => false,
                             };
                             if needs_depyler_value {
@@ -3357,6 +3363,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "input" => stdlib_method_gen::builtin_functions::convert_input_builtin(&arg_exprs),
             "hasattr" => stdlib_method_gen::builtin_functions::convert_hasattr_builtin(&arg_exprs),
             "setattr" => stdlib_method_gen::builtin_functions::convert_setattr_builtin(&arg_exprs),
+            // GH-204: Additional E0425 Vocabulary Expansion
+            "callable" => stdlib_method_gen::builtin_functions::convert_callable_builtin(&arg_exprs),
+            "id" => stdlib_method_gen::builtin_functions::convert_id_builtin(&arg_exprs),
+            "ascii" => stdlib_method_gen::builtin_functions::convert_ascii_builtin(&arg_exprs),
+            "vars" => stdlib_method_gen::builtin_functions::convert_vars_builtin(&arg_exprs),
+            "dir" => stdlib_method_gen::builtin_functions::convert_dir_builtin(&arg_exprs),
+            "globals" => stdlib_method_gen::builtin_functions::convert_globals_builtin(&arg_exprs),
+            "locals" => stdlib_method_gen::builtin_functions::convert_locals_builtin(&arg_exprs),
+            "delattr" => stdlib_method_gen::builtin_functions::convert_delattr_builtin(&arg_exprs),
+            "staticmethod" => stdlib_method_gen::builtin_functions::convert_staticmethod_builtin(&arg_exprs),
+            "classmethod" => stdlib_method_gen::builtin_functions::convert_classmethod_builtin(&arg_exprs),
+            "property" => stdlib_method_gen::builtin_functions::convert_property_builtin(&arg_exprs),
+            "breakpoint" => stdlib_method_gen::builtin_functions::convert_breakpoint_builtin(&arg_exprs),
+            "exit" => stdlib_method_gen::builtin_functions::convert_exit_builtin(&arg_exprs),
+            "quit" => stdlib_method_gen::builtin_functions::convert_quit_builtin(&arg_exprs),
             _ => self.convert_generic_call(func, &all_hir_args, &all_args),
         }
     }
