@@ -271,7 +271,9 @@ pub struct GraphAnalysis {
 - Phase 2: ML Clustering - ✅ COMPLETE (24 tests)
 - Phase 3: Semantic Domain Classifier - ✅ COMPLETE (integrated in Phase 1)
 - Phase 4: Graph Analysis - ✅ COMPLETE (20 tests)
-- Phase 5: Report Enhancement - PENDING
+- Phase 5: Report Enhancement - ✅ COMPLETE (15 tests)
+
+**Total: 211 tests passing in report_cmd module**
 
 ## Implementation Summary
 
@@ -305,3 +307,14 @@ pub struct GraphAnalysis {
 - `find_communities()`: BFS-based connected component detection
 - `ErrorCommunity`: auto-named clusters like "The Type Mismatch Cluster"
 - `GraphAnalysis`: full analysis with density, top_central, communities
+
+### Phase 5: Advanced Report Output (15 tests)
+- `AdvancedReportConfig`: configurable analysis options
+- `AdvancedReport`: full report struct with all signals
+- `ReportSummary`: pass/fail counts, rate, Andon status
+- `DomainStats`: per-domain pass rates
+- `ErrorBreakdownEntry`: top errors with priority levels
+- `ClusterSummary`: simplified cluster view for report
+- `GraphSummary`: simplified graph metrics
+- `build_advanced_report()`: combines all analyses
+- `format_json()` and `format_text()`: output formatters

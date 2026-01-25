@@ -215,10 +215,11 @@ impl ErrorClusterAnalyzer {
         // Determine optimal k (simple heuristic: sqrt(n) / 2, min 2, max 10)
         let n = failed.len();
         let k = if self.config.n_clusters > 0 {
-            self.config.n_clusters
+            self.config.n_clusters.min(n)
         } else {
             let auto_k = ((n as f64).sqrt() / 2.0).ceil() as usize;
-            auto_k.clamp(2, 10.min(n))
+            let max_k = 10.min(n).max(2); // Ensure max >= 2
+            auto_k.clamp(2.min(n), max_k)
         };
 
         // Run simplified KMeans (pure Rust implementation for reliability)
