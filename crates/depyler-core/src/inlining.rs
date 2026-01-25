@@ -1869,29 +1869,27 @@ mod tests {
                 name: "recursive".to_string(),
                 params: smallvec![HirParam::new("n".to_string(), Type::Int)],
                 ret_type: Type::Int,
-                body: vec![
-                    HirStmt::If {
-                        condition: HirExpr::Binary {
-                            left: Box::new(HirExpr::Var("n".to_string())),
-                            op: BinOp::Eq,
-                            right: Box::new(HirExpr::Literal(Literal::Int(0))),
-                        },
-                        then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                        else_body: Some(vec![HirStmt::Return(Some(HirExpr::Binary {
-                            left: Box::new(HirExpr::Var("n".to_string())),
-                            op: BinOp::Mul,
-                            right: Box::new(HirExpr::Call {
-                                func: "recursive".to_string(),
-                                args: vec![HirExpr::Binary {
-                                    left: Box::new(HirExpr::Var("n".to_string())),
-                                    op: BinOp::Sub,
-                                    right: Box::new(HirExpr::Literal(Literal::Int(1))),
-                                }],
-                                kwargs: vec![],
-                            }),
-                        }))]),
+                body: vec![HirStmt::If {
+                    condition: HirExpr::Binary {
+                        left: Box::new(HirExpr::Var("n".to_string())),
+                        op: BinOp::Eq,
+                        right: Box::new(HirExpr::Literal(Literal::Int(0))),
                     },
-                ],
+                    then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+                    else_body: Some(vec![HirStmt::Return(Some(HirExpr::Binary {
+                        left: Box::new(HirExpr::Var("n".to_string())),
+                        op: BinOp::Mul,
+                        right: Box::new(HirExpr::Call {
+                            func: "recursive".to_string(),
+                            args: vec![HirExpr::Binary {
+                                left: Box::new(HirExpr::Var("n".to_string())),
+                                op: BinOp::Sub,
+                                right: Box::new(HirExpr::Literal(Literal::Int(1))),
+                            }],
+                            kwargs: vec![],
+                        }),
+                    }))]),
+                }],
                 properties: FunctionProperties::default(),
                 annotations: Default::default(),
                 docstring: None,
@@ -1902,7 +1900,9 @@ mod tests {
         let decisions = analyzer.analyze_program(&program);
         // Recursive function should not be inlined
         if let Some(decision) = decisions.get("recursive") {
-            assert!(!decision.should_inline || matches!(decision.reason, InliningReason::Recursive));
+            assert!(
+                !decision.should_inline || matches!(decision.reason, InliningReason::Recursive)
+            );
         }
     }
 
@@ -2074,13 +2074,13 @@ mod tests {
     // --- Return count tests ---
     #[test]
     fn test_count_returns_multiple() {
-        let body = vec![
-            HirStmt::If {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
-            },
-        ];
+        let body = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                2,
+            ))))]),
+        }];
         let count = count_returns_inner(&body);
         assert_eq!(count, 2);
     }
@@ -2279,7 +2279,9 @@ mod tests {
         let stmt = HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                2,
+            ))))]),
         };
         let size = analyzer.calculate_stmt_size(&stmt);
         assert!(size >= 3);

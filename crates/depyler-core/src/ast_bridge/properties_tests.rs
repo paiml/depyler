@@ -88,10 +88,7 @@ fn test_impure_with_unknown_call() {
 
 #[test]
 fn test_pure_with_len_call() {
-    let body = vec![HirStmt::Expr(make_call(
-        "len",
-        vec![HirExpr::List(vec![])],
-    ))];
+    let body = vec![HirStmt::Expr(make_call("len", vec![HirExpr::List(vec![])]))];
     let props = FunctionAnalyzer::analyze(&body);
 
     assert!(props.is_pure);

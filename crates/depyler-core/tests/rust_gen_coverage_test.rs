@@ -672,8 +672,10 @@ def get_value(name: str, default: str | None = None) -> str | None:
     // Verify optional default is cloned, not wrapped in Some()
     // Correct: value = default.clone()
     // Wrong: value = Some(default)
-    let has_clone_pattern = rust_code.contains("default.clone()") || rust_code.contains("default . clone ()");
-    let has_wrong_pattern = rust_code.contains("Some(default)") || rust_code.contains("Some (default)");
+    let has_clone_pattern =
+        rust_code.contains("default.clone()") || rust_code.contains("default . clone ()");
+    let has_wrong_pattern =
+        rust_code.contains("Some(default)") || rust_code.contains("Some (default)");
     assert!(
         has_clone_pattern || !has_wrong_pattern,
         "Optional variable assignment should use .clone() not Some(), got:\n{}",
@@ -762,7 +764,8 @@ def get_last(items: list) -> int:
 
     // Should NOT contain direct "-1 as usize" which wraps incorrectly
     // Instead should have safe negative index handling with len() check
-    let has_unsafe_cast = rust_code.contains("[-1 as usize]") || rust_code.contains("[-1i32 as usize]");
+    let has_unsafe_cast =
+        rust_code.contains("[-1 as usize]") || rust_code.contains("[-1i32 as usize]");
     let has_len_check = rust_code.contains("len()") || rust_code.contains(".len()");
 
     assert!(
@@ -848,7 +851,9 @@ def check_flag(flag: bool) -> str:
     let rust_code = result.unwrap();
 
     // Extract just the check_flag function body
-    let fn_start = rust_code.find("fn check_flag").expect("Function should exist");
+    let fn_start = rust_code
+        .find("fn check_flag")
+        .expect("Function should exist");
     let fn_body = &rust_code[fn_start..];
 
     // For bool types, should generate simple `if flag` without coercion
@@ -875,7 +880,9 @@ def is_positive(n: int) -> bool:
     let rust_code = result.unwrap();
 
     // Extract just the is_positive function body
-    let fn_start = rust_code.find("fn is_positive").expect("Function should exist");
+    let fn_start = rust_code
+        .find("fn is_positive")
+        .expect("Function should exist");
     let fn_body = &rust_code[fn_start..];
 
     // The comparison `n > 0` returns bool - should be present without extra coercion
@@ -1029,7 +1036,11 @@ def has_negative(data: list[float]) -> bool:
     return any(x < 0 for x in data)
 "#;
     let result = pipeline.transpile(python_code);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
     let rust_code = result.unwrap();
 
     // The comparison should use float literal (0f64 or 0.0)
@@ -1054,7 +1065,11 @@ def filter_positive(values: list[float]) -> list[float]:
     return [x for x in values if x > 0]
 "#;
     let result = pipeline.transpile(python_code);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
     let rust_code = result.unwrap();
 
     // The comprehension should compile - if type propagation works,

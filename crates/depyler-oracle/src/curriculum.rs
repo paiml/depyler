@@ -290,13 +290,7 @@ impl CurriculumScheduler {
         let error_message_str = error_message.into();
         let difficulty = classify_error_difficulty(&error_code_str, &error_message_str);
 
-        let entry = CurriculumEntry::new(
-            id,
-            file,
-            error_code_str,
-            error_message_str,
-            difficulty,
-        );
+        let entry = CurriculumEntry::new(id, file, error_code_str, error_message_str, difficulty);
 
         self.add(entry);
     }
@@ -360,8 +354,12 @@ impl CurriculumScheduler {
         let mut report = String::new();
 
         report.push_str("# Curriculum Summary\n\n");
-        report.push_str(&format!("Total: {} | Processed: {} | Remaining: {}\n\n",
-            self.stats.total_added, self.stats.processed, self.queue.len()));
+        report.push_str(&format!(
+            "Total: {} | Processed: {} | Remaining: {}\n\n",
+            self.stats.total_added,
+            self.stats.processed,
+            self.queue.len()
+        ));
 
         report.push_str("## By Difficulty\n\n");
         report.push_str("| Level | Count | Success | Failure | Rate |\n");
@@ -376,12 +374,18 @@ impl CurriculumScheduler {
 
             report.push_str(&format!(
                 "| {} | {} | {} | {} | {:.1}% |\n",
-                level, count, successes, failures, rate * 100.0
+                level,
+                count,
+                successes,
+                failures,
+                rate * 100.0
             ));
         }
 
-        report.push_str(&format!("\nOverall success rate: {:.1}%\n",
-            self.stats.overall_success_rate() * 100.0));
+        report.push_str(&format!(
+            "\nOverall success rate: {:.1}%\n",
+            self.stats.overall_success_rate() * 100.0
+        ));
 
         report
     }
@@ -410,7 +414,7 @@ pub fn classify_error_difficulty(error_code: &str, error_message: &str) -> Diffi
     // EASY: Syntax errors, missing imports
     match error_code {
         "E0433" | "E0412" | "E0405" | "E0425" => return DifficultyLevel::Easy, // Import/resolution
-        "E0601" | "E0602" => return DifficultyLevel::Easy, // Main function
+        "E0601" | "E0602" => return DifficultyLevel::Easy,                     // Main function
         _ => {}
     }
 
@@ -455,8 +459,8 @@ pub fn classify_error_difficulty(error_code: &str, error_message: &str) -> Diffi
     // EXPERT: Lifetimes, async, complex patterns
     match error_code {
         "E0106" | "E0495" | "E0621" => return DifficultyLevel::Expert, // Lifetime
-        "E0597" | "E0716" => return DifficultyLevel::Expert, // Borrowed value
-        "E0728" | "E0746" => return DifficultyLevel::Expert, // Async
+        "E0597" | "E0716" => return DifficultyLevel::Expert,           // Borrowed value
+        "E0728" | "E0746" => return DifficultyLevel::Expert,           // Async
         _ => {}
     }
 
@@ -523,24 +527,72 @@ mod tests {
         let mut scheduler = CurriculumScheduler::new();
 
         // Add in random order
-        scheduler.add(CurriculumEntry::new("1", "test.rs", "E0277", "trait bound", DifficultyLevel::Hard));
-        scheduler.add(CurriculumEntry::new("2", "test.rs", "E0433", "unresolved", DifficultyLevel::Easy));
-        scheduler.add(CurriculumEntry::new("3", "test.rs", "E0106", "lifetime", DifficultyLevel::Expert));
-        scheduler.add(CurriculumEntry::new("4", "test.rs", "E0308", "mismatch", DifficultyLevel::Medium));
+        scheduler.add(CurriculumEntry::new(
+            "1",
+            "test.rs",
+            "E0277",
+            "trait bound",
+            DifficultyLevel::Hard,
+        ));
+        scheduler.add(CurriculumEntry::new(
+            "2",
+            "test.rs",
+            "E0433",
+            "unresolved",
+            DifficultyLevel::Easy,
+        ));
+        scheduler.add(CurriculumEntry::new(
+            "3",
+            "test.rs",
+            "E0106",
+            "lifetime",
+            DifficultyLevel::Expert,
+        ));
+        scheduler.add(CurriculumEntry::new(
+            "4",
+            "test.rs",
+            "E0308",
+            "mismatch",
+            DifficultyLevel::Medium,
+        ));
 
         // Should come out in EASY, MEDIUM, HARD, EXPERT order
-        assert_eq!(scheduler.pop_next().unwrap().difficulty, DifficultyLevel::Easy);
-        assert_eq!(scheduler.pop_next().unwrap().difficulty, DifficultyLevel::Medium);
-        assert_eq!(scheduler.pop_next().unwrap().difficulty, DifficultyLevel::Hard);
-        assert_eq!(scheduler.pop_next().unwrap().difficulty, DifficultyLevel::Expert);
+        assert_eq!(
+            scheduler.pop_next().unwrap().difficulty,
+            DifficultyLevel::Easy
+        );
+        assert_eq!(
+            scheduler.pop_next().unwrap().difficulty,
+            DifficultyLevel::Medium
+        );
+        assert_eq!(
+            scheduler.pop_next().unwrap().difficulty,
+            DifficultyLevel::Hard
+        );
+        assert_eq!(
+            scheduler.pop_next().unwrap().difficulty,
+            DifficultyLevel::Expert
+        );
     }
 
     #[test]
     fn test_curriculum_scheduler_stats() {
         let mut scheduler = CurriculumScheduler::new();
 
-        scheduler.add(CurriculumEntry::new("1", "test.rs", "E0433", "easy", DifficultyLevel::Easy));
-        scheduler.add(CurriculumEntry::new("2", "test.rs", "E0308", "medium", DifficultyLevel::Medium));
+        scheduler.add(CurriculumEntry::new(
+            "1",
+            "test.rs",
+            "E0433",
+            "easy",
+            DifficultyLevel::Easy,
+        ));
+        scheduler.add(CurriculumEntry::new(
+            "2",
+            "test.rs",
+            "E0308",
+            "medium",
+            DifficultyLevel::Medium,
+        ));
 
         assert_eq!(scheduler.stats().total_added, 2);
         assert_eq!(scheduler.len(), 2);
@@ -554,34 +606,70 @@ mod tests {
 
     #[test]
     fn test_classify_error_difficulty_easy() {
-        assert_eq!(classify_error_difficulty("E0433", "unresolved import"), DifficultyLevel::Easy);
-        assert_eq!(classify_error_difficulty("E0425", "cannot find value"), DifficultyLevel::Easy);
+        assert_eq!(
+            classify_error_difficulty("E0433", "unresolved import"),
+            DifficultyLevel::Easy
+        );
+        assert_eq!(
+            classify_error_difficulty("E0425", "cannot find value"),
+            DifficultyLevel::Easy
+        );
     }
 
     #[test]
     fn test_classify_error_difficulty_medium() {
-        assert_eq!(classify_error_difficulty("E0308", "mismatched types"), DifficultyLevel::Medium);
-        assert_eq!(classify_error_difficulty("E0599", "method not found"), DifficultyLevel::Medium);
+        assert_eq!(
+            classify_error_difficulty("E0308", "mismatched types"),
+            DifficultyLevel::Medium
+        );
+        assert_eq!(
+            classify_error_difficulty("E0599", "method not found"),
+            DifficultyLevel::Medium
+        );
     }
 
     #[test]
     fn test_classify_error_difficulty_hard() {
-        assert_eq!(classify_error_difficulty("E0277", "trait not implemented"), DifficultyLevel::Hard);
-        assert_eq!(classify_error_difficulty("E0382", "use of moved value"), DifficultyLevel::Hard);
+        assert_eq!(
+            classify_error_difficulty("E0277", "trait not implemented"),
+            DifficultyLevel::Hard
+        );
+        assert_eq!(
+            classify_error_difficulty("E0382", "use of moved value"),
+            DifficultyLevel::Hard
+        );
     }
 
     #[test]
     fn test_classify_error_difficulty_expert() {
-        assert_eq!(classify_error_difficulty("E0106", "missing lifetime"), DifficultyLevel::Expert);
-        assert_eq!(classify_error_difficulty("E0728", "async fn"), DifficultyLevel::Expert);
+        assert_eq!(
+            classify_error_difficulty("E0106", "missing lifetime"),
+            DifficultyLevel::Expert
+        );
+        assert_eq!(
+            classify_error_difficulty("E0728", "async fn"),
+            DifficultyLevel::Expert
+        );
     }
 
     #[test]
     fn test_classify_from_category() {
-        assert_eq!(classify_from_category(ErrorCategory::SyntaxError), DifficultyLevel::Easy);
-        assert_eq!(classify_from_category(ErrorCategory::TypeMismatch), DifficultyLevel::Medium);
-        assert_eq!(classify_from_category(ErrorCategory::BorrowChecker), DifficultyLevel::Hard);
-        assert_eq!(classify_from_category(ErrorCategory::LifetimeError), DifficultyLevel::Expert);
+        assert_eq!(
+            classify_from_category(ErrorCategory::SyntaxError),
+            DifficultyLevel::Easy
+        );
+        assert_eq!(
+            classify_from_category(ErrorCategory::TypeMismatch),
+            DifficultyLevel::Medium
+        );
+        assert_eq!(
+            classify_from_category(ErrorCategory::BorrowChecker),
+            DifficultyLevel::Hard
+        );
+        assert_eq!(
+            classify_from_category(ErrorCategory::LifetimeError),
+            DifficultyLevel::Expert
+        );
     }
 
     #[test]
@@ -614,7 +702,13 @@ mod tests {
     #[test]
     fn test_curriculum_summary() {
         let mut scheduler = CurriculumScheduler::new();
-        scheduler.add(CurriculumEntry::new("1", "test.rs", "E0433", "easy", DifficultyLevel::Easy));
+        scheduler.add(CurriculumEntry::new(
+            "1",
+            "test.rs",
+            "E0433",
+            "easy",
+            DifficultyLevel::Easy,
+        ));
 
         let summary = scheduler.summary();
         assert!(summary.contains("Curriculum Summary"));

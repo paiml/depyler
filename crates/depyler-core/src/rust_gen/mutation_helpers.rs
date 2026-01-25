@@ -56,14 +56,25 @@ pub fn is_non_mutating_dict_method(method: &str) -> bool {
 pub fn is_non_mutating_set_method(method: &str) -> bool {
     matches!(
         method,
-        "copy" | "difference" | "intersection" | "union" | "symmetric_difference" |
-        "issubset" | "issuperset" | "isdisjoint" | "__len__" | "__contains__"
+        "copy"
+            | "difference"
+            | "intersection"
+            | "union"
+            | "symmetric_difference"
+            | "issubset"
+            | "issuperset"
+            | "isdisjoint"
+            | "__len__"
+            | "__contains__"
     )
 }
 
 /// Check if a method is a file read operation (non-mutating in Python sense)
 pub fn is_file_read_method(method: &str) -> bool {
-    matches!(method, "read" | "readline" | "readlines" | "read_text" | "read_bytes")
+    matches!(
+        method,
+        "read" | "readline" | "readlines" | "read_text" | "read_bytes"
+    )
 }
 
 #[cfg(test)]

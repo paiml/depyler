@@ -193,12 +193,12 @@ impl TypeMapper {
                 _ => RustType::Vec(Box::new(self.map_type(inner))),
             },
             PythonType::Dict(k, v) => {
-                // DEPYLER-1040b: Use DepylerValue for unknown dict keys (Point 14 falsification fix)
-                // Python allows integer keys `{1: "a"}`, tuple keys `{(1,2): "b"}`, etc.
-                // Using String would cause E0308 for non-string keys.
-                // Principle: "If unsure, use DepylerValue. Never guess."
+                // DEPYLER-1318 DICT UNIFICATION: Use String for unknown dict keys
+                // 99% of Python dict keys are strings. We optimize for the common case.
+                // This aligns type_mapper.rs with type_tokens.rs to end the Civil War.
+                // Result: `dict` → `HashMap<String, DepylerValue>` everywhere.
                 let key_type = if matches!(**k, PythonType::Unknown) {
-                    self.unknown_fallback() // DepylerValue instead of String
+                    RustType::String // String, not DepylerValue
                 } else {
                     self.map_type(k)
                 };
@@ -230,11 +230,11 @@ impl TypeMapper {
                     // which isn't generated, causing E0412 "cannot find type" errors.
                     // DEPYLER-1015: Use unknown_fallback() for NASA mode compatibility
                     match name.as_str() {
-                        // DEPYLER-1040b: Use DepylerValue for both keys and values
-                        // Point 14: Dict with integer keys `{1: "a"}` must not assume String keys
+                        // DEPYLER-1318 DICT UNIFICATION: Use String keys for bare Dict type
+                        // Aligns with type_tokens.rs - 99% of Python dict keys are strings
                         "Dict" => RustType::HashMap(
-                            Box::new(self.unknown_fallback()), // DepylerValue keys (not String)
-                            Box::new(self.unknown_fallback()), // DEPYLER-0718/1015: Use fallback
+                            Box::new(RustType::String),        // String keys
+                            Box::new(self.unknown_fallback()), // DepylerValue values
                         ),
                         // DEPYLER-0609: Handle both "List" (typing import) and "list" (builtin)
                         // DEPYLER-0718/1015: Use fallback for bare List (no type params)
@@ -255,13 +255,13 @@ impl TypeMapper {
                         },
                         // DEPYLER-0580: argparse.Namespace maps to Args struct in clap
                         // Python: def cmd_step(args: argparse.Namespace) → Rust: fn cmd_step(args: Args)
-                        "Namespace" | "argparse.Namespace" => {
-                            RustType::Custom("Args".to_string())
-                        }
+                        "Namespace" | "argparse.Namespace" => RustType::Custom("Args".to_string()),
                         // DEPYLER-0584: Python bytes type maps to Vec<u8>
                         "bytes" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
                         // DEPYLER-0674: Python bytearray type maps to Vec<u8>
-                        "bytearray" => RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8))),
+                        "bytearray" => {
+                            RustType::Vec(Box::new(RustType::Primitive(PrimitiveType::U8)))
+                        }
                         // DEPYLER-0734: Python Callable type maps to impl Fn
                         "Callable" | "typing.Callable" | "callable" => {
                             RustType::Custom("impl Fn()".to_string())
@@ -319,10 +319,20 @@ impl TypeMapper {
                         }
                         // General Python exceptions map to Box<dyn std::error::Error>
                         // Using Box<dyn Error> since it doesn't require external crates
-                        "Exception" | "BaseException" | "ValueError" | "TypeError"
-                        | "KeyError" | "IndexError" | "RuntimeError" | "AttributeError"
-                        | "NotImplementedError" | "AssertionError" | "StopIteration"
-                        | "ZeroDivisionError" | "OverflowError" | "ArithmeticError" => {
+                        "Exception"
+                        | "BaseException"
+                        | "ValueError"
+                        | "TypeError"
+                        | "KeyError"
+                        | "IndexError"
+                        | "RuntimeError"
+                        | "AttributeError"
+                        | "NotImplementedError"
+                        | "AssertionError"
+                        | "StopIteration"
+                        | "ZeroDivisionError"
+                        | "OverflowError"
+                        | "ArithmeticError" => {
                             RustType::Custom("Box<dyn std::error::Error>".to_string())
                         }
                         // DEPYLER-0742/1185: Python collections.deque maps to std::collections::VecDeque
@@ -334,9 +344,10 @@ impl TypeMapper {
                         }
                         // DEPYLER-0742: Python Counter maps to HashMap (for now)
                         // A proper Counter implementation would need a wrapper type
-                        "Counter" | "collections.Counter" => {
-                            RustType::HashMap(Box::new(RustType::String), Box::new(RustType::Primitive(PrimitiveType::I32)))
-                        }
+                        "Counter" | "collections.Counter" => RustType::HashMap(
+                            Box::new(RustType::String),
+                            Box::new(RustType::Primitive(PrimitiveType::I32)),
+                        ),
                         _ => RustType::Custom(name.clone()),
                     }
                 }
@@ -356,23 +367,35 @@ impl TypeMapper {
                     // Python's collections.deque with type parameter
                     "deque" | "collections.deque" | "Deque" if params.len() == 1 => {
                         let inner_type = self.map_type(&params[0]);
-                        RustType::Custom(format!("std::collections::VecDeque<{}>", inner_type.to_rust_string()))
+                        RustType::Custom(format!(
+                            "std::collections::VecDeque<{}>",
+                            inner_type.to_rust_string()
+                        ))
                     }
                     // DEPYLER-0188: Generator[YieldType, SendType, ReturnType] -> impl Iterator<Item=YieldType>
                     // Python generators map to Rust iterators for idiomatic code
                     "Generator" if !params.is_empty() => {
                         let yield_type = self.map_type(&params[0]);
-                        RustType::Custom(format!("impl Iterator<Item={}>", yield_type.to_rust_string()))
+                        RustType::Custom(format!(
+                            "impl Iterator<Item={}>",
+                            yield_type.to_rust_string()
+                        ))
                     }
                     // DEPYLER-0188: Iterator[YieldType] -> impl Iterator<Item=YieldType>
                     "Iterator" if params.len() == 1 => {
                         let yield_type = self.map_type(&params[0]);
-                        RustType::Custom(format!("impl Iterator<Item={}>", yield_type.to_rust_string()))
+                        RustType::Custom(format!(
+                            "impl Iterator<Item={}>",
+                            yield_type.to_rust_string()
+                        ))
                     }
                     // DEPYLER-0188: Iterable[T] -> impl IntoIterator<Item=T>
                     "Iterable" if params.len() == 1 => {
                         let item_type = self.map_type(&params[0]);
-                        RustType::Custom(format!("impl IntoIterator<Item={}>", item_type.to_rust_string()))
+                        RustType::Custom(format!(
+                            "impl IntoIterator<Item={}>",
+                            item_type.to_rust_string()
+                        ))
                     }
                     // DEPYLER-0734: Callable[[T1, T2, ...], R] -> impl Fn(T1, T2, ...) -> R
                     // Python Callable types map to impl Fn for ergonomic closures without boxing
@@ -382,9 +405,10 @@ impl TypeMapper {
                         // params[0] is the parameter list type (may be Tuple, List, or single type)
                         // params[1] is the return type
                         let param_types = match &params[0] {
-                            PythonType::Tuple(inner) => {
-                                inner.iter().map(|t| self.map_type(t).to_rust_string()).collect::<Vec<_>>()
-                            }
+                            PythonType::Tuple(inner) => inner
+                                .iter()
+                                .map(|t| self.map_type(t).to_rust_string())
+                                .collect::<Vec<_>>(),
                             PythonType::List(inner) => {
                                 // Single param list: [[T]] -> [T]
                                 vec![self.map_type(inner).to_rust_string()]
@@ -406,7 +430,8 @@ impl TypeMapper {
                         // DEPYLER-0846: Use &dyn Fn for nested Callable types, and convert inner impl Fn too
                         let (fn_prefix, fixed_params, fixed_return) = if has_nested_fn {
                             // Convert all impl Fn to &dyn Fn recursively
-                            let fixed_params: Vec<String> = param_types.iter()
+                            let fixed_params: Vec<String> = param_types
+                                .iter()
                                 .map(|s| s.replace("impl Fn", "&dyn Fn"))
                                 .collect();
                             let fixed_return = return_str.replace("impl Fn", "&dyn Fn");
@@ -414,11 +439,17 @@ impl TypeMapper {
                         } else {
                             ("impl Fn", param_types.clone(), return_str.clone())
                         };
-                        let fn_str = if fixed_return == "()" || matches!(params[1], PythonType::None) {
-                            format!("{}({})", fn_prefix, fixed_params.join(", "))
-                        } else {
-                            format!("{}({}) -> {}", fn_prefix, fixed_params.join(", "), fixed_return)
-                        };
+                        let fn_str =
+                            if fixed_return == "()" || matches!(params[1], PythonType::None) {
+                                format!("{}({})", fn_prefix, fixed_params.join(", "))
+                            } else {
+                                format!(
+                                    "{}({}) -> {}",
+                                    fn_prefix,
+                                    fixed_params.join(", "),
+                                    fixed_return
+                                )
+                            };
                         RustType::Custom(fn_str)
                     }
                     "Callable" if params.is_empty() => {
@@ -431,7 +462,10 @@ impl TypeMapper {
                     // to carry the type parameter without storing any data.
                     "type" if params.len() == 1 => {
                         let inner_type = self.map_type(&params[0]);
-                        RustType::Custom(format!("std::marker::PhantomData<{}>", inner_type.to_rust_string()))
+                        RustType::Custom(format!(
+                            "std::marker::PhantomData<{}>",
+                            inner_type.to_rust_string()
+                        ))
                     }
                     _ => RustType::Generic {
                         base: base.clone(),
@@ -906,15 +940,24 @@ mod tests {
 
         // Lowercase 'any' - maps to DepylerValue in NASA mode (Hybrid Fallback)
         let any_lower = PythonType::Custom("any".to_string());
-        assert_eq!(mapper.map_type(&any_lower), RustType::Custom("DepylerValue".to_string()));
+        assert_eq!(
+            mapper.map_type(&any_lower),
+            RustType::Custom("DepylerValue".to_string())
+        );
 
         // Uppercase 'Any'
         let any_upper = PythonType::Custom("Any".to_string());
-        assert_eq!(mapper.map_type(&any_upper), RustType::Custom("DepylerValue".to_string()));
+        assert_eq!(
+            mapper.map_type(&any_upper),
+            RustType::Custom("DepylerValue".to_string())
+        );
 
         // typing.Any
         let typing_any = PythonType::Custom("typing.Any".to_string());
-        assert_eq!(mapper.map_type(&typing_any), RustType::Custom("DepylerValue".to_string()));
+        assert_eq!(
+            mapper.map_type(&typing_any),
+            RustType::Custom("DepylerValue".to_string())
+        );
 
         // Non-NASA mode should use serde_json::Value
         let non_nasa_mapper = TypeMapper::new().with_nasa_mode(false);
@@ -1202,20 +1245,23 @@ mod tests {
         let mapper = TypeMapper::new();
 
         let object = PythonType::Custom("object".to_string());
-        assert_eq!(mapper.map_type(&object), RustType::Custom("DepylerValue".to_string()));
+        assert_eq!(
+            mapper.map_type(&object),
+            RustType::Custom("DepylerValue".to_string())
+        );
     }
 
     // ============ bare collection type mappings (DEPYLER-0718/1015/1051) ============
 
     #[test]
     fn test_bare_dict_type_mapping() {
-        // DEPYLER-1040b: In NASA mode, bare Dict uses DepylerValue for BOTH keys AND values
-        // Point 14: Dict with integer keys `{1: "a"}` must not assume String keys
+        // DEPYLER-1318: In NASA mode, bare Dict uses String keys and DepylerValue values
+        // 99% of Python dict keys are strings, so this is the practical default
         let mapper = TypeMapper::new();
 
         let dict = PythonType::Custom("Dict".to_string());
         if let RustType::HashMap(k, v) = mapper.map_type(&dict) {
-            assert_eq!(*k, RustType::Custom("DepylerValue".to_string())); // DEPYLER-1040b: DepylerValue keys
+            assert_eq!(*k, RustType::String); // DEPYLER-1318: String keys (practical default)
             assert_eq!(*v, RustType::Custom("DepylerValue".to_string())); // NASA mode: DepylerValue fallback
         } else {
             panic!("Expected HashMap for 'Dict'");
@@ -1394,10 +1440,7 @@ mod tests {
         // Callable[[int], None] -> impl Fn(i32)
         let callable = PythonType::Generic {
             base: "Callable".to_string(),
-            params: vec![
-                PythonType::Tuple(vec![PythonType::Int]),
-                PythonType::None,
-            ],
+            params: vec![PythonType::Tuple(vec![PythonType::Int]), PythonType::None],
         };
         if let RustType::Custom(name) = mapper.map_type(&callable) {
             assert!(name.contains("impl Fn"));
@@ -1434,10 +1477,7 @@ mod tests {
         // Callable with Unknown params list
         let callable = PythonType::Generic {
             base: "Callable".to_string(),
-            params: vec![
-                PythonType::Unknown,
-                PythonType::Int,
-            ],
+            params: vec![PythonType::Unknown, PythonType::Int],
         };
         if let RustType::Custom(name) = mapper.map_type(&callable) {
             assert!(name.contains("impl Fn()"));
@@ -1634,7 +1674,13 @@ mod tests {
     fn test_general_exception_mapping() {
         let mapper = TypeMapper::new();
 
-        for exc in ["ValueError", "TypeError", "KeyError", "IndexError", "RuntimeError"] {
+        for exc in [
+            "ValueError",
+            "TypeError",
+            "KeyError",
+            "IndexError",
+            "RuntimeError",
+        ] {
             let error = PythonType::Custom(exc.to_string());
             if let RustType::Custom(name) = mapper.map_type(&error) {
                 assert_eq!(name, "Box<dyn std::error::Error>");
@@ -1652,14 +1698,19 @@ mod tests {
 
         // DEPYLER-1015/1051: In NASA mode, builtins.object maps to DepylerValue (Hybrid Fallback)
         let obj = PythonType::Custom("builtins.object".to_string());
-        assert_eq!(mapper.map_type(&obj), RustType::Custom("DepylerValue".to_string()));
+        assert_eq!(
+            mapper.map_type(&obj),
+            RustType::Custom("DepylerValue".to_string())
+        );
     }
 
     // ============ Additional RustType tests ============
 
     #[test]
     fn test_str_type_to_string() {
-        let str_type = RustType::Str { lifetime: Some("'a".to_string()) };
+        let str_type = RustType::Str {
+            lifetime: Some("'a".to_string()),
+        };
         assert_eq!(str_type.to_rust_string(), "&'a str");
 
         let str_no_lt = RustType::Str { lifetime: None };
@@ -1668,7 +1719,9 @@ mod tests {
 
     #[test]
     fn test_cow_type_to_string() {
-        let cow = RustType::Cow { lifetime: "'static".to_string() };
+        let cow = RustType::Cow {
+            lifetime: "'static".to_string(),
+        };
         assert_eq!(cow.to_rust_string(), "Cow<'static, str>");
     }
 
@@ -1767,7 +1820,10 @@ mod tests {
         let mapper = TypeMapper::new();
 
         let type_var = PythonType::TypeVar("T".to_string());
-        assert_eq!(mapper.map_type(&type_var), RustType::TypeParam("T".to_string()));
+        assert_eq!(
+            mapper.map_type(&type_var),
+            RustType::TypeParam("T".to_string())
+        );
     }
 
     #[test]
@@ -1858,7 +1914,11 @@ mod tests {
         let mapper = TypeMapper::new();
 
         // Option doesn't need reference (falls through to default false)
-        assert!(!mapper.needs_reference(&RustType::Option(Box::new(RustType::Primitive(PrimitiveType::I32)))));
+        assert!(
+            !mapper.needs_reference(&RustType::Option(Box::new(RustType::Primitive(
+                PrimitiveType::I32
+            ))))
+        );
     }
 
     #[test]
@@ -1892,7 +1952,11 @@ mod tests {
         let mapper = TypeMapper::new();
 
         // Option is NOT Copy in this implementation
-        assert!(!mapper.can_copy(&RustType::Option(Box::new(RustType::Primitive(PrimitiveType::I32)))));
+        assert!(
+            !mapper.can_copy(&RustType::Option(Box::new(RustType::Primitive(
+                PrimitiveType::I32
+            ))))
+        );
     }
 
     #[test]

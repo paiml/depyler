@@ -504,8 +504,8 @@ impl DocGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::*;
     use crate::hir::ConstGeneric;
+    use crate::hir::*;
     use smallvec::smallvec;
 
     fn create_test_function(name: &str) -> HirFunction {
@@ -534,6 +534,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         }
     }
 
@@ -656,6 +657,7 @@ mod tests {
             protocols: vec![],
             classes: vec![class],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -698,6 +700,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -893,8 +896,7 @@ mod tests {
     #[test]
     fn test_example_value_for_optional() {
         let generator = DocGenerator::new(DocConfig::default());
-        let result =
-            generator.example_value_for_type("opt", &Type::Optional(Box::new(Type::Int)));
+        let result = generator.example_value_for_type("opt", &Type::Optional(Box::new(Type::Int)));
         assert_eq!(result, "Some(value)");
     }
 
@@ -996,6 +998,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -1039,6 +1042,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -1082,6 +1086,7 @@ mod tests {
             protocols: vec![],
             classes: vec![class],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -1119,6 +1124,7 @@ mod tests {
             protocols: vec![],
             classes: vec![class],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -1156,6 +1162,7 @@ mod tests {
             protocols: vec![],
             classes: vec![class],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -1168,8 +1175,7 @@ mod tests {
             include_python_source: false,
             ..Default::default()
         };
-        let generator =
-            DocGenerator::new(config).with_python_source("def foo(): pass".to_string());
+        let generator = DocGenerator::new(config).with_python_source("def foo(): pass".to_string());
         let module = create_test_module();
 
         let docs = generator.generate_docs(&module);
@@ -1225,6 +1231,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -1244,6 +1251,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let api_ref = generator.generate_api_reference(&module);
@@ -1272,6 +1280,7 @@ mod tests {
             protocols: vec![],
             classes: vec![class],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let api_ref = generator.generate_api_reference(&module);
@@ -1296,6 +1305,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let guide = generator.generate_usage_guide(&module);
@@ -1327,6 +1337,7 @@ mod tests {
             protocols: vec![],
             classes: vec![class],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);
@@ -1357,6 +1368,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let docs = generator.generate_docs(&module);

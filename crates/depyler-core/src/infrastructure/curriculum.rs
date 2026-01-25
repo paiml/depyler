@@ -396,7 +396,12 @@ mod tests {
         // Add in wrong order
         scheduler.add_example(make_example("hard.py", DifficultyLevel::Hard, None, vec![]));
         scheduler.add_example(make_example("easy.py", DifficultyLevel::Easy, None, vec![]));
-        scheduler.add_example(make_example("medium.py", DifficultyLevel::Medium, None, vec![]));
+        scheduler.add_example(make_example(
+            "medium.py",
+            DifficultyLevel::Medium,
+            None,
+            vec![],
+        ));
 
         // Should pop in priority order: Easy > Medium > Hard
         assert_eq!(scheduler.pop_next().unwrap().path, "easy.py");
@@ -491,8 +496,18 @@ mod tests {
         let mut scheduler = CurriculumScheduler::new();
 
         // Add various examples
-        scheduler.add_example(make_example("hard.py", DifficultyLevel::Hard, None, vec!["dep"]));
-        scheduler.add_example(make_example("easy_cluster.py", DifficultyLevel::Easy, Some(1), vec![]));
+        scheduler.add_example(make_example(
+            "hard.py",
+            DifficultyLevel::Hard,
+            None,
+            vec!["dep"],
+        ));
+        scheduler.add_example(make_example(
+            "easy_cluster.py",
+            DifficultyLevel::Easy,
+            Some(1),
+            vec![],
+        ));
         scheduler.add_example(make_example("easy.py", DifficultyLevel::Easy, None, vec![]));
 
         // Process in priority order

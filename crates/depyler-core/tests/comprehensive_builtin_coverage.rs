@@ -7,7 +7,9 @@ use depyler_core::DepylerPipeline;
 
 fn transpile(python: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(python).expect("Transpilation should succeed")
+    pipeline
+        .transpile(python)
+        .expect("Transpilation should succeed")
 }
 
 // ============================================================================
@@ -215,7 +217,8 @@ fn test_coverage_sorted_builtin() {
 
 #[test]
 fn test_coverage_sorted_builtin_reverse() {
-    let code = transpile("def f(items: list[int]) -> list[int]:\n    return sorted(items, reverse=True)");
+    let code =
+        transpile("def f(items: list[int]) -> list[int]:\n    return sorted(items, reverse=True)");
     assert!(code.contains("sort") || code.contains("reverse"));
 }
 
@@ -227,37 +230,43 @@ fn test_coverage_reversed_builtin() {
 
 #[test]
 fn test_coverage_enumerate_builtin() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def f(items: list[str]) -> list[tuple]:
     result = []
     for i, item in enumerate(items):
         result.append((i, item))
     return result
-"#);
+"#,
+    );
     assert!(code.contains("enumerate()"));
 }
 
 #[test]
 fn test_coverage_enumerate_builtin_with_start() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def f(items: list[str]) -> list[tuple]:
     result = []
     for i, item in enumerate(items, 1):
         result.append((i, item))
     return result
-"#);
+"#,
+    );
     assert!(code.contains("enumerate"));
 }
 
 #[test]
 fn test_coverage_zip_builtin() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def f(a: list[int], b: list[str]) -> list[tuple]:
     result = []
     for x, y in zip(a, b):
         result.append((x, y))
     return result
-"#);
+"#,
+    );
     assert!(code.contains("zip"));
 }
 
@@ -275,25 +284,29 @@ fn test_coverage_all_builtin() {
 
 #[test]
 fn test_coverage_filter_builtin() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def is_even(x: int) -> bool:
     return x % 2 == 0
 
 def f(nums: list[int]) -> list[int]:
     return list(filter(is_even, nums))
-"#);
+"#,
+    );
     assert!(code.contains("filter") || code.contains(".filter("));
 }
 
 #[test]
 fn test_coverage_map_builtin() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def double(x: int) -> int:
     return x * 2
 
 def f(nums: list[int]) -> list[int]:
     return list(map(double, nums))
-"#);
+"#,
+    );
     assert!(code.contains("map") || code.contains(".map("));
 }
 
@@ -303,37 +316,43 @@ def f(nums: list[int]) -> list[int]:
 
 #[test]
 fn test_coverage_range_single_arg() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def f() -> list[int]:
     result = []
     for i in range(5):
         result.append(i)
     return result
-"#);
+"#,
+    );
     assert!(code.contains("0..") || code.contains("range"));
 }
 
 #[test]
 fn test_coverage_range_two_args() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def f() -> list[int]:
     result = []
     for i in range(1, 10):
         result.append(i)
     return result
-"#);
+"#,
+    );
     assert!(code.contains("..") || code.contains("range"));
 }
 
 #[test]
 fn test_coverage_range_three_args() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def f() -> list[int]:
     result = []
     for i in range(0, 10, 2):
         result.append(i)
     return result
-"#);
+"#,
+    );
     assert!(code.contains("step_by") || code.contains(".."));
 }
 
@@ -383,8 +402,10 @@ fn test_coverage_frozenset_constructor() {
 
 #[test]
 fn test_coverage_bytes_from_string() {
-    let code = transpile(r#"def f(s: str) -> bytes:
-    return bytes(s, "utf-8")"#);
+    let code = transpile(
+        r#"def f(s: str) -> bytes:
+    return bytes(s, "utf-8")"#,
+    );
     assert!(code.contains("as_bytes") || code.contains("Vec<u8>") || code.contains("bytes"));
 }
 
@@ -396,8 +417,10 @@ fn test_coverage_bytes_from_int() {
 
 #[test]
 fn test_coverage_bytearray_from_string() {
-    let code = transpile(r#"def f(s: str) -> bytearray:
-    return bytearray(s, "utf-8")"#);
+    let code = transpile(
+        r#"def f(s: str) -> bytearray:
+    return bytearray(s, "utf-8")"#,
+    );
     assert!(code.contains("as_bytes") || code.contains("Vec<u8>") || code.contains("bytearray"));
 }
 
@@ -425,34 +448,40 @@ fn test_coverage_callable_builtin() {
 
 #[test]
 fn test_coverage_iter_builtin() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def f(items: list[int]) -> list[int]:
     it = iter(items)
     result = []
     for x in it:
         result.append(x)
     return result
-"#);
+"#,
+    );
     assert!(code.contains("iter") || code.contains("into_iter"));
 }
 
 #[test]
 fn test_coverage_next_builtin() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def f(items: list[int]) -> int:
     it = iter(items)
     return next(it)
-"#);
+"#,
+    );
     assert!(code.contains("next") || code.contains(".next()"));
 }
 
 #[test]
 fn test_coverage_next_builtin_with_default() {
-    let code = transpile(r#"
+    let code = transpile(
+        r#"
 def f(items: list[int]) -> int:
     it = iter(items)
     return next(it, 0)
-"#);
+"#,
+    );
     assert!(code.contains("next") || code.contains("unwrap_or"));
 }
 
@@ -462,52 +491,66 @@ def f(items: list[int]) -> int:
 
 #[test]
 fn test_coverage_print_builtin_simple() {
-    let code = transpile(r#"def f():
-    print("hello")"#);
+    let code = transpile(
+        r#"def f():
+    print("hello")"#,
+    );
     assert!(code.contains("println!") || code.contains("print"));
 }
 
 #[test]
 fn test_coverage_print_builtin_multiple_args() {
-    let code = transpile(r#"def f(x: int, y: int):
-    print(x, y)"#);
+    let code = transpile(
+        r#"def f(x: int, y: int):
+    print(x, y)"#,
+    );
     assert!(code.contains("println!") || code.contains("print"));
 }
 
 #[test]
 fn test_coverage_print_builtin_with_sep() {
-    let code = transpile(r#"def f(x: int, y: int):
-    print(x, y, sep=", ")"#);
+    let code = transpile(
+        r#"def f(x: int, y: int):
+    print(x, y, sep=", ")"#,
+    );
     assert!(code.contains("println!") || code.contains("print"));
 }
 
 #[test]
 fn test_coverage_print_builtin_with_end() {
-    let code = transpile(r#"def f(x: int):
-    print(x, end="")"#);
+    let code = transpile(
+        r#"def f(x: int):
+    print(x, end="")"#,
+    );
     assert!(code.contains("print!") || code.contains("print"));
 }
 
 #[test]
 fn test_coverage_input_builtin() {
-    let code = transpile(r#"def f() -> str:
-    return input("Enter: ")"#);
+    let code = transpile(
+        r#"def f() -> str:
+    return input("Enter: ")"#,
+    );
     assert!(code.contains("stdin") || code.contains("read_line") || code.contains("input"));
 }
 
 #[test]
 fn test_coverage_open_builtin_read() {
-    let code = transpile(r#"def f(path: str) -> str:
+    let code = transpile(
+        r#"def f(path: str) -> str:
     with open(path, "r") as f:
-        return f.read()"#);
+        return f.read()"#,
+    );
     assert!(code.contains("File") || code.contains("open") || code.contains("read"));
 }
 
 #[test]
 fn test_coverage_open_builtin_write() {
-    let code = transpile(r#"def f(path: str, content: str):
+    let code = transpile(
+        r#"def f(path: str, content: str):
     with open(path, "w") as f:
-        f.write(content)"#);
+        f.write(content)"#,
+    );
     assert!(code.contains("File") || code.contains("open") || code.contains("write"));
 }
 
@@ -553,64 +596,82 @@ fn test_coverage_string_split() {
 
 #[test]
 fn test_coverage_string_split_with_sep() {
-    let code = transpile(r#"def f(s: str) -> list[str]:
-    return s.split(",")"#);
+    let code = transpile(
+        r#"def f(s: str) -> list[str]:
+    return s.split(",")"#,
+    );
     assert!(code.contains("split"));
 }
 
 #[test]
 fn test_coverage_string_rsplit() {
-    let code = transpile(r#"def f(s: str) -> list[str]:
-    return s.rsplit(",")"#);
+    let code = transpile(
+        r#"def f(s: str) -> list[str]:
+    return s.rsplit(",")"#,
+    );
     assert!(code.contains("rsplit"));
 }
 
 #[test]
 fn test_coverage_string_join() {
-    let code = transpile(r#"def f(items: list[str]) -> str:
-    return ", ".join(items)"#);
+    let code = transpile(
+        r#"def f(items: list[str]) -> str:
+    return ", ".join(items)"#,
+    );
     assert!(code.contains("join"));
 }
 
 #[test]
 fn test_coverage_string_replace() {
-    let code = transpile(r#"def f(s: str) -> str:
-    return s.replace("a", "b")"#);
+    let code = transpile(
+        r#"def f(s: str) -> str:
+    return s.replace("a", "b")"#,
+    );
     assert!(code.contains("replace"));
 }
 
 #[test]
 fn test_coverage_string_find() {
-    let code = transpile(r#"def f(s: str) -> int:
-    return s.find("x")"#);
+    let code = transpile(
+        r#"def f(s: str) -> int:
+    return s.find("x")"#,
+    );
     assert!(code.contains("find") || code.contains("position"));
 }
 
 #[test]
 fn test_coverage_string_rfind() {
-    let code = transpile(r#"def f(s: str) -> int:
-    return s.rfind("x")"#);
+    let code = transpile(
+        r#"def f(s: str) -> int:
+    return s.rfind("x")"#,
+    );
     assert!(code.contains("rfind") || code.contains("rposition"));
 }
 
 #[test]
 fn test_coverage_string_count() {
-    let code = transpile(r#"def f(s: str) -> int:
-    return s.count("a")"#);
+    let code = transpile(
+        r#"def f(s: str) -> int:
+    return s.count("a")"#,
+    );
     assert!(code.contains("matches") || code.contains("count"));
 }
 
 #[test]
 fn test_coverage_string_startswith() {
-    let code = transpile(r#"def f(s: str) -> bool:
-    return s.startswith("pre")"#);
+    let code = transpile(
+        r#"def f(s: str) -> bool:
+    return s.startswith("pre")"#,
+    );
     assert!(code.contains("starts_with"));
 }
 
 #[test]
 fn test_coverage_string_endswith() {
-    let code = transpile(r#"def f(s: str) -> bool:
-    return s.endswith("suf")"#);
+    let code = transpile(
+        r#"def f(s: str) -> bool:
+    return s.endswith("suf")"#,
+    );
     assert!(code.contains("ends_with"));
 }
 
@@ -680,29 +741,37 @@ fn test_coverage_string_rjust() {
 
 #[test]
 fn test_coverage_list_append() {
-    let code = transpile(r#"def f(items: list[int]):
-    items.append(1)"#);
+    let code = transpile(
+        r#"def f(items: list[int]):
+    items.append(1)"#,
+    );
     assert!(code.contains("push"));
 }
 
 #[test]
 fn test_coverage_list_extend() {
-    let code = transpile(r#"def f(items: list[int], more: list[int]):
-    items.extend(more)"#);
+    let code = transpile(
+        r#"def f(items: list[int], more: list[int]):
+    items.extend(more)"#,
+    );
     assert!(code.contains("extend"));
 }
 
 #[test]
 fn test_coverage_list_insert() {
-    let code = transpile(r#"def f(items: list[int]):
-    items.insert(0, 1)"#);
+    let code = transpile(
+        r#"def f(items: list[int]):
+    items.insert(0, 1)"#,
+    );
     assert!(code.contains("insert"));
 }
 
 #[test]
 fn test_coverage_list_remove() {
-    let code = transpile(r#"def f(items: list[int]):
-    items.remove(1)"#);
+    let code = transpile(
+        r#"def f(items: list[int]):
+    items.remove(1)"#,
+    );
     assert!(code.contains("retain") || code.contains("remove"));
 }
 
@@ -720,8 +789,10 @@ fn test_coverage_list_pop_index() {
 
 #[test]
 fn test_coverage_list_clear() {
-    let code = transpile(r#"def f(items: list[int]):
-    items.clear()"#);
+    let code = transpile(
+        r#"def f(items: list[int]):
+    items.clear()"#,
+    );
     assert!(code.contains("clear"));
 }
 
@@ -739,22 +810,28 @@ fn test_coverage_list_count() {
 
 #[test]
 fn test_coverage_list_sort() {
-    let code = transpile(r#"def f(items: list[int]):
-    items.sort()"#);
+    let code = transpile(
+        r#"def f(items: list[int]):
+    items.sort()"#,
+    );
     assert!(code.contains("sort"));
 }
 
 #[test]
 fn test_coverage_list_sort_reverse() {
-    let code = transpile(r#"def f(items: list[int]):
-    items.sort(reverse=True)"#);
+    let code = transpile(
+        r#"def f(items: list[int]):
+    items.sort(reverse=True)"#,
+    );
     assert!(code.contains("sort") || code.contains("reverse"));
 }
 
 #[test]
 fn test_coverage_list_reverse() {
-    let code = transpile(r#"def f(items: list[int]):
-    items.reverse()"#);
+    let code = transpile(
+        r#"def f(items: list[int]):
+    items.reverse()"#,
+    );
     assert!(code.contains("reverse"));
 }
 
@@ -770,8 +847,10 @@ fn test_coverage_list_copy() {
 
 #[test]
 fn test_coverage_dict_get() {
-    let code = transpile(r#"def f(d: dict) -> int:
-    return d.get("key", 0)"#);
+    let code = transpile(
+        r#"def f(d: dict) -> int:
+    return d.get("key", 0)"#,
+    );
     assert!(code.contains("get") || code.contains("unwrap_or"));
 }
 
@@ -795,37 +874,47 @@ fn test_coverage_dict_items() {
 
 #[test]
 fn test_coverage_dict_pop() {
-    let code = transpile(r#"def f(d: dict) -> int:
-    return d.pop("key")"#);
+    let code = transpile(
+        r#"def f(d: dict) -> int:
+    return d.pop("key")"#,
+    );
     assert!(code.contains("remove"));
 }
 
 #[test]
 fn test_coverage_dict_pop_default() {
-    let code = transpile(r#"def f(d: dict) -> int:
-    return d.pop("key", 0)"#);
+    let code = transpile(
+        r#"def f(d: dict) -> int:
+    return d.pop("key", 0)"#,
+    );
     assert!(code.contains("remove") || code.contains("unwrap_or"));
 }
 
 #[test]
 fn test_coverage_dict_update() {
-    let code = transpile(r#"def f(d1: dict, d2: dict):
-    d1.update(d2)"#);
+    let code = transpile(
+        r#"def f(d1: dict, d2: dict):
+    d1.update(d2)"#,
+    );
     // dict.update() generates a for loop with insert
     assert!(code.contains("extend") || code.contains("update") || code.contains("insert"));
 }
 
 #[test]
 fn test_coverage_dict_clear() {
-    let code = transpile(r#"def f(d: dict):
-    d.clear()"#);
+    let code = transpile(
+        r#"def f(d: dict):
+    d.clear()"#,
+    );
     assert!(code.contains("clear"));
 }
 
 #[test]
 fn test_coverage_dict_setdefault() {
-    let code = transpile(r#"def f(d: dict) -> int:
-    return d.setdefault("key", 0)"#);
+    let code = transpile(
+        r#"def f(d: dict) -> int:
+    return d.setdefault("key", 0)"#,
+    );
     assert!(code.contains("entry") || code.contains("or_insert"));
 }
 
@@ -835,22 +924,28 @@ fn test_coverage_dict_setdefault() {
 
 #[test]
 fn test_coverage_set_add() {
-    let code = transpile(r#"def f(s: set):
-    s.add(1)"#);
+    let code = transpile(
+        r#"def f(s: set):
+    s.add(1)"#,
+    );
     assert!(code.contains("insert"));
 }
 
 #[test]
 fn test_coverage_set_remove() {
-    let code = transpile(r#"def f(s: set):
-    s.remove(1)"#);
+    let code = transpile(
+        r#"def f(s: set):
+    s.remove(1)"#,
+    );
     assert!(code.contains("remove"));
 }
 
 #[test]
 fn test_coverage_set_discard() {
-    let code = transpile(r#"def f(s: set):
-    s.discard(1)"#);
+    let code = transpile(
+        r#"def f(s: set):
+    s.discard(1)"#,
+    );
     assert!(code.contains("remove") || code.contains("discard"));
 }
 
@@ -862,8 +957,10 @@ fn test_coverage_set_pop() {
 
 #[test]
 fn test_coverage_set_clear() {
-    let code = transpile(r#"def f(s: set):
-    s.clear()"#);
+    let code = transpile(
+        r#"def f(s: set):
+    s.clear()"#,
+    );
     assert!(code.contains("clear"));
 }
 

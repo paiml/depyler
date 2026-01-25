@@ -24,7 +24,6 @@ use anyhow::Result;
 use quote::quote;
 use syn::parse_quote;
 
-
 /// GH-70: Detect if function returns a nested function/closure
 /// Returns Some((nested_fn_name, params, ret_type)) if detected
 /// Stores inferred params in ctx.nested_function_params for use during code generation
@@ -139,7 +138,11 @@ pub(crate) fn function_returns_heterogeneous_io(func: &HirFunction) -> bool {
 }
 
 /// DEPYLER-0626: Helper to collect IO return types from statements
-pub(crate) fn collect_io_return_types(stmts: &[HirStmt], has_file: &mut bool, has_stdio: &mut bool) {
+pub(crate) fn collect_io_return_types(
+    stmts: &[HirStmt],
+    has_file: &mut bool,
+    has_stdio: &mut bool,
+) {
     for stmt in stmts {
         match stmt {
             HirStmt::Return(Some(expr)) => {
@@ -150,7 +153,11 @@ pub(crate) fn collect_io_return_types(stmts: &[HirStmt], has_file: &mut bool, ha
                     *has_stdio = true;
                 }
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 collect_io_return_types(then_body, has_file, has_stdio);
                 if let Some(else_stmts) = else_body {
                     collect_io_return_types(else_stmts, has_file, has_stdio);
@@ -247,7 +254,9 @@ pub(crate) fn codegen_return_type(
         // Check if function can fail (uses open() which can fail)
         let can_fail = func.properties.can_fail;
         let error_type = if can_fail {
-            Some(crate::rust_gen::context::ErrorType::Concrete("std::io::Error".to_string()))
+            Some(crate::rust_gen::context::ErrorType::Concrete(
+                "std::io::Error".to_string(),
+            ))
         } else {
             None
         };
@@ -369,9 +378,19 @@ pub(crate) fn codegen_return_type(
             "std::io::Error".to_string()
         }
         // General exceptions map to Box<dyn std::error::Error> (no external crate needed)
-        "Exception" | "BaseException" | "ValueError" | "TypeError" | "KeyError"
-        | "IndexError" | "RuntimeError" | "AttributeError" | "NotImplementedError"
-        | "AssertionError" | "StopIteration" | "ZeroDivisionError" | "OverflowError"
+        "Exception"
+        | "BaseException"
+        | "ValueError"
+        | "TypeError"
+        | "KeyError"
+        | "IndexError"
+        | "RuntimeError"
+        | "AttributeError"
+        | "NotImplementedError"
+        | "AssertionError"
+        | "StopIteration"
+        | "ZeroDivisionError"
+        | "OverflowError"
         | "ArithmeticError" => "Box<dyn std::error::Error>".to_string(),
         // Keep other types as-is (might be custom error types)
         _ => error_type_str,
@@ -566,7 +585,7 @@ pub(crate) fn codegen_return_type(
         } else if func.name == "main" && matches!(func.ret_type, Type::Int) {
             // DEPYLER-0617: main() can only return () or Result<(), E>
             // Convert i32 return to () for non-fallible main
-            quote! {}  // No return type annotation (defaults to ())
+            quote! {} // No return type annotation (defaults to ())
         } else {
             quote! { -> #ty }
         }
@@ -698,11 +717,8 @@ impl RustCodeGen for HirFunction {
 
         // DEPYLER-0621: Track parameter defaults for call-site argument completion
         // When a function like `def f(x=None)` is called as `f()`, we need to supply `None`
-        let param_defaults: Vec<Option<crate::hir::HirExpr>> = self
-            .params
-            .iter()
-            .map(|p| p.default.clone())
-            .collect();
+        let param_defaults: Vec<Option<crate::hir::HirExpr>> =
+            self.params.iter().map(|p| p.default.clone()).collect();
         ctx.function_param_defaults
             .insert(self.name.clone(), param_defaults);
 
@@ -843,10 +859,7 @@ impl RustCodeGen for HirFunction {
                 // Check if type is Optional(T)
                 let type_is_optional = matches!(p.ty, Type::Optional(_));
                 // Check if default value is None
-                let default_is_none = matches!(
-                    p.default,
-                    Some(HirExpr::Literal(Literal::None))
-                );
+                let default_is_none = matches!(p.default, Some(HirExpr::Literal(Literal::None)));
                 type_is_optional || default_is_none
             })
             .collect();
@@ -868,10 +881,7 @@ impl RustCodeGen for HirFunction {
         for param in &self.params {
             let is_dict = matches!(&param.ty, Type::Dict { .. })
                 || matches!(&param.ty, Type::Custom(name) if name == "dict");
-            let has_none_default = matches!(
-                &param.default,
-                Some(HirExpr::Literal(Literal::None))
-            );
+            let has_none_default = matches!(&param.default, Some(HirExpr::Literal(Literal::None)));
             // Also check for Optional(Dict) type
             let is_optional_dict = matches!(
                 &param.ty,
@@ -907,83 +917,91 @@ impl RustCodeGen for HirFunction {
         // the return type must include a lifetime bound: `impl Fn(...) + 'a` or `impl Iterator<...> + '_`
         // and the function must have the lifetime parameter: `fn foo<'a>(p: &'a str) -> impl Fn(...) + 'a`
         // Additionally, reference parameters must have the 'a lifetime: `&str` -> `&'a str`
-        let (generic_params, return_type, params) = if let crate::type_mapper::RustType::Custom(ref type_str) = rust_ret_type {
-            if type_str.contains("impl Fn") || type_str.contains("impl Iterator") || type_str.contains("impl IntoIterator") {
-                // Check if any parameter is a reference (borrowed)
-                // Access from ctx since param_borrows was moved into function_param_borrows earlier
-                let has_ref_params = ctx.function_param_borrows
-                    .get(&self.name)
-                    .map(|borrows| borrows.iter().any(|&b| b))
-                    .unwrap_or(false);
-                if has_ref_params {
-                    // DEPYLER-1080: Use single lifetime 'a for all reference params
-                    // When returning impl Iterator, all captured refs must share the same lifetime
-                    // Using separate lifetimes causes E0623 "lifetime may not live long enough"
-                    let mut lifetime_params_with_a = lifetime_result.lifetime_params.clone();
-                    if !lifetime_params_with_a.contains(&"'a".to_string()) {
-                        lifetime_params_with_a.push("'a".to_string());
-                    }
-                    // Remove any other lifetimes - use only 'a
-                    lifetime_params_with_a.retain(|lt| lt == "'a");
-                    let new_generic_params = codegen_generic_params(&type_params, &lifetime_params_with_a);
+        let (generic_params, return_type, params) =
+            if let crate::type_mapper::RustType::Custom(ref type_str) = rust_ret_type {
+                if type_str.contains("impl Fn")
+                    || type_str.contains("impl Iterator")
+                    || type_str.contains("impl IntoIterator")
+                {
+                    // Check if any parameter is a reference (borrowed)
+                    // Access from ctx since param_borrows was moved into function_param_borrows earlier
+                    let has_ref_params = ctx
+                        .function_param_borrows
+                        .get(&self.name)
+                        .map(|borrows| borrows.iter().any(|&b| b))
+                        .unwrap_or(false);
+                    if has_ref_params {
+                        // DEPYLER-1080: Use single lifetime 'a for all reference params
+                        // When returning impl Iterator, all captured refs must share the same lifetime
+                        // Using separate lifetimes causes E0623 "lifetime may not live long enough"
+                        let mut lifetime_params_with_a = lifetime_result.lifetime_params.clone();
+                        if !lifetime_params_with_a.contains(&"'a".to_string()) {
+                            lifetime_params_with_a.push("'a".to_string());
+                        }
+                        // Remove any other lifetimes - use only 'a
+                        lifetime_params_with_a.retain(|lt| lt == "'a");
+                        let new_generic_params =
+                            codegen_generic_params(&type_params, &lifetime_params_with_a);
 
-                    // Modify return type to add + 'a bound
-                    // The return type looks like "-> impl Fn(...) -> R" and we need "-> impl Fn(...) -> R + 'a"
-                    // DEPYLER-1075: Also handle impl Iterator<Item=T> -> impl Iterator<Item=T> + 'a
-                    // DEPYLER-1080: Use single 'a lifetime for all refs to avoid E0623
-                    let return_str = return_type.to_string();
-                    let modified_return = if return_str.contains("impl Fn")
-                        || return_str.contains("impl Iterator")
-                        || return_str.contains("impl IntoIterator")
-                    {
-                        // Find the impl type and add + 'a at the end
-                        // Handle both simple `impl Fn(T) -> R` and `impl Iterator<Item=T>`
-                        let modified = format!("{} + 'a", return_str.trim());
-                        syn::parse_str::<proc_macro2::TokenStream>(&modified)
-                            .unwrap_or(return_type.clone())
+                        // Modify return type to add + 'a bound
+                        // The return type looks like "-> impl Fn(...) -> R" and we need "-> impl Fn(...) -> R + 'a"
+                        // DEPYLER-1075: Also handle impl Iterator<Item=T> -> impl Iterator<Item=T> + 'a
+                        // DEPYLER-1080: Use single 'a lifetime for all refs to avoid E0623
+                        let return_str = return_type.to_string();
+                        let modified_return = if return_str.contains("impl Fn")
+                            || return_str.contains("impl Iterator")
+                            || return_str.contains("impl IntoIterator")
+                        {
+                            // Find the impl type and add + 'a at the end
+                            // Handle both simple `impl Fn(T) -> R` and `impl Iterator<Item=T>`
+                            let modified = format!("{} + 'a", return_str.trim());
+                            syn::parse_str::<proc_macro2::TokenStream>(&modified)
+                                .unwrap_or(return_type.clone())
+                        } else {
+                            return_type.clone()
+                        };
+
+                        // DEPYLER-0839/1075: Add 'a lifetime to reference parameter types
+                        // `&str` -> `&'a str`, `& mut T` -> `&'a mut T`, `& Vec<T>` -> `&'a Vec<T>`
+                        // DEPYLER-1080: Use SAME lifetime 'a for ALL ref params to avoid E0623
+                        // This includes REPLACING any existing lifetimes ('b, 'c, etc.) with 'a
+                        let modified_params: Vec<proc_macro2::TokenStream> = params
+                            .into_iter()
+                            .map(|p| {
+                                let param_str = p.to_string();
+                                // DEPYLER-1080: Replace ANY lifetime with 'a for impl Iterator returns
+                                // First, replace existing lifetimes like 'b, 'c with 'a
+                                let modified_param = param_str
+                                    .replace("& 'b ", "& 'a ")
+                                    .replace("& 'c ", "& 'a ")
+                                    .replace("& 'd ", "& 'a ")
+                                    .replace("& 'e ", "& 'a ");
+                                // Then add 'a to refs without any lifetime
+                                let modified_param = if modified_param.contains("& ")
+                                    && !modified_param.contains("& '")
+                                {
+                                    modified_param
+                                        .replace("& mut ", "& 'a mut ")
+                                        .replace("& Vec", "& 'a Vec")
+                                        .replace("& str", "& 'a str")
+                                } else {
+                                    modified_param
+                                };
+                                syn::parse_str::<proc_macro2::TokenStream>(&modified_param)
+                                    .unwrap_or(p)
+                            })
+                            .collect();
+
+                        (new_generic_params, modified_return, modified_params)
                     } else {
-                        return_type.clone()
-                    };
-
-                    // DEPYLER-0839/1075: Add 'a lifetime to reference parameter types
-                    // `&str` -> `&'a str`, `& mut T` -> `&'a mut T`, `& Vec<T>` -> `&'a Vec<T>`
-                    // DEPYLER-1080: Use SAME lifetime 'a for ALL ref params to avoid E0623
-                    // This includes REPLACING any existing lifetimes ('b, 'c, etc.) with 'a
-                    let modified_params: Vec<proc_macro2::TokenStream> = params
-                        .into_iter()
-                        .map(|p| {
-                            let param_str = p.to_string();
-                            // DEPYLER-1080: Replace ANY lifetime with 'a for impl Iterator returns
-                            // First, replace existing lifetimes like 'b, 'c with 'a
-                            let modified_param = param_str
-                                .replace("& 'b ", "& 'a ")
-                                .replace("& 'c ", "& 'a ")
-                                .replace("& 'd ", "& 'a ")
-                                .replace("& 'e ", "& 'a ");
-                            // Then add 'a to refs without any lifetime
-                            let modified_param = if modified_param.contains("& ") && !modified_param.contains("& '") {
-                                modified_param
-                                    .replace("& mut ", "& 'a mut ")
-                                    .replace("& Vec", "& 'a Vec")
-                                    .replace("& str", "& 'a str")
-                            } else {
-                                modified_param
-                            };
-                            syn::parse_str::<proc_macro2::TokenStream>(&modified_param)
-                                .unwrap_or(p)
-                        })
-                        .collect();
-
-                    (new_generic_params, modified_return, modified_params)
+                        (generic_params.clone(), return_type, params)
+                    }
                 } else {
                     (generic_params.clone(), return_type, params)
                 }
             } else {
                 (generic_params.clone(), return_type, params)
-            }
-        } else {
-            (generic_params.clone(), return_type, params)
-        };
+            };
 
         // DEPYLER-0425: Analyze subcommand field access BEFORE generating body
         // This sets ctx.current_subcommand_fields so expression generation can rewrite args.field → field
@@ -1196,12 +1214,13 @@ impl RustCodeGen for HirFunction {
                 if let Some(args_param) = self.params.first() {
                     let args_param_name = args_param.name.as_ref();
                     // Wrap body statements in pattern matching to extract fields from enum variant
-                    body_stmts = crate::rust_gen::argparse_transform::wrap_body_with_subcommand_pattern(
-                        body_stmts,
-                        &variant_name,
-                        &fields,
-                        args_param_name,
-                    );
+                    body_stmts =
+                        crate::rust_gen::argparse_transform::wrap_body_with_subcommand_pattern(
+                            body_stmts,
+                            &variant_name,
+                            &fields,
+                            args_param_name,
+                        );
                 }
             }
         }
@@ -1293,4 +1312,3 @@ impl RustCodeGen for HirFunction {
         Ok(func_tokens)
     }
 }
-

@@ -63,6 +63,7 @@ fn test_depyler_0351_index_class_with_methods() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(
@@ -109,6 +110,7 @@ fn test_depyler_0351_index_class_with_fields() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "class Counter:\n    count: int");
@@ -175,6 +177,7 @@ fn test_depyler_0351_index_multiple_methods() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "class Math: pass");
@@ -194,6 +197,7 @@ fn test_depyler_0351_index_empty_module() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "");
@@ -237,6 +241,7 @@ fn test_depyler_0351_index_module_with_functions_and_classes() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def helper(): pass\nclass Widget: pass");
@@ -271,6 +276,7 @@ fn test_depyler_0351_index_function_with_multiple_params() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def process(a: int, b: str, c: bool): pass");
@@ -326,6 +332,7 @@ fn test_depyler_0351_index_method_detail_format() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "class View: pass");
@@ -368,6 +375,7 @@ fn test_depyler_0351_index_field_type_annotation() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "class Container: pass");
@@ -408,6 +416,7 @@ fn test_depyler_0351_symbol_at_position_found() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def test(): pass");
@@ -439,6 +448,7 @@ fn test_depyler_0351_symbol_at_position_not_found() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def test(): pass");
@@ -469,6 +479,7 @@ fn test_depyler_0351_find_references_single() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def func(): pass");
@@ -525,6 +536,7 @@ fn test_depyler_0351_completions_empty_prefix() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def func1(): pass\nclass class1: pass");
@@ -558,6 +570,7 @@ fn test_depyler_0351_completions_no_matches() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def test(): pass");
@@ -597,6 +610,7 @@ fn test_depyler_0351_completions_prefix_filtering() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def my_func(): pass\ndef other_func(): pass");
@@ -637,6 +651,7 @@ fn test_depyler_0351_completions_different_kinds() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def test_func(): pass\nclass test_class: pass");
@@ -829,6 +844,7 @@ fn test_depyler_0351_create_ide_integration() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let ide = create_ide_integration(&module, "def main(): pass");
@@ -879,6 +895,7 @@ fn test_depyler_0351_symbol_boundary_position() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "def test(): pass");
@@ -935,6 +952,7 @@ fn test_depyler_0351_class_with_multiple_fields() {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     ide.index_symbols(&module, "class Point: pass");
@@ -1016,6 +1034,7 @@ mod property_tests {
                 type_aliases: vec![],
                 protocols: vec![],
         constants: vec![],
+            top_level_stmts: vec![],
             };
 
             ide.index_symbols(&module, "");

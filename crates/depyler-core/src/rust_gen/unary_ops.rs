@@ -259,7 +259,9 @@ mod tests {
 
     #[test]
     fn test_type_needs_is_empty_list() {
-        assert!(type_needs_is_empty_for_not(&Type::List(Box::new(Type::Int))));
+        assert!(type_needs_is_empty_for_not(&Type::List(Box::new(
+            Type::Int
+        ))));
     }
 
     #[test]
@@ -301,7 +303,9 @@ mod tests {
     fn test_type_not_needs_is_none() {
         assert!(!type_needs_is_none_for_not(&Type::Int));
         assert!(!type_needs_is_none_for_not(&Type::String));
-        assert!(!type_needs_is_none_for_not(&Type::List(Box::new(Type::Int))));
+        assert!(!type_needs_is_none_for_not(&Type::List(Box::new(
+            Type::Int
+        ))));
     }
 
     // ============================================================================

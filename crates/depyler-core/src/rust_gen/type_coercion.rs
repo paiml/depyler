@@ -218,10 +218,7 @@ pub fn is_arithmetic_type(ty: &Type) -> bool {
 
 /// Check if a type can be compared
 pub fn is_comparable_type(ty: &Type) -> bool {
-    matches!(
-        ty,
-        Type::Int | Type::Float | Type::String | Type::Bool
-    )
+    matches!(ty, Type::Int | Type::Float | Type::String | Type::Bool)
 }
 
 /// Check if a type supports the 'in' operator
@@ -245,7 +242,10 @@ pub fn is_f32_type(ty: &Type) -> bool {
 pub fn is_int_type_extended(ty: &Type) -> bool {
     match ty {
         Type::Int => true,
-        Type::Custom(s) => matches!(s.as_str(), "i32" | "i64" | "i128" | "isize" | "u32" | "u64" | "u128" | "usize"),
+        Type::Custom(s) => matches!(
+            s.as_str(),
+            "i32" | "i64" | "i128" | "isize" | "u32" | "u64" | "u128" | "usize"
+        ),
         _ => false,
     }
 }
@@ -285,15 +285,19 @@ pub fn is_float_var_name(name: &str) -> bool {
 /// Handles variables, literals, and binary operations on integers
 pub fn is_int_expr_recursive(expr: &HirExpr, var_types: &HashMap<String, Type>) -> bool {
     match expr {
-        HirExpr::Var(name) => {
-            var_types.get(name).map(is_int_type_extended).unwrap_or(false)
-        }
+        HirExpr::Var(name) => var_types
+            .get(name)
+            .map(is_int_type_extended)
+            .unwrap_or(false),
         HirExpr::Literal(Literal::Int(_)) => true,
         // Binary operations on integers produce integers (except division)
         HirExpr::Binary { left, right, op } => {
             // Add, Sub, Mul, Mod, FloorDiv produce Int if both operands are Int
             // Division always produces Float in Python
-            if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv) {
+            if matches!(
+                op,
+                BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv
+            ) {
                 is_int_expr_recursive(left, var_types) && is_int_expr_recursive(right, var_types)
             } else {
                 false
@@ -319,7 +323,10 @@ pub fn coerce_int_literal_to_f32(val: i64) -> syn::Expr {
 
 /// Check if expression is a comparison operator
 pub fn is_comparison_op(op: &BinOp) -> bool {
-    matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq | BinOp::Eq | BinOp::NotEq)
+    matches!(
+        op,
+        BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq | BinOp::Eq | BinOp::NotEq
+    )
 }
 
 /// Check if expression is an ordering comparison (excludes equality)
@@ -334,12 +341,24 @@ pub fn is_logical_op(op: &BinOp) -> bool {
 
 /// Check if operator is a bitwise operator
 pub fn is_bitwise_op(op: &BinOp) -> bool {
-    matches!(op, BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift)
+    matches!(
+        op,
+        BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor | BinOp::LShift | BinOp::RShift
+    )
 }
 
 /// Check if operator is an arithmetic operator
 pub fn is_arithmetic_op(op: &BinOp) -> bool {
-    matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod | BinOp::FloorDiv | BinOp::Pow)
+    matches!(
+        op,
+        BinOp::Add
+            | BinOp::Sub
+            | BinOp::Mul
+            | BinOp::Div
+            | BinOp::Mod
+            | BinOp::FloorDiv
+            | BinOp::Pow
+    )
 }
 
 #[cfg(test)]
@@ -360,7 +379,9 @@ mod tests {
     #[test]
     fn test_is_int_literal_false() {
         assert!(!is_int_literal(&HirExpr::Literal(Literal::Float(3.15))));
-        assert!(!is_int_literal(&HirExpr::Literal(Literal::String("42".to_string()))));
+        assert!(!is_int_literal(&HirExpr::Literal(Literal::String(
+            "42".to_string()
+        ))));
         assert!(!is_int_literal(&HirExpr::Var("x".to_string())));
     }
 
@@ -397,7 +418,9 @@ mod tests {
 
     #[test]
     fn test_is_numeric_literal_false() {
-        assert!(!is_numeric_literal(&HirExpr::Literal(Literal::String("42".to_string()))));
+        assert!(!is_numeric_literal(&HirExpr::Literal(Literal::String(
+            "42".to_string()
+        ))));
         assert!(!is_numeric_literal(&HirExpr::Var("x".to_string())));
     }
 
@@ -442,9 +465,15 @@ mod tests {
     #[test]
     fn test_is_container_type() {
         assert!(is_container_type(&Type::List(Box::new(Type::Int))));
-        assert!(is_container_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
+        assert!(is_container_type(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int)
+        )));
         assert!(is_container_type(&Type::Set(Box::new(Type::Int))));
-        assert!(is_container_type(&Type::Tuple(vec![Type::Int, Type::String])));
+        assert!(is_container_type(&Type::Tuple(vec![
+            Type::Int,
+            Type::String
+        ])));
         assert!(!is_container_type(&Type::Int));
         assert!(!is_container_type(&Type::String));
     }
@@ -520,7 +549,9 @@ mod tests {
     #[test]
     fn test_is_negative_int_literal() {
         assert!(is_negative_int_literal(&HirExpr::Literal(Literal::Int(-1))));
-        assert!(is_negative_int_literal(&HirExpr::Literal(Literal::Int(-100))));
+        assert!(is_negative_int_literal(&HirExpr::Literal(Literal::Int(
+            -100
+        ))));
         assert!(!is_negative_int_literal(&HirExpr::Literal(Literal::Int(0))));
         assert!(!is_negative_int_literal(&HirExpr::Literal(Literal::Int(1))));
     }
@@ -528,9 +559,13 @@ mod tests {
     #[test]
     fn test_is_positive_int_literal() {
         assert!(is_positive_int_literal(&HirExpr::Literal(Literal::Int(1))));
-        assert!(is_positive_int_literal(&HirExpr::Literal(Literal::Int(100))));
+        assert!(is_positive_int_literal(&HirExpr::Literal(Literal::Int(
+            100
+        ))));
         assert!(!is_positive_int_literal(&HirExpr::Literal(Literal::Int(0))));
-        assert!(!is_positive_int_literal(&HirExpr::Literal(Literal::Int(-1))));
+        assert!(!is_positive_int_literal(&HirExpr::Literal(Literal::Int(
+            -1
+        ))));
     }
 
     // ============================================================================
@@ -540,26 +575,41 @@ mod tests {
     #[test]
     fn test_get_int_value() {
         assert_eq!(get_int_value(&HirExpr::Literal(Literal::Int(42))), Some(42));
-        assert_eq!(get_int_value(&HirExpr::Literal(Literal::Int(-10))), Some(-10));
+        assert_eq!(
+            get_int_value(&HirExpr::Literal(Literal::Int(-10))),
+            Some(-10)
+        );
         assert_eq!(get_int_value(&HirExpr::Var("x".to_string())), None);
     }
 
     #[test]
     fn test_get_float_value() {
-        assert_eq!(get_float_value(&HirExpr::Literal(Literal::Float(3.15))), Some(3.15));
+        assert_eq!(
+            get_float_value(&HirExpr::Literal(Literal::Float(3.15))),
+            Some(3.15)
+        );
         assert_eq!(get_float_value(&HirExpr::Var("x".to_string())), None);
     }
 
     #[test]
     fn test_get_string_value() {
-        assert_eq!(get_string_value(&HirExpr::Literal(Literal::String("hello".to_string()))), Some("hello"));
+        assert_eq!(
+            get_string_value(&HirExpr::Literal(Literal::String("hello".to_string()))),
+            Some("hello")
+        );
         assert_eq!(get_string_value(&HirExpr::Var("x".to_string())), None);
     }
 
     #[test]
     fn test_get_bool_value() {
-        assert_eq!(get_bool_value(&HirExpr::Literal(Literal::Bool(true))), Some(true));
-        assert_eq!(get_bool_value(&HirExpr::Literal(Literal::Bool(false))), Some(false));
+        assert_eq!(
+            get_bool_value(&HirExpr::Literal(Literal::Bool(true))),
+            Some(true)
+        );
+        assert_eq!(
+            get_bool_value(&HirExpr::Literal(Literal::Bool(false))),
+            Some(false)
+        );
         assert_eq!(get_bool_value(&HirExpr::Var("x".to_string())), None);
     }
 
@@ -693,7 +743,10 @@ mod tests {
     fn test_supports_containment() {
         assert!(supports_containment(&Type::List(Box::new(Type::Int))));
         assert!(supports_containment(&Type::Set(Box::new(Type::Int))));
-        assert!(supports_containment(&Type::Dict(Box::new(Type::String), Box::new(Type::Int))));
+        assert!(supports_containment(&Type::Dict(
+            Box::new(Type::String),
+            Box::new(Type::Int)
+        )));
         assert!(supports_containment(&Type::String));
         assert!(supports_containment(&Type::Tuple(vec![Type::Int])));
         assert!(!supports_containment(&Type::Int));

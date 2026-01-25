@@ -332,10 +332,7 @@ mod tests {
     use smallvec::smallvec;
 
     // Helper to create a basic function for testing
-    fn create_test_func(
-        body: Vec<HirStmt>,
-        opt_level: OptimizationLevel,
-    ) -> HirFunction {
+    fn create_test_func(body: Vec<HirStmt>, opt_level: OptimizationLevel) -> HirFunction {
         HirFunction {
             name: "test".to_string(),
             params: smallvec![],
@@ -860,7 +857,9 @@ mod tests {
     fn test_performance_hint_vectorize() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations.performance_hints.push(PerformanceHint::Vectorize);
+        annotations
+            .performance_hints
+            .push(PerformanceHint::Vectorize);
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -882,7 +881,9 @@ mod tests {
     fn test_performance_hint_unroll_loops() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations.performance_hints.push(PerformanceHint::UnrollLoops(8));
+        annotations
+            .performance_hints
+            .push(PerformanceHint::UnrollLoops(8));
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -904,7 +905,9 @@ mod tests {
     fn test_performance_hint_optimize_for_latency() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations.performance_hints.push(PerformanceHint::OptimizeForLatency);
+        annotations
+            .performance_hints
+            .push(PerformanceHint::OptimizeForLatency);
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -926,7 +929,9 @@ mod tests {
     fn test_performance_hint_optimize_for_throughput() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations.performance_hints.push(PerformanceHint::OptimizeForThroughput);
+        annotations
+            .performance_hints
+            .push(PerformanceHint::OptimizeForThroughput);
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -948,7 +953,9 @@ mod tests {
     fn test_performance_hint_performance_critical() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations.performance_hints.push(PerformanceHint::PerformanceCritical);
+        annotations
+            .performance_hints
+            .push(PerformanceHint::PerformanceCritical);
 
         let mut func = HirFunction {
             name: "test".to_string(),
@@ -1077,6 +1084,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let optimizations = optimize_module(&mut module);
@@ -1094,6 +1102,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let optimizations = optimize_module(&mut module);
@@ -1120,6 +1129,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let optimizations = optimize_module(&mut module);
@@ -1134,11 +1144,7 @@ mod tests {
         let optimizer = PerformanceOptimizer::new();
 
         // Test unsupported operation (Pow)
-        let result = optimizer.evaluate_binary_op(
-            BinOp::Pow,
-            &Literal::Int(2),
-            &Literal::Int(3),
-        );
+        let result = optimizer.evaluate_binary_op(BinOp::Pow, &Literal::Int(2), &Literal::Int(3));
         assert!(result.is_none());
     }
 
@@ -1147,11 +1153,8 @@ mod tests {
         let optimizer = PerformanceOptimizer::new();
 
         // Test mixed types (Int + Float) - not supported
-        let result = optimizer.evaluate_binary_op(
-            BinOp::Add,
-            &Literal::Int(2),
-            &Literal::Float(3.0),
-        );
+        let result =
+            optimizer.evaluate_binary_op(BinOp::Add, &Literal::Int(2), &Literal::Float(3.0));
         assert!(result.is_none());
     }
 
@@ -1195,7 +1198,12 @@ mod tests {
         optimizer.optimize_function(&mut func);
 
         // Check all constants are folded
-        if let HirStmt::If { condition, then_body, else_body } = &func.body[0] {
+        if let HirStmt::If {
+            condition,
+            then_body,
+            else_body,
+        } = &func.body[0]
+        {
             assert!(matches!(condition, HirExpr::Literal(Literal::Int(2))));
 
             if let HirStmt::Return(Some(HirExpr::Literal(Literal::Int(n)))) = &then_body[0] {
@@ -1216,9 +1224,15 @@ mod tests {
     fn test_multiple_performance_hints() {
         let mut optimizer = PerformanceOptimizer::new();
         let mut annotations = TranspilationAnnotations::default();
-        annotations.performance_hints.push(PerformanceHint::Vectorize);
-        annotations.performance_hints.push(PerformanceHint::OptimizeForLatency);
-        annotations.performance_hints.push(PerformanceHint::UnrollLoops(2));
+        annotations
+            .performance_hints
+            .push(PerformanceHint::Vectorize);
+        annotations
+            .performance_hints
+            .push(PerformanceHint::OptimizeForLatency);
+        annotations
+            .performance_hints
+            .push(PerformanceHint::UnrollLoops(2));
 
         let mut func = HirFunction {
             name: "test".to_string(),

@@ -4,7 +4,9 @@
 use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> Result<String, String> {
-    DepylerPipeline::new().transpile(code).map_err(|e| e.to_string())
+    DepylerPipeline::new()
+        .transpile(code)
+        .map_err(|e| e.to_string())
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -25,12 +27,16 @@ fn test_symbol_assign_int() {
 
 #[test]
 fn test_symbol_assign_float() {
-    assert!(transpile_ok("def f() -> float:\n    x = 3.14\n    return x"));
+    assert!(transpile_ok(
+        "def f() -> float:\n    x = 3.14\n    return x"
+    ));
 }
 
 #[test]
 fn test_symbol_assign_string() {
-    assert!(transpile_ok("def f() -> str:\n    x = \"hello\"\n    return x"));
+    assert!(transpile_ok(
+        "def f() -> str:\n    x = \"hello\"\n    return x"
+    ));
 }
 
 #[test]
@@ -40,22 +46,30 @@ fn test_symbol_assign_bool() {
 
 #[test]
 fn test_symbol_assign_list() {
-    assert!(transpile_ok("def f() -> list:\n    x = [1, 2, 3]\n    return x"));
+    assert!(transpile_ok(
+        "def f() -> list:\n    x = [1, 2, 3]\n    return x"
+    ));
 }
 
 #[test]
 fn test_symbol_assign_dict() {
-    assert!(transpile_ok("def f() -> dict:\n    x = {\"a\": 1}\n    return x"));
+    assert!(transpile_ok(
+        "def f() -> dict:\n    x = {\"a\": 1}\n    return x"
+    ));
 }
 
 #[test]
 fn test_symbol_assign_expression() {
-    assert!(transpile_ok("def f(a: int, b: int) -> int:\n    x = a + b\n    return x"));
+    assert!(transpile_ok(
+        "def f(a: int, b: int) -> int:\n    x = a + b\n    return x"
+    ));
 }
 
 #[test]
 fn test_symbol_assign_call() {
-    assert!(transpile_ok("def f(s: str) -> str:\n    x = s.upper()\n    return x"));
+    assert!(transpile_ok(
+        "def f(s: str) -> str:\n    x = s.upper()\n    return x"
+    ));
 }
 
 #[test]
@@ -72,7 +86,9 @@ def f(x: int) -> int:
 
 #[test]
 fn test_symbol_assign_from_param() {
-    assert!(transpile_ok("def f(x: int) -> int:\n    y = x\n    return y"));
+    assert!(transpile_ok(
+        "def f(x: int) -> int:\n    y = x\n    return y"
+    ));
 }
 
 #[test]
@@ -87,22 +103,30 @@ def f() -> int:
 
 #[test]
 fn test_symbol_augmented_assign_add() {
-    assert!(transpile_ok("def f(x: int) -> int:\n    x += 1\n    return x"));
+    assert!(transpile_ok(
+        "def f(x: int) -> int:\n    x += 1\n    return x"
+    ));
 }
 
 #[test]
 fn test_symbol_augmented_assign_sub() {
-    assert!(transpile_ok("def f(x: int) -> int:\n    x -= 1\n    return x"));
+    assert!(transpile_ok(
+        "def f(x: int) -> int:\n    x -= 1\n    return x"
+    ));
 }
 
 #[test]
 fn test_symbol_augmented_assign_mul() {
-    assert!(transpile_ok("def f(x: int) -> int:\n    x *= 2\n    return x"));
+    assert!(transpile_ok(
+        "def f(x: int) -> int:\n    x *= 2\n    return x"
+    ));
 }
 
 #[test]
 fn test_symbol_augmented_assign_div() {
-    assert!(transpile_ok("def f(x: float) -> float:\n    x /= 2.0\n    return x"));
+    assert!(transpile_ok(
+        "def f(x: float) -> float:\n    x /= 2.0\n    return x"
+    ));
 }
 
 // ============ convert_index_assignment tests ============
@@ -350,7 +374,9 @@ fn test_assign_negative_int() {
 
 #[test]
 fn test_assign_scientific_notation() {
-    assert!(transpile_ok("def f() -> float:\n    x = 1e10\n    return x"));
+    assert!(transpile_ok(
+        "def f() -> float:\n    x = 1e10\n    return x"
+    ));
 }
 
 #[test]

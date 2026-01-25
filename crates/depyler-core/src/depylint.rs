@@ -113,7 +113,11 @@ impl DepylintAnalyzer {
             Stmt::ClassDef(class) => {
                 // Check for metaclass
                 for keyword in &class.keywords {
-                    if keyword.arg.as_ref().is_some_and(|a| a.as_str() == "metaclass") {
+                    if keyword
+                        .arg
+                        .as_ref()
+                        .is_some_and(|a| a.as_str() == "metaclass")
+                    {
                         self.add_warning(
                             Self::get_offset(&class.range),
                             "DPL003",
@@ -129,9 +133,13 @@ impl DepylintAnalyzer {
                 }
             }
             Stmt::Expr(expr_stmt) => {
+                // DEPYLER-PHASE2: Check for self-referential patterns (Poka-Yoke)
+                self.check_self_reference(stmt);
                 self.visit_expr(&expr_stmt.value);
             }
             Stmt::Assign(assign) => {
+                // DEPYLER-PHASE2: Check for self-referential patterns (Poka-Yoke)
+                self.check_self_reference(stmt);
                 self.visit_expr(&assign.value);
                 for target in &assign.targets {
                     self.visit_expr(target);
@@ -157,6 +165,8 @@ impl DepylintAnalyzer {
                 }
             }
             Stmt::For(for_stmt) => {
+                // DEPYLER-PHASE2: Check for mutation-while-iterating (Poka-Yoke)
+                self.check_mutation_while_iterating(for_stmt);
                 self.visit_expr(&for_stmt.iter);
                 for s in &for_stmt.body {
                     self.visit_stmt(s);
@@ -239,7 +249,10 @@ impl DepylintAnalyzer {
                             self.add_warning(
                                 offset,
                                 "DPL006",
-                                &format!("{}() with dynamic attribute names is not fully supported", func_name),
+                                &format!(
+                                    "{}() with dynamic attribute names is not fully supported",
+                                    func_name
+                                ),
                                 Severity::Warning,
                                 Some("Use explicit attribute access when possible".to_string()),
                             );
@@ -325,7 +338,11 @@ impl DepylintAnalyzer {
             ("__getattr__", "DPL008", "Dynamic attribute access"),
             ("__setattr__", "DPL009", "Dynamic attribute setting"),
             ("__delattr__", "DPL010", "Dynamic attribute deletion"),
-            ("__getattribute__", "DPL011", "Attribute access interception"),
+            (
+                "__getattribute__",
+                "DPL011",
+                "Attribute access interception",
+            ),
         ];
 
         for (dunder, code, desc) in problematic_dunders {
@@ -360,6 +377,426 @@ impl DepylintAnalyzer {
                 suggestion,
             });
         }
+    }
+
+    // ============================================================================
+    // DEPYLER-PHASE2: Poka-Yoke Rejection Patterns
+    //
+    // These patterns cannot be safely transpiled to Rust's ownership model and
+    // must be rejected at lint time with clear error messages.
+    // ============================================================================
+
+    /// Check for mutation-while-iterating pattern (Poka-Yoke DPL100)
+    ///
+    /// Detects patterns like:
+    /// ```python
+    /// for x in items:
+    ///     items.append(x * 2)  # INVALID: mutating while iterating
+    /// ```
+    pub fn check_mutation_while_iterating(&mut self, for_stmt: &ast::StmtFor) {
+        // Extract iterator variable name
+        let iter_name = match &*for_stmt.iter {
+            Expr::Name(name) => Some(name.id.as_str().to_string()),
+            _ => None,
+        };
+
+        if let Some(iter_var) = iter_name {
+            // Check body for mutations to the iterator
+            for stmt in &for_stmt.body {
+                if self.stmt_mutates_var(stmt, &iter_var) {
+                    self.add_warning(
+                        Self::get_offset(&for_stmt.range),
+                        "DPL100",
+                        &format!(
+                            "Mutating '{}' while iterating over it is not supported - \
+                             Rust's borrow checker prevents this pattern",
+                            iter_var
+                        ),
+                        Severity::Error,
+                        Some(format!(
+                            "Collect items to add/remove in a separate list, then modify '{}' after the loop",
+                            iter_var
+                        )),
+                    );
+                    break; // One warning per loop
+                }
+            }
+        }
+    }
+
+    /// Check if a statement mutates a specific variable
+    fn stmt_mutates_var(&self, stmt: &Stmt, var_name: &str) -> bool {
+        match stmt {
+            Stmt::Expr(expr_stmt) => self.expr_mutates_var(&expr_stmt.value, var_name),
+            Stmt::If(if_stmt) => {
+                if_stmt
+                    .body
+                    .iter()
+                    .any(|s| self.stmt_mutates_var(s, var_name))
+                    || if_stmt
+                        .orelse
+                        .iter()
+                        .any(|s| self.stmt_mutates_var(s, var_name))
+            }
+            _ => false,
+        }
+    }
+
+    /// Check if an expression mutates a specific variable
+    fn expr_mutates_var(&self, expr: &Expr, var_name: &str) -> bool {
+        match expr {
+            Expr::Call(call) => {
+                // Check for method calls like items.append(), items.remove(), etc.
+                if let Expr::Attribute(attr) = call.func.as_ref() {
+                    if let Expr::Name(name) = attr.value.as_ref() {
+                        if name.id.as_str() == var_name {
+                            let method = attr.attr.as_str();
+                            let mutating_methods = [
+                                "append",
+                                "extend",
+                                "insert",
+                                "remove",
+                                "pop",
+                                "clear",
+                                "add",
+                                "discard",
+                                "update",
+                                "setdefault",
+                                "__setitem__",
+                            ];
+                            return mutating_methods.contains(&method);
+                        }
+                    }
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+
+    /// Check for self-referential structures (Poka-Yoke DPL101)
+    ///
+    /// Detects patterns like:
+    /// ```python
+    /// d["self"] = d  # INVALID: self-reference
+    /// lst.append(lst)  # INVALID: list contains itself
+    /// ```
+    pub fn check_self_reference(&mut self, stmt: &Stmt) {
+        match stmt {
+            Stmt::Assign(assign) => {
+                // Check for d[key] = d pattern
+                for target in &assign.targets {
+                    if let Expr::Subscript(subscript) = target {
+                        if let Expr::Name(target_name) = subscript.value.as_ref() {
+                            if let Expr::Name(value_name) = assign.value.as_ref() {
+                                if target_name.id == value_name.id {
+                                    self.add_warning(
+                                        Self::get_offset(&assign.range),
+                                        "DPL101",
+                                        &format!(
+                                            "Self-referential assignment to '{}' is not supported - \
+                                             Rust cannot represent cyclic data structures without Rc/RefCell",
+                                            target_name.id
+                                        ),
+                                        Severity::Error,
+                                        Some(
+                                            "Use indices or separate data structures to represent relationships".to_string(),
+                                        ),
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Stmt::Expr(expr_stmt) => {
+                // Check for lst.append(lst) pattern
+                if let Expr::Call(call) = expr_stmt.value.as_ref() {
+                    if let Expr::Attribute(attr) = call.func.as_ref() {
+                        let method = attr.attr.as_str();
+                        if method == "append" || method == "add" || method == "extend" {
+                            if let Expr::Name(receiver_name) = attr.value.as_ref() {
+                                for arg in &call.args {
+                                    if let Expr::Name(arg_name) = arg {
+                                        if receiver_name.id == arg_name.id {
+                                            self.add_warning(
+                                                Self::get_offset(&call.range),
+                                                "DPL101",
+                                                &format!(
+                                                    "Adding '{}' to itself creates a cyclic reference - \
+                                                     Rust cannot represent this without Rc/RefCell",
+                                                    receiver_name.id
+                                                ),
+                                                Severity::Error,
+                                                Some(
+                                                    "Use a copy if you need to store duplicate data".to_string(),
+                                                ),
+                                            );
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Check for cyclic reference patterns (Poka-Yoke DPL102)
+    ///
+    /// Detects patterns like:
+    /// ```python
+    /// a.next = b
+    /// b.next = a  # INVALID: cyclic reference
+    /// ```
+    ///
+    /// Note: This is a simplified check that detects immediate cycles within
+    /// a single scope. Full cycle detection would require dataflow analysis.
+    pub fn check_cyclic_assignment(&mut self, assigns: &[&Stmt]) {
+        // Track attribute assignments: (object, attribute) -> value
+        let mut attr_assigns: Vec<(String, String, String)> = Vec::new();
+
+        for stmt in assigns {
+            if let Stmt::Assign(assign) = stmt {
+                for target in &assign.targets {
+                    if let Expr::Attribute(attr) = target {
+                        if let Expr::Name(obj_name) = attr.value.as_ref() {
+                            if let Expr::Name(value_name) = assign.value.as_ref() {
+                                let obj = obj_name.id.as_str().to_string();
+                                let field = attr.attr.as_str().to_string();
+                                let value = value_name.id.as_str().to_string();
+                                attr_assigns.push((obj, field, value));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Detect simple cycles: a.x = b and b.y = a
+        for (i, (obj1, _field1, val1)) in attr_assigns.iter().enumerate() {
+            for (obj2, _field2, val2) in attr_assigns.iter().skip(i + 1) {
+                if obj1 == val2 && obj2 == val1 {
+                    // Found a cycle: obj1 points to val1 (obj2) and obj2 points to val2 (obj1)
+                    self.add_warning(
+                        0, // Would need offset tracking
+                        "DPL102",
+                        &format!(
+                            "Cyclic reference detected: '{}' and '{}' reference each other - \
+                             Rust cannot represent cyclic structures without Rc/RefCell",
+                            obj1, obj2
+                        ),
+                        Severity::Error,
+                        Some("Use weak references or restructure to avoid cycles".to_string()),
+                    );
+                }
+            }
+        }
+    }
+}
+
+/// Poka-Yoke violation error
+#[derive(Debug, Clone)]
+pub struct PokaYokeViolation {
+    /// Error code
+    pub code: String,
+    /// Description of the violation
+    pub description: String,
+    /// Location in source
+    pub offset: usize,
+    /// Suggested fix
+    pub suggestion: String,
+}
+
+impl std::fmt::Display for PokaYokeViolation {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}] {}", self.code, self.description)
+    }
+}
+
+impl std::error::Error for PokaYokeViolation {}
+
+/// Check a function for Poka-Yoke violations (HIR-level)
+///
+/// This function operates on the HIR and can be called during transpilation
+/// to reject patterns that cannot be safely transpiled.
+pub fn check_poka_yoke(func: &crate::hir::HirFunction) -> Result<(), PokaYokeViolation> {
+    for stmt in &func.body {
+        if let Some(violation) = detect_hir_mutation_while_iterating(stmt) {
+            return Err(violation);
+        }
+        if let Some(violation) = detect_hir_self_reference(stmt) {
+            return Err(violation);
+        }
+    }
+    Ok(())
+}
+
+/// Detect mutation-while-iterating in HIR
+fn detect_hir_mutation_while_iterating(stmt: &crate::hir::HirStmt) -> Option<PokaYokeViolation> {
+    use crate::hir::{HirExpr, HirStmt};
+
+    if let HirStmt::For { iter, body, .. } = stmt {
+        // Get iterator variable name - HirExpr::Var(Symbol) where Symbol = String
+        let iter_name = if let HirExpr::Var(name) = iter {
+            Some(name.clone())
+        } else {
+            None
+        };
+
+        if let Some(iter_var) = iter_name {
+            // Check body for mutations
+            for body_stmt in body {
+                if hir_stmt_mutates_var(body_stmt, &iter_var) {
+                    return Some(PokaYokeViolation {
+                        code: "DPL100".to_string(),
+                        description: format!(
+                            "Cannot mutate '{}' while iterating over it",
+                            iter_var
+                        ),
+                        offset: 0,
+                        suggestion: "Collect modifications and apply after loop".to_string(),
+                    });
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Check if an HIR statement mutates a variable
+fn hir_stmt_mutates_var(stmt: &crate::hir::HirStmt, var_name: &str) -> bool {
+    use crate::hir::HirStmt;
+
+    match stmt {
+        HirStmt::Expr(expr) => hir_expr_mutates_var(expr, var_name),
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
+            let then_mutates = then_body.iter().any(|s| hir_stmt_mutates_var(s, var_name));
+            let else_mutates = else_body
+                .as_ref()
+                .map(|stmts| stmts.iter().any(|s| hir_stmt_mutates_var(s, var_name)))
+                .unwrap_or(false);
+            then_mutates || else_mutates
+        }
+        HirStmt::Block(stmts) => stmts.iter().any(|s| hir_stmt_mutates_var(s, var_name)),
+        _ => false,
+    }
+}
+
+/// Check if an HIR expression mutates a variable
+fn hir_expr_mutates_var(expr: &crate::hir::HirExpr, var_name: &str) -> bool {
+    use crate::hir::HirExpr;
+
+    match expr {
+        HirExpr::MethodCall { object, method, .. } => {
+            if let HirExpr::Var(name) = object.as_ref() {
+                if name == var_name {
+                    let mutating_methods = [
+                        "append",
+                        "extend",
+                        "insert",
+                        "remove",
+                        "pop",
+                        "clear",
+                        "add",
+                        "discard",
+                        "update",
+                        "setdefault",
+                    ];
+                    return mutating_methods.contains(&method.as_str());
+                }
+            }
+            false
+        }
+        _ => false,
+    }
+}
+
+/// Detect self-referential patterns in HIR
+fn detect_hir_self_reference(stmt: &crate::hir::HirStmt) -> Option<PokaYokeViolation> {
+    use crate::hir::{HirExpr, HirStmt};
+
+    match stmt {
+        HirStmt::Assign { target, value, .. } => {
+            // Check for self-reference through index: d["x"] = d
+            if let Some(target_var) = find_base_var_in_assign(target) {
+                if let HirExpr::Var(value_var) = value {
+                    if target_var == value_var {
+                        return Some(PokaYokeViolation {
+                            code: "DPL101".to_string(),
+                            description: format!(
+                                "Self-referential assignment to '{}' is not allowed",
+                                target_var
+                            ),
+                            offset: 0,
+                            suggestion: "Use indices or separate structures".to_string(),
+                        });
+                    }
+                }
+            }
+        }
+        HirStmt::Expr(HirExpr::MethodCall {
+            object,
+            method,
+            args,
+            ..
+        }) => {
+            // Check for self-appending: lst.append(lst)
+            if method == "append" || method == "add" || method == "extend" {
+                if let HirExpr::Var(recv_name) = object.as_ref() {
+                    for arg in args {
+                        if let HirExpr::Var(arg_name) = arg {
+                            if recv_name == arg_name {
+                                return Some(PokaYokeViolation {
+                                    code: "DPL101".to_string(),
+                                    description: format!(
+                                        "Adding '{}' to itself creates a cycle",
+                                        recv_name
+                                    ),
+                                    offset: 0,
+                                    suggestion: "Use a copy to store duplicate data".to_string(),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        _ => {}
+    }
+
+    None
+}
+
+/// Helper to find the base variable in an assignment target
+fn find_base_var_in_assign(target: &crate::hir::AssignTarget) -> Option<&str> {
+    use crate::hir::{AssignTarget, HirExpr};
+
+    match target {
+        AssignTarget::Symbol(name) => Some(name.as_str()),
+        AssignTarget::Index { base, .. } => {
+            // Recursively find the base variable in index expression
+            if let HirExpr::Var(name) = base.as_ref() {
+                Some(name.as_str())
+            } else {
+                None
+            }
+        }
+        AssignTarget::Attribute { value, .. } => {
+            if let HirExpr::Var(name) = value.as_ref() {
+                Some(name.as_str())
+            } else {
+                None
+            }
+        }
+        AssignTarget::Tuple(_) => None, // Tuple unpacking - skip for now
     }
 }
 
@@ -915,8 +1352,8 @@ async def foo():
     #[test]
     fn test_offset_to_line_col() {
         let source = "line1\nline2\nline3";
-        assert_eq!(offset_to_line_col(source, 0), (1, 1));  // 'l' in line1
-        assert_eq!(offset_to_line_col(source, 6), (2, 1));  // 'l' in line2
+        assert_eq!(offset_to_line_col(source, 0), (1, 1)); // 'l' in line1
+        assert_eq!(offset_to_line_col(source, 6), (2, 1)); // 'l' in line2
         assert_eq!(offset_to_line_col(source, 12), (3, 1)); // 'l' in line3
     }
 
@@ -935,8 +1372,8 @@ async def foo():
     #[test]
     fn test_offset_to_line_col_end_of_line() {
         let source = "abc\ndef";
-        assert_eq!(offset_to_line_col(source, 3), (1, 4));  // newline char
-        assert_eq!(offset_to_line_col(source, 4), (2, 1));  // 'd'
+        assert_eq!(offset_to_line_col(source, 3), (1, 4)); // newline char
+        assert_eq!(offset_to_line_col(source, 4), (2, 1)); // 'd'
     }
 
     #[test]

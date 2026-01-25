@@ -209,8 +209,14 @@ mod tests {
 
     #[test]
     fn test_type_fact_kind_from_str() {
-        assert_eq!("function".parse::<TypeFactKind>().unwrap(), TypeFactKind::Function);
-        assert_eq!("class".parse::<TypeFactKind>().unwrap(), TypeFactKind::Class);
+        assert_eq!(
+            "function".parse::<TypeFactKind>().unwrap(),
+            TypeFactKind::Function
+        );
+        assert_eq!(
+            "class".parse::<TypeFactKind>().unwrap(),
+            TypeFactKind::Class
+        );
         assert!("invalid".parse::<TypeFactKind>().is_err());
     }
 }

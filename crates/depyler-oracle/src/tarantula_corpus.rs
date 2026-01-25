@@ -33,7 +33,10 @@ pub struct TranspilationResult {
 impl TranspilationResult {
     /// Create a successful result
     #[must_use]
-    pub fn success(python_file: impl Into<String>, decisions: Vec<TranspilerDecisionRecord>) -> Self {
+    pub fn success(
+        python_file: impl Into<String>,
+        decisions: Vec<TranspilerDecisionRecord>,
+    ) -> Self {
         Self {
             python_file: python_file.into(),
             transpiled: true,
@@ -264,9 +267,15 @@ impl CorpusAnalysisReport {
         md.push_str("| Metric | Value |\n");
         md.push_str("|--------|-------|\n");
         md.push_str(&format!("| Total Files | {} |\n", self.total_files));
-        md.push_str(&format!("| Transpile Success | {} |\n", self.transpile_success));
+        md.push_str(&format!(
+            "| Transpile Success | {} |\n",
+            self.transpile_success
+        ));
         md.push_str(&format!("| Compile Success | {} |\n", self.compile_success));
-        md.push_str(&format!("| Transpile Rate | {:.1}% |\n", self.transpile_rate));
+        md.push_str(&format!(
+            "| Transpile Rate | {:.1}% |\n",
+            self.transpile_rate
+        ));
         md.push_str(&format!(
             "| **Single-Shot Rate** | **{:.1}%** |\n",
             self.single_shot_rate
@@ -352,9 +361,7 @@ fn recommend_action(decision: &SuspiciousTranspilerDecision) -> String {
         TranspilerDecision::ReturnTypeInference => {
             "Fix return type inference for fallible functions".to_string()
         }
-        TranspilerDecision::ErrorHandling => {
-            "Review Result/Option wrapping strategy".to_string()
-        }
+        TranspilerDecision::ErrorHandling => "Review Result/Option wrapping strategy".to_string(),
         TranspilerDecision::ContainerMapping => {
             "Review list/dict/set container type mappings".to_string()
         }
@@ -583,7 +590,10 @@ mod tests {
         // Add 80+ successes
         for i in 0..80 {
             analyzer
-                .add_result(TranspilationResult::success(format!("good_{}.py", i), vec![]))
+                .add_result(TranspilationResult::success(
+                    format!("good_{}.py", i),
+                    vec![],
+                ))
                 .unwrap();
         }
 
@@ -624,7 +634,10 @@ mod tests {
         ];
         let result = TranspilationResult::success("test.py", decisions.clone());
         assert_eq!(result.decisions.len(), 2);
-        assert_eq!(result.decisions[0].decision_type, TranspilerDecision::TypeInference);
+        assert_eq!(
+            result.decisions[0].decision_type,
+            TranspilerDecision::TypeInference
+        );
     }
 
     // ============================================================
@@ -659,7 +672,9 @@ mod tests {
     #[test]
     fn test_corpus_analyzer_clear() {
         let mut analyzer = CorpusAnalyzer::new().unwrap();
-        analyzer.add_result(TranspilationResult::success("test.py", vec![])).unwrap();
+        analyzer
+            .add_result(TranspilationResult::success("test.py", vec![]))
+            .unwrap();
         assert_eq!(analyzer.results.len(), 1);
 
         analyzer.clear().unwrap();
@@ -670,12 +685,17 @@ mod tests {
     fn test_corpus_analyzer_top_suspicious() {
         let mut analyzer = CorpusAnalyzer::new().unwrap();
         for i in 0..5 {
-            analyzer.add_result(TranspilationResult::compile_failure(
-                format!("fail_{}.py", i),
-                vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "bad")],
-                vec!["E0308".to_string()],
-                vec![],
-            )).unwrap();
+            analyzer
+                .add_result(TranspilationResult::compile_failure(
+                    format!("fail_{}.py", i),
+                    vec![TranspilerDecisionRecord::new(
+                        TranspilerDecision::TypeInference,
+                        "bad",
+                    )],
+                    vec!["E0308".to_string()],
+                    vec![],
+                ))
+                .unwrap();
         }
 
         let suspicious = analyzer.top_suspicious(3);
@@ -697,12 +717,17 @@ mod tests {
     #[test]
     fn test_report_top_suspicious() {
         let mut analyzer = CorpusAnalyzer::new().unwrap();
-        analyzer.add_result(TranspilationResult::compile_failure(
-            "test.py",
-            vec![TranspilerDecisionRecord::new(TranspilerDecision::TypeInference, "bad")],
-            vec!["E0308".to_string()],
-            vec![],
-        )).unwrap();
+        analyzer
+            .add_result(TranspilationResult::compile_failure(
+                "test.py",
+                vec![TranspilerDecisionRecord::new(
+                    TranspilerDecision::TypeInference,
+                    "bad",
+                )],
+                vec!["E0308".to_string()],
+                vec![],
+            ))
+            .unwrap();
 
         let report = analyzer.analyze();
         let top = report.top_suspicious(5);
@@ -713,19 +738,23 @@ mod tests {
     fn test_report_top_errors() {
         let mut analyzer = CorpusAnalyzer::new().unwrap();
         for _ in 0..3 {
-            analyzer.add_result(TranspilationResult::compile_failure(
-                "test.py",
-                vec![],
-                vec!["E0308".to_string()],
-                vec![],
-            )).unwrap();
+            analyzer
+                .add_result(TranspilationResult::compile_failure(
+                    "test.py",
+                    vec![],
+                    vec!["E0308".to_string()],
+                    vec![],
+                ))
+                .unwrap();
         }
-        analyzer.add_result(TranspilationResult::compile_failure(
-            "test2.py",
-            vec![],
-            vec!["E0433".to_string()],
-            vec![],
-        )).unwrap();
+        analyzer
+            .add_result(TranspilationResult::compile_failure(
+                "test2.py",
+                vec![],
+                vec!["E0433".to_string()],
+                vec![],
+            ))
+            .unwrap();
 
         let report = analyzer.analyze();
         let top_errors = report.top_errors(2);
@@ -738,12 +767,14 @@ mod tests {
     fn test_report_not_reached_target() {
         let mut analyzer = CorpusAnalyzer::new().unwrap();
         for i in 0..10 {
-            analyzer.add_result(TranspilationResult::compile_failure(
-                format!("fail_{}.py", i),
-                vec![],
-                vec!["E0001".to_string()],
-                vec![],
-            )).unwrap();
+            analyzer
+                .add_result(TranspilationResult::compile_failure(
+                    format!("fail_{}.py", i),
+                    vec![],
+                    vec!["E0001".to_string()],
+                    vec![],
+                ))
+                .unwrap();
         }
 
         let report = analyzer.analyze();
@@ -762,12 +793,17 @@ mod tests {
     #[test]
     fn test_report_markdown_with_errors() {
         let mut analyzer = CorpusAnalyzer::new().unwrap();
-        analyzer.add_result(TranspilationResult::compile_failure(
-            "test.py",
-            vec![TranspilerDecisionRecord::new(TranspilerDecision::ModuleMapping, "missing")],
-            vec!["E0433".to_string()],
-            vec!["unresolved import".to_string()],
-        )).unwrap();
+        analyzer
+            .add_result(TranspilationResult::compile_failure(
+                "test.py",
+                vec![TranspilerDecisionRecord::new(
+                    TranspilerDecision::ModuleMapping,
+                    "missing",
+                )],
+                vec!["E0433".to_string()],
+                vec!["unresolved import".to_string()],
+            ))
+            .unwrap();
 
         let report = analyzer.analyze();
         let md = report.to_markdown();
@@ -782,101 +818,120 @@ mod tests {
     #[test]
     fn test_simulate_decisions_e0308() {
         let decisions = simulate_decisions_from_errors(&["E0308".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::TypeInference));
     }
 
     #[test]
     fn test_simulate_decisions_e0433() {
         let decisions = simulate_decisions_from_errors(&["E0433".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
     }
 
     #[test]
     fn test_simulate_decisions_e0599() {
         let decisions = simulate_decisions_from_errors(&["E0599".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::MethodTranslation));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::MethodTranslation));
     }
 
     #[test]
     fn test_simulate_decisions_e0277() {
         let decisions = simulate_decisions_from_errors(&["E0277".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::TypeInference));
     }
 
     #[test]
     fn test_simulate_decisions_e0425() {
         let decisions = simulate_decisions_from_errors(&["E0425".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::ImportGeneration));
     }
 
     #[test]
     fn test_simulate_decisions_borrow_checker() {
         let decisions = simulate_decisions_from_errors(&["E0382".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::OwnershipInference));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::OwnershipInference));
 
         let decisions = simulate_decisions_from_errors(&["E0505".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::OwnershipInference));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::OwnershipInference));
 
         let decisions = simulate_decisions_from_errors(&["E0507".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::OwnershipInference));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::OwnershipInference));
     }
 
     #[test]
     fn test_simulate_decisions_e0106() {
         let decisions = simulate_decisions_from_errors(&["E0106".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::LifetimeInference));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::LifetimeInference));
     }
 
     #[test]
     fn test_simulate_decisions_unknown() {
         let decisions = simulate_decisions_from_errors(&["E9999".to_string()], &[]);
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::TypeInference));
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::TypeInference));
     }
 
     #[test]
     fn test_simulate_decisions_message_subprocess() {
-        let decisions = simulate_decisions_from_errors(
-            &[],
-            &["subprocess module not found".to_string()],
-        );
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        let decisions =
+            simulate_decisions_from_errors(&[], &["subprocess module not found".to_string()]);
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     #[test]
     fn test_simulate_decisions_message_datetime() {
-        let decisions = simulate_decisions_from_errors(
-            &[],
-            &["datetime import failed".to_string()],
-        );
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        let decisions =
+            simulate_decisions_from_errors(&[], &["datetime import failed".to_string()]);
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     #[test]
     fn test_simulate_decisions_message_os() {
-        let decisions = simulate_decisions_from_errors(
-            &[],
-            &["os.path not found".to_string()],
-        );
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        let decisions = simulate_decisions_from_errors(&[], &["os.path not found".to_string()]);
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     #[test]
     fn test_simulate_decisions_message_time() {
-        let decisions = simulate_decisions_from_errors(
-            &[],
-            &["time module issue".to_string()],
-        );
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        let decisions = simulate_decisions_from_errors(&[], &["time module issue".to_string()]);
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     #[test]
     fn test_simulate_decisions_message_command() {
-        let decisions = simulate_decisions_from_errors(
-            &[],
-            &["Command not found".to_string()],
-        );
-        assert!(decisions.iter().any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
+        let decisions = simulate_decisions_from_errors(&[], &["Command not found".to_string()]);
+        assert!(decisions
+            .iter()
+            .any(|d| d.decision_type == TranspilerDecision::ModuleMapping));
     }
 
     // ============================================================

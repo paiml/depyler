@@ -6,9 +6,9 @@
 //! "Hansei is about being honest about your own weaknesses."
 //! - Jeffrey Liker, The Toyota Way
 
+use super::isolator::ReproCase;
 use super::kaizen::KaizenMetrics;
 use super::planner::FailurePattern;
-use super::isolator::ReproCase;
 use super::verifier::VerifyResult;
 
 /// A lesson learned from a Hunt Mode cycle
@@ -145,8 +145,7 @@ impl HanseiReflector {
                     "type_system",
                     &format!(
                         "Type inference failure for error {}: {}",
-                        outcome.pattern.error_code,
-                        outcome.pattern.description
+                        outcome.pattern.error_code, outcome.pattern.description
                     ),
                     "Consider adding explicit type annotations or using serde_json::Value fallback",
                 ));
@@ -164,10 +163,7 @@ impl HanseiReflector {
             "borrowing" => {
                 lessons.push(Lesson::new(
                     "ownership",
-                    &format!(
-                        "Borrowing conflict: {}",
-                        outcome.pattern.description
-                    ),
+                    &format!("Borrowing conflict: {}", outcome.pattern.description),
                     "Review borrow checker rules; consider .clone() or restructuring",
                 ));
             }
@@ -181,10 +177,7 @@ impl HanseiReflector {
     fn analyze_success_lessons(&self, outcome: &CycleOutcome) -> Vec<Lesson> {
         vec![Lesson::new(
             "success_pattern",
-            &format!(
-                "Successfully fixed {} pattern",
-                outcome.fix_category()
-            ),
+            &format!("Successfully fixed {} pattern", outcome.fix_category()),
             "Apply similar fix strategy to related patterns",
         )]
     }
@@ -208,18 +201,18 @@ impl HanseiReflector {
     fn five_whys_lesson(&self, outcome: &CycleOutcome) -> Option<Lesson> {
         let root_cause = self.five_whys.analyze_from_outcome(outcome);
 
-        root_cause.root_cause().map(|root| Lesson::new(
-            "root_cause",
-            &root.description,
-            &root.preventive_measure,
-        ))
+        root_cause
+            .root_cause()
+            .map(|root| Lesson::new("root_cause", &root.description, &root.preventive_measure))
     }
 
     /// Add a lesson or reinforce existing one
     fn add_or_reinforce_lesson(&mut self, lesson: Lesson) {
         // Check if similar lesson exists
         if let Some(existing) = self.lessons_learned.iter_mut().find(|l| {
-            l.category == lesson.category && l.observation.contains(&lesson.observation[..20.min(lesson.observation.len())])
+            l.category == lesson.category
+                && l.observation
+                    .contains(&lesson.observation[..20.min(lesson.observation.len())])
         }) {
             existing.reinforce();
         } else {
@@ -257,10 +250,7 @@ impl HanseiReflector {
             std::collections::HashMap::new();
 
         for lesson in &self.lessons_learned {
-            categories
-                .entry(&lesson.category)
-                .or_default()
-                .push(lesson);
+            categories.entry(&lesson.category).or_default().push(lesson);
         }
 
         for (category, lessons) in categories {
@@ -295,15 +285,19 @@ impl HanseiReflector {
         if self.cycle_history.is_empty() {
             return 0.0;
         }
-        let successes = self.cycle_history.iter().filter(|c| c.was_successful()).count();
+        let successes = self
+            .cycle_history
+            .iter()
+            .filter(|c| c.was_successful())
+            .count();
         successes as f64 / self.cycle_history.len() as f64
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::planner::PatternCategory;
+    use super::*;
 
     fn create_test_outcome(success: bool) -> CycleOutcome {
         CycleOutcome {
@@ -316,11 +310,7 @@ mod tests {
                 fix_complexity: 5,
                 trigger_example: String::new(),
             },
-            repro: ReproCase::new(
-                "test".to_string(),
-                "E0308".to_string(),
-                "test".to_string(),
-            ),
+            repro: ReproCase::new("test".to_string(), "E0308".to_string(), "test".to_string()),
             verify_result: if success {
                 VerifyResult::Success
             } else {

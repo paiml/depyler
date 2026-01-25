@@ -260,10 +260,7 @@ impl CasStore {
         if hash.len() < 2 {
             return self.base_path.join("sha256").join(hash);
         }
-        self.base_path
-            .join("sha256")
-            .join(&hash[..2])
-            .join(hash)
+        self.base_path.join("sha256").join(&hash[..2]).join(hash)
     }
 
     /// List all blob hashes
@@ -485,11 +482,11 @@ impl SqliteCache {
 
     /// Get cache statistics
     pub fn stats(&self) -> Result<CacheStats, CacheError> {
-        let total_entries: usize = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| {
-                row.get(0)
-            })?;
+        let total_entries: usize =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| {
+                    row.get(0)
+                })?;
 
         let hit_count: u64 = self.get_stat("total_hits")?;
         let miss_count: u64 = self.get_stat("total_misses")?;
@@ -535,11 +532,11 @@ impl SqliteCache {
         let cutoff = now.saturating_sub(self.config.max_age_secs);
 
         // Count current entries
-        let current_count: usize = self
-            .conn
-            .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| {
-                row.get(0)
-            })?;
+        let current_count: usize =
+            self.conn
+                .query_row("SELECT COUNT(*) FROM transpilation_cache", [], |row| {
+                    row.get(0)
+                })?;
 
         // Only GC if we have more than min_entries
         if current_count <= self.config.min_entries {

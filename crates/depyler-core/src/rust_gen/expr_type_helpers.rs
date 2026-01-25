@@ -142,7 +142,10 @@ pub fn is_string_var_name(name: &str) -> bool {
 pub fn is_int_type(ty: &Type) -> bool {
     match ty {
         Type::Int => true,
-        Type::Custom(s) => matches!(s.as_str(), "i32" | "i64" | "isize" | "usize" | "u32" | "u64"),
+        Type::Custom(s) => matches!(
+            s.as_str(),
+            "i32" | "i64" | "isize" | "usize" | "u32" | "u64"
+        ),
         _ => false,
     }
 }
@@ -200,7 +203,13 @@ pub fn is_bitwise_op(op: &BinOp) -> bool {
 pub fn is_arithmetic_op(op: &BinOp) -> bool {
     matches!(
         op,
-        BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod | BinOp::FloorDiv | BinOp::Pow
+        BinOp::Add
+            | BinOp::Sub
+            | BinOp::Mul
+            | BinOp::Div
+            | BinOp::Mod
+            | BinOp::FloorDiv
+            | BinOp::Pow
     )
 }
 

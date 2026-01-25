@@ -66,6 +66,7 @@ pub mod doctest_extractor;
 pub mod documentation;
 pub mod error;
 pub mod error_reporting;
+pub mod escape_analysis;
 pub mod generator_state;
 pub mod generator_yield_analysis;
 pub mod generic_inference;
@@ -98,10 +99,10 @@ pub mod stdlib_mappings;
 pub mod string_optimization;
 pub mod test_generation;
 pub mod type_hints;
-pub mod type_mapper;
 pub mod type_inference_telemetry;
-pub mod type_system;
+pub mod type_mapper;
 pub mod type_propagation;
+pub mod type_system;
 pub mod typeshed_ingest;
 pub mod union_enum_gen;
 
@@ -565,6 +566,7 @@ impl DepylerPipeline {
             protocols: hir.protocols,
             classes: optimized_program.classes,
             constants: hir.constants,
+            top_level_stmts: hir.top_level_stmts, // DEPYLER-1216: Preserve top-level statements
         };
 
         // Generate Rust code with dependencies
@@ -737,6 +739,7 @@ impl DepylerPipeline {
             protocols: hir.protocols,
             classes: optimized_program.classes,
             constants: hir.constants,
+            top_level_stmts: hir.top_level_stmts, // DEPYLER-1216: Preserve top-level statements
         };
 
         // Generate Rust code using the unified generation system
@@ -760,9 +763,7 @@ impl DepylerPipeline {
         // Convert string type constraints to HIR Types
         let type_overrides: std::collections::HashMap<String, hir::Type> = type_constraints
             .iter()
-            .map(|(var, ty_str)| {
-                (var.clone(), rust_gen::rust_type_string_to_hir(ty_str))
-            })
+            .map(|(var, ty_str)| (var.clone(), rust_gen::rust_type_string_to_hir(ty_str)))
             .collect();
 
         // Parse Python source
@@ -921,9 +922,7 @@ impl DepylerPipeline {
         // Convert string type constraints to HIR Types
         let type_overrides: std::collections::HashMap<String, hir::Type> = type_constraints
             .iter()
-            .map(|(var, ty_str)| {
-                (var.clone(), rust_gen::rust_type_string_to_hir(ty_str))
-            })
+            .map(|(var, ty_str)| (var.clone(), rust_gen::rust_type_string_to_hir(ty_str)))
             .collect();
 
         // Parse Python source
@@ -1392,7 +1391,10 @@ def create_map() -> Dict[str, int]:
         let config: Config = Default::default();
         assert!(!config.enable_verification);
         assert!(!config.enable_metrics);
-        assert!(matches!(config.optimization_level, OptimizationLevel::Debug));
+        assert!(matches!(
+            config.optimization_level,
+            OptimizationLevel::Debug
+        ));
     }
 
     #[test]

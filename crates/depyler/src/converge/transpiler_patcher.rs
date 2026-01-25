@@ -139,11 +139,10 @@ impl TranspilerPatcher {
 
     /// Load patches from an APR file
     pub fn load_apr(&mut self, apr_path: impl AsRef<Path>) -> Result<usize> {
-        let content = std::fs::read_to_string(apr_path.as_ref())
-            .context("Failed to read APR file")?;
+        let content =
+            std::fs::read_to_string(apr_path.as_ref()).context("Failed to read APR file")?;
 
-        let apr: AprFile = toml::from_str(&content)
-            .context("Failed to parse APR file")?;
+        let apr: AprFile = toml::from_str(&content).context("Failed to parse APR file")?;
 
         let count = apr.patches.len();
         for patch in apr.patches {
@@ -172,12 +171,19 @@ impl TranspilerPatcher {
                 impl_block: Some("ExpressionConverter".to_string()),
                 error_pattern: "E0308".to_string(),
                 // DEPYLER-1311: Use contextual keywords from source lines
-                error_keywords: vec!["vec".to_string(), "list".to_string(), "push".to_string(), "collect".to_string(), "iterator".to_string()],
+                error_keywords: vec![
+                    "vec".to_string(),
+                    "list".to_string(),
+                    "push".to_string(),
+                    "collect".to_string(),
+                    "iterator".to_string(),
+                ],
                 patch_type: PatchType::InjectAtStart,
                 code_template: r#"
         // DEPYLER-1308: Hint - list element type from first element
         let _element_count = elts.len();
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.85,
                 enabled: true,
             },
@@ -188,12 +194,18 @@ impl TranspilerPatcher {
                 impl_block: Some("ExpressionConverter".to_string()),
                 error_pattern: "E0308".to_string(),
                 // DEPYLER-1311: Use contextual keywords
-                error_keywords: vec!["dict".to_string(), "hashmap".to_string(), "insert".to_string(), "get".to_string()],
+                error_keywords: vec![
+                    "dict".to_string(),
+                    "hashmap".to_string(),
+                    "insert".to_string(),
+                    "get".to_string(),
+                ],
                 patch_type: PatchType::InjectAtStart,
                 code_template: r#"
         // DEPYLER-1308: Hint - dict value type from first entry
         let _entry_count = items.len();
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.80,
                 enabled: true,
             },
@@ -204,12 +216,20 @@ impl TranspilerPatcher {
                 impl_block: None, // Free function, not in impl block
                 error_pattern: "E0308".to_string(),
                 // DEPYLER-1311: Broader keywords for return type mismatches
-                error_keywords: vec!["return".to_string(), "result".to_string(), "option".to_string(), "string".to_string(), "integer".to_string(), "float".to_string()],
+                error_keywords: vec![
+                    "return".to_string(),
+                    "result".to_string(),
+                    "option".to_string(),
+                    "string".to_string(),
+                    "integer".to_string(),
+                    "float".to_string(),
+                ],
                 patch_type: PatchType::InjectAtStart,
                 code_template: r#"
     // DEPYLER-1308: Hint - propagate return type to body expressions
     let _return_type_hint = func.ret_type.clone();
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.75,
                 enabled: true,
             },
@@ -220,12 +240,18 @@ impl TranspilerPatcher {
                 impl_block: Some("ExpressionConverter".to_string()),
                 error_pattern: "E0308".to_string(),
                 // DEPYLER-1311: Tuple contextual keywords
-                error_keywords: vec!["tuple".to_string(), "integer".to_string(), "string".to_string(), "float".to_string()],
+                error_keywords: vec![
+                    "tuple".to_string(),
+                    "integer".to_string(),
+                    "string".to_string(),
+                    "float".to_string(),
+                ],
                 patch_type: PatchType::InjectAtStart,
                 code_template: r#"
         // DEPYLER-1308: Preserve tuple element types during conversion
         let _element_count = elts.len();
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.75,
                 enabled: true,
             },
@@ -241,7 +267,8 @@ impl TranspilerPatcher {
                 code_template: r#"
         // DEPYLER-1311: Ensure consistent string type handling
         let _expected_str = "String";
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.73,
                 enabled: true,
             },
@@ -253,16 +280,22 @@ impl TranspilerPatcher {
                 impl_block: Some("TypeMapper".to_string()),
                 error_pattern: "E0599".to_string(),
                 // DEPYLER-1311: Datetime contextual keywords
-                error_keywords: vec!["datetime".to_string(), "time".to_string(), "date".to_string(), "tuple".to_string()],
+                error_keywords: vec![
+                    "datetime".to_string(),
+                    "time".to_string(),
+                    "date".to_string(),
+                    "tuple".to_string(),
+                ],
                 patch_type: PatchType::AddMatchArm {
-                    before_pattern: "\"time\" | \"datetime.time\"".to_string()
+                    before_pattern: "\"time\" | \"datetime.time\"".to_string(),
                 },
                 code_template: r#"
     // DEPYLER-1308: Map time to DepylerTime struct with methods
     "time" | "datetime.time" => {
         RustType::Custom("DepylerTime".to_string())
     }
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.80,
                 enabled: true,
             },
@@ -273,12 +306,17 @@ impl TranspilerPatcher {
                 impl_block: Some("ExpressionConverter".to_string()),
                 error_pattern: "E0599".to_string(),
                 // DEPYLER-1311: Option method calls
-                error_keywords: vec!["option".to_string(), "get".to_string(), "constructor".to_string()],
+                error_keywords: vec![
+                    "option".to_string(),
+                    "get".to_string(),
+                    "constructor".to_string(),
+                ],
                 patch_type: PatchType::InjectAtStart,
                 code_template: r#"
         // DEPYLER-1311: Handle Option method calls
         let _is_option_type = false; // Placeholder for Option detection
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.78,
                 enabled: true,
             },
@@ -289,12 +327,18 @@ impl TranspilerPatcher {
                 impl_block: Some("ExpressionConverter".to_string()),
                 error_pattern: "E0599".to_string(),
                 // DEPYLER-1311: Iterator/collect chains
-                error_keywords: vec!["iterator".to_string(), "collect".to_string(), "vec".to_string(), "list".to_string()],
+                error_keywords: vec![
+                    "iterator".to_string(),
+                    "collect".to_string(),
+                    "vec".to_string(),
+                    "list".to_string(),
+                ],
                 patch_type: PatchType::InjectAtStart,
                 code_template: r#"
         // DEPYLER-1311: Handle iterator method chains
         let _is_iterator_chain = false; // Placeholder for iterator detection
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.77,
                 enabled: true,
             },
@@ -306,12 +350,18 @@ impl TranspilerPatcher {
                 impl_block: Some("ExpressionConverter".to_string()),
                 error_pattern: "E0277".to_string(),
                 // DEPYLER-1311: Subprocess/command contextual keywords
-                error_keywords: vec!["subprocess".to_string(), "command".to_string(), "path".to_string(), "file".to_string()],
+                error_keywords: vec![
+                    "subprocess".to_string(),
+                    "command".to_string(),
+                    "path".to_string(),
+                    "file".to_string(),
+                ],
                 patch_type: PatchType::InjectAtStart,
                 code_template: r#"
         // DEPYLER-1308: Ensure subprocess args are Vec<String> not Vec<Value>
         let _args_hint = "Vec<String>";
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.75,
                 enabled: true,
             },
@@ -322,12 +372,18 @@ impl TranspilerPatcher {
                 impl_block: Some("ExpressionConverter".to_string()),
                 error_pattern: "E0277".to_string(),
                 // DEPYLER-1311: HashMap trait bound errors
-                error_keywords: vec!["hashmap".to_string(), "dict".to_string(), "get".to_string(), "insert".to_string()],
+                error_keywords: vec![
+                    "hashmap".to_string(),
+                    "dict".to_string(),
+                    "get".to_string(),
+                    "insert".to_string(),
+                ],
                 patch_type: PatchType::InjectAtStart,
                 code_template: r#"
         // DEPYLER-1311: Ensure HashMap keys implement Hash + Eq
         let _key_hashable = true; // Placeholder for hashability check
-"#.to_string(),
+"#
+                .to_string(),
                 confidence: 0.72,
                 enabled: true,
             },
@@ -350,22 +406,23 @@ impl TranspilerPatcher {
         context_keywords: &[String],
     ) -> Vec<&PatchRecord> {
         let message_lower = error_message.to_lowercase();
-        let context_lower: Vec<String> = context_keywords.iter()
+        let context_lower: Vec<String> = context_keywords
+            .iter()
             .map(|kw| kw.to_lowercase())
             .collect();
 
         self.patches
             .get(error_code)
             .map(|patches| {
-                patches.iter()
+                patches
+                    .iter()
                     .filter(|p| {
                         // Check if any error_keyword matches either:
                         // 1. The error message (original behavior)
                         // 2. The context keywords from source line (DEPYLER-1310)
                         p.error_keywords.iter().any(|kw| {
                             let kw_lower = kw.to_lowercase();
-                            message_lower.contains(&kw_lower)
-                                || context_lower.contains(&kw_lower)
+                            message_lower.contains(&kw_lower) || context_lower.contains(&kw_lower)
                         })
                     })
                     .collect()
@@ -403,27 +460,17 @@ impl TranspilerPatcher {
 
         // Apply the patch based on type
         let modified = match &patch.patch_type {
-            PatchType::InjectAtStart => {
-                self.inject_at_function_start(&syntax, &source, patch)?
-            }
-            PatchType::InjectBeforeReturn => {
-                self.inject_before_return(&syntax, &source, patch)?
-            }
+            PatchType::InjectAtStart => self.inject_at_function_start(&syntax, &source, patch)?,
+            PatchType::InjectBeforeReturn => self.inject_before_return(&syntax, &source, patch)?,
             PatchType::AddMatchArm { before_pattern } => {
                 self.add_match_arm(&source, patch, before_pattern)?
             }
             PatchType::ReplaceMatchArm { pattern } => {
                 self.replace_match_arm(&source, patch, pattern)?
             }
-            PatchType::WrapBody => {
-                self.wrap_function_body(&syntax, &source, patch)?
-            }
-            PatchType::AddImport => {
-                self.add_import(&source, patch)?
-            }
-            PatchType::ModifyType { from, to } => {
-                self.modify_type(&source, from, to)?
-            }
+            PatchType::WrapBody => self.wrap_function_body(&syntax, &source, patch)?,
+            PatchType::AddImport => self.add_import(&source, patch)?,
+            PatchType::ModifyType { from, to } => self.modify_type(&source, from, to)?,
         };
 
         // Write the modified source
@@ -444,7 +491,12 @@ impl TranspilerPatcher {
     /// Find a function in the parsed AST
     /// Reserved for future AST-based patching (currently using text-based approach)
     #[allow(dead_code)]
-    fn find_function<'a>(&self, syntax: &'a File, name: &str, impl_block: Option<&str>) -> Option<&'a ItemFn> {
+    fn find_function<'a>(
+        &self,
+        syntax: &'a File,
+        name: &str,
+        impl_block: Option<&str>,
+    ) -> Option<&'a ItemFn> {
         for item in &syntax.items {
             match item {
                 Item::Fn(func) if func.sig.ident == name && impl_block.is_none() => {
@@ -497,7 +549,10 @@ impl TranspilerPatcher {
                 func = patch.target_function
             )
         } else {
-            format!(r"((?:pub(?:\s*\([^)]*\))?\s+)?fn\s+{}\s*(?:<[^>]*>)?\s*\([^)]*\)[^{{]*\{{)", patch.target_function)
+            format!(
+                r"((?:pub(?:\s*\([^)]*\))?\s+)?fn\s+{}\s*(?:<[^>]*>)?\s*\([^)]*\)[^{{]*\{{)",
+                patch.target_function
+            )
         };
 
         let re = regex::Regex::new(&fn_pattern)?;
@@ -580,7 +635,8 @@ impl TranspilerPatcher {
         before_pattern: &str,
     ) -> Result<String> {
         // Find the pattern and insert the new arm before it
-        let pattern = regex::Regex::new(&format!(r"(\s*)({}\s*=>)", regex::escape(before_pattern)))?;
+        let pattern =
+            regex::Regex::new(&format!(r"(\s*)({}\s*=>)", regex::escape(before_pattern)))?;
 
         if let Some(caps) = pattern.captures(source) {
             let indent = caps.get(1).map_or("            ", |m| m.as_str());
@@ -783,7 +839,10 @@ mod tests {
         // But context_keywords from source line has "vec"
         let context_keywords = vec!["vec".to_string(), "list".to_string()];
         let patches = patcher.find_patches("E0308", "mismatched types", &context_keywords);
-        assert!(!patches.is_empty(), "Should find patches via context_keywords");
+        assert!(
+            !patches.is_empty(),
+            "Should find patches via context_keywords"
+        );
     }
 
     #[test]
@@ -793,7 +852,10 @@ mod tests {
 
         // Test no match when neither message nor context has keywords
         let patches = patcher.find_patches("E0308", "mismatched types", &[]);
-        assert!(patches.is_empty(), "Should not find patches without relevant keywords");
+        assert!(
+            patches.is_empty(),
+            "Should not find patches without relevant keywords"
+        );
     }
 
     #[test]
@@ -826,7 +888,9 @@ mod tests {
     fn test_patch_type_variants() {
         let inject = PatchType::InjectAtStart;
         let before_ret = PatchType::InjectBeforeReturn;
-        let add_arm = PatchType::AddMatchArm { before_pattern: "test".to_string() };
+        let add_arm = PatchType::AddMatchArm {
+            before_pattern: "test".to_string(),
+        };
 
         assert_ne!(inject, before_ret);
         assert_ne!(before_ret, add_arm);

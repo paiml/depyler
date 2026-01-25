@@ -2045,9 +2045,7 @@ mod tests {
     fn test_uses_none_as_error_with_optional_return() {
         let analyzer = MigrationAnalyzer::new(MigrationConfig::default());
         // The implementation only checks top-level Return statements
-        let body = vec![
-            HirStmt::Return(Some(HirExpr::Literal(Literal::None))),
-        ];
+        let body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::None)))];
 
         let ret_type = Type::Optional(Box::new(Type::Int));
         assert!(analyzer.uses_none_as_error(&body, &ret_type));

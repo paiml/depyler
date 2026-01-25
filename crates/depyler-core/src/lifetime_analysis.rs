@@ -710,8 +710,10 @@ impl LifetimeInference {
             let is_callable_type = matches!(&param_type, Type::Function { .. })
                 || matches!(&param_type, Type::Optional(inner) if matches!(inner.as_ref(), Type::Function { .. }));
 
-            let should_borrow =
-                !is_callable_type && !usage.is_moved && !escapes_as_self && (usage.is_read_only || usage.is_mutated);
+            let should_borrow = !is_callable_type
+                && !usage.is_moved
+                && !escapes_as_self
+                && (usage.is_read_only || usage.is_mutated);
             let needs_mut = usage.is_mutated;
 
             let lifetime = if should_borrow {
@@ -1364,7 +1366,12 @@ mod tests {
         let mut usage = ParamUsage::default();
 
         inference.analyze_stmt_for_param("x", &HirStmt::Break { label: None }, &mut usage, false);
-        inference.analyze_stmt_for_param("x", &HirStmt::Continue { label: None }, &mut usage, false);
+        inference.analyze_stmt_for_param(
+            "x",
+            &HirStmt::Continue { label: None },
+            &mut usage,
+            false,
+        );
         inference.analyze_stmt_for_param("x", &HirStmt::Pass, &mut usage, false);
 
         // These statements don't affect parameter usage

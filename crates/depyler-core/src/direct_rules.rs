@@ -97,7 +97,10 @@ pub(crate) fn type_to_rust_type(ty: &Type, _type_mapper: &TypeMapper) -> proc_ma
             quote! { Option<#inner_ty> }
         }
         Type::Tuple(elems) => {
-            let elem_tys: Vec<_> = elems.iter().map(|e| type_to_rust_type(e, _type_mapper)).collect();
+            let elem_tys: Vec<_> = elems
+                .iter()
+                .map(|e| type_to_rust_type(e, _type_mapper))
+                .collect();
             quote! { (#(#elem_tys),*) }
         }
         _ => quote! { () }, // Default fallback
@@ -110,7 +113,8 @@ pub(crate) fn parse_target_pattern(target: &str) -> syn::Pat {
     if target.starts_with('(') {
         // Manually construct tuple pattern
         let inner = target.trim_start_matches('(').trim_end_matches(')');
-        let parts: Vec<syn::Pat> = inner.split(',')
+        let parts: Vec<syn::Pat> = inner
+            .split(',')
             .map(|s| {
                 let ident = make_ident(s.trim());
                 syn::Pat::Ident(syn::PatIdent {
@@ -343,7 +347,8 @@ pub fn apply_rules(module: &HirModule, type_mapper: &TypeMapper) -> Result<syn::
 
     // Convert classes to structs
     // Use empty vararg_functions for backward compatibility in this code path
-    static EMPTY_VARARGS: std::sync::OnceLock<std::collections::HashSet<String>> = std::sync::OnceLock::new();
+    static EMPTY_VARARGS: std::sync::OnceLock<std::collections::HashSet<String>> =
+        std::sync::OnceLock::new();
     let empty_varargs = EMPTY_VARARGS.get_or_init(std::collections::HashSet::new);
     for class in &module.classes {
         let struct_items = convert_class_to_struct(class, type_mapper, empty_varargs)?;
@@ -533,7 +538,10 @@ pub fn convert_class_to_struct(
     let mut has_non_clone_field = false;
 
     for field in instance_fields {
-        let field_name = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
+        let field_name = syn::Ident::new(
+            &sanitize_identifier(&field.name),
+            proc_macro2::Span::call_site(),
+        );
         // DEPYLER-0957: For Exception classes, default Unknown types to String
         let effective_field_type = if is_exception_class && field.field_type == Type::Unknown {
             Type::String
@@ -545,10 +553,15 @@ pub fn convert_class_to_struct(
 
         // DEPYLER-0611: Check if field type contains non-Clone types
         let type_str = quote::quote!(#field_type).to_string();
-        if type_str.contains("Mutex") || type_str.contains("RefCell")
-            || type_str.contains("Condvar") || type_str.contains("RwLock")
-            || type_str.contains("mpsc::") || type_str.contains("Receiver")
-            || type_str.contains("Sender") || type_str.contains("JoinHandle") {
+        if type_str.contains("Mutex")
+            || type_str.contains("RefCell")
+            || type_str.contains("Condvar")
+            || type_str.contains("RwLock")
+            || type_str.contains("mpsc::")
+            || type_str.contains("Receiver")
+            || type_str.contains("Sender")
+            || type_str.contains("JoinHandle")
+        {
             has_non_clone_field = true;
         }
 
@@ -585,7 +598,11 @@ pub fn convert_class_to_struct(
                 syn::GenericParam::Type(syn::TypeParam {
                     attrs: vec![],
                     ident,
-                    colon_token: if needs_clone_bound { Some(syn::Token![:](proc_macro2::Span::call_site())) } else { None },
+                    colon_token: if needs_clone_bound {
+                        Some(syn::Token![:](proc_macro2::Span::call_site()))
+                    } else {
+                        None
+                    },
                     bounds,
                     eq_token: None,
                     default: None,
@@ -606,22 +623,29 @@ pub fn convert_class_to_struct(
         vec![] // No type params, nothing to check
     } else {
         // For each type param, check if it's used in ANY field
-        class.type_params.iter().filter(|tp| {
-            !fields.iter().any(|f| {
-                let type_str = quote::quote!(#f.ty).to_string();
-                type_str.contains(*tp)
+        class
+            .type_params
+            .iter()
+            .filter(|tp| {
+                !fields.iter().any(|f| {
+                    let type_str = quote::quote!(#f.ty).to_string();
+                    type_str.contains(*tp)
+                })
             })
-        }).collect()
+            .collect()
     };
 
     // Add PhantomData field for unused type params only
     let mut final_fields: Vec<syn::Field> = fields;
     if !unused_type_params.is_empty() {
         // Build PhantomData<(T, U, ...)> for unused type params only
-        let phantom_types: Vec<syn::Type> = unused_type_params.iter().map(|tp| {
-            let ident = syn::Ident::new(tp, proc_macro2::Span::call_site());
-            parse_quote!(#ident)
-        }).collect();
+        let phantom_types: Vec<syn::Type> = unused_type_params
+            .iter()
+            .map(|tp| {
+                let ident = syn::Ident::new(tp, proc_macro2::Span::call_site());
+                parse_quote!(#ident)
+            })
+            .collect();
 
         let phantom_type: syn::Type = if phantom_types.len() == 1 {
             let t = &phantom_types[0];
@@ -688,13 +712,25 @@ pub fn convert_class_to_struct(
         for method in &class.methods {
             if method.name == "__init__" {
                 // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
-                let new_method = convert_init_to_new(method, class, &struct_name, type_mapper, vararg_functions)?;
+                let new_method = convert_init_to_new(
+                    method,
+                    class,
+                    &struct_name,
+                    type_mapper,
+                    vararg_functions,
+                )?;
                 impl_items.push(syn::ImplItem::Fn(new_method));
             } else {
                 // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
                 // DEPYLER-0696: Pass class fields for return type inference
                 // DEPYLER-0740: Pass class type_params to distinguish method-level generics
-                let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions, &class.fields, &class.type_params)?;
+                let rust_method = convert_method_to_impl_item(
+                    method,
+                    type_mapper,
+                    vararg_functions,
+                    &class.fields,
+                    &class.type_params,
+                )?;
                 impl_items.push(syn::ImplItem::Fn(rust_method));
             }
         }
@@ -715,7 +751,13 @@ pub fn convert_class_to_struct(
             // DEPYLER-0648: Pass vararg_functions for proper slice wrapping
             // DEPYLER-0696: Pass class fields for return type inference
             // DEPYLER-0740: Pass class type_params to distinguish method-level generics
-            let rust_method = convert_method_to_impl_item(method, type_mapper, vararg_functions, &class.fields, &class.type_params)?;
+            let rust_method = convert_method_to_impl_item(
+                method,
+                type_mapper,
+                vararg_functions,
+                &class.fields,
+                &class.type_params,
+            )?;
             impl_items.push(syn::ImplItem::Fn(rust_method));
         }
     }
@@ -766,14 +808,13 @@ fn generate_dataclass_new(
     // DEPYLER-0939: Include fields with defaults in new() signature to match Python semantics
     // Defaults should be handled at call site or via builder pattern
     let mut inputs = syn::punctuated::Punctuated::new();
-    let instance_fields: Vec<_> = class
-        .fields
-        .iter()
-        .filter(|f| !f.is_class_var)
-        .collect();
+    let instance_fields: Vec<_> = class.fields.iter().filter(|f| !f.is_class_var).collect();
 
     for field in &instance_fields {
-        let param_ident = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
+        let param_ident = syn::Ident::new(
+            &sanitize_identifier(&field.name),
+            proc_macro2::Span::call_site(),
+        );
         let rust_type = type_mapper.map_type(&field.field_type);
         let param_syn_type = rust_type_to_syn_type(&rust_type)?;
 
@@ -797,7 +838,10 @@ fn generate_dataclass_new(
         .iter()
         .filter(|f| !f.is_class_var) // Skip class constants
         .map(|field| {
-            let field_ident = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
+            let field_ident = syn::Ident::new(
+                &sanitize_identifier(&field.name),
+                proc_macro2::Span::call_site(),
+            );
             // DEPYLER-0939: Always use parameter since we now accept all fields in new()
             quote! { #field_ident }
         })
@@ -889,7 +933,8 @@ fn convert_init_to_new(
 
     // Convert parameters
     // DEPYLER-1100: Track String params for impl Into<String> pattern
-    let mut string_param_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut string_param_names: std::collections::HashSet<String> =
+        std::collections::HashSet::new();
     let mut inputs = syn::punctuated::Punctuated::new();
 
     for param in &init_method.params {
@@ -945,7 +990,10 @@ fn convert_init_to_new(
             continue;
         }
 
-        let field_ident = syn::Ident::new(&sanitize_identifier(&field.name), proc_macro2::Span::call_site());
+        let field_ident = syn::Ident::new(
+            &sanitize_identifier(&field.name),
+            proc_macro2::Span::call_site(),
+        );
 
         // Check if this field matches a parameter name
         if init_method
@@ -1057,10 +1105,20 @@ fn expr_mutates_self(expr: &HirExpr) -> bool {
         // Check if method is a mutating method
         let is_mutating = matches!(
             method.as_str(),
-            "append" | "push" | "push_back" | "push_front"
-                | "appendleft" | "popleft" | "pop"
-                | "insert" | "remove" | "clear" | "extend"
-                | "add" | "update" | "discard"
+            "append"
+                | "push"
+                | "push_back"
+                | "push_front"
+                | "appendleft"
+                | "popleft"
+                | "pop"
+                | "insert"
+                | "remove"
+                | "clear"
+                | "extend"
+                | "add"
+                | "update"
+                | "discard"
         );
         if is_mutating {
             // Check if object is self.field
@@ -1107,8 +1165,14 @@ fn collect_type_vars(ty: &Type, vars: &mut std::collections::HashSet<String>) {
             collect_type_vars(element_type, vars);
         }
         // Primitive and leaf types have no type variables
-        Type::Int | Type::Float | Type::String | Type::Bool | Type::None
-        | Type::Unknown | Type::UnificationVar(_) | Type::Custom(_) => {}
+        Type::Int
+        | Type::Float
+        | Type::String
+        | Type::Bool
+        | Type::None
+        | Type::Unknown
+        | Type::UnificationVar(_)
+        | Type::Custom(_) => {}
     }
 }
 
@@ -1274,10 +1338,15 @@ fn infer_expr_type_with_fields(expr: &HirExpr, fields: &[HirField]) -> Type {
 /// it's likely to be the same type as self, so we should use &Self instead of serde_json::Value.
 fn should_param_be_self_type(param_name: &str, body: &[HirStmt], fields: &[HirField]) -> bool {
     // Collect all field names
-    let field_names: std::collections::HashSet<&str> = fields.iter().map(|f| f.name.as_str()).collect();
+    let field_names: std::collections::HashSet<&str> =
+        fields.iter().map(|f| f.name.as_str()).collect();
 
     // Check if the parameter is used with attribute access that matches a class field
-    fn check_expr(param_name: &str, expr: &HirExpr, field_names: &std::collections::HashSet<&str>) -> bool {
+    fn check_expr(
+        param_name: &str,
+        expr: &HirExpr,
+        field_names: &std::collections::HashSet<&str>,
+    ) -> bool {
         match expr {
             HirExpr::Attribute { value, attr } => {
                 if let HirExpr::Var(var_name) = value.as_ref() {
@@ -1289,16 +1358,20 @@ fn should_param_be_self_type(param_name: &str, body: &[HirStmt], fields: &[HirFi
                 check_expr(param_name, value, field_names)
             }
             HirExpr::Binary { left, right, .. } => {
-                check_expr(param_name, left, field_names) || check_expr(param_name, right, field_names)
+                check_expr(param_name, left, field_names)
+                    || check_expr(param_name, right, field_names)
             }
             HirExpr::Unary { operand, .. } => check_expr(param_name, operand, field_names),
-            HirExpr::Call { args, .. } => args.iter().any(|a| check_expr(param_name, a, field_names)),
+            HirExpr::Call { args, .. } => {
+                args.iter().any(|a| check_expr(param_name, a, field_names))
+            }
             HirExpr::MethodCall { object, args, .. } => {
                 check_expr(param_name, object, field_names)
                     || args.iter().any(|a| check_expr(param_name, a, field_names))
             }
             HirExpr::Index { base, index } => {
-                check_expr(param_name, base, field_names) || check_expr(param_name, index, field_names)
+                check_expr(param_name, base, field_names)
+                    || check_expr(param_name, index, field_names)
             }
             HirExpr::List(items) | HirExpr::Tuple(items) => {
                 items.iter().any(|i| check_expr(param_name, i, field_names))
@@ -1312,21 +1385,38 @@ fn should_param_be_self_type(param_name: &str, body: &[HirStmt], fields: &[HirFi
         }
     }
 
-    fn check_stmt(param_name: &str, stmt: &HirStmt, field_names: &std::collections::HashSet<&str>) -> bool {
+    fn check_stmt(
+        param_name: &str,
+        stmt: &HirStmt,
+        field_names: &std::collections::HashSet<&str>,
+    ) -> bool {
         match stmt {
             HirStmt::Assign { value, .. } => check_expr(param_name, value, field_names),
             HirStmt::Expr(expr) => check_expr(param_name, expr, field_names),
             HirStmt::Return(Some(expr)) => check_expr(param_name, expr, field_names),
-            HirStmt::If { condition, then_body, else_body, .. } => {
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+                ..
+            } => {
                 check_expr(param_name, condition, field_names)
-                    || then_body.iter().any(|s| check_stmt(param_name, s, field_names))
-                    || else_body.as_ref().is_some_and(|eb| eb.iter().any(|s| check_stmt(param_name, s, field_names)))
+                    || then_body
+                        .iter()
+                        .any(|s| check_stmt(param_name, s, field_names))
+                    || else_body
+                        .as_ref()
+                        .is_some_and(|eb| eb.iter().any(|s| check_stmt(param_name, s, field_names)))
             }
-            HirStmt::While { condition, body, .. } => {
+            HirStmt::While {
+                condition, body, ..
+            } => {
                 check_expr(param_name, condition, field_names)
                     || body.iter().any(|s| check_stmt(param_name, s, field_names))
             }
-            HirStmt::For { body, .. } => body.iter().any(|s| check_stmt(param_name, s, field_names)),
+            HirStmt::For { body, .. } => {
+                body.iter().any(|s| check_stmt(param_name, s, field_names))
+            }
             _ => false,
         }
     }
@@ -1525,7 +1615,15 @@ fn convert_method_to_impl_item(
         // DEPYLER-0704: Pass param_types for type coercion
         // DEPYLER-0720: Pass class_field_types for self.field float coercion
         // DEPYLER-1037: Pass effective_ret_type for Optional wrapping in returns
-        convert_method_body_block(&method.body, type_mapper, method.is_classmethod, vararg_functions, &param_types, &class_field_types, &effective_ret_type)?
+        convert_method_body_block(
+            &method.body,
+            type_mapper,
+            method.is_classmethod,
+            vararg_functions,
+            &param_types,
+            &class_field_types,
+            &effective_ret_type,
+        )?
     };
 
     Ok(syn::ImplItemFn {
@@ -1681,7 +1779,10 @@ fn convert_protocol_method_to_trait_method(
 fn resolve_union_enum_to_syn(variants: &[(String, RustType)]) -> syn::Type {
     // Helper to check if variant name is numeric
     let is_numeric = |v: &str| {
-        matches!(v, "int" | "float" | "i64" | "f64" | "i32" | "f32" | "I64" | "F64")
+        matches!(
+            v,
+            "int" | "float" | "i64" | "f64" | "i32" | "f32" | "I64" | "F64"
+        )
     };
     let is_float_like = |v: &str| matches!(v, "float" | "f64" | "f32" | "F64");
     let is_none_like = |v: &str| matches!(v, "None" | "NoneType");
@@ -2476,6 +2577,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let result = apply_rules(&module, &type_mapper).unwrap();
@@ -2699,8 +2801,12 @@ mod tests {
         let converter = ExprConverter::new(&type_mapper);
 
         let ops = vec![
-            BinOp::Lt, BinOp::LtEq, BinOp::Gt, BinOp::GtEq,
-            BinOp::Eq, BinOp::NotEq,
+            BinOp::Lt,
+            BinOp::LtEq,
+            BinOp::Gt,
+            BinOp::GtEq,
+            BinOp::Eq,
+            BinOp::NotEq,
         ];
 
         for op in ops {
@@ -3192,8 +3298,9 @@ mod tests {
 
     #[test]
     fn test_rust_type_to_syn_type_tuple() {
-        let result = rust_type_to_syn_type(&RustType::Tuple(vec![RustType::String, RustType::Unit]))
-            .unwrap();
+        let result =
+            rust_type_to_syn_type(&RustType::Tuple(vec![RustType::String, RustType::Unit]))
+                .unwrap();
         let s = quote::quote!(#result).to_string();
         assert!(s.contains("String") || s.contains("("));
     }
@@ -3220,10 +3327,7 @@ mod tests {
 
         let zip_expr = HirExpr::Call {
             func: "zip".to_string(),
-            args: vec![
-                HirExpr::Var("a".to_string()),
-                HirExpr::Var("b".to_string()),
-            ],
+            args: vec![HirExpr::Var("a".to_string()), HirExpr::Var("b".to_string())],
             kwargs: vec![],
         };
         let result = converter.convert(&zip_expr).unwrap();
@@ -4784,10 +4888,18 @@ mod tests {
 
     #[test]
     fn test_is_pure_expression_direct_literal() {
-        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Int(42))));
-        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::String("hello".to_string()))));
-        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Bool(true))));
-        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Float(3.15))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Int(
+            42
+        ))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(
+            Literal::String("hello".to_string())
+        )));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(Literal::Bool(
+            true
+        ))));
+        assert!(is_pure_expression_direct(&HirExpr::Literal(
+            Literal::Float(3.15)
+        )));
     }
 
     #[test]
@@ -4958,7 +5070,10 @@ mod tests {
     #[test]
     fn test_resolve_union_enum_option_int() {
         let variants = vec![
-            ("int".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::I64)),
+            (
+                "int".to_string(),
+                RustType::Primitive(crate::type_mapper::PrimitiveType::I64),
+            ),
             ("None".to_string(), RustType::Unit),
         ];
         let result = resolve_union_enum_to_syn(&variants);
@@ -4970,7 +5085,10 @@ mod tests {
     #[test]
     fn test_resolve_union_enum_option_float() {
         let variants = vec![
-            ("float".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::F64)),
+            (
+                "float".to_string(),
+                RustType::Primitive(crate::type_mapper::PrimitiveType::F64),
+            ),
             ("None".to_string(), RustType::Unit),
         ];
         let result = resolve_union_enum_to_syn(&variants);
@@ -5002,8 +5120,14 @@ mod tests {
     #[test]
     fn test_resolve_union_enum_all_numeric() {
         let variants = vec![
-            ("int".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::I64)),
-            ("float".to_string(), RustType::Primitive(crate::type_mapper::PrimitiveType::F64)),
+            (
+                "int".to_string(),
+                RustType::Primitive(crate::type_mapper::PrimitiveType::I64),
+            ),
+            (
+                "float".to_string(),
+                RustType::Primitive(crate::type_mapper::PrimitiveType::F64),
+            ),
         ];
         let result = resolve_union_enum_to_syn(&variants);
         let result_str = quote::quote!(#result).to_string();
@@ -5149,8 +5273,7 @@ mod tests {
     // Tests for convert_container_type
     #[test]
     fn test_convert_container_type_vec() {
-        let result =
-            convert_container_type(&RustType::Vec(Box::new(RustType::String))).unwrap();
+        let result = convert_container_type(&RustType::Vec(Box::new(RustType::String))).unwrap();
         let result_str = quote::quote!(#result).to_string();
         assert!(result_str.contains("Vec"));
         assert!(result_str.contains("String"));
@@ -5171,8 +5294,7 @@ mod tests {
 
     #[test]
     fn test_convert_container_type_option() {
-        let result =
-            convert_container_type(&RustType::Option(Box::new(RustType::String))).unwrap();
+        let result = convert_container_type(&RustType::Option(Box::new(RustType::String))).unwrap();
         let result_str = quote::quote!(#result).to_string();
         assert!(result_str.contains("Option"));
         assert!(result_str.contains("String"));

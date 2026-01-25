@@ -32,7 +32,9 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python).expect("transpilation should succeed");
+    let result = pipeline
+        .transpile(python)
+        .expect("transpilation should succeed");
 
     // The match pattern should bind `file` since it's used in the body
     // Check that we have `ref file` binding
@@ -41,7 +43,10 @@ if __name__ == "__main__":
         "Expected match pattern to bind 'file' field. \
          The 'with open(args.file)' expression should trigger field extraction.\n\
          Generated code:\n{}",
-        &result[result.find("match").unwrap_or(0)..].chars().take(500).collect::<String>()
+        &result[result.find("match").unwrap_or(0)..]
+            .chars()
+            .take(500)
+            .collect::<String>()
     );
 }
 
@@ -74,7 +79,9 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python).expect("transpilation should succeed");
+    let result = pipeline
+        .transpile(python)
+        .expect("transpilation should succeed");
 
     // Both config and schema should be bound
     assert!(
@@ -108,7 +115,9 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python).expect("transpilation should succeed");
+    let result = pipeline
+        .transpile(python)
+        .expect("transpilation should succeed");
 
     // filename should be bound in the match pattern
     assert!(
@@ -143,7 +152,9 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python).expect("transpilation should succeed");
+    let result = pipeline
+        .transpile(python)
+        .expect("transpilation should succeed");
 
     // Both source and dest should be bound
     assert!(

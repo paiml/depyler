@@ -914,10 +914,12 @@ mod tests {
 
     #[test]
     fn test_error_handling_strategy_variants() {
-        let strategies = [ErrorHandlingStrategy::Panic,
+        let strategies = [
+            ErrorHandlingStrategy::Panic,
             ErrorHandlingStrategy::ReturnError,
             ErrorHandlingStrategy::LogAndContinue,
-            ErrorHandlingStrategy::CustomHandler("custom".to_string())];
+            ErrorHandlingStrategy::CustomHandler("custom".to_string()),
+        ];
         assert_eq!(strategies.len(), 4);
     }
 
@@ -964,10 +966,12 @@ mod tests {
 
     #[test]
     fn test_retry_strategy_variants() {
-        let strategies = [RetryStrategy::None,
+        let strategies = [
+            RetryStrategy::None,
             RetryStrategy::Immediate,
             RetryStrategy::ExponentialBackoff,
-            RetryStrategy::Custom("custom".to_string())];
+            RetryStrategy::Custom("custom".to_string()),
+        ];
         assert_eq!(strategies.len(), 4);
     }
 
@@ -1435,7 +1439,9 @@ mod tests {
         let code = handler.generate_error_handling_code().unwrap();
 
         // Check From implementations
-        assert!(code.conversion_functions.contains("From<serde_json::Error>"));
+        assert!(code
+            .conversion_functions
+            .contains("From<serde_json::Error>"));
         assert!(code.conversion_functions.contains("From<&str>"));
         assert!(code.conversion_functions.contains("KeyError"));
         assert!(code.conversion_functions.contains("ValueError"));

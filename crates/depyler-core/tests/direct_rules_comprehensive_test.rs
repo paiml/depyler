@@ -56,12 +56,16 @@ fn test_str_split_with_arg() {
 
 #[test]
 fn test_str_join() {
-    assert!(transpile_ok("def f(items: list) -> str: return ','.join(items)"));
+    assert!(transpile_ok(
+        "def f(items: list) -> str: return ','.join(items)"
+    ));
 }
 
 #[test]
 fn test_str_replace() {
-    assert!(transpile_ok("def f(s: str) -> str: return s.replace('a', 'b')"));
+    assert!(transpile_ok(
+        "def f(s: str) -> str: return s.replace('a', 'b')"
+    ));
 }
 
 #[test]
@@ -76,12 +80,16 @@ fn test_str_rfind() {
 
 #[test]
 fn test_str_startswith() {
-    assert!(transpile_ok("def f(s: str) -> bool: return s.startswith('x')"));
+    assert!(transpile_ok(
+        "def f(s: str) -> bool: return s.startswith('x')"
+    ));
 }
 
 #[test]
 fn test_str_endswith() {
-    assert!(transpile_ok("def f(s: str) -> bool: return s.endswith('x')"));
+    assert!(transpile_ok(
+        "def f(s: str) -> bool: return s.endswith('x')"
+    ));
 }
 
 #[test]
@@ -203,7 +211,9 @@ fn test_list_sort() {
 
 #[test]
 fn test_list_sort_reverse() {
-    assert!(transpile_ok("def f(lst: list):\n    lst.sort(reverse=True)"));
+    assert!(transpile_ok(
+        "def f(lst: list):\n    lst.sort(reverse=True)"
+    ));
 }
 
 #[test]
@@ -270,7 +280,9 @@ fn test_dict_copy() {
 
 #[test]
 fn test_dict_setdefault() {
-    assert!(transpile_ok("def f(d: dict): return d.setdefault('key', 0)"));
+    assert!(transpile_ok(
+        "def f(d: dict): return d.setdefault('key', 0)"
+    ));
 }
 
 // ============ Set methods ============
@@ -302,37 +314,51 @@ fn test_set_clear() {
 
 #[test]
 fn test_set_union() {
-    assert!(transpile_ok("def f(a: set, b: set) -> set: return a.union(b)"));
+    assert!(transpile_ok(
+        "def f(a: set, b: set) -> set: return a.union(b)"
+    ));
 }
 
 #[test]
 fn test_set_intersection() {
-    assert!(transpile_ok("def f(a: set, b: set) -> set: return a.intersection(b)"));
+    assert!(transpile_ok(
+        "def f(a: set, b: set) -> set: return a.intersection(b)"
+    ));
 }
 
 #[test]
 fn test_set_difference() {
-    assert!(transpile_ok("def f(a: set, b: set) -> set: return a.difference(b)"));
+    assert!(transpile_ok(
+        "def f(a: set, b: set) -> set: return a.difference(b)"
+    ));
 }
 
 #[test]
 fn test_set_symmetric_difference() {
-    assert!(transpile_ok("def f(a: set, b: set) -> set: return a.symmetric_difference(b)"));
+    assert!(transpile_ok(
+        "def f(a: set, b: set) -> set: return a.symmetric_difference(b)"
+    ));
 }
 
 #[test]
 fn test_set_issubset() {
-    assert!(transpile_ok("def f(a: set, b: set) -> bool: return a.issubset(b)"));
+    assert!(transpile_ok(
+        "def f(a: set, b: set) -> bool: return a.issubset(b)"
+    ));
 }
 
 #[test]
 fn test_set_issuperset() {
-    assert!(transpile_ok("def f(a: set, b: set) -> bool: return a.issuperset(b)"));
+    assert!(transpile_ok(
+        "def f(a: set, b: set) -> bool: return a.issuperset(b)"
+    ));
 }
 
 #[test]
 fn test_set_isdisjoint() {
-    assert!(transpile_ok("def f(a: set, b: set) -> bool: return a.isdisjoint(b)"));
+    assert!(transpile_ok(
+        "def f(a: set, b: set) -> bool: return a.isdisjoint(b)"
+    ));
 }
 
 // ============ Bytes methods ============
@@ -373,108 +399,148 @@ fn test_file_close() {
 
 #[test]
 fn test_math_sqrt() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> float: return math.sqrt(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> float: return math.sqrt(x)"
+    ));
 }
 
 #[test]
 fn test_math_sin() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> float: return math.sin(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> float: return math.sin(x)"
+    ));
 }
 
 #[test]
 fn test_math_cos() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> float: return math.cos(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> float: return math.cos(x)"
+    ));
 }
 
 #[test]
 fn test_math_tan() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> float: return math.tan(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> float: return math.tan(x)"
+    ));
 }
 
 #[test]
 fn test_math_floor() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> int: return math.floor(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> int: return math.floor(x)"
+    ));
 }
 
 #[test]
 fn test_math_ceil() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> int: return math.ceil(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> int: return math.ceil(x)"
+    ));
 }
 
 #[test]
 fn test_math_log() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> float: return math.log(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> float: return math.log(x)"
+    ));
 }
 
 #[test]
 fn test_math_log10() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> float: return math.log10(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> float: return math.log10(x)"
+    ));
 }
 
 #[test]
 fn test_math_exp() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> float: return math.exp(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> float: return math.exp(x)"
+    ));
 }
 
 #[test]
 fn test_math_pow() {
-    assert!(transpile_ok("import math\ndef f(x: float, y: float) -> float: return math.pow(x, y)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float, y: float) -> float: return math.pow(x, y)"
+    ));
 }
 
 #[test]
 fn test_math_fabs() {
-    assert!(transpile_ok("import math\ndef f(x: float) -> float: return math.fabs(x)"));
+    assert!(transpile_ok(
+        "import math\ndef f(x: float) -> float: return math.fabs(x)"
+    ));
 }
 
 // ============ Random module ============
 
 #[test]
 fn test_random_random() {
-    assert!(transpile_ok("import random\ndef f() -> float: return random.random()"));
+    assert!(transpile_ok(
+        "import random\ndef f() -> float: return random.random()"
+    ));
 }
 
 #[test]
 fn test_random_randint() {
-    assert!(transpile_ok("import random\ndef f() -> int: return random.randint(1, 10)"));
+    assert!(transpile_ok(
+        "import random\ndef f() -> int: return random.randint(1, 10)"
+    ));
 }
 
 #[test]
 fn test_random_choice() {
-    assert!(transpile_ok("import random\ndef f(lst: list): return random.choice(lst)"));
+    assert!(transpile_ok(
+        "import random\ndef f(lst: list): return random.choice(lst)"
+    ));
 }
 
 #[test]
 fn test_random_shuffle() {
-    assert!(transpile_ok("import random\ndef f(lst: list): random.shuffle(lst)"));
+    assert!(transpile_ok(
+        "import random\ndef f(lst: list): random.shuffle(lst)"
+    ));
 }
 
 // ============ Collections module ============
 
 #[test]
 fn test_collections_counter() {
-    assert!(transpile_ok("from collections import Counter\ndef f(items: list): return Counter(items)"));
+    assert!(transpile_ok(
+        "from collections import Counter\ndef f(items: list): return Counter(items)"
+    ));
 }
 
 #[test]
 fn test_collections_deque() {
-    assert!(transpile_ok("from collections import deque\ndef f(): return deque([1, 2, 3])"));
+    assert!(transpile_ok(
+        "from collections import deque\ndef f(): return deque([1, 2, 3])"
+    ));
 }
 
 #[test]
 fn test_collections_defaultdict() {
-    assert!(transpile_ok("from collections import defaultdict\ndef f(): return defaultdict(int)"));
+    assert!(transpile_ok(
+        "from collections import defaultdict\ndef f(): return defaultdict(int)"
+    ));
 }
 
 // ============ Itertools module ============
 
 #[test]
 fn test_itertools_chain() {
-    assert!(transpile_ok("import itertools\ndef f(a: list, b: list): return list(itertools.chain(a, b))"));
+    assert!(transpile_ok(
+        "import itertools\ndef f(a: list, b: list): return list(itertools.chain(a, b))"
+    ));
 }
 
 #[test]
 fn test_itertools_repeat() {
-    assert!(transpile_ok("import itertools\ndef f(): return list(itertools.repeat(1, 5))"));
+    assert!(transpile_ok(
+        "import itertools\ndef f(): return list(itertools.repeat(1, 5))"
+    ));
 }
 
 // ============ Functools module ============
@@ -488,71 +554,97 @@ fn test_functools_reduce() {
 
 #[test]
 fn test_datetime_now() {
-    assert!(transpile_ok("from datetime import datetime\ndef f(): return datetime.now()"));
+    assert!(transpile_ok(
+        "from datetime import datetime\ndef f(): return datetime.now()"
+    ));
 }
 
 #[test]
 fn test_datetime_strftime() {
-    assert!(transpile_ok("from datetime import datetime\ndef f(dt): return dt.strftime('%Y-%m-%d')"));
+    assert!(transpile_ok(
+        "from datetime import datetime\ndef f(dt): return dt.strftime('%Y-%m-%d')"
+    ));
 }
 
 // ============ Pathlib module ============
 
 #[test]
 fn test_pathlib_path() {
-    assert!(transpile_ok("from pathlib import Path\ndef f() -> Path: return Path('.')"));
+    assert!(transpile_ok(
+        "from pathlib import Path\ndef f() -> Path: return Path('.')"
+    ));
 }
 
 #[test]
 fn test_pathlib_exists() {
-    assert!(transpile_ok("from pathlib import Path\ndef f(p: Path) -> bool: return p.exists()"));
+    assert!(transpile_ok(
+        "from pathlib import Path\ndef f(p: Path) -> bool: return p.exists()"
+    ));
 }
 
 #[test]
 fn test_pathlib_is_file() {
-    assert!(transpile_ok("from pathlib import Path\ndef f(p: Path) -> bool: return p.is_file()"));
+    assert!(transpile_ok(
+        "from pathlib import Path\ndef f(p: Path) -> bool: return p.is_file()"
+    ));
 }
 
 #[test]
 fn test_pathlib_is_dir() {
-    assert!(transpile_ok("from pathlib import Path\ndef f(p: Path) -> bool: return p.is_dir()"));
+    assert!(transpile_ok(
+        "from pathlib import Path\ndef f(p: Path) -> bool: return p.is_dir()"
+    ));
 }
 
 // ============ OS module ============
 
 #[test]
 fn test_os_getcwd() {
-    assert!(transpile_ok("import os\ndef f() -> str: return os.getcwd()"));
+    assert!(transpile_ok(
+        "import os\ndef f() -> str: return os.getcwd()"
+    ));
 }
 
 #[test]
 fn test_os_listdir() {
-    assert!(transpile_ok("import os\ndef f(p: str) -> list: return os.listdir(p)"));
+    assert!(transpile_ok(
+        "import os\ndef f(p: str) -> list: return os.listdir(p)"
+    ));
 }
 
 #[test]
 fn test_os_getenv() {
-    assert!(transpile_ok("import os\ndef f() -> str: return os.getenv('HOME', '')"));
+    assert!(transpile_ok(
+        "import os\ndef f() -> str: return os.getenv('HOME', '')"
+    ));
 }
 
 #[test]
 fn test_os_path_join() {
-    assert!(transpile_ok("import os\ndef f(a: str, b: str) -> str: return os.path.join(a, b)"));
+    assert!(transpile_ok(
+        "import os\ndef f(a: str, b: str) -> str: return os.path.join(a, b)"
+    ));
 }
 
 #[test]
 fn test_os_path_exists() {
-    assert!(transpile_ok("import os\ndef f(p: str) -> bool: return os.path.exists(p)"));
+    assert!(transpile_ok(
+        "import os\ndef f(p: str) -> bool: return os.path.exists(p)"
+    ));
 }
 
 #[test]
 fn test_os_path_dirname() {
-    assert!(transpile_ok("import os\ndef f(p: str) -> str: return os.path.dirname(p)"));
+    assert!(transpile_ok(
+        "import os\ndef f(p: str) -> str: return os.path.dirname(p)"
+    ));
 }
 
 #[test]
 fn test_os_path_basename() {
-    assert!(transpile_ok("import os\ndef f(p: str) -> str: return os.path.basename(p)"));
+    assert!(transpile_ok(
+        "import os\ndef f(p: str) -> str: return os.path.basename(p)"
+    ));
 }
 
 // ============ Sys module ============
@@ -571,58 +663,78 @@ fn test_sys_exit() {
 
 #[test]
 fn test_json_dumps() {
-    assert!(transpile_ok("import json\ndef f(obj) -> str: return json.dumps(obj)"));
+    assert!(transpile_ok(
+        "import json\ndef f(obj) -> str: return json.dumps(obj)"
+    ));
 }
 
 #[test]
 fn test_json_loads() {
-    assert!(transpile_ok("import json\ndef f(s: str): return json.loads(s)"));
+    assert!(transpile_ok(
+        "import json\ndef f(s: str): return json.loads(s)"
+    ));
 }
 
 // ============ Regex module ============
 
 #[test]
 fn test_re_search() {
-    assert!(transpile_ok("import re\ndef f(p: str, s: str): return re.search(p, s)"));
+    assert!(transpile_ok(
+        "import re\ndef f(p: str, s: str): return re.search(p, s)"
+    ));
 }
 
 #[test]
 fn test_re_match() {
-    assert!(transpile_ok("import re\ndef f(p: str, s: str): return re.match(p, s)"));
+    assert!(transpile_ok(
+        "import re\ndef f(p: str, s: str): return re.match(p, s)"
+    ));
 }
 
 #[test]
 fn test_re_findall() {
-    assert!(transpile_ok("import re\ndef f(p: str, s: str) -> list: return re.findall(p, s)"));
+    assert!(transpile_ok(
+        "import re\ndef f(p: str, s: str) -> list: return re.findall(p, s)"
+    ));
 }
 
 #[test]
 fn test_re_sub() {
-    assert!(transpile_ok("import re\ndef f(p: str, r: str, s: str) -> str: return re.sub(p, r, s)"));
+    assert!(transpile_ok(
+        "import re\ndef f(p: str, r: str, s: str) -> str: return re.sub(p, r, s)"
+    ));
 }
 
 // ============ Hashlib module ============
 
 #[test]
 fn test_hashlib_md5() {
-    assert!(transpile_ok("import hashlib\ndef f(): return hashlib.md5()"));
+    assert!(transpile_ok(
+        "import hashlib\ndef f(): return hashlib.md5()"
+    ));
 }
 
 #[test]
 fn test_hashlib_sha256() {
-    assert!(transpile_ok("import hashlib\ndef f(): return hashlib.sha256()"));
+    assert!(transpile_ok(
+        "import hashlib\ndef f(): return hashlib.sha256()"
+    ));
 }
 
 // ============ Base64 module ============
 
 #[test]
 fn test_base64_b64encode() {
-    assert!(transpile_ok("import base64\ndef f(data: bytes) -> bytes: return base64.b64encode(data)"));
+    assert!(transpile_ok(
+        "import base64\ndef f(data: bytes) -> bytes: return base64.b64encode(data)"
+    ));
 }
 
 #[test]
 fn test_base64_b64decode() {
-    assert!(transpile_ok("import base64\ndef f(data: bytes) -> bytes: return base64.b64decode(data)"));
+    assert!(transpile_ok(
+        "import base64\ndef f(data: bytes) -> bytes: return base64.b64decode(data)"
+    ));
 }
 
 // ============ Builtins ============
@@ -644,7 +756,9 @@ fn test_range_two_args() {
 
 #[test]
 fn test_range_three_args() {
-    assert!(transpile_ok("def f(a: int, b: int, c: int): return range(a, b, c)"));
+    assert!(transpile_ok(
+        "def f(a: int, b: int, c: int): return range(a, b, c)"
+    ));
 }
 
 #[test]
@@ -711,12 +825,16 @@ fn test_dict_constructor() {
 
 #[test]
 fn test_in_list() {
-    assert!(transpile_ok("def f(x: int, lst: list) -> bool: return x in lst"));
+    assert!(transpile_ok(
+        "def f(x: int, lst: list) -> bool: return x in lst"
+    ));
 }
 
 #[test]
 fn test_in_dict() {
-    assert!(transpile_ok("def f(k: str, d: dict) -> bool: return k in d"));
+    assert!(transpile_ok(
+        "def f(k: str, d: dict) -> bool: return k in d"
+    ));
 }
 
 #[test]
@@ -726,12 +844,16 @@ fn test_in_set() {
 
 #[test]
 fn test_in_str() {
-    assert!(transpile_ok("def f(sub: str, s: str) -> bool: return sub in s"));
+    assert!(transpile_ok(
+        "def f(sub: str, s: str) -> bool: return sub in s"
+    ));
 }
 
 #[test]
 fn test_not_in() {
-    assert!(transpile_ok("def f(x: int, lst: list) -> bool: return x not in lst"));
+    assert!(transpile_ok(
+        "def f(x: int, lst: list) -> bool: return x not in lst"
+    ));
 }
 
 #[test]
@@ -780,12 +902,16 @@ fn test_slice_reverse() {
 
 #[test]
 fn test_fstring_simple() {
-    assert!(transpile_ok("def f(name: str) -> str: return f'Hello, {name}!'"));
+    assert!(transpile_ok(
+        "def f(name: str) -> str: return f'Hello, {name}!'"
+    ));
 }
 
 #[test]
 fn test_fstring_expr() {
-    assert!(transpile_ok("def f(x: int) -> str: return f'Result: {x * 2}'"));
+    assert!(transpile_ok(
+        "def f(x: int) -> str: return f'Result: {x * 2}'"
+    ));
 }
 
 #[test]

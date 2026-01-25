@@ -93,7 +93,8 @@ fn test_map_simple_import() {
     let mapper = ModuleMapper::new();
 
     // Test import with named items
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "os".to_string(),
         items: vec![ImportItem::Named("getcwd".to_string())],
     };
@@ -109,7 +110,8 @@ fn test_map_simple_import() {
 fn test_map_aliased_import() {
     let mapper = ModuleMapper::new();
 
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "json".to_string(),
         items: vec![ImportItem::Aliased {
             name: "loads".to_string(),
@@ -130,7 +132,8 @@ fn test_map_whole_module_import() {
 
     // Test "import os" style
     // DEPYLER-0363: Now generates actual use statement with alias
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "os".to_string(),
         items: vec![],
     };
@@ -146,7 +149,8 @@ fn test_map_whole_module_import() {
 fn test_map_unknown_module() {
     let mapper = ModuleMapper::new();
 
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "unknown_module".to_string(),
         items: vec![ImportItem::Named("something".to_string())],
     };
@@ -160,7 +164,8 @@ fn test_map_unknown_module() {
 fn test_map_multiple_items() {
     let mapper = ModuleMapper::new();
 
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "os".to_string(),
         items: vec![
             ImportItem::Named("getcwd".to_string()),
@@ -185,19 +190,23 @@ fn test_get_dependencies() {
     let mapper = ModuleMapper::new();
 
     let imports = vec![
-        Import { alias: None,
+        Import {
+            alias: None,
             module: "json".to_string(),
             items: vec![ImportItem::Named("loads".to_string())],
         },
-        Import { alias: None,
+        Import {
+            alias: None,
             module: "re".to_string(),
             items: vec![ImportItem::Named("compile".to_string())],
         },
-        Import { alias: None,
+        Import {
+            alias: None,
             module: "os".to_string(),
             items: vec![ImportItem::Named("getcwd".to_string())],
         },
-        Import { alias: None,
+        Import {
+            alias: None,
             module: "json".to_string(), // Duplicate, should be deduped
             items: vec![ImportItem::Named("dumps".to_string())],
         },
@@ -262,7 +271,8 @@ fn test_unmapped_item_fallback() {
     let mapper = ModuleMapper::new();
 
     // Test an item that's not in the item_map
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "os".to_string(),
         items: vec![ImportItem::Named("unmapped_function".to_string())],
     };
@@ -355,7 +365,8 @@ fn test_collections_hashmap_import_path() {
     // DEPYLER-0170: HashMap should be imported as a type, not HashMap::new
     let mapper = ModuleMapper::new();
 
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "collections".to_string(),
         items: vec![
             ImportItem::Named("Counter".to_string()),
@@ -384,7 +395,8 @@ fn test_collections_deque_import_path() {
     // DEPYLER-0173: VecDeque should be imported correctly
     let mapper = ModuleMapper::new();
 
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "collections".to_string(),
         items: vec![ImportItem::Named("deque".to_string())],
     };
@@ -430,8 +442,14 @@ fn test_sklearn_linear_model_mapping() {
     let mapping = mapper.get_mapping("sklearn.linear_model").unwrap();
     assert_eq!(mapping.rust_path, "aprender::linear");
     assert!(mapping.is_external);
-    assert_eq!(mapping.item_map.get("LinearRegression").unwrap(), "LinearRegression");
-    assert_eq!(mapping.constructor_patterns.get("LinearRegression"), Some(&ConstructorPattern::New));
+    assert_eq!(
+        mapping.item_map.get("LinearRegression").unwrap(),
+        "LinearRegression"
+    );
+    assert_eq!(
+        mapping.constructor_patterns.get("LinearRegression"),
+        Some(&ConstructorPattern::New)
+    );
 }
 
 #[test]
@@ -447,7 +465,10 @@ fn test_sklearn_tree_mapping() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("sklearn.tree").unwrap();
     assert_eq!(mapping.rust_path, "aprender::tree");
-    assert_eq!(mapping.item_map.get("DecisionTreeClassifier").unwrap(), "DecisionTree");
+    assert_eq!(
+        mapping.item_map.get("DecisionTreeClassifier").unwrap(),
+        "DecisionTree"
+    );
 }
 
 #[test]
@@ -455,7 +476,10 @@ fn test_sklearn_ensemble_mapping() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("sklearn.ensemble").unwrap();
     assert_eq!(mapping.rust_path, "aprender::ensemble");
-    assert_eq!(mapping.item_map.get("RandomForestClassifier").unwrap(), "RandomForest");
+    assert_eq!(
+        mapping.item_map.get("RandomForestClassifier").unwrap(),
+        "RandomForest"
+    );
 }
 
 #[test]
@@ -463,7 +487,10 @@ fn test_sklearn_preprocessing_mapping() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("sklearn.preprocessing").unwrap();
     assert_eq!(mapping.rust_path, "aprender::preprocessing");
-    assert_eq!(mapping.item_map.get("StandardScaler").unwrap(), "StandardScaler");
+    assert_eq!(
+        mapping.item_map.get("StandardScaler").unwrap(),
+        "StandardScaler"
+    );
 }
 
 #[test]
@@ -477,7 +504,10 @@ fn test_sklearn_decomposition_mapping() {
 fn test_sklearn_model_selection_mapping() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("sklearn.model_selection").unwrap();
-    assert_eq!(mapping.item_map.get("train_test_split").unwrap(), "train_test_split");
+    assert_eq!(
+        mapping.item_map.get("train_test_split").unwrap(),
+        "train_test_split"
+    );
     assert_eq!(mapping.item_map.get("KFold").unwrap(), "KFold");
 }
 
@@ -497,7 +527,10 @@ fn test_subprocess_mapping() {
     assert!(!mapping.is_external);
     assert_eq!(mapping.item_map.get("run").unwrap(), "Command");
     assert_eq!(mapping.item_map.get("PIPE").unwrap(), "Stdio::piped");
-    assert_eq!(mapping.constructor_patterns.get("Command"), Some(&ConstructorPattern::Method("new".to_string())));
+    assert_eq!(
+        mapping.constructor_patterns.get("Command"),
+        Some(&ConstructorPattern::Method("new".to_string()))
+    );
 }
 
 #[test]
@@ -545,7 +578,10 @@ fn test_statistics_mapping() {
     let mapping = mapper.get_mapping("statistics").unwrap();
     assert_eq!(mapping.rust_path, "statrs");
     assert!(mapping.is_external);
-    assert_eq!(mapping.item_map.get("mean").unwrap(), "statistics::Statistics::mean");
+    assert_eq!(
+        mapping.item_map.get("mean").unwrap(),
+        "statistics::Statistics::mean"
+    );
 }
 
 #[test]
@@ -555,7 +591,10 @@ fn test_io_module_mapping() {
     assert_eq!(mapping.rust_path, "std::io");
     assert!(!mapping.is_external);
     assert_eq!(mapping.item_map.get("BufferedReader").unwrap(), "BufReader");
-    assert_eq!(mapping.constructor_patterns.get("BufReader"), Some(&ConstructorPattern::New));
+    assert_eq!(
+        mapping.constructor_patterns.get("BufReader"),
+        Some(&ConstructorPattern::New)
+    );
 }
 
 #[test]
@@ -563,7 +602,10 @@ fn test_functools_mapping() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("functools").unwrap();
     assert_eq!(mapping.rust_path, "std");
-    assert_eq!(mapping.item_map.get("reduce").unwrap(), "iter::Iterator::fold");
+    assert_eq!(
+        mapping.item_map.get("reduce").unwrap(),
+        "iter::Iterator::fold"
+    );
 }
 
 #[test]
@@ -642,15 +684,22 @@ fn test_constructor_pattern_clone() {
 fn test_constructor_pattern_eq() {
     assert_eq!(ConstructorPattern::New, ConstructorPattern::New);
     assert_eq!(ConstructorPattern::Function, ConstructorPattern::Function);
-    assert_eq!(ConstructorPattern::Method("x".to_string()), ConstructorPattern::Method("x".to_string()));
+    assert_eq!(
+        ConstructorPattern::Method("x".to_string()),
+        ConstructorPattern::Method("x".to_string())
+    );
     assert_ne!(ConstructorPattern::New, ConstructorPattern::Function);
-    assert_ne!(ConstructorPattern::Method("x".to_string()), ConstructorPattern::Method("y".to_string()));
+    assert_ne!(
+        ConstructorPattern::Method("x".to_string()),
+        ConstructorPattern::Method("y".to_string())
+    );
 }
 
 #[test]
 fn test_map_argparse_import_whole_module() {
     let mapper = ModuleMapper::new();
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "argparse".to_string(),
         items: vec![],
     };
@@ -663,7 +712,8 @@ fn test_map_argparse_import_whole_module() {
 #[test]
 fn test_map_typing_whole_module() {
     let mapper = ModuleMapper::new();
-    let import = Import { alias: None,
+    let import = Import {
+        alias: None,
         module: "typing".to_string(),
         items: vec![],
     };
@@ -676,10 +726,22 @@ fn test_map_typing_whole_module() {
 fn test_tempfile_constructor_patterns() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("tempfile").unwrap();
-    assert_eq!(mapping.constructor_patterns.get("NamedTempFile"), Some(&ConstructorPattern::New));
-    assert_eq!(mapping.constructor_patterns.get("TempDir"), Some(&ConstructorPattern::New));
-    assert_eq!(mapping.constructor_patterns.get("tempfile"), Some(&ConstructorPattern::Function));
-    assert_eq!(mapping.constructor_patterns.get("tempdir"), Some(&ConstructorPattern::Function));
+    assert_eq!(
+        mapping.constructor_patterns.get("NamedTempFile"),
+        Some(&ConstructorPattern::New)
+    );
+    assert_eq!(
+        mapping.constructor_patterns.get("TempDir"),
+        Some(&ConstructorPattern::New)
+    );
+    assert_eq!(
+        mapping.constructor_patterns.get("tempfile"),
+        Some(&ConstructorPattern::Function)
+    );
+    assert_eq!(
+        mapping.constructor_patterns.get("tempdir"),
+        Some(&ConstructorPattern::Function)
+    );
 }
 
 #[test]
@@ -712,15 +774,18 @@ fn test_rust_import_clone() {
 fn test_multiple_sklearn_imports_dependencies() {
     let mapper = ModuleMapper::new();
     let imports = vec![
-        Import { alias: None,
+        Import {
+            alias: None,
             module: "sklearn.linear_model".to_string(),
             items: vec![ImportItem::Named("LinearRegression".to_string())],
         },
-        Import { alias: None,
+        Import {
+            alias: None,
             module: "sklearn.cluster".to_string(),
             items: vec![ImportItem::Named("KMeans".to_string())],
         },
-        Import { alias: None,
+        Import {
+            alias: None,
             module: "sklearn.metrics".to_string(),
             items: vec![ImportItem::Named("accuracy_score".to_string())],
         },
@@ -737,13 +802,41 @@ fn test_multiple_sklearn_imports_dependencies() {
 fn test_all_mapped_modules_have_valid_data() {
     let mapper = ModuleMapper::new();
     let modules = vec![
-        "os", "os.path", "sys", "io", "json", "re", "datetime", "typing",
-        "collections", "math", "random", "itertools", "functools", "hashlib",
-        "base64", "urllib.parse", "pathlib", "tempfile", "csv", "numpy",
-        "numpy.linalg", "sklearn.linear_model", "sklearn.cluster", "sklearn.tree",
-        "sklearn.ensemble", "sklearn.preprocessing", "sklearn.decomposition",
-        "sklearn.model_selection", "sklearn.metrics", "subprocess", "argparse",
-        "threading", "asyncio", "struct", "statistics",
+        "os",
+        "os.path",
+        "sys",
+        "io",
+        "json",
+        "re",
+        "datetime",
+        "typing",
+        "collections",
+        "math",
+        "random",
+        "itertools",
+        "functools",
+        "hashlib",
+        "base64",
+        "urllib.parse",
+        "pathlib",
+        "tempfile",
+        "csv",
+        "numpy",
+        "numpy.linalg",
+        "sklearn.linear_model",
+        "sklearn.cluster",
+        "sklearn.tree",
+        "sklearn.ensemble",
+        "sklearn.preprocessing",
+        "sklearn.decomposition",
+        "sklearn.model_selection",
+        "sklearn.metrics",
+        "subprocess",
+        "argparse",
+        "threading",
+        "asyncio",
+        "struct",
+        "statistics",
     ];
 
     for module in modules {

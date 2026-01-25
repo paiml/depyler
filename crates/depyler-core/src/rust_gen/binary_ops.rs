@@ -107,7 +107,13 @@ pub fn is_ordering_comparison(op: BinOp) -> bool {
 pub fn is_arithmetic_op(op: BinOp) -> bool {
     matches!(
         op,
-        BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod | BinOp::FloorDiv | BinOp::Pow
+        BinOp::Add
+            | BinOp::Sub
+            | BinOp::Mul
+            | BinOp::Div
+            | BinOp::Mod
+            | BinOp::FloorDiv
+            | BinOp::Pow
     )
 }
 
@@ -468,7 +474,6 @@ mod tests {
         assert_eq!(get_python_op_precedence(BinOp::Pow), 11);
     }
 
-
     // ============================================================================
     // is_*_literal tests - 100% coverage
     // ============================================================================
@@ -483,7 +488,9 @@ mod tests {
     #[test]
     fn test_is_int_literal_false() {
         assert!(!is_int_literal(&HirExpr::Literal(Literal::Float(3.15))));
-        assert!(!is_int_literal(&HirExpr::Literal(Literal::String("hi".to_string()))));
+        assert!(!is_int_literal(&HirExpr::Literal(Literal::String(
+            "hi".to_string()
+        ))));
         assert!(!is_int_literal(&HirExpr::Var("x".to_string())));
     }
 
@@ -497,14 +504,20 @@ mod tests {
     #[test]
     fn test_is_float_literal_false() {
         assert!(!is_float_literal(&HirExpr::Literal(Literal::Int(42))));
-        assert!(!is_float_literal(&HirExpr::Literal(Literal::String("3.14".to_string()))));
+        assert!(!is_float_literal(&HirExpr::Literal(Literal::String(
+            "3.14".to_string()
+        ))));
         assert!(!is_float_literal(&HirExpr::Var("x".to_string())));
     }
 
     #[test]
     fn test_is_string_literal_true() {
-        assert!(is_string_literal(&HirExpr::Literal(Literal::String("hello".to_string()))));
-        assert!(is_string_literal(&HirExpr::Literal(Literal::String("".to_string()))));
+        assert!(is_string_literal(&HirExpr::Literal(Literal::String(
+            "hello".to_string()
+        ))));
+        assert!(is_string_literal(&HirExpr::Literal(Literal::String(
+            "".to_string()
+        ))));
     }
 
     #[test]
@@ -523,7 +536,9 @@ mod tests {
     #[test]
     fn test_is_bool_literal_false() {
         assert!(!is_bool_literal(&HirExpr::Literal(Literal::Int(1))));
-        assert!(!is_bool_literal(&HirExpr::Literal(Literal::String("true".to_string()))));
+        assert!(!is_bool_literal(&HirExpr::Literal(Literal::String(
+            "true".to_string()
+        ))));
         assert!(!is_bool_literal(&HirExpr::Var("flag".to_string())));
     }
 
@@ -748,7 +763,6 @@ mod tests {
         let op = python_to_rust_binop(BinOp::NotIn);
         assert!(matches!(op, syn::BinOp::Add(_)));
     }
-
 
     // ============================================================================
     // wrap_in_parens tests

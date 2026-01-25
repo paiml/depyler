@@ -364,10 +364,8 @@ mod tests {
 
     #[test]
     fn test_chaos_error_is_error() {
-        let err: Box<dyn std::error::Error> = Box::new(ChaosError::MemoryLimitExceeded {
-            limit: 1,
-            used: 2,
-        });
+        let err: Box<dyn std::error::Error> =
+            Box::new(ChaosError::MemoryLimitExceeded { limit: 1, used: 2 });
         assert!(err.to_string().contains("Memory limit exceeded"));
     }
 

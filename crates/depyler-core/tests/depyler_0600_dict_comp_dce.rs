@@ -26,7 +26,9 @@ use rustpython_parser::{parse, Mode};
 /// Transpile with DCE enabled (matches CLI behavior)
 fn transpile_with_dce(python: &str) -> Result<String, String> {
     let ast = parse(python, Mode::Module, "<test>").map_err(|e| e.to_string())?;
-    let (hir, _) = AstBridge::new().python_to_hir(ast).map_err(|e| e.to_string())?;
+    let (hir, _) = AstBridge::new()
+        .python_to_hir(ast)
+        .map_err(|e| e.to_string())?;
 
     // Convert to HirProgram and run optimizer with DCE (like CLI does)
     let hir_program = depyler_core::hir::HirProgram {
@@ -46,6 +48,7 @@ fn transpile_with_dce(python: &str) -> Result<String, String> {
         constants: hir.constants,
         type_aliases: hir.type_aliases,
         protocols: hir.protocols,
+        top_level_stmts: hir.top_level_stmts,
     };
 
     let type_mapper = TypeMapper::default();

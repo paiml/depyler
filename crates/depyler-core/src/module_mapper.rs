@@ -184,9 +184,10 @@ impl ModuleMapper {
                     ("X".to_string(), "(?x)".to_string()),
                 ]),
                 // GH-204: Add constructor patterns for regex types
-                constructor_patterns: HashMap::from([
-                    ("Regex".to_string(), ConstructorPattern::Method("new".to_string())),
-                ]),
+                constructor_patterns: HashMap::from([(
+                    "Regex".to_string(),
+                    ConstructorPattern::Method("new".to_string()),
+                )]),
             },
         );
 
@@ -204,10 +205,22 @@ impl ModuleMapper {
                 ]),
                 // GH-204: Add constructor patterns for datetime types
                 constructor_patterns: HashMap::from([
-                    ("DateTime".to_string(), ConstructorPattern::Method("now".to_string())),
-                    ("NaiveDate".to_string(), ConstructorPattern::Method("from_ymd_opt".to_string())),
-                    ("NaiveTime".to_string(), ConstructorPattern::Method("from_hms_opt".to_string())),
-                    ("Duration".to_string(), ConstructorPattern::Method("seconds".to_string())),
+                    (
+                        "DateTime".to_string(),
+                        ConstructorPattern::Method("now".to_string()),
+                    ),
+                    (
+                        "NaiveDate".to_string(),
+                        ConstructorPattern::Method("from_ymd_opt".to_string()),
+                    ),
+                    (
+                        "NaiveTime".to_string(),
+                        ConstructorPattern::Method("from_hms_opt".to_string()),
+                    ),
+                    (
+                        "Duration".to_string(),
+                        ConstructorPattern::Method("seconds".to_string()),
+                    ),
                 ]),
             },
         );
@@ -410,8 +423,14 @@ impl ModuleMapper {
                 ]),
                 // GH-204: Add constructor patterns for path types
                 constructor_patterns: HashMap::from([
-                    ("PathBuf".to_string(), ConstructorPattern::Method("from".to_string())),
-                    ("Path".to_string(), ConstructorPattern::Method("new".to_string())),
+                    (
+                        "PathBuf".to_string(),
+                        ConstructorPattern::Method("from".to_string()),
+                    ),
+                    (
+                        "Path".to_string(),
+                        ConstructorPattern::Method("new".to_string()),
+                    ),
                 ]),
             },
         );
@@ -543,8 +562,14 @@ impl ModuleMapper {
                 is_external: true,
                 version: Some("0.14".to_string()),
                 item_map: HashMap::from([
-                    ("LinearRegression".to_string(), "LinearRegression".to_string()),
-                    ("LogisticRegression".to_string(), "LogisticRegression".to_string()),
+                    (
+                        "LinearRegression".to_string(),
+                        "LinearRegression".to_string(),
+                    ),
+                    (
+                        "LogisticRegression".to_string(),
+                        "LogisticRegression".to_string(),
+                    ),
                     ("Ridge".to_string(), "Ridge".to_string()),
                     ("Lasso".to_string(), "Lasso".to_string()),
                     ("ElasticNet".to_string(), "ElasticNet".to_string()),
@@ -566,11 +591,15 @@ impl ModuleMapper {
                 item_map: HashMap::from([
                     ("KMeans".to_string(), "KMeans".to_string()),
                     ("DBSCAN".to_string(), "DBSCAN".to_string()),
-                    ("AgglomerativeClustering".to_string(), "Agglomerative".to_string()),
+                    (
+                        "AgglomerativeClustering".to_string(),
+                        "Agglomerative".to_string(),
+                    ),
                 ]),
-                constructor_patterns: HashMap::from([
-                    ("KMeans".to_string(), ConstructorPattern::New),
-                ]),
+                constructor_patterns: HashMap::from([(
+                    "KMeans".to_string(),
+                    ConstructorPattern::New,
+                )]),
             },
         );
 
@@ -582,8 +611,14 @@ impl ModuleMapper {
                 is_external: true,
                 version: Some("0.14".to_string()),
                 item_map: HashMap::from([
-                    ("DecisionTreeClassifier".to_string(), "DecisionTree".to_string()),
-                    ("DecisionTreeRegressor".to_string(), "DecisionTreeRegressor".to_string()),
+                    (
+                        "DecisionTreeClassifier".to_string(),
+                        "DecisionTree".to_string(),
+                    ),
+                    (
+                        "DecisionTreeRegressor".to_string(),
+                        "DecisionTreeRegressor".to_string(),
+                    ),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -597,9 +632,18 @@ impl ModuleMapper {
                 is_external: true,
                 version: Some("0.14".to_string()),
                 item_map: HashMap::from([
-                    ("RandomForestClassifier".to_string(), "RandomForest".to_string()),
-                    ("RandomForestRegressor".to_string(), "RandomForestRegressor".to_string()),
-                    ("GradientBoostingClassifier".to_string(), "GradientBoosting".to_string()),
+                    (
+                        "RandomForestClassifier".to_string(),
+                        "RandomForest".to_string(),
+                    ),
+                    (
+                        "RandomForestRegressor".to_string(),
+                        "RandomForestRegressor".to_string(),
+                    ),
+                    (
+                        "GradientBoostingClassifier".to_string(),
+                        "GradientBoosting".to_string(),
+                    ),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -645,7 +689,10 @@ impl ModuleMapper {
                 is_external: true,
                 version: Some("0.14".to_string()),
                 item_map: HashMap::from([
-                    ("train_test_split".to_string(), "train_test_split".to_string()),
+                    (
+                        "train_test_split".to_string(),
+                        "train_test_split".to_string(),
+                    ),
                     ("KFold".to_string(), "KFold".to_string()),
                     ("cross_val_score".to_string(), "cross_val_score".to_string()),
                     ("GridSearchCV".to_string(), "GridSearchCV".to_string()),
@@ -666,7 +713,10 @@ impl ModuleMapper {
                     ("precision_score".to_string(), "precision".to_string()),
                     ("recall_score".to_string(), "recall".to_string()),
                     ("f1_score".to_string(), "f1".to_string()),
-                    ("confusion_matrix".to_string(), "confusion_matrix".to_string()),
+                    (
+                        "confusion_matrix".to_string(),
+                        "confusion_matrix".to_string(),
+                    ),
                     ("mean_squared_error".to_string(), "mse".to_string()),
                     ("r2_score".to_string(), "r2".to_string()),
                 ]),
@@ -699,9 +749,10 @@ impl ModuleMapper {
                     // CompletedProcess fields map to Output
                     ("CompletedProcess".to_string(), "Output".to_string()),
                 ]),
-                constructor_patterns: HashMap::from([
-                    ("Command".to_string(), ConstructorPattern::Method("new".to_string())),
-                ]),
+                constructor_patterns: HashMap::from([(
+                    "Command".to_string(),
+                    ConstructorPattern::Method("new".to_string()),
+                )]),
             },
         );
 
@@ -774,8 +825,14 @@ impl ModuleMapper {
                     // Channel/Queue
                     ("Queue".to_string(), "sync::mpsc::channel".to_string()),
                     // Event loop (conceptually maps to runtime)
-                    ("get_event_loop".to_string(), "runtime::Handle::current".to_string()),
-                    ("new_event_loop".to_string(), "runtime::Runtime::new".to_string()),
+                    (
+                        "get_event_loop".to_string(),
+                        "runtime::Handle::current".to_string(),
+                    ),
+                    (
+                        "new_event_loop".to_string(),
+                        "runtime::Runtime::new".to_string(),
+                    ),
                 ]),
                 constructor_patterns: HashMap::new(),
             },
@@ -814,16 +871,159 @@ impl ModuleMapper {
                 version: Some("0.16".to_string()),
                 item_map: HashMap::from([
                     // Central tendency
-                    ("mean".to_string(), "statistics::Statistics::mean".to_string()),
-                    ("median".to_string(), "statistics::Statistics::median".to_string()),
-                    ("mode".to_string(), "statistics::Statistics::mode".to_string()),
+                    (
+                        "mean".to_string(),
+                        "statistics::Statistics::mean".to_string(),
+                    ),
+                    (
+                        "median".to_string(),
+                        "statistics::Statistics::median".to_string(),
+                    ),
+                    (
+                        "mode".to_string(),
+                        "statistics::Statistics::mode".to_string(),
+                    ),
                     // Spread measures
-                    ("stdev".to_string(), "statistics::Statistics::std_dev".to_string()),
-                    ("variance".to_string(), "statistics::Statistics::variance".to_string()),
-                    ("pstdev".to_string(), "statistics::Statistics::population_std_dev".to_string()),
-                    ("pvariance".to_string(), "statistics::Statistics::population_variance".to_string()),
+                    (
+                        "stdev".to_string(),
+                        "statistics::Statistics::std_dev".to_string(),
+                    ),
+                    (
+                        "variance".to_string(),
+                        "statistics::Statistics::variance".to_string(),
+                    ),
+                    (
+                        "pstdev".to_string(),
+                        "statistics::Statistics::population_std_dev".to_string(),
+                    ),
+                    (
+                        "pvariance".to_string(),
+                        "statistics::Statistics::population_variance".to_string(),
+                    ),
                     // Quantiles
-                    ("quantiles".to_string(), "statistics::Statistics::percentile".to_string()),
+                    (
+                        "quantiles".to_string(),
+                        "statistics::Statistics::percentile".to_string(),
+                    ),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // =================================================================
+        // GH-204: E0425/E0433 Resolution - Additional stdlib mappings
+        // =================================================================
+
+        // logging → log (standard Rust logging facade)
+        // Maps Python logging module to log crate
+        module_map.insert(
+            "logging".to_string(),
+            ModuleMapping {
+                rust_path: "log".to_string(),
+                is_external: true,
+                version: Some("0.4".to_string()),
+                item_map: HashMap::from([
+                    // Log level functions
+                    ("debug".to_string(), "debug!".to_string()),
+                    ("info".to_string(), "info!".to_string()),
+                    ("warning".to_string(), "warn!".to_string()),
+                    ("warn".to_string(), "warn!".to_string()),
+                    ("error".to_string(), "error!".to_string()),
+                    ("critical".to_string(), "error!".to_string()),
+                    // Configuration (often no-ops in Rust - use env_logger)
+                    ("basicConfig".to_string(), "env_logger::init".to_string()),
+                    ("getLogger".to_string(), "log::logger".to_string()),
+                    // Log levels as constants
+                    ("DEBUG".to_string(), "log::Level::Debug".to_string()),
+                    ("INFO".to_string(), "log::Level::Info".to_string()),
+                    ("WARNING".to_string(), "log::Level::Warn".to_string()),
+                    ("ERROR".to_string(), "log::Level::Error".to_string()),
+                    ("CRITICAL".to_string(), "log::Level::Error".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // configparser → config crate (INI file parsing)
+        // Maps Python configparser module to config crate
+        module_map.insert(
+            "configparser".to_string(),
+            ModuleMapping {
+                rust_path: "config".to_string(),
+                is_external: true,
+                version: Some("0.14".to_string()),
+                item_map: HashMap::from([
+                    ("ConfigParser".to_string(), "Config".to_string()),
+                    ("RawConfigParser".to_string(), "Config".to_string()),
+                    ("SafeConfigParser".to_string(), "Config".to_string()),
+                ]),
+                constructor_patterns: HashMap::from([(
+                    "Config".to_string(),
+                    ConstructorPattern::Method("builder".to_string()),
+                )]),
+            },
+        );
+
+        // unittest → Rust test module (no external crate needed)
+        // Maps Python unittest to Rust's built-in test system
+        module_map.insert(
+            "unittest".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(), // Uses #[test] attribute
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    // TestCase is handled via #[test] attribute
+                    ("TestCase".to_string(), "".to_string()),
+                    // Assertions map to assert! macros
+                    ("assertEqual".to_string(), "assert_eq!".to_string()),
+                    ("assertNotEqual".to_string(), "assert_ne!".to_string()),
+                    ("assertTrue".to_string(), "assert!".to_string()),
+                    ("assertFalse".to_string(), "assert!".to_string()),
+                    ("assertIsNone".to_string(), "assert!".to_string()),
+                    ("assertIsNotNone".to_string(), "assert!".to_string()),
+                    ("assertIn".to_string(), "assert!".to_string()),
+                    ("assertNotIn".to_string(), "assert!".to_string()),
+                    ("assertRaises".to_string(), "assert!".to_string()),
+                    ("main".to_string(), "".to_string()), // No-op, tests run via cargo test
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // traceback → backtrace crate (stack trace handling)
+        // Maps Python traceback module to backtrace crate
+        module_map.insert(
+            "traceback".to_string(),
+            ModuleMapping {
+                rust_path: "backtrace".to_string(),
+                is_external: true,
+                version: Some("0.3".to_string()),
+                item_map: HashMap::from([
+                    ("print_exc".to_string(), "Backtrace::capture".to_string()),
+                    ("format_exc".to_string(), "Backtrace::capture".to_string()),
+                    ("print_tb".to_string(), "Backtrace::capture".to_string()),
+                    ("format_tb".to_string(), "Backtrace::capture".to_string()),
+                    ("extract_tb".to_string(), "Backtrace::capture".to_string()),
+                ]),
+                constructor_patterns: HashMap::new(),
+            },
+        );
+
+        // contextlib → No direct equivalent (handled inline)
+        // Maps Python contextlib module - mostly handled via special codegen
+        module_map.insert(
+            "contextlib".to_string(),
+            ModuleMapping {
+                rust_path: "".to_string(), // Handled via Drop trait
+                is_external: false,
+                version: None,
+                item_map: HashMap::from([
+                    // These are largely handled by Rust's RAII pattern
+                    ("contextmanager".to_string(), "".to_string()),
+                    ("closing".to_string(), "".to_string()),
+                    ("suppress".to_string(), "".to_string()),
+                    ("nullcontext".to_string(), "".to_string()),
                 ]),
                 constructor_patterns: HashMap::new(),
             },

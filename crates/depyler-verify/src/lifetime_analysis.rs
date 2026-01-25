@@ -593,8 +593,14 @@ mod tests {
     #[test]
     fn test_violation_kind_equality() {
         assert_eq!(ViolationKind::UseAfterMove, ViolationKind::UseAfterMove);
-        assert_ne!(ViolationKind::UseAfterMove, ViolationKind::DanglingReference);
-        assert_eq!(ViolationKind::ConflictingBorrows, ViolationKind::ConflictingBorrows);
+        assert_ne!(
+            ViolationKind::UseAfterMove,
+            ViolationKind::DanglingReference
+        );
+        assert_eq!(
+            ViolationKind::ConflictingBorrows,
+            ViolationKind::ConflictingBorrows
+        );
     }
 
     #[test]
@@ -678,7 +684,9 @@ mod tests {
             body: vec![HirStmt::If {
                 condition: HirExpr::Var("x".to_string()),
                 then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                    0,
+                ))))]),
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),
@@ -1422,9 +1430,13 @@ mod tests {
                 then_body: vec![HirStmt::If {
                     condition: HirExpr::Var("x".to_string()),
                     then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                    else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
+                    else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                        2,
+                    ))))]),
                 }],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(3))))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                    3,
+                ))))]),
             }],
             properties: FunctionProperties::default(),
             annotations: Default::default(),

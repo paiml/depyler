@@ -54,6 +54,8 @@ chrono = "0.4"
 walkdir = "2.5"
 rand.workspace = true
 regex.workspace = true
+syn = { version = "2", features = ["full", "parsing"] }
+toml = "0.8"
 
 # DEPYLER-CACHE-001: O(1) compilation cache
 sha2 = "0.10"

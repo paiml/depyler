@@ -77,7 +77,8 @@ mod function_definitions {
 
     #[test]
     fn test_function_union_param() {
-        let code = "from typing import Union\n\ndef f(x: Union[int, str]) -> str:\n    return str(x)";
+        let code =
+            "from typing import Union\n\ndef f(x: Union[int, str]) -> str:\n    return str(x)";
         let _ = transpile(code);
     }
 }
@@ -323,7 +324,8 @@ mod nested_functions {
 
     #[test]
     fn test_nested_function() {
-        let code = "def outer() -> int:\n    def inner() -> int:\n        return 1\n    return inner()";
+        let code =
+            "def outer() -> int:\n    def inner() -> int:\n        return 1\n    return inner()";
         let _ = transpile(code);
     }
 
@@ -361,19 +363,22 @@ mod lambda_functions {
 
     #[test]
     fn test_lambda_in_map() {
-        let code = "def f(lst: list[int]) -> list[int]:\n    return list(map(lambda x: x * 2, lst))";
+        let code =
+            "def f(lst: list[int]) -> list[int]:\n    return list(map(lambda x: x * 2, lst))";
         let _ = transpile(code);
     }
 
     #[test]
     fn test_lambda_in_filter() {
-        let code = "def f(lst: list[int]) -> list[int]:\n    return list(filter(lambda x: x > 0, lst))";
+        let code =
+            "def f(lst: list[int]) -> list[int]:\n    return list(filter(lambda x: x > 0, lst))";
         let _ = transpile(code);
     }
 
     #[test]
     fn test_lambda_in_sorted() {
-        let code = "def f(lst: list[str]) -> list[str]:\n    return sorted(lst, key=lambda x: len(x))";
+        let code =
+            "def f(lst: list[str]) -> list[str]:\n    return sorted(lst, key=lambda x: len(x))";
         let _ = transpile(code);
     }
 
@@ -475,7 +480,8 @@ mod decorators {
 
     #[test]
     fn test_custom_decorator() {
-        let code = "def decorator(f):\n    return f\n\n@decorator\ndef foo() -> int:\n    return 42";
+        let code =
+            "def decorator(f):\n    return f\n\n@decorator\ndef foo() -> int:\n    return 42";
         let _ = transpile(code);
     }
 
@@ -545,7 +551,8 @@ mod special_methods {
 
     #[test]
     fn test_setitem() {
-        let code = "class Foo:\n    def __setitem__(self, key: int, value: int) -> None:\n        pass";
+        let code =
+            "class Foo:\n    def __setitem__(self, key: int, value: int) -> None:\n        pass";
         let _ = transpile(code);
     }
 
@@ -625,7 +632,8 @@ mod variadic_functions {
 
     #[test]
     fn test_args_and_kwargs() {
-        let code = "def f(*args: int, **kwargs: int) -> int:\n    return sum(args) + sum(kwargs.values())";
+        let code =
+            "def f(*args: int, **kwargs: int) -> int:\n    return sum(args) + sum(kwargs.values())";
         let _ = transpile(code);
     }
 

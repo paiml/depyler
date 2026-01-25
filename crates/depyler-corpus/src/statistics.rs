@@ -129,7 +129,8 @@ impl StatisticalAnalysis {
             return 0.0;
         }
 
-        let variance: f64 = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
+        let variance: f64 =
+            values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
 
         variance.sqrt()
     }

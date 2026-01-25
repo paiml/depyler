@@ -84,7 +84,10 @@ fn test_json_dumps_semantic_equivalence() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("json").expect("json should be mapped");
 
-    assert_eq!(mapping.item_map.get("dumps"), Some(&"to_string".to_string()));
+    assert_eq!(
+        mapping.item_map.get("dumps"),
+        Some(&"to_string".to_string())
+    );
 
     // Test round-trip equivalence
     let test_values = vec![
@@ -109,8 +112,8 @@ fn test_json_error_handling_divergence() {
 
     let invalid_inputs = vec![
         "invalid",
-        "{key: value}",  // Missing quotes
-        "{'key': 'value'}",  // Single quotes
+        "{key: value}",     // Missing quotes
+        "{'key': 'value'}", // Single quotes
         "",
     ];
 
@@ -192,7 +195,10 @@ fn test_os_getcwd_semantic_equivalence() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("os").expect("os should be mapped");
 
-    assert_eq!(mapping.item_map.get("getcwd"), Some(&"env::current_dir".to_string()));
+    assert_eq!(
+        mapping.item_map.get("getcwd"),
+        Some(&"env::current_dir".to_string())
+    );
 
     // Both return the current working directory
     let cwd = std::env::current_dir();
@@ -204,7 +210,10 @@ fn test_os_getenv_semantic_equivalence() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("os").expect("os should be mapped");
 
-    assert_eq!(mapping.item_map.get("getenv"), Some(&"env::var".to_string()));
+    assert_eq!(
+        mapping.item_map.get("getenv"),
+        Some(&"env::var".to_string())
+    );
 
     // Test with existing env var
     std::env::set_var("TEST_SEMANTIC_VAR", "test_value");
@@ -231,7 +240,10 @@ fn test_re_compile_semantic_equivalence() {
     let mapping = mapper.get_mapping("re").expect("re should be mapped");
 
     assert_eq!(mapping.rust_path, "regex");
-    assert_eq!(mapping.item_map.get("compile"), Some(&"Regex::new".to_string()));
+    assert_eq!(
+        mapping.item_map.get("compile"),
+        Some(&"Regex::new".to_string())
+    );
 
     // Test pattern compilation
     let pattern = regex::Regex::new(r"\d+");
@@ -246,7 +258,10 @@ fn test_re_match_semantic_equivalence() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("re").expect("re should be mapped");
 
-    assert_eq!(mapping.item_map.get("match"), Some(&"Regex::is_match".to_string()));
+    assert_eq!(
+        mapping.item_map.get("match"),
+        Some(&"Regex::is_match".to_string())
+    );
 
     let re = regex::Regex::new(r"^\d+$").unwrap();
 
@@ -261,7 +276,10 @@ fn test_re_findall_semantic_equivalence() {
     let mapper = ModuleMapper::new();
     let mapping = mapper.get_mapping("re").expect("re should be mapped");
 
-    assert_eq!(mapping.item_map.get("findall"), Some(&"Regex::find_iter".to_string()));
+    assert_eq!(
+        mapping.item_map.get("findall"),
+        Some(&"Regex::find_iter".to_string())
+    );
 
     let re = regex::Regex::new(r"\d+").unwrap();
     let text = "abc 123 def 456 ghi";
@@ -279,7 +297,9 @@ fn test_collections_deque_semantic_equivalence() {
     use std::collections::VecDeque;
 
     let mapper = ModuleMapper::new();
-    let mapping = mapper.get_mapping("collections").expect("collections should be mapped");
+    let mapping = mapper
+        .get_mapping("collections")
+        .expect("collections should be mapped");
 
     assert_eq!(mapping.item_map.get("deque"), Some(&"VecDeque".to_string()));
 
@@ -305,9 +325,14 @@ fn test_collections_counter_semantic_equivalence() {
     use std::collections::HashMap;
 
     let mapper = ModuleMapper::new();
-    let mapping = mapper.get_mapping("collections").expect("collections should be mapped");
+    let mapping = mapper
+        .get_mapping("collections")
+        .expect("collections should be mapped");
 
-    assert_eq!(mapping.item_map.get("Counter"), Some(&"HashMap".to_string()));
+    assert_eq!(
+        mapping.item_map.get("Counter"),
+        Some(&"HashMap".to_string())
+    );
 
     // Python: Counter(['a', 'b', 'a', 'c', 'a', 'b'])
     // Rust: HashMap with manual counting
@@ -333,13 +358,28 @@ fn document_known_divergences() {
     // These are intentional differences that users should be aware of
 
     let divergences = vec![
-        ("math.sqrt(-1)", "Python raises ValueError, Rust returns NaN"),
-        ("json.loads('invalid')", "Python raises JSONDecodeError, Rust returns Err"),
-        ("os.getenv('MISSING')", "Python returns None, Rust returns Err"),
-        ("list.index(missing)", "Python raises ValueError, Rust returns None"),
+        (
+            "math.sqrt(-1)",
+            "Python raises ValueError, Rust returns NaN",
+        ),
+        (
+            "json.loads('invalid')",
+            "Python raises JSONDecodeError, Rust returns Err",
+        ),
+        (
+            "os.getenv('MISSING')",
+            "Python returns None, Rust returns Err",
+        ),
+        (
+            "list.index(missing)",
+            "Python raises ValueError, Rust returns None",
+        ),
         ("int('abc')", "Python raises ValueError, Rust returns Err"),
         ("1/0", "Python raises ZeroDivisionError, Rust panics"),
-        ("float('inf') == float('inf')", "Both True, but NaN != NaN in both"),
+        (
+            "float('inf') == float('inf')",
+            "Both True, but NaN != NaN in both",
+        ),
     ];
 
     // Document all divergences
@@ -347,7 +387,10 @@ fn document_known_divergences() {
         eprintln!("Divergence: {} - {}", case, description);
     }
 
-    assert!(!divergences.is_empty(), "Should have documented divergences");
+    assert!(
+        !divergences.is_empty(),
+        "Should have documented divergences"
+    );
 }
 
 // ============================================================================
@@ -357,7 +400,9 @@ fn document_known_divergences() {
 #[test]
 fn test_type_mappings_consistency() {
     let mapper = ModuleMapper::new();
-    let typing = mapper.get_mapping("typing").expect("typing should be mapped");
+    let typing = mapper
+        .get_mapping("typing")
+        .expect("typing should be mapped");
 
     // Verify type mappings
     assert_eq!(typing.item_map.get("List"), Some(&"Vec".to_string()));
@@ -409,11 +454,7 @@ fn test_sklearn_mapping_coverage() {
 
     for module in sklearn_modules {
         let mapping = mapper.get_mapping(module);
-        assert!(
-            mapping.is_some(),
-            "{} should be mapped",
-            module
-        );
+        assert!(mapping.is_some(), "{} should be mapped", module);
         assert!(
             mapping.unwrap().rust_path.starts_with("aprender::"),
             "{} should map to aprender",

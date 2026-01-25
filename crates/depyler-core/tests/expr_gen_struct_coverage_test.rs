@@ -281,7 +281,9 @@ def merge_dicts(a: dict, b: dict) -> dict:
     println!("Generated dict merge code:\n{}", rust_code);
 
     // Should generate extend or clone pattern
-    assert!(rust_code.contains("extend") || rust_code.contains("clone") || rust_code.contains("merge"));
+    assert!(
+        rust_code.contains("extend") || rust_code.contains("clone") || rust_code.contains("merge")
+    );
 }
 
 // ============================================================================
@@ -331,7 +333,11 @@ def check_membership(item: int, items: list) -> bool:
     println!("Generated 'in' list code:\n{}", rust_code);
 
     // Should generate some form of membership check (contains, get().is_some(), etc.)
-    assert!(rust_code.contains("contains") || rust_code.contains("iter") || rust_code.contains("is_some"));
+    assert!(
+        rust_code.contains("contains")
+            || rust_code.contains("iter")
+            || rust_code.contains("is_some")
+    );
 }
 
 #[test]
@@ -405,7 +411,9 @@ def get_last_two(items: list) -> list:
     println!("Generated negative slice code:\n{}", rust_code);
 
     // Should handle negative indices
-    assert!(rust_code.contains("len") || rust_code.contains("saturating") || rust_code.contains("["));
+    assert!(
+        rust_code.contains("len") || rust_code.contains("saturating") || rust_code.contains("[")
+    );
 }
 
 // ============================================================================

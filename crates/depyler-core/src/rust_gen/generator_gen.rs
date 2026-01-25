@@ -68,7 +68,9 @@ fn concretize_type_param_for_struct(
 ///
 /// # Complexity
 /// 2 (string ops)
-fn box_impl_trait_for_field(rust_type: &crate::type_mapper::RustType) -> crate::type_mapper::RustType {
+fn box_impl_trait_for_field(
+    rust_type: &crate::type_mapper::RustType,
+) -> crate::type_mapper::RustType {
     use crate::type_mapper::RustType;
 
     match rust_type {
@@ -1374,7 +1376,8 @@ mod tests {
 
     #[test]
     fn test_get_default_value_dict() {
-        let result = get_default_value_for_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
+        let result =
+            get_default_value_for_type(&Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
         assert_eq!(result.to_string(), "Default :: default ()");
     }
 
@@ -1423,12 +1426,10 @@ mod tests {
 
     #[test]
     fn test_infer_yield_type_dict() {
-        let expr = HirExpr::Dict(vec![
-            (
-                HirExpr::Literal(Literal::String("key".to_string())),
-                HirExpr::Literal(Literal::Int(1)),
-            ),
-        ]);
+        let expr = HirExpr::Dict(vec![(
+            HirExpr::Literal(Literal::String("key".to_string())),
+            HirExpr::Literal(Literal::Int(1)),
+        )]);
         let result = infer_yield_type(&expr);
         // Dict defaults to String
         assert!(matches!(result, Type::String));

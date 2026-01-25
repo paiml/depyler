@@ -28,8 +28,7 @@ fn simple_python_expr() -> impl Strategy<Value = String> {
             .prop_filter("finite", |f| f.is_finite())
             .prop_map(|n| format!("{:.2}", n)),
         // String literals
-        "[a-zA-Z_][a-zA-Z0-9_]{0,10}"
-            .prop_map(|s| format!("\"{}\"", s)),
+        "[a-zA-Z_][a-zA-Z0-9_]{0,10}".prop_map(|s| format!("\"{}\"", s)),
         // Boolean literals
         any::<bool>().prop_map(|b| if b { "True" } else { "False" }.to_string()),
         // None
@@ -52,36 +51,35 @@ fn simple_python_stmt() -> impl Strategy<Value = String> {
 
 /// Rust keywords that cannot be used as function names
 const RUST_KEYWORDS: &[&str] = &[
-    "fn", "let", "mut", "const", "static", "if", "else", "match", "loop",
-    "while", "for", "in", "break", "continue", "return", "type", "impl",
-    "trait", "struct", "enum", "mod", "pub", "use", "as", "self", "super",
-    "crate", "where", "async", "await", "dyn", "ref", "move", "true", "false",
+    "fn", "let", "mut", "const", "static", "if", "else", "match", "loop", "while", "for", "in",
+    "break", "continue", "return", "type", "impl", "trait", "struct", "enum", "mod", "pub", "use",
+    "as", "self", "super", "crate", "where", "async", "await", "dyn", "ref", "move", "true",
+    "false",
 ];
 
 /// Generate annotated Python function (excluding Rust keywords)
 fn annotated_python_function() -> impl Strategy<Value = String> {
     (
-        "[a-z][a-z0-9]{0,8}",           // function name
+        "[a-z][a-z0-9]{0,8}",                              // function name
         prop::collection::vec(simple_python_stmt(), 1..5), // body statements
     )
-        .prop_filter("not rust keyword", |(name, _)| !RUST_KEYWORDS.contains(&name.as_str()))
+        .prop_filter("not rust keyword", |(name, _)| {
+            !RUST_KEYWORDS.contains(&name.as_str())
+        })
         .prop_map(|(name, body)| {
             let body_str = body
                 .iter()
                 .map(|s| format!("    {}", s))
                 .collect::<Vec<_>>()
                 .join("\n");
-            format!(
-                "def {}() -> None:\n{}",
-                name, body_str
-            )
+            format!("def {}() -> None:\n{}", name, body_str)
         })
 }
 
 /// Generate typed Python function (excluding Rust keywords)
 fn typed_python_function() -> impl Strategy<Value = String> {
     (
-        "[a-z][a-z0-9]{0,8}",  // function name
+        "[a-z][a-z0-9]{0,8}", // function name
         prop_oneof![
             Just(("a: int", "int")),
             Just(("a: float", "float")),
@@ -89,12 +87,11 @@ fn typed_python_function() -> impl Strategy<Value = String> {
             Just(("a: bool", "bool")),
         ],
     )
-        .prop_filter("not rust keyword", |(name, _)| !RUST_KEYWORDS.contains(&name.as_str()))
+        .prop_filter("not rust keyword", |(name, _)| {
+            !RUST_KEYWORDS.contains(&name.as_str())
+        })
         .prop_map(|(name, (params, ret))| {
-            format!(
-                "def {}({}) -> {}:\n    return a",
-                name, params, ret
-            )
+            format!("def {}({}) -> {}:\n    return a", name, params, ret)
         })
 }
 
@@ -294,7 +291,8 @@ fn test_multiple_returns() {
 
 #[test]
 fn test_augmented_assignment() {
-    let code = "def augment() -> int:\n    x: int = 0\n    x += 1\n    x -= 1\n    x *= 2\n    return x";
+    let code =
+        "def augment() -> int:\n    x: int = 0\n    x += 1\n    x -= 1\n    x *= 2\n    return x";
     let result = transpile(code);
     assert!(result.is_ok());
 }

@@ -280,7 +280,10 @@ mod tests {
     #[test]
     fn test_generate_enum_name_dict_type() {
         let mut generator = UnionEnumGenerator::new();
-        let types = vec![Type::Dict(Box::new(Type::String), Box::new(Type::Int)), Type::None];
+        let types = vec![
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int)),
+            Type::None,
+        ];
         let name = generator.generate_enum_name(&types);
         assert_eq!(name, "DictOrNoneUnion");
     }
@@ -362,7 +365,10 @@ mod tests {
     #[test]
     fn test_variant_name_unknown() {
         let generator = UnionEnumGenerator::new();
-        assert_eq!(generator.type_to_variant_name(&Type::Unknown, 5), "Variant5");
+        assert_eq!(
+            generator.type_to_variant_name(&Type::Unknown, 5),
+            "Variant5"
+        );
     }
 
     // ============ type_to_rust_type tests ============

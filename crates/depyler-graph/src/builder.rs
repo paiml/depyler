@@ -537,9 +537,9 @@ class Derived(Base):
 
         // Derived should inherit from Base
         let edges = graph.outgoing_edges("Derived");
-        let inherits_base = edges.iter().any(|(node, edge)| {
-            node.id == "Base" && edge.kind == EdgeKind::Inherits
-        });
+        let inherits_base = edges
+            .iter()
+            .any(|(node, edge)| node.id == "Base" && edge.kind == EdgeKind::Inherits);
         assert!(inherits_base);
     }
 

@@ -477,7 +477,8 @@ impl TypeInference {
     fn analyze_function(&mut self, func: &HirFunction) -> Result<()> {
         // DEPYLER-0715: Populate param_types for string comparison detection
         for param in &func.params {
-            self.param_types.insert(param.name.clone(), param.ty.clone());
+            self.param_types
+                .insert(param.name.clone(), param.ty.clone());
         }
 
         // Analyze parameter usage to infer constraints
@@ -906,7 +907,10 @@ mod tests {
 
         let dict_type = Type::Dict(Box::new(Type::String), Box::new(Type::Unknown));
         let result = TypeVarRegistry::apply_substitutions(&dict_type, &subs);
-        assert_eq!(result, Type::Dict(Box::new(Type::String), Box::new(Type::Int)));
+        assert_eq!(
+            result,
+            Type::Dict(Box::new(Type::String), Box::new(Type::Int))
+        );
     }
 
     #[test]
@@ -926,7 +930,10 @@ mod tests {
 
         let tuple_type = Type::Tuple(vec![Type::Int, Type::Unknown, Type::String]);
         let result = TypeVarRegistry::apply_substitutions(&tuple_type, &subs);
-        assert_eq!(result, Type::Tuple(vec![Type::Int, Type::Bool, Type::String]));
+        assert_eq!(
+            result,
+            Type::Tuple(vec![Type::Int, Type::Bool, Type::String])
+        );
     }
 
     #[test]
@@ -1249,7 +1256,10 @@ mod tests {
     #[test]
     fn test_type_var_collector_union() {
         let mut collector = TypeVarCollector::new();
-        let union = Type::Union(vec![Type::Custom("A".to_string()), Type::Custom("B".to_string())]);
+        let union = Type::Union(vec![
+            Type::Custom("A".to_string()),
+            Type::Custom("B".to_string()),
+        ]);
         collector.collect_from_type(&union);
         assert!(collector.type_vars.contains("A"));
         assert!(collector.type_vars.contains("B"));

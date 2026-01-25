@@ -659,7 +659,10 @@ fn test_depyler_0836_pep604_union_in_forward_ref() {
             assert_eq!(base, "Container");
             assert!(matches!(&params[0], Type::Optional(_)));
         }
-        other => panic!("DEPYLER-0836 regression: Expected Generic with Optional, got {:?}", other),
+        other => panic!(
+            "DEPYLER-0836 regression: Expected Generic with Optional, got {:?}",
+            other
+        ),
     }
 }
 
@@ -672,6 +675,9 @@ fn test_depyler_0836_pep604_union_toplevel() {
         Type::Optional(inner) => {
             assert!(matches!(*inner, Type::String));
         }
-        other => panic!("DEPYLER-0836 regression: Expected Optional, got {:?}", other),
+        other => panic!(
+            "DEPYLER-0836 regression: Expected Optional, got {:?}",
+            other
+        ),
     }
 }

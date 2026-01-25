@@ -570,10 +570,18 @@ mod tests {
         #[derive(Debug)]
         struct CustomMutator;
         impl Mutator for CustomMutator {
-            fn name(&self) -> &str { "CustomMutator" }
-            fn can_handle(&self, _repro: &ReproCase) -> bool { false }
-            fn apply(&self, _repro: &ReproCase) -> Option<Fix> { None }
-            fn base_confidence(&self) -> f64 { 0.5 }
+            fn name(&self) -> &str {
+                "CustomMutator"
+            }
+            fn can_handle(&self, _repro: &ReproCase) -> bool {
+                false
+            }
+            fn apply(&self, _repro: &ReproCase) -> Option<Fix> {
+                None
+            }
+            fn base_confidence(&self) -> f64 {
+                0.5
+            }
         }
 
         let mut engine = JidokaRepairEngine::new(0.85);
@@ -788,7 +796,10 @@ mod tests {
         let repro = create_test_repro("E0382", "def f(x): y = x");
         let result = engine.attempt_repair(&repro).unwrap();
 
-        if let RepairResult::NeedsHumanReview { reason, confidence, .. } = result {
+        if let RepairResult::NeedsHumanReview {
+            reason, confidence, ..
+        } = result
+        {
             assert!(reason.contains("below threshold"));
             assert!(confidence < 0.95);
         } else {

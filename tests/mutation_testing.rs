@@ -623,7 +623,10 @@ def comprehensive_test(x: int, y: int, flag: bool) -> int:
 
         // Verify actual mutations are equivalent
         for (m1, m2) in mutations1.iter().zip(mutations2.iter()) {
-            assert_eq!(m1.mutated, m2.mutated, "Cached mutations should be identical");
+            assert_eq!(
+                m1.mutated, m2.mutated,
+                "Cached mutations should be identical"
+            );
         }
 
         // Test with different code - should add new cache entry

@@ -1,5 +1,4 @@
 #![allow(clippy::assertions_on_constants)]
-
 // DEPYLER-1158: Pytest Artifact Filtering
 //
 // Filters out pytest-specific files from convergence metrics to establish
@@ -10,7 +9,6 @@
 // - Files using pytest fixtures (tmp_path, monkeypatch, capsys, etc.)
 // - Files with conftest.py pattern
 // - Files with test_*.py naming convention that use fixtures
-
 #![allow(non_snake_case)] // Test naming convention
 
 /// Check if Python source contains pytest imports
@@ -109,7 +107,10 @@ def add(a, b):
     return a + b
 "#;
 
-    assert!(!has_pytest_import(source), "Should not detect pytest import");
+    assert!(
+        !has_pytest_import(source),
+        "Should not detect pytest import"
+    );
 }
 
 // ========================================================================

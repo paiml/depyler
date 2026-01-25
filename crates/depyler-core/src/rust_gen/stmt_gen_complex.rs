@@ -3,26 +3,28 @@
 //! DEPYLER-COVERAGE-95: Extracted from stmt_gen.rs to reduce file size
 //! and improve testability. Contains try/except and complex control flow.
 
+#[cfg(feature = "decision-tracing")]
+use crate::decision_trace::DecisionCategory;
 use crate::hir::*;
 use crate::rust_gen::context::{CodeGenContext, RustCodeGen, ToRustExpr};
-use crate::rust_gen::control_stmt_helpers::{codegen_break_stmt, codegen_continue_stmt, codegen_pass_stmt};
+use crate::rust_gen::control_stmt_helpers::{
+    codegen_break_stmt, codegen_continue_stmt, codegen_pass_stmt,
+};
 use crate::rust_gen::expr_analysis::{
     contains_floor_div, extract_divisor_from_floor_div, handler_contains_raise,
     is_nested_function_recursive, to_pascal_case,
 };
+use crate::rust_gen::func_gen::propagate_return_type_to_vars;
 use crate::rust_gen::keywords::safe_ident;
 use crate::rust_gen::rust_type_to_syn;
 use crate::rust_gen::stmt_gen::{
-    codegen_assert_stmt, codegen_assign_stmt, codegen_expr_stmt, codegen_for_stmt,
-    codegen_if_stmt, codegen_raise_stmt, codegen_return_stmt, codegen_while_stmt,
-    codegen_with_stmt, find_variable_type, infer_try_body_return_type,
-    try_generate_json_stdin_match, try_return_type_to_tokens,
+    codegen_assert_stmt, codegen_assign_stmt, codegen_expr_stmt, codegen_for_stmt, codegen_if_stmt,
+    codegen_raise_stmt, codegen_return_stmt, codegen_while_stmt, codegen_with_stmt,
+    find_variable_type, infer_try_body_return_type, try_generate_json_stdin_match,
+    try_return_type_to_tokens,
 };
 use crate::rust_gen::type_tokens::hir_type_to_tokens;
 use crate::rust_gen::var_analysis::extract_toplevel_assigned_symbols;
-use crate::rust_gen::func_gen::propagate_return_type_to_vars;
-#[cfg(feature = "decision-tracing")]
-use crate::decision_trace::DecisionCategory;
 use crate::trace_decision;
 use anyhow::Result;
 use quote::quote;
@@ -40,7 +42,12 @@ pub(crate) fn codegen_try_stmt(
         category = DecisionCategory::ErrorHandling,
         name = "try_except",
         chosen = "match_result",
-        alternatives = ["unwrap_or", "question_mark", "anyhow_context", "custom_error"],
+        alternatives = [
+            "unwrap_or",
+            "question_mark",
+            "anyhow_context",
+            "custom_error"
+        ],
         confidence = 0.80
     );
 
@@ -66,10 +73,12 @@ pub(crate) fn codegen_try_stmt(
     let mut hoisted_decls = Vec::new();
     for var_name in &hoisted_try_vars {
         let var_ident = safe_ident(var_name);
-        
+
         // Find the variable's type from the first assignment in either try block or handlers
         let var_type = find_variable_type(var_name, body).or_else(|| {
-            handlers.iter().find_map(|h| find_variable_type(var_name, &h.body))
+            handlers
+                .iter()
+                .find_map(|h| find_variable_type(var_name, &h.body))
         });
 
         if let Some(ty) = var_type {
@@ -103,7 +112,7 @@ pub(crate) fn codegen_try_stmt(
             // and handles the "uninitialized" state via None.
             let value_type = crate::hir::Type::Custom("serde_json::Value".to_string());
             let opt_type = crate::hir::Type::Optional(Box::new(value_type));
-            
+
             ctx.var_types.insert(var_name.clone(), opt_type);
             hoisted_decls.push(quote! { let mut #var_ident: Option<serde_json::Value> = None; });
 
@@ -526,7 +535,10 @@ pub(crate) fn codegen_try_stmt(
             let ok_arm_body = if try_return_type.is_some() {
                 // Always wrap in Ok() - we're returning from a Result<T, E> closure
                 // If any_handler_raises OR outer function returns Result, we must wrap in Ok()
-                if any_handler_raises || ctx.exception_nesting_depth() > 0 || ctx.current_function_can_fail {
+                if any_handler_raises
+                    || ctx.exception_nesting_depth() > 0
+                    || ctx.current_function_can_fail
+                {
                     quote! { return Ok(_result); }
                 } else {
                     quote! { return _result; }
@@ -596,7 +608,8 @@ pub(crate) fn codegen_try_stmt(
                 // Multiple handlers - find one with binding or fallback to catch-all
                 // TODO: Implement proper type-based dispatch for multiple handlers
                 let exc_var_opt = handlers.iter().find_map(|h| h.name.as_ref());
-                let handler_code = if let Some(idx) = handlers.iter().position(|h| h.name.is_some()) {
+                let handler_code = if let Some(idx) = handlers.iter().position(|h| h.name.is_some())
+                {
                     &handler_tokens[idx]
                 } else {
                     &handler_tokens[0]
@@ -660,7 +673,7 @@ fn extract_parse_from_tokens(
     }
 
     let first_token_stream = &try_stmts[0];
-    
+
     // Attempt to parse as a Stmt. If it fails (e.g. partial tokens), we bail.
     let stmt: syn::Stmt = syn::parse2(first_token_stream.clone()).ok()?;
 
@@ -708,7 +721,7 @@ fn extract_parse_from_tokens(
 /// Returns the inner stringified expression if matched.
 fn extract_parse_expr(expr: &syn::Expr) -> Option<String> {
     // We are looking for: MethodCall(unwrap_or_default) -> MethodCall(parse)
-    
+
     // 1. Check outer method: unwrap_or_default()
     if let syn::Expr::MethodCall(unwrap_call) = expr {
         if unwrap_call.method != "unwrap_or_default" {
@@ -1589,7 +1602,11 @@ pub(crate) fn try_generate_subcommand_match(
 /// DEPYLER-0456 Bug #2: Accept dest_field parameter to support custom field names
 ///
 /// Returns the command name if pattern matches: args.<dest_field> == "string"
-pub(crate) fn is_subcommand_check(expr: &HirExpr, dest_field: &str, ctx: &CodeGenContext) -> Option<String> {
+pub(crate) fn is_subcommand_check(
+    expr: &HirExpr,
+    dest_field: &str,
+    ctx: &CodeGenContext,
+) -> Option<String> {
     match expr {
         // Direct comparison: args.action == "init"
         HirExpr::Binary {
@@ -1927,12 +1944,12 @@ pub(crate) fn captures_outer_scope(
         params.iter().map(|p| p.name.as_str()).collect();
 
     // Collect locally defined variables from assignments
-    fn collect_local_vars<'a>(
-        stmt: &'a HirStmt,
-        locals: &mut std::collections::HashSet<&'a str>,
-    ) {
+    fn collect_local_vars<'a>(stmt: &'a HirStmt, locals: &mut std::collections::HashSet<&'a str>) {
         match stmt {
-            HirStmt::Assign { target: crate::hir::AssignTarget::Symbol(name), .. } => {
+            HirStmt::Assign {
+                target: crate::hir::AssignTarget::Symbol(name),
+                ..
+            } => {
                 locals.insert(name.as_str());
             }
             HirStmt::Assign { .. } => {}
@@ -1944,7 +1961,11 @@ pub(crate) fn captures_outer_scope(
                     collect_local_vars(s, locals);
                 }
             }
-            HirStmt::If { then_body, else_body, .. } => {
+            HirStmt::If {
+                then_body,
+                else_body,
+                ..
+            } => {
                 for s in then_body {
                     collect_local_vars(s, locals);
                 }
@@ -1967,7 +1988,12 @@ pub(crate) fn captures_outer_scope(
                     collect_local_vars(s, locals);
                 }
             }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
                 for s in body {
                     collect_local_vars(s, locals);
                 }
@@ -2025,9 +2051,12 @@ pub(crate) fn captures_outer_scope(
             HirExpr::Unary { operand, .. } => {
                 check_expr_for_capture(operand, local_vars, outer_vars)
             }
-            HirExpr::Call { func, args, kwargs, .. } => {
+            HirExpr::Call {
+                func, args, kwargs, ..
+            } => {
                 // Check if calling a function defined in outer scope
-                let captures_func = !local_vars.contains(func.as_str()) && outer_vars.contains(func);
+                let captures_func =
+                    !local_vars.contains(func.as_str()) && outer_vars.contains(func);
                 captures_func
                     || args
                         .iter()
@@ -2036,7 +2065,11 @@ pub(crate) fn captures_outer_scope(
                         .iter()
                         .any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
             }
-            HirExpr::DynamicCall { callee, args, kwargs } => {
+            HirExpr::DynamicCall {
+                callee,
+                args,
+                kwargs,
+            } => {
                 check_expr_for_capture(callee, local_vars, outer_vars)
                     || args
                         .iter()
@@ -2045,7 +2078,12 @@ pub(crate) fn captures_outer_scope(
                         .iter()
                         .any(|(_, v)| check_expr_for_capture(v, local_vars, outer_vars))
             }
-            HirExpr::MethodCall { object, args, kwargs, .. } => {
+            HirExpr::MethodCall {
+                object,
+                args,
+                kwargs,
+                ..
+            } => {
                 check_expr_for_capture(object, local_vars, outer_vars)
                     || args
                         .iter()
@@ -2076,9 +2114,18 @@ pub(crate) fn captures_outer_scope(
                 check_expr_for_capture(k, local_vars, outer_vars)
                     || check_expr_for_capture(v, local_vars, outer_vars)
             }),
-            HirExpr::ListComp { element, generators }
-            | HirExpr::SetComp { element, generators }
-            | HirExpr::GeneratorExp { element, generators } => {
+            HirExpr::ListComp {
+                element,
+                generators,
+            }
+            | HirExpr::SetComp {
+                element,
+                generators,
+            }
+            | HirExpr::GeneratorExp {
+                element,
+                generators,
+            } => {
                 check_expr_for_capture(element, local_vars, outer_vars)
                     || generators.iter().any(|g| {
                         check_expr_for_capture(&g.iter, local_vars, outer_vars)
@@ -2087,7 +2134,11 @@ pub(crate) fn captures_outer_scope(
                                 .any(|c| check_expr_for_capture(c, local_vars, outer_vars))
                     })
             }
-            HirExpr::DictComp { key, value, generators } => {
+            HirExpr::DictComp {
+                key,
+                value,
+                generators,
+            } => {
                 check_expr_for_capture(key, local_vars, outer_vars)
                     || check_expr_for_capture(value, local_vars, outer_vars)
                     || generators.iter().any(|g| {
@@ -2097,11 +2148,14 @@ pub(crate) fn captures_outer_scope(
                                 .any(|c| check_expr_for_capture(c, local_vars, outer_vars))
                     })
             }
-            HirExpr::Lambda { body, .. } => {
-                check_expr_for_capture(body, local_vars, outer_vars)
-            }
+            HirExpr::Lambda { body, .. } => check_expr_for_capture(body, local_vars, outer_vars),
             HirExpr::Await { value } => check_expr_for_capture(value, local_vars, outer_vars),
-            HirExpr::Slice { base, start, stop, step } => {
+            HirExpr::Slice {
+                base,
+                start,
+                stop,
+                step,
+            } => {
                 check_expr_for_capture(base, local_vars, outer_vars)
                     || start
                         .as_ref()
@@ -2124,7 +2178,12 @@ pub(crate) fn captures_outer_scope(
             HirExpr::Yield { value } => value
                 .as_ref()
                 .is_some_and(|e| check_expr_for_capture(e, local_vars, outer_vars)),
-            HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
+            HirExpr::SortByKey {
+                iterable,
+                key_body,
+                reverse_expr,
+                ..
+            } => {
                 check_expr_for_capture(iterable, local_vars, outer_vars)
                     || check_expr_for_capture(key_body, local_vars, outer_vars)
                     || reverse_expr
@@ -2147,10 +2206,12 @@ pub(crate) fn captures_outer_scope(
             HirStmt::Expr(expr) | HirStmt::Return(Some(expr)) => {
                 check_expr_for_capture(expr, local_vars, outer_vars)
             }
-            HirStmt::Assign { value, .. } => {
-                check_expr_for_capture(value, local_vars, outer_vars)
-            }
-            HirStmt::If { condition, then_body, else_body } => {
+            HirStmt::Assign { value, .. } => check_expr_for_capture(value, local_vars, outer_vars),
+            HirStmt::If {
+                condition,
+                then_body,
+                else_body,
+            } => {
                 check_expr_for_capture(condition, local_vars, outer_vars)
                     || then_body
                         .iter()
@@ -2178,7 +2239,12 @@ pub(crate) fn captures_outer_scope(
                         .iter()
                         .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
             }
-            HirStmt::Try { body, handlers, orelse, finalbody } => {
+            HirStmt::Try {
+                body,
+                handlers,
+                orelse,
+                finalbody,
+            } => {
                 body.iter()
                     .any(|s| check_stmt_for_capture(s, local_vars, outer_vars))
                     || handlers.iter().any(|h| {
@@ -2203,16 +2269,17 @@ pub(crate) fn captures_outer_scope(
                 .any(|s| check_stmt_for_capture(s, local_vars, outer_vars)),
             HirStmt::Assert { test, msg } => {
                 check_expr_for_capture(test, local_vars, outer_vars)
-                    || msg.as_ref().is_some_and(|m| {
-                        check_expr_for_capture(m, local_vars, outer_vars)
-                    })
+                    || msg
+                        .as_ref()
+                        .is_some_and(|m| check_expr_for_capture(m, local_vars, outer_vars))
             }
             HirStmt::Raise { exception, cause } => {
-                exception.as_ref().is_some_and(|e| {
-                    check_expr_for_capture(e, local_vars, outer_vars)
-                }) || cause
+                exception
                     .as_ref()
-                    .is_some_and(|c| check_expr_for_capture(c, local_vars, outer_vars))
+                    .is_some_and(|e| check_expr_for_capture(e, local_vars, outer_vars))
+                    || cause
+                        .as_ref()
+                        .is_some_and(|c| check_expr_for_capture(c, local_vars, outer_vars))
             }
             _ => false,
         }
@@ -2221,4 +2288,3 @@ pub(crate) fn captures_outer_scope(
     body.iter()
         .any(|stmt| check_stmt_for_capture(stmt, &local_vars, outer_vars))
 }
-

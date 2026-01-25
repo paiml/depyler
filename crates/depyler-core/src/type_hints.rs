@@ -1340,7 +1340,10 @@ impl TypeHintProvider {
                 .unwrap_or(Type::Unknown);
 
             if let Some(val_type) = real_value_type {
-                return Type::Dict(Box::new(key_type), Box::new(Type::Optional(Box::new(val_type))));
+                return Type::Dict(
+                    Box::new(key_type),
+                    Box::new(Type::Optional(Box::new(val_type))),
+                );
             } else if let Type::Dict(k, v) = base_type {
                 // Fallback: wrap value type in Option if not already
                 let opt_v = if matches!(v.as_ref(), Type::Optional(_)) {
@@ -1847,7 +1850,12 @@ mod tests {
 
         let hints = provider.analyze_function(&func).unwrap();
         // Known types should not generate hints
-        assert!(hints.is_empty() || hints.iter().all(|h| !matches!(h.target, HintTarget::Parameter(_))));
+        assert!(
+            hints.is_empty()
+                || hints
+                    .iter()
+                    .all(|h| !matches!(h.target, HintTarget::Parameter(_)))
+        );
     }
 
     // ============================================================
@@ -1939,7 +1947,10 @@ mod tests {
     #[test]
     fn test_type_to_annotation_tuple() {
         let tuple_type = Type::Tuple(vec![Type::Int, Type::String, Type::Bool]);
-        assert_eq!(type_to_annotation_inner(&tuple_type), "tuple[int, str, bool]");
+        assert_eq!(
+            type_to_annotation_inner(&tuple_type),
+            "tuple[int, str, bool]"
+        );
     }
 
     #[test]
@@ -2264,7 +2275,9 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("to_lower").unwrap();
-        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -2288,7 +2301,9 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("clean").unwrap();
-        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -2312,7 +2327,9 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("tokenize").unwrap();
-        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -2337,7 +2354,9 @@ mod tests {
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("add_item").unwrap();
         // Should infer list type from append
-        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::List(_))));
+        assert!(hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::List(_))));
     }
 
     // ============================================================
@@ -2364,7 +2383,9 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("get_length").unwrap();
-        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::List(_))));
+        assert!(hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::List(_))));
     }
 
     #[test]
@@ -2387,7 +2408,9 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("read_file").unwrap();
-        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     #[test]
@@ -2411,7 +2434,9 @@ mod tests {
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("parse_int").unwrap();
         // int(value) means value is a string
-        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::String)));
+        assert!(hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::String)));
     }
 
     // ============================================================
@@ -2437,7 +2462,9 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("get_first").unwrap();
-        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::List(_))));
+        assert!(hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::List(_))));
     }
 
     #[test]
@@ -2459,7 +2486,9 @@ mod tests {
 
         provider.analyze_function(&func).unwrap();
         let hints = provider.parameter_hints.get("get_value").unwrap();
-        assert!(hints.iter().any(|h| matches!(h.suggested_type, Type::Dict(_, _))));
+        assert!(hints
+            .iter()
+            .any(|h| matches!(h.suggested_type, Type::Dict(_, _))));
     }
 
     // ============================================================
@@ -2531,7 +2560,8 @@ mod tests {
     #[test]
     fn test_infer_from_default_bool() {
         let provider = TypeHintProvider::new();
-        let hint = provider.infer_from_default("flag", &Some(HirExpr::Literal(Literal::Bool(false))));
+        let hint =
+            provider.infer_from_default("flag", &Some(HirExpr::Literal(Literal::Bool(false))));
         assert!(hint.is_some());
         let h = hint.unwrap();
         assert!(matches!(h.suggested_type, Type::Bool));
@@ -2540,7 +2570,10 @@ mod tests {
     #[test]
     fn test_infer_from_default_string() {
         let provider = TypeHintProvider::new();
-        let hint = provider.infer_from_default("name", &Some(HirExpr::Literal(Literal::String("default".to_string()))));
+        let hint = provider.infer_from_default(
+            "name",
+            &Some(HirExpr::Literal(Literal::String("default".to_string()))),
+        );
         assert!(hint.is_some());
         let h = hint.unwrap();
         assert!(matches!(h.suggested_type, Type::String));
@@ -2574,9 +2607,9 @@ mod tests {
     #[test]
     fn test_infer_expr_type_list() {
         let provider = TypeHintProvider::new();
-        let ty = provider.infer_expr_type(&HirExpr::List(vec![
-            HirExpr::Literal(Literal::String("a".to_string())),
-        ]));
+        let ty = provider.infer_expr_type(&HirExpr::List(vec![HirExpr::Literal(Literal::String(
+            "a".to_string(),
+        ))]));
         assert!(matches!(ty, Type::List(_)));
     }
 
@@ -2698,9 +2731,15 @@ mod tests {
     fn test_get_confidence_color() {
         let provider = TypeHintProvider::new();
         assert_eq!(provider.get_confidence_color(Confidence::Certain), "green");
-        assert_eq!(provider.get_confidence_color(Confidence::High), "bright green");
+        assert_eq!(
+            provider.get_confidence_color(Confidence::High),
+            "bright green"
+        );
         assert_eq!(provider.get_confidence_color(Confidence::Medium), "yellow");
-        assert_eq!(provider.get_confidence_color(Confidence::Low), "bright yellow");
+        assert_eq!(
+            provider.get_confidence_color(Confidence::Low),
+            "bright yellow"
+        );
     }
 
     // ============================================================
@@ -2779,7 +2818,13 @@ mod tests {
             expected: Type::List(Box::new(Type::Int)),
         };
         let cloned = constraint.clone();
-        if let TypeConstraint::ArgumentConstraint { var, func, _param_idx, expected } = cloned {
+        if let TypeConstraint::ArgumentConstraint {
+            var,
+            func,
+            _param_idx,
+            expected,
+        } = cloned
+        {
             assert_eq!(var, "data");
             assert_eq!(func, "len");
             assert_eq!(_param_idx, 1);

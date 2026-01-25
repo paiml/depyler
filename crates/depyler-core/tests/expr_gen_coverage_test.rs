@@ -1095,7 +1095,10 @@ def check_output(result):
 "#;
 
     let rust_code = pipeline.transpile(python_code).unwrap();
-    println!("Generated string attribute containment code:\n{}", rust_code);
+    println!(
+        "Generated string attribute containment code:\n{}",
+        rust_code
+    );
 
     // Should use .contains() for string containment, NOT .get().is_some()
     assert!(

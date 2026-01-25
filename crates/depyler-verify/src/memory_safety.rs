@@ -592,7 +592,9 @@ mod tests {
 
         let condition = HirExpr::Literal(Literal::Bool(true));
         let then_body = vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))];
-        let else_body = Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]);
+        let else_body = Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+            0,
+        ))))]);
 
         let violation = analyzer.analyze_if(&condition, &then_body, &else_body, &annotations);
         assert!(violation.is_none());

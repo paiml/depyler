@@ -186,9 +186,7 @@ impl CacheWarmer {
 
         match status {
             CompilationStatus::Success => WarmResult::Compiled,
-            CompilationStatus::Failure => {
-                WarmResult::CompileFailed(error_msg.unwrap_or_default())
-            }
+            CompilationStatus::Failure => WarmResult::CompileFailed(error_msg.unwrap_or_default()),
         }
     }
 
@@ -420,7 +418,9 @@ mod tests {
 
         assert_eq!(files.len(), 3);
         assert!(files.iter().all(|f| f.extension().unwrap() == "py"));
-        assert!(!files.iter().any(|f| f.to_string_lossy().contains("__pycache__")));
+        assert!(!files
+            .iter()
+            .any(|f| f.to_string_lossy().contains("__pycache__")));
     }
 
     #[test]

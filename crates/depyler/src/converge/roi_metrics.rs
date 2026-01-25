@@ -217,7 +217,10 @@ impl OracleRoiMetrics {
         }
 
         // Calculate confidence buckets
-        let high_conf = classifications.iter().filter(|c| c.confidence > 0.8).count();
+        let high_conf = classifications
+            .iter()
+            .filter(|c| c.confidence > 0.8)
+            .count();
         let medium_conf = classifications
             .iter()
             .filter(|c| c.confidence > 0.5 && c.confidence <= 0.8)

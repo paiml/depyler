@@ -7,7 +7,9 @@ use crate::DepylerPipeline;
 #[allow(dead_code)]
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).expect("transpilation should succeed")
+    pipeline
+        .transpile(code)
+        .expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -41,7 +43,9 @@ fn test_func_param_with_default() {
 
 #[test]
 fn test_func_params_with_defaults() {
-    assert!(transpile_ok("def foo(x: int, y: int = 10, z: str = 'default'):\n    return x + y"));
+    assert!(transpile_ok(
+        "def foo(x: int, y: int = 10, z: str = 'default'):\n    return x + y"
+    ));
 }
 
 #[test]
@@ -56,17 +60,23 @@ fn test_func_kwargs_only() {
 
 #[test]
 fn test_func_args_and_kwargs() {
-    assert!(transpile_ok("def foo(*args, **kwargs):\n    return len(args) + len(kwargs)"));
+    assert!(transpile_ok(
+        "def foo(*args, **kwargs):\n    return len(args) + len(kwargs)"
+    ));
 }
 
 #[test]
 fn test_func_mixed_params_args_kwargs() {
-    assert!(transpile_ok("def foo(x: int, *args, **kwargs):\n    return x"));
+    assert!(transpile_ok(
+        "def foo(x: int, *args, **kwargs):\n    return x"
+    ));
 }
 
 #[test]
 fn test_func_keyword_only() {
-    assert!(transpile_ok("def foo(*, x: int, y: int = 10):\n    return x + y"));
+    assert!(transpile_ok(
+        "def foo(*, x: int, y: int = 10):\n    return x + y"
+    ));
 }
 
 #[test]
@@ -105,12 +115,16 @@ fn test_func_return_none() {
 
 #[test]
 fn test_func_return_list() {
-    assert!(transpile_ok("def foo() -> list[int]:\n    return [1, 2, 3]"));
+    assert!(transpile_ok(
+        "def foo() -> list[int]:\n    return [1, 2, 3]"
+    ));
 }
 
 #[test]
 fn test_func_return_dict() {
-    assert!(transpile_ok("def foo() -> dict[str, int]:\n    return {'a': 1}"));
+    assert!(transpile_ok(
+        "def foo() -> dict[str, int]:\n    return {'a': 1}"
+    ));
 }
 
 #[test]
@@ -120,17 +134,23 @@ fn test_func_return_set() {
 
 #[test]
 fn test_func_return_tuple() {
-    assert!(transpile_ok("def foo() -> tuple[int, str]:\n    return (1, 'hello')"));
+    assert!(transpile_ok(
+        "def foo() -> tuple[int, str]:\n    return (1, 'hello')"
+    ));
 }
 
 #[test]
 fn test_func_return_optional() {
-    assert!(transpile_ok("from typing import Optional\n\ndef foo() -> Optional[int]:\n    return None"));
+    assert!(transpile_ok(
+        "from typing import Optional\n\ndef foo() -> Optional[int]:\n    return None"
+    ));
 }
 
 #[test]
 fn test_func_return_union() {
-    assert!(transpile_ok("from typing import Union\n\ndef foo() -> Union[int, str]:\n    return 42"));
+    assert!(transpile_ok(
+        "from typing import Union\n\ndef foo() -> Union[int, str]:\n    return 42"
+    ));
 }
 
 // ============================================================================
@@ -139,12 +159,16 @@ fn test_func_return_union() {
 
 #[test]
 fn test_func_local_vars() {
-    assert!(transpile_ok("def foo():\n    x = 1\n    y = 2\n    return x + y"));
+    assert!(transpile_ok(
+        "def foo():\n    x = 1\n    y = 2\n    return x + y"
+    ));
 }
 
 #[test]
 fn test_func_conditional_return() {
-    assert!(transpile_ok("def foo(x: int) -> int:\n    if x > 0:\n        return x\n    return -x"));
+    assert!(transpile_ok(
+        "def foo(x: int) -> int:\n    if x > 0:\n        return x\n    return -x"
+    ));
 }
 
 #[test]
@@ -164,7 +188,9 @@ fn test_func_try_except() {
 
 #[test]
 fn test_func_with_statement() {
-    assert!(transpile_ok("def foo(path: str) -> str:\n    with open(path) as f:\n        return f.read()"));
+    assert!(transpile_ok(
+        "def foo(path: str) -> str:\n    with open(path) as f:\n        return f.read()"
+    ));
 }
 
 #[test]
@@ -178,17 +204,23 @@ fn test_func_nested_scopes() {
 
 #[test]
 fn test_nested_func_simple() {
-    assert!(transpile_ok("def outer():\n    def inner():\n        return 1\n    return inner()"));
+    assert!(transpile_ok(
+        "def outer():\n    def inner():\n        return 1\n    return inner()"
+    ));
 }
 
 #[test]
 fn test_nested_func_with_params() {
-    assert!(transpile_ok("def outer(x: int):\n    def inner(y: int):\n        return x + y\n    return inner(10)"));
+    assert!(transpile_ok(
+        "def outer(x: int):\n    def inner(y: int):\n        return x + y\n    return inner(10)"
+    ));
 }
 
 #[test]
 fn test_nested_func_closure() {
-    assert!(transpile_ok("def make_adder(x: int):\n    def adder(y: int):\n        return x + y\n    return adder"));
+    assert!(transpile_ok(
+        "def make_adder(x: int):\n    def adder(y: int):\n        return x + y\n    return adder"
+    ));
 }
 
 #[test]
@@ -221,12 +253,16 @@ fn test_recursive_sum() {
 
 #[test]
 fn test_staticmethod() {
-    assert!(transpile_ok("class Foo:\n    @staticmethod\n    def bar() -> int:\n        return 42"));
+    assert!(transpile_ok(
+        "class Foo:\n    @staticmethod\n    def bar() -> int:\n        return 42"
+    ));
 }
 
 #[test]
 fn test_classmethod() {
-    assert!(transpile_ok("class Foo:\n    @classmethod\n    def bar(cls) -> str:\n        return 'Foo'"));
+    assert!(transpile_ok(
+        "class Foo:\n    @classmethod\n    def bar(cls) -> str:\n        return 'Foo'"
+    ));
 }
 
 #[test]
@@ -245,17 +281,23 @@ fn test_property_setter() {
 
 #[test]
 fn test_method_self() {
-    assert!(transpile_ok("class Foo:\n    x: int\n    def get_x(self) -> int:\n        return self.x"));
+    assert!(transpile_ok(
+        "class Foo:\n    x: int\n    def get_x(self) -> int:\n        return self.x"
+    ));
 }
 
 #[test]
 fn test_method_self_mutation() {
-    assert!(transpile_ok("class Foo:\n    x: int\n    def set_x(self, val: int):\n        self.x = val"));
+    assert!(transpile_ok(
+        "class Foo:\n    x: int\n    def set_x(self, val: int):\n        self.x = val"
+    ));
 }
 
 #[test]
 fn test_method_with_params() {
-    assert!(transpile_ok("class Foo:\n    x: int\n    def add(self, val: int) -> int:\n        return self.x + val"));
+    assert!(transpile_ok(
+        "class Foo:\n    x: int\n    def add(self, val: int) -> int:\n        return self.x + val"
+    ));
 }
 
 #[test]
@@ -339,17 +381,23 @@ fn test_mul_method() {
 
 #[test]
 fn test_generator_simple() {
-    assert!(transpile_ok("def gen():\n    yield 1\n    yield 2\n    yield 3"));
+    assert!(transpile_ok(
+        "def gen():\n    yield 1\n    yield 2\n    yield 3"
+    ));
 }
 
 #[test]
 fn test_generator_loop() {
-    assert!(transpile_ok("def gen(n: int):\n    for i in range(n):\n        yield i"));
+    assert!(transpile_ok(
+        "def gen(n: int):\n    for i in range(n):\n        yield i"
+    ));
 }
 
 #[test]
 fn test_generator_with_state() {
-    assert!(transpile_ok("def gen():\n    x = 0\n    while x < 10:\n        yield x\n        x += 1"));
+    assert!(transpile_ok(
+        "def gen():\n    x = 0\n    while x < 10:\n        yield x\n        x += 1"
+    ));
 }
 
 #[test]
@@ -364,7 +412,9 @@ fn test_generator_conditional() {
 
 #[test]
 fn test_generator_typed() {
-    assert!(transpile_ok("from typing import Iterator\n\ndef gen() -> Iterator[int]:\n    yield 1\n    yield 2"));
+    assert!(transpile_ok(
+        "from typing import Iterator\n\ndef gen() -> Iterator[int]:\n    yield 1\n    yield 2"
+    ));
 }
 
 // ============================================================================
@@ -392,17 +442,23 @@ fn test_async_with_await() {
 
 #[test]
 fn test_call_no_args() {
-    assert!(transpile_ok("def bar() -> int:\n    return 1\n\ndef foo() -> int:\n    return bar()"));
+    assert!(transpile_ok(
+        "def bar() -> int:\n    return 1\n\ndef foo() -> int:\n    return bar()"
+    ));
 }
 
 #[test]
 fn test_call_positional() {
-    assert!(transpile_ok("def bar(x: int) -> int:\n    return x\n\ndef foo() -> int:\n    return bar(42)"));
+    assert!(transpile_ok(
+        "def bar(x: int) -> int:\n    return x\n\ndef foo() -> int:\n    return bar(42)"
+    ));
 }
 
 #[test]
 fn test_call_keyword() {
-    assert!(transpile_ok("def bar(x: int) -> int:\n    return x\n\ndef foo() -> int:\n    return bar(x=42)"));
+    assert!(transpile_ok(
+        "def bar(x: int) -> int:\n    return x\n\ndef foo() -> int:\n    return bar(x=42)"
+    ));
 }
 
 #[test]
@@ -426,7 +482,9 @@ fn test_call_double_star_kwargs() {
 
 #[test]
 fn test_dataclass_simple() {
-    assert!(transpile_ok("from dataclasses import dataclass\n\n@dataclass\nclass Point:\n    x: int\n    y: int"));
+    assert!(transpile_ok(
+        "from dataclasses import dataclass\n\n@dataclass\nclass Point:\n    x: int\n    y: int"
+    ));
 }
 
 #[test]
@@ -478,7 +536,9 @@ fn test_callable_return() {
 
 #[test]
 fn test_raise_in_function() {
-    assert!(transpile_ok("def foo(x: int):\n    if x < 0:\n        raise ValueError('negative')"));
+    assert!(transpile_ok(
+        "def foo(x: int):\n    if x < 0:\n        raise ValueError('negative')"
+    ));
 }
 
 #[test]
@@ -497,7 +557,9 @@ fn test_try_finally_in_function() {
 
 #[test]
 fn test_func_with_docstring() {
-    assert!(transpile_ok("def foo(x: int) -> int:\n    '''Returns double of x.'''\n    return x * 2"));
+    assert!(transpile_ok(
+        "def foo(x: int) -> int:\n    '''Returns double of x.'''\n    return x * 2"
+    ));
 }
 
 #[test]
@@ -507,7 +569,9 @@ fn test_func_with_multiline_docstring() {
 
 #[test]
 fn test_class_with_docstring() {
-    assert!(transpile_ok("class Foo:\n    '''A simple class.'''\n    x: int"));
+    assert!(transpile_ok(
+        "class Foo:\n    '''A simple class.'''\n    x: int"
+    ));
 }
 
 // ============================================================================
@@ -516,17 +580,23 @@ fn test_class_with_docstring() {
 
 #[test]
 fn test_lambda_local() {
-    assert!(transpile_ok("def foo():\n    f = lambda x: x * 2\n    return f(10)"));
+    assert!(transpile_ok(
+        "def foo():\n    f = lambda x: x * 2\n    return f(10)"
+    ));
 }
 
 #[test]
 fn test_lambda_in_map() {
-    assert!(transpile_ok("def foo(items: list[int]) -> list[int]:\n    return list(map(lambda x: x * 2, items))"));
+    assert!(transpile_ok(
+        "def foo(items: list[int]) -> list[int]:\n    return list(map(lambda x: x * 2, items))"
+    ));
 }
 
 #[test]
 fn test_lambda_in_filter() {
-    assert!(transpile_ok("def foo(items: list[int]) -> list[int]:\n    return list(filter(lambda x: x > 0, items))"));
+    assert!(transpile_ok(
+        "def foo(items: list[int]) -> list[int]:\n    return list(filter(lambda x: x > 0, items))"
+    ));
 }
 
 #[test]
@@ -540,22 +610,30 @@ fn test_lambda_in_sorted() {
 
 #[test]
 fn test_list_comp_in_return() {
-    assert!(transpile_ok("def foo(items: list[int]) -> list[int]:\n    return [x * 2 for x in items]"));
+    assert!(transpile_ok(
+        "def foo(items: list[int]) -> list[int]:\n    return [x * 2 for x in items]"
+    ));
 }
 
 #[test]
 fn test_dict_comp_in_return() {
-    assert!(transpile_ok("def foo(items: list[str]) -> dict[str, int]:\n    return {x: len(x) for x in items}"));
+    assert!(transpile_ok(
+        "def foo(items: list[str]) -> dict[str, int]:\n    return {x: len(x) for x in items}"
+    ));
 }
 
 #[test]
 fn test_set_comp_in_return() {
-    assert!(transpile_ok("def foo(items: list[int]) -> set[int]:\n    return {x % 10 for x in items}"));
+    assert!(transpile_ok(
+        "def foo(items: list[int]) -> set[int]:\n    return {x % 10 for x in items}"
+    ));
 }
 
 #[test]
 fn test_genexp_in_return() {
-    assert!(transpile_ok("def foo(items: list[int]) -> int:\n    return sum(x * x for x in items)"));
+    assert!(transpile_ok(
+        "def foo(items: list[int]) -> int:\n    return sum(x * x for x in items)"
+    ));
 }
 
 // ============================================================================
@@ -579,7 +657,9 @@ fn test_merge_sort() {
 
 #[test]
 fn test_gcd() {
-    assert!(transpile_ok("def gcd(a: int, b: int) -> int:\n    while b:\n        a, b = b, a % b\n    return a"));
+    assert!(transpile_ok(
+        "def gcd(a: int, b: int) -> int:\n    while b:\n        a, b = b, a % b\n    return a"
+    ));
 }
 
 #[test]

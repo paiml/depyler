@@ -96,7 +96,8 @@ impl PartialOrd for PrioritizedPattern {
 impl Ord for PrioritizedPattern {
     fn cmp(&self, other: &Self) -> Ordering {
         // Higher priority first (max heap)
-        self.priority.partial_cmp(&other.priority)
+        self.priority
+            .partial_cmp(&other.priority)
             .unwrap_or(Ordering::Equal)
     }
 }
@@ -137,7 +138,8 @@ impl HuntPlanner {
             let pattern = self.cluster_to_pattern(cluster);
             let priority = self.calculate_priority(&pattern);
 
-            self.priority_queue.push(PrioritizedPattern { pattern, priority });
+            self.priority_queue
+                .push(PrioritizedPattern { pattern, priority });
         }
     }
 
@@ -185,9 +187,7 @@ impl HuntPlanner {
             category,
             affected_count: cluster.frequency,
             fix_complexity: self.estimate_complexity(&cluster.error_code),
-            trigger_example: cluster.examples.first()
-                .cloned()
-                .unwrap_or_default(),
+            trigger_example: cluster.examples.first().cloned().unwrap_or_default(),
         }
     }
 
@@ -293,7 +293,7 @@ mod tests {
     fn test_select_next_target_priority_order() {
         let mut planner = HuntPlanner::new();
         planner.add_clusters(vec![
-            create_test_cluster("low", "E0308", 5),   // Lower freq, higher complexity
+            create_test_cluster("low", "E0308", 5), // Lower freq, higher complexity
             create_test_cluster("high", "E0432", 50), // Higher freq, lower complexity
         ]);
         planner.build_priority_queue();
@@ -317,11 +317,26 @@ mod tests {
     fn test_categorize_error() {
         let planner = HuntPlanner::new();
 
-        assert_eq!(planner.categorize_error("E0308"), PatternCategory::TypeInference);
-        assert_eq!(planner.categorize_error("E0432"), PatternCategory::ExternalDeps);
-        assert_eq!(planner.categorize_error("E0502"), PatternCategory::Borrowing);
-        assert_eq!(planner.categorize_error("E0004"), PatternCategory::ControlFlow);
-        assert_eq!(planner.categorize_error("E9999"), PatternCategory::Miscellaneous);
+        assert_eq!(
+            planner.categorize_error("E0308"),
+            PatternCategory::TypeInference
+        );
+        assert_eq!(
+            planner.categorize_error("E0432"),
+            PatternCategory::ExternalDeps
+        );
+        assert_eq!(
+            planner.categorize_error("E0502"),
+            PatternCategory::Borrowing
+        );
+        assert_eq!(
+            planner.categorize_error("E0004"),
+            PatternCategory::ControlFlow
+        );
+        assert_eq!(
+            planner.categorize_error("E9999"),
+            PatternCategory::Miscellaneous
+        );
     }
 
     #[test]
@@ -336,8 +351,14 @@ mod tests {
 
     #[test]
     fn test_pattern_category_display() {
-        assert_eq!(format!("{}", PatternCategory::TypeInference), "Type Inference");
-        assert_eq!(format!("{}", PatternCategory::ExternalDeps), "External Dependencies");
+        assert_eq!(
+            format!("{}", PatternCategory::TypeInference),
+            "Type Inference"
+        );
+        assert_eq!(
+            format!("{}", PatternCategory::ExternalDeps),
+            "External Dependencies"
+        );
     }
 
     // DEPYLER-COVERAGE-95: Additional tests for untested components
@@ -415,7 +436,10 @@ mod tests {
     fn test_pattern_category_display_all() {
         assert_eq!(format!("{}", PatternCategory::Borrowing), "Borrowing");
         assert_eq!(format!("{}", PatternCategory::ControlFlow), "Control Flow");
-        assert_eq!(format!("{}", PatternCategory::Miscellaneous), "Miscellaneous");
+        assert_eq!(
+            format!("{}", PatternCategory::Miscellaneous),
+            "Miscellaneous"
+        );
     }
 
     #[test]
@@ -423,7 +447,10 @@ mod tests {
         let planner = HuntPlanner::new();
         let cluster = create_test_cluster("1", "E0308", 10);
         let pattern = planner.cluster_to_pattern(&cluster);
-        let prioritized = PrioritizedPattern { pattern, priority: 5.0 };
+        let prioritized = PrioritizedPattern {
+            pattern,
+            priority: 5.0,
+        };
 
         let debug_str = format!("{:?}", prioritized);
         assert!(debug_str.contains("PrioritizedPattern"));
@@ -435,7 +462,10 @@ mod tests {
         let planner = HuntPlanner::new();
         let cluster = create_test_cluster("1", "E0432", 25);
         let pattern = planner.cluster_to_pattern(&cluster);
-        let prioritized = PrioritizedPattern { pattern, priority: 12.5 };
+        let prioritized = PrioritizedPattern {
+            pattern,
+            priority: 12.5,
+        };
         let cloned = prioritized.clone();
 
         assert_eq!(cloned.priority, 12.5);
@@ -450,8 +480,14 @@ mod tests {
         let pattern1 = planner.cluster_to_pattern(&cluster1);
         let pattern2 = planner.cluster_to_pattern(&cluster2);
 
-        let p1 = PrioritizedPattern { pattern: pattern1, priority: 5.0 };
-        let p2 = PrioritizedPattern { pattern: pattern2, priority: 5.0 };
+        let p1 = PrioritizedPattern {
+            pattern: pattern1,
+            priority: 5.0,
+        };
+        let p2 = PrioritizedPattern {
+            pattern: pattern2,
+            priority: 5.0,
+        };
 
         assert_eq!(p1, p2); // Same priority = equal
     }
@@ -462,8 +498,14 @@ mod tests {
         let cluster = create_test_cluster("1", "E0308", 10);
         let pattern = planner.cluster_to_pattern(&cluster);
 
-        let low = PrioritizedPattern { pattern: pattern.clone(), priority: 1.0 };
-        let high = PrioritizedPattern { pattern, priority: 10.0 };
+        let low = PrioritizedPattern {
+            pattern: pattern.clone(),
+            priority: 1.0,
+        };
+        let high = PrioritizedPattern {
+            pattern,
+            priority: 10.0,
+        };
 
         assert!(high > low);
         assert!(low < high);
@@ -535,26 +577,62 @@ mod tests {
         let planner = HuntPlanner::new();
 
         // Type inference
-        assert_eq!(planner.categorize_error("E0282"), PatternCategory::TypeInference);
+        assert_eq!(
+            planner.categorize_error("E0282"),
+            PatternCategory::TypeInference
+        );
 
         // External deps
-        assert_eq!(planner.categorize_error("E0433"), PatternCategory::ExternalDeps);
+        assert_eq!(
+            planner.categorize_error("E0433"),
+            PatternCategory::ExternalDeps
+        );
 
         // Borrowing - various codes
-        assert_eq!(planner.categorize_error("E0503"), PatternCategory::Borrowing);
-        assert_eq!(planner.categorize_error("E0505"), PatternCategory::Borrowing);
-        assert_eq!(planner.categorize_error("E0506"), PatternCategory::Borrowing);
-        assert_eq!(planner.categorize_error("E0507"), PatternCategory::Borrowing);
-        assert_eq!(planner.categorize_error("E0382"), PatternCategory::Borrowing);
-        assert_eq!(planner.categorize_error("E0383"), PatternCategory::Borrowing);
+        assert_eq!(
+            planner.categorize_error("E0503"),
+            PatternCategory::Borrowing
+        );
+        assert_eq!(
+            planner.categorize_error("E0505"),
+            PatternCategory::Borrowing
+        );
+        assert_eq!(
+            planner.categorize_error("E0506"),
+            PatternCategory::Borrowing
+        );
+        assert_eq!(
+            planner.categorize_error("E0507"),
+            PatternCategory::Borrowing
+        );
+        assert_eq!(
+            planner.categorize_error("E0382"),
+            PatternCategory::Borrowing
+        );
+        assert_eq!(
+            planner.categorize_error("E0383"),
+            PatternCategory::Borrowing
+        );
 
         // Lifetime errors
-        assert_eq!(planner.categorize_error("E0106"), PatternCategory::Borrowing);
-        assert_eq!(planner.categorize_error("E0621"), PatternCategory::Borrowing);
-        assert_eq!(planner.categorize_error("E0623"), PatternCategory::Borrowing);
+        assert_eq!(
+            planner.categorize_error("E0106"),
+            PatternCategory::Borrowing
+        );
+        assert_eq!(
+            planner.categorize_error("E0621"),
+            PatternCategory::Borrowing
+        );
+        assert_eq!(
+            planner.categorize_error("E0623"),
+            PatternCategory::Borrowing
+        );
 
         // Control flow
-        assert_eq!(planner.categorize_error("E0005"), PatternCategory::ControlFlow);
+        assert_eq!(
+            planner.categorize_error("E0005"),
+            PatternCategory::ControlFlow
+        );
     }
 
     #[test]

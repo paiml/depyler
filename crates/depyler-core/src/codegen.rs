@@ -1343,6 +1343,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let rust_code = hir_to_rust(&module).unwrap();
@@ -1421,6 +1422,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         assert!(needs_std_collections(&module_with_dict));
@@ -1440,6 +1442,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         assert!(!needs_std_collections(&module_without_dict));
@@ -2679,7 +2682,9 @@ mod tests {
         assert_eq!(binop_to_rust_tokens(&BinOp::Div).to_string(), "/");
         assert_eq!(binop_to_rust_tokens(&BinOp::FloorDiv).to_string(), "/");
         assert_eq!(binop_to_rust_tokens(&BinOp::Mod).to_string(), "%");
-        assert!(binop_to_rust_tokens(&BinOp::Pow).to_string().contains("pow"));
+        assert!(binop_to_rust_tokens(&BinOp::Pow)
+            .to_string()
+            .contains("pow"));
         assert_eq!(binop_to_rust_tokens(&BinOp::Eq).to_string(), "==");
         assert_eq!(binop_to_rust_tokens(&BinOp::NotEq).to_string(), "!=");
         assert_eq!(binop_to_rust_tokens(&BinOp::Lt).to_string(), "<");
@@ -2693,8 +2698,12 @@ mod tests {
         assert_eq!(binop_to_rust_tokens(&BinOp::BitXor).to_string(), "^");
         assert_eq!(binop_to_rust_tokens(&BinOp::LShift).to_string(), "<<");
         assert_eq!(binop_to_rust_tokens(&BinOp::RShift).to_string(), ">>");
-        assert!(binop_to_rust_tokens(&BinOp::In).to_string().contains("contains"));
-        assert!(binop_to_rust_tokens(&BinOp::NotIn).to_string().contains("contains"));
+        assert!(binop_to_rust_tokens(&BinOp::In)
+            .to_string()
+            .contains("contains"));
+        assert!(binop_to_rust_tokens(&BinOp::NotIn)
+            .to_string()
+            .contains("contains"));
     }
 
     // Tests for unaryop_to_rust_tokens
@@ -2718,12 +2727,36 @@ mod tests {
 
     #[test]
     fn test_literal_to_rust_tokens_all_types() {
-        assert_eq!(literal_to_rust_tokens(&Literal::Int(42)).unwrap().to_string(), "42i64");
-        assert!(literal_to_rust_tokens(&Literal::Float(3.15)).unwrap().to_string().contains("3.15"));
-        assert!(literal_to_rust_tokens(&Literal::String("test".to_string())).unwrap().to_string().contains("test"));
-        assert_eq!(literal_to_rust_tokens(&Literal::Bool(true)).unwrap().to_string(), "true");
-        assert_eq!(literal_to_rust_tokens(&Literal::Bool(false)).unwrap().to_string(), "false");
-        assert_eq!(literal_to_rust_tokens(&Literal::None).unwrap().to_string(), "None");
+        assert_eq!(
+            literal_to_rust_tokens(&Literal::Int(42))
+                .unwrap()
+                .to_string(),
+            "42i64"
+        );
+        assert!(literal_to_rust_tokens(&Literal::Float(3.15))
+            .unwrap()
+            .to_string()
+            .contains("3.15"));
+        assert!(literal_to_rust_tokens(&Literal::String("test".to_string()))
+            .unwrap()
+            .to_string()
+            .contains("test"));
+        assert_eq!(
+            literal_to_rust_tokens(&Literal::Bool(true))
+                .unwrap()
+                .to_string(),
+            "true"
+        );
+        assert_eq!(
+            literal_to_rust_tokens(&Literal::Bool(false))
+                .unwrap()
+                .to_string(),
+            "false"
+        );
+        assert_eq!(
+            literal_to_rust_tokens(&Literal::None).unwrap().to_string(),
+            "None"
+        );
     }
 
     // Tests for type_to_rust_type edge cases

@@ -30,6 +30,7 @@ fn test_simple_union_type_int_or_none() {
         functions: vec![func],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
         imports: vec![],
         global_vars: vec![],
     };
@@ -70,6 +71,7 @@ fn test_union_return_type() {
         functions: vec![func],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
         imports: vec![],
         global_vars: vec![],
     };
@@ -120,6 +122,7 @@ fn test_optional_default_parameter() {
         functions: vec![func],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
         imports: vec![],
         global_vars: vec![],
     };

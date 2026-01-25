@@ -227,7 +227,10 @@ pub fn compute_output_paths(
     let main_output = compute_output_path(input, output);
 
     let autofix_output = if config.auto_fix && config.async_mode {
-        let stem = main_output.file_stem().unwrap_or_default().to_string_lossy();
+        let stem = main_output
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy();
         let mut p = main_output.clone();
         p.set_file_name(format!("{}.autofix.rs", stem));
         Some(p)
@@ -326,7 +329,10 @@ pub fn format_parse_trace(source_size: usize, parse_time_ms: u64) -> Vec<(String
 }
 
 /// Format codegen trace details
-pub fn format_codegen_trace(output_size: usize, dependencies_count: usize) -> Vec<(String, String)> {
+pub fn format_codegen_trace(
+    output_size: usize,
+    dependencies_count: usize,
+) -> Vec<(String, String)> {
     vec![
         (
             "Generated Rust code".to_string(),
@@ -341,7 +347,10 @@ pub fn format_codegen_trace(output_size: usize, dependencies_count: usize) -> Ve
 }
 
 /// Format oracle trace details
-pub fn format_oracle_trace(oracle_config: &OracleConfig, pattern_path: Option<&Path>) -> Vec<(String, String)> {
+pub fn format_oracle_trace(
+    oracle_config: &OracleConfig,
+    pattern_path: Option<&Path>,
+) -> Vec<(String, String)> {
     let mut details = vec![
         (
             "Threshold".to_string(),
@@ -363,10 +372,7 @@ pub fn format_oracle_trace(oracle_config: &OracleConfig, pattern_path: Option<&P
     ];
 
     if let Some(path) = pattern_path {
-        details.insert(
-            0,
-            ("Pattern file".to_string(), path.display().to_string()),
-        );
+        details.insert(0, ("Pattern file".to_string(), path.display().to_string()));
     }
 
     details
@@ -391,8 +397,16 @@ pub fn format_summary(
     };
 
     let mut lines = vec![
-        format!("📄 Source: {} ({} bytes)", input_path.display(), source_size),
-        format!("📝 Output: {} ({} bytes)", output_path.display(), output_size),
+        format!(
+            "📄 Source: {} ({} bytes)",
+            input_path.display(),
+            source_size
+        ),
+        format!(
+            "📝 Output: {} ({} bytes)",
+            output_path.display(),
+            output_size
+        ),
     ];
 
     if dependencies_count > 0 {
@@ -470,7 +484,12 @@ pub fn format_explanation() -> Vec<String> {
 }
 
 /// Format ML oracle result message
-pub fn format_ml_result(strategy: &str, confidence: f64, is_auto_fix: bool, threshold: f64) -> String {
+pub fn format_ml_result(
+    strategy: &str,
+    confidence: f64,
+    is_auto_fix: bool,
+    threshold: f64,
+) -> String {
     let confidence_pct = confidence * 100.0;
     let is_high = confidence >= threshold;
 
@@ -553,7 +572,10 @@ mod tests {
             auto_fix: true,
             ..Default::default()
         };
-        assert_eq!(determine_autofix_strategy(&config), AutoFixStrategy::Synchronous);
+        assert_eq!(
+            determine_autofix_strategy(&config),
+            AutoFixStrategy::Synchronous
+        );
     }
 
     #[test]
@@ -572,7 +594,10 @@ mod tests {
             suggest_fixes: true,
             ..Default::default()
         };
-        assert_eq!(determine_autofix_strategy(&config), AutoFixStrategy::SuggestOnly);
+        assert_eq!(
+            determine_autofix_strategy(&config),
+            AutoFixStrategy::SuggestOnly
+        );
     }
 
     #[test]
@@ -582,7 +607,10 @@ mod tests {
             suggest_fixes: true,
             ..Default::default()
         };
-        assert_eq!(determine_autofix_strategy(&config), AutoFixStrategy::Synchronous);
+        assert_eq!(
+            determine_autofix_strategy(&config),
+            AutoFixStrategy::Synchronous
+        );
     }
 
     // =====================================================
@@ -607,7 +635,10 @@ mod tests {
     fn test_evaluate_confidence_unknown_nan() {
         assert_eq!(evaluate_confidence(f64::NAN, 0.8), ConfidenceLevel::Unknown);
         assert_eq!(evaluate_confidence(0.9, f64::NAN), ConfidenceLevel::Unknown);
-        assert_eq!(evaluate_confidence(f64::NAN, f64::NAN), ConfidenceLevel::Unknown);
+        assert_eq!(
+            evaluate_confidence(f64::NAN, f64::NAN),
+            ConfidenceLevel::Unknown
+        );
     }
 
     // =====================================================
@@ -704,7 +735,10 @@ mod tests {
             ..Default::default()
         };
         let paths = compute_output_paths(input, None, &config, false);
-        assert_eq!(paths.source_map, Some(PathBuf::from("/src/test.rs.sourcemap.json")));
+        assert_eq!(
+            paths.source_map,
+            Some(PathBuf::from("/src/test.rs.sourcemap.json"))
+        );
     }
 
     #[test]
@@ -716,7 +750,10 @@ mod tests {
             ..Default::default()
         };
         let paths = compute_output_paths(input, None, &config, false);
-        assert_eq!(paths.autofix_output, Some(PathBuf::from("/src/test.autofix.rs")));
+        assert_eq!(
+            paths.autofix_output,
+            Some(PathBuf::from("/src/test.autofix.rs"))
+        );
     }
 
     #[test]
@@ -744,9 +781,15 @@ mod tests {
 
     #[test]
     fn test_extract_package_name() {
-        assert_eq!(extract_package_name(Path::new("/src/my_project.rs")), "my_project");
+        assert_eq!(
+            extract_package_name(Path::new("/src/my_project.rs")),
+            "my_project"
+        );
         assert_eq!(extract_package_name(Path::new("example.rs")), "example");
-        assert_eq!(extract_package_name(Path::new("/a/b/c/test_module.rs")), "test_module");
+        assert_eq!(
+            extract_package_name(Path::new("/a/b/c/test_module.rs")),
+            "test_module"
+        );
     }
 
     #[test]
@@ -757,7 +800,10 @@ mod tests {
 
     #[test]
     fn test_extract_source_file_name() {
-        assert_eq!(extract_source_file_name(Path::new("/src/main.rs")), "main.rs");
+        assert_eq!(
+            extract_source_file_name(Path::new("/src/main.rs")),
+            "main.rs"
+        );
         assert_eq!(extract_source_file_name(Path::new("lib.rs")), "lib.rs");
     }
 
@@ -1183,10 +1229,11 @@ mod tests {
 
     #[test]
     fn test_format_trace_phase() {
-        let trace = format_trace_phase(1, "Parsing", &[
-            ("Input size", "1024 bytes"),
-            ("Parser", "RustPython"),
-        ]);
+        let trace = format_trace_phase(
+            1,
+            "Parsing",
+            &[("Input size", "1024 bytes"), ("Parser", "RustPython")],
+        );
         assert!(trace.contains("Phase 1: Parsing"));
         assert!(trace.contains("Input size: 1024 bytes"));
         assert!(trace.contains("Parser: RustPython"));

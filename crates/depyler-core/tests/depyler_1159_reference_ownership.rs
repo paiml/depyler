@@ -1,5 +1,4 @@
 #![allow(clippy::assertions_on_constants)]
-
 // DEPYLER-1159: Reference/Ownership E0308 Strike
 //
 // Uses borrow_if_needed_typed() infrastructure (DEPYLER-1154) to fix
@@ -11,7 +10,6 @@
 // - expected `&T`, found `T` (various)
 //
 // Solution: Type-aware borrowing at function call boundaries
-
 #![allow(non_snake_case)] // Test naming convention
 
 use depyler_core::DepylerPipeline;

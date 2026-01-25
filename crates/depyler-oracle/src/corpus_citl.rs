@@ -129,8 +129,8 @@ impl CorpusCITL {
         let mut categories_seen = std::collections::HashSet::new();
 
         for batch_result in reader {
-            let batch = batch_result
-                .map_err(|e| OracleError::Model(format!("Batch read error: {}", e)))?;
+            let batch =
+                batch_result.map_err(|e| OracleError::Model(format!("Batch read error: {}", e)))?;
 
             // Get columns
             let category_col = batch
@@ -337,8 +337,8 @@ impl CorpusCITL {
     ///
     /// Returns error if file cannot be read.
     pub fn load_patterns(&mut self, path: &Path) -> Result<(), OracleError> {
-        self.pattern_store = DecisionPatternStore::load_apr(path)
-            .map_err(|e| OracleError::Model(e.to_string()))?;
+        self.pattern_store =
+            DecisionPatternStore::load_apr(path).map_err(|e| OracleError::Model(e.to_string()))?;
         Ok(())
     }
 

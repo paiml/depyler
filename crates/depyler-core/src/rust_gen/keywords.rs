@@ -277,16 +277,16 @@ mod tests {
     #[test]
     fn test_is_rust_keyword_similar_but_not_keywords() {
         // Similar to keywords but not actual keywords
-        assert!(!is_rust_keyword("If"));      // Capitalized
-        assert!(!is_rust_keyword("IF"));      // All caps
-        assert!(!is_rust_keyword("lets"));    // Similar to let
-        assert!(!is_rust_keyword("fns"));     // Similar to fn
+        assert!(!is_rust_keyword("If")); // Capitalized
+        assert!(!is_rust_keyword("IF")); // All caps
+        assert!(!is_rust_keyword("lets")); // Similar to let
+        assert!(!is_rust_keyword("fns")); // Similar to fn
         assert!(!is_rust_keyword("matches")); // Similar to match
-        assert!(!is_rust_keyword("types"));   // Similar to type
-        assert!(!is_rust_keyword("impls"));   // Similar to impl
-        assert!(!is_rust_keyword("loops"));   // Similar to loop
-        assert!(!is_rust_keyword("_"));       // Underscore
-        assert!(!is_rust_keyword("__"));      // Double underscore
+        assert!(!is_rust_keyword("types")); // Similar to type
+        assert!(!is_rust_keyword("impls")); // Similar to impl
+        assert!(!is_rust_keyword("loops")); // Similar to loop
+        assert!(!is_rust_keyword("_")); // Underscore
+        assert!(!is_rust_keyword("__")); // Double underscore
     }
 
     #[test]
@@ -298,8 +298,8 @@ mod tests {
     fn test_is_rust_keyword_whitespace() {
         assert!(!is_rust_keyword(" "));
         assert!(!is_rust_keyword("  "));
-        assert!(!is_rust_keyword(" fn"));  // Leading space
-        assert!(!is_rust_keyword("fn "));  // Trailing space
+        assert!(!is_rust_keyword(" fn")); // Leading space
+        assert!(!is_rust_keyword("fn ")); // Trailing space
         assert!(!is_rust_keyword(" fn ")); // Both
     }
 
@@ -330,11 +330,7 @@ mod tests {
         // All four non-raw keywords
         let non_raw = ["self", "Self", "super", "crate"];
         for kw in non_raw {
-            assert!(
-                is_non_raw_keyword(kw),
-                "{} should be a non-raw keyword",
-                kw
-            );
+            assert!(is_non_raw_keyword(kw), "{} should be a non-raw keyword", kw);
         }
     }
 
@@ -372,16 +368,16 @@ mod tests {
     #[test]
     fn test_is_non_raw_keyword_similar_strings() {
         // Similar but not exactly the non-raw keywords
-        assert!(!is_non_raw_keyword("SELF"));     // All caps
-        assert!(!is_non_raw_keyword("selfs"));    // Extra s
-        assert!(!is_non_raw_keyword("_self"));    // Leading underscore
-        assert!(!is_non_raw_keyword("self_"));    // Trailing underscore
-        assert!(!is_non_raw_keyword("SUPER"));    // All caps
-        assert!(!is_non_raw_keyword("Super"));    // Title case
-        assert!(!is_non_raw_keyword("supers"));   // Extra s
-        assert!(!is_non_raw_keyword("CRATE"));    // All caps
-        assert!(!is_non_raw_keyword("Crate"));    // Title case
-        assert!(!is_non_raw_keyword("crates"));   // Extra s
+        assert!(!is_non_raw_keyword("SELF")); // All caps
+        assert!(!is_non_raw_keyword("selfs")); // Extra s
+        assert!(!is_non_raw_keyword("_self")); // Leading underscore
+        assert!(!is_non_raw_keyword("self_")); // Trailing underscore
+        assert!(!is_non_raw_keyword("SUPER")); // All caps
+        assert!(!is_non_raw_keyword("Super")); // Title case
+        assert!(!is_non_raw_keyword("supers")); // Extra s
+        assert!(!is_non_raw_keyword("CRATE")); // All caps
+        assert!(!is_non_raw_keyword("Crate")); // Title case
+        assert!(!is_non_raw_keyword("crates")); // Extra s
     }
 
     #[test]

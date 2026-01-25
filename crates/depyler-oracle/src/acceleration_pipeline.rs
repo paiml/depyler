@@ -241,7 +241,11 @@ impl AccelerationPipeline {
                 if best.similarity >= self.config.min_gnn_similarity {
                     self.stats.gnn_fixes += 1;
                     // Get fix from the underlying error pattern if available
-                    let fix = best.pattern.error_pattern.as_ref().map(|p| p.fix_diff.clone());
+                    let fix = best
+                        .pattern
+                        .error_pattern
+                        .as_ref()
+                        .map(|p| p.fix_diff.clone());
                     return AnalysisResult {
                         error_message: error_message.to_string(),
                         error_code: error_code.map(String::from),
@@ -315,7 +319,10 @@ impl AccelerationPipeline {
 
     /// Prioritize a batch of errors by difficulty (easy first)
     #[must_use]
-    pub fn prioritize_errors(&self, errors: Vec<(String, Option<String>)>) -> Vec<(String, Option<String>, DifficultyLevel)> {
+    pub fn prioritize_errors(
+        &self,
+        errors: Vec<(String, Option<String>)>,
+    ) -> Vec<(String, Option<String>, DifficultyLevel)> {
         let mut with_difficulty: Vec<_> = errors
             .into_iter()
             .map(|(msg, code)| {
@@ -439,9 +446,9 @@ mod tests {
     fn test_pipeline_prioritize_errors() {
         let pipeline = AccelerationPipeline::new().unwrap();
         let errors = vec![
-            ("borrow error".to_string(), Some("E0502".to_string())),   // Hard
-            ("type mismatch".to_string(), Some("E0308".to_string())),  // Medium
-            ("trait bound".to_string(), Some("E0277".to_string())),    // Hard
+            ("borrow error".to_string(), Some("E0502".to_string())), // Hard
+            ("type mismatch".to_string(), Some("E0308".to_string())), // Medium
+            ("trait bound".to_string(), Some("E0277".to_string())),  // Hard
         ];
 
         let prioritized = pipeline.prioritize_errors(errors);
@@ -496,18 +503,16 @@ mod tests {
     #[test]
     fn test_pipeline_export_results() {
         let pipeline = AccelerationPipeline::new().unwrap();
-        let results = vec![
-            AnalysisResult {
-                error_message: "type mismatch".to_string(),
-                error_code: Some("E0308".to_string()),
-                difficulty: DifficultyLevel::Easy,
-                category: ErrorCategory::TypeMismatch,
-                suggested_fix: Some("use .into()".to_string()),
-                fix_source: FixSource::Pattern,
-                confidence: 0.9,
-                suspicious_decisions: Vec::new(),
-            },
-        ];
+        let results = vec![AnalysisResult {
+            error_message: "type mismatch".to_string(),
+            error_code: Some("E0308".to_string()),
+            difficulty: DifficultyLevel::Easy,
+            category: ErrorCategory::TypeMismatch,
+            suggested_fix: Some("use .into()".to_string()),
+            fix_source: FixSource::Pattern,
+            confidence: 0.9,
+            suspicious_decisions: Vec::new(),
+        }];
 
         let exports = pipeline.export_results(&results);
         assert_eq!(exports.len(), 1);

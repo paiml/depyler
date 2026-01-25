@@ -4,7 +4,9 @@
 use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> Result<String, String> {
-    DepylerPipeline::new().transpile(code).map_err(|e| e.to_string())
+    DepylerPipeline::new()
+        .transpile(code)
+        .map_err(|e| e.to_string())
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -25,7 +27,9 @@ fn test_op_add_int() {
 
 #[test]
 fn test_op_add_float() {
-    assert!(transpile_ok("def f(a: float, b: float) -> float: return a + b"));
+    assert!(transpile_ok(
+        "def f(a: float, b: float) -> float: return a + b"
+    ));
 }
 
 #[test]
@@ -40,7 +44,9 @@ fn test_op_sub_int() {
 
 #[test]
 fn test_op_sub_float() {
-    assert!(transpile_ok("def f(a: float, b: float) -> float: return a - b"));
+    assert!(transpile_ok(
+        "def f(a: float, b: float) -> float: return a - b"
+    ));
 }
 
 #[test]
@@ -50,7 +56,9 @@ fn test_op_mul_int() {
 
 #[test]
 fn test_op_mul_float() {
-    assert!(transpile_ok("def f(a: float, b: float) -> float: return a * b"));
+    assert!(transpile_ok(
+        "def f(a: float, b: float) -> float: return a * b"
+    ));
 }
 
 #[test]
@@ -60,7 +68,9 @@ fn test_op_mul_string_int() {
 
 #[test]
 fn test_op_div_float() {
-    assert!(transpile_ok("def f(a: float, b: float) -> float: return a / b"));
+    assert!(transpile_ok(
+        "def f(a: float, b: float) -> float: return a / b"
+    ));
 }
 
 #[test]
@@ -80,7 +90,9 @@ fn test_op_pow_int() {
 
 #[test]
 fn test_op_pow_float() {
-    assert!(transpile_ok("def f(a: float, b: float) -> float: return a ** b"));
+    assert!(transpile_ok(
+        "def f(a: float, b: float) -> float: return a ** b"
+    ));
 }
 
 #[test]
@@ -104,7 +116,9 @@ fn test_op_eq_str() {
 
 #[test]
 fn test_op_eq_bool() {
-    assert!(transpile_ok("def f(a: bool, b: bool) -> bool: return a == b"));
+    assert!(transpile_ok(
+        "def f(a: bool, b: bool) -> bool: return a == b"
+    ));
 }
 
 #[test]
@@ -119,7 +133,9 @@ fn test_op_lt_int() {
 
 #[test]
 fn test_op_lt_float() {
-    assert!(transpile_ok("def f(a: float, b: float) -> bool: return a < b"));
+    assert!(transpile_ok(
+        "def f(a: float, b: float) -> bool: return a < b"
+    ));
 }
 
 #[test]
@@ -149,19 +165,25 @@ fn test_op_chained_comparison() {
 
 #[test]
 fn test_op_chained_eq() {
-    assert!(transpile_ok("def f(a: int, b: int, c: int) -> bool: return a == b == c"));
+    assert!(transpile_ok(
+        "def f(a: int, b: int, c: int) -> bool: return a == b == c"
+    ));
 }
 
 // ============ Logical operators ============
 
 #[test]
 fn test_op_and_bool() {
-    assert!(transpile_ok("def f(a: bool, b: bool) -> bool: return a and b"));
+    assert!(transpile_ok(
+        "def f(a: bool, b: bool) -> bool: return a and b"
+    ));
 }
 
 #[test]
 fn test_op_or_bool() {
-    assert!(transpile_ok("def f(a: bool, b: bool) -> bool: return a or b"));
+    assert!(transpile_ok(
+        "def f(a: bool, b: bool) -> bool: return a or b"
+    ));
 }
 
 #[test]
@@ -250,7 +272,9 @@ def f(a: int, b: int, c: int) -> int:
 
 #[test]
 fn test_op_in_list() {
-    assert!(transpile_ok("def f(x: int, items: list) -> bool: return x in items"));
+    assert!(transpile_ok(
+        "def f(x: int, items: list) -> bool: return x in items"
+    ));
 }
 
 #[test]
@@ -260,17 +284,23 @@ fn test_op_in_str() {
 
 #[test]
 fn test_op_in_dict() {
-    assert!(transpile_ok("def f(k: str, d: dict) -> bool: return k in d"));
+    assert!(transpile_ok(
+        "def f(k: str, d: dict) -> bool: return k in d"
+    ));
 }
 
 #[test]
 fn test_op_not_in_list() {
-    assert!(transpile_ok("def f(x: int, items: list) -> bool: return x not in items"));
+    assert!(transpile_ok(
+        "def f(x: int, items: list) -> bool: return x not in items"
+    ));
 }
 
 #[test]
 fn test_op_not_in_str() {
-    assert!(transpile_ok("def f(c: str, s: str) -> bool: return c not in s"));
+    assert!(transpile_ok(
+        "def f(c: str, s: str) -> bool: return c not in s"
+    ));
 }
 
 // ============ Identity operators ============
@@ -428,12 +458,16 @@ def f(x: int) -> int:
 
 #[test]
 fn test_op_precedence_arith() {
-    assert!(transpile_ok("def f(a: int, b: int, c: int) -> int: return a + b * c"));
+    assert!(transpile_ok(
+        "def f(a: int, b: int, c: int) -> int: return a + b * c"
+    ));
 }
 
 #[test]
 fn test_op_precedence_parens() {
-    assert!(transpile_ok("def f(a: int, b: int, c: int) -> int: return (a + b) * c"));
+    assert!(transpile_ok(
+        "def f(a: int, b: int, c: int) -> int: return (a + b) * c"
+    ));
 }
 
 #[test]
@@ -473,7 +507,9 @@ fn test_op_string_repeat() {
 
 #[test]
 fn test_op_list_concat() {
-    assert!(transpile_ok("def f(a: list, b: list) -> list: return a + b"));
+    assert!(transpile_ok(
+        "def f(a: list, b: list) -> list: return a + b"
+    ));
 }
 
 #[test]

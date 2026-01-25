@@ -196,7 +196,13 @@ mod tests {
         // Create and save
         let mut corpus = TrainingCorpus::new();
         corpus.insert(TrainingError::new("E0308", "type error", "ctx", "a.py", 0));
-        corpus.insert(TrainingError::new("E0599", "method error", "ctx", "b.py", 0));
+        corpus.insert(TrainingError::new(
+            "E0599",
+            "method error",
+            "ctx",
+            "b.py",
+            0,
+        ));
         corpus.save(&path).unwrap();
 
         // Load and verify

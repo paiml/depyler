@@ -13,11 +13,41 @@ fn identifier() -> impl Strategy<Value = String> {
         .prop_filter("not keyword", |s| {
             !matches!(
                 s.as_str(),
-                "and" | "as" | "assert" | "async" | "await" | "break" | "class"
-                | "continue" | "def" | "del" | "elif" | "else" | "except" | "finally"
-                | "for" | "from" | "global" | "if" | "import" | "in" | "is" | "lambda"
-                | "nonlocal" | "not" | "or" | "pass" | "raise" | "return" | "try"
-                | "while" | "with" | "yield" | "None" | "True" | "False"
+                "and"
+                    | "as"
+                    | "assert"
+                    | "async"
+                    | "await"
+                    | "break"
+                    | "class"
+                    | "continue"
+                    | "def"
+                    | "del"
+                    | "elif"
+                    | "else"
+                    | "except"
+                    | "finally"
+                    | "for"
+                    | "from"
+                    | "global"
+                    | "if"
+                    | "import"
+                    | "in"
+                    | "is"
+                    | "lambda"
+                    | "nonlocal"
+                    | "not"
+                    | "or"
+                    | "pass"
+                    | "raise"
+                    | "return"
+                    | "try"
+                    | "while"
+                    | "with"
+                    | "yield"
+                    | "None"
+                    | "True"
+                    | "False"
             )
         })
 }
@@ -413,7 +443,7 @@ fn test_ellipsis() {
 #[test]
 fn test_walrus_in_while() {
     let _ = DepylerPipeline::new().transpile(
-        "def f(items):\n    while (item := items.pop()) is not None:\n        print(item)"
+        "def f(items):\n    while (item := items.pop()) is not None:\n        print(item)",
     );
 }
 
@@ -431,7 +461,9 @@ fn test_many_elif() {
 
 #[test]
 fn test_tuple_in_for() {
-    assert!(transpiles_ok("def f():\n    for a, b, c in [(1, 2, 3)]:\n        print(a, b, c)"));
+    assert!(transpiles_ok(
+        "def f():\n    for a, b, c in [(1, 2, 3)]:\n        print(a, b, c)"
+    ));
 }
 
 #[test]

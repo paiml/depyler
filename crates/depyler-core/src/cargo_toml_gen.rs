@@ -451,10 +451,10 @@ mod tests {
             needs_crc32: false,
             needs_url_encoding: false,
             needs_clap: true,
-            needs_io_read: false,   // DEPYLER-0458
-            needs_io_write: false,  // DEPYLER-0458
-            needs_bufread: false,   // DEPYLER-0522
-            needs_once_cell: false, // DEPYLER-REARCH-001
+            needs_io_read: false,                         // DEPYLER-0458
+            needs_io_write: false,                        // DEPYLER-0458
+            needs_bufread: false,                         // DEPYLER-0522
+            needs_once_cell: false,                       // DEPYLER-REARCH-001
             needs_lazy_lock: false, // DEPYLER-1016: std::sync::LazyLock for NASA mode
             needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
             numpy_vars: std::collections::HashSet::new(), // DEPYLER-0932
@@ -496,7 +496,8 @@ mod tests {
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: std::collections::HashSet::new(),
             iterator_vars: std::collections::HashSet::new(), // DEPYLER-0520: Track iterator vars
-            ref_params: std::collections::HashSet::new(),      // DEPYLER-0758: Track ref params
+            ref_params: std::collections::HashSet::new(),    // DEPYLER-0758: Track ref params
+            mut_ref_params: std::collections::HashSet::new(), // DEPYLER-1217: Track mut ref params
             is_final_statement: false,
             result_bool_functions: std::collections::HashSet::new(),
             result_returning_functions: std::collections::HashSet::new(),
@@ -513,11 +514,11 @@ mod tests {
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
-            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
+            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
-            needs_digest: false, // DEPYLER-0575: Track digest crate dependency
+            needs_digest: false,   // DEPYLER-0575: Track digest crate dependency
             in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
@@ -536,26 +537,28 @@ mod tests {
             vararg_functions: std::collections::HashSet::new(),
             slice_params: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
-            current_assign_type: None, // DEPYLER-0727
+            current_assign_type: None,           // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
-            returns_impl_iterator: false, // DEPYLER-1076
+            returns_impl_iterator: false,        // DEPYLER-1076
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
             mut_option_params: std::collections::HashSet::new(), // DEPYLER-1126
-            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_depyler_value_enum: false,     // DEPYLER-1051: Track DepylerValue enum need
+            needs_python_string_ops: false,      // DEPYLER-1202: Python string ops trait
+            needs_python_int_ops: false,         // DEPYLER-1202: Python int ops trait
             needs_depyler_date: false,
             needs_depyler_datetime: false,
             needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
-            needs_depyler_regex_match: false, // DEPYLER-1070
+            needs_depyler_regex_match: false,                        // DEPYLER-1070
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
-            last_external_call_return_type: None, // DEPYLER-1113
-            type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
-            vars_used_later: std::collections::HashSet::new(), // DEPYLER-1168
+            last_external_call_return_type: None,                    // DEPYLER-1113
+            type_overrides: std::collections::HashMap::new(),        // DEPYLER-1101
+            vars_used_later: std::collections::HashSet::new(),       // DEPYLER-1168
         };
 
         // Property: Calling extract_dependencies multiple times returns same result
@@ -620,19 +623,19 @@ mod tests {
             needs_crc32: true,
             needs_url_encoding: true,
             needs_clap: true,
-            needs_tempfile: true,   // DEPYLER-0493
-            needs_itertools: true,  // DEPYLER-0493
-            needs_io_read: false,   // DEPYLER-0458
-            needs_io_write: false,  // DEPYLER-0458
-            needs_bufread: false,   // DEPYLER-0522
-            needs_once_cell: false, // DEPYLER-REARCH-001
-            needs_lazy_lock: false, // DEPYLER-1016: std::sync::LazyLock for NASA mode
-            needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_tempfile: true,       // DEPYLER-0493
+            needs_itertools: true,      // DEPYLER-0493
+            needs_io_read: false,       // DEPYLER-0458
+            needs_io_write: false,      // DEPYLER-0458
+            needs_bufread: false,       // DEPYLER-0522
+            needs_once_cell: false,     // DEPYLER-REARCH-001
+            needs_lazy_lock: false,     // DEPYLER-1016: std::sync::LazyLock for NASA mode
+            needs_trueno: false,        // Phase 3: NumPy→Trueno codegen
             numpy_vars: HashSet::new(), // DEPYLER-0932
-            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
-            needs_statrs: false,    // DEPYLER-1001: statrs crate for statistics module
-            needs_url: false,       // DEPYLER-1001: url crate for urllib.parse module
-            needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
+            needs_glob: false,          // DEPYLER-0829: glob crate for Path.glob()/rglob()
+            needs_statrs: false,        // DEPYLER-1001: statrs crate for statistics module
+            needs_url: false,           // DEPYLER-1001: url crate for urllib.parse module
+            needs_tokio: false,         // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -640,7 +643,7 @@ mod tests {
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
             all_imported_modules: std::collections::HashSet::new(), // DEPYLER-1115
-            module_aliases: std::collections::HashMap::new(), // DEPYLER-1136
+            module_aliases: std::collections::HashMap::new(),       // DEPYLER-1136
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -667,7 +670,8 @@ mod tests {
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
-            ref_params: HashSet::new(),      // DEPYLER-0758: Track ref params
+            ref_params: HashSet::new(),    // DEPYLER-0758: Track ref params
+            mut_ref_params: HashSet::new(), // DEPYLER-1217: Track mut ref params
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
@@ -684,11 +688,11 @@ mod tests {
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
-            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
+            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
-            needs_digest: false, // DEPYLER-0575: Track digest crate dependency
+            needs_digest: false,   // DEPYLER-0575: Track digest crate dependency
             in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
@@ -707,26 +711,28 @@ mod tests {
             vararg_functions: std::collections::HashSet::new(),
             slice_params: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
-            current_assign_type: None, // DEPYLER-0727
+            current_assign_type: None,           // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
-            returns_impl_iterator: false, // DEPYLER-1076
+            returns_impl_iterator: false,        // DEPYLER-1076
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
             mut_option_params: std::collections::HashSet::new(), // DEPYLER-1126
-            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_depyler_value_enum: false,     // DEPYLER-1051: Track DepylerValue enum need
+            needs_python_string_ops: false,      // DEPYLER-1202: Python string ops trait
+            needs_python_int_ops: false,         // DEPYLER-1202: Python int ops trait
             needs_depyler_date: false,
             needs_depyler_datetime: false,
             needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
-            needs_depyler_regex_match: false, // DEPYLER-1070
+            needs_depyler_regex_match: false,                        // DEPYLER-1070
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
-            last_external_call_return_type: None, // DEPYLER-1113
-            type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
-            vars_used_later: std::collections::HashSet::new(), // DEPYLER-1168
+            last_external_call_return_type: None,                    // DEPYLER-1113
+            type_overrides: std::collections::HashMap::new(),        // DEPYLER-1101
+            vars_used_later: std::collections::HashSet::new(),       // DEPYLER-1168
         };
 
         let deps = extract_dependencies(&ctx);
@@ -770,7 +776,7 @@ mod tests {
             needs_rand: false,
             needs_slice_random: false, // GH-207
             needs_rand_distr: false,   // GH-207
-            needs_serde_json: true, // Enable serde_json
+            needs_serde_json: true,    // Enable serde_json
             needs_regex: false,
             needs_chrono: false,
             needs_csv: false,
@@ -790,17 +796,17 @@ mod tests {
             needs_crc32: false,
             needs_url_encoding: false,
             needs_clap: false,
-            needs_io_read: false,   // DEPYLER-0458
-            needs_io_write: false,  // DEPYLER-0458
-            needs_bufread: false,   // DEPYLER-0522
-            needs_once_cell: false, // DEPYLER-REARCH-001
-            needs_lazy_lock: false, // DEPYLER-1016: std::sync::LazyLock for NASA mode
-            needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_io_read: false,       // DEPYLER-0458
+            needs_io_write: false,      // DEPYLER-0458
+            needs_bufread: false,       // DEPYLER-0522
+            needs_once_cell: false,     // DEPYLER-REARCH-001
+            needs_lazy_lock: false,     // DEPYLER-1016: std::sync::LazyLock for NASA mode
+            needs_trueno: false,        // Phase 3: NumPy→Trueno codegen
             numpy_vars: HashSet::new(), // DEPYLER-0932
-            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
-            needs_statrs: false,    // DEPYLER-1001: statrs crate for statistics module
-            needs_url: false,       // DEPYLER-1001: url crate for urllib.parse module
-            needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
+            needs_glob: false,          // DEPYLER-0829: glob crate for Path.glob()/rglob()
+            needs_statrs: false,        // DEPYLER-1001: statrs crate for statistics module
+            needs_url: false,           // DEPYLER-1001: url crate for urllib.parse module
+            needs_tokio: false,         // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -808,7 +814,7 @@ mod tests {
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
             all_imported_modules: std::collections::HashSet::new(), // DEPYLER-1115
-            module_aliases: std::collections::HashMap::new(), // DEPYLER-1136
+            module_aliases: std::collections::HashMap::new(),       // DEPYLER-1136
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -835,7 +841,8 @@ mod tests {
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
-            ref_params: HashSet::new(),      // DEPYLER-0758: Track ref params
+            ref_params: HashSet::new(),    // DEPYLER-0758: Track ref params
+            mut_ref_params: HashSet::new(), // DEPYLER-1217: Track mut ref params
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
@@ -852,11 +859,11 @@ mod tests {
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
-            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
+            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
-            needs_digest: false, // DEPYLER-0575: Track digest crate dependency
+            needs_digest: false,   // DEPYLER-0575: Track digest crate dependency
             in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
@@ -875,26 +882,28 @@ mod tests {
             vararg_functions: std::collections::HashSet::new(),
             slice_params: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
-            current_assign_type: None, // DEPYLER-0727
+            current_assign_type: None,           // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
-            returns_impl_iterator: false, // DEPYLER-1076
+            returns_impl_iterator: false,        // DEPYLER-1076
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
             mut_option_params: std::collections::HashSet::new(), // DEPYLER-1126
-            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_depyler_value_enum: false,     // DEPYLER-1051: Track DepylerValue enum need
+            needs_python_string_ops: false,      // DEPYLER-1202: Python string ops trait
+            needs_python_int_ops: false,         // DEPYLER-1202: Python int ops trait
             needs_depyler_date: false,
             needs_depyler_datetime: false,
             needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
-            needs_depyler_regex_match: false, // DEPYLER-1070
+            needs_depyler_regex_match: false,                        // DEPYLER-1070
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
-            last_external_call_return_type: None, // DEPYLER-1113
-            type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
-            vars_used_later: std::collections::HashSet::new(), // DEPYLER-1168
+            last_external_call_return_type: None,                    // DEPYLER-1113
+            type_overrides: std::collections::HashMap::new(),        // DEPYLER-1101
+            vars_used_later: std::collections::HashSet::new(),       // DEPYLER-1168
         };
 
         let deps = extract_dependencies(&ctx);
@@ -942,9 +951,7 @@ mod tests {
 
     #[test]
     fn test_generate_cargo_toml_lib_is_valid_toml() {
-        let deps = vec![
-            Dependency::new("serde", "1.0").with_features(vec!["derive".to_string()]),
-        ];
+        let deps = vec![Dependency::new("serde", "1.0").with_features(vec!["derive".to_string()])];
         let toml_str = generate_cargo_toml_lib("valid_lib", "lib.rs", &deps);
         let parsed: Result<toml::Value, _> = toml::from_str(&toml_str);
         assert!(parsed.is_ok(), "Generated lib TOML must be valid");
@@ -977,7 +984,10 @@ mod tests {
         assert!(toml_starts_with.contains("[lib]"), "test_ prefix → lib");
 
         let toml_contains = generate_cargo_toml_auto("my_test_helper", "my_test_helper.rs", &[]);
-        assert!(toml_contains.contains("[[bin]]"), "Contains test but no prefix → bin");
+        assert!(
+            toml_contains.contains("[[bin]]"),
+            "Contains test but no prefix → bin"
+        );
     }
 
     // === Dependency struct additional tests ===
@@ -1001,8 +1011,11 @@ mod tests {
 
     #[test]
     fn test_dependency_multiple_features() {
-        let dep = Dependency::new("tokio", "1.0")
-            .with_features(vec!["full".to_string(), "rt-multi-thread".to_string(), "macros".to_string()]);
+        let dep = Dependency::new("tokio", "1.0").with_features(vec![
+            "full".to_string(),
+            "rt-multi-thread".to_string(),
+            "macros".to_string(),
+        ]);
         let line = dep.to_toml_line();
         assert!(line.contains("\"full\""));
         assert!(line.contains("\"rt-multi-thread\""));
@@ -1023,7 +1036,10 @@ mod tests {
 
         let ctx = CodeGenContext::default();
         let deps = extract_dependencies(&ctx);
-        assert!(deps.is_empty(), "Default context should have no dependencies");
+        assert!(
+            deps.is_empty(),
+            "Default context should have no dependencies"
+        );
     }
 
     // DEPYLER-COVERAGE-95: Additional tests for untested components
@@ -1204,18 +1220,18 @@ mod tests {
             needs_hmac: false,
             needs_crc32: false,
             needs_url_encoding: false,
-            needs_clap: true,       // Enable clap
-            needs_io_read: false,   // DEPYLER-0458
-            needs_io_write: false,  // DEPYLER-0458
-            needs_bufread: false,   // DEPYLER-0522
-            needs_once_cell: false, // DEPYLER-REARCH-001
-            needs_lazy_lock: false, // DEPYLER-1016: std::sync::LazyLock for NASA mode
-            needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
+            needs_clap: true,           // Enable clap
+            needs_io_read: false,       // DEPYLER-0458
+            needs_io_write: false,      // DEPYLER-0458
+            needs_bufread: false,       // DEPYLER-0522
+            needs_once_cell: false,     // DEPYLER-REARCH-001
+            needs_lazy_lock: false,     // DEPYLER-1016: std::sync::LazyLock for NASA mode
+            needs_trueno: false,        // Phase 3: NumPy→Trueno codegen
             numpy_vars: HashSet::new(), // DEPYLER-0932
-            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
-            needs_statrs: false,    // DEPYLER-1001: statrs crate for statistics module
-            needs_url: false,       // DEPYLER-1001: url crate for urllib.parse module
-            needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
+            needs_glob: false,          // DEPYLER-0829: glob crate for Path.glob()/rglob()
+            needs_statrs: false,        // DEPYLER-1001: statrs crate for statistics module
+            needs_url: false,           // DEPYLER-1001: url crate for urllib.parse module
+            needs_tokio: false,         // DEPYLER-0747: asyncio→tokio async runtime mapping
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -1223,7 +1239,7 @@ mod tests {
             imported_modules: std::collections::HashMap::new(),
             imported_items: std::collections::HashMap::new(),
             all_imported_modules: std::collections::HashSet::new(), // DEPYLER-1115
-            module_aliases: std::collections::HashMap::new(), // DEPYLER-1136
+            module_aliases: std::collections::HashMap::new(),       // DEPYLER-1136
             mutable_vars: HashSet::new(),
             needs_zerodivisionerror: false,
             needs_indexerror: false,
@@ -1250,7 +1266,8 @@ mod tests {
             function_param_borrows: std::collections::HashMap::new(),
             tuple_iter_vars: HashSet::new(),
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track iterator vars
-            ref_params: HashSet::new(),      // DEPYLER-0758: Track ref params
+            ref_params: HashSet::new(),    // DEPYLER-0758: Track ref params
+            mut_ref_params: HashSet::new(), // DEPYLER-1217: Track mut ref params
             is_final_statement: false,
             result_bool_functions: HashSet::new(),
             result_returning_functions: HashSet::new(),
@@ -1267,11 +1284,11 @@ mod tests {
             hoisted_inference_vars: std::collections::HashSet::new(), // DEPYLER-0455 Bug 2
             none_placeholder_vars: std::collections::HashSet::new(), // DEPYLER-0823: Track vars with skipped None assignment
             precomputed_option_fields: std::collections::HashSet::new(), // DEPYLER-0108
-            cse_subcommand_temps: std::collections::HashMap::new(), // DEPYLER-0456 Bug #2
+            cse_subcommand_temps: std::collections::HashMap::new(),  // DEPYLER-0456 Bug #2
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
-            needs_digest: false, // DEPYLER-0575: Track digest crate dependency
+            needs_digest: false,   // DEPYLER-0575: Track digest crate dependency
             in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
@@ -1290,26 +1307,28 @@ mod tests {
             vararg_functions: std::collections::HashSet::new(),
             slice_params: std::collections::HashSet::new(),
             type_substitutions: std::collections::HashMap::new(),
-            current_assign_type: None, // DEPYLER-0727
+            current_assign_type: None,           // DEPYLER-0727
             force_dict_value_option_wrap: false, // DEPYLER-0741
             char_iter_vars: std::collections::HashSet::new(), // DEPYLER-0795
-            returns_impl_iterator: false, // DEPYLER-1076
+            returns_impl_iterator: false,        // DEPYLER-1076
             char_counter_vars: std::collections::HashSet::new(), // DEPYLER-0821
             adt_child_to_parent: std::collections::HashMap::new(), // DEPYLER-0936
             function_param_types: std::collections::HashMap::new(), // DEPYLER-0950
             mut_option_dict_params: std::collections::HashSet::new(), // DEPYLER-0964
             mut_option_params: std::collections::HashSet::new(), // DEPYLER-1126
-            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
+            needs_depyler_value_enum: false,     // DEPYLER-1051: Track DepylerValue enum need
+            needs_python_string_ops: false,      // DEPYLER-1202: Python string ops trait
+            needs_python_int_ops: false,         // DEPYLER-1202: Python int ops trait
             needs_depyler_date: false,
             needs_depyler_datetime: false,
             needs_depyler_timedelta: false,
             module_constant_types: std::collections::HashMap::new(), // DEPYLER-1060
-            needs_depyler_regex_match: false, // DEPYLER-1070
+            needs_depyler_regex_match: false,                        // DEPYLER-1070
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
-            last_external_call_return_type: None, // DEPYLER-1113
-            type_overrides: std::collections::HashMap::new(), // DEPYLER-1101
-            vars_used_later: std::collections::HashSet::new(), // DEPYLER-1168
+            last_external_call_return_type: None,                    // DEPYLER-1113
+            type_overrides: std::collections::HashMap::new(),        // DEPYLER-1101
+            vars_used_later: std::collections::HashSet::new(),       // DEPYLER-1168
         };
 
         let deps = extract_dependencies(&ctx);
@@ -1325,13 +1344,18 @@ mod tests {
 
     // === Focused unit tests for individual needs_* flags ===
 
-    fn make_ctx_with<F: FnOnce(&mut crate::rust_gen::CodeGenContext)>(f: F) -> crate::rust_gen::CodeGenContext<'static> {
+    fn make_ctx_with<F: FnOnce(&mut crate::rust_gen::CodeGenContext)>(
+        f: F,
+    ) -> crate::rust_gen::CodeGenContext<'static> {
         use crate::type_mapper::TypeMapper;
 
         let type_mapper: &'static TypeMapper = Box::leak(Box::new(TypeMapper::default()));
         let mut ctx = crate::rust_gen::CodeGenContext {
             type_mapper,
-            annotation_aware_mapper: crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(type_mapper.clone()),
+            annotation_aware_mapper:
+                crate::annotation_aware_type_mapper::AnnotationAwareTypeMapper::with_base_mapper(
+                    type_mapper.clone(),
+                ),
             ..Default::default()
         };
         f(&mut ctx);
@@ -1538,7 +1562,8 @@ mod tests {
 
     #[test]
     fn test_dependency_feature_with_slash() {
-        let dep = Dependency::new("tokio", "1.0").with_features(vec!["rt/multi-thread".to_string()]);
+        let dep =
+            Dependency::new("tokio", "1.0").with_features(vec!["rt/multi-thread".to_string()]);
         let line = dep.to_toml_line();
         assert!(line.contains("rt/multi-thread"));
     }

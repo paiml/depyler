@@ -210,9 +210,7 @@ pub fn extract_subscript_pattern(
 }
 
 /// Extract a pattern from an attribute expression like event.body
-pub fn extract_attribute_pattern(
-    attr: &ExprAttribute,
-) -> Result<Option<Pattern>, InferenceError> {
+pub fn extract_attribute_pattern(attr: &ExprAttribute) -> Result<Option<Pattern>, InferenceError> {
     let mut access_chain = vec![attr.attr.to_string()];
     let mut current_expr = &attr.value;
 
@@ -768,7 +766,9 @@ def handler(event, context):
 "#,
         );
         // Only outer patterns are extracted
-        assert!(patterns.iter().any(|p| p.access_chain == vec!["outer_data"]));
+        assert!(patterns
+            .iter()
+            .any(|p| p.access_chain == vec!["outer_data"]));
     }
 
     #[test]

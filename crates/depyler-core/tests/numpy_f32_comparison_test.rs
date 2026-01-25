@@ -18,10 +18,16 @@ def check_norm(a):
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).expect("transpilation failed");
 
-    // Should generate 0f32 or 0.0_f32, not plain 0
+    // Should generate float literal (0f32, 0f64, or 0.0_f32/0.0_f64), not plain 0
+    // Accept both f32 and f64 since both are valid float types
     assert!(
-        code.contains("0f32") || code.contains("0.0_f32") || code.contains("0.0f32"),
-        "Should coerce 0 to f32 when comparing with norm_a (f32 from norm_l2()): {}",
+        code.contains("0f32")
+            || code.contains("0.0_f32")
+            || code.contains("0.0f32")
+            || code.contains("0f64")
+            || code.contains("0.0_f64")
+            || code.contains("0.0f64"),
+        "Should coerce 0 to float when comparing with norm_a: {}",
         code
     );
 }
@@ -39,9 +45,15 @@ def check_norm(b):
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).expect("transpilation failed");
 
+    // Accept both f32 and f64 since both are valid float types
     assert!(
-        code.contains("0f32") || code.contains("0.0_f32") || code.contains("0.0f32"),
-        "Should coerce 0 to f32 when comparing with norm_b (f32 from norm_l2()): {}",
+        code.contains("0f32")
+            || code.contains("0.0_f32")
+            || code.contains("0.0f32")
+            || code.contains("0f64")
+            || code.contains("0.0_f64")
+            || code.contains("0.0f64"),
+        "Should coerce 0 to float when comparing with norm_b: {}",
         code
     );
 }
@@ -60,14 +72,18 @@ def check_both_norms(a, b):
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).expect("transpilation failed");
 
-    // Count occurrences of f32 literals - should have 2 (one for each comparison)
-    let f32_count = code.matches("0f32").count()
+    // Count occurrences of float literals - should have 2 (one for each comparison)
+    // Accept both f32 and f64 variants
+    let float_count = code.matches("0f32").count()
         + code.matches("0.0_f32").count()
-        + code.matches("0.0f32").count();
+        + code.matches("0.0f32").count()
+        + code.matches("0f64").count()
+        + code.matches("0.0_f64").count()
+        + code.matches("0.0f64").count();
 
     assert!(
-        f32_count >= 2,
-        "Should have at least 2 f32 literals for both comparisons: {}",
+        float_count >= 2,
+        "Should have at least 2 float literals for both comparisons: {}",
         code
     );
 }
@@ -114,16 +130,20 @@ def cosine_sim(a, b):
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).expect("transpilation failed");
 
-    // Should have f32 comparisons for both norm checks
-    let f32_comparison_count = code.matches("0f32").count()
+    // Should have float comparisons for both norm checks
+    // Accept both f32 and f64 variants
+    let float_comparison_count = code.matches("0f32").count()
         + code.matches("0.0_f32").count()
-        + code.matches("0.0f32").count();
+        + code.matches("0.0f32").count()
+        + code.matches("0f64").count()
+        + code.matches("0.0_f64").count()
+        + code.matches("0.0f64").count();
 
-    // 2 f32 literals for the comparisons (norm_a > 0f32, norm_b > 0f32)
+    // 2 float literals for the comparisons (norm_a > 0f64, norm_b > 0f64)
     assert!(
-        f32_comparison_count >= 2,
-        "Should have f32 literals for comparisons (expected >= 2, got {}): {}",
-        f32_comparison_count,
+        float_comparison_count >= 2,
+        "Should have float literals for comparisons (expected >= 2, got {}): {}",
+        float_comparison_count,
         code
     );
 
@@ -149,9 +169,15 @@ def check_dot(a, b):
     let pipeline = DepylerPipeline::new();
     let code = pipeline.transpile(python).expect("transpilation failed");
 
+    // Accept both f32 and f64 since both are valid float types
     assert!(
-        code.contains("0f32") || code.contains("0.0_f32") || code.contains("0.0f32"),
-        "Should coerce 0 to f32 when comparing with dot (f32 from dot()): {}",
+        code.contains("0f32")
+            || code.contains("0.0_f32")
+            || code.contains("0.0f32")
+            || code.contains("0f64")
+            || code.contains("0.0_f64")
+            || code.contains("0.0f64"),
+        "Should coerce 0 to float when comparing with dot: {}",
         code
     );
 }

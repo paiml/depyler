@@ -94,7 +94,10 @@ pub fn is_bool_type(t: &Type) -> bool {
 
 /// Check if a type is a collection (list, dict, set)
 pub fn is_collection_type(t: &Type) -> bool {
-    matches!(t, Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_))
+    matches!(
+        t,
+        Type::List(_) | Type::Dict(_, _) | Type::Set(_) | Type::Tuple(_)
+    )
 }
 
 /// Classify a union type for error messages and debugging
@@ -307,7 +310,10 @@ mod tests {
 
     #[test]
     fn test_is_collection_type_tuple() {
-        assert!(is_collection_type(&Type::Tuple(vec![Type::Int, Type::String])));
+        assert!(is_collection_type(&Type::Tuple(vec![
+            Type::Int,
+            Type::String
+        ])));
     }
 
     #[test]
@@ -348,10 +354,7 @@ mod tests {
 
     #[test]
     fn test_classify_union_string_union() {
-        let types = vec![
-            Type::String,
-            Type::Custom("str".to_string()),
-        ];
+        let types = vec![Type::String, Type::Custom("str".to_string())];
         assert_eq!(classify_union(&types), UnionClassification::StringUnion);
     }
 
@@ -472,11 +475,7 @@ mod tests {
 
     #[test]
     fn test_resolve_union_type_triple_numeric() {
-        let types = vec![
-            Type::Int,
-            Type::Float,
-            Type::Custom("float".to_string()),
-        ];
+        let types = vec![Type::Int, Type::Float, Type::Custom("float".to_string())];
         let tokens = resolve_union_type(&types, simple_type_converter);
         let code = tokens.to_string();
         assert!(code.contains("f64"));

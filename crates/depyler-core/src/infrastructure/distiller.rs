@@ -125,7 +125,11 @@ impl Default for KnowledgeDistiller {
 mod tests {
     use super::*;
 
-    fn create_test_pattern(confidence: f32, usage_count: u32, success_rate: f32) -> TranspilationPattern {
+    fn create_test_pattern(
+        confidence: f32,
+        usage_count: u32,
+        success_rate: f32,
+    ) -> TranspilationPattern {
         TranspilationPattern {
             id: "test-pattern-001".to_string(),
             python_pattern: "def foo(x): return x + 1".to_string(),

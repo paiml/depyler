@@ -30,7 +30,9 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python).expect("transpilation should succeed");
+    let result = pipeline
+        .transpile(python)
+        .expect("transpilation should succeed");
 
     // E0416 occurs when same identifier bound twice: `ref path, ref path`
     // The pattern should only have `ref path` once
@@ -41,7 +43,10 @@ if __name__ == "__main__":
          This indicates E0416 duplicate identifier bug.\n\
          Generated code snippet:\n{}",
         binding_count,
-        &result[result.find("match").unwrap_or(0)..].chars().take(500).collect::<String>()
+        &result[result.find("match").unwrap_or(0)..]
+            .chars()
+            .take(500)
+            .collect::<String>()
     );
 }
 
@@ -70,7 +75,9 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python).expect("transpilation should succeed");
+    let result = pipeline
+        .transpile(python)
+        .expect("transpilation should succeed");
 
     // Check for duplicate bindings
     let dir_count = result.matches("ref directory").count();
@@ -123,7 +130,9 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python).expect("transpilation should succeed");
+    let result = pipeline
+        .transpile(python)
+        .expect("transpilation should succeed");
 
     // No field should appear more than once in any single match pattern
     // Count total occurrences - each should be at most 1 per subcommand
@@ -173,7 +182,9 @@ if __name__ == "__main__":
 "#;
 
     let pipeline = DepylerPipeline::new();
-    let result = pipeline.transpile(python).expect("transpilation should succeed");
+    let result = pipeline
+        .transpile(python)
+        .expect("transpilation should succeed");
 
     // The generated code should NOT contain duplicate bindings like:
     // `Commands::Info { ref path, ref path, .. }`

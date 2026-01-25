@@ -184,9 +184,9 @@ impl DoctestExtractor {
         start_line: usize,
         function: Option<&str>,
     ) -> Result<(Option<Doctest>, usize)> {
-        let first_line = lines.get(start_line).ok_or_else(|| {
-            anyhow::anyhow!("Invalid line index: {}", start_line)
-        })?;
+        let first_line = lines
+            .get(start_line)
+            .ok_or_else(|| anyhow::anyhow!("Invalid line index: {}", start_line))?;
 
         let trimmed = first_line.trim();
         if !trimmed.starts_with(">>>") {
@@ -194,7 +194,10 @@ impl DoctestExtractor {
         }
 
         // Extract input expression (may span multiple lines with ...)
-        let mut input = trimmed.strip_prefix(">>> ").unwrap_or(&trimmed[3..]).to_string();
+        let mut input = trimmed
+            .strip_prefix(">>> ")
+            .unwrap_or(&trimmed[3..])
+            .to_string();
         let mut consumed = 1;
         let mut next_idx = start_line + 1;
 
@@ -221,7 +224,8 @@ impl DoctestExtractor {
             if next_line.starts_with(">>>")
                 || next_line.starts_with("\"\"\"")
                 || next_line.starts_with("'''")
-                || next_line.is_empty() && next_idx + 1 < lines.len()
+                || next_line.is_empty()
+                    && next_idx + 1 < lines.len()
                     && (lines[next_idx + 1].trim().starts_with(">>>")
                         || lines[next_idx + 1].trim().starts_with("\"\"\"")
                         || lines[next_idx + 1].trim().starts_with("'''"))
@@ -268,10 +272,7 @@ impl DoctestExtractor {
             std::collections::HashMap::new();
 
         for dt in doctests {
-            by_function
-                .entry(dt.function.clone())
-                .or_default()
-                .push(dt);
+            by_function.entry(dt.function.clone()).or_default().push(dt);
         }
 
         let function_doctests: Vec<FunctionDoctests> = by_function

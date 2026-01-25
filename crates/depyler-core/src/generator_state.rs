@@ -439,11 +439,7 @@ mod tests {
         let func = make_func(
             "int_infer",
             vec![],
-            vec![make_assign(
-                "x",
-                HirExpr::Literal(Literal::Int(42)),
-                None,
-            )],
+            vec![make_assign("x", HirExpr::Literal(Literal::Int(42)), None)],
         );
         let info = GeneratorStateInfo::analyze(&func);
 
@@ -807,7 +803,11 @@ mod tests {
         let info = GeneratorStateInfo::analyze(&func);
 
         assert_eq!(info.state_variables.len(), 2);
-        let names: Vec<&str> = info.state_variables.iter().map(|v| v.name.as_str()).collect();
+        let names: Vec<&str> = info
+            .state_variables
+            .iter()
+            .map(|v| v.name.as_str())
+            .collect();
         assert!(names.contains(&"a"));
         assert!(names.contains(&"b"));
     }
@@ -940,9 +940,11 @@ mod tests {
                 body: vec![HirStmt::Expr(make_yield(None))],
                 handlers: vec![],
                 orelse: None,
-                finalbody: Some(vec![
-                    make_assign("cleanup", HirExpr::Literal(Literal::Bool(true)), None),
-                ]),
+                finalbody: Some(vec![make_assign(
+                    "cleanup",
+                    HirExpr::Literal(Literal::Bool(true)),
+                    None,
+                )]),
             }],
         );
         let info = GeneratorStateInfo::analyze(&func);
@@ -980,7 +982,10 @@ mod tests {
     fn test_with_statement() {
         let func = make_func(
             "with_gen",
-            vec![make_param("ctx", Type::Custom("ContextManager".to_string()))],
+            vec![make_param(
+                "ctx",
+                Type::Custom("ContextManager".to_string()),
+            )],
             vec![HirStmt::With {
                 context: HirExpr::Var("ctx".to_string()),
                 target: Some("f".to_string()),

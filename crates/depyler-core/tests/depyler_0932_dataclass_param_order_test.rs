@@ -110,7 +110,11 @@ def create_person() -> Person:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -176,7 +180,11 @@ def create_config() -> Config:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -219,7 +227,11 @@ def use_point() -> int:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -258,7 +270,11 @@ def create_rect() -> Rectangle:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -300,7 +316,11 @@ def create_user() -> User:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
@@ -333,17 +353,28 @@ def hire_employee() -> Employee:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let code = result.unwrap();
 
     // Verify struct field order matches Python definition
     // Fields should appear in order: department, employee_id, salary, is_manager
     let struct_pos = code.find("pub struct Employee");
-    assert!(struct_pos.is_some(), "Should generate Employee struct: {}", code);
+    assert!(
+        struct_pos.is_some(),
+        "Should generate Employee struct: {}",
+        code
+    );
 
     let struct_start = struct_pos.unwrap();
-    let struct_end = code[struct_start..].find('}').map(|p| struct_start + p + 1).unwrap_or(code.len());
+    let struct_end = code[struct_start..]
+        .find('}')
+        .map(|p| struct_start + p + 1)
+        .unwrap_or(code.len());
     let struct_def = &code[struct_start..struct_end];
 
     let dept_pos = struct_def.find("department");

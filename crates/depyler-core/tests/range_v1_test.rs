@@ -42,10 +42,7 @@ def test_ranges():
         rust_code.contains("..5") || rust_code.contains("step_by"),
         "Should have two arg range pattern"
     );
-    assert!(
-        rust_code.contains("step_by"),
-        "Should have step pattern"
-    );
+    assert!(rust_code.contains("step_by"), "Should have step pattern");
     assert!(
         rust_code.contains("rev()") || rust_code.contains("step_by"),
         "Should handle negative step"

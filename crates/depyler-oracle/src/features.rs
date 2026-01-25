@@ -241,7 +241,10 @@ pub const KEYWORD_CATEGORIES: [(&str, &[&str]); 9] = [
     ("async", &["async", "await", "future", "poll"]),
     ("closure", &["closure", "capture", "fn", "move"]),
     ("derive", &["derive", "debug", "clone", "default"]),
-    ("result_option", &["result", "option", "some", "none", "ok", "err", "unwrap"]),
+    (
+        "result_option",
+        &["result", "option", "some", "none", "ok", "err", "unwrap"],
+    ),
 ];
 
 /// GH-210: Enhanced error features with 73 dimensions
@@ -308,10 +311,7 @@ impl EnhancedErrorFeatures {
             keyword_counts[base_idx + 2] = 1.0 - (first_pos as f32 / lower.len().max(1) as f32);
 
             // Feature 4: keyword density (occurrences per 100 chars)
-            let total_occurrences: usize = keywords
-                .iter()
-                .map(|k| lower.matches(k).count())
-                .sum();
+            let total_occurrences: usize = keywords.iter().map(|k| lower.matches(k).count()).sum();
             keyword_counts[base_idx + 3] =
                 (total_occurrences as f32 * 100.0 / lower.len().max(1) as f32).min(1.0);
         }
@@ -498,7 +498,10 @@ mod tests {
         // type_coercion category (index 0-3) should have hits
         // "into" and "convert" are both present
         assert!(features.keyword_counts[0] > 0.0, "type_coercion presence");
-        assert!(features.keyword_counts[1] > 0.0, "type_coercion count ratio");
+        assert!(
+            features.keyword_counts[1] > 0.0,
+            "type_coercion count ratio"
+        );
     }
 
     #[test]

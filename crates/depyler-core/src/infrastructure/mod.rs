@@ -24,15 +24,15 @@
 //! - Bengio et al. (2009): Curriculum learning
 //! - Hinton et al. (2015): Knowledge distillation
 
-pub mod fault_localizer;
-pub mod pattern_store;
 pub mod curriculum;
 pub mod distiller;
+pub mod fault_localizer;
+pub mod pattern_store;
 
-pub use fault_localizer::{FaultLocalizer, TranspilerDecision, DecisionType, SourceLocation};
+pub use curriculum::{CompilationError, CurriculumScheduler, DifficultyLevel, FailingExample};
+pub use distiller::{GraduationCriteria, KnowledgeDistiller};
+pub use fault_localizer::{DecisionType, FaultLocalizer, SourceLocation, TranspilerDecision};
 pub use pattern_store::{PatternStore, TranspilationPattern};
-pub use curriculum::{CurriculumScheduler, FailingExample, DifficultyLevel, CompilationError};
-pub use distiller::{KnowledgeDistiller, GraduationCriteria};
 
 #[cfg(test)]
 mod tests;

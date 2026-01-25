@@ -570,7 +570,9 @@ mod tests {
     #[test]
     fn test_convert_re_escape_basic() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::String("hello.*world".to_string()))];
+        let args = vec![HirExpr::Literal(Literal::String(
+            "hello.*world".to_string(),
+        ))];
         let result = convert_re_method("escape", &args, &mut ctx);
         assert!(result.is_ok());
     }

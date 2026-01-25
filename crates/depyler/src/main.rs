@@ -7,7 +7,9 @@ use clap::Parser;
 use depyler::{
     analyze_command, check_command, compile_command, converge, graph_cmd, repair_command,
     report_cmd::{handle_report_command, ReportArgs},
-    transpile_command, utol_cmd::handle_utol_command, CacheCommands, Cli, Commands, GraphCommands,
+    transpile_command,
+    utol_cmd::handle_utol_command,
+    CacheCommands, Cli, Commands, GraphCommands,
 };
 use std::path::PathBuf;
 
@@ -26,6 +28,8 @@ async fn handle_converge_command(
     oracle: bool,
     explain: bool,
     use_cache: bool,
+    patch_transpiler: bool,
+    apr_file: Option<PathBuf>,
 ) -> Result<()> {
     let display_mode = converge::DisplayMode::parse(&display);
 
@@ -43,6 +47,8 @@ async fn handle_converge_command(
         oracle,
         explain,
         use_cache,
+        patch_transpiler,
+        apr_file,
     };
 
     config.validate()?;
@@ -50,7 +56,10 @@ async fn handle_converge_command(
     let state = converge::run_convergence_loop(config).await?;
 
     if state.compilation_rate >= state.config.target_rate {
-        if !matches!(state.config.display_mode, converge::DisplayMode::Silent | converge::DisplayMode::Json) {
+        if !matches!(
+            state.config.display_mode,
+            converge::DisplayMode::Silent | converge::DisplayMode::Json
+        ) {
             println!("Target rate reached: {:.1}%", state.compilation_rate);
         }
         Ok(())
@@ -129,7 +138,10 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
                 }
             }
         }
-        CacheCommands::Gc { max_age_days, dry_run } => {
+        CacheCommands::Gc {
+            max_age_days,
+            dry_run,
+        } => {
             let cache_path = get_cache_dir();
             let config = CacheConfig {
                 cache_dir: cache_path.clone(),
@@ -183,7 +195,10 @@ fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
             }
             Ok(())
         }
-        CacheCommands::Warm { input_dir, jobs: _jobs } => {
+        CacheCommands::Warm {
+            input_dir,
+            jobs: _jobs,
+        } => {
             use depyler::converge::cache_warmer::CacheWarmer;
 
             let cache_path = get_cache_dir();
@@ -241,6 +256,8 @@ async fn handle_command(command: Commands) -> Result<()> {
             oracle,
             explain,
             cache,
+            patch_transpiler,
+            apr_file,
         } => {
             handle_converge_command(
                 input_dir,
@@ -255,6 +272,8 @@ async fn handle_command(command: Commands) -> Result<()> {
                 oracle,
                 explain,
                 cache,
+                patch_transpiler,
+                apr_file,
             )
             .await
         }
@@ -295,11 +314,11 @@ async fn handle_command(command: Commands) -> Result<()> {
             max_iterations,
             patience,
             display,
-            None,    // output
-            None,    // config
+            None, // output
+            None, // config
             status,
-            false,   // watch
-            500,     // watch_debounce
+            false, // watch
+            500,   // watch_debounce
         ),
         Commands::Repair {
             input,
@@ -308,12 +327,16 @@ async fn handle_command(command: Commands) -> Result<()> {
             verbose,
         } => repair_command(input, output, max_iterations, verbose),
         Commands::Graph(graph_cmd) => match graph_cmd {
-            GraphCommands::Analyze { corpus, top, output } => {
-                graph_cmd::analyze_corpus(&corpus, top, output.as_deref())
-            }
-            GraphCommands::Vectorize { corpus, output, format } => {
-                graph_cmd::vectorize_corpus(&corpus, &output, &format)
-            }
+            GraphCommands::Analyze {
+                corpus,
+                top,
+                output,
+            } => graph_cmd::analyze_corpus(&corpus, top, output.as_deref()),
+            GraphCommands::Vectorize {
+                corpus,
+                output,
+                format,
+            } => graph_cmd::vectorize_corpus(&corpus, &output, &format),
         },
     }
 }

@@ -1,5 +1,4 @@
 #![allow(clippy::assertions_on_constants)]
-
 // DEPYLER-1160: Missing Trait Bounds Offensive
 //
 // Audit and fix E0277 errors caused by missing trait implementations.
@@ -10,7 +9,6 @@
 // 2. i32: PyAdd<DepylerValue> - Primitive + DepylerValue
 // 3. DepylerValue: From<Arc<HashSet<T>>> - Frozenset support
 // 4. Various cross-type comparisons
-
 #![allow(non_snake_case)] // Test naming convention
 
 use depyler_core::DepylerPipeline;

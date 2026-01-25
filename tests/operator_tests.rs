@@ -169,6 +169,7 @@ fn test_all_arithmetic_operators() {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -250,6 +251,7 @@ fn test_comparison_operators() {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -290,6 +292,7 @@ fn test_logical_operators() {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -336,6 +339,7 @@ fn test_bitwise_operators() {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
 
         let type_mapper = TypeMapper::default();
@@ -373,6 +377,7 @@ fn test_power_operator() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     // Power operator should now be supported
@@ -410,6 +415,7 @@ fn test_floor_division_operator() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     // Floor division should now be supported

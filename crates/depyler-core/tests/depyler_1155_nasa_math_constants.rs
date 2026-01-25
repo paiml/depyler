@@ -29,7 +29,11 @@ def get_pi():
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "math.pi should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "math.pi should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(
@@ -49,7 +53,11 @@ def get_e():
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "math.e should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "math.e should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(
@@ -69,7 +77,11 @@ def get_tau():
 "#;
 
     let result = transpile_python(python);
-    assert!(result.is_ok(), "math.tau should transpile: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "math.tau should transpile: {:?}",
+        result.err()
+    );
 
     let rust = result.unwrap();
     assert!(

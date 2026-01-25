@@ -425,4 +425,3 @@ impl TransformPattern {
         Ok(())
     }
 }
-

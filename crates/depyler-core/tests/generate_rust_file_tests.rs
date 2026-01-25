@@ -31,6 +31,7 @@ fn create_empty_module() -> HirModule {
         type_aliases: vec![],
         protocols: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     }
 }
 

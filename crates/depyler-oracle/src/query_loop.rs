@@ -286,12 +286,11 @@ impl OracleQueryLoop {
         }
 
         // Load using entrenar's DecisionPatternStore
-        let store = DecisionPatternStore::load_apr(path).map_err(|e| {
-            OracleQueryError::LoadFailed {
+        let store =
+            DecisionPatternStore::load_apr(path).map_err(|e| OracleQueryError::LoadFailed {
                 path: path.to_path_buf(),
                 cause: e.to_string(),
-            }
-        })?;
+            })?;
 
         self.pattern_path = Some(path.to_path_buf());
         self.pattern_store = Some(store);
@@ -816,8 +815,11 @@ mod tests {
 
         // Create and save a pattern store
         let mut store = DecisionPatternStore::new().unwrap();
-        let pattern = FixPattern::new("E0308", "- let x: i32 = \"hello\";\n+ let x: &str = \"hello\";")
-            .with_decision("type_mismatch_detected");
+        let pattern = FixPattern::new(
+            "E0308",
+            "- let x: i32 = \"hello\";\n+ let x: &str = \"hello\";",
+        )
+        .with_decision("type_mismatch_detected");
         store.index_fix(pattern).unwrap();
         store.save_apr(&apr_path).unwrap();
 
@@ -853,11 +855,8 @@ mod tests {
             surrounding_lines: vec![],
         };
 
-        let suggestions = oracle.suggest(
-            RustErrorCode::E0308,
-            "expected i32, found &str",
-            &context,
-        );
+        let suggestions =
+            oracle.suggest(RustErrorCode::E0308, "expected i32, found &str", &context);
 
         // Without patterns loaded, should return empty
         assert!(suggestions.is_empty());
@@ -901,7 +900,11 @@ mod tests {
                 ..Default::default()
             };
             let rate = stats.hit_rate();
-            assert!((0.0..=1.0).contains(&rate), "Hit rate out of bounds: {}", rate);
+            assert!(
+                (0.0..=1.0).contains(&rate),
+                "Hit rate out of bounds: {}",
+                rate
+            );
         }
     }
 

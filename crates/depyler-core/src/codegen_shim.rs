@@ -156,9 +156,11 @@ pub fn expr_complexity(expr: &HirExpr) -> usize {
         HirExpr::IfExpr { test, body, orelse } => {
             2 + expr_complexity(test) + expr_complexity(body) + expr_complexity(orelse)
         }
-        HirExpr::ListComp { element, generators, .. } => {
-            3 + expr_complexity(element) + generators.len()
-        }
+        HirExpr::ListComp {
+            element,
+            generators,
+            ..
+        } => 3 + expr_complexity(element) + generators.len(),
         _ => 1,
     }
 }
@@ -166,7 +168,9 @@ pub fn expr_complexity(expr: &HirExpr) -> usize {
 /// Check if type needs to be boxed (for recursive types)
 pub fn needs_boxing(ty: &Type) -> bool {
     match ty {
-        Type::Custom(name) => name.starts_with("Box<") || name.contains("Rc<") || name.contains("Arc<"),
+        Type::Custom(name) => {
+            name.starts_with("Box<") || name.contains("Rc<") || name.contains("Arc<")
+        }
         Type::List(inner) => needs_boxing(inner),
         Type::Optional(inner) => needs_boxing(inner),
         Type::Tuple(types) => types.iter().any(needs_boxing),
@@ -511,7 +515,9 @@ mod tests {
         )));
         assert!(is_reference_type(&Type::Set(Box::new(Type::Int))));
         assert!(is_reference_type(&Type::Custom("Vec<i32>".to_string())));
-        assert!(is_reference_type(&Type::Custom("HashMap<String, i32>".to_string())));
+        assert!(is_reference_type(&Type::Custom(
+            "HashMap<String, i32>".to_string()
+        )));
         assert!(!is_reference_type(&Type::Int));
         assert!(!is_reference_type(&Type::Float));
     }
@@ -558,10 +564,7 @@ mod tests {
         ];
         assert!(body_uses_hashmap(&body_with_dict));
 
-        let body_no_dict = vec![
-            HirStmt::Expr(int_expr(1)),
-            HirStmt::Expr(int_expr(2)),
-        ];
+        let body_no_dict = vec![HirStmt::Expr(int_expr(1)), HirStmt::Expr(int_expr(2))];
         assert!(!body_uses_hashmap(&body_no_dict));
     }
 }

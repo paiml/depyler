@@ -27,12 +27,7 @@ impl CitlResult {
     }
 
     /// Create a result from compilation statistics
-    pub fn from_stats(
-        compiled: usize,
-        total: usize,
-        iterations: usize,
-        fixes: usize,
-    ) -> Self {
+    pub fn from_stats(compiled: usize, total: usize, iterations: usize, fixes: usize) -> Self {
         let rate = if total == 0 {
             1.0
         } else {
@@ -263,10 +258,7 @@ impl FileFilter {
     /// Check if a file matches the filter
     pub fn matches_file(&self, path: &Path) -> bool {
         // Check extension
-        let ext = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         if !self.extensions.is_empty() && !self.extensions.contains(&ext.to_string()) {
             return false;
@@ -863,8 +855,14 @@ mod tests {
 
     #[test]
     fn test_architecture_target_triple() {
-        assert_eq!(Architecture::X86_64.target_triple(), "x86_64-unknown-linux-musl");
-        assert_eq!(Architecture::Arm64.target_triple(), "aarch64-unknown-linux-musl");
+        assert_eq!(
+            Architecture::X86_64.target_triple(),
+            "x86_64-unknown-linux-musl"
+        );
+        assert_eq!(
+            Architecture::Arm64.target_triple(),
+            "aarch64-unknown-linux-musl"
+        );
     }
 
     // =====================================================

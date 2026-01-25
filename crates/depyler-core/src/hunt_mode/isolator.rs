@@ -81,7 +81,8 @@ impl MinimalReproducer {
 def function_with_type_mismatch() -> str:
     value = 42  # int
     return value  # expects str
-"#.to_string(),
+"#
+            .to_string(),
             description: "Type mismatch between int and str".to_string(),
         });
 
@@ -93,7 +94,8 @@ import json
 
 def parse_json(text: str) -> dict:
     return json.loads(text)
-"#.to_string(),
+"#
+            .to_string(),
             description: "External crate import required".to_string(),
         });
 
@@ -105,7 +107,8 @@ from typing import Dict, Any
 
 def process_data(data: Dict[str, Any]) -> str:
     return data.get("name", "Unknown")
-"#.to_string(),
+"#
+            .to_string(),
             description: "Trait bound not satisfied".to_string(),
         });
 
@@ -117,7 +120,8 @@ def modify_list(items: list) -> list:
     for i, item in enumerate(items):
         items[i] = item * 2  # Modify while iterating
     return items
-"#.to_string(),
+"#
+            .to_string(),
             description: "Cannot borrow as mutable while borrowed as immutable".to_string(),
         });
 
@@ -132,7 +136,8 @@ def use_after_move() -> str:
 
 def process(s: str) -> None:
     pass
-"#.to_string(),
+"#
+            .to_string(),
             description: "Use of moved value".to_string(),
         });
     }
@@ -142,7 +147,8 @@ def process(s: str) -> None:
     /// Poka-yoke: The repro MUST fail before any fix is attempted.
     pub fn synthesize_repro(&self, pattern: &FailurePattern) -> anyhow::Result<ReproCase> {
         // Try to find a matching template
-        let template = self.find_template(&pattern.error_code)
+        let template = self
+            .find_template(&pattern.error_code)
             .or_else(|| self.generate_from_example(pattern));
 
         let source = match template {
@@ -153,11 +159,7 @@ def process(s: str) -> None:
             }
         };
 
-        let mut repro = ReproCase::new(
-            source,
-            pattern.error_code.clone(),
-            pattern.id.clone(),
-        );
+        let mut repro = ReproCase::new(source, pattern.error_code.clone(), pattern.id.clone());
 
         // Poka-yoke: Verify this actually fails
         // (In real implementation, would transpile and try to compile)
@@ -183,9 +185,7 @@ def process(s: str) -> None:
 
         Some(format!(
             "# Minimal repro: {} - {}\n{}",
-            pattern.error_code,
-            pattern.description,
-            pattern.trigger_example
+            pattern.error_code, pattern.description, pattern.trigger_example
         ))
     }
 
@@ -199,9 +199,7 @@ def process(s: str) -> None:
 def repro_function():
     pass  # Placeholder
 "#,
-            pattern.error_code,
-            pattern.description,
-            pattern.category
+            pattern.error_code, pattern.description, pattern.category
         )
     }
 
@@ -227,7 +225,11 @@ def repro_function():
     }
 
     /// Write repro to disk for manual inspection
-    pub fn write_to_disk(&self, repro: &mut ReproCase, dir: &std::path::Path) -> anyhow::Result<PathBuf> {
+    pub fn write_to_disk(
+        &self,
+        repro: &mut ReproCase,
+        dir: &std::path::Path,
+    ) -> anyhow::Result<PathBuf> {
         let filename = format!("repro_{}.py", repro.pattern_id);
         let path = dir.join(filename);
 
@@ -296,11 +298,7 @@ mod tests {
 
     #[test]
     fn test_repro_case_mark_verified() {
-        let mut repro = ReproCase::new(
-            "test".to_string(),
-            "E0308".to_string(),
-            "p1".to_string(),
-        );
+        let mut repro = ReproCase::new("test".to_string(), "E0308".to_string(), "p1".to_string());
 
         assert!(!repro.verified_failing);
         repro.mark_verified();

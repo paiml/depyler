@@ -184,7 +184,11 @@ impl CorpusReport {
             error_distribution: Self::build_error_distribution(&taxonomy),
             blocker_analysis: Self::build_blocker_analysis(&taxonomy),
             statistical_analysis: statistics.clone(),
-            toyota_way_metrics: Self::build_toyota_metrics(&statistics, &taxonomy, config.target_rate),
+            toyota_way_metrics: Self::build_toyota_metrics(
+                &statistics,
+                &taxonomy,
+                config.target_rate,
+            ),
         }
     }
 
@@ -264,11 +268,20 @@ impl CorpusReport {
                 .iter()
                 .filter(|b| b.priority == BlockerPriority::P0Critical)
                 .count(),
-            andon_triggers: if andon_status == AndonStatus::Red { 1 } else { 0 },
+            andon_triggers: if andon_status == AndonStatus::Red {
+                1
+            } else {
+                0
+            },
             kaizen_opportunities: taxonomy
                 .blockers
                 .iter()
-                .filter(|b| matches!(b.priority, BlockerPriority::P1High | BlockerPriority::P2Medium))
+                .filter(|b| {
+                    matches!(
+                        b.priority,
+                        BlockerPriority::P1High | BlockerPriority::P2Medium
+                    )
+                })
                 .count(),
             hansei_items: Self::generate_hansei_items(taxonomy),
         }
@@ -319,10 +332,7 @@ impl CorpusReport {
             "# Corpus Analysis Report: {}\n\n",
             self.metadata.corpus_name
         ));
-        md.push_str(&format!(
-            "**Generated**: {}\n",
-            self.metadata.generated_at
-        ));
+        md.push_str(&format!("**Generated**: {}\n", self.metadata.generated_at));
         md.push_str(&format!(
             "**Depyler Version**: {}\n\n",
             self.metadata.depyler_version
@@ -356,7 +366,10 @@ impl CorpusReport {
         md.push_str("| Error Code | Count | Description |\n");
         md.push_str("|------------|-------|-------------|\n");
         for err in &self.error_distribution.by_error_code {
-            md.push_str(&format!("| {} | {} | {} |\n", err.code, err.count, err.description));
+            md.push_str(&format!(
+                "| {} | {} | {} |\n",
+                err.code, err.count, err.description
+            ));
         }
         md.push('\n');
 
@@ -364,14 +377,20 @@ impl CorpusReport {
         if !self.blocker_analysis.p0_critical.is_empty() {
             md.push_str("### P0 Critical\n\n");
             for b in &self.blocker_analysis.p0_critical {
-                md.push_str(&format!("- **{}** ({} occurrences): {}\n", b.error_code, b.count, b.root_cause));
+                md.push_str(&format!(
+                    "- **{}** ({} occurrences): {}\n",
+                    b.error_code, b.count, b.root_cause
+                ));
             }
             md.push('\n');
         }
         if !self.blocker_analysis.p1_high.is_empty() {
             md.push_str("### P1 High\n\n");
             for b in &self.blocker_analysis.p1_high {
-                md.push_str(&format!("- **{}** ({} occurrences): {}\n", b.error_code, b.count, b.root_cause));
+                md.push_str(&format!(
+                    "- **{}** ({} occurrences): {}\n",
+                    b.error_code, b.count, b.root_cause
+                ));
             }
             md.push('\n');
         }
@@ -458,28 +477,24 @@ mod tests {
 
     fn create_test_report() -> CorpusReport {
         let config = CorpusConfig::default();
-        let transpile_results = vec![
-            TranspilationResult {
-                python_file: std::path::PathBuf::from("a.py"),
-                rust_file: Some(std::path::PathBuf::from("a.rs")),
-                cargo_dir: Some(std::path::PathBuf::from(".")),
-                success: true,
-                error: None,
-                duration: std::time::Duration::from_millis(100),
-            },
-        ];
-        let compile_results = vec![
-            CompilationResult {
-                rust_file: std::path::PathBuf::from("a.rs"),
-                python_file: std::path::PathBuf::from("a.py"),
-                success: true,
-                exit_code: Some(0),
-                stderr: None,
-                stdout: None,
-                duration: std::time::Duration::from_millis(50),
-                cargo_first: true,
-            },
-        ];
+        let transpile_results = vec![TranspilationResult {
+            python_file: std::path::PathBuf::from("a.py"),
+            rust_file: Some(std::path::PathBuf::from("a.rs")),
+            cargo_dir: Some(std::path::PathBuf::from(".")),
+            success: true,
+            error: None,
+            duration: std::time::Duration::from_millis(100),
+        }];
+        let compile_results = vec![CompilationResult {
+            rust_file: std::path::PathBuf::from("a.rs"),
+            python_file: std::path::PathBuf::from("a.py"),
+            success: true,
+            exit_code: Some(0),
+            stderr: None,
+            stdout: None,
+            duration: std::time::Duration::from_millis(50),
+            cargo_first: true,
+        }];
         let taxonomy = ErrorTaxonomy {
             errors: vec![],
             by_category: HashMap::new(),
@@ -499,7 +514,13 @@ mod tests {
             total_errors: 0,
         };
 
-        CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics)
+        CorpusReport::new(
+            &config,
+            transpile_results,
+            compile_results,
+            taxonomy,
+            statistics,
+        )
     }
 
     #[test]
@@ -530,18 +551,16 @@ mod tests {
                 duration: std::time::Duration::from_millis(100),
             },
         ];
-        let compile_results = vec![
-            CompilationResult {
-                rust_file: std::path::PathBuf::from("b.rs"),
-                python_file: std::path::PathBuf::from("b.py"),
-                success: false,
-                exit_code: Some(1),
-                stderr: Some("error[E0308]: mismatched types".to_string()),
-                stdout: None,
-                duration: std::time::Duration::from_millis(50),
-                cargo_first: false,
-            },
-        ];
+        let compile_results = vec![CompilationResult {
+            rust_file: std::path::PathBuf::from("b.rs"),
+            python_file: std::path::PathBuf::from("b.py"),
+            success: false,
+            exit_code: Some(1),
+            stderr: Some("error[E0308]: mismatched types".to_string()),
+            stdout: None,
+            duration: std::time::Duration::from_millis(50),
+            cargo_first: false,
+        }];
 
         let mut by_category = HashMap::new();
         by_category.insert(ErrorCategory::TypeMismatch, 1);
@@ -569,7 +588,13 @@ mod tests {
             total_errors: 1,
         };
 
-        let report = CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
+        let report = CorpusReport::new(
+            &config,
+            transpile_results,
+            compile_results,
+            taxonomy,
+            statistics,
+        );
         assert_eq!(report.summary.transpilation.failure, 1);
         assert_eq!(report.summary.compilation.failure, 1);
         assert!(!report.error_distribution.by_category.is_empty());
@@ -599,7 +624,13 @@ mod tests {
             total_errors: 0,
         };
 
-        let report = CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
+        let report = CorpusReport::new(
+            &config,
+            transpile_results,
+            compile_results,
+            taxonomy,
+            statistics,
+        );
         assert_eq!(report.summary.transpilation.rate, 0.0);
     }
 
@@ -665,7 +696,13 @@ mod tests {
             total_errors: 0,
         };
 
-        let report = CorpusReport::new(&config, transpile_results, compile_results, taxonomy, statistics);
+        let report = CorpusReport::new(
+            &config,
+            transpile_results,
+            compile_results,
+            taxonomy,
+            statistics,
+        );
         let md = report.to_markdown();
 
         assert!(md.contains("P0 Critical"));
@@ -690,11 +727,26 @@ mod tests {
 
     #[test]
     fn test_error_code_description_all() {
-        assert_eq!(CorpusReport::error_code_description("E0308"), "mismatched types");
-        assert_eq!(CorpusReport::error_code_description("E0412"), "cannot find type");
-        assert_eq!(CorpusReport::error_code_description("E0425"), "cannot find value");
-        assert_eq!(CorpusReport::error_code_description("E0282"), "type annotations needed");
-        assert_eq!(CorpusReport::error_code_description("E0277"), "trait not implemented");
+        assert_eq!(
+            CorpusReport::error_code_description("E0308"),
+            "mismatched types"
+        );
+        assert_eq!(
+            CorpusReport::error_code_description("E0412"),
+            "cannot find type"
+        );
+        assert_eq!(
+            CorpusReport::error_code_description("E0425"),
+            "cannot find value"
+        );
+        assert_eq!(
+            CorpusReport::error_code_description("E0282"),
+            "type annotations needed"
+        );
+        assert_eq!(
+            CorpusReport::error_code_description("E0277"),
+            "trait not implemented"
+        );
         assert_eq!(CorpusReport::error_code_description("E9999"), "other error");
     }
 

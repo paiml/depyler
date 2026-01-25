@@ -106,9 +106,18 @@ impl ConvergenceReporter {
                     "║ Input Directory: {:43} ║",
                     truncate_path(&state.config.input_dir.display().to_string(), 43)
                 );
-                println!("║ Target Rate:     {:6.1}%                                     ║", state.config.target_rate);
-                println!("║ Max Iterations:  {:6}                                      ║", state.config.max_iterations);
-                println!("║ Auto-fix:        {:6}                                      ║", if state.config.auto_fix { "ON" } else { "OFF" });
+                println!(
+                    "║ Target Rate:     {:6.1}%                                     ║",
+                    state.config.target_rate
+                );
+                println!(
+                    "║ Max Iterations:  {:6}                                      ║",
+                    state.config.max_iterations
+                );
+                println!(
+                    "║ Auto-fix:        {:6}                                      ║",
+                    if state.config.auto_fix { "ON" } else { "OFF" }
+                );
                 println!("╚══════════════════════════════════════════════════════════════╝");
                 println!();
             }
@@ -172,13 +181,11 @@ impl ConvergenceReporter {
 
                     // Show sample errors
                     if !top_cluster.sample_errors.is_empty() {
-                        println!("│ Sample Errors:                                               │");
+                        println!(
+                            "│ Sample Errors:                                               │"
+                        );
                         for (i, error) in top_cluster.sample_errors.iter().take(3).enumerate() {
-                            println!(
-                                "│   {}. {}│",
-                                i + 1,
-                                truncate(&error.message, 55)
-                            );
+                            println!("│   {}. {}│", i + 1, truncate(&error.message, 55));
                         }
                     }
                 }
@@ -237,12 +244,24 @@ impl ConvergenceReporter {
                 println!("╠══════════════════════════════════════════════════════════════╣");
                 println!(
                     "║ Status:          {:43} ║",
-                    if reached_target { "TARGET REACHED" } else { "TARGET NOT REACHED" }
+                    if reached_target {
+                        "TARGET REACHED"
+                    } else {
+                        "TARGET NOT REACHED"
+                    }
                 );
-                println!("║ Final Rate:      {:5.1}% ({}/{})                              ║",
-                    state.compilation_rate, passing, total);
-                println!("║ Iterations:      {:6}                                      ║", state.iteration);
-                println!("║ Fixes Applied:   {:6}                                      ║", state.fixes_applied.len());
+                println!(
+                    "║ Final Rate:      {:5.1}% ({}/{})                              ║",
+                    state.compilation_rate, passing, total
+                );
+                println!(
+                    "║ Iterations:      {:6}                                      ║",
+                    state.iteration
+                );
+                println!(
+                    "║ Fixes Applied:   {:6}                                      ║",
+                    state.fixes_applied.len()
+                );
                 println!("╚══════════════════════════════════════════════════════════════╝");
 
                 if self.verbose && !state.fixes_applied.is_empty() {
@@ -254,13 +273,21 @@ impl ConvergenceReporter {
                             i + 1,
                             fix.error_code,
                             fix.description,
-                            if fix.verified { "verified" } else { "unverified" }
+                            if fix.verified {
+                                "verified"
+                            } else {
+                                "unverified"
+                            }
                         );
                     }
                 }
             }
             DisplayMode::Minimal => {
-                let status = if reached_target { "CONVERGED" } else { "NOT_CONVERGED" };
+                let status = if reached_target {
+                    "CONVERGED"
+                } else {
+                    "NOT_CONVERGED"
+                };
                 println!(
                     "DONE | {} | {:.1}% ({}/{}) | {} iterations | {} fixes",
                     status,
@@ -275,7 +302,10 @@ impl ConvergenceReporter {
         }
 
         // Show remaining error clusters (rich mode only)
-        if matches!(self.display_mode, DisplayMode::Rich) && !reached_target && !state.error_clusters.is_empty() {
+        if matches!(self.display_mode, DisplayMode::Rich)
+            && !reached_target
+            && !state.error_clusters.is_empty()
+        {
             println!();
             println!("Remaining Error Clusters:");
             for (i, cluster) in state.error_clusters.iter().take(5).enumerate() {
@@ -364,10 +394,7 @@ impl ConvergenceReporter {
 
     /// Report failure analysis with Error Frequency Table
     /// This provides automated root cause hinting without requiring log analysis
-    pub fn report_failure_analysis(
-        &self,
-        results: &[super::compiler::CompilationResult],
-    ) {
+    pub fn report_failure_analysis(&self, results: &[super::compiler::CompilationResult]) {
         if !self.should_output() {
             return;
         }
@@ -400,7 +427,10 @@ impl ConvergenceReporter {
 
                 // Top blocker with representative error
                 if let Some(top) = frequencies.first() {
-                    println!("║ TOP BLOCKER: {} ({} files)                          ║", top.code, top.count);
+                    println!(
+                        "║ TOP BLOCKER: {} ({} files)                          ║",
+                        top.code, top.count
+                    );
                     println!("╠──────────────────────────────────────────────────────────────╣");
                     // Wrap the sample message
                     let msg = &top.sample_message;
@@ -415,7 +445,13 @@ impl ConvergenceReporter {
                 println!();
                 println!("=== FAILURES ANALYSIS ===");
                 for (i, freq) in frequencies.iter().take(5).enumerate() {
-                    println!("{}. {} ({}): {} files", i + 1, freq.code, Self::error_description(&freq.code), freq.count);
+                    println!(
+                        "{}. {} ({}): {} files",
+                        i + 1,
+                        freq.code,
+                        Self::error_description(&freq.code),
+                        freq.count
+                    );
                 }
                 if let Some(top) = frequencies.first() {
                     println!("Top Blocker: {}", top.code);
@@ -439,7 +475,9 @@ impl ConvergenceReporter {
                 continue;
             }
             for error in &result.errors {
-                let entry = code_counts.entry(error.code.clone()).or_insert((0, error.message.clone()));
+                let entry = code_counts
+                    .entry(error.code.clone())
+                    .or_insert((0, error.message.clone()));
                 entry.0 += 1;
             }
         }
@@ -553,7 +591,10 @@ mod tests {
     #[test]
     fn test_truncate() {
         assert_eq!(truncate("short", 10), "short     ");
-        assert_eq!(truncate("this is a very long string", 15), "this is a ve...");
+        assert_eq!(
+            truncate("this is a very long string", 15),
+            "this is a ve..."
+        );
     }
 
     #[test]
@@ -747,16 +788,14 @@ mod tests {
         let mut state = super::super::state::ConvergenceState::new(make_test_config());
         state.iteration = 1;
         let mut cluster = make_test_cluster();
-        cluster.sample_errors = vec![
-            super::super::compiler::CompilationError {
-                code: "E0599".to_string(),
-                message: "method not found".to_string(),
-                file: PathBuf::from("test.py"),
-                line: 10,
-                column: 5,
-                ..Default::default()
-            },
-        ];
+        cluster.sample_errors = vec![super::super::compiler::CompilationError {
+            code: "E0599".to_string(),
+            message: "method not found".to_string(),
+            file: PathBuf::from("test.py"),
+            line: 10,
+            column: 5,
+            ..Default::default()
+        }];
         reporter.report_iteration(&state, &cluster);
     }
 
@@ -933,37 +972,31 @@ mod tests {
 
     #[test]
     fn test_compute_error_frequencies_all_success() {
-        let results = vec![
-            super::super::compiler::CompilationResult {
-                source_file: PathBuf::from("a.py"),
-                success: true,
-                errors: vec![],
-                rust_file: Some(PathBuf::from("a.rs")),
-            },
-        ];
+        let results = vec![super::super::compiler::CompilationResult {
+            source_file: PathBuf::from("a.py"),
+            success: true,
+            errors: vec![],
+            rust_file: Some(PathBuf::from("a.rs")),
+        }];
         let frequencies = ConvergenceReporter::compute_error_frequencies(&results);
         assert!(frequencies.is_empty());
     }
 
     #[test]
     fn test_compute_error_frequencies_single_error() {
-        let results = vec![
-            super::super::compiler::CompilationResult {
-                source_file: PathBuf::from("a.py"),
-                success: false,
-                errors: vec![
-                    super::super::compiler::CompilationError {
-                        code: "E0308".to_string(),
-                        message: "mismatched types".to_string(),
-                        file: PathBuf::from("a.rs"),
-                        line: 10,
-                        column: 5,
-                        ..Default::default()
-                    },
-                ],
-                rust_file: Some(PathBuf::from("a.rs")),
-            },
-        ];
+        let results = vec![super::super::compiler::CompilationResult {
+            source_file: PathBuf::from("a.py"),
+            success: false,
+            errors: vec![super::super::compiler::CompilationError {
+                code: "E0308".to_string(),
+                message: "mismatched types".to_string(),
+                file: PathBuf::from("a.rs"),
+                line: 10,
+                column: 5,
+                ..Default::default()
+            }],
+            rust_file: Some(PathBuf::from("a.rs")),
+        }];
         let frequencies = ConvergenceReporter::compute_error_frequencies(&results);
         assert_eq!(frequencies.len(), 1);
         assert_eq!(frequencies[0].code, "E0308");
@@ -976,16 +1009,14 @@ mod tests {
             super::super::compiler::CompilationResult {
                 source_file: PathBuf::from("a.py"),
                 success: false,
-                errors: vec![
-                    super::super::compiler::CompilationError {
-                        code: "E0599".to_string(),
-                        message: "no method".to_string(),
-                        file: PathBuf::from("a.rs"),
-                        line: 1,
-                        column: 1,
-                        ..Default::default()
-                    },
-                ],
+                errors: vec![super::super::compiler::CompilationError {
+                    code: "E0599".to_string(),
+                    message: "no method".to_string(),
+                    file: PathBuf::from("a.rs"),
+                    line: 1,
+                    column: 1,
+                    ..Default::default()
+                }],
                 rust_file: None,
             },
             super::super::compiler::CompilationResult {
@@ -1111,10 +1142,22 @@ mod tests {
 
     #[test]
     fn test_error_description_known_codes() {
-        assert_eq!(ConvergenceReporter::error_description("E0308"), "Type Mismatch");
-        assert_eq!(ConvergenceReporter::error_description("E0425"), "Undefined Value");
-        assert_eq!(ConvergenceReporter::error_description("E0599"), "Missing Method");
-        assert_eq!(ConvergenceReporter::error_description("E0277"), "Trait Bound");
+        assert_eq!(
+            ConvergenceReporter::error_description("E0308"),
+            "Type Mismatch"
+        );
+        assert_eq!(
+            ConvergenceReporter::error_description("E0425"),
+            "Undefined Value"
+        );
+        assert_eq!(
+            ConvergenceReporter::error_description("E0599"),
+            "Missing Method"
+        );
+        assert_eq!(
+            ConvergenceReporter::error_description("E0277"),
+            "Trait Bound"
+        );
     }
 
     #[test]

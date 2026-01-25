@@ -135,3 +135,12 @@ None
 result
 result-*
 .direnv/
+
+# Large binaries and artifacts (DO NOT COMMIT)
+benchmarks/rust/*_bin
+benchmarks/rust/*.exe
+**/lib*.rlib
+*.bak
+
+# Compilation test artifacts
+.compile_test_tmp/

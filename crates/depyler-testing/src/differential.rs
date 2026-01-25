@@ -516,10 +516,7 @@ mod tests {
 
     #[test]
     fn test_mismatch_exit_code_difference() {
-        let mismatch = Mismatch::ExitCodeDifference {
-            python: 0,
-            rust: 1,
-        };
+        let mismatch = Mismatch::ExitCodeDifference { python: 0, rust: 1 };
         let json = serde_json::to_string(&mismatch).unwrap();
         assert!(json.contains("ExitCodeDifference"));
     }

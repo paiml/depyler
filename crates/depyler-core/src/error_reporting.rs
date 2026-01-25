@@ -785,7 +785,10 @@ mod tests {
     #[test]
     fn test_apply_suggestion_to_error_with_suggestion() {
         let error = EnhancedError::new(ErrorKind::UnsupportedFeature("test".to_string()));
-        let suggestion = Some(("Use this".to_string(), vec!["Note 1".to_string(), "Note 2".to_string()]));
+        let suggestion = Some((
+            "Use this".to_string(),
+            vec!["Note 1".to_string(), "Note 2".to_string()],
+        ));
         let result = apply_suggestion_to_error(error, suggestion);
         assert_eq!(result.suggestion, Some("Use this".to_string()));
         assert_eq!(result.notes.len(), 2);
@@ -863,14 +866,18 @@ mod tests {
 
     #[test]
     fn test_add_automatic_suggestions_type_inference() {
-        let error = EnhancedError::new(ErrorKind::TypeInferenceError("incompatible types".to_string()));
+        let error = EnhancedError::new(ErrorKind::TypeInferenceError(
+            "incompatible types".to_string(),
+        ));
         let enhanced = add_automatic_suggestions(error);
         assert!(enhanced.suggestion.is_some());
     }
 
     #[test]
     fn test_add_automatic_suggestions_invalid_annotation() {
-        let error = EnhancedError::new(ErrorKind::InvalidTypeAnnotation("cannot borrow".to_string()));
+        let error = EnhancedError::new(ErrorKind::InvalidTypeAnnotation(
+            "cannot borrow".to_string(),
+        ));
         let enhanced = add_automatic_suggestions(error);
         assert!(enhanced.suggestion.is_some());
     }
@@ -970,7 +977,10 @@ mod tests {
     #[test]
     fn test_get_source_line_single_line() {
         let source = "only one line";
-        assert_eq!(get_source_line(source, 1), Some("only one line".to_string()));
+        assert_eq!(
+            get_source_line(source, 1),
+            Some("only one line".to_string())
+        );
         assert!(get_source_line(source, 2).is_none());
     }
 }

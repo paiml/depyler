@@ -233,12 +233,16 @@ impl ErrorClusterStats {
 }
 
 /// Cluster errors by pattern class
-pub fn cluster_errors(errors: &[(String, String, String)]) -> HashMap<PatternClass, ErrorClusterStats> {
+pub fn cluster_errors(
+    errors: &[(String, String, String)],
+) -> HashMap<PatternClass, ErrorClusterStats> {
     let mut clusters: HashMap<PatternClass, ErrorClusterStats> = HashMap::new();
 
     for (code, _message, file) in errors {
         let class = PatternClass::from_error_code(code);
-        let stats = clusters.entry(class.clone()).or_insert_with(|| ErrorClusterStats::new(class));
+        let stats = clusters
+            .entry(class.clone())
+            .or_insert_with(|| ErrorClusterStats::new(class));
         stats.add_occurrence(code, file);
     }
 
@@ -246,7 +250,9 @@ pub fn cluster_errors(errors: &[(String, String, String)]) -> HashMap<PatternCla
 }
 
 /// Select highest priority cluster
-pub fn select_priority_cluster(clusters: &HashMap<PatternClass, ErrorClusterStats>) -> Option<&ErrorClusterStats> {
+pub fn select_priority_cluster(
+    clusters: &HashMap<PatternClass, ErrorClusterStats>,
+) -> Option<&ErrorClusterStats> {
     clusters.values().max_by(|a, b| {
         a.priority_score()
             .partial_cmp(&b.priority_score())
@@ -260,13 +266,34 @@ mod tests {
 
     #[test]
     fn test_pattern_class_from_error_code() {
-        assert_eq!(PatternClass::from_error_code("E0308"), PatternClass::TypeMismatch);
-        assert_eq!(PatternClass::from_error_code("E0412"), PatternClass::MissingImport);
-        assert_eq!(PatternClass::from_error_code("E0502"), PatternClass::BorrowError);
-        assert_eq!(PatternClass::from_error_code("E0106"), PatternClass::LifetimeError);
-        assert_eq!(PatternClass::from_error_code("E0277"), PatternClass::TraitBound);
-        assert_eq!(PatternClass::from_error_code("E0061"), PatternClass::SyntaxError);
-        assert_eq!(PatternClass::from_error_code("E9999"), PatternClass::Unknown);
+        assert_eq!(
+            PatternClass::from_error_code("E0308"),
+            PatternClass::TypeMismatch
+        );
+        assert_eq!(
+            PatternClass::from_error_code("E0412"),
+            PatternClass::MissingImport
+        );
+        assert_eq!(
+            PatternClass::from_error_code("E0502"),
+            PatternClass::BorrowError
+        );
+        assert_eq!(
+            PatternClass::from_error_code("E0106"),
+            PatternClass::LifetimeError
+        );
+        assert_eq!(
+            PatternClass::from_error_code("E0277"),
+            PatternClass::TraitBound
+        );
+        assert_eq!(
+            PatternClass::from_error_code("E0061"),
+            PatternClass::SyntaxError
+        );
+        assert_eq!(
+            PatternClass::from_error_code("E9999"),
+            PatternClass::Unknown
+        );
     }
 
     #[test]
@@ -277,7 +304,10 @@ mod tests {
 
     #[test]
     fn test_pattern_class_repair_difficulty() {
-        assert!(PatternClass::MissingImport.repair_difficulty() < PatternClass::LifetimeError.repair_difficulty());
+        assert!(
+            PatternClass::MissingImport.repair_difficulty()
+                < PatternClass::LifetimeError.repair_difficulty()
+        );
     }
 
     #[test]
@@ -394,8 +424,16 @@ mod tests {
     #[test]
     fn test_cluster_errors() {
         let errors = vec![
-            ("E0308".to_string(), "mismatch".to_string(), "a.rs".to_string()),
-            ("E0308".to_string(), "mismatch".to_string(), "b.rs".to_string()),
+            (
+                "E0308".to_string(),
+                "mismatch".to_string(),
+                "a.rs".to_string(),
+            ),
+            (
+                "E0308".to_string(),
+                "mismatch".to_string(),
+                "b.rs".to_string(),
+            ),
             ("E0277".to_string(), "trait".to_string(), "c.rs".to_string()),
         ];
 
@@ -408,8 +446,16 @@ mod tests {
     #[test]
     fn test_select_priority_cluster() {
         let errors = vec![
-            ("E0308".to_string(), "mismatch".to_string(), "a.rs".to_string()),
-            ("E0308".to_string(), "mismatch".to_string(), "b.rs".to_string()),
+            (
+                "E0308".to_string(),
+                "mismatch".to_string(),
+                "a.rs".to_string(),
+            ),
+            (
+                "E0308".to_string(),
+                "mismatch".to_string(),
+                "b.rs".to_string(),
+            ),
             ("E0277".to_string(), "trait".to_string(), "c.rs".to_string()),
         ];
 

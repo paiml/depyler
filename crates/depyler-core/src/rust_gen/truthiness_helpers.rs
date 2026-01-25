@@ -27,9 +27,8 @@ pub const COLLECTION_VAR_NAMES: &[&str] = &[
 ];
 
 /// Collection variable suffixes that indicate container types.
-pub const COLLECTION_VAR_SUFFIXES: &[&str] = &[
-    "_queue", "_stack", "_heap", "_list", "_items", "_set",
-];
+pub const COLLECTION_VAR_SUFFIXES: &[&str] =
+    &["_queue", "_stack", "_heap", "_list", "_items", "_set"];
 
 /// String variable names from tuple unpacking that need `.is_empty()` check.
 /// e.g., `let (returncode, stdout, stderr) = run_command(...)`
@@ -74,18 +73,14 @@ pub const STRING_ATTR_NAMES: &[&str] = &[
 ];
 
 /// Dict-like variable names that indicate HashMap/dict access.
-pub const DICT_VAR_NAMES: &[&str] = &[
-    "info", "data", "config", "options", "result", "response",
-];
+pub const DICT_VAR_NAMES: &[&str] = &["info", "data", "config", "options", "result", "response"];
 
 /// Dict-like variable suffixes.
 pub const DICT_VAR_SUFFIXES: &[&str] = &["_info", "_data", "_dict"];
 
 /// DEPYLER-1071: Option variable names that indicate regex match results or optional values.
 /// These need `.is_some()` for truthiness check.
-pub const OPTION_VAR_NAMES: &[&str] = &[
-    "m", "match_", "match_result", "match_obj", "found", "hit",
-];
+pub const OPTION_VAR_NAMES: &[&str] = &["m", "match_", "match_result", "match_obj", "found", "hit"];
 
 /// DEPYLER-1071: Option variable suffixes that indicate optional types.
 pub const OPTION_VAR_SUFFIXES: &[&str] = &["_match", "_result", "_found"];
@@ -93,8 +88,7 @@ pub const OPTION_VAR_SUFFIXES: &[&str] = &["_match", "_result", "_found"];
 /// DEPYLER-1071: Check if a variable name suggests it's an Option type (regex match result).
 #[inline]
 pub fn is_option_var_name(name: &str) -> bool {
-    OPTION_VAR_NAMES.contains(&name)
-        || OPTION_VAR_SUFFIXES.iter().any(|s| name.ends_with(s))
+    OPTION_VAR_NAMES.contains(&name) || OPTION_VAR_SUFFIXES.iter().any(|s| name.ends_with(s))
 }
 
 /// Collection type names that need `.is_empty()` truthiness check.
@@ -124,8 +118,7 @@ pub fn is_collection_var_name(name: &str) -> bool {
 /// Check if a variable name suggests it's a string type.
 #[inline]
 pub fn is_string_var_name(name: &str) -> bool {
-    STRING_VAR_NAMES.contains(&name)
-        || STRING_VAR_SUFFIXES.iter().any(|s| name.ends_with(s))
+    STRING_VAR_NAMES.contains(&name) || STRING_VAR_SUFFIXES.iter().any(|s| name.ends_with(s))
 }
 
 /// Check if an attribute name suggests it's a string field.
@@ -144,8 +137,12 @@ pub fn is_dict_var_name(name: &str) -> bool {
 /// Check if a type name is a known collection type.
 #[inline]
 pub fn is_collection_type_name(type_name: &str) -> bool {
-    COLLECTION_TYPE_NAMES.iter().any(|n| type_name.starts_with(n))
-        || COLLECTION_TYPE_FRAGMENTS.iter().any(|f| type_name.contains(f))
+    COLLECTION_TYPE_NAMES
+        .iter()
+        .any(|n| type_name.starts_with(n))
+        || COLLECTION_TYPE_FRAGMENTS
+            .iter()
+            .any(|f| type_name.contains(f))
 }
 
 /// Check if a generic base name is a collection type.
@@ -153,7 +150,14 @@ pub fn is_collection_type_name(type_name: &str) -> bool {
 pub fn is_collection_generic_base(base: &str) -> bool {
     matches!(
         base,
-        "VecDeque" | "BinaryHeap" | "LinkedList" | "BTreeSet" | "BTreeMap" | "HashSet" | "HashMap" | "Vec"
+        "VecDeque"
+            | "BinaryHeap"
+            | "LinkedList"
+            | "BTreeSet"
+            | "BTreeMap"
+            | "HashSet"
+            | "HashMap"
+            | "Vec"
     )
 }
 

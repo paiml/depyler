@@ -628,7 +628,10 @@ impl Default for ConstGenericInferencer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hir::{BinOp, FunctionProperties, HirExpr, HirFunction, HirModule, HirParam, HirStmt, UnaryOp, HirComprehension};
+    use crate::hir::{
+        BinOp, FunctionProperties, HirComprehension, HirExpr, HirFunction, HirModule, HirParam,
+        HirStmt, UnaryOp,
+    };
     use depyler_annotations::TranspilationAnnotations;
     use smallvec::smallvec;
 
@@ -871,6 +874,7 @@ mod tests {
             type_aliases: vec![],
             protocols: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
         assert!(inferencer.analyze_module(&mut module).is_ok());
     }
@@ -1004,7 +1008,9 @@ mod tests {
         let mut stmt = HirStmt::If {
             condition: HirExpr::Literal(Literal::Bool(true)),
             then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(2))))]),
+            else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                2,
+            ))))]),
         };
         assert!(inferencer.transform_statement(&mut stmt).is_ok());
     }

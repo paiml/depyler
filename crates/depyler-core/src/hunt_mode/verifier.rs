@@ -46,10 +46,7 @@ pub enum AndonStatus {
         needs_attention: bool,
     },
     /// Critical issue, cycle halted
-    Red {
-        error: String,
-        cycle_halted: bool,
-    },
+    Red { error: String, cycle_halted: bool },
     /// System idle, no active work
     Idle,
 }
@@ -57,12 +54,24 @@ pub enum AndonStatus {
 impl AndonStatus {
     /// Check if status indicates a problem
     pub fn is_problem(&self) -> bool {
-        matches!(self, AndonStatus::Yellow { needs_attention: true, .. } | AndonStatus::Red { .. })
+        matches!(
+            self,
+            AndonStatus::Yellow {
+                needs_attention: true,
+                ..
+            } | AndonStatus::Red { .. }
+        )
     }
 
     /// Check if cycle should halt
     pub fn should_halt(&self) -> bool {
-        matches!(self, AndonStatus::Red { cycle_halted: true, .. })
+        matches!(
+            self,
+            AndonStatus::Red {
+                cycle_halted: true,
+                ..
+            }
+        )
     }
 
     /// Get status color as string (for CLI display)
@@ -89,8 +98,17 @@ impl AndonStatus {
 impl std::fmt::Display for AndonStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AndonStatus::Green { compilation_rate, message } => {
-                write!(f, "{} GREEN ({:.1}%): {}", self.emoji(), compilation_rate * 100.0, message)
+            AndonStatus::Green {
+                compilation_rate,
+                message,
+            } => {
+                write!(
+                    f,
+                    "{} GREEN ({:.1}%): {}",
+                    self.emoji(),
+                    compilation_rate * 100.0,
+                    message
+                )
             }
             AndonStatus::Yellow { warnings, .. } => {
                 write!(f, "{} YELLOW: {} warning(s)", self.emoji(), warnings.len())
@@ -139,7 +157,11 @@ impl AndonVerifier {
     /// Verify a fix and commit if successful
     ///
     /// Andon: Immediate visibility and escalation on failure.
-    pub fn verify_and_commit(&mut self, fix: &Fix, _repro: &ReproCase) -> anyhow::Result<VerifyResult> {
+    pub fn verify_and_commit(
+        &mut self,
+        fix: &Fix,
+        _repro: &ReproCase,
+    ) -> anyhow::Result<VerifyResult> {
         self.total_verified += 1;
 
         // Step 1: Compile the fixed output
@@ -363,9 +385,30 @@ mod tests {
     #[test]
     fn test_andon_status_emoji() {
         assert_eq!(AndonStatus::Idle.emoji(), "⚪");
-        assert_eq!(AndonStatus::Green { compilation_rate: 0.0, message: String::new() }.emoji(), "🟢");
-        assert_eq!(AndonStatus::Yellow { warnings: vec![], needs_attention: false }.emoji(), "🟡");
-        assert_eq!(AndonStatus::Red { error: String::new(), cycle_halted: false }.emoji(), "🔴");
+        assert_eq!(
+            AndonStatus::Green {
+                compilation_rate: 0.0,
+                message: String::new()
+            }
+            .emoji(),
+            "🟢"
+        );
+        assert_eq!(
+            AndonStatus::Yellow {
+                warnings: vec![],
+                needs_attention: false
+            }
+            .emoji(),
+            "🟡"
+        );
+        assert_eq!(
+            AndonStatus::Red {
+                error: String::new(),
+                cycle_halted: false
+            }
+            .emoji(),
+            "🔴"
+        );
     }
 
     #[test]
@@ -465,9 +508,30 @@ mod tests {
 
     #[test]
     fn test_andon_status_color() {
-        assert_eq!(AndonStatus::Green { compilation_rate: 0.0, message: String::new() }.color(), "green");
-        assert_eq!(AndonStatus::Yellow { warnings: vec![], needs_attention: false }.color(), "yellow");
-        assert_eq!(AndonStatus::Red { error: String::new(), cycle_halted: false }.color(), "red");
+        assert_eq!(
+            AndonStatus::Green {
+                compilation_rate: 0.0,
+                message: String::new()
+            }
+            .color(),
+            "green"
+        );
+        assert_eq!(
+            AndonStatus::Yellow {
+                warnings: vec![],
+                needs_attention: false
+            }
+            .color(),
+            "yellow"
+        );
+        assert_eq!(
+            AndonStatus::Red {
+                error: String::new(),
+                cycle_halted: false
+            }
+            .color(),
+            "red"
+        );
         assert_eq!(AndonStatus::Idle.color(), "gray");
     }
 
@@ -518,7 +582,11 @@ mod tests {
             needs_attention: true,
         };
         let cloned = yellow.clone();
-        if let AndonStatus::Yellow { warnings, needs_attention } = cloned {
+        if let AndonStatus::Yellow {
+            warnings,
+            needs_attention,
+        } = cloned
+        {
             assert_eq!(warnings.len(), 1);
             assert!(needs_attention);
         } else {
@@ -555,7 +623,11 @@ mod tests {
         verifier.request_human_review("Need review");
 
         assert!(verifier.status().is_problem());
-        if let AndonStatus::Yellow { warnings, needs_attention } = verifier.status() {
+        if let AndonStatus::Yellow {
+            warnings,
+            needs_attention,
+        } = verifier.status()
+        {
             assert!(warnings.contains(&"Need review".to_string()));
             assert!(*needs_attention);
         } else {
@@ -595,8 +667,16 @@ mod tests {
 
     #[test]
     fn test_should_halt_false_for_other_statuses() {
-        assert!(!AndonStatus::Green { compilation_rate: 0.9, message: String::new() }.should_halt());
-        assert!(!AndonStatus::Yellow { warnings: vec![], needs_attention: true }.should_halt());
+        assert!(!AndonStatus::Green {
+            compilation_rate: 0.9,
+            message: String::new()
+        }
+        .should_halt());
+        assert!(!AndonStatus::Yellow {
+            warnings: vec![],
+            needs_attention: true
+        }
+        .should_halt());
         assert!(!AndonStatus::Idle.should_halt());
     }
 

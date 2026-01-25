@@ -104,18 +104,14 @@ impl GeneratedRustFixer {
                 // Add .into() for type conversion
                 RustTransform {
                     name: "add_into".to_string(),
-                    pattern: regex::Regex::new(
-                        r"expected `([^`]+)`, found `([^`]+)`"
-                    ).unwrap(),
+                    pattern: regex::Regex::new(r"expected `([^`]+)`, found `([^`]+)`").unwrap(),
                     replacement: ReplaceStrategy::Function(add_into_conversion),
                     confidence: 0.7,
                 },
                 // Add .to_string() for &str → String
                 RustTransform {
                     name: "add_to_string".to_string(),
-                    pattern: regex::Regex::new(
-                        r"expected `String`, found `&str`"
-                    ).unwrap(),
+                    pattern: regex::Regex::new(r"expected `String`, found `&str`").unwrap(),
                     replacement: ReplaceStrategy::Regex(".to_string()".to_string()),
                     confidence: 0.85,
                 },
@@ -129,18 +125,16 @@ impl GeneratedRustFixer {
                 // .keys() → .as_object().unwrap().keys() for serde_json::Value
                 RustTransform {
                     name: "value_keys".to_string(),
-                    pattern: regex::Regex::new(
-                        r"no method named `keys` found for enum `Value`"
-                    ).unwrap(),
+                    pattern: regex::Regex::new(r"no method named `keys` found for enum `Value`")
+                        .unwrap(),
                     replacement: ReplaceStrategy::Function(fix_value_keys),
                     confidence: 0.9,
                 },
                 // .items() → .as_object().unwrap().iter() for serde_json::Value
                 RustTransform {
                     name: "value_items".to_string(),
-                    pattern: regex::Regex::new(
-                        r"no method named `items` found for enum `Value`"
-                    ).unwrap(),
+                    pattern: regex::Regex::new(r"no method named `items` found for enum `Value`")
+                        .unwrap(),
                     replacement: ReplaceStrategy::Function(fix_value_items),
                     confidence: 0.9,
                 },
@@ -154,9 +148,7 @@ impl GeneratedRustFixer {
                 // Add .clone() for Clone bound
                 RustTransform {
                     name: "add_clone".to_string(),
-                    pattern: regex::Regex::new(
-                        r"the trait `Clone` is not implemented"
-                    ).unwrap(),
+                    pattern: regex::Regex::new(r"the trait `Clone` is not implemented").unwrap(),
                     replacement: ReplaceStrategy::Regex(".clone()".to_string()),
                     confidence: 0.6,
                 },
@@ -170,9 +162,7 @@ impl GeneratedRustFixer {
                 // Pre-compute .is_some() before move
                 RustTransform {
                     name: "precompute_is_some".to_string(),
-                    pattern: regex::Regex::new(
-                        r"borrow of moved value.*\.is_some\(\)"
-                    ).unwrap(),
+                    pattern: regex::Regex::new(r"borrow of moved value.*\.is_some\(\)").unwrap(),
                     replacement: ReplaceStrategy::Function(fix_precompute_is_some),
                     confidence: 0.8,
                 },
@@ -223,11 +213,7 @@ impl GeneratedRustFixer {
 
                 if let Some(new_source) = modified {
                     if new_source != source {
-                        return Some((
-                            new_source,
-                            transform.name.clone(),
-                            transform.confidence,
-                        ));
+                        return Some((new_source, transform.name.clone(), transform.confidence));
                     }
                 }
             }
@@ -297,13 +283,19 @@ fn add_into_conversion(source: &str, _caps: &regex::Captures) -> String {
 /// Fix .keys() on serde_json::Value
 fn fix_value_keys(source: &str, _caps: &regex::Captures) -> String {
     // Replace .keys() with .as_object().map(|o| o.keys()).unwrap_or_default()
-    source.replace(".keys()", ".as_object().map(|o| o.keys().collect::<Vec<_>>()).unwrap_or_default()")
+    source.replace(
+        ".keys()",
+        ".as_object().map(|o| o.keys().collect::<Vec<_>>()).unwrap_or_default()",
+    )
 }
 
 /// Fix .items() on serde_json::Value
 fn fix_value_items(source: &str, _caps: &regex::Captures) -> String {
     // Replace .items() with .as_object().map(|o| o.iter()).unwrap_or_default()
-    source.replace(".items()", ".as_object().map(|o| o.iter().collect::<Vec<_>>()).unwrap_or_default()")
+    source.replace(
+        ".items()",
+        ".as_object().map(|o| o.iter().collect::<Vec<_>>()).unwrap_or_default()",
+    )
 }
 
 /// Pre-compute is_some() before value is moved
@@ -433,7 +425,10 @@ mod tests {
     #[test]
     fn test_fix_value_keys() {
         let source = "let keys = data.keys();";
-        let caps = regex::Regex::new(r"keys").unwrap().captures("keys").unwrap();
+        let caps = regex::Regex::new(r"keys")
+            .unwrap()
+            .captures("keys")
+            .unwrap();
         let result = fix_value_keys(source, &caps);
         assert!(result.contains("as_object()"));
     }
@@ -441,7 +436,10 @@ mod tests {
     #[test]
     fn test_fix_value_items() {
         let source = "for (k, v) in data.items() {";
-        let caps = regex::Regex::new(r"items").unwrap().captures("items").unwrap();
+        let caps = regex::Regex::new(r"items")
+            .unwrap()
+            .captures("items")
+            .unwrap();
         let result = fix_value_items(source, &caps);
         assert!(result.contains("as_object()"));
     }

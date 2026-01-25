@@ -117,7 +117,9 @@ impl Optimizer {
 
                     // Recursively process then/else bodies
                     let new_then = self.hoist_walrus_in_body(then_body);
-                    let new_else = else_body.as_ref().map(|stmts| self.hoist_walrus_in_body(stmts));
+                    let new_else = else_body
+                        .as_ref()
+                        .map(|stmts| self.hoist_walrus_in_body(stmts));
 
                     new_body.push(HirStmt::If {
                         condition: simplified_condition,
@@ -125,7 +127,10 @@ impl Optimizer {
                         else_body: new_else,
                     });
                 }
-                HirStmt::While { condition, body: while_body } => {
+                HirStmt::While {
+                    condition,
+                    body: while_body,
+                } => {
                     // Extract walrus from while condition
                     let (walrus_assigns, simplified_condition) =
                         self.extract_walrus_from_expr(condition);
@@ -145,7 +150,11 @@ impl Optimizer {
                         body: new_while_body,
                     });
                 }
-                HirStmt::For { target, iter, body: for_body } => {
+                HirStmt::For {
+                    target,
+                    iter,
+                    body: for_body,
+                } => {
                     // Recursively process for body
                     let new_for_body = self.hoist_walrus_in_body(for_body);
                     new_body.push(HirStmt::For {
@@ -154,18 +163,28 @@ impl Optimizer {
                         body: new_for_body,
                     });
                 }
-                HirStmt::Try { body: try_body, handlers, orelse, finalbody } => {
+                HirStmt::Try {
+                    body: try_body,
+                    handlers,
+                    orelse,
+                    finalbody,
+                } => {
                     // Recursively process try/except blocks
                     let new_try_body = self.hoist_walrus_in_body(try_body);
-                    let new_handlers: Vec<_> = handlers.iter().map(|h| {
-                        crate::hir::ExceptHandler {
+                    let new_handlers: Vec<_> = handlers
+                        .iter()
+                        .map(|h| crate::hir::ExceptHandler {
                             exception_type: h.exception_type.clone(),
                             name: h.name.clone(),
                             body: self.hoist_walrus_in_body(&h.body),
-                        }
-                    }).collect();
-                    let new_orelse = orelse.as_ref().map(|stmts| self.hoist_walrus_in_body(stmts));
-                    let new_finalbody = finalbody.as_ref().map(|stmts| self.hoist_walrus_in_body(stmts));
+                        })
+                        .collect();
+                    let new_orelse = orelse
+                        .as_ref()
+                        .map(|stmts| self.hoist_walrus_in_body(stmts));
+                    let new_finalbody = finalbody
+                        .as_ref()
+                        .map(|stmts| self.hoist_walrus_in_body(stmts));
                     new_body.push(HirStmt::Try {
                         body: new_try_body,
                         handlers: new_handlers,
@@ -173,7 +192,12 @@ impl Optimizer {
                         finalbody: new_finalbody,
                     });
                 }
-                HirStmt::With { context, target, body: with_body, is_async } => {
+                HirStmt::With {
+                    context,
+                    target,
+                    body: with_body,
+                    is_async,
+                } => {
                     let new_with_body = self.hoist_walrus_in_body(with_body);
                     new_body.push(HirStmt::With {
                         context: context.clone(),
@@ -197,7 +221,11 @@ impl Optimizer {
     }
 
     /// Recursively extract NamedExpr from expression tree
-    fn extract_walrus_recursive(&self, expr: &HirExpr, assigns: &mut Vec<(String, HirExpr)>) -> HirExpr {
+    fn extract_walrus_recursive(
+        &self,
+        expr: &HirExpr,
+        assigns: &mut Vec<(String, HirExpr)>,
+    ) -> HirExpr {
         match expr {
             HirExpr::NamedExpr { target, value } => {
                 // Recursively process value first (handle nested walrus)
@@ -217,14 +245,31 @@ impl Optimizer {
             },
             HirExpr::Call { func, args, kwargs } => HirExpr::Call {
                 func: func.clone(),
-                args: args.iter().map(|a| self.extract_walrus_recursive(a, assigns)).collect(),
-                kwargs: kwargs.iter().map(|(k, v)| (k.clone(), self.extract_walrus_recursive(v, assigns))).collect(),
+                args: args
+                    .iter()
+                    .map(|a| self.extract_walrus_recursive(a, assigns))
+                    .collect(),
+                kwargs: kwargs
+                    .iter()
+                    .map(|(k, v)| (k.clone(), self.extract_walrus_recursive(v, assigns)))
+                    .collect(),
             },
-            HirExpr::MethodCall { object, method, args, kwargs } => HirExpr::MethodCall {
+            HirExpr::MethodCall {
+                object,
+                method,
+                args,
+                kwargs,
+            } => HirExpr::MethodCall {
                 object: Box::new(self.extract_walrus_recursive(object, assigns)),
                 method: method.clone(),
-                args: args.iter().map(|a| self.extract_walrus_recursive(a, assigns)).collect(),
-                kwargs: kwargs.iter().map(|(k, v)| (k.clone(), self.extract_walrus_recursive(v, assigns))).collect(),
+                args: args
+                    .iter()
+                    .map(|a| self.extract_walrus_recursive(a, assigns))
+                    .collect(),
+                kwargs: kwargs
+                    .iter()
+                    .map(|(k, v)| (k.clone(), self.extract_walrus_recursive(v, assigns)))
+                    .collect(),
             },
             HirExpr::IfExpr { test, body, orelse } => HirExpr::IfExpr {
                 test: Box::new(self.extract_walrus_recursive(test, assigns)),
@@ -870,9 +915,15 @@ impl Optimizer {
                 step,
             } => {
                 Self::expr_has_side_effects(base)
-                    || start.as_ref().is_some_and(|e| Self::expr_has_side_effects(e))
-                    || stop.as_ref().is_some_and(|e| Self::expr_has_side_effects(e))
-                    || step.as_ref().is_some_and(|e| Self::expr_has_side_effects(e))
+                    || start
+                        .as_ref()
+                        .is_some_and(|e| Self::expr_has_side_effects(e))
+                    || stop
+                        .as_ref()
+                        .is_some_and(|e| Self::expr_has_side_effects(e))
+                    || step
+                        .as_ref()
+                        .is_some_and(|e| Self::expr_has_side_effects(e))
             }
             _ => false,
         }
@@ -1257,7 +1308,12 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
                 collect_used_vars_expr_inner(v, used);
             }
         }
-        HirExpr::MethodCall { object, args, kwargs, .. } => {
+        HirExpr::MethodCall {
+            object,
+            args,
+            kwargs,
+            ..
+        } => {
             collect_used_vars_expr_inner(object, used);
             for arg in args {
                 collect_used_vars_expr_inner(arg, used);
@@ -1373,7 +1429,12 @@ fn collect_used_vars_expr_inner(expr: &HirExpr, used: &mut HashMap<String, bool>
         // DEPYLER-0935: Collect variables from SortByKey expression
         // sorted(data, key=lambda r: r[0]) is converted to HirExpr::SortByKey
         // We must collect variables from iterable, key_body, and reverse_expr
-        HirExpr::SortByKey { iterable, key_body, reverse_expr, .. } => {
+        HirExpr::SortByKey {
+            iterable,
+            key_body,
+            reverse_expr,
+            ..
+        } => {
             collect_used_vars_expr_inner(iterable, used);
             collect_used_vars_expr_inner(key_body, used);
             if let Some(rev) = reverse_expr {
@@ -2083,9 +2144,15 @@ mod tests {
     #[test]
     fn test_is_constant_expr_inner_literals() {
         assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Int(42))));
-        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Float(3.15))));
-        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Bool(true))));
-        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::String("hi".into()))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Float(
+            3.15
+        ))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::Bool(
+            true
+        ))));
+        assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::String(
+            "hi".into()
+        ))));
         assert!(is_constant_expr_inner(&HirExpr::Literal(Literal::None)));
     }
 
@@ -2760,7 +2827,10 @@ mod tests {
 
         // print() has side effects, should be preserved
         let func = &optimized.functions[0];
-        assert!(!func.body.is_empty(), "Side effect statement should be preserved");
+        assert!(
+            !func.body.is_empty(),
+            "Side effect statement should be preserved"
+        );
     }
 
     // === Additional tests for expr_has_side_effects ===

@@ -188,7 +188,9 @@ mod tests {
     #[test]
     fn test_convert_shutil_rmtree() {
         let mut ctx = CodeGenContext::default();
-        let args = vec![HirExpr::Literal(Literal::String("/path/to/dir".to_string()))];
+        let args = vec![HirExpr::Literal(Literal::String(
+            "/path/to/dir".to_string(),
+        ))];
         let result = convert_shutil_method("rmtree", &args, &mut ctx);
         assert!(result.is_ok());
         let expr = result.unwrap().unwrap();

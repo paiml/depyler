@@ -1,5 +1,4 @@
 #![allow(clippy::assertions_on_constants)]
-
 // DEPYLER-1157: Semantic Parity Audit for DepylerValue
 //
 // Falsification test suite verifying that DepylerValue trait implementations
@@ -10,7 +9,6 @@
 // 3. PyIndex - Indexing semantics (__getitem__)
 //
 // Each test documents the expected Python behavior and verifies Rust matches.
-
 #![allow(non_snake_case)] // Test naming convention
 
 use depyler_core::DepylerPipeline;

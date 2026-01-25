@@ -116,8 +116,7 @@ impl GraphAnalyzer {
         let pagerank = self.pagerank(&adjacency, error_counts.keys().cloned().collect());
 
         // Detect communities using Louvain
-        let (community_map, modularity) =
-            self.louvain_communities(&adjacency, error_counts);
+        let (community_map, modularity) = self.louvain_communities(&adjacency, error_counts);
 
         // Build nodes with PageRank and community info
         let mut nodes: Vec<ErrorNode> = error_counts
@@ -134,8 +133,7 @@ impl GraphAnalyzer {
         nodes.sort_by(|a, b| b.pagerank.partial_cmp(&a.pagerank).unwrap());
 
         // Top errors by PageRank
-        let top_by_pagerank: Vec<String> =
-            nodes.iter().take(5).map(|n| n.code.clone()).collect();
+        let top_by_pagerank: Vec<String> = nodes.iter().take(5).map(|n| n.code.clone()).collect();
 
         // Build communities
         let communities = self.build_communities(&nodes, &community_map);
@@ -230,8 +228,7 @@ impl GraphAnalyzer {
                     })
                     .sum();
 
-                let new_score =
-                    (1.0 - self.damping) / n as f64 + self.damping * incoming_sum;
+                let new_score = (1.0 - self.damping) / n as f64 + self.damping * incoming_sum;
 
                 let old_score = *scores.get(node).unwrap_or(&0.0);
                 max_diff = max_diff.max((new_score - old_score).abs());
@@ -474,8 +471,7 @@ impl GraphAnalyzer {
         communities
             .into_iter()
             .map(|(id, members)| {
-                let member_codes: Vec<String> =
-                    members.iter().map(|n| n.code.clone()).collect();
+                let member_codes: Vec<String> = members.iter().map(|n| n.code.clone()).collect();
 
                 let dominant = members
                     .iter()
@@ -537,9 +533,7 @@ pub fn extract_co_occurrences(
             for e2 in errors.iter().skip(i + 1) {
                 // Canonical ordering to avoid duplicates
                 let (a, b) = if e1 < e2 { (e1, e2) } else { (e2, e1) };
-                *co_occurrences
-                    .entry((a.clone(), b.clone()))
-                    .or_insert(0) += 1;
+                *co_occurrences.entry((a.clone(), b.clone())).or_insert(0) += 1;
             }
         }
     }
@@ -598,7 +592,10 @@ mod tests {
         let analyzer = GraphAnalyzer::new();
         let mut adjacency: HashMap<String, Vec<(String, f64)>> = HashMap::new();
         adjacency.insert("A".to_string(), vec![("B".to_string(), 1.0)]);
-        adjacency.insert("B".to_string(), vec![("A".to_string(), 1.0), ("C".to_string(), 1.0)]);
+        adjacency.insert(
+            "B".to_string(),
+            vec![("A".to_string(), 1.0), ("C".to_string(), 1.0)],
+        );
         adjacency.insert("C".to_string(), vec![("B".to_string(), 1.0)]);
 
         let nodes = vec!["A".to_string(), "B".to_string(), "C".to_string()];
@@ -615,8 +612,18 @@ mod tests {
     #[test]
     fn test_extract_co_occurrences() {
         let file_errors = vec![
-            ("file1.rs".to_string(), vec!["E0308".to_string(), "E0412".to_string()]),
-            ("file2.rs".to_string(), vec!["E0308".to_string(), "E0412".to_string(), "E0425".to_string()]),
+            (
+                "file1.rs".to_string(),
+                vec!["E0308".to_string(), "E0412".to_string()],
+            ),
+            (
+                "file2.rs".to_string(),
+                vec![
+                    "E0308".to_string(),
+                    "E0412".to_string(),
+                    "E0425".to_string(),
+                ],
+            ),
         ];
 
         let co_occur = extract_co_occurrences(&file_errors);

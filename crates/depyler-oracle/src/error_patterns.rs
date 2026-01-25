@@ -25,7 +25,9 @@
 
 use crate::tarantula::TranspilerDecision;
 use crate::OracleError;
-use entrenar::citl::{ChunkId, DecisionPatternStore, FixPattern as EntrenarFixPattern, PatternStoreConfig};
+use entrenar::citl::{
+    ChunkId, DecisionPatternStore, FixPattern as EntrenarFixPattern, PatternStoreConfig,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::Path;
@@ -83,7 +85,11 @@ pub struct ErrorPattern {
 impl ErrorPattern {
     /// Create a new error pattern
     #[must_use]
-    pub fn new(error_code: impl Into<String>, error_pattern: impl Into<String>, fix_diff: impl Into<String>) -> Self {
+    pub fn new(
+        error_code: impl Into<String>,
+        error_pattern: impl Into<String>,
+        fix_diff: impl Into<String>,
+    ) -> Self {
         Self {
             id: uuid::Uuid::new_v4().to_string(),
             error_code: error_code.into(),
@@ -230,7 +236,10 @@ impl ErrorPatternLibrary {
     /// Bootstrap from golden trace files
     ///
     /// Extracts error→fix patterns from previously recorded golden traces.
-    pub fn bootstrap_from_golden_traces(&mut self, traces: &[GoldenTraceEntry]) -> Result<usize, OracleError> {
+    pub fn bootstrap_from_golden_traces(
+        &mut self,
+        traces: &[GoldenTraceEntry],
+    ) -> Result<usize, OracleError> {
         let mut count = 0;
 
         for trace in traces {
@@ -315,17 +324,16 @@ impl ErrorPatternLibrary {
 
         // Add to entrenar store if available
         if let Some(store) = &mut self.store {
-            let mut fix_pattern = EntrenarFixPattern::new(
-                &pattern.error_code,
-                &pattern.fix_diff,
-            );
+            let mut fix_pattern = EntrenarFixPattern::new(&pattern.error_code, &pattern.fix_diff);
 
             // Add context as decisions
             for ctx in &pattern.context_requirements {
                 fix_pattern = fix_pattern.with_decision(ctx.clone());
             }
 
-            store.index_fix(fix_pattern).map_err(|e| OracleError::Model(e.to_string()))?;
+            store
+                .index_fix(fix_pattern)
+                .map_err(|e| OracleError::Model(e.to_string()))?;
         }
 
         // Add to in-memory map
@@ -351,7 +359,9 @@ impl ErrorPatternLibrary {
             let mut context = vec![error_message.to_string()];
             context.extend(source_context.iter().cloned());
 
-            if let Ok(suggestions) = store.suggest_fix(error_code, &context, self.config.max_suggestions) {
+            if let Ok(suggestions) =
+                store.suggest_fix(error_code, &context, self.config.max_suggestions)
+            {
                 let patterns: Vec<ErrorPattern> = suggestions
                     .into_iter()
                     .filter(|s| s.weighted_score() as f64 >= self.config.min_confidence)
@@ -366,14 +376,15 @@ impl ErrorPatternLibrary {
         }
 
         // Fallback to in-memory exact match
-        let matches: Vec<ErrorPattern> = self.patterns
+        let matches: Vec<ErrorPattern> = self
+            .patterns
             .values()
             .filter(|p| p.error_code == error_code)
             .filter(|p| {
                 // Check if error message contains pattern
-                error_message.contains(&p.error_pattern) ||
-                p.error_pattern.is_empty() ||
-                p.error_pattern == error_message
+                error_message.contains(&p.error_pattern)
+                    || p.error_pattern.is_empty()
+                    || p.error_pattern == error_message
             })
             .filter(|p| p.confidence >= self.config.min_confidence)
             .take(self.config.max_suggestions)
@@ -410,7 +421,9 @@ impl ErrorPatternLibrary {
             pattern.confidence = pattern.success_rate();
 
             // Check for retirement
-            if self.config.enable_retirement && pattern.should_retire(self.config.retirement_threshold) {
+            if self.config.enable_retirement
+                && pattern.should_retire(self.config.retirement_threshold)
+            {
                 // Mark for removal
                 pattern.confidence = 0.0;
                 self.stats.patterns_retired += 1;
@@ -446,15 +459,17 @@ impl ErrorPatternLibrary {
     /// Save library to file
     pub fn save(&self, path: &Path) -> Result<(), OracleError> {
         if let Some(store) = &self.store {
-            store.save_apr(path).map_err(|e| OracleError::Model(e.to_string()))?;
+            store
+                .save_apr(path)
+                .map_err(|e| OracleError::Model(e.to_string()))?;
         }
         Ok(())
     }
 
     /// Load library from file
     pub fn load(&mut self, path: &Path) -> Result<(), OracleError> {
-        let store = DecisionPatternStore::load_apr(path)
-            .map_err(|e| OracleError::Model(e.to_string()))?;
+        let store =
+            DecisionPatternStore::load_apr(path).map_err(|e| OracleError::Model(e.to_string()))?;
         self.store = Some(store);
         Ok(())
     }
@@ -488,7 +503,10 @@ mod tests {
         assert_eq!(pattern.error_code, "E0308");
         assert_eq!(pattern.error_pattern, "type mismatch");
         assert!(!pattern.id.is_empty());
-        assert_eq!(pattern.decision_type, Some(TranspilerDecision::TypeInference));
+        assert_eq!(
+            pattern.decision_type,
+            Some(TranspilerDecision::TypeInference)
+        );
     }
 
     #[test]
@@ -529,7 +547,9 @@ mod tests {
     #[test]
     fn test_error_pattern_library_suggest_fix() {
         let mut library = ErrorPatternLibrary::new().unwrap();
-        library.add_pattern(ErrorPattern::new("E0308", "mismatch", "- i32\n+ i64")).unwrap();
+        library
+            .add_pattern(ErrorPattern::new("E0308", "mismatch", "- i32\n+ i64"))
+            .unwrap();
 
         let _suggestions = library.suggest_fix("E0308", "type mismatch: expected i64", &[]);
         // May or may not match depending on exact matching
@@ -568,12 +588,14 @@ mod tests {
     fn test_error_pattern_library_learn_from_llm() {
         let mut library = ErrorPatternLibrary::new().unwrap();
 
-        let pattern_id = library.learn_from_llm_fix(
-            "E0599",
-            "method not found",
-            "- old.method()\n+ new_method(&old)",
-            &["context1".to_string()],
-        ).unwrap();
+        let pattern_id = library
+            .learn_from_llm_fix(
+                "E0599",
+                "method not found",
+                "- old.method()\n+ new_method(&old)",
+                &["context1".to_string()],
+            )
+            .unwrap();
 
         assert!(!pattern_id.is_empty());
         assert_eq!(library.stats().llm_learned_patterns, 1);

@@ -61,7 +61,8 @@ class Person:
 
     let create_john_start = person_impl_block.find("fn create_john").unwrap_or(0);
     let create_john_section = &person_impl_block[create_john_start..];
-    let has_self_in_create_john = create_john_section.contains("&self)") || create_john_section.contains("cls:");
+    let has_self_in_create_john =
+        create_john_section.contains("&self)") || create_john_section.contains("cls:");
     assert!(
         !has_self_in_create_john,
         "Classmethod create_john should not have &self or cls parameter.\nGot:\n{}",

@@ -109,11 +109,20 @@ pub struct CompilationError {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TranspilerDecision {
     /// Type inference decision
-    TypeInference { variable: String, inferred_type: String },
+    TypeInference {
+        variable: String,
+        inferred_type: String,
+    },
     /// Method translation decision
-    MethodTranslation { python_method: String, rust_method: String },
+    MethodTranslation {
+        python_method: String,
+        rust_method: String,
+    },
     /// Import mapping decision
-    ImportMapping { python_import: String, rust_import: String },
+    ImportMapping {
+        python_import: String,
+        rust_import: String,
+    },
     /// Fallback to serde_json::Value
     ValueFallback { context: String },
     /// Other decision
@@ -321,7 +330,8 @@ impl ScoreCalculator {
         // Calculate category totals
         let compilation = breakdown.a1_parse + breakdown.a2_type_check + breakdown.a3_cargo_build;
         let type_inference = breakdown.b1_no_e0308 + breakdown.b2_no_e0599 + breakdown.b3_no_e0425;
-        let test_coverage = breakdown.c1_doctest + breakdown.c2_unit_test + breakdown.c3_property_test;
+        let test_coverage =
+            breakdown.c1_doctest + breakdown.c2_unit_test + breakdown.c3_property_test;
         let code_quality = breakdown.d1_clippy + breakdown.d2_tdg + breakdown.d3_complexity;
         let semantic_equivalence = breakdown.e1_trace_match + breakdown.e2_output_equiv;
 
@@ -406,20 +416,76 @@ impl ScoreCalculator {
         let aggregate_score: f32 = results.iter().map(|r| r.score.total as f32).sum::<f32>() / n;
 
         let category_averages = CategoryBreakdown {
-            a1_parse: (results.iter().map(|r| r.category_breakdown.a1_parse as f32).sum::<f32>() / n) as u8,
-            a2_type_check: (results.iter().map(|r| r.category_breakdown.a2_type_check as f32).sum::<f32>() / n) as u8,
-            a3_cargo_build: (results.iter().map(|r| r.category_breakdown.a3_cargo_build as f32).sum::<f32>() / n) as u8,
-            b1_no_e0308: (results.iter().map(|r| r.category_breakdown.b1_no_e0308 as f32).sum::<f32>() / n) as u8,
-            b2_no_e0599: (results.iter().map(|r| r.category_breakdown.b2_no_e0599 as f32).sum::<f32>() / n) as u8,
-            b3_no_e0425: (results.iter().map(|r| r.category_breakdown.b3_no_e0425 as f32).sum::<f32>() / n) as u8,
-            c1_doctest: (results.iter().map(|r| r.category_breakdown.c1_doctest as f32).sum::<f32>() / n) as u8,
-            c2_unit_test: (results.iter().map(|r| r.category_breakdown.c2_unit_test as f32).sum::<f32>() / n) as u8,
-            c3_property_test: (results.iter().map(|r| r.category_breakdown.c3_property_test as f32).sum::<f32>() / n) as u8,
-            d1_clippy: (results.iter().map(|r| r.category_breakdown.d1_clippy as f32).sum::<f32>() / n) as u8,
-            d2_tdg: (results.iter().map(|r| r.category_breakdown.d2_tdg as f32).sum::<f32>() / n) as u8,
-            d3_complexity: (results.iter().map(|r| r.category_breakdown.d3_complexity as f32).sum::<f32>() / n) as u8,
-            e1_trace_match: (results.iter().map(|r| r.category_breakdown.e1_trace_match as f32).sum::<f32>() / n) as u8,
-            e2_output_equiv: (results.iter().map(|r| r.category_breakdown.e2_output_equiv as f32).sum::<f32>() / n) as u8,
+            a1_parse: (results
+                .iter()
+                .map(|r| r.category_breakdown.a1_parse as f32)
+                .sum::<f32>()
+                / n) as u8,
+            a2_type_check: (results
+                .iter()
+                .map(|r| r.category_breakdown.a2_type_check as f32)
+                .sum::<f32>()
+                / n) as u8,
+            a3_cargo_build: (results
+                .iter()
+                .map(|r| r.category_breakdown.a3_cargo_build as f32)
+                .sum::<f32>()
+                / n) as u8,
+            b1_no_e0308: (results
+                .iter()
+                .map(|r| r.category_breakdown.b1_no_e0308 as f32)
+                .sum::<f32>()
+                / n) as u8,
+            b2_no_e0599: (results
+                .iter()
+                .map(|r| r.category_breakdown.b2_no_e0599 as f32)
+                .sum::<f32>()
+                / n) as u8,
+            b3_no_e0425: (results
+                .iter()
+                .map(|r| r.category_breakdown.b3_no_e0425 as f32)
+                .sum::<f32>()
+                / n) as u8,
+            c1_doctest: (results
+                .iter()
+                .map(|r| r.category_breakdown.c1_doctest as f32)
+                .sum::<f32>()
+                / n) as u8,
+            c2_unit_test: (results
+                .iter()
+                .map(|r| r.category_breakdown.c2_unit_test as f32)
+                .sum::<f32>()
+                / n) as u8,
+            c3_property_test: (results
+                .iter()
+                .map(|r| r.category_breakdown.c3_property_test as f32)
+                .sum::<f32>()
+                / n) as u8,
+            d1_clippy: (results
+                .iter()
+                .map(|r| r.category_breakdown.d1_clippy as f32)
+                .sum::<f32>()
+                / n) as u8,
+            d2_tdg: (results
+                .iter()
+                .map(|r| r.category_breakdown.d2_tdg as f32)
+                .sum::<f32>()
+                / n) as u8,
+            d3_complexity: (results
+                .iter()
+                .map(|r| r.category_breakdown.d3_complexity as f32)
+                .sum::<f32>()
+                / n) as u8,
+            e1_trace_match: (results
+                .iter()
+                .map(|r| r.category_breakdown.e1_trace_match as f32)
+                .sum::<f32>()
+                / n) as u8,
+            e2_output_equiv: (results
+                .iter()
+                .map(|r| r.category_breakdown.e2_output_equiv as f32)
+                .sum::<f32>()
+                / n) as u8,
         };
 
         // Pareto analysis for blockers
@@ -708,7 +774,10 @@ mod tests {
             python_method: "append".to_string(),
             rust_method: "push".to_string(),
         };
-        assert!(matches!(decision, TranspilerDecision::MethodTranslation { .. }));
+        assert!(matches!(
+            decision,
+            TranspilerDecision::MethodTranslation { .. }
+        ));
     }
 
     #[test]
@@ -1002,7 +1071,7 @@ mod tests {
         let calculator = ScoreCalculator::new();
         let breakdown = CategoryBreakdown {
             a1_parse: 10,
-            a2_type_check: 5, // Partial failure
+            a2_type_check: 5,  // Partial failure
             a3_cargo_build: 0, // Failed
             b1_no_e0308: 10,
             b2_no_e0599: 8,
@@ -1324,14 +1393,12 @@ mod tests {
                     ..Default::default()
                 },
                 category_breakdown: CategoryBreakdown::default(),
-                error_details: vec![
-                    CompilationError {
-                        code: "E0308".to_string(),
-                        message: "type mismatch".to_string(),
-                        location: None,
-                        line: None,
-                    },
-                ],
+                error_details: vec![CompilationError {
+                    code: "E0308".to_string(),
+                    message: "type mismatch".to_string(),
+                    location: None,
+                    line: None,
+                }],
                 transpiler_decisions: vec![],
             },
             SingleShotResult {
@@ -1341,14 +1408,12 @@ mod tests {
                     ..Default::default()
                 },
                 category_breakdown: CategoryBreakdown::default(),
-                error_details: vec![
-                    CompilationError {
-                        code: "E0308".to_string(),
-                        message: "type mismatch".to_string(),
-                        location: None,
-                        line: None,
-                    },
-                ],
+                error_details: vec![CompilationError {
+                    code: "E0308".to_string(),
+                    message: "type mismatch".to_string(),
+                    location: None,
+                    line: None,
+                }],
                 transpiler_decisions: vec![],
             },
         ];
@@ -1407,12 +1472,10 @@ mod tests {
                 },
                 category_breakdown: CategoryBreakdown::default(),
                 error_details: vec![],
-                transpiler_decisions: vec![
-                    TranspilerDecision::TypeInference {
-                        variable: "x".to_string(),
-                        inferred_type: "Value".to_string(),
-                    },
-                ],
+                transpiler_decisions: vec![TranspilerDecision::TypeInference {
+                    variable: "x".to_string(),
+                    inferred_type: "Value".to_string(),
+                }],
             },
             SingleShotResult {
                 file_path: PathBuf::from("b.py"),
@@ -1422,12 +1485,10 @@ mod tests {
                 },
                 category_breakdown: CategoryBreakdown::default(),
                 error_details: vec![],
-                transpiler_decisions: vec![
-                    TranspilerDecision::TypeInference {
-                        variable: "x".to_string(),
-                        inferred_type: "Value".to_string(),
-                    },
-                ],
+                transpiler_decisions: vec![TranspilerDecision::TypeInference {
+                    variable: "x".to_string(),
+                    inferred_type: "Value".to_string(),
+                }],
             },
         ];
 

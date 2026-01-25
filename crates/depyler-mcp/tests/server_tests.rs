@@ -475,9 +475,7 @@ fn documented() {}
     async fn test_quality_large_file_penalty() {
         let tool = create_tool();
         // Generate large code
-        let large_code: String = (0..600)
-            .map(|i| format!("fn func{}() {{}}\n", i))
-            .collect();
+        let large_code: String = (0..600).map(|i| format!("fn func{}() {{}}\n", i)).collect();
 
         let args = json!({
             "rust_code": large_code
@@ -755,9 +753,7 @@ mod edge_cases {
     #[tokio::test]
     async fn test_very_long_source() {
         let tool = TranspileTool::new(Arc::new(DepylerPipeline::new()));
-        let long_source: String = (0..1000)
-            .map(|i| format!("x{} = {}\n", i, i))
-            .collect();
+        let long_source: String = (0..1000).map(|i| format!("x{} = {}\n", i, i)).collect();
 
         let args = json!({
             "source": long_source,

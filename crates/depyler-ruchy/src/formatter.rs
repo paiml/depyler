@@ -942,7 +942,9 @@ mod tests {
                 right: Box::new(RuchyExpr::Literal(Literal::Integer(0))),
             }),
             then_branch: Box::new(RuchyExpr::Literal(Literal::String("positive".to_string()))),
-            else_branch: Some(Box::new(RuchyExpr::Literal(Literal::String("non-positive".to_string())))),
+            else_branch: Some(Box::new(RuchyExpr::Literal(Literal::String(
+                "non-positive".to_string(),
+            )))),
         };
 
         let formatted = formatter.format(&if_expr);
@@ -1030,7 +1032,9 @@ mod tests {
         let break_expr = RuchyExpr::Break { label: None };
         assert_eq!(formatter.format(&break_expr), "break");
 
-        let break_with_label = RuchyExpr::Break { label: Some("outer".to_string()) };
+        let break_with_label = RuchyExpr::Break {
+            label: Some("outer".to_string()),
+        };
         assert_eq!(formatter.format(&break_with_label), "break 'outer");
 
         let continue_expr = RuchyExpr::Continue { label: None };
@@ -1298,8 +1302,16 @@ mod tests {
         let struct_expr = RuchyExpr::Struct {
             name: "Point".to_string(),
             fields: vec![
-                StructField { name: "x".to_string(), typ: RuchyType::I64, is_public: true },
-                StructField { name: "y".to_string(), typ: RuchyType::I64, is_public: false },
+                StructField {
+                    name: "x".to_string(),
+                    typ: RuchyType::I64,
+                    is_public: true,
+                },
+                StructField {
+                    name: "y".to_string(),
+                    typ: RuchyType::I64,
+                    is_public: false,
+                },
             ],
         };
         let formatted = formatter.format(&struct_expr);
@@ -1575,7 +1587,9 @@ mod tests {
                 Box::new(RuchyType::String),
             )),
         };
-        assert!(formatter.format(&fn_expr).contains("-> Result<i64, String>"));
+        assert!(formatter
+            .format(&fn_expr)
+            .contains("-> Result<i64, String>"));
     }
 
     #[test]
@@ -1765,8 +1779,16 @@ mod tests {
         let fn_expr = RuchyExpr::Function {
             name: "add".to_string(),
             params: vec![
-                Param { name: "x".to_string(), typ: Some(RuchyType::I64), default: None },
-                Param { name: "y".to_string(), typ: Some(RuchyType::I64), default: None },
+                Param {
+                    name: "x".to_string(),
+                    typ: Some(RuchyType::I64),
+                    default: None,
+                },
+                Param {
+                    name: "y".to_string(),
+                    typ: Some(RuchyType::I64),
+                    default: None,
+                },
             ],
             body: Box::new(RuchyExpr::Binary {
                 left: Box::new(RuchyExpr::Identifier("x".to_string())),
@@ -1791,7 +1813,9 @@ mod tests {
             params: vec![Param {
                 name: "name".to_string(),
                 typ: Some(RuchyType::String),
-                default: Some(Box::new(RuchyExpr::Literal(Literal::String("World".to_string())))),
+                default: Some(Box::new(RuchyExpr::Literal(Literal::String(
+                    "World".to_string(),
+                )))),
             }],
             body: Box::new(RuchyExpr::Block(vec![])),
             is_async: false,
@@ -1808,8 +1832,14 @@ mod tests {
         let formatter = RuchyFormatter::new();
 
         let lambda = RuchyExpr::Lambda {
-            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
-            body: Box::new(RuchyExpr::Block(vec![RuchyExpr::Identifier("x".to_string())])),
+            params: vec![Param {
+                name: "x".to_string(),
+                typ: None,
+                default: None,
+            }],
+            body: Box::new(RuchyExpr::Block(vec![RuchyExpr::Identifier(
+                "x".to_string(),
+            )])),
         };
         let formatted = formatter.format(&lambda);
         assert!(formatted.contains("|x|"));
@@ -1820,7 +1850,9 @@ mod tests {
     fn test_format_continue_with_label() {
         let formatter = RuchyFormatter::new();
 
-        let cont = RuchyExpr::Continue { label: Some("loop1".to_string()) };
+        let cont = RuchyExpr::Continue {
+            label: Some("loop1".to_string()),
+        };
         assert_eq!(formatter.format(&cont), "continue 'loop1");
     }
 

@@ -22,7 +22,11 @@ mod fault_localizer_tests {
 
         let decision = TranspilerDecision {
             id: 1,
-            location: SourceLocation { file: "test.py".into(), line: 10, column: 5 },
+            location: SourceLocation {
+                file: "test.py".into(),
+                line: 10,
+                column: 5,
+            },
             decision_type: DecisionType::TypeInference {
                 inferred: "i32".into(),
                 constraints: vec!["numeric".into(), "int_literal".into()],
@@ -46,7 +50,11 @@ mod fault_localizer_tests {
 
         let decision = TranspilerDecision {
             id: 2,
-            location: SourceLocation { file: "test.py".into(), line: 20, column: 1 },
+            location: SourceLocation {
+                file: "test.py".into(),
+                line: 20,
+                column: 1,
+            },
             decision_type: DecisionType::OwnershipChoice {
                 strategy: "borrow".into(),
                 reason: "read-only access".into(),
@@ -67,7 +75,11 @@ mod fault_localizer_tests {
 
         let decision = TranspilerDecision {
             id: 3,
-            location: SourceLocation { file: "numpy_test.py".into(), line: 5, column: 1 },
+            location: SourceLocation {
+                file: "numpy_test.py".into(),
+                line: 5,
+                column: 1,
+            },
             decision_type: DecisionType::LibraryMapping {
                 python_api: "numpy.array".into(),
                 rust_api: "trueno::Vector".into(),
@@ -111,12 +123,16 @@ mod fault_localizer_tests {
         let mut localizer = FaultLocalizer::new();
 
         // Decision 1: High suspiciousness (appears in many failures)
-        for _ in 0..10 { localizer.record_fail(1); }
+        for _ in 0..10 {
+            localizer.record_fail(1);
+        }
         localizer.record_pass(1);
 
         // Decision 2: Low suspiciousness (appears in many passes)
         localizer.record_fail(2);
-        for _ in 0..10 { localizer.record_pass(2); }
+        for _ in 0..10 {
+            localizer.record_pass(2);
+        }
 
         localizer.set_totals(11, 11);
 
@@ -187,7 +203,9 @@ mod pattern_store_tests {
 
         // Add 100 patterns with random embeddings
         for i in 0..100 {
-            let embedding: Vec<f32> = (0..384).map(|j| ((i * 17 + j) % 100) as f32 / 100.0).collect();
+            let embedding: Vec<f32> = (0..384)
+                .map(|j| ((i * 17 + j) % 100) as f32 / 100.0)
+                .collect();
             store.add_pattern(TranspilationPattern {
                 id: format!("pattern-{}", i),
                 python_pattern: format!("pattern_{}", i),
@@ -201,12 +219,18 @@ mod pattern_store_tests {
         }
 
         // Query with pattern-50's embedding
-        let query_embedding: Vec<f32> = (0..384).map(|j| ((50 * 17 + j) % 100) as f32 / 100.0).collect();
+        let query_embedding: Vec<f32> = (0..384)
+            .map(|j| ((50 * 17 + j) % 100) as f32 / 100.0)
+            .collect();
         let results = store.find_similar(&query_embedding, 10);
 
         // Recall@10: pattern-50 should be in top 10 results
         let ids: Vec<_> = results.iter().map(|p| p.id.as_str()).collect();
-        assert!(ids.contains(&"pattern-50"), "Expected pattern-50 in results: {:?}", ids);
+        assert!(
+            ids.contains(&"pattern-50"),
+            "Expected pattern-50 in results: {:?}",
+            ids
+        );
     }
 
     #[test]
@@ -222,7 +246,10 @@ mod pattern_store_tests {
 
         // Identical vectors
         let sim_identical = store.cosine_similarity(&nonzero, &nonzero);
-        assert!((sim_identical - 1.0).abs() < 0.001, "Identical vectors should have similarity ~1.0");
+        assert!(
+            (sim_identical - 1.0).abs() < 0.001,
+            "Identical vectors should have similarity ~1.0"
+        );
     }
 
     #[test]
@@ -248,7 +275,10 @@ mod pattern_store_tests {
         let pattern = store.get_pattern("test-pattern").unwrap();
 
         // Confidence should increase toward 1.0
-        assert!(pattern.confidence > 0.5, "Confidence should increase with successes");
+        assert!(
+            pattern.confidence > 0.5,
+            "Confidence should increase with successes"
+        );
         assert!(pattern.usage_count == 10, "Usage count should be 10");
     }
 
@@ -260,7 +290,9 @@ mod pattern_store_tests {
 
         // Add 10,000 patterns
         for i in 0..10_000 {
-            let embedding: Vec<f32> = (0..384).map(|j| ((i * 13 + j) % 1000) as f32 / 1000.0).collect();
+            let embedding: Vec<f32> = (0..384)
+                .map(|j| ((i * 13 + j) % 1000) as f32 / 1000.0)
+                .collect();
             store.add_pattern(TranspilationPattern {
                 id: format!("pattern-{}", i),
                 python_pattern: format!("p{}", i),
@@ -282,7 +314,11 @@ mod pattern_store_tests {
         // Must complete in < 2000ms for 10K patterns (brute-force acceptable for MVP)
         // Threshold increased to 2000ms to handle loaded CI systems with coverage instrumentation
         // TODO: Implement HNSW for O(log n) and reduce threshold to <10ms
-        assert!(elapsed.as_millis() < 2000, "Lookup took {}ms, expected <2000ms", elapsed.as_millis());
+        assert!(
+            elapsed.as_millis() < 2000,
+            "Lookup took {}ms, expected <2000ms",
+            elapsed.as_millis()
+        );
     }
 }
 
@@ -303,9 +339,18 @@ mod curriculum_tests {
         scheduler.add_example(FailingExample {
             path: "hard.py".into(),
             errors: vec![
-                CompilationError { code: "E0308".into(), message: "type mismatch".into() },
-                CompilationError { code: "E0277".into(), message: "trait bound".into() },
-                CompilationError { code: "E0425".into(), message: "not found".into() },
+                CompilationError {
+                    code: "E0308".into(),
+                    message: "type mismatch".into(),
+                },
+                CompilationError {
+                    code: "E0277".into(),
+                    message: "trait bound".into(),
+                },
+                CompilationError {
+                    code: "E0425".into(),
+                    message: "not found".into(),
+                },
             ],
             difficulty: DifficultyLevel::Hard,
             cluster_id: None,
@@ -314,9 +359,10 @@ mod curriculum_tests {
 
         scheduler.add_example(FailingExample {
             path: "easy.py".into(),
-            errors: vec![
-                CompilationError { code: "E0308".into(), message: "type mismatch".into() },
-            ],
+            errors: vec![CompilationError {
+                code: "E0308".into(),
+                message: "type mismatch".into(),
+            }],
             difficulty: DifficultyLevel::Easy,
             cluster_id: Some(1),
             dependencies: vec![],
@@ -325,8 +371,14 @@ mod curriculum_tests {
         scheduler.add_example(FailingExample {
             path: "medium.py".into(),
             errors: vec![
-                CompilationError { code: "E0308".into(), message: "type mismatch".into() },
-                CompilationError { code: "E0277".into(), message: "trait bound".into() },
+                CompilationError {
+                    code: "E0308".into(),
+                    message: "type mismatch".into(),
+                },
+                CompilationError {
+                    code: "E0277".into(),
+                    message: "trait bound".into(),
+                },
             ],
             difficulty: DifficultyLevel::Medium,
             cluster_id: None,
@@ -351,7 +403,10 @@ mod curriculum_tests {
         // Same difficulty, but one has cluster membership
         scheduler.add_example(FailingExample {
             path: "no_cluster.py".into(),
-            errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
+            errors: vec![CompilationError {
+                code: "E0308".into(),
+                message: "".into(),
+            }],
             difficulty: DifficultyLevel::Medium,
             cluster_id: None,
             dependencies: vec![],
@@ -359,7 +414,10 @@ mod curriculum_tests {
 
         scheduler.add_example(FailingExample {
             path: "with_cluster.py".into(),
-            errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
+            errors: vec![CompilationError {
+                code: "E0308".into(),
+                message: "".into(),
+            }],
             difficulty: DifficultyLevel::Medium,
             cluster_id: Some(5), // NumPy cluster
             dependencies: vec![],
@@ -367,7 +425,10 @@ mod curriculum_tests {
 
         // Clustered example should come first (fixes multiple examples)
         let first = scheduler.pop_next().unwrap();
-        assert_eq!(first.path, "with_cluster.py", "Clustered example should have priority");
+        assert_eq!(
+            first.path, "with_cluster.py",
+            "Clustered example should have priority"
+        );
     }
 
     #[test]
@@ -376,7 +437,10 @@ mod curriculum_tests {
 
         scheduler.add_example(FailingExample {
             path: "no_deps.py".into(),
-            errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
+            errors: vec![CompilationError {
+                code: "E0308".into(),
+                message: "".into(),
+            }],
             difficulty: DifficultyLevel::Easy,
             cluster_id: None,
             dependencies: vec![],
@@ -384,7 +448,10 @@ mod curriculum_tests {
 
         scheduler.add_example(FailingExample {
             path: "with_deps.py".into(),
-            errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
+            errors: vec![CompilationError {
+                code: "E0308".into(),
+                message: "".into(),
+            }],
             difficulty: DifficultyLevel::Easy,
             cluster_id: None,
             dependencies: vec!["pattern-a".into(), "pattern-b".into()],
@@ -392,7 +459,10 @@ mod curriculum_tests {
 
         // No dependencies should come first
         let first = scheduler.pop_next().unwrap();
-        assert_eq!(first.path, "no_deps.py", "Example without dependencies should have priority");
+        assert_eq!(
+            first.path, "no_deps.py",
+            "Example without dependencies should have priority"
+        );
     }
 
     #[test]
@@ -420,7 +490,10 @@ mod curriculum_tests {
         let _ = scheduler.pop_next();
         scheduler.graduate("test1.py".into());
 
-        assert!((scheduler.progress() - 0.5).abs() < 0.01, "Progress should be 50%");
+        assert!(
+            (scheduler.progress() - 0.5).abs() < 0.01,
+            "Progress should be 50%"
+        );
     }
 
     #[test]
@@ -430,12 +503,24 @@ mod curriculum_tests {
         for i in 0..1000 {
             scheduler.add_example(FailingExample {
                 path: format!("example_{}.py", i),
-                errors: vec![CompilationError { code: "E0308".into(), message: "".into() }],
-                difficulty: if i % 4 == 0 { DifficultyLevel::Easy }
-                    else if i % 4 == 1 { DifficultyLevel::Medium }
-                    else if i % 4 == 2 { DifficultyLevel::Hard }
-                    else { DifficultyLevel::Expert },
-                cluster_id: if i % 3 == 0 { Some((i % 5) as u32) } else { None },
+                errors: vec![CompilationError {
+                    code: "E0308".into(),
+                    message: "".into(),
+                }],
+                difficulty: if i % 4 == 0 {
+                    DifficultyLevel::Easy
+                } else if i % 4 == 1 {
+                    DifficultyLevel::Medium
+                } else if i % 4 == 2 {
+                    DifficultyLevel::Hard
+                } else {
+                    DifficultyLevel::Expert
+                },
+                cluster_id: if i % 3 == 0 {
+                    Some((i % 5) as u32)
+                } else {
+                    None
+                },
                 dependencies: vec![],
             });
         }
@@ -451,7 +536,11 @@ mod curriculum_tests {
         }
 
         // Easy examples should dominate early processing
-        assert!(easy_count > 50, "Expected >50 easy examples in first 100, got {}", easy_count);
+        assert!(
+            easy_count > 50,
+            "Expected >50 easy examples in first 100, got {}",
+            easy_count
+        );
     }
 }
 
@@ -474,8 +563,8 @@ mod distiller_tests {
             python_pattern: "np.mean(arr)".into(),
             rust_output: "arr.mean()".into(),
             error_prevented: "E0308".into(),
-            confidence: 0.96, // >= 0.95
-            usage_count: 55,  // >= 50
+            confidence: 0.96,    // >= 0.95
+            usage_count: 55,     // >= 50
             success_rate: 0.995, // >= 0.99
             embedding: vec![],
         };
@@ -522,8 +611,14 @@ mod distiller_tests {
         let rule_code = distiller.generate_rule(&pattern);
 
         // Should contain function definition
-        assert!(rule_code.contains("fn handle_pattern_test_rule"), "Missing function definition");
-        assert!(rule_code.contains("confidence: 0.98"), "Missing confidence annotation");
+        assert!(
+            rule_code.contains("fn handle_pattern_test_rule"),
+            "Missing function definition"
+        );
+        assert!(
+            rule_code.contains("confidence: 0.98"),
+            "Missing confidence annotation"
+        );
         assert!(rule_code.contains("uses: 100"), "Missing usage count");
 
         // Should be valid Rust syntax (basic check)
@@ -585,8 +680,13 @@ mod distiller_tests {
         let rule = distiller.generate_rule(&pattern);
 
         // Should use snake_case for function names (idiomatic Rust)
-        assert!(rule.contains("handle_pattern_snake_case_pattern"), "Should use snake_case");
-        assert!(!rule.contains("handle_pattern_snake-case-pattern"), "Should not have hyphens");
+        assert!(
+            rule.contains("handle_pattern_snake_case_pattern"),
+            "Should use snake_case"
+        );
+        assert!(
+            !rule.contains("handle_pattern_snake-case-pattern"),
+            "Should not have hyphens"
+        );
     }
 }
-

@@ -713,7 +713,10 @@ def factorial(n: int) -> int:
     fn test_hybrid_config_with_local_model() {
         let config = HybridConfig::with_local_model("/path/to/model.gguf");
         assert!(config.enable_local_model);
-        assert_eq!(config.local_model_path, Some("/path/to/model.gguf".to_string()));
+        assert_eq!(
+            config.local_model_path,
+            Some("/path/to/model.gguf".to_string())
+        );
     }
 
     #[test]
@@ -888,7 +891,11 @@ def factorial(n: int) -> int:
     #[test]
     fn test_training_collector_not_empty() {
         let mut collector = TrainingDataCollector::new();
-        collector.add_pair("def foo(): pass".to_string(), "fn foo() {}".to_string(), "test");
+        collector.add_pair(
+            "def foo(): pass".to_string(),
+            "fn foo() {}".to_string(),
+            "test",
+        );
         assert!(!collector.is_empty());
         assert_eq!(collector.len(), 1);
     }

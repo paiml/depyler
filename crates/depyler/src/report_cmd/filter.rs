@@ -116,8 +116,18 @@ impl SemanticTag {
                 r#"\[.*\s+for\s+.*\s+in\s+.*\]"#,
                 r#"\{.*\s+for\s+.*\s+in\s+.*\}"#,
             ],
-            Self::FileIO => vec![r#"open\s*\("#, r#"with\s+open"#, r#"\.read\("#, r#"\.write\("#],
-            Self::Json => vec![r#"import\s+json"#, r#"json\."#, r#"\.loads\("#, r#"\.dumps\("#],
+            Self::FileIO => vec![
+                r#"open\s*\("#,
+                r#"with\s+open"#,
+                r#"\.read\("#,
+                r#"\.write\("#,
+            ],
+            Self::Json => vec![
+                r#"import\s+json"#,
+                r#"json\."#,
+                r#"\.loads\("#,
+                r#"\.dumps\("#,
+            ],
             Self::Regex => vec![r#"import\s+re"#, r#"re\."#, r#"\.match\("#, r#"\.search\("#],
             Self::Datetime => vec![r#"import\s+datetime"#, r#"datetime\."#, "timedelta"],
             Self::Custom(_) => vec![],
@@ -182,8 +192,11 @@ pub fn filter_files(files: &[PathBuf], config: &FilterConfig) -> Vec<PathBuf> {
 
     // Apply tag filter
     if !config.tags.is_empty() {
-        let required_tags: HashSet<SemanticTag> =
-            config.tags.iter().map(|s| SemanticTag::from_str(s)).collect();
+        let required_tags: HashSet<SemanticTag> = config
+            .tags
+            .iter()
+            .map(|s| SemanticTag::from_str(s))
+            .collect();
 
         result.retain(|path| {
             if let Ok(source) = std::fs::read_to_string(path) {
@@ -473,7 +486,9 @@ class DataProcessor:
 
     #[test]
     fn test_bisection_state_new() {
-        let files: Vec<PathBuf> = (0..10).map(|i| PathBuf::from(format!("{}.py", i))).collect();
+        let files: Vec<PathBuf> = (0..10)
+            .map(|i| PathBuf::from(format!("{}.py", i)))
+            .collect();
         let state = BisectionState::new(files.clone());
 
         assert_eq!(state.low, 0);
@@ -485,7 +500,9 @@ class DataProcessor:
     #[test]
     fn test_bisection_isolate_single_failure() {
         // Simulate bisection to find file at index 7
-        let files: Vec<PathBuf> = (0..16).map(|i| PathBuf::from(format!("{}.py", i))).collect();
+        let files: Vec<PathBuf> = (0..16)
+            .map(|i| PathBuf::from(format!("{}.py", i)))
+            .collect();
         let mut state = BisectionState::new(files);
 
         // Iteration 1: mid=7, failure NOT in first half (0-7), so go to second half
@@ -547,7 +564,11 @@ class DataProcessor:
         }
 
         // Should complete in ~11 iterations
-        assert!(state.iteration <= 15, "Bisection took {} iterations", state.iteration);
+        assert!(
+            state.iteration <= 15,
+            "Bisection took {} iterations",
+            state.iteration
+        );
     }
 
     #[test]
@@ -572,7 +593,9 @@ class DataProcessor:
 
         let filtered = filter_files(&files, &config);
         assert_eq!(filtered.len(), 2);
-        assert!(filtered.iter().all(|f| f.to_string_lossy().contains("test_")));
+        assert!(filtered
+            .iter()
+            .all(|f| f.to_string_lossy().contains("test_")));
     }
 
     #[test]

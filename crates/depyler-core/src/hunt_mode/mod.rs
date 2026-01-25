@@ -21,23 +21,23 @@
 //! - Ohno, T. (1988). Toyota Production System
 //! - Beck, K. (2002). Test Driven Development
 
+pub mod five_whys;
+pub mod hansei;
+pub mod hunt_shim;
+pub mod isolator;
 pub mod kaizen;
 pub mod planner;
-pub mod isolator;
 pub mod repair;
 pub mod verifier;
-pub mod hansei;
-pub mod five_whys;
-pub mod hunt_shim;
 
 // Re-exports for convenience
-pub use kaizen::KaizenMetrics;
-pub use planner::{HuntPlanner, FailurePattern, ErrorCluster};
-pub use isolator::{MinimalReproducer, ReproCase};
-pub use repair::{JidokaRepairEngine, RepairResult, Mutator};
-pub use verifier::{AndonVerifier, AndonStatus, VerifyResult};
-pub use hansei::{HanseiReflector, Lesson, CycleOutcome};
 pub use five_whys::{FiveWhysAnalyzer, RootCauseChain, WhyStep};
+pub use hansei::{CycleOutcome, HanseiReflector, Lesson};
+pub use isolator::{MinimalReproducer, ReproCase};
+pub use kaizen::KaizenMetrics;
+pub use planner::{ErrorCluster, FailurePattern, HuntPlanner};
+pub use repair::{JidokaRepairEngine, Mutator, RepairResult};
+pub use verifier::{AndonStatus, AndonVerifier, VerifyResult};
 
 use std::path::PathBuf;
 
@@ -101,7 +101,9 @@ impl HuntEngine {
     /// Returns the outcome of the cycle for Hansei reflection
     pub fn run_cycle(&mut self) -> anyhow::Result<CycleOutcome> {
         // PLAN: Select highest-priority failure pattern
-        let pattern = self.planner.select_next_target()
+        let pattern = self
+            .planner
+            .select_next_target()
             .ok_or_else(|| anyhow::anyhow!("No failure patterns to process"))?;
 
         // DO: Synthesize minimal reproduction case
@@ -112,15 +114,17 @@ impl HuntEngine {
 
         // ACT: Verify and commit if successful
         let verify_result = match repair_result {
-            RepairResult::Success(fix) => {
-                self.verifier.verify_and_commit(&fix, &repro)?
-            }
-            RepairResult::NeedsHumanReview { fix, confidence, reason } => {
-                VerifyResult::NeedsReview { fix, confidence, reason }
-            }
-            RepairResult::NoFixFound => {
-                VerifyResult::NoFixAvailable
-            }
+            RepairResult::Success(fix) => self.verifier.verify_and_commit(&fix, &repro)?,
+            RepairResult::NeedsHumanReview {
+                fix,
+                confidence,
+                reason,
+            } => VerifyResult::NeedsReview {
+                fix,
+                confidence,
+                reason,
+            },
+            RepairResult::NoFixFound => VerifyResult::NoFixAvailable,
         };
 
         // Create outcome for Hansei reflection
@@ -292,7 +296,10 @@ mod tests {
         assert!((config.target_rate - 0.80).abs() < f64::EPSILON);
         assert_eq!(config.plateau_threshold, 5);
         assert!(config.enable_five_whys);
-        assert_eq!(config.lessons_database, PathBuf::from(".depyler/lessons.db"));
+        assert_eq!(
+            config.lessons_database,
+            PathBuf::from(".depyler/lessons.db")
+        );
     }
 
     #[test]

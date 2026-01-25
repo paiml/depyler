@@ -29,18 +29,19 @@ fn create_function_with_params(name: &str, param_names: &[&str]) -> HirFunction 
         .map(|n| HirParam::new(n.to_string(), Type::Int))
         .collect();
 
-    let sum_expr = if param_names.len() == 1 {
-        HirExpr::Var(param_names[0].to_string())
-    } else {
-        param_names.iter().skip(1).fold(
-            HirExpr::Var(param_names[0].to_string()),
-            |acc, param| HirExpr::Binary {
-                left: Box::new(acc),
-                op: BinOp::Add,
-                right: Box::new(HirExpr::Var(param.to_string())),
-            },
-        )
-    };
+    let sum_expr =
+        if param_names.len() == 1 {
+            HirExpr::Var(param_names[0].to_string())
+        } else {
+            param_names.iter().skip(1).fold(
+                HirExpr::Var(param_names[0].to_string()),
+                |acc, param| HirExpr::Binary {
+                    left: Box::new(acc),
+                    op: BinOp::Add,
+                    right: Box::new(HirExpr::Var(param.to_string())),
+                },
+            )
+        };
 
     HirFunction {
         name: name.to_string(),
@@ -368,7 +369,10 @@ fn test_apply_function_with_for() {
 
     let func = HirFunction {
         name: "for_loop".to_string(),
-        params: smallvec![HirParam::new("items".to_string(), Type::List(Box::new(Type::Int)))],
+        params: smallvec![HirParam::new(
+            "items".to_string(),
+            Type::List(Box::new(Type::Int))
+        )],
         ret_type: Type::Int,
         body: vec![
             HirStmt::Assign {

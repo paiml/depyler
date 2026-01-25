@@ -169,7 +169,10 @@ mod lib_tests {
     fn test_error_context_with_location() {
         let ctx = ErrorContext {
             error_message: "type mismatch".to_string(),
-            error_location: Some(Location { line: 10, column: 5 }),
+            error_location: Some(Location {
+                line: 10,
+                column: 5,
+            }),
             attempted_approach: "type inference".to_string(),
         };
 

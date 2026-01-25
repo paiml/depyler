@@ -79,15 +79,15 @@ impl ErrorFeatures {
 
     fn category_index(code: &str) -> usize {
         match code {
-            "E0308" => 0, // TypeMismatch
-            "E0412" => 1, // UndefinedType
-            "E0425" => 2, // UndefinedValue
-            "E0282" => 3, // TypeAnnotation
-            "E0277" => 4, // TraitBound
-            c if c.starts_with("E050") => 5, // BorrowCheck
+            "E0308" => 0,                                             // TypeMismatch
+            "E0412" => 1,                                             // UndefinedType
+            "E0425" => 2,                                             // UndefinedValue
+            "E0282" => 3,                                             // TypeAnnotation
+            "E0277" => 4,                                             // TraitBound
+            c if c.starts_with("E050") => 5,                          // BorrowCheck
             c if c.starts_with("E010") || c.starts_with("E062") => 6, // Lifetime
             c if c.starts_with("E006") || c.starts_with("E043") => 7, // Syntax
-            _ => 8, // Other
+            _ => 8,                                                   // Other
         }
     }
 }
@@ -258,11 +258,7 @@ impl ClusterAnalyzer {
             // Check convergence
             let mut max_diff = 0.0f64;
             for (old, new) in centroids.iter().zip(new_centroids.iter()) {
-                let diff: f64 = old
-                    .iter()
-                    .zip(new.iter())
-                    .map(|(a, b)| (a - b).abs())
-                    .sum();
+                let diff: f64 = old.iter().zip(new.iter()).map(|(a, b)| (a - b).abs()).sum();
                 max_diff = max_diff.max(diff);
             }
 
@@ -332,8 +328,7 @@ impl ClusterAnalyzer {
         clusters
             .into_iter()
             .map(|(id, members)| {
-                let member_codes: Vec<String> =
-                    members.iter().map(|f| f.code.clone()).collect();
+                let member_codes: Vec<String> = members.iter().map(|f| f.code.clone()).collect();
 
                 // Find dominant error code (most frequent)
                 let dominant = members

@@ -532,7 +532,13 @@ mod tests {
             else_branch: None,
         };
         let result = transformer.transform(if_expr).unwrap();
-        assert!(matches!(result, RuchyExpr::If { else_branch: None, .. }));
+        assert!(matches!(
+            result,
+            RuchyExpr::If {
+                else_branch: None,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -576,7 +582,11 @@ mod tests {
     fn test_transform_lambda() {
         let transformer = PatternTransformer::new();
         let lambda = RuchyExpr::Lambda {
-            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
+            params: vec![Param {
+                name: "x".to_string(),
+                typ: None,
+                default: None,
+            }],
             body: Box::new(RuchyExpr::Identifier("x".to_string())),
         };
         let result = transformer.transform(lambda).unwrap();
@@ -703,7 +713,9 @@ mod tests {
     #[test]
     fn test_parse_format_string_no_placeholders() {
         let transformer = PatternTransformer::new();
-        let parts = transformer.parse_format_string("Hello, world!", &[]).unwrap();
+        let parts = transformer
+            .parse_format_string("Hello, world!", &[])
+            .unwrap();
         assert_eq!(parts.len(), 1);
         assert!(matches!(&parts[0], StringPart::Text(s) if s == "Hello, world!"));
     }
@@ -739,7 +751,9 @@ mod tests {
     fn test_parse_format_string_mixed() {
         let transformer = PatternTransformer::new();
         let args = vec![RuchyExpr::Literal(Literal::Integer(42))];
-        let parts = transformer.parse_format_string("Value: {} end", &args).unwrap();
+        let parts = transformer
+            .parse_format_string("Value: {} end", &args)
+            .unwrap();
         assert_eq!(parts.len(), 3);
         assert!(matches!(&parts[0], StringPart::Text(s) if s == "Value: "));
         assert!(matches!(&parts[1], StringPart::Expr(_)));
@@ -1076,7 +1090,10 @@ mod tests {
         };
         let result = transformer.transform(for_expr).unwrap();
         // Should transform to DataFrame operations
-        assert!(matches!(result, RuchyExpr::MethodCall { .. } | RuchyExpr::Call { .. }));
+        assert!(matches!(
+            result,
+            RuchyExpr::MethodCall { .. } | RuchyExpr::Call { .. }
+        ));
     }
 
     #[test]
@@ -1109,7 +1126,11 @@ mod tests {
             func: Box::new(RuchyExpr::Identifier("map".to_string())),
             args: vec![
                 RuchyExpr::Lambda {
-                    params: vec![Param { name: "x".to_string(), typ: None, default: None }],
+                    params: vec![Param {
+                        name: "x".to_string(),
+                        typ: None,
+                        default: None,
+                    }],
                     body: Box::new(RuchyExpr::Binary {
                         left: Box::new(RuchyExpr::Identifier("x".to_string())),
                         op: BinaryOp::Multiply,
@@ -1120,7 +1141,11 @@ mod tests {
                     func: Box::new(RuchyExpr::Identifier("filter".to_string())),
                     args: vec![
                         RuchyExpr::Lambda {
-                            params: vec![Param { name: "x".to_string(), typ: None, default: None }],
+                            params: vec![Param {
+                                name: "x".to_string(),
+                                typ: None,
+                                default: None,
+                            }],
                             body: Box::new(RuchyExpr::Binary {
                                 left: Box::new(RuchyExpr::Identifier("x".to_string())),
                                 op: BinaryOp::Greater,
@@ -1143,10 +1168,12 @@ mod tests {
     fn test_transform_filter_map_insufficient_args() {
         let transformer = PatternTransformer::new();
         // Call transform_filter_map directly with insufficient args
-        let result = transformer.transform_filter_map(
-            RuchyExpr::Identifier("map".to_string()),
-            vec![RuchyExpr::Identifier("x".to_string())], // Only 1 arg instead of 2
-        ).unwrap();
+        let result = transformer
+            .transform_filter_map(
+                RuchyExpr::Identifier("map".to_string()),
+                vec![RuchyExpr::Identifier("x".to_string())], // Only 1 arg instead of 2
+            )
+            .unwrap();
         // Should return a Call since args were insufficient
         assert!(matches!(result, RuchyExpr::Call { .. }));
     }
@@ -1155,16 +1182,18 @@ mod tests {
     fn test_transform_filter_map_not_filter_call() {
         let transformer = PatternTransformer::new();
         // Second arg is not a filter call
-        let result = transformer.transform_filter_map(
-            RuchyExpr::Identifier("map".to_string()),
-            vec![
-                RuchyExpr::Lambda {
-                    params: vec![],
-                    body: Box::new(RuchyExpr::Identifier("x".to_string())),
-                },
-                RuchyExpr::List(vec![]), // Not a Call with filter
-            ],
-        ).unwrap();
+        let result = transformer
+            .transform_filter_map(
+                RuchyExpr::Identifier("map".to_string()),
+                vec![
+                    RuchyExpr::Lambda {
+                        params: vec![],
+                        body: Box::new(RuchyExpr::Identifier("x".to_string())),
+                    },
+                    RuchyExpr::List(vec![]), // Not a Call with filter
+                ],
+            )
+            .unwrap();
         // Should return a Call since filter call wasn't found
         assert!(matches!(result, RuchyExpr::Call { .. }));
     }
@@ -1289,7 +1318,11 @@ mod tests {
         };
         let result = transformer.transform(func).unwrap();
         match result {
-            RuchyExpr::Function { is_async, return_type, .. } => {
+            RuchyExpr::Function {
+                is_async,
+                return_type,
+                ..
+            } => {
                 assert!(is_async);
                 assert!(return_type.is_some());
             }

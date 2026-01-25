@@ -78,7 +78,7 @@ fn test_whole_module_import_math() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "math".to_string(),
-            alias: None,
+        alias: None,
         items: vec![],
     }];
 
@@ -94,7 +94,7 @@ fn test_whole_module_import_typing() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "typing".to_string(),
-            alias: None,
+        alias: None,
         items: vec![],
     }];
 
@@ -110,7 +110,7 @@ fn test_whole_module_import_unknown() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "unknown_module".to_string(),
-            alias: None,
+        alias: None,
         items: vec![],
     }];
 
@@ -129,7 +129,7 @@ fn test_specific_named_import_from_typing() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "typing".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Named("List".to_string())],
     }];
 
@@ -145,7 +145,7 @@ fn test_specific_named_import_from_math() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "math".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Named("sqrt".to_string())],
     }];
 
@@ -164,7 +164,7 @@ fn test_specific_named_import_from_collections() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "collections".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Named("deque".to_string())],
     }];
 
@@ -183,7 +183,7 @@ fn test_specific_named_import_from_unknown_module() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "unknown".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Named("something".to_string())],
     }];
 
@@ -198,7 +198,7 @@ fn test_specific_named_import_unknown_item() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "math".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Named("unknown_item".to_string())],
     }];
 
@@ -217,7 +217,7 @@ fn test_specific_aliased_import_from_typing() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "typing".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Aliased {
             name: "List".to_string(),
             alias: "L".to_string(),
@@ -237,7 +237,7 @@ fn test_specific_aliased_import_from_math() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "math".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Aliased {
             name: "sqrt".to_string(),
             alias: "square_root".to_string(),
@@ -259,7 +259,7 @@ fn test_specific_aliased_import_with_full_path() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "collections".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Aliased {
             name: "deque".to_string(),
             alias: "DQ".to_string(),
@@ -281,7 +281,7 @@ fn test_specific_aliased_import_from_unknown_module() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "unknown".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Aliased {
             name: "something".to_string(),
             alias: "S".to_string(),
@@ -299,7 +299,7 @@ fn test_specific_aliased_import_unknown_item() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "math".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Aliased {
             name: "unknown".to_string(),
             alias: "U".to_string(),
@@ -356,7 +356,7 @@ fn test_multiple_items_from_same_module() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "typing".to_string(),
-            alias: None,
+        alias: None,
         items: vec![
             ImportItem::Named("List".to_string()),
             ImportItem::Named("Dict".to_string()),
@@ -381,7 +381,7 @@ fn test_typing_module_no_full_path() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "typing".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Named("List".to_string())],
     }];
 
@@ -444,7 +444,7 @@ fn test_verify_hashmap_contents() {
     let mapper = create_test_module_mapper();
     let imports = vec![Import {
         module: "math".to_string(),
-            alias: None,
+        alias: None,
         items: vec![ImportItem::Named("sqrt".to_string())],
     }];
 

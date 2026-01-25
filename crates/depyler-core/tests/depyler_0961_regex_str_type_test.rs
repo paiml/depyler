@@ -22,7 +22,11 @@ def find_number(text: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_source);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -50,7 +54,11 @@ def replace_digits(text: str) -> str:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_source);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 
@@ -74,7 +82,11 @@ def matches_pattern(text: str) -> bool:
 
     let pipeline = DepylerPipeline::new();
     let result = pipeline.transpile(python_source);
-    assert!(result.is_ok(), "Transpilation should succeed: {:?}", result.err());
+    assert!(
+        result.is_ok(),
+        "Transpilation should succeed: {:?}",
+        result.err()
+    );
 
     let rust_code = result.unwrap();
 

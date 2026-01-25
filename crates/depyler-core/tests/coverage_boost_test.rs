@@ -11,7 +11,9 @@ fn transpile_ok(code: &str) -> bool {
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline
+        .transpile(code)
+        .unwrap_or_else(|e| format!("ERROR: {}", e))
 }
 
 // ============ Slicing edge cases ============
@@ -645,7 +647,8 @@ fn test_with_open() {
 
 #[test]
 fn test_with_open_write() {
-    let code = "def f(content: str):\n    with open('out.txt', 'w') as f:\n        f.write(content)";
+    let code =
+        "def f(content: str):\n    with open('out.txt', 'w') as f:\n        f.write(content)";
     assert!(transpile_ok(code));
 }
 
@@ -773,7 +776,8 @@ fn test_starred_unpack() {
 
 #[test]
 fn test_starred_middle() {
-    let code = "def f():\n    first, *middle, last = [1, 2, 3, 4, 5]\n    return first, middle, last";
+    let code =
+        "def f():\n    first, *middle, last = [1, 2, 3, 4, 5]\n    return first, middle, last";
     assert!(transpile_ok(code));
 }
 
@@ -968,7 +972,8 @@ fn test_file_readlines() {
 
 #[test]
 fn test_file_write() {
-    let code = "def f(path: str, data: str):\n    with open(path, 'w') as f:\n        f.write(data)";
+    let code =
+        "def f(path: str, data: str):\n    with open(path, 'w') as f:\n        f.write(data)";
     assert!(transpile_ok(code));
 }
 

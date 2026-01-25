@@ -37,12 +37,12 @@ mod error_overlay;
 mod impact;
 mod vectorize;
 
-pub use builder::{DependencyGraph, GraphBuilder, NodeKind, EdgeKind};
+pub use builder::{DependencyGraph, EdgeKind, GraphBuilder, NodeKind};
 pub use error_overlay::{ErrorOverlay, OverlaidError};
-pub use impact::{ImpactScorer, ImpactScore, PatientZero};
+pub use impact::{ImpactScore, ImpactScorer, PatientZero};
 pub use vectorize::{
-    VectorizedFailure, FailureContext, AstContext, GraphContext, FailureLabels,
-    vectorize_failures, serialize_to_json, serialize_to_ndjson
+    serialize_to_json, serialize_to_ndjson, vectorize_failures, AstContext, FailureContext,
+    FailureLabels, GraphContext, VectorizedFailure,
 };
 
 use serde::{Deserialize, Serialize};
@@ -162,9 +162,7 @@ def bar():
     return foo() + 1
 "#;
 
-        let errors = vec![
-            ("E0308".to_string(), "mismatched types".to_string(), 5),
-        ];
+        let errors = vec![("E0308".to_string(), "mismatched types".to_string(), 5)];
 
         let result = analyze_with_graph(python, &errors);
         assert!(result.is_ok());
@@ -186,9 +184,7 @@ class Derived(Base):
         super().method()
 "#;
 
-        let errors = vec![
-            ("E0599".to_string(), "no method found".to_string(), 7),
-        ];
+        let errors = vec![("E0599".to_string(), "no method found".to_string(), 7)];
 
         let result = analyze_with_graph(python, &errors);
         assert!(result.is_ok());
@@ -237,9 +233,11 @@ def foo(x: int) -> str:
     return x  # E0308: expected str, found int
 "#;
 
-        let errors = vec![
-            ("E0308".to_string(), "expected str, found int".to_string(), 3),
-        ];
+        let errors = vec![(
+            "E0308".to_string(),
+            "expected str, found int".to_string(),
+            3,
+        )];
 
         let result = analyze_with_graph(python, &errors);
         assert!(result.is_ok());

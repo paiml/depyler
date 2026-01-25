@@ -760,7 +760,10 @@ mod tests {
             docstring: None,
         };
         let result = gen.generate_test_items_for_function(&func).unwrap();
-        assert!(result.is_empty(), "Impure functions should not generate tests");
+        assert!(
+            result.is_empty(),
+            "Impure functions should not generate tests"
+        );
     }
 
     #[test]

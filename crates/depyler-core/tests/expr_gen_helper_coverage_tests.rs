@@ -595,7 +595,9 @@ def process(s: str) -> str:
     return s.strip().lower().replace(" ", "_")
 "#;
     let result = transpile(code).unwrap();
-    assert!(result.contains("trim") || result.contains("to_lowercase") || result.contains("replace"));
+    assert!(
+        result.contains("trim") || result.contains("to_lowercase") || result.contains("replace")
+    );
 }
 
 #[test]
@@ -662,7 +664,12 @@ def normalize(s: str) -> str:
 "#;
     let result = transpile(code).unwrap();
     // Should contain some form of string method chaining
-    assert!(result.contains("s.") || result.contains("trim") || result.contains("upper") || result.contains("to_"));
+    assert!(
+        result.contains("s.")
+            || result.contains("trim")
+            || result.contains("upper")
+            || result.contains("to_")
+    );
 }
 
 #[test]
@@ -695,5 +702,7 @@ def unique(items: list[int]) -> set[int]:
     return set(items)
 "#;
     let result = transpile(code).unwrap();
-    assert!(result.contains("HashSet") || result.contains("BTreeSet") || result.contains("collect"));
+    assert!(
+        result.contains("HashSet") || result.contains("BTreeSet") || result.contains("collect")
+    );
 }

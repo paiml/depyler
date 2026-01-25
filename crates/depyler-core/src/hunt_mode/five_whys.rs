@@ -170,20 +170,31 @@ impl FiveWhysAnalyzer {
     fn build_type_mismatch_chain() -> RootCauseChain {
         let mut chain = RootCauseChain::new();
 
-        chain.add_why(WhyStep::new(1, "Type mismatch between expected and actual type")
-            .with_deeper_cause("Type inference produced wrong type"));
+        chain.add_why(
+            WhyStep::new(1, "Type mismatch between expected and actual type")
+                .with_deeper_cause("Type inference produced wrong type"),
+        );
 
-        chain.add_why(WhyStep::new(2, "Type inference produced wrong type")
-            .with_deeper_cause("Insufficient type context in Python source"));
+        chain.add_why(
+            WhyStep::new(2, "Type inference produced wrong type")
+                .with_deeper_cause("Insufficient type context in Python source"),
+        );
 
-        chain.add_why(WhyStep::new(3, "Insufficient type context in Python source")
-            .with_deeper_cause("Python's dynamic typing allows implicit conversions"));
+        chain.add_why(
+            WhyStep::new(3, "Insufficient type context in Python source")
+                .with_deeper_cause("Python's dynamic typing allows implicit conversions"),
+        );
 
-        chain.add_why(WhyStep::new(4, "Python's dynamic typing allows implicit conversions")
-            .with_deeper_cause("Transpiler doesn't add explicit conversions"));
+        chain.add_why(
+            WhyStep::new(4, "Python's dynamic typing allows implicit conversions")
+                .with_deeper_cause("Transpiler doesn't add explicit conversions"),
+        );
 
-        chain.add_why(WhyStep::new(5, "Transpiler codegen missing type coercion logic")
-            .mark_as_root("Add .into(), .to_string(), or explicit type conversion in expr_gen.rs"));
+        chain.add_why(
+            WhyStep::new(5, "Transpiler codegen missing type coercion logic").mark_as_root(
+                "Add .into(), .to_string(), or explicit type conversion in expr_gen.rs",
+            ),
+        );
 
         chain
     }
@@ -192,14 +203,20 @@ impl FiveWhysAnalyzer {
     fn build_import_chain() -> RootCauseChain {
         let mut chain = RootCauseChain::new();
 
-        chain.add_why(WhyStep::new(1, "External crate not found")
-            .with_deeper_cause("Cargo.toml missing dependency"));
+        chain.add_why(
+            WhyStep::new(1, "External crate not found")
+                .with_deeper_cause("Cargo.toml missing dependency"),
+        );
 
-        chain.add_why(WhyStep::new(2, "Cargo.toml missing dependency")
-            .with_deeper_cause("Python import not mapped to Rust crate"));
+        chain.add_why(
+            WhyStep::new(2, "Cargo.toml missing dependency")
+                .with_deeper_cause("Python import not mapped to Rust crate"),
+        );
 
-        chain.add_why(WhyStep::new(3, "Python import not mapped to Rust crate")
-            .mark_as_root("Add mapping in module_mapper.rs and cargo_toml_gen.rs"));
+        chain.add_why(
+            WhyStep::new(3, "Python import not mapped to Rust crate")
+                .mark_as_root("Add mapping in module_mapper.rs and cargo_toml_gen.rs"),
+        );
 
         chain
     }
@@ -208,17 +225,26 @@ impl FiveWhysAnalyzer {
     fn build_trait_bound_chain() -> RootCauseChain {
         let mut chain = RootCauseChain::new();
 
-        chain.add_why(WhyStep::new(1, "Trait bound not satisfied")
-            .with_deeper_cause("Generated type doesn't implement required trait"));
+        chain.add_why(
+            WhyStep::new(1, "Trait bound not satisfied")
+                .with_deeper_cause("Generated type doesn't implement required trait"),
+        );
 
-        chain.add_why(WhyStep::new(2, "Generated type doesn't implement required trait")
-            .with_deeper_cause("Wrong type chosen for dynamic data"));
+        chain.add_why(
+            WhyStep::new(2, "Generated type doesn't implement required trait")
+                .with_deeper_cause("Wrong type chosen for dynamic data"),
+        );
 
-        chain.add_why(WhyStep::new(3, "Wrong type chosen for dynamic data")
-            .with_deeper_cause("Type inference defaults to concrete type instead of trait object"));
+        chain.add_why(
+            WhyStep::new(3, "Wrong type chosen for dynamic data").with_deeper_cause(
+                "Type inference defaults to concrete type instead of trait object",
+            ),
+        );
 
-        chain.add_why(WhyStep::new(4, "Type inference defaults to concrete type")
-            .mark_as_root("Use serde_json::Value or Box<dyn Trait> for heterogeneous data"));
+        chain.add_why(
+            WhyStep::new(4, "Type inference defaults to concrete type")
+                .mark_as_root("Use serde_json::Value or Box<dyn Trait> for heterogeneous data"),
+        );
 
         chain
     }
@@ -227,17 +253,25 @@ impl FiveWhysAnalyzer {
     fn build_borrow_chain() -> RootCauseChain {
         let mut chain = RootCauseChain::new();
 
-        chain.add_why(WhyStep::new(1, "Cannot borrow as mutable while borrowed as immutable")
-            .with_deeper_cause("Multiple references to same data"));
+        chain.add_why(
+            WhyStep::new(1, "Cannot borrow as mutable while borrowed as immutable")
+                .with_deeper_cause("Multiple references to same data"),
+        );
 
-        chain.add_why(WhyStep::new(2, "Multiple references to same data")
-            .with_deeper_cause("Python code pattern doesn't translate directly to Rust"));
+        chain.add_why(
+            WhyStep::new(2, "Multiple references to same data")
+                .with_deeper_cause("Python code pattern doesn't translate directly to Rust"),
+        );
 
-        chain.add_why(WhyStep::new(3, "Python pattern incompatible with Rust ownership")
-            .with_deeper_cause("Transpiler generates naive translation"));
+        chain.add_why(
+            WhyStep::new(3, "Python pattern incompatible with Rust ownership")
+                .with_deeper_cause("Transpiler generates naive translation"),
+        );
 
-        chain.add_why(WhyStep::new(4, "Transpiler generates naive translation")
-            .mark_as_root("Add .clone(), restructure to avoid aliasing, or use RefCell"));
+        chain.add_why(
+            WhyStep::new(4, "Transpiler generates naive translation")
+                .mark_as_root("Add .clone(), restructure to avoid aliasing, or use RefCell"),
+        );
 
         chain
     }
@@ -248,7 +282,9 @@ impl FiveWhysAnalyzer {
         for pattern in &self.known_patterns {
             if pattern.error_code == error_code {
                 // Check keywords
-                let matches_keywords = pattern.keywords.iter()
+                let matches_keywords = pattern
+                    .keywords
+                    .iter()
                     .any(|kw| error_message.to_lowercase().contains(&kw.to_lowercase()));
 
                 if matches_keywords {
@@ -270,14 +306,23 @@ impl FiveWhysAnalyzer {
     fn build_generic_chain(&self, error_code: &str, error_message: &str) -> RootCauseChain {
         let mut chain = RootCauseChain::new();
 
-        chain.add_why(WhyStep::new(1, &format!("Compilation error {}: {}", error_code, error_message))
-            .with_deeper_cause("Generated Rust code invalid"));
+        chain.add_why(
+            WhyStep::new(
+                1,
+                &format!("Compilation error {}: {}", error_code, error_message),
+            )
+            .with_deeper_cause("Generated Rust code invalid"),
+        );
 
-        chain.add_why(WhyStep::new(2, "Generated Rust code invalid")
-            .with_deeper_cause("Transpiler codegen incomplete for this pattern"));
+        chain.add_why(
+            WhyStep::new(2, "Generated Rust code invalid")
+                .with_deeper_cause("Transpiler codegen incomplete for this pattern"),
+        );
 
-        chain.add_why(WhyStep::new(3, "Codegen incomplete for pattern")
-            .mark_as_root("Investigate expr_gen.rs/stmt_gen.rs for missing case handling"));
+        chain.add_why(
+            WhyStep::new(3, "Codegen incomplete for pattern")
+                .mark_as_root("Investigate expr_gen.rs/stmt_gen.rs for missing case handling"),
+        );
 
         chain
     }
@@ -288,8 +333,9 @@ impl FiveWhysAnalyzer {
 
         // In a real implementation, this would prompt the user
         // For now, use the initial problem and build a basic chain
-        chain.add_why(WhyStep::new(1, initial_problem)
-            .mark_as_root("Requires manual investigation"));
+        chain.add_why(
+            WhyStep::new(1, initial_problem).mark_as_root("Requires manual investigation"),
+        );
 
         chain
     }
@@ -348,8 +394,7 @@ mod tests {
 
     #[test]
     fn test_why_step_mark_as_root() {
-        let step = WhyStep::new(3, "Root cause")
-            .mark_as_root("Fix this thing");
+        let step = WhyStep::new(3, "Root cause").mark_as_root("Fix this thing");
 
         assert!(step.is_root_cause);
         assert_eq!(step.preventive_measure, "Fix this thing");
@@ -358,10 +403,8 @@ mod tests {
     #[test]
     fn test_root_cause_chain_to_markdown() {
         let mut chain = RootCauseChain::new();
-        chain.add_why(WhyStep::new(1, "Problem A")
-            .with_deeper_cause("Leads to B"));
-        chain.add_why(WhyStep::new(2, "Problem B")
-            .mark_as_root("Fix B"));
+        chain.add_why(WhyStep::new(1, "Problem A").with_deeper_cause("Leads to B"));
+        chain.add_why(WhyStep::new(2, "Problem B").mark_as_root("Fix B"));
 
         let md = chain.to_markdown();
         assert!(md.contains("Five Whys Analysis"));
@@ -414,8 +457,7 @@ mod tests {
 
     #[test]
     fn test_why_step_with_deeper_cause() {
-        let step = WhyStep::new(1, "Problem")
-            .with_deeper_cause("Root issue");
+        let step = WhyStep::new(1, "Problem").with_deeper_cause("Root issue");
         assert_eq!(step.deeper_cause, Some("Root issue".to_string()));
     }
 
@@ -486,8 +528,10 @@ mod tests {
         assert!(chain.depth() >= 3);
 
         let root = chain.root_cause().unwrap();
-        assert!(root.preventive_measure.contains("serde_json::Value") ||
-                root.preventive_measure.contains("Box<dyn Trait>"));
+        assert!(
+            root.preventive_measure.contains("serde_json::Value")
+                || root.preventive_measure.contains("Box<dyn Trait>")
+        );
     }
 
     #[test]
@@ -499,17 +543,19 @@ mod tests {
         assert!(chain.depth() >= 3);
 
         let root = chain.root_cause().unwrap();
-        assert!(root.preventive_measure.contains("clone") ||
-                root.preventive_measure.contains("RefCell"));
+        assert!(
+            root.preventive_measure.contains("clone")
+                || root.preventive_measure.contains("RefCell")
+        );
     }
 
     #[test]
     fn test_analyze_from_outcome() {
         use super::super::hansei::CycleOutcome;
-        use super::super::planner::{FailurePattern, PatternCategory};
         use super::super::isolator::ReproCase;
-        use super::super::verifier::VerifyResult;
         use super::super::kaizen::KaizenMetrics;
+        use super::super::planner::{FailurePattern, PatternCategory};
+        use super::super::verifier::VerifyResult;
 
         let analyzer = FiveWhysAnalyzer::new();
         let outcome = CycleOutcome {
@@ -544,8 +590,8 @@ mod tests {
     #[test]
     fn test_to_markdown_with_deeper_cause() {
         let mut chain = RootCauseChain::new();
-        chain.add_why(WhyStep::new(1, "Surface problem")
-            .with_deeper_cause("Leads to deeper issue"));
+        chain
+            .add_why(WhyStep::new(1, "Surface problem").with_deeper_cause("Leads to deeper issue"));
 
         let md = chain.to_markdown();
         assert!(md.contains("Leads to:"));
@@ -577,8 +623,10 @@ mod tests {
         assert_eq!(chain.depth(), 3);
 
         let root = chain.root_cause().unwrap();
-        assert!(root.preventive_measure.contains("expr_gen") ||
-                root.preventive_measure.contains("stmt_gen"));
+        assert!(
+            root.preventive_measure.contains("expr_gen")
+                || root.preventive_measure.contains("stmt_gen")
+        );
     }
 
     #[test]

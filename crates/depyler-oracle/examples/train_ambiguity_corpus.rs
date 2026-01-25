@@ -141,10 +141,19 @@ fn main() -> anyhow::Result<()> {
     println!();
     println!("═══ Training Data Statistics ═══");
     println!("Sources:");
-    println!("  Graph corpus: {:>6} samples (ambiguity vectors)", result.stats.graph_corpus_count);
-    println!("  Synthetic:    {:>6} samples (background data)", result.stats.synthetic_count);
+    println!(
+        "  Graph corpus: {:>6} samples (ambiguity vectors)",
+        result.stats.graph_corpus_count
+    );
+    println!(
+        "  Synthetic:    {:>6} samples (background data)",
+        result.stats.synthetic_count
+    );
     println!("  Depyler:      {:>6} samples", result.stats.depyler_count);
-    println!("  Verificar:    {:>6} samples", result.stats.verificar_count);
+    println!(
+        "  Verificar:    {:>6} samples",
+        result.stats.verificar_count
+    );
     println!("  ────────────────────────────");
     println!("  Before dedup: {:>6}", result.stats.total_before_dedupe);
     println!("  Duplicates:   {:>6}", result.stats.duplicates_removed);
@@ -198,10 +207,16 @@ fn main() -> anyhow::Result<()> {
     // Success criteria check
     if type_mismatch_count >= 1500 {
         println!();
-        println!("✓ Success: TypeMismatch samples ({}) >= 1500 threshold", type_mismatch_count);
+        println!(
+            "✓ Success: TypeMismatch samples ({}) >= 1500 threshold",
+            type_mismatch_count
+        );
     } else {
         println!();
-        println!("⚠ Warning: TypeMismatch samples ({}) < 1500 threshold", type_mismatch_count);
+        println!(
+            "⚠ Warning: TypeMismatch samples ({}) < 1500 threshold",
+            type_mismatch_count
+        );
         println!("  Consider generating more hostile patterns in the corpus");
     }
 

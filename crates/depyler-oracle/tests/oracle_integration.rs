@@ -5,10 +5,9 @@
 
 use aprender::synthetic::{SyntheticConfig, SyntheticGenerator};
 use depyler_oracle::self_supervised::{
-    CorpusConfig, CorpusFixPredictor, CurriculumScheduler, DifficultyLevel, EvaluationConfig,
-    EvaluationMetrics, Evaluator, GenerationParams, OptimizationRunConfig,
-    PythonExampleGenerator, PyType, SelfSupervisedCorpusGenerator, StdlibFunction,
-    TranspileResult, run_optimization,
+    run_optimization, CorpusConfig, CorpusFixPredictor, CurriculumScheduler, DifficultyLevel,
+    EvaluationConfig, EvaluationMetrics, Evaluator, GenerationParams, OptimizationRunConfig,
+    PyType, PythonExampleGenerator, SelfSupervisedCorpusGenerator, StdlibFunction, TranspileResult,
 };
 use depyler_oracle::{ErrorCategory, TrainingDataset, TrainingSample};
 
@@ -64,16 +63,11 @@ fn test_end_to_end_corpus_generation() {
         .expect("Generation should succeed");
 
     // Should generate examples (at least some)
-    assert!(
-        !examples.is_empty(),
-        "Should generate at least one example"
-    );
+    assert!(!examples.is_empty(), "Should generate at least one example");
 
     // 3. Create corpus generator and add results
-    let mut corpus_gen = SelfSupervisedCorpusGenerator::new(
-        stdlib_funcs.clone(),
-        CorpusConfig::default(),
-    );
+    let mut corpus_gen =
+        SelfSupervisedCorpusGenerator::new(stdlib_funcs.clone(), CorpusConfig::default());
 
     // Simulate transpilation results
     for (i, example) in examples.iter().take(10).enumerate() {
@@ -81,8 +75,16 @@ fn test_end_to_end_corpus_generation() {
         let success = i % 5 != 0;
         let result = TranspileResult {
             python_source: example.source.clone(),
-            rust_output: if success { Some("fn foo() {}".to_string()) } else { None },
-            transpile_error: if success { None } else { Some("mock error".to_string()) },
+            rust_output: if success {
+                Some("fn foo() {}".to_string())
+            } else {
+                None
+            },
+            transpile_error: if success {
+                None
+            } else {
+                Some("mock error".to_string())
+            },
             compile_errors: vec![],
             content_hash: i as u64,
         };
@@ -141,7 +143,10 @@ fn test_optimizer_with_curriculum_integration() {
 
     // Curriculum should produce valid results
     assert!(result.fitness >= 0.0, "Fitness should be non-negative");
-    assert!(!result.history.is_empty(), "Should have optimization history");
+    assert!(
+        !result.history.is_empty(),
+        "Should have optimization history"
+    );
 }
 
 // ============================================================================

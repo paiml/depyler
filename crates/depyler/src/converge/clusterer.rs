@@ -130,10 +130,7 @@ impl ErrorClusterer {
         // Group by error code
         let mut groups: HashMap<String, Vec<&ErrorClassification>> = HashMap::new();
         for c in classifications {
-            groups
-                .entry(c.error.code.clone())
-                .or_default()
-                .push(c);
+            groups.entry(c.error.code.clone()).or_default().push(c);
         }
 
         // Convert to clusters
@@ -359,7 +356,10 @@ mod tests {
         };
         let cloned = cluster.clone();
         assert_eq!(cluster.error_code, cloned.error_code);
-        assert_eq!(cluster.examples_blocked.len(), cloned.examples_blocked.len());
+        assert_eq!(
+            cluster.examples_blocked.len(),
+            cloned.examples_blocked.len()
+        );
     }
 
     #[test]
@@ -393,6 +393,7 @@ mod tests {
                     file: PathBuf::from("a.rs"),
                     line: 1,
                     column: 1,
+                    ..Default::default()
                 },
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "missing_method".to_string(),
@@ -406,6 +407,7 @@ mod tests {
                     file: PathBuf::from("b.rs"),
                     line: 2,
                     column: 2,
+                    ..Default::default()
                 },
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "missing_method".to_string(),
@@ -430,6 +432,7 @@ mod tests {
                     file: PathBuf::from("a.rs"),
                     line: 1,
                     column: 1,
+                    ..Default::default()
                 },
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "missing_method".to_string(),
@@ -443,6 +446,7 @@ mod tests {
                     file: PathBuf::from("b.rs"),
                     line: 2,
                     column: 2,
+                    ..Default::default()
                 },
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "type_inference".to_string(),
@@ -526,6 +530,7 @@ mod tests {
                     file: PathBuf::from("a.rs"),
                     line: 1,
                     column: 1,
+                    ..Default::default()
                 },
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "test".to_string(),
@@ -539,6 +544,7 @@ mod tests {
                     file: PathBuf::from("b.rs"),
                     line: 1,
                     column: 1,
+                    ..Default::default()
                 },
                 category: ErrorCategory::TranspilerGap,
                 subcategory: "test".to_string(),

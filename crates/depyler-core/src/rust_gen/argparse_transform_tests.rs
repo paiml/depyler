@@ -336,7 +336,10 @@ fn test_tracker_get_first_parser() {
 #[test]
 fn test_tracker_clear() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+    tracker.register_parser(
+        "parser".to_string(),
+        ArgParserInfo::new("parser".to_string()),
+    );
     tracker.register_group("group".to_string(), "parser".to_string());
     tracker.struct_generated = true;
 
@@ -354,7 +357,10 @@ fn test_tracker_clear() {
 #[test]
 fn test_tracker_register_group() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+    tracker.register_parser(
+        "parser".to_string(),
+        ArgParserInfo::new("parser".to_string()),
+    );
     tracker.register_group("io_group".to_string(), "parser".to_string());
 
     assert_eq!(
@@ -366,7 +372,10 @@ fn test_tracker_register_group() {
 #[test]
 fn test_tracker_nested_groups() {
     let mut tracker = ArgParserTracker::new();
-    tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+    tracker.register_parser(
+        "parser".to_string(),
+        ArgParserInfo::new("parser".to_string()),
+    );
     tracker.register_group("parent_group".to_string(), "parser".to_string());
     tracker.register_group("child_group".to_string(), "parent_group".to_string());
 
@@ -479,8 +488,10 @@ fn test_tracker_subcommand_with_arguments() {
         subparsers_var: "subparsers".to_string(),
     };
 
-    info.arguments.push(ArgParserArgument::new("files".to_string()));
-    info.arguments.push(ArgParserArgument::new("--force".to_string()));
+    info.arguments
+        .push(ArgParserArgument::new("files".to_string()));
+    info.arguments
+        .push(ArgParserArgument::new("--force".to_string()));
 
     tracker.register_subcommand("add_parser".to_string(), info);
 
@@ -496,7 +507,9 @@ use crate::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).expect("transpilation should succeed")
+    pipeline
+        .transpile(code)
+        .expect("transpilation should succeed")
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -802,7 +815,10 @@ fn test_subcommand_enum_generation() {
     let mut tracker = ArgParserTracker::new();
 
     // Register main parser
-    tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+    tracker.register_parser(
+        "parser".to_string(),
+        ArgParserInfo::new("parser".to_string()),
+    );
 
     // Register subparsers
     tracker.register_subparsers(
@@ -1550,12 +1566,7 @@ fn make_args_param() -> HirParam {
 
 #[test]
 fn test_analyze_subcommand_field_access_no_subcommands() {
-    let func = make_test_function(
-        "handler",
-        vec![make_args_param()],
-        Type::None,
-        vec![],
-    );
+    let func = make_test_function("handler", vec![make_args_param()], Type::None, vec![]);
 
     let tracker = ArgParserTracker::new();
     let result =
@@ -1808,7 +1819,10 @@ fn test_preregister_subcommands_with_argument_parser() {
             value: HirExpr::Call {
                 func: "ArgumentParser".to_string(),
                 args: vec![],
-                kwargs: vec![("description".to_string(), HirExpr::Literal(Literal::String("Test".to_string())))],
+                kwargs: vec![(
+                    "description".to_string(),
+                    HirExpr::Literal(Literal::String("Test".to_string())),
+                )],
             },
             type_annotation: None,
         }],
@@ -1833,7 +1847,10 @@ fn test_preregister_subcommands_with_method_call_argument_parser() {
                 object: Box::new(HirExpr::Var("argparse".to_string())),
                 method: "ArgumentParser".to_string(),
                 args: vec![],
-                kwargs: vec![("epilog".to_string(), HirExpr::Literal(Literal::String("Example".to_string())))],
+                kwargs: vec![(
+                    "epilog".to_string(),
+                    HirExpr::Literal(Literal::String("Example".to_string())),
+                )],
             },
             type_annotation: None,
         }],
@@ -1871,7 +1888,10 @@ fn test_preregister_subcommands_with_subparsers() {
                     object: Box::new(HirExpr::Var("parser".to_string())),
                     method: "add_subparsers".to_string(),
                     args: vec![],
-                    kwargs: vec![("dest".to_string(), HirExpr::Literal(Literal::String("command".to_string())))],
+                    kwargs: vec![(
+                        "dest".to_string(),
+                        HirExpr::Literal(Literal::String("command".to_string())),
+                    )],
                 },
                 type_annotation: None,
             },
@@ -1921,7 +1941,10 @@ fn test_preregister_subcommands_with_add_parser() {
                     object: Box::new(HirExpr::Var("subparsers".to_string())),
                     method: "add_parser".to_string(),
                     args: vec![HirExpr::Literal(Literal::String("clone".to_string()))],
-                    kwargs: vec![("help".to_string(), HirExpr::Literal(Literal::String("Clone a repo".to_string())))],
+                    kwargs: vec![(
+                        "help".to_string(),
+                        HirExpr::Literal(Literal::String("Clone a repo".to_string())),
+                    )],
                 },
                 type_annotation: None,
             },
@@ -2101,7 +2124,9 @@ fn test_rust_type_nested_list() {
 #[test]
 fn test_rust_type_nested_optional() {
     let mut arg = ArgParserArgument::new("maybe".to_string());
-    arg.arg_type = Some(Type::Optional(Box::new(Type::Optional(Box::new(Type::String)))));
+    arg.arg_type = Some(Type::Optional(Box::new(Type::Optional(Box::new(
+        Type::String,
+    )))));
     assert_eq!(arg.rust_type(), "Option<Option<String>>");
 }
 

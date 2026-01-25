@@ -29,7 +29,9 @@ pub fn classify_string_method(method_name: &str) -> StringMethodReturnType {
         // Query/test methods that return bool or &str (borrowed)
         "startswith" | "endswith" | "isalpha" | "isdigit" | "isalnum" | "isspace" | "islower"
         | "isupper" | "istitle" | "isascii" | "isprintable" | "find" | "rfind" | "index"
-        | "rindex" | "count" | "len" | "__len__" | "__contains__" => StringMethodReturnType::Borrowed,
+        | "rindex" | "count" | "len" | "__len__" | "__contains__" => {
+            StringMethodReturnType::Borrowed
+        }
 
         // Default: assume owned to be safe
         _ => StringMethodReturnType::Owned,
@@ -73,7 +75,11 @@ pub fn stmt_block_returns_owned_string(stmts: &[HirStmt]) -> bool {
 pub fn stmt_returns_owned_string(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Return(Some(expr)) => contains_owned_string_method(expr),
-        HirStmt::If { then_body, else_body, .. } => {
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
             stmt_block_returns_owned_string(then_body)
                 || else_body
                     .as_ref()
@@ -82,11 +88,22 @@ pub fn stmt_returns_owned_string(stmt: &HirStmt) -> bool {
         HirStmt::While { body, .. } => stmt_block_returns_owned_string(body),
         HirStmt::For { body, .. } => stmt_block_returns_owned_string(body),
         HirStmt::With { body, .. } => stmt_block_returns_owned_string(body),
-        HirStmt::Try { body, handlers, orelse, finalbody } => {
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+        } => {
             stmt_block_returns_owned_string(body)
-                || handlers.iter().any(|h| stmt_block_returns_owned_string(&h.body))
-                || orelse.as_ref().is_some_and(|body| stmt_block_returns_owned_string(body))
-                || finalbody.as_ref().is_some_and(|body| stmt_block_returns_owned_string(body))
+                || handlers
+                    .iter()
+                    .any(|h| stmt_block_returns_owned_string(&h.body))
+                || orelse
+                    .as_ref()
+                    .is_some_and(|body| stmt_block_returns_owned_string(body))
+                || finalbody
+                    .as_ref()
+                    .is_some_and(|body| stmt_block_returns_owned_string(body))
         }
         _ => false,
     }
@@ -126,18 +143,35 @@ fn stmt_block_returns_string_concat(stmts: &[HirStmt]) -> bool {
 fn stmt_returns_string_concat(stmt: &HirStmt) -> bool {
     match stmt {
         HirStmt::Return(Some(expr)) => contains_string_concatenation(expr),
-        HirStmt::If { then_body, else_body, .. } => {
+        HirStmt::If {
+            then_body,
+            else_body,
+            ..
+        } => {
             stmt_block_returns_string_concat(then_body)
-                || else_body.as_ref().is_some_and(|body| stmt_block_returns_string_concat(body))
+                || else_body
+                    .as_ref()
+                    .is_some_and(|body| stmt_block_returns_string_concat(body))
         }
         HirStmt::While { body, .. } => stmt_block_returns_string_concat(body),
         HirStmt::For { body, .. } => stmt_block_returns_string_concat(body),
         HirStmt::With { body, .. } => stmt_block_returns_string_concat(body),
-        HirStmt::Try { body, handlers, orelse, finalbody } => {
+        HirStmt::Try {
+            body,
+            handlers,
+            orelse,
+            finalbody,
+        } => {
             stmt_block_returns_string_concat(body)
-                || handlers.iter().any(|h| stmt_block_returns_string_concat(&h.body))
-                || orelse.as_ref().is_some_and(|body| stmt_block_returns_string_concat(body))
-                || finalbody.as_ref().is_some_and(|body| stmt_block_returns_string_concat(body))
+                || handlers
+                    .iter()
+                    .any(|h| stmt_block_returns_string_concat(&h.body))
+                || orelse
+                    .as_ref()
+                    .is_some_and(|body| stmt_block_returns_string_concat(body))
+                || finalbody
+                    .as_ref()
+                    .is_some_and(|body| stmt_block_returns_string_concat(body))
         }
         _ => false,
     }
@@ -166,87 +200,138 @@ mod tests {
 
     #[test]
     fn test_classify_upper_owned() {
-        assert_eq!(classify_string_method("upper"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("upper"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_lower_owned() {
-        assert_eq!(classify_string_method("lower"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("lower"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_strip_owned() {
-        assert_eq!(classify_string_method("strip"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("strip"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_lstrip_owned() {
-        assert_eq!(classify_string_method("lstrip"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("lstrip"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_rstrip_owned() {
-        assert_eq!(classify_string_method("rstrip"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("rstrip"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_replace_owned() {
-        assert_eq!(classify_string_method("replace"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("replace"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_format_owned() {
-        assert_eq!(classify_string_method("format"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("format"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_title_owned() {
-        assert_eq!(classify_string_method("title"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("title"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_capitalize_owned() {
-        assert_eq!(classify_string_method("capitalize"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("capitalize"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_join_owned() {
-        assert_eq!(classify_string_method("join"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("join"),
+            StringMethodReturnType::Owned
+        );
     }
 
     #[test]
     fn test_classify_startswith_borrowed() {
-        assert_eq!(classify_string_method("startswith"), StringMethodReturnType::Borrowed);
+        assert_eq!(
+            classify_string_method("startswith"),
+            StringMethodReturnType::Borrowed
+        );
     }
 
     #[test]
     fn test_classify_endswith_borrowed() {
-        assert_eq!(classify_string_method("endswith"), StringMethodReturnType::Borrowed);
+        assert_eq!(
+            classify_string_method("endswith"),
+            StringMethodReturnType::Borrowed
+        );
     }
 
     #[test]
     fn test_classify_isalpha_borrowed() {
-        assert_eq!(classify_string_method("isalpha"), StringMethodReturnType::Borrowed);
+        assert_eq!(
+            classify_string_method("isalpha"),
+            StringMethodReturnType::Borrowed
+        );
     }
 
     #[test]
     fn test_classify_isdigit_borrowed() {
-        assert_eq!(classify_string_method("isdigit"), StringMethodReturnType::Borrowed);
+        assert_eq!(
+            classify_string_method("isdigit"),
+            StringMethodReturnType::Borrowed
+        );
     }
 
     #[test]
     fn test_classify_find_borrowed() {
-        assert_eq!(classify_string_method("find"), StringMethodReturnType::Borrowed);
+        assert_eq!(
+            classify_string_method("find"),
+            StringMethodReturnType::Borrowed
+        );
     }
 
     #[test]
     fn test_classify_count_borrowed() {
-        assert_eq!(classify_string_method("count"), StringMethodReturnType::Borrowed);
+        assert_eq!(
+            classify_string_method("count"),
+            StringMethodReturnType::Borrowed
+        );
     }
 
     #[test]
     fn test_classify_unknown_defaults_owned() {
-        assert_eq!(classify_string_method("unknown_method"), StringMethodReturnType::Owned);
+        assert_eq!(
+            classify_string_method("unknown_method"),
+            StringMethodReturnType::Owned
+        );
     }
 
     // ============================================================================

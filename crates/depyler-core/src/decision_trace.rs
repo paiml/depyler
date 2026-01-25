@@ -588,8 +588,7 @@ impl DecisionWriter for JsonFileWriter {
         for decision in &self.buffer {
             let json = serde_json::to_string(decision)
                 .map_err(|e| format!("Failed to serialize decision: {}", e))?;
-            writeln!(writer, "{}", json)
-                .map_err(|e| format!("Failed to write decision: {}", e))?;
+            writeln!(writer, "{}", json).map_err(|e| format!("Failed to write decision: {}", e))?;
         }
 
         writer
@@ -925,8 +924,7 @@ impl StreamCollector {
             for trace in &self.buffer {
                 let json = serde_json::to_string(trace)
                     .map_err(|e| format!("Serialization error: {}", e))?;
-                writeln!(writer, "{}", json)
-                    .map_err(|e| format!("Write error: {}", e))?;
+                writeln!(writer, "{}", json).map_err(|e| format!("Write error: {}", e))?;
             }
             writer.flush().map_err(|e| format!("Flush error: {}", e))?;
         }
@@ -1019,7 +1017,11 @@ impl HashChainCollector {
 
         // Verify each entry's hash
         for i in 0..self.traces.len() {
-            let expected_prev = if i == 0 { 0 } else { self.traces[i - 1].entry_hash };
+            let expected_prev = if i == 0 {
+                0
+            } else {
+                self.traces[i - 1].entry_hash
+            };
             if self.traces[i].prev_hash != expected_prev {
                 return false;
             }
@@ -1067,8 +1069,7 @@ impl HashChainCollector {
             verified: self.verify_chain(),
         };
 
-        serde_json::to_string_pretty(&export)
-            .map_err(|e| format!("Failed to export: {}", e))
+        serde_json::to_string_pretty(&export).map_err(|e| format!("Failed to export: {}", e))
     }
 }
 
@@ -1219,18 +1220,40 @@ mod tests {
 
         // Each category should have a unique display string
         let displays: Vec<String> = categories.iter().map(|c| c.to_string()).collect();
-        let unique_count = displays.iter().collect::<std::collections::HashSet<_>>().len();
-        assert_eq!(unique_count, categories.len(), "All categories should have unique display names");
+        let unique_count = displays
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        assert_eq!(
+            unique_count,
+            categories.len(),
+            "All categories should have unique display names"
+        );
     }
 
     #[test]
     fn test_decision_category_display() {
         assert_eq!(DecisionCategory::TypeMapping.to_string(), "type_mapping");
-        assert_eq!(DecisionCategory::BorrowStrategy.to_string(), "borrow_strategy");
-        assert_eq!(DecisionCategory::LifetimeInfer.to_string(), "lifetime_infer");
-        assert_eq!(DecisionCategory::MethodDispatch.to_string(), "method_dispatch");
-        assert_eq!(DecisionCategory::ImportResolve.to_string(), "import_resolve");
-        assert_eq!(DecisionCategory::ErrorHandling.to_string(), "error_handling");
+        assert_eq!(
+            DecisionCategory::BorrowStrategy.to_string(),
+            "borrow_strategy"
+        );
+        assert_eq!(
+            DecisionCategory::LifetimeInfer.to_string(),
+            "lifetime_infer"
+        );
+        assert_eq!(
+            DecisionCategory::MethodDispatch.to_string(),
+            "method_dispatch"
+        );
+        assert_eq!(
+            DecisionCategory::ImportResolve.to_string(),
+            "import_resolve"
+        );
+        assert_eq!(
+            DecisionCategory::ErrorHandling.to_string(),
+            "error_handling"
+        );
         assert_eq!(DecisionCategory::Ownership.to_string(), "ownership");
     }
 
@@ -1636,17 +1659,39 @@ mod tests {
 
         // Each variant should have unique display string
         let displays: Vec<String> = decisions.iter().map(|d| d.to_string()).collect();
-        let unique_count = displays.iter().collect::<std::collections::HashSet<_>>().len();
-        assert_eq!(unique_count, decisions.len(), "All decisions should have unique display names");
+        let unique_count = displays
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        assert_eq!(
+            unique_count,
+            decisions.len(),
+            "All decisions should have unique display names"
+        );
     }
 
     #[test]
     fn test_transpile_decision_display() {
-        assert_eq!(TranspileDecision::TypeInference.to_string(), "type_inference");
-        assert_eq!(TranspileDecision::OwnershipInference.to_string(), "ownership_inference");
-        assert_eq!(TranspileDecision::MethodResolution.to_string(), "method_resolution");
-        assert_eq!(TranspileDecision::ImportMapping.to_string(), "import_mapping");
-        assert_eq!(TranspileDecision::ControlFlowTransform.to_string(), "control_flow_transform");
+        assert_eq!(
+            TranspileDecision::TypeInference.to_string(),
+            "type_inference"
+        );
+        assert_eq!(
+            TranspileDecision::OwnershipInference.to_string(),
+            "ownership_inference"
+        );
+        assert_eq!(
+            TranspileDecision::MethodResolution.to_string(),
+            "method_resolution"
+        );
+        assert_eq!(
+            TranspileDecision::ImportMapping.to_string(),
+            "import_mapping"
+        );
+        assert_eq!(
+            TranspileDecision::ControlFlowTransform.to_string(),
+            "control_flow_transform"
+        );
     }
 
     #[test]
@@ -1938,7 +1983,10 @@ mod tests {
     fn test_stream_collector_default() {
         let collector = StreamCollector::default();
         assert!(collector.is_empty());
-        assert_eq!(collector.flush_threshold, StreamCollector::DEFAULT_FLUSH_THRESHOLD);
+        assert_eq!(
+            collector.flush_threshold,
+            StreamCollector::DEFAULT_FLUSH_THRESHOLD
+        );
     }
 
     // ========================================================================
@@ -1989,8 +2037,12 @@ mod tests {
         // Verify chain integrity
         let chained = collector.chained_traces();
         for i in 1..chained.len() {
-            assert_eq!(chained[i].prev_hash, chained[i - 1].entry_hash,
-                       "Hash chain broken at index {}", i);
+            assert_eq!(
+                chained[i].prev_hash,
+                chained[i - 1].entry_hash,
+                "Hash chain broken at index {}",
+                i
+            );
         }
     }
 
@@ -2008,13 +2060,19 @@ mod tests {
             collector.collect(trace);
         }
 
-        assert!(collector.verify_chain(), "Hash chain should verify successfully");
+        assert!(
+            collector.verify_chain(),
+            "Hash chain should verify successfully"
+        );
     }
 
     #[test]
     fn test_hash_chain_collector_empty_verify() {
         let collector = HashChainCollector::new();
-        assert!(collector.verify_chain(), "Empty chain should verify successfully");
+        assert!(
+            collector.verify_chain(),
+            "Empty chain should verify successfully"
+        );
     }
 
     #[test]
@@ -2080,12 +2138,7 @@ mod tests {
 
     #[test]
     fn test_hash_chained_trace_serialization() {
-        let trace = TranspileTrace::new(
-            TranspileDecision::TypeInference,
-            "RULE-001",
-            0.9,
-            "Test",
-        );
+        let trace = TranspileTrace::new(TranspileDecision::TypeInference, "RULE-001", 0.9, "Test");
 
         let chained = HashChainedTrace {
             trace,
@@ -2394,7 +2447,11 @@ mod tests {
             collector.collect(trace);
             let hash = collector.chain_hash();
             // Each addition should produce a different hash
-            assert!(seen_hashes.insert(hash), "Hash collision detected at iteration {}", i);
+            assert!(
+                seen_hashes.insert(hash),
+                "Hash collision detected at iteration {}",
+                i
+            );
         }
 
         // Chain should be valid
@@ -2429,10 +2486,7 @@ mod tests {
             "test.rs",
             1,
         );
-        let link = CausalLink {
-            decision,
-            depth: 0,
-        };
+        let link = CausalLink { decision, depth: 0 };
         assert_eq!(link.depth, 0);
         assert_eq!(link.decision.name, "test_decision");
     }
@@ -2453,7 +2507,11 @@ mod tests {
         };
         let cloned = outcome.clone();
         match cloned {
-            CompileOutcome::Error { code, message, span } => {
+            CompileOutcome::Error {
+                code,
+                message,
+                span,
+            } => {
                 assert_eq!(code, "E0308");
                 assert!(message.contains("mismatch"));
                 assert_eq!(span, Some((1, 10)));
@@ -2473,10 +2531,7 @@ mod tests {
             "test.rs",
             2,
         );
-        let link = CausalLink {
-            decision,
-            depth: 1,
-        };
+        let link = CausalLink { decision, depth: 1 };
         let cloned = link.clone();
         assert_eq!(link.depth, cloned.depth);
         assert_eq!(link.decision.name, cloned.decision.name);
@@ -2514,18 +2569,16 @@ mod tests {
 
     #[test]
     fn test_correlate_error_partial_overlap() {
-        let decisions = vec![
-            DepylerDecision::new(
-                DecisionCategory::TypeMapping,
-                "overlap_test",
-                "i32",
-                &[],
-                0.9,
-                "test.rs",
-                1,
-            )
-            .with_rs_span(0, 50),
-        ];
+        let decisions = vec![DepylerDecision::new(
+            DecisionCategory::TypeMapping,
+            "overlap_test",
+            "i32",
+            &[],
+            0.9,
+            "test.rs",
+            1,
+        )
+        .with_rs_span(0, 50)];
 
         // Error span partially overlaps
         let result = correlate_error(&decisions, (40, 60));
@@ -2782,7 +2835,11 @@ mod tests {
             span: Some((10, 25)),
         };
         match outcome {
-            CompileOutcome::Error { span, code, message } => {
+            CompileOutcome::Error {
+                span,
+                code,
+                message,
+            } => {
                 assert_eq!(span, Some((10, 25)));
                 assert_eq!(code, "E0308");
                 assert!(message.contains("mismatch"));

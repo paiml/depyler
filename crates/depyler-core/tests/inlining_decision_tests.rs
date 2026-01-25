@@ -144,7 +144,10 @@ fn test_decision_should_inline_optimization() {
         cost_benefit: 3.0,
     };
     assert!(decision.should_inline);
-    assert!(matches!(decision.reason, InliningReason::EnablesOptimization));
+    assert!(matches!(
+        decision.reason,
+        InliningReason::EnablesOptimization
+    ));
 }
 
 #[test]

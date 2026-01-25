@@ -473,12 +473,8 @@ mod tests {
 
     #[test]
     fn test_multiple_errors_generation() {
-        let ctx = context_with_flags(&[
-            "zerodivisionerror",
-            "indexerror",
-            "valueerror",
-            "keyerror",
-        ]);
+        let ctx =
+            context_with_flags(&["zerodivisionerror", "indexerror", "valueerror", "keyerror"]);
         let defs = generate_error_type_definitions(&ctx);
         assert_eq!(defs.len(), 4);
     }

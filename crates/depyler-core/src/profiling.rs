@@ -1066,7 +1066,9 @@ mod tests {
             vec![HirStmt::If {
                 condition: HirExpr::Literal(Literal::Bool(true)),
                 then_body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(1))))],
-                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))]),
+                else_body: Some(vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(
+                    0,
+                ))))]),
             }],
         );
 
@@ -1565,7 +1567,9 @@ mod tests {
         );
 
         let annotations = profiler.generate_annotations();
-        assert!(annotations.iter().any(|a| matches!(a.kind, AnnotationKind::TimingProbe)));
+        assert!(annotations
+            .iter()
+            .any(|a| matches!(a.kind, AnnotationKind::TimingProbe)));
     }
 
     #[test]

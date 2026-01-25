@@ -81,7 +81,7 @@ pub fn compile_python_to_binary(
         });
 
         let pipeline = DepylerPipeline::new();
-        
+
         // DEPYLER-1102: If we have constraints, apply them
         let (rust_code, dependencies) = if constraint_store.stats.constraints_extracted > 0 {
             // Convert constraint store to simple map for the current file
@@ -92,7 +92,7 @@ pub fn compile_python_to_binary(
                 .filter(|((file, _), _)| file == &input_str)
                 .map(|((_, var), constraint)| (var.clone(), constraint.expected_type.clone()))
                 .collect();
-            
+
             pipeline
                 .transpile_with_constraints_and_dependencies(&python_code, &constraints_map)
                 .context("Failed to transpile with constraints")?
@@ -138,7 +138,10 @@ pub fn compile_python_to_binary(
             pb.inc(1);
 
             let success_msg = if attempt > 0 {
-                format!("✅ Compilation complete (after {} Oracle Loop retries)!", attempt)
+                format!(
+                    "✅ Compilation complete (after {} Oracle Loop retries)!",
+                    attempt
+                )
             } else if is_binary {
                 "✅ Compilation complete!".to_string()
             } else {
@@ -169,7 +172,9 @@ pub fn compile_python_to_binary(
 
             // Merge constraints
             for (key, constraint) in new_constraints.variable_constraints {
-                constraint_store.variable_constraints.insert(key, constraint);
+                constraint_store
+                    .variable_constraints
+                    .insert(key, constraint);
             }
             constraint_store.stats.constraints_extracted +=
                 new_constraints.stats.constraints_extracted;
@@ -401,9 +406,13 @@ mod tests {
         // DEPYLER-0384: Empty dependencies list for basic test
         let dependencies = vec![];
         // DEPYLER-0763: Now returns (project_dir, is_binary)
-        let (project_dir, is_binary) = create_cargo_project(&input, rust_code, &dependencies).unwrap();
+        let (project_dir, is_binary) =
+            create_cargo_project(&input, rust_code, &dependencies).unwrap();
 
-        assert!(is_binary, "Code with fn main() should be detected as binary");
+        assert!(
+            is_binary,
+            "Code with fn main() should be detected as binary"
+        );
         assert!(project_dir.join("Cargo.toml").exists());
         assert!(project_dir.join("src/main.rs").exists());
 
@@ -427,7 +436,10 @@ mod tests {
         let dependencies = vec![];
         let (_, is_binary) = create_cargo_project(&input, rust_code, &dependencies).unwrap();
 
-        assert!(is_binary, "Code with pub fn main() should be detected as binary");
+        assert!(
+            is_binary,
+            "Code with pub fn main() should be detected as binary"
+        );
     }
 
     #[test]
@@ -439,17 +451,30 @@ mod tests {
         fs::write(&input, "").unwrap();
 
         let dependencies = vec![];
-        let (project_dir, is_binary) = create_cargo_project(&input, rust_code, &dependencies).unwrap();
+        let (project_dir, is_binary) =
+            create_cargo_project(&input, rust_code, &dependencies).unwrap();
 
-        assert!(!is_binary, "Code without fn main() should be detected as library");
+        assert!(
+            !is_binary,
+            "Code without fn main() should be detected as library"
+        );
         assert!(project_dir.join("Cargo.toml").exists());
         assert!(project_dir.join("src/lib.rs").exists());
-        assert!(!project_dir.join("src/main.rs").exists(), "Library should not have main.rs");
+        assert!(
+            !project_dir.join("src/main.rs").exists(),
+            "Library should not have main.rs"
+        );
 
         // Verify Cargo.toml has [lib] section instead of [[bin]]
         let cargo_content = fs::read_to_string(project_dir.join("Cargo.toml")).unwrap();
-        assert!(cargo_content.contains("[lib]"), "Library should have [lib] section");
-        assert!(!cargo_content.contains("[[bin]]"), "Library should not have [[bin]] section");
+        assert!(
+            cargo_content.contains("[lib]"),
+            "Library should have [lib] section"
+        );
+        assert!(
+            !cargo_content.contains("[[bin]]"),
+            "Library should not have [[bin]] section"
+        );
     }
 
     #[test]
@@ -503,9 +528,18 @@ mod tests {
         let (project_dir2, _) = create_cargo_project(&input, lib_code, &dependencies).unwrap();
 
         assert_eq!(project_dir, project_dir2);
-        assert!(!project_dir.join("src/stale.rs").exists(), "Stale files should be cleaned");
-        assert!(!project_dir.join("src/main.rs").exists(), "main.rs should be removed for library");
-        assert!(project_dir.join("src/lib.rs").exists(), "lib.rs should exist");
+        assert!(
+            !project_dir.join("src/stale.rs").exists(),
+            "Stale files should be cleaned"
+        );
+        assert!(
+            !project_dir.join("src/main.rs").exists(),
+            "main.rs should be removed for library"
+        );
+        assert!(
+            project_dir.join("src/lib.rs").exists(),
+            "lib.rs should exist"
+        );
     }
 
     #[test]
@@ -525,7 +559,11 @@ mod tests {
         fs::create_dir_all(&src_dir).unwrap();
 
         // Write a simple main.rs
-        fs::write(src_dir.join("main.rs"), r#"fn main() { println!("test"); }"#).unwrap();
+        fs::write(
+            src_dir.join("main.rs"),
+            r#"fn main() { println!("test"); }"#,
+        )
+        .unwrap();
 
         // Write Cargo.toml
         let cargo_toml = r#"

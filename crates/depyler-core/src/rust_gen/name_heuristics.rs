@@ -150,10 +150,7 @@ pub fn is_float_var_name(name: &str) -> bool {
 ///
 /// Note: a, b, x, y are intentionally excluded (too generic, DEPYLER-0954)
 pub fn is_color_channel_name(name: &str) -> bool {
-    matches!(
-        name,
-        "r" | "g" | "h" | "s" | "v" | "l" | "c" | "m" | "k"
-    )
+    matches!(name, "r" | "g" | "h" | "s" | "v" | "l" | "c" | "m" | "k")
 }
 
 /// Check if variable name suggests an integer count/size type

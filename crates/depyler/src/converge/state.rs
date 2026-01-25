@@ -77,6 +77,12 @@ pub struct ConvergenceConfig {
     /// Enable O(1) compilation cache for unchanged files
     #[serde(default = "default_use_cache")]
     pub use_cache: bool,
+    /// DEPYLER-1308: Enable transpiler patching (modifies depyler-core source)
+    #[serde(default)]
+    pub patch_transpiler: bool,
+    /// DEPYLER-1308: Path to APR file with custom patches
+    #[serde(default)]
+    pub apr_file: Option<PathBuf>,
 }
 
 fn default_use_cache() -> bool {
@@ -222,9 +228,15 @@ mod tests {
     fn test_display_mode_from_str() {
         assert_eq!("rich".parse::<DisplayMode>().unwrap(), DisplayMode::Rich);
         assert_eq!("RICH".parse::<DisplayMode>().unwrap(), DisplayMode::Rich);
-        assert_eq!("minimal".parse::<DisplayMode>().unwrap(), DisplayMode::Minimal);
+        assert_eq!(
+            "minimal".parse::<DisplayMode>().unwrap(),
+            DisplayMode::Minimal
+        );
         assert_eq!("json".parse::<DisplayMode>().unwrap(), DisplayMode::Json);
-        assert_eq!("silent".parse::<DisplayMode>().unwrap(), DisplayMode::Silent);
+        assert_eq!(
+            "silent".parse::<DisplayMode>().unwrap(),
+            DisplayMode::Silent
+        );
         assert_eq!("unknown".parse::<DisplayMode>().unwrap(), DisplayMode::Rich);
     }
 
@@ -257,6 +269,8 @@ mod tests {
             oracle: false,
             explain: false,
             use_cache: true,
+            patch_transpiler: false,
+            apr_file: None,
         }
     }
 
@@ -368,9 +382,7 @@ mod tests {
         let mut state = ConvergenceState::new(config);
         state.iteration = 5;
         state.compilation_rate = 75.0;
-        state.examples = vec![
-            ExampleState::new(PathBuf::from("test.py"), true),
-        ];
+        state.examples = vec![ExampleState::new(PathBuf::from("test.py"), true)];
 
         let temp_dir = tempfile::tempdir().unwrap();
         state.save_checkpoint(temp_dir.path()).unwrap();
@@ -430,7 +442,10 @@ mod tests {
     #[test]
     fn test_example_state_with_errors() {
         let mut state = ExampleState::new(PathBuf::from("error.py"), false);
-        state.errors = vec!["E0599: no method".to_string(), "E0308: type mismatch".to_string()];
+        state.errors = vec![
+            "E0599: no method".to_string(),
+            "E0308: type mismatch".to_string(),
+        ];
         state.last_compiled = Some(std::time::SystemTime::now());
 
         let json = serde_json::to_string(&state).unwrap();
@@ -451,7 +466,7 @@ mod tests {
 
     #[test]
     fn test_convergence_state_update_examples() {
-        use super::super::compiler::{CompilationResult, CompilationError};
+        use super::super::compiler::{CompilationError, CompilationResult};
 
         let config = test_config();
         let mut state = ConvergenceState::new(config);
@@ -467,15 +482,14 @@ mod tests {
             CompilationResult {
                 source_file: PathBuf::from("b.py"),
                 success: false,
-                errors: vec![
-                    CompilationError {
-                        code: "E0599".to_string(),
-                        message: "no method".to_string(),
-                        file: PathBuf::from("b.rs"),
-                        line: 10,
-                        column: 5,
-                    }
-                ],
+                errors: vec![CompilationError {
+                    code: "E0599".to_string(),
+                    message: "no method".to_string(),
+                    file: PathBuf::from("b.rs"),
+                    line: 10,
+                    column: 5,
+                    ..Default::default()
+                }],
                 rust_file: None,
             },
         ];
@@ -551,6 +565,8 @@ mod tests {
             oracle: true,
             explain: true,
             use_cache: false,
+            patch_transpiler: true,
+            apr_file: Some(PathBuf::from("/custom.apr")),
         };
         assert!(config.validate().is_ok());
     }

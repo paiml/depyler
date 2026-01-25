@@ -211,10 +211,8 @@ impl TypeInferenceTelemetry {
         let stats = self.stats.lock().unwrap();
         let events = self.events.lock().unwrap();
 
-        let mut by_kind: Vec<(String, u64)> = stats
-            .iter()
-            .map(|(k, v)| (k.clone(), v.count))
-            .collect();
+        let mut by_kind: Vec<(String, u64)> =
+            stats.iter().map(|(k, v)| (k.clone(), v.count)).collect();
         by_kind.sort_by(|a, b| b.1.cmp(&a.1)); // Sort descending
 
         TelemetrySummary {
@@ -274,15 +272,13 @@ impl std::fmt::Display for TelemetrySummary {
 macro_rules! record_unknown_type {
     ($expr_kind:expr, $expr:expr) => {{
         use $crate::type_inference_telemetry::{TypeInferenceTelemetry, UnknownTypeEvent};
-        TypeInferenceTelemetry::global().record_unknown(
-            UnknownTypeEvent::new($expr_kind, format!("{:?}", $expr))
-        );
+        TypeInferenceTelemetry::global()
+            .record_unknown(UnknownTypeEvent::new($expr_kind, format!("{:?}", $expr)));
     }};
     ($expr_kind:expr, $expr:expr, context: $ctx:expr) => {{
         use $crate::type_inference_telemetry::{TypeInferenceTelemetry, UnknownTypeEvent};
         TypeInferenceTelemetry::global().record_unknown(
-            UnknownTypeEvent::new($expr_kind, format!("{:?}", $expr))
-                .with_context($ctx)
+            UnknownTypeEvent::new($expr_kind, format!("{:?}", $expr)).with_context($ctx),
         );
     }};
     ($expr_kind:expr, $expr:expr, context: $ctx:expr, function: $func:expr) => {{
@@ -290,7 +286,7 @@ macro_rules! record_unknown_type {
         TypeInferenceTelemetry::global().record_unknown(
             UnknownTypeEvent::new($expr_kind, format!("{:?}", $expr))
                 .with_context($ctx)
-                .with_function($func)
+                .with_function($func),
         );
     }};
 }
@@ -609,10 +605,7 @@ mod tests {
         let summary = TelemetrySummary {
             total_unknowns: 100,
             unique_expr_kinds: 5,
-            top_unknown_kinds: vec![
-                ("Attribute".to_string(), 50),
-                ("Call".to_string(), 30),
-            ],
+            top_unknown_kinds: vec![("Attribute".to_string(), 50), ("Call".to_string(), 30)],
         };
 
         let display = format!("{}", summary);

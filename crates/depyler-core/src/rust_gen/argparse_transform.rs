@@ -1699,24 +1699,17 @@ pub fn preregister_subcommands_from_hir(
                                     "type" => {
                                         if let HirExpr::Var(type_name) = kw_value {
                                             match type_name.as_str() {
-                                                "int" => {
-                                                    arg.arg_type =
-                                                        Some(crate::hir::Type::Int)
-                                                }
+                                                "int" => arg.arg_type = Some(crate::hir::Type::Int),
                                                 "float" => {
-                                                    arg.arg_type =
-                                                        Some(crate::hir::Type::Float)
+                                                    arg.arg_type = Some(crate::hir::Type::Float)
                                                 }
                                                 "str" => {
-                                                    arg.arg_type =
-                                                        Some(crate::hir::Type::String)
+                                                    arg.arg_type = Some(crate::hir::Type::String)
                                                 }
                                                 "Path" => {
-                                                    arg.arg_type = Some(
-                                                        crate::hir::Type::Custom(
-                                                            "PathBuf".to_string(),
-                                                        ),
-                                                    )
+                                                    arg.arg_type = Some(crate::hir::Type::Custom(
+                                                        "PathBuf".to_string(),
+                                                    ))
                                                 }
                                                 _ => {}
                                             }
@@ -1868,10 +1861,7 @@ pub fn preregister_subcommands_from_hir(
 
                 // DEPYLER-0822: Also handle argparse.ArgumentParser() as method call
                 // Pattern: parser = argparse.ArgumentParser(...)
-                if let HirExpr::MethodCall {
-                    method, kwargs, ..
-                } = value
-                {
+                if let HirExpr::MethodCall { method, kwargs, .. } = value {
                     if method == "ArgumentParser" {
                         if let crate::hir::AssignTarget::Symbol(parser_var) = target {
                             let description = extract_kwarg_string_from_hir(kwargs, "description");
@@ -1945,13 +1935,15 @@ pub fn preregister_subcommands_from_hir(
                                             arguments: vec![],
                                             subparsers_var: subparsers_var.clone(),
                                         };
-                                        tracker.register_subcommand(command_name.clone(), subcommand_info);
+                                        tracker.register_subcommand(
+                                            command_name.clone(),
+                                            subcommand_info,
+                                        );
 
                                         // Map variable name to command name for add_argument lookups
-                                        tracker.subcommand_var_to_cmd.insert(
-                                            parser_var_name.clone(),
-                                            command_name,
-                                        );
+                                        tracker
+                                            .subcommand_var_to_cmd
+                                            .insert(parser_var_name.clone(), command_name);
                                     }
                                 }
                             }
@@ -2273,7 +2265,9 @@ mod tests {
     fn test_arg_rust_type_with_default() {
         let mut arg = ArgParserArgument::new("--encoding".to_string());
         arg.is_positional = false;
-        arg.default = Some(HirExpr::Literal(crate::hir::Literal::String("utf-8".to_string())));
+        arg.default = Some(HirExpr::Literal(crate::hir::Literal::String(
+            "utf-8".to_string(),
+        )));
         assert_eq!(arg.rust_type(), "String");
     }
 
@@ -2326,14 +2320,20 @@ mod tests {
     #[test]
     fn test_tracker_register_parser() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_parser(
+            "parser".to_string(),
+            ArgParserInfo::new("parser".to_string()),
+        );
         assert!(tracker.has_parsers());
     }
 
     #[test]
     fn test_tracker_get_parser() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_parser(
+            "parser".to_string(),
+            ArgParserInfo::new("parser".to_string()),
+        );
         assert!(tracker.get_parser("parser").is_some());
         assert!(tracker.get_parser("other").is_none());
     }
@@ -2341,7 +2341,10 @@ mod tests {
     #[test]
     fn test_tracker_get_parser_mut() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_parser(
+            "parser".to_string(),
+            ArgParserInfo::new("parser".to_string()),
+        );
         if let Some(info) = tracker.get_parser_mut("parser") {
             info.description = Some("Test parser".to_string());
         }
@@ -2354,7 +2357,10 @@ mod tests {
     #[test]
     fn test_tracker_clear() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_parser(
+            "parser".to_string(),
+            ArgParserInfo::new("parser".to_string()),
+        );
         tracker.register_group("group".to_string(), "parser".to_string());
         tracker.struct_generated = true;
         tracker.clear();
@@ -2366,7 +2372,10 @@ mod tests {
     #[test]
     fn test_tracker_register_group() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_parser(
+            "parser".to_string(),
+            ArgParserInfo::new("parser".to_string()),
+        );
         tracker.register_group("input_group".to_string(), "parser".to_string());
         assert_eq!(
             tracker.get_parser_for_group("input_group"),
@@ -2377,7 +2386,10 @@ mod tests {
     #[test]
     fn test_tracker_nested_groups() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_parser(
+            "parser".to_string(),
+            ArgParserInfo::new("parser".to_string()),
+        );
         tracker.register_group("output_group".to_string(), "parser".to_string());
         tracker.register_group("format_group".to_string(), "output_group".to_string());
         assert_eq!(
@@ -2426,7 +2438,10 @@ mod tests {
     fn test_tracker_get_first_parser() {
         let mut tracker = ArgParserTracker::new();
         assert!(tracker.get_first_parser().is_none());
-        tracker.register_parser("parser".to_string(), ArgParserInfo::new("parser".to_string()));
+        tracker.register_parser(
+            "parser".to_string(),
+            ArgParserInfo::new("parser".to_string()),
+        );
         assert!(tracker.get_first_parser().is_some());
     }
 
@@ -2824,7 +2839,8 @@ mod tests {
         use quote::quote;
 
         let body_stmts = vec![quote! { println!("Hello"); }];
-        let result = wrap_body_with_subcommand_pattern(body_stmts, "Clone", &["url".to_string()], "args");
+        let result =
+            wrap_body_with_subcommand_pattern(body_stmts, "Clone", &["url".to_string()], "args");
 
         assert_eq!(result.len(), 1);
         let code = result[0].to_string();
@@ -2838,7 +2854,11 @@ mod tests {
         use quote::quote;
 
         let body_stmts = vec![quote! { do_something(); }];
-        let fields = vec!["source".to_string(), "dest".to_string(), "force".to_string()];
+        let fields = vec![
+            "source".to_string(),
+            "dest".to_string(),
+            "force".to_string(),
+        ];
         let result = wrap_body_with_subcommand_pattern(body_stmts, "Copy", &fields, "options");
 
         let code = result[0].to_string();
@@ -2868,7 +2888,8 @@ mod tests {
             quote! { let y = 2; },
             quote! { println!("{}", x + y); },
         ];
-        let result = wrap_body_with_subcommand_pattern(body_stmts, "Add", &["a".to_string()], "args");
+        let result =
+            wrap_body_with_subcommand_pattern(body_stmts, "Add", &["a".to_string()], "args");
 
         let code = result[0].to_string();
         assert!(code.contains("let x = 1"));
@@ -2879,7 +2900,7 @@ mod tests {
 
     #[test]
     fn test_analyze_subcommand_field_access_no_subcommands() {
-        use crate::hir::{HirFunction, FunctionProperties};
+        use crate::hir::{FunctionProperties, HirFunction};
         use depyler_annotations::TranspilationAnnotations;
 
         let func = HirFunction {
@@ -2899,7 +2920,7 @@ mod tests {
 
     #[test]
     fn test_analyze_subcommand_field_access_no_params() {
-        use crate::hir::{HirFunction, FunctionProperties};
+        use crate::hir::{FunctionProperties, HirFunction};
         use depyler_annotations::TranspilationAnnotations;
 
         let func = HirFunction {
@@ -2913,12 +2934,15 @@ mod tests {
         };
 
         let mut tracker = ArgParserTracker::new();
-        tracker.register_subcommand("clone".to_string(), SubcommandInfo {
-            name: "clone".to_string(),
-            help: None,
-            arguments: vec![],
-            subparsers_var: "subparsers".to_string(),
-        });
+        tracker.register_subcommand(
+            "clone".to_string(),
+            SubcommandInfo {
+                name: "clone".to_string(),
+                help: None,
+                arguments: vec![],
+                subparsers_var: "subparsers".to_string(),
+            },
+        );
 
         let result = analyze_subcommand_field_access(&func, &tracker);
         // No params means no args parameter, should return None
@@ -3034,7 +3058,10 @@ mod tests {
         info.epilog = Some("For more info visit example.com".to_string());
 
         assert_eq!(info.description.as_deref(), Some("My CLI tool"));
-        assert_eq!(info.epilog.as_deref(), Some("For more info visit example.com"));
+        assert_eq!(
+            info.epilog.as_deref(),
+            Some("For more info visit example.com")
+        );
     }
 
     #[test]
@@ -3086,8 +3113,10 @@ mod tests {
             arguments: vec![],
             subparsers_var: "subparsers".to_string(),
         };
-        info.arguments.push(ArgParserArgument::new("url".to_string()));
-        info.arguments.push(ArgParserArgument::new("--depth".to_string()));
+        info.arguments
+            .push(ArgParserArgument::new("url".to_string()));
+        info.arguments
+            .push(ArgParserArgument::new("--depth".to_string()));
 
         assert_eq!(info.arguments.len(), 2);
     }
@@ -3097,12 +3126,15 @@ mod tests {
     #[test]
     fn test_generate_commands_enum_with_help() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_subcommand("init".to_string(), SubcommandInfo {
-            name: "init".to_string(),
-            help: Some("Initialize a new project".to_string()),
-            arguments: vec![],
-            subparsers_var: "subparsers".to_string(),
-        });
+        tracker.register_subcommand(
+            "init".to_string(),
+            SubcommandInfo {
+                name: "init".to_string(),
+                help: Some("Initialize a new project".to_string()),
+                arguments: vec![],
+                subparsers_var: "subparsers".to_string(),
+            },
+        );
 
         let result = generate_commands_enum(&tracker);
         let code = result.to_string();
@@ -3112,12 +3144,15 @@ mod tests {
     #[test]
     fn test_generate_commands_enum_hyphenated_names() {
         let mut tracker = ArgParserTracker::new();
-        tracker.register_subcommand("check-out".to_string(), SubcommandInfo {
-            name: "check-out".to_string(),
-            help: None,
-            arguments: vec![],
-            subparsers_var: "subparsers".to_string(),
-        });
+        tracker.register_subcommand(
+            "check-out".to_string(),
+            SubcommandInfo {
+                name: "check-out".to_string(),
+                help: None,
+                arguments: vec![],
+                subparsers_var: "subparsers".to_string(),
+            },
+        );
 
         let result = generate_commands_enum(&tracker);
         let code = result.to_string();
@@ -3131,7 +3166,8 @@ mod tests {
     fn test_generate_args_struct_with_description() {
         let mut info = ArgParserInfo::new("parser".to_string());
         info.description = Some("A fantastic CLI tool".to_string());
-        info.arguments.push(ArgParserArgument::new("file".to_string()));
+        info.arguments
+            .push(ArgParserArgument::new("file".to_string()));
 
         let tracker = ArgParserTracker::new();
         let result = generate_args_struct(&info, &tracker);

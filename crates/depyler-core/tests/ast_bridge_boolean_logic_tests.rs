@@ -167,8 +167,14 @@ class Config:
         .map(|m| m.name.as_str())
         .collect();
 
-    assert!(methods.contains(&"__str__"), "Should keep __str__ (collection protocol)");
-    assert!(methods.contains(&"__repr__"), "Should keep __repr__ (collection protocol)");
+    assert!(
+        methods.contains(&"__str__"),
+        "Should keep __str__ (collection protocol)"
+    );
+    assert!(
+        methods.contains(&"__repr__"),
+        "Should keep __repr__ (collection protocol)"
+    );
     assert!(
         methods.contains(&"normal_method"),
         "Should keep normal_method"
@@ -373,5 +379,8 @@ class DataModel:
         method_names.contains(&"__iter__"),
         "Should keep special __iter__"
     );
-    assert!(method_names.contains(&"__str__"), "Should keep __str__ (collection protocol)");
+    assert!(
+        method_names.contains(&"__str__"),
+        "Should keep __str__ (collection protocol)"
+    );
 }

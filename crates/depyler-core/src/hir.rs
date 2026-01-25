@@ -73,7 +73,7 @@ macro_rules! param_with_default {
 /// assert_eq!(module.functions.len(), 1);
 /// assert_eq!(module.functions[0].name, "example");
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct HirModule {
     pub functions: Vec<HirFunction>,
     pub imports: Vec<Import>,
@@ -81,6 +81,11 @@ pub struct HirModule {
     pub protocols: Vec<Protocol>,
     pub classes: Vec<HirClass>,
     pub constants: Vec<HirConstant>,
+    /// DEPYLER-1216: Top-level statements for script-style Python files.
+    /// These are non-declarative statements (expressions, loops, etc.) that
+    /// appear at module scope and should be wrapped into a synthetic main().
+    #[serde(default)]
+    pub top_level_stmts: Vec<HirStmt>,
 }
 
 /// Module-level constant declaration
@@ -829,6 +834,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         };
         assert!(module.functions.is_empty());
         assert!(module.imports.is_empty());
@@ -859,7 +865,11 @@ mod tests {
 
     #[test]
     fn test_hir_param_with_default() {
-        let param = HirParam::with_default("y".to_string(), Type::Int, HirExpr::Literal(Literal::Int(42)));
+        let param = HirParam::with_default(
+            "y".to_string(),
+            Type::Int,
+            HirExpr::Literal(Literal::Int(42)),
+        );
         assert_eq!(param.name, "y");
         assert!(param.default.is_some());
     }
@@ -877,7 +887,10 @@ mod tests {
     fn test_literal_types() {
         assert_eq!(Literal::Int(42), Literal::Int(42));
         assert_eq!(Literal::Float(3.15), Literal::Float(3.15));
-        assert_eq!(Literal::String("test".to_string()), Literal::String("test".to_string()));
+        assert_eq!(
+            Literal::String("test".to_string()),
+            Literal::String("test".to_string())
+        );
         assert_eq!(Literal::Bool(true), Literal::Bool(true));
         assert_eq!(Literal::None, Literal::None);
     }
@@ -904,12 +917,28 @@ mod tests {
     #[test]
     fn test_binop_variants() {
         let ops = [
-            BinOp::Add, BinOp::Sub, BinOp::Mul, BinOp::Div,
-            BinOp::Mod, BinOp::Pow, BinOp::Eq, BinOp::NotEq,
-            BinOp::Lt, BinOp::LtEq, BinOp::Gt, BinOp::GtEq,
-            BinOp::And, BinOp::Or, BinOp::FloorDiv,
-            BinOp::BitAnd, BinOp::BitOr, BinOp::BitXor,
-            BinOp::LShift, BinOp::RShift, BinOp::In, BinOp::NotIn,
+            BinOp::Add,
+            BinOp::Sub,
+            BinOp::Mul,
+            BinOp::Div,
+            BinOp::Mod,
+            BinOp::Pow,
+            BinOp::Eq,
+            BinOp::NotEq,
+            BinOp::Lt,
+            BinOp::LtEq,
+            BinOp::Gt,
+            BinOp::GtEq,
+            BinOp::And,
+            BinOp::Or,
+            BinOp::FloorDiv,
+            BinOp::BitAnd,
+            BinOp::BitOr,
+            BinOp::BitXor,
+            BinOp::LShift,
+            BinOp::RShift,
+            BinOp::In,
+            BinOp::NotIn,
         ];
         for op in ops {
             assert_eq!(op, op);
@@ -962,7 +991,13 @@ mod tests {
             op: UnaryOp::Neg,
             operand: Box::new(HirExpr::Literal(Literal::Int(42))),
         };
-        assert!(matches!(expr, HirExpr::Unary { op: UnaryOp::Neg, .. }));
+        assert!(matches!(
+            expr,
+            HirExpr::Unary {
+                op: UnaryOp::Neg,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -1104,8 +1139,14 @@ mod tests {
     #[test]
     fn test_const_generic() {
         assert_eq!(ConstGeneric::Literal(5), ConstGeneric::Literal(5));
-        assert_eq!(ConstGeneric::Parameter("N".to_string()), ConstGeneric::Parameter("N".to_string()));
-        assert_eq!(ConstGeneric::Expression("N + 1".to_string()), ConstGeneric::Expression("N + 1".to_string()));
+        assert_eq!(
+            ConstGeneric::Parameter("N".to_string()),
+            ConstGeneric::Parameter("N".to_string())
+        );
+        assert_eq!(
+            ConstGeneric::Expression("N + 1".to_string()),
+            ConstGeneric::Expression("N + 1".to_string())
+        );
     }
 
     #[test]

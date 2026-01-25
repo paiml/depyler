@@ -42,11 +42,17 @@ impl Extractor {
     }
 
     /// Extract type facts from source code.
-    pub fn extract_source(&self, source: &str, module: &str, filename: &str) -> Result<Vec<TypeFact>> {
-        let parsed = parse(source, Mode::Module, filename).map_err(|e| KnowledgeError::StubParseError {
-            file: filename.to_string(),
-            message: e.to_string(),
-        })?;
+    pub fn extract_source(
+        &self,
+        source: &str,
+        module: &str,
+        filename: &str,
+    ) -> Result<Vec<TypeFact>> {
+        let parsed =
+            parse(source, Mode::Module, filename).map_err(|e| KnowledgeError::StubParseError {
+                file: filename.to_string(),
+                message: e.to_string(),
+            })?;
 
         let mut facts = Vec::new();
 
@@ -117,7 +123,11 @@ impl Extractor {
     }
 
     /// Extract an async function definition.
-    fn extract_async_function(&self, func: &ast::StmtAsyncFunctionDef, module: &str) -> Option<TypeFact> {
+    fn extract_async_function(
+        &self,
+        func: &ast::StmtAsyncFunctionDef,
+        module: &str,
+    ) -> Option<TypeFact> {
         let signature = self.build_signature(&func.args, &func.returns);
         let return_type = self.type_to_string(&func.returns);
 
@@ -201,7 +211,11 @@ impl Extractor {
     }
 
     /// Extract an annotated assignment (module-level attribute).
-    fn extract_annotated_assign(&self, assign: &ast::StmtAnnAssign, module: &str) -> Option<TypeFact> {
+    fn extract_annotated_assign(
+        &self,
+        assign: &ast::StmtAnnAssign,
+        module: &str,
+    ) -> Option<TypeFact> {
         let target = match assign.target.as_ref() {
             ast::Expr::Name(name) => name.id.to_string(),
             _ => return None,
@@ -250,11 +264,7 @@ impl Extractor {
     }
 
     /// Build a signature string from arguments and return type.
-    fn build_signature(
-        &self,
-        args: &ast::Arguments,
-        returns: &Option<Box<ast::Expr>>,
-    ) -> String {
+    fn build_signature(&self, args: &ast::Arguments, returns: &Option<Box<ast::Expr>>) -> String {
         let mut parts = Vec::new();
 
         // Positional-only params
@@ -397,7 +407,9 @@ mod tests {
 def get(url: str) -> Response: ...
 "#;
         let extractor = Extractor::new();
-        let facts = extractor.extract_source(source, "requests", "test.pyi").unwrap();
+        let facts = extractor
+            .extract_source(source, "requests", "test.pyi")
+            .unwrap();
 
         assert_eq!(facts.len(), 1);
         assert_eq!(facts[0].symbol, "get");
@@ -412,7 +424,9 @@ def get(url: str) -> Response: ...
 def get(url: str, params: dict | None = ...) -> Response: ...
 "#;
         let extractor = Extractor::new();
-        let facts = extractor.extract_source(source, "requests", "test.pyi").unwrap();
+        let facts = extractor
+            .extract_source(source, "requests", "test.pyi")
+            .unwrap();
 
         assert_eq!(facts.len(), 1);
         assert!(facts[0].signature.contains("params: dict | None"));
@@ -427,7 +441,9 @@ class Response:
     def text(self) -> str: ...
 "#;
         let extractor = Extractor::new();
-        let facts = extractor.extract_source(source, "requests.models", "test.pyi").unwrap();
+        let facts = extractor
+            .extract_source(source, "requests.models", "test.pyi")
+            .unwrap();
 
         // Should have: class, status_code attribute, json method, text method
         assert_eq!(facts.len(), 4);
@@ -447,7 +463,9 @@ def _private(): ...
 def public(): ...
 "#;
         let extractor = Extractor::new();
-        let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
 
         assert_eq!(facts.len(), 1);
         assert_eq!(facts[0].symbol, "public");
@@ -460,7 +478,9 @@ def _private(): ...
 def public(): ...
 "#;
         let extractor = Extractor::new().with_private();
-        let facts = extractor.extract_source(source, "test", "test.pyi").unwrap();
+        let facts = extractor
+            .extract_source(source, "test", "test.pyi")
+            .unwrap();
 
         assert_eq!(facts.len(), 2);
     }
@@ -471,7 +491,9 @@ def public(): ...
 def get(url: str, **kwargs) -> Response: ...
 "#;
         let extractor = Extractor::new();
-        let facts = extractor.extract_source(source, "requests", "test.pyi").unwrap();
+        let facts = extractor
+            .extract_source(source, "requests", "test.pyi")
+            .unwrap();
 
         assert!(facts[0].signature.contains("**kwargs"));
     }

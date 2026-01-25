@@ -11,8 +11,9 @@ use tracing::{info, warn};
 #[allow(clippy::result_large_err)]
 fn validate_path(path_str: &str) -> Result<std::path::PathBuf, McpError> {
     let path = Path::new(path_str);
-    let cwd = std::env::current_dir().map_err(|e| McpError::internal(format!("Failed to get current directory: {}", e)))?;
-    
+    let cwd = std::env::current_dir()
+        .map_err(|e| McpError::internal(format!("Failed to get current directory: {}", e)))?;
+
     let abs_path = if path.is_absolute() {
         path.to_path_buf()
     } else {
@@ -21,13 +22,20 @@ fn validate_path(path_str: &str) -> Result<std::path::PathBuf, McpError> {
 
     // Canonicalize to resolve .. and symlinks
     // Note: canonicalize requires the file to exist.
-    let canonical_path = abs_path.canonicalize().map_err(|e| McpError::invalid_params(format!("Invalid path '{}': {}", path_str, e)))?;
-    
+    let canonical_path = abs_path
+        .canonicalize()
+        .map_err(|e| McpError::invalid_params(format!("Invalid path '{}': {}", path_str, e)))?;
+
     // Check if it starts with CWD
-    let canonical_cwd = cwd.canonicalize().map_err(|e| McpError::internal(format!("Failed to canonicalize CWD: {}", e)))?;
+    let canonical_cwd = cwd
+        .canonicalize()
+        .map_err(|e| McpError::internal(format!("Failed to canonicalize CWD: {}", e)))?;
 
     if !canonical_path.starts_with(&canonical_cwd) {
-        return Err(McpError::invalid_params(format!("Path '{}' is outside the project root", path_str)));
+        return Err(McpError::invalid_params(format!(
+            "Path '{}' is outside the project root",
+            path_str
+        )));
     }
 
     Ok(canonical_path)
@@ -382,21 +390,25 @@ mod tests {
         // Act: Try to read it using the TranspileTool
         let transpiler = Arc::new(DepylerPipeline::new());
         let tool = TranspileTool::new(transpiler);
-        
+
         let args = serde_json::json!({
             "source": secret_path.to_str().unwrap(),
             "mode": "file"
         });
-        
+
         let extra = RequestHandlerExtra::new("test-id".to_string(), CancellationToken::new());
         let result = tool.handle(args, extra).await;
-        
+
         // Assert: The security check should prevent reading the file
         match result {
             Ok(_) => panic!("VULNERABILITY: Arbitrary file read should have been blocked"),
             Err(e) => {
                 let msg = e.to_string();
-                assert!(msg.contains("outside the project root"), "Unexpected error message: {}", msg);
+                assert!(
+                    msg.contains("outside the project root"),
+                    "Unexpected error message: {}",
+                    msg
+                );
             }
         }
     }

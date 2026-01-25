@@ -6,7 +6,9 @@ use depyler_core::DepylerPipeline;
 
 fn transpile(code: &str) -> String {
     let pipeline = DepylerPipeline::new();
-    pipeline.transpile(code).unwrap_or_else(|e| format!("ERROR: {}", e))
+    pipeline
+        .transpile(code)
+        .unwrap_or_else(|e| format!("ERROR: {}", e))
 }
 
 fn transpile_ok(code: &str) -> bool {
@@ -76,7 +78,8 @@ fn test_datetime_datetime_constructor() {
 
 #[test]
 fn test_datetime_datetime_constructor_full() {
-    let code = "from datetime import datetime\ndef f():\n    return datetime(2024, 1, 15, 10, 30, 45)";
+    let code =
+        "from datetime import datetime\ndef f():\n    return datetime(2024, 1, 15, 10, 30, 45)";
     assert!(transpile_ok(code));
 }
 
@@ -168,13 +171,15 @@ fn test_path_read_bytes() {
 
 #[test]
 fn test_path_write_text() {
-    let code = "from pathlib import Path\ndef f(p: str, content: str):\n    Path(p).write_text(content)";
+    let code =
+        "from pathlib import Path\ndef f(p: str, content: str):\n    Path(p).write_text(content)";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_path_write_bytes() {
-    let code = "from pathlib import Path\ndef f(p: str, data: bytes):\n    Path(p).write_bytes(data)";
+    let code =
+        "from pathlib import Path\ndef f(p: str, data: bytes):\n    Path(p).write_bytes(data)";
     assert!(transpile_ok(code));
 }
 
@@ -394,7 +399,8 @@ fn test_json_loads() {
 
 #[test]
 fn test_json_load() {
-    let code = "import json\ndef f():\n    with open('data.json') as f:\n        return json.load(f)";
+    let code =
+        "import json\ndef f():\n    with open('data.json') as f:\n        return json.load(f)";
     assert!(transpile_ok(code));
 }
 
@@ -528,7 +534,8 @@ fn test_random_sample() {
 
 #[test]
 fn test_random_uniform() {
-    let code = "import random\ndef f(a: float, b: float) -> float:\n    return random.uniform(a, b)";
+    let code =
+        "import random\ndef f(a: float, b: float) -> float:\n    return random.uniform(a, b)";
     assert!(transpile_ok(code));
 }
 
@@ -640,19 +647,22 @@ fn test_itertools_chain() {
 
 #[test]
 fn test_itertools_zip_longest() {
-    let code = "import itertools\ndef f(a: list, b: list):\n    return list(itertools.zip_longest(a, b))";
+    let code =
+        "import itertools\ndef f(a: list, b: list):\n    return list(itertools.zip_longest(a, b))";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_itertools_product() {
-    let code = "import itertools\ndef f(a: list, b: list):\n    return list(itertools.product(a, b))";
+    let code =
+        "import itertools\ndef f(a: list, b: list):\n    return list(itertools.product(a, b))";
     assert!(transpile_ok(code));
 }
 
 #[test]
 fn test_itertools_permutations() {
-    let code = "import itertools\ndef f(items: list):\n    return list(itertools.permutations(items))";
+    let code =
+        "import itertools\ndef f(items: list):\n    return list(itertools.permutations(items))";
     assert!(transpile_ok(code));
 }
 
@@ -848,7 +858,8 @@ fn test_subprocess_run() {
 
 #[test]
 fn test_subprocess_run_capture() {
-    let code = "import subprocess\ndef f(cmd: list):\n    return subprocess.run(cmd, capture_output=True)";
+    let code =
+        "import subprocess\ndef f(cmd: list):\n    return subprocess.run(cmd, capture_output=True)";
     assert!(transpile_ok(code));
 }
 

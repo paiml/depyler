@@ -419,8 +419,7 @@ pub fn collect_call_site_types_from_expr(
                     if let Some(ty) = arg_type {
                         // DEPYLER-0575: Skip Unknown and Optional types
                         // Optional types often get unwrapped before use, so don't propagate them
-                        let should_propagate =
-                            !matches!(ty, Type::Unknown | Type::Optional(_));
+                        let should_propagate = !matches!(ty, Type::Unknown | Type::Optional(_));
                         if should_propagate {
                             call_site_types.insert((func.clone(), idx), ty.clone());
                         }
@@ -1061,10 +1060,7 @@ mod tests {
         );
 
         // Should find call site from both branches
-        assert_eq!(
-            call_site_types.get(&("f".to_string(), 0)),
-            Some(&Type::Int)
-        );
+        assert_eq!(call_site_types.get(&("f".to_string(), 0)), Some(&Type::Int));
     }
 
     // ============ collect_call_site_types (stmts) tests ============

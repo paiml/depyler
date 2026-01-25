@@ -61,6 +61,7 @@ fn test_DEPYLER_0260_simple_generator_compiles() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     // Generate Rust code
@@ -135,6 +136,7 @@ fn test_DEPYLER_0260_generator_no_dynamictype() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();
@@ -231,6 +233,7 @@ fn test_DEPYLER_0260_fibonacci_generator_compiles() {
         protocols: vec![],
         classes: vec![],
         constants: vec![],
+        top_level_stmts: vec![],
     };
 
     let type_mapper = TypeMapper::default();

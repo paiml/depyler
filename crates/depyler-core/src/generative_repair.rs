@@ -28,9 +28,7 @@ use proc_macro2::TokenStream;
 use std::hash::{Hash, Hasher};
 
 #[cfg(feature = "generative")]
-use entrenar::search::{
-    Action, ActionSpace, MctsConfig, MctsSearch, Reward, State, StateSpace,
-};
+use entrenar::search::{Action, ActionSpace, MctsConfig, MctsSearch, Reward, State, StateSpace};
 
 /// Configuration for the generative repair engine
 #[derive(Debug, Clone)]
@@ -73,7 +71,10 @@ impl CodeState {
     /// Create a new code state from tokens
     pub fn new(tokens: Vec<String>) -> Self {
         let is_complete = tokens.iter().any(|t| t == "EOF");
-        Self { tokens, is_complete }
+        Self {
+            tokens,
+            is_complete,
+        }
     }
 
     /// Create an empty initial state
@@ -163,7 +164,8 @@ impl StateSpace<CodeState, CodeAction> for CodeStateSpace {
     fn evaluate(&self, state: &CodeState) -> Reward {
         // Simple reward: 1.0 if tokens contain all target patterns, 0.0 otherwise
         let tokens_str = state.tokens.join(" ");
-        let matches = self.target_patterns
+        let matches = self
+            .target_patterns
             .iter()
             .filter(|p| tokens_str.contains(*p))
             .count();
@@ -324,7 +326,10 @@ impl GenerativeRepair {
             }
 
             // Add return type pattern if present
-            if !matches!(func.ret_type, crate::hir::Type::Unknown | crate::hir::Type::None) {
+            if !matches!(
+                func.ret_type,
+                crate::hir::Type::Unknown | crate::hir::Type::None
+            ) {
                 patterns.push("->".to_string());
             }
         }
@@ -340,7 +345,8 @@ impl GenerativeRepair {
     /// Convert code state tokens to TokenStream
     #[cfg(feature = "generative")]
     fn tokens_to_stream(&self, state: &CodeState) -> Result<TokenStream> {
-        let code = state.tokens()
+        let code = state
+            .tokens()
             .iter()
             .filter(|t| *t != "EOF")
             .cloned()
@@ -394,6 +400,7 @@ mod tests {
             protocols: vec![],
             classes: vec![],
             constants: vec![],
+            top_level_stmts: vec![],
         }
     }
 

@@ -12,7 +12,6 @@ mod argparse_transform;
 mod array_initialization; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
 pub mod binary_ops; // DEPYLER-SPLIT-001: Extracted binary operation handling
 mod builtin_conversions; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
-pub mod numpy_gen; // Phase 3: NumPy→Trueno codegen
 mod collection_constructors; // DEPYLER-REFACTOR-001: Extracted from expr_gen.rs
 mod context;
 mod error_gen;
@@ -25,34 +24,35 @@ mod func_gen_inference; // DEPYLER-COVERAGE-95: Advanced function codegen helper
 mod generator_gen;
 mod import_gen;
 pub mod keywords; // DEPYLER-0023: Centralized keyword escaping
+pub mod numpy_gen; // Phase 3: NumPy→Trueno codegen
 mod stmt_gen;
 mod stmt_gen_complex; // DEPYLER-COVERAGE-95: Complex statement handlers split from stmt_gen
 mod type_gen;
 
 // Helper modules (v3.21.0)
-pub mod iterator_utils; // DEPYLER-SPLIT-001: Extracted iterator utilities
-mod string_method_helpers;
-pub mod type_coercion; // DEPYLER-SPLIT-001: Extracted type coercion utilities
-pub mod unary_ops; // DEPYLER-SPLIT-002: Extracted unary operation handling
-pub mod truthiness_helpers; // DEPYLER-1096: Made public for truthiness coercion in direct_rules_convert
-pub mod expr_analysis; // PMAT: Extracted expression analysis for 100% unit test coverage
-pub mod var_analysis; // PMAT: Extracted variable analysis for 100% unit test coverage
-pub mod control_flow_analysis; // PMAT: Extracted control flow analysis for 100% unit test coverage
-pub mod string_analysis; // PMAT: Extracted string analysis for 100% unit test coverage
-pub mod walrus_helpers; // DEPYLER-0792: Walrus operator helpers extracted for testability
-pub mod precedence; // DEPYLER-0582: Operator precedence helpers extracted for testability
-pub mod numeric_coercion; // DEPYLER-0582: Numeric type coercion helpers extracted
-pub mod exception_helpers; // DEPYLER-0333: Exception type extraction helpers
-pub mod type_tokens; // DEPYLER-0759: HIR type to token conversion extracted for testability
-pub mod control_stmt_helpers; // DEPYLER-0140: Control statement codegen helpers extracted
-pub mod type_conversion_helpers; // DEPYLER-0455: Type conversion helpers extracted
-pub mod borrowing_helpers; // DEPYLER-COVERAGE-95: Borrowing helpers extracted
-pub mod json_helpers; // DEPYLER-COVERAGE-95: JSON serialization helpers extracted
 #[cfg(feature = "sovereign-types")]
 mod binding_gen; // DEPYLER-1115: Phantom binding generation for external library types
-pub mod name_heuristics; // DEPYLER-COVERAGE-95: Name-based type heuristics extracted
+pub mod borrowing_helpers; // DEPYLER-COVERAGE-95: Borrowing helpers extracted
+pub mod control_flow_analysis; // PMAT: Extracted control flow analysis for 100% unit test coverage
+pub mod control_stmt_helpers; // DEPYLER-0140: Control statement codegen helpers extracted
+pub mod exception_helpers; // DEPYLER-0333: Exception type extraction helpers
+pub mod expr_analysis; // PMAT: Extracted expression analysis for 100% unit test coverage
 pub mod expr_type_helpers; // DEPYLER-COVERAGE-95: Expression type helpers extracted
-pub mod mutation_helpers; // DEPYLER-COVERAGE-95: Mutation analysis helpers extracted
+pub mod iterator_utils; // DEPYLER-SPLIT-001: Extracted iterator utilities
+pub mod json_helpers; // DEPYLER-COVERAGE-95: JSON serialization helpers extracted
+pub mod mutation_helpers;
+pub mod name_heuristics; // DEPYLER-COVERAGE-95: Name-based type heuristics extracted
+pub mod numeric_coercion; // DEPYLER-0582: Numeric type coercion helpers extracted
+pub mod precedence; // DEPYLER-0582: Operator precedence helpers extracted for testability
+pub mod string_analysis; // PMAT: Extracted string analysis for 100% unit test coverage
+mod string_method_helpers;
+pub mod truthiness_helpers; // DEPYLER-1096: Made public for truthiness coercion in direct_rules_convert
+pub mod type_coercion; // DEPYLER-SPLIT-001: Extracted type coercion utilities
+pub mod type_conversion_helpers; // DEPYLER-0455: Type conversion helpers extracted
+pub mod type_tokens; // DEPYLER-0759: HIR type to token conversion extracted for testability
+pub mod unary_ops; // DEPYLER-SPLIT-002: Extracted unary operation handling
+pub mod var_analysis; // PMAT: Extracted variable analysis for 100% unit test coverage
+pub mod walrus_helpers; // DEPYLER-0792: Walrus operator helpers extracted for testability // DEPYLER-COVERAGE-95: Mutation analysis helpers extracted
 
 // Stdlib method code generation (DEPYLER-COVERAGE-95: Extracted from expr_gen.rs)
 pub mod stdlib_method_gen;
@@ -86,16 +86,16 @@ mod targeted_stmt_tests;
 mod type_gen_tests;
 
 // Internal imports
+#[cfg(test)]
+use control_stmt_helpers::{codegen_break_stmt, codegen_continue_stmt, codegen_pass_stmt};
 use error_gen::generate_error_type_definitions;
 use format::format_rust_code;
 use import_gen::process_module_imports;
 #[cfg(test)]
-use control_stmt_helpers::{codegen_break_stmt, codegen_continue_stmt, codegen_pass_stmt};
-#[cfg(test)]
 use stmt_gen::{
     codegen_assign_attribute, codegen_assign_index, codegen_assign_symbol, codegen_assign_tuple,
-    codegen_expr_stmt, codegen_raise_stmt, codegen_return_stmt,
-    codegen_while_stmt, codegen_with_stmt,
+    codegen_expr_stmt, codegen_raise_stmt, codegen_return_stmt, codegen_while_stmt,
+    codegen_with_stmt,
 };
 #[cfg(test)]
 use stmt_gen_complex::codegen_try_stmt;
@@ -103,8 +103,8 @@ use stmt_gen_complex::codegen_try_stmt;
 // Public re-exports for external modules (union_enum_gen, etc.)
 pub use argparse_transform::ArgParserTracker; // DEPYLER-0384: Export for testing
 pub use argparse_transform::{
-    ArgParserArgument, ArgParserInfo, SubcommandInfo, SubparserInfo,
-    generate_args_struct, generate_commands_enum,
+    generate_args_struct, generate_commands_enum, ArgParserArgument, ArgParserInfo, SubcommandInfo,
+    SubparserInfo,
 }; // Coverage tests
 pub use context::{CodeGenContext, RustCodeGen, ToRustExpr};
 pub use type_gen::rust_type_to_syn;
@@ -257,7 +257,11 @@ fn scan_expr_for_validators(expr: &HirExpr, ctx: &mut CodeGenContext) {
 /// 3. DEPYLER-0312: Function parameters that are reassigned (requires mut)
 ///
 /// Complexity: 7 (stmt loop + match + if + expr scan + method match)
-pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, params: &[HirParam]) {
+pub(crate) fn analyze_mutable_vars(
+    stmts: &[HirStmt],
+    ctx: &mut CodeGenContext,
+    params: &[HirParam],
+) {
     // DEPYLER-0707: Clear mutable_vars before analyzing each function
     // Without this, variables from previous functions leak to subsequent ones,
     // causing false positives (e.g., `p` in test_point() leaking to test_person())
@@ -311,17 +315,47 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                     }
                 }
                 // Recursively check nested expressions
-                analyze_expr_for_mutations(object, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    object,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
                 for arg in args {
-                    analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods, function_param_muts);
+                    analyze_expr_for_mutations(
+                        arg,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        function_param_muts,
+                    );
                 }
             }
             HirExpr::Binary { left, right, .. } => {
-                analyze_expr_for_mutations(left, mutable, var_types, mutating_methods, function_param_muts);
-                analyze_expr_for_mutations(right, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    left,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
+                analyze_expr_for_mutations(
+                    right,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
             }
             HirExpr::Unary { operand, .. } => {
-                analyze_expr_for_mutations(operand, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    operand,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
             }
             // DEPYLER-1217: Detect transitive mutation through function calls
             // If a variable is passed to a function that expects &mut at that position,
@@ -336,37 +370,97 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                                 mutable.insert(var_name.clone());
                             }
                         }
-                        analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods, function_param_muts);
+                        analyze_expr_for_mutations(
+                            arg,
+                            mutable,
+                            var_types,
+                            mutating_methods,
+                            function_param_muts,
+                        );
                     }
                 } else {
                     // No param_muts info - just recurse into args
                     for arg in args {
-                        analyze_expr_for_mutations(arg, mutable, var_types, mutating_methods, function_param_muts);
+                        analyze_expr_for_mutations(
+                            arg,
+                            mutable,
+                            var_types,
+                            mutating_methods,
+                            function_param_muts,
+                        );
                     }
                 }
             }
             HirExpr::IfExpr { test, body, orelse } => {
-                analyze_expr_for_mutations(test, mutable, var_types, mutating_methods, function_param_muts);
-                analyze_expr_for_mutations(body, mutable, var_types, mutating_methods, function_param_muts);
-                analyze_expr_for_mutations(orelse, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    test,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
+                analyze_expr_for_mutations(
+                    body,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
+                analyze_expr_for_mutations(
+                    orelse,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
             }
             HirExpr::List(items)
             | HirExpr::Tuple(items)
             | HirExpr::Set(items)
             | HirExpr::FrozenSet(items) => {
                 for item in items {
-                    analyze_expr_for_mutations(item, mutable, var_types, mutating_methods, function_param_muts);
+                    analyze_expr_for_mutations(
+                        item,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        function_param_muts,
+                    );
                 }
             }
             HirExpr::Dict(pairs) => {
                 for (key, value) in pairs {
-                    analyze_expr_for_mutations(key, mutable, var_types, mutating_methods, function_param_muts);
-                    analyze_expr_for_mutations(value, mutable, var_types, mutating_methods, function_param_muts);
+                    analyze_expr_for_mutations(
+                        key,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        function_param_muts,
+                    );
+                    analyze_expr_for_mutations(
+                        value,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        function_param_muts,
+                    );
                 }
             }
             HirExpr::Index { base, index } => {
-                analyze_expr_for_mutations(base, mutable, var_types, mutating_methods, function_param_muts);
-                analyze_expr_for_mutations(index, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    base,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
+                analyze_expr_for_mutations(
+                    index,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
             }
             HirExpr::Attribute { value, attr } => {
                 // DEPYLER-0835: Some Python attributes translate to mutating method calls in Rust
@@ -376,7 +470,13 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                         mutable.insert(name.clone());
                     }
                 }
-                analyze_expr_for_mutations(value, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    value,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
             }
             _ => {}
         }
@@ -403,7 +503,13 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
         match stmt {
             HirStmt::Assign { target, value, .. } => {
                 // Check if the value expression contains method calls that mutate variables
-                analyze_expr_for_mutations(value, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    value,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
 
                 match target {
                     AssignTarget::Symbol(name) => {
@@ -516,10 +622,22 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
             }
             HirStmt::Expr(expr) => {
                 // Check standalone expressions for method calls (e.g., numbers.push(4))
-                analyze_expr_for_mutations(expr, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    expr,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
             }
             HirStmt::Return(Some(expr)) => {
-                analyze_expr_for_mutations(expr, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    expr,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
             }
             HirStmt::If {
                 condition,
@@ -527,33 +645,80 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                 else_body,
                 ..
             } => {
-                analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    condition,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
                 for stmt in then_body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+                    analyze_stmt(
+                        stmt,
+                        declared,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        function_param_muts,
+                    );
                 }
                 if let Some(else_stmts) = else_body {
                     for stmt in else_stmts {
-                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+                        analyze_stmt(
+                            stmt,
+                            declared,
+                            mutable,
+                            var_types,
+                            mutating_methods,
+                            function_param_muts,
+                        );
                     }
                 }
             }
             HirStmt::While {
                 condition, body, ..
             } => {
-                analyze_expr_for_mutations(condition, mutable, var_types, mutating_methods, function_param_muts);
+                analyze_expr_for_mutations(
+                    condition,
+                    mutable,
+                    var_types,
+                    mutating_methods,
+                    function_param_muts,
+                );
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+                    analyze_stmt(
+                        stmt,
+                        declared,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        function_param_muts,
+                    );
                 }
             }
             HirStmt::For { body, .. } => {
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+                    analyze_stmt(
+                        stmt,
+                        declared,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        function_param_muts,
+                    );
                 }
             }
             // DEPYLER-0549: Handle WITH statements - analyze body for mutations
             HirStmt::With { body, .. } => {
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+                    analyze_stmt(
+                        stmt,
+                        declared,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        function_param_muts,
+                    );
                 }
             }
             // DEPYLER-0549: Handle Try - analyze all branches
@@ -565,21 +730,49 @@ pub(crate) fn analyze_mutable_vars(stmts: &[HirStmt], ctx: &mut CodeGenContext, 
                 ..
             } => {
                 for stmt in body {
-                    analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+                    analyze_stmt(
+                        stmt,
+                        declared,
+                        mutable,
+                        var_types,
+                        mutating_methods,
+                        function_param_muts,
+                    );
                 }
                 for handler in handlers {
                     for stmt in &handler.body {
-                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+                        analyze_stmt(
+                            stmt,
+                            declared,
+                            mutable,
+                            var_types,
+                            mutating_methods,
+                            function_param_muts,
+                        );
                     }
                 }
                 if let Some(else_stmts) = orelse {
                     for stmt in else_stmts {
-                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+                        analyze_stmt(
+                            stmt,
+                            declared,
+                            mutable,
+                            var_types,
+                            mutating_methods,
+                            function_param_muts,
+                        );
                     }
                 }
                 if let Some(final_stmts) = finalbody {
                     for stmt in final_stmts {
-                        analyze_stmt(stmt, declared, mutable, var_types, mutating_methods, function_param_muts);
+                        analyze_stmt(
+                            stmt,
+                            declared,
+                            mutable,
+                            var_types,
+                            mutating_methods,
+                            function_param_muts,
+                        );
                     }
                 }
             }
@@ -643,7 +836,8 @@ fn convert_classes_to_rust(
         }
 
         // DEPYLER-0648: Pass vararg_functions for proper call site generation in methods
-        let items = crate::direct_rules::convert_class_to_struct(class, type_mapper, vararg_functions)?;
+        let items =
+            crate::direct_rules::convert_class_to_struct(class, type_mapper, vararg_functions)?;
         for item in items {
             let tokens = item.to_token_stream();
             class_items.push(tokens);
@@ -689,11 +883,15 @@ fn detect_adt_patterns(classes: &[HirClass]) -> AdtPatternInfo {
 
     // Filter to only keep ABC parents with type params (Generic[T,U,...])
     abc_to_children.retain(|parent_name, _| {
-        classes.iter()
+        classes
+            .iter()
             .find(|c| c.name == *parent_name)
-            .map(|c| !c.type_params.is_empty() && c.base_classes.iter().any(|b|
-                b.contains("ABC") || b.contains("Generic")
-            ))
+            .map(|c| {
+                !c.type_params.is_empty()
+                    && c.base_classes
+                        .iter()
+                        .any(|b| b.contains("ABC") || b.contains("Generic"))
+            })
             .unwrap_or(false)
     });
 
@@ -705,7 +903,10 @@ fn detect_adt_patterns(classes: &[HirClass]) -> AdtPatternInfo {
         }
     }
 
-    AdtPatternInfo { abc_to_children, child_to_parent }
+    AdtPatternInfo {
+        abc_to_children,
+        child_to_parent,
+    }
 }
 
 /// Generate a Rust enum for an ADT pattern
@@ -721,7 +922,9 @@ fn generate_adt_enum(
     let enum_name = syn::Ident::new(&safe_name, proc_macro2::Span::call_site());
 
     // Build generic params with Clone bound
-    let type_params: Vec<syn::Ident> = parent.type_params.iter()
+    let type_params: Vec<syn::Ident> = parent
+        .type_params
+        .iter()
         .map(|tp| syn::Ident::new(tp, proc_macro2::Span::call_site()))
         .collect();
 
@@ -748,7 +951,9 @@ fn generate_adt_enum(
             let variant_name = syn::Ident::new(&safe_variant, proc_macro2::Span::call_site());
 
             // Collect field types for this variant
-            let field_types: Vec<proc_macro2::TokenStream> = child_class.fields.iter()
+            let field_types: Vec<proc_macro2::TokenStream> = child_class
+                .fields
+                .iter()
                 .filter(|f| !f.is_class_var && f.name != "_phantom")
                 .map(|f| {
                     let rust_type = type_mapper.map_type(&f.field_type);
@@ -797,7 +1002,9 @@ fn generate_adt_methods(
     // For now, generate basic accessor methods
     // Full method translation requires deeper integration with stmt_gen/expr_gen
 
-    let _type_params: Vec<syn::Ident> = parent.type_params.iter()
+    let _type_params: Vec<syn::Ident> = parent
+        .type_params
+        .iter()
         .map(|tp| syn::Ident::new(tp, proc_macro2::Span::call_site()))
         .collect();
 
@@ -828,7 +1035,9 @@ fn generate_adt_methods(
             let method_name_str = format!("new_{}", safe_variant.to_lowercase());
             let method_name = syn::Ident::new(&method_name_str, proc_macro2::Span::call_site());
 
-            let fields: Vec<_> = child_class.fields.iter()
+            let fields: Vec<_> = child_class
+                .fields
+                .iter()
                 .filter(|f| !f.is_class_var && f.name != "_phantom")
                 .collect();
 
@@ -929,7 +1138,10 @@ fn generate_conditional_imports(ctx: &CodeGenContext) -> Vec<proc_macro2::TokenS
         (ctx.needs_once_cell, quote! { use once_cell::sync::Lazy; }), // DEPYLER-REARCH-001
         (ctx.needs_trueno, quote! { use trueno::Vector; }), // Phase 3: NumPy→Trueno
         // DEPYLER-1004: chrono methods like .month(), .minute() need Datelike/Timelike traits
-        (ctx.needs_chrono, quote! { use chrono::{Datelike, Timelike}; }),
+        (
+            ctx.needs_chrono,
+            quote! { use chrono::{Datelike, Timelike}; },
+        ),
     ];
 
     // Add std imports (always)
@@ -1168,8 +1380,8 @@ fn generate_lazy_constant(
                 ctx.needs_serde_json = true;
                 "serde_json::Value"
             };
-            let boxed_type: syn::Type = syn::parse_str(&boxed)
-                .unwrap_or_else(|_| syn::parse_str(fallback).unwrap());
+            let boxed_type: syn::Type =
+                syn::parse_str(&boxed).unwrap_or_else(|_| syn::parse_str(fallback).unwrap());
             quote! { #boxed_type }
         } else {
             quote! { #syn_type }
@@ -1189,8 +1401,8 @@ fn generate_lazy_constant(
                 ctx.needs_serde_json = true;
                 "serde_json::Value"
             };
-            let boxed_type: syn::Type = syn::parse_str(&boxed)
-                .unwrap_or_else(|_| syn::parse_str(fallback).unwrap());
+            let boxed_type: syn::Type =
+                syn::parse_str(&boxed).unwrap_or_else(|_| syn::parse_str(fallback).unwrap());
             quote! { #boxed_type }
         } else {
             inferred
@@ -1252,10 +1464,7 @@ fn generate_lazy_constant(
 /// Most complex constants default to serde_json::Value for compatibility.
 /// DEPYLER-0188: Path expressions return std::path::PathBuf.
 /// DEPYLER-0714: Function calls use the function's return type (unwrapped if Result).
-fn infer_lazy_constant_type(
-    value: &HirExpr,
-    ctx: &mut CodeGenContext,
-) -> proc_macro2::TokenStream {
+fn infer_lazy_constant_type(value: &HirExpr, ctx: &mut CodeGenContext) -> proc_macro2::TokenStream {
     // DEPYLER-0188: Path expressions should be typed as PathBuf
     if is_path_constant_expr(value) {
         return quote! { std::path::PathBuf };
@@ -1267,7 +1476,9 @@ fn infer_lazy_constant_type(
         if let Some(ret_type) = ctx.function_return_types.get(func) {
             // Skip Unknown - fall through to default
             if !matches!(ret_type, crate::hir::Type::Unknown) {
-                if let Ok(syn_type) = type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(ret_type)) {
+                if let Ok(syn_type) =
+                    type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(ret_type))
+                {
                     return quote! { #syn_type };
                 }
             }
@@ -1312,7 +1523,9 @@ fn infer_lazy_constant_type(
                         match base_type {
                             // List slice: return Vec<T> (same type as the list)
                             Type::List(elem_type) => {
-                                if let Ok(syn_type) = type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type)) {
+                                if let Ok(syn_type) =
+                                    type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type))
+                                {
                                     return quote! { Vec<#syn_type> };
                                 }
                             }
@@ -1339,13 +1552,17 @@ fn infer_lazy_constant_type(
                         match base_type {
                             // Homogeneous list: return element type
                             Type::List(elem_type) => {
-                                if let Ok(syn_type) = type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type)) {
+                                if let Ok(syn_type) =
+                                    type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(elem_type))
+                                {
                                     return quote! { #syn_type };
                                 }
                             }
                             // Dict: return value type (may be DepylerValue for heterogeneous dicts)
                             Type::Dict(_, val_type) => {
-                                if let Ok(syn_type) = type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(val_type)) {
+                                if let Ok(syn_type) =
+                                    type_gen::rust_type_to_syn(&ctx.type_mapper.map_type(val_type))
+                                {
                                     return quote! { #syn_type };
                                 }
                             }
@@ -1402,14 +1619,17 @@ fn infer_lazy_constant_type(
             // DEPYLER-1149: Handle dict comprehensions
             HirExpr::DictComp { key, value, .. } => {
                 ctx.needs_hashmap = true;
-                let key_type = infer_comprehension_element_type(key)
-                    .unwrap_or_else(|| quote! { i32 });
-                let val_type = infer_comprehension_element_type(value)
-                    .unwrap_or_else(|| quote! { i32 });
+                let key_type =
+                    infer_comprehension_element_type(key).unwrap_or_else(|| quote! { i32 });
+                let val_type =
+                    infer_comprehension_element_type(value).unwrap_or_else(|| quote! { i32 });
                 return quote! { std::collections::HashMap<#key_type, #val_type> };
             }
             // DEPYLER-1172: Handle math module constants (math.pi, math.e, etc.)
-            HirExpr::Attribute { value: attr_obj, attr } => {
+            HirExpr::Attribute {
+                value: attr_obj,
+                attr,
+            } => {
                 if let HirExpr::Var(module_name) = attr_obj.as_ref() {
                     if module_name == "math" {
                         match attr.as_str() {
@@ -1425,15 +1645,14 @@ fn infer_lazy_constant_type(
             HirExpr::MethodCall { method, .. } => {
                 match method.as_str() {
                     // Float-returning math methods
-                    "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan"
-                    | "sinh" | "cosh" | "tanh" | "exp" | "log" | "log10" | "log2"
-                    | "floor" | "ceil" | "trunc" | "fract" | "abs" => {
+                    "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "sinh" | "cosh"
+                    | "tanh" | "exp" | "log" | "log10" | "log2" | "floor" | "ceil" | "trunc"
+                    | "fract" | "abs" => {
                         return quote! { f64 };
                     }
                     // String methods
-                    "upper" | "lower" | "strip" | "lstrip" | "rstrip"
-                    | "replace" | "join" | "format" | "to_string" | "to_uppercase"
-                    | "to_lowercase" | "trim" => {
+                    "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "join"
+                    | "format" | "to_string" | "to_uppercase" | "to_lowercase" | "trim" => {
                         return quote! { String };
                     }
                     // Int methods
@@ -1444,19 +1663,17 @@ fn infer_lazy_constant_type(
                 }
             }
             // DEPYLER-1172: Handle math function calls like math.sqrt(16)
-            HirExpr::Call { func, .. } => {
-                match func.as_str() {
-                    "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan"
-                    | "sinh" | "cosh" | "tanh" | "exp" | "log" | "log10" | "log2"
-                    | "floor" | "ceil" | "trunc" | "fabs" => {
-                        return quote! { f64 };
-                    }
-                    "abs" | "len" | "ord" | "hash" => {
-                        return quote! { i32 };
-                    }
-                    _ => {}
+            HirExpr::Call { func, .. } => match func.as_str() {
+                "sqrt" | "sin" | "cos" | "tan" | "asin" | "acos" | "atan" | "sinh" | "cosh"
+                | "tanh" | "exp" | "log" | "log10" | "log2" | "floor" | "ceil" | "trunc"
+                | "fabs" => {
+                    return quote! { f64 };
                 }
-            }
+                "abs" | "len" | "ord" | "hash" => {
+                    return quote! { i32 };
+                }
+                _ => {}
+            },
             _ => {}
         }
     }
@@ -1524,8 +1741,14 @@ fn infer_binary_expr_type(
     // Determine result type from operator and left operand
     match op {
         // Comparison operators always return bool
-        BinOp::Eq | BinOp::NotEq | BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
-        | BinOp::In | BinOp::NotIn => Some(quote! { bool }),
+        BinOp::Eq
+        | BinOp::NotEq
+        | BinOp::Lt
+        | BinOp::LtEq
+        | BinOp::Gt
+        | BinOp::GtEq
+        | BinOp::In
+        | BinOp::NotIn => Some(quote! { bool }),
 
         // Logical operators return bool
         BinOp::And | BinOp::Or => Some(quote! { bool }),
@@ -1534,14 +1757,26 @@ fn infer_binary_expr_type(
         BinOp::Div => Some(quote! { f64 }),
 
         // Arithmetic operators - infer from left operand
-        BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::Pow
-        | BinOp::FloorDiv | BinOp::BitAnd | BinOp::BitOr | BinOp::BitXor
-        | BinOp::LShift | BinOp::RShift => {
+        BinOp::Add
+        | BinOp::Sub
+        | BinOp::Mul
+        | BinOp::Mod
+        | BinOp::Pow
+        | BinOp::FloorDiv
+        | BinOp::BitAnd
+        | BinOp::BitOr
+        | BinOp::BitXor
+        | BinOp::LShift
+        | BinOp::RShift => {
             match left {
                 HirExpr::Literal(Literal::Int(_)) => Some(quote! { i32 }),
                 HirExpr::Literal(Literal::Float(_)) => Some(quote! { f64 }),
                 HirExpr::Literal(Literal::String(_)) => Some(quote! { String }),
-                HirExpr::Binary { op: inner_op, left: inner_left, .. } => {
+                HirExpr::Binary {
+                    op: inner_op,
+                    left: inner_left,
+                    ..
+                } => {
                     // Recursively infer from nested binary expr
                     infer_binary_expr_type(inner_op, inner_left)
                 }
@@ -1560,13 +1795,11 @@ fn infer_unary_expr_type(
 
     match op {
         UnaryOp::Not => Some(quote! { bool }),
-        UnaryOp::Neg | UnaryOp::Pos => {
-            match operand {
-                HirExpr::Literal(Literal::Int(_)) => Some(quote! { i32 }),
-                HirExpr::Literal(Literal::Float(_)) => Some(quote! { f64 }),
-                _ => None,
-            }
-        }
+        UnaryOp::Neg | UnaryOp::Pos => match operand {
+            HirExpr::Literal(Literal::Int(_)) => Some(quote! { i32 }),
+            HirExpr::Literal(Literal::Float(_)) => Some(quote! { f64 }),
+            _ => None,
+        },
         UnaryOp::BitNot => Some(quote! { i32 }), // Bitwise NOT returns int
     }
 }
@@ -1585,9 +1818,7 @@ fn infer_comprehension_element_type(element: &HirExpr) -> Option<proc_macro2::To
         HirExpr::Literal(Literal::Bool(_)) => Some(quote! { bool }),
 
         // Binary expressions - infer from operator and operands
-        HirExpr::Binary { op, left, .. } => {
-            infer_binary_expr_type(op, left)
-        }
+        HirExpr::Binary { op, left, .. } => infer_binary_expr_type(op, left),
 
         // Variable reference - assume i32 for loop variables (most common case)
         // e.g., `[x for x in range(10)]` where x is the loop variable
@@ -1608,19 +1839,16 @@ fn infer_comprehension_element_type(element: &HirExpr) -> Option<proc_macro2::To
         }
 
         // Method calls
-        HirExpr::MethodCall { method, .. } => {
-            match method.as_str() {
-                "upper" | "lower" | "strip" | "lstrip" | "rstrip"
-                | "replace" | "join" | "format" => Some(quote! { String }),
-                "count" | "index" | "find" | "rfind" => Some(quote! { i32 }),
-                _ => None,
+        HirExpr::MethodCall { method, .. } => match method.as_str() {
+            "upper" | "lower" | "strip" | "lstrip" | "rstrip" | "replace" | "join" | "format" => {
+                Some(quote! { String })
             }
-        }
+            "count" | "index" | "find" | "rfind" => Some(quote! { i32 }),
+            _ => None,
+        },
 
         // Unary expressions
-        HirExpr::Unary { op, operand } => {
-            infer_unary_expr_type(op, operand)
-        }
+        HirExpr::Unary { op, operand } => infer_unary_expr_type(op, operand),
 
         // Tuple - use tuple type
         HirExpr::Tuple(_) => None, // Complex, fall through to default
@@ -1643,7 +1871,10 @@ fn infer_list_element_type(elems: &[HirExpr]) -> Type {
     match &elems[0] {
         HirExpr::Literal(Literal::Int(_)) => {
             // Verify all elements are integers
-            if elems.iter().all(|e| matches!(e, HirExpr::Literal(Literal::Int(_)))) {
+            if elems
+                .iter()
+                .all(|e| matches!(e, HirExpr::Literal(Literal::Int(_))))
+            {
                 Type::Int
             } else {
                 Type::Unknown // Heterogeneous
@@ -1652,7 +1883,10 @@ fn infer_list_element_type(elems: &[HirExpr]) -> Type {
         HirExpr::Literal(Literal::Float(_)) => {
             // Verify all elements are floats (or ints - promote to float)
             if elems.iter().all(|e| {
-                matches!(e, HirExpr::Literal(Literal::Float(_)) | HirExpr::Literal(Literal::Int(_)))
+                matches!(
+                    e,
+                    HirExpr::Literal(Literal::Float(_)) | HirExpr::Literal(Literal::Int(_))
+                )
             }) {
                 Type::Float
             } else {
@@ -1660,14 +1894,20 @@ fn infer_list_element_type(elems: &[HirExpr]) -> Type {
             }
         }
         HirExpr::Literal(Literal::String(_)) => {
-            if elems.iter().all(|e| matches!(e, HirExpr::Literal(Literal::String(_)))) {
+            if elems
+                .iter()
+                .all(|e| matches!(e, HirExpr::Literal(Literal::String(_))))
+            {
                 Type::String
             } else {
                 Type::Unknown
             }
         }
         HirExpr::Literal(Literal::Bool(_)) => {
-            if elems.iter().all(|e| matches!(e, HirExpr::Literal(Literal::Bool(_)))) {
+            if elems
+                .iter()
+                .all(|e| matches!(e, HirExpr::Literal(Literal::Bool(_))))
+            {
                 Type::Bool
             } else {
                 Type::Unknown
@@ -1746,11 +1986,12 @@ fn expr_contains_non_const_ops(expr: &HirExpr) -> bool {
     match expr {
         // String comparisons with != or == generate .to_string() calls
         HirExpr::Binary { op, left, right } => {
-            let is_string_comparison = matches!(
-                (&**left, &**right),
-                (HirExpr::Literal(Literal::String(_)), _)
-                | (_, HirExpr::Literal(Literal::String(_)))
-            ) && matches!(op, crate::hir::BinOp::Eq | crate::hir::BinOp::NotEq);
+            let is_string_comparison =
+                matches!(
+                    (&**left, &**right),
+                    (HirExpr::Literal(Literal::String(_)), _)
+                        | (_, HirExpr::Literal(Literal::String(_)))
+                ) && matches!(op, crate::hir::BinOp::Eq | crate::hir::BinOp::NotEq);
 
             is_string_comparison
                 || expr_contains_non_const_ops(left)
@@ -1926,17 +2167,27 @@ fn is_path_constant_expr(value: &HirExpr) -> bool {
         }
         // .parent, .join, etc. method calls return paths
         HirExpr::MethodCall { method, object, .. } => {
-            matches!(method.as_str(), "parent" | "join" | "resolve" | "absolute" |
-                     "with_name" | "with_suffix" | "to_path_buf")
-                || is_path_constant_expr(object)
+            matches!(
+                method.as_str(),
+                "parent"
+                    | "join"
+                    | "resolve"
+                    | "absolute"
+                    | "with_name"
+                    | "with_suffix"
+                    | "to_path_buf"
+            ) || is_path_constant_expr(object)
         }
         // .parent attribute access
         HirExpr::Attribute { attr, value, .. } => {
-            matches!(attr.as_str(), "parent" | "root" | "anchor")
-                || is_path_constant_expr(value)
+            matches!(attr.as_str(), "parent" | "root" | "anchor") || is_path_constant_expr(value)
         }
         // path / segment division
-        HirExpr::Binary { left, op: BinOp::Div, .. } => is_path_constant_expr(left),
+        HirExpr::Binary {
+            left,
+            op: BinOp::Div,
+            ..
+        } => is_path_constant_expr(left),
         _ => false,
     }
 }
@@ -1978,19 +2229,27 @@ fn infer_unary_type(
             }
         }
         // DEPYLER-1040b: Nested logical NOT (e.g., !!True)
-        (UnaryOp::Not, HirExpr::Unary { operand: inner, op: UnaryOp::Not }) => {
-            match inner.as_ref() {
-                HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
-                _ => ctx.fallback_type_annotation(),
-            }
-        }
+        (
+            UnaryOp::Not,
+            HirExpr::Unary {
+                operand: inner,
+                op: UnaryOp::Not,
+            },
+        ) => match inner.as_ref() {
+            HirExpr::Literal(Literal::Bool(_)) => quote! { : bool },
+            _ => ctx.fallback_type_annotation(),
+        },
         // DEPYLER-1040b: Nested bitwise NOT (e.g., ~~0xFF)
-        (UnaryOp::BitNot, HirExpr::Unary { operand: inner, op: UnaryOp::BitNot }) => {
-            match inner.as_ref() {
-                HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
-                _ => ctx.fallback_type_annotation(),
-            }
-        }
+        (
+            UnaryOp::BitNot,
+            HirExpr::Unary {
+                operand: inner,
+                op: UnaryOp::BitNot,
+            },
+        ) => match inner.as_ref() {
+            HirExpr::Literal(Literal::Int(_)) => quote! { : i32 },
+            _ => ctx.fallback_type_annotation(),
+        },
         // DEPYLER-1040b: NOT on identifier - fallback to bool (logical not always returns bool)
         (UnaryOp::Not, _) => {
             quote! { : bool }
@@ -2046,8 +2305,7 @@ fn generate_constant_tokens(
             _ => None,
         };
         if let Some(t) = const_type {
-            ctx.var_types
-                .insert(constant.name.clone(), t.clone());
+            ctx.var_types.insert(constant.name.clone(), t.clone());
         }
     }
 
@@ -2099,12 +2357,19 @@ fn generate_constant_tokens(
         // DEPYLER-1149: Comprehensions use iterator methods which aren't const
         let needs_runtime_init = matches!(
             &constant.value,
-            HirExpr::Dict(_) | HirExpr::List(_) | HirExpr::Set(_) | HirExpr::Tuple(_)
-            | HirExpr::Call { .. } | HirExpr::Index { .. } | HirExpr::Binary { .. }
-            | HirExpr::Slice { .. }
-            | HirExpr::ListComp { .. } | HirExpr::SetComp { .. } | HirExpr::DictComp { .. }
+            HirExpr::Dict(_)
+                | HirExpr::List(_)
+                | HirExpr::Set(_)
+                | HirExpr::Tuple(_)
+                | HirExpr::Call { .. }
+                | HirExpr::Index { .. }
+                | HirExpr::Binary { .. }
+                | HirExpr::Slice { .. }
+                | HirExpr::ListComp { .. }
+                | HirExpr::SetComp { .. }
+                | HirExpr::DictComp { .. }
         ) || is_path_constant_expr(&constant.value)
-          || expr_contains_non_const_ops(&constant.value);
+            || expr_contains_non_const_ops(&constant.value);
 
         let token = if needs_runtime_init {
             generate_lazy_constant(constant, name_ident, value_expr, ctx)?
@@ -2173,9 +2438,8 @@ fn generate_stub_functions(
 
         // DEPYLER-0680: Handle imports that are used as types, not functions
         // These need type aliases, not function stubs
-        let is_type_import =
-            (import.module == "collections.abc" || import.module == "typing")
-                && import.item_name == "AsyncIterator";
+        let is_type_import = (import.module == "collections.abc" || import.module == "typing")
+            && import.item_name == "AsyncIterator";
 
         if is_type_import {
             // Generate type alias + related stubs instead of function
@@ -2311,7 +2575,10 @@ fn generate_rust_file_internal(
     // because async requires a runtime (tokio). NASA mode = no external deps.
     // Async + NASA = contradiction. Async wins.
     let has_async_functions = module.functions.iter().any(|f| f.properties.is_async);
-    let has_async_methods = module.classes.iter().any(|c| c.methods.iter().any(|m| m.is_async));
+    let has_async_methods = module
+        .classes
+        .iter()
+        .any(|c| c.methods.iter().any(|m| m.is_async));
     let has_asyncio_import = imported_modules.contains_key("asyncio");
     let has_async_code = has_async_functions || has_async_methods || has_asyncio_import;
 
@@ -2362,8 +2629,10 @@ fn generate_rust_file_internal(
     // DEPYLER-0932: Collect dataclass field defaults for constructor call site generation
     // Maps class name -> Vec of Option<HirExpr> where each element corresponds to a field
     // None if field has no default, Some(default_expr) if it has a default value
-    let mut class_field_defaults: std::collections::HashMap<String, Vec<Option<crate::hir::HirExpr>>> =
-        std::collections::HashMap::new();
+    let mut class_field_defaults: std::collections::HashMap<
+        String,
+        Vec<Option<crate::hir::HirExpr>>,
+    > = std::collections::HashMap::new();
     for class in &module.classes {
         let defaults: Vec<Option<crate::hir::HirExpr>> = class
             .fields
@@ -2411,27 +2680,27 @@ fn generate_rust_file_internal(
         needs_hmac: false,
         needs_crc32: false,
         needs_url_encoding: false,
-        needs_io_read: false,   // DEPYLER-0458
-        needs_io_write: false,  // DEPYLER-0458
-        needs_bufread: false,   // DEPYLER-0522
-        needs_once_cell: false, // DEPYLER-REARCH-001
-        needs_lazy_lock: false, // DEPYLER-1016
+        needs_io_read: false,            // DEPYLER-0458
+        needs_io_write: false,           // DEPYLER-0458
+        needs_bufread: false,            // DEPYLER-0522
+        needs_once_cell: false,          // DEPYLER-REARCH-001
+        needs_lazy_lock: false,          // DEPYLER-1016
         needs_depyler_value_enum: false, // DEPYLER-FIX-RC2
-        needs_python_string_ops: false, // DEPYLER-1202: Python string ops trait
-        needs_python_int_ops: false,    // DEPYLER-1202: Python int ops trait
+        needs_python_string_ops: false,  // DEPYLER-1202: Python string ops trait
+        needs_python_int_ops: false,     // DEPYLER-1202: Python int ops trait
         needs_depyler_date: false,
         needs_depyler_datetime: false,
         needs_depyler_timedelta: false,
         needs_depyler_regex_match: false, // DEPYLER-1070: DepylerRegexMatch wrapper
-        needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
-        numpy_vars: HashSet::new(), // DEPYLER-0932: Track numpy array variables
-        needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
-        needs_statrs,           // DEPYLER-1001: Set from imports
-        needs_url,              // DEPYLER-1001: Set from imports
+        needs_trueno: false,              // Phase 3: NumPy→Trueno codegen
+        numpy_vars: HashSet::new(),       // DEPYLER-0932: Track numpy array variables
+        needs_glob: false,                // DEPYLER-0829: glob crate for Path.glob()/rglob()
+        needs_statrs,                     // DEPYLER-1001: Set from imports
+        needs_url,                        // DEPYLER-1001: Set from imports
         needs_tokio: needs_tokio_from_async, // DEPYLER-NASA-ASYNC: Auto-set from async detection
         needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
         vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
-        slice_params: HashSet::new(),     // DEPYLER-1150: Track slice params in current function
+        slice_params: HashSet::new(),   // DEPYLER-1150: Track slice params in current function
         declared_vars: vec![HashSet::new()],
         current_function_can_fail: false,
         current_return_type: None,
@@ -2476,7 +2745,7 @@ fn generate_rust_file_internal(
         tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
         iterator_vars: HashSet::new(),   // DEPYLER-0520: Track variables assigned from iterators
         ref_params: HashSet::new(),      // DEPYLER-0758: Track parameters passed by reference
-            mut_ref_params: HashSet::new(), // DEPYLER-1217: Track parameters passed by mutable reference
+        mut_ref_params: HashSet::new(), // DEPYLER-1217: Track parameters passed by mutable reference
         is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
         result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
         result_returning_functions: HashSet::new(), // DEPYLER-0270: Track ALL Result-returning functions
@@ -2496,15 +2765,15 @@ fn generate_rust_file_internal(
         precomputed_option_fields: HashSet::new(), // DEPYLER-0108: Track precomputed Option checks for argparse
         nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
         fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type (become &str in Rust)
-        in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
+        in_cmd_handler: false,         // DEPYLER-0608: Track if in cmd_* handler function
         cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
         in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
         subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields for match arm
         hoisted_function_names: Vec::new(), // DEPYLER-0613: Track hoisted nested function names
-        is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
+        is_main_function: false,       // DEPYLER-0617: Track if in main() for exit code handling
         boxed_dyn_write_vars: HashSet::new(), // DEPYLER-0625: Track vars needing Box<dyn Write>
         function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
-        option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
+        option_unwrap_map: HashMap::new(),   // DEPYLER-0627: Track Option unwrap substitutions
         narrowed_option_vars: HashSet::new(), // DEPYLER-1151: Track narrowed Options after None check
         type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions for generic inference
         current_assign_type: None, // DEPYLER-0727: Track assignment target type for dict Value wrapping
@@ -2514,13 +2783,13 @@ fn generate_rust_file_internal(
         adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
         function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
         mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
-        mut_option_params: HashSet::new(), // DEPYLER-1126: Track ALL &mut Option<T> params
+        mut_option_params: HashSet::new(),    // DEPYLER-1126: Track ALL &mut Option<T> params
         module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
         #[cfg(feature = "sovereign-types")]
         type_query: load_type_database(), // DEPYLER-1114: Auto-load Sovereign Type Database
         last_external_call_return_type: None, // DEPYLER-1113: External call return type
-        type_overrides: HashMap::new(), // DEPYLER-1101: Oracle-learned type overrides
-        vars_used_later: HashSet::new(), // DEPYLER-1168: Call-site clone detection
+        type_overrides: HashMap::new(),       // DEPYLER-1101: Oracle-learned type overrides
+        vars_used_later: HashSet::new(),      // DEPYLER-1168: Call-site clone detection
     };
 
     // DEPYLER-1137: Enable DepylerValue enum when module aliases are present
@@ -2621,10 +2890,8 @@ fn generate_rust_file_internal(
     for class in &module.classes {
         // Track constructor return type: ClassName() -> Type::Custom("ClassName")
         // This enables type inference for expressions like `p = Point(3, 4)`
-        ctx.function_return_types.insert(
-            class.name.clone(),
-            Type::Custom(class.name.clone()),
-        );
+        ctx.function_return_types
+            .insert(class.name.clone(), Type::Custom(class.name.clone()));
 
         for method in &class.methods {
             // Skip __init__ and __new__ which don't have meaningful return types for inference
@@ -2644,7 +2911,8 @@ fn generate_rust_file_internal(
     // Convert classes first (they might be used by functions)
     // DEPYLER-0648: Pass vararg_functions for proper call site generation
     // DEPYLER-0936: Also get child→parent mapping for ADT type rewriting
-    let (classes, adt_child_to_parent) = convert_classes_to_rust(&module.classes, ctx.type_mapper, &ctx.vararg_functions)?;
+    let (classes, adt_child_to_parent) =
+        convert_classes_to_rust(&module.classes, ctx.type_mapper, &ctx.vararg_functions)?;
     ctx.adt_child_to_parent = adt_child_to_parent;
 
     // DEPYLER-1060: Pre-register module-level constant types BEFORE function conversion
@@ -2653,16 +2921,14 @@ fn generate_rust_file_internal(
     // Uses module_constant_types (not var_types) because var_types is cleared per-function
     for constant in &module.constants {
         let const_type = match &constant.value {
-            HirExpr::Dict(_) => Some(Type::Dict(
-                Box::new(Type::Unknown),
-                Box::new(Type::Unknown),
-            )),
+            HirExpr::Dict(_) => Some(Type::Dict(Box::new(Type::Unknown), Box::new(Type::Unknown))),
             HirExpr::List(_) => Some(Type::List(Box::new(Type::Unknown))),
             HirExpr::Set(_) => Some(Type::Set(Box::new(Type::Unknown))),
             _ => None,
         };
         if let Some(t) = const_type {
-            ctx.module_constant_types.insert(constant.name.clone(), t.clone());
+            ctx.module_constant_types
+                .insert(constant.name.clone(), t.clone());
         }
     }
 
@@ -2676,12 +2942,19 @@ fn generate_rust_file_internal(
     // DEPYLER-1016: Pass NASA mode to skip external crate imports
     let import_mapper = crate::module_mapper::ModuleMapper::new();
     let nasa_mode = ctx.type_mapper.nasa_mode;
-    items.extend(generate_import_tokens(&module.imports, &import_mapper, nasa_mode));
+    items.extend(generate_import_tokens(
+        &module.imports,
+        &import_mapper,
+        nasa_mode,
+    ));
 
     // DEPYLER-197: Add type aliases (before constants, after imports)
     // Python type aliases like `EventHandler = Callable[[str], None]`
     // must be transpiled as Rust type aliases
-    items.extend(generate_type_alias_tokens(&module.type_aliases, ctx.type_mapper));
+    items.extend(generate_type_alias_tokens(
+        &module.type_aliases,
+        ctx.type_mapper,
+    ));
 
     // Add interned string constants
     items.extend(generate_interned_string_tokens(&ctx.string_optimizer));
@@ -4238,6 +4511,200 @@ fn generate_rust_file_internal(
                 }
             }
 
+            // DEPYLER-1307: Vec element-wise operations for NumPy semantics
+            // vec_a - vec_b, vec_a * vec_b, vec_a / vec_b (element-wise)
+
+            // Element-wise subtraction: [1.0, 2.0] - [0.5, 0.5] = [0.5, 1.5]
+            impl PySub<Vec<f64>> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_sub(self, rhs: Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+                }
+            }
+
+            impl PySub<&Vec<f64>> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_sub(self, rhs: &Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+                }
+            }
+
+            impl PySub<Vec<f64>> for &Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_sub(self, rhs: Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+                }
+            }
+
+            impl PySub<&Vec<f64>> for &Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_sub(self, rhs: &Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+                }
+            }
+
+            impl PySub<Vec<f32>> for Vec<f32> {
+                type Output = Vec<f32>;
+                fn py_sub(self, rhs: Vec<f32>) -> Vec<f32> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+                }
+            }
+
+            impl PySub<Vec<i64>> for Vec<i64> {
+                type Output = Vec<i64>;
+                fn py_sub(self, rhs: Vec<i64>) -> Vec<i64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+                }
+            }
+
+            impl PySub<Vec<i32>> for Vec<i32> {
+                type Output = Vec<i32>;
+                fn py_sub(self, rhs: Vec<i32>) -> Vec<i32> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a - b).collect()
+                }
+            }
+
+            // Element-wise multiplication: [2.0, 3.0] * [4.0, 5.0] = [8.0, 15.0]
+            impl PyMul<Vec<f64>> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_mul(self, rhs: Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+                }
+            }
+
+            impl PyMul<&Vec<f64>> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_mul(self, rhs: &Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+                }
+            }
+
+            impl PyMul<Vec<f64>> for &Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_mul(self, rhs: Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+                }
+            }
+
+            impl PyMul<&Vec<f64>> for &Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_mul(self, rhs: &Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+                }
+            }
+
+            impl PyMul<Vec<f32>> for Vec<f32> {
+                type Output = Vec<f32>;
+                fn py_mul(self, rhs: Vec<f32>) -> Vec<f32> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+                }
+            }
+
+            impl PyMul<Vec<i64>> for Vec<i64> {
+                type Output = Vec<i64>;
+                fn py_mul(self, rhs: Vec<i64>) -> Vec<i64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+                }
+            }
+
+            impl PyMul<Vec<i32>> for Vec<i32> {
+                type Output = Vec<i32>;
+                fn py_mul(self, rhs: Vec<i32>) -> Vec<i32> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| a * b).collect()
+                }
+            }
+
+            // Element-wise division: [8.0, 15.0] / [2.0, 3.0] = [4.0, 5.0]
+            impl PyDiv<Vec<f64>> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_div(self, rhs: Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b }).collect()
+                }
+            }
+
+            impl PyDiv<&Vec<f64>> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_div(self, rhs: &Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b }).collect()
+                }
+            }
+
+            impl PyDiv<Vec<f64>> for &Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_div(self, rhs: Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b }).collect()
+                }
+            }
+
+            impl PyDiv<&Vec<f64>> for &Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_div(self, rhs: &Vec<f64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| if *b == 0.0 { f64::NAN } else { a / b }).collect()
+                }
+            }
+
+            impl PyDiv<Vec<f32>> for Vec<f32> {
+                type Output = Vec<f32>;
+                fn py_div(self, rhs: Vec<f32>) -> Vec<f32> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| if *b == 0.0 { f32::NAN } else { a / b }).collect()
+                }
+            }
+
+            // Vec<i64>/Vec<i32> division returns Vec<f64> (Python 3 semantics)
+            impl PyDiv<Vec<i64>> for Vec<i64> {
+                type Output = Vec<f64>;
+                fn py_div(self, rhs: Vec<i64>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| if *b == 0 { f64::NAN } else { *a as f64 / *b as f64 }).collect()
+                }
+            }
+
+            impl PyDiv<Vec<i32>> for Vec<i32> {
+                type Output = Vec<f64>;
+                fn py_div(self, rhs: Vec<i32>) -> Vec<f64> {
+                    self.iter().zip(rhs.iter()).map(|(a, b)| if *b == 0 { f64::NAN } else { *a as f64 / *b as f64 }).collect()
+                }
+            }
+
+            // Scalar-vector operations for broadcasting: vec * scalar, scalar * vec
+            impl PyMul<f64> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_mul(self, rhs: f64) -> Vec<f64> {
+                    self.iter().map(|a| a * rhs).collect()
+                }
+            }
+
+            impl PyMul<Vec<f64>> for f64 {
+                type Output = Vec<f64>;
+                fn py_mul(self, rhs: Vec<f64>) -> Vec<f64> {
+                    rhs.iter().map(|a| a * self).collect()
+                }
+            }
+
+            impl PyDiv<f64> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_div(self, rhs: f64) -> Vec<f64> {
+                    if rhs == 0.0 {
+                        self.iter().map(|_| f64::NAN).collect()
+                    } else {
+                        self.iter().map(|a| a / rhs).collect()
+                    }
+                }
+            }
+
+            impl PySub<f64> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_sub(self, rhs: f64) -> Vec<f64> {
+                    self.iter().map(|a| a - rhs).collect()
+                }
+            }
+
+            impl PyAdd<f64> for Vec<f64> {
+                type Output = Vec<f64>;
+                fn py_add(self, rhs: f64) -> Vec<f64> {
+                    self.iter().map(|a| a + rhs).collect()
+                }
+            }
+
             // === PyDiv implementations ===
             // Python 3: division always returns float
 
@@ -5539,20 +6006,61 @@ fn generate_rust_file_internal(
     // Add all functions
     items.extend(functions);
 
-    // DEPYLER-1216: Generate stub main() if no entry point exists
+    // DEPYLER-1216: Generate main() for scripts without an explicit entry point
     // A Rust binary MUST have fn main(). If the Python script has no main() or
-    // `if __name__ == "__main__":` block, we generate a stub to enable compilation.
+    // `if __name__ == "__main__":` block, we generate one that wraps top-level statements.
     let has_main = module.functions.iter().any(|f| f.name == "main");
     if !has_main {
-        let stub_main = quote::quote! {
-            /// DEPYLER-1216: Auto-generated entry point for standalone compilation
-            /// This file was transpiled from a Python module without an explicit main.
-            /// Add a main() function or `if __name__ == "__main__":` block to customize.
-            pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-                Ok(())
+        // DEPYLER-1216: Check if there are top-level statements to wrap
+        if !module.top_level_stmts.is_empty() {
+            // Generate a semantic main() that wraps the top-level script statements
+            let mut main_body_tokens = Vec::new();
+            for stmt in &module.top_level_stmts {
+                match stmt.to_rust_tokens(&mut ctx) {
+                    Ok(tokens) => main_body_tokens.push(tokens),
+                    Err(e) => {
+                        // Log warning but continue - fallback to stub behavior for failed conversion
+                        eprintln!(
+                            "DEPYLER-1216: Warning - failed to convert top-level statement: {}",
+                            e
+                        );
+                    }
+                }
             }
-        };
-        items.push(stub_main);
+            if !main_body_tokens.is_empty() {
+                let semantic_main = quote::quote! {
+                    /// DEPYLER-1216: Auto-generated entry point wrapping top-level script statements
+                    /// This file was transpiled from a Python script with executable top-level code.
+                    pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+                        #(#main_body_tokens)*
+                        Ok(())
+                    }
+                };
+                items.push(semantic_main);
+            } else {
+                // Fallback to stub if no statements converted successfully
+                let stub_main = quote::quote! {
+                    /// DEPYLER-1216: Auto-generated entry point for standalone compilation
+                    /// This file was transpiled from a Python module without an explicit main.
+                    /// Add a main() function or `if __name__ == "__main__":` block to customize.
+                    pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+                        Ok(())
+                    }
+                };
+                items.push(stub_main);
+            }
+        } else {
+            // No top-level statements - generate empty stub
+            let stub_main = quote::quote! {
+                /// DEPYLER-1216: Auto-generated entry point for standalone compilation
+                /// This file was transpiled from a Python module without an explicit main.
+                /// Add a main() function or `if __name__ == "__main__":` block to customize.
+                pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+                    Ok(())
+                }
+            };
+            items.push(stub_main);
+        }
     }
 
     // Generate tests for all functions in a single test module
@@ -5637,27 +6145,27 @@ fn generate_rust_file_internal(
         // DEPYLER-1036: Handle both single-line and multi-line patterns
         formatted_code = formatted_code.replace(
             "base64::engine::general_purpose::STANDARD.encode(",
-            "format!(\"{:?}\", "
+            "format!(\"{:?}\", ",
         );
         formatted_code = formatted_code.replace(
             "base64::engine::general_purpose::STANDARD\n        .encode(",
-            "format!(\"{:?}\", "
+            "format!(\"{:?}\", ",
         );
         formatted_code = formatted_code.replace(
             "base64::engine::general_purpose::STANDARD.decode(",
-            "format!(\"{:?}\", "
+            "format!(\"{:?}\", ",
         );
         formatted_code = formatted_code.replace(
             "base64::engine::general_purpose::STANDARD\n        .decode(",
-            "format!(\"{:?}\", "
+            "format!(\"{:?}\", ",
         );
         formatted_code = formatted_code.replace(
             "base64::engine::general_purpose::URL_SAFE.encode(",
-            "format!(\"{:?}\", "
+            "format!(\"{:?}\", ",
         );
         formatted_code = formatted_code.replace(
             "base64::engine::general_purpose::URL_SAFE\n        .encode(",
-            "format!(\"{:?}\", "
+            "format!(\"{:?}\", ",
         );
 
         // Also replace import statements and remaining usages
@@ -5676,11 +6184,22 @@ fn generate_rust_file_internal(
         // DEPYLER-1036: Replace sha2 usages with std format stubs
         formatted_code = formatted_code.replace("use sha2::Digest;\n", "");
         formatted_code = formatted_code.replace("use sha2 :: Digest;\n", "");
-        formatted_code = formatted_code.replace("sha2::Sha256::new()", "std::collections::hash_map::DefaultHasher::new()");
-        formatted_code = formatted_code.replace("sha2 :: Sha256 :: new()", "std::collections::hash_map::DefaultHasher::new()");
-        formatted_code = formatted_code.replace("Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>",
-            "format!(\"sha256_stub\")");
-        formatted_code = formatted_code.replace("sha2::Sha512::new()", "std::collections::hash_map::DefaultHasher::new()");
+        formatted_code = formatted_code.replace(
+            "sha2::Sha256::new()",
+            "std::collections::hash_map::DefaultHasher::new()",
+        );
+        formatted_code = formatted_code.replace(
+            "sha2 :: Sha256 :: new()",
+            "std::collections::hash_map::DefaultHasher::new()",
+        );
+        formatted_code = formatted_code.replace(
+            "Box::new(sha2::Sha256::new()) as Box<dyn DynDigest>",
+            "format!(\"sha256_stub\")",
+        );
+        formatted_code = formatted_code.replace(
+            "sha2::Sha512::new()",
+            "std::collections::hash_map::DefaultHasher::new()",
+        );
 
         // DEPYLER-1036: Remove DynDigest and digest traits
         formatted_code = formatted_code.replace("use digest::DynDigest;\n", "");
@@ -5701,17 +6220,33 @@ fn generate_rust_file_internal(
         // DEPYLER-1036: Remove .unwrap() after format! (format! returns String, not Result)
         // Note: Be specific about which unwrap() to remove - don't use generic patterns
         // that would remove valid unwrap() calls (e.g., after .get_mut())
-        formatted_code = formatted_code.replace("format!(\"{:?}\", encoded)\n        .unwrap()", "format!(\"{:?}\", encoded)");
-        formatted_code = formatted_code.replace("format!(\"{:?}\", data)\n        .unwrap()", "format!(\"{:?}\", data)");
-        formatted_code = formatted_code.replace("format!(\"{:?}\", b\"\")\n        .unwrap()", "format!(\"{:?}\", b\"\")");
+        formatted_code = formatted_code.replace(
+            "format!(\"{:?}\", encoded)\n        .unwrap()",
+            "format!(\"{:?}\", encoded)",
+        );
+        formatted_code = formatted_code.replace(
+            "format!(\"{:?}\", data)\n        .unwrap()",
+            "format!(\"{:?}\", data)",
+        );
+        formatted_code = formatted_code.replace(
+            "format!(\"{:?}\", b\"\")\n        .unwrap()",
+            "format!(\"{:?}\", b\"\")",
+        );
         // Remove .unwrap() only after specific format! patterns, not generically
-        formatted_code = formatted_code.replace("format!(\"{:?}\", original)\n        .unwrap()", "format!(\"{:?}\", original)");
+        formatted_code = formatted_code.replace(
+            "format!(\"{:?}\", original)\n        .unwrap()",
+            "format!(\"{:?}\", original)",
+        );
 
         // DEPYLER-1036: Replace csv with std::io stubs
-        formatted_code = formatted_code.replace("csv::Reader::from_reader(", "std::io::BufReader::new(");
-        formatted_code = formatted_code.replace("csv::Writer::from_writer(", "std::io::BufWriter::new(");
-        formatted_code = formatted_code.replace("csv::ReaderBuilder::new().has_headers(true).from_reader(",
-            "std::io::BufReader::new(");
+        formatted_code =
+            formatted_code.replace("csv::Reader::from_reader(", "std::io::BufReader::new(");
+        formatted_code =
+            formatted_code.replace("csv::Writer::from_writer(", "std::io::BufWriter::new(");
+        formatted_code = formatted_code.replace(
+            "csv::ReaderBuilder::new().has_headers(true).from_reader(",
+            "std::io::BufReader::new(",
+        );
 
         // DEPYLER-1036: Replace walkdir with std::fs stubs
         formatted_code = formatted_code.replace("walkdir::WalkDir::new(", "std::fs::read_dir(");
@@ -5740,25 +6275,38 @@ fn generate_rust_file_internal(
         // DEPYLER-1037: Remove clap derive macros and attributes for NASA mode
         // clap is an external crate that can't be used in single-shot compile
         // Add Default derive so Args::default() works as a stub for Args::parse()
-        formatted_code = formatted_code.replace("#[derive(clap::Parser)]\n", "#[derive(Default)]\n");
-        formatted_code = formatted_code.replace("#[derive(clap :: Parser)]\n", "#[derive(Default)]\n");
-        formatted_code = formatted_code.replace("#[derive(clap::Parser, Debug)]\n", "#[derive(Debug, Default)]\n");
-        formatted_code = formatted_code.replace("#[derive(clap::Parser, Debug, Clone)]\n", "#[derive(Debug, Clone, Default)]\n");
+        formatted_code =
+            formatted_code.replace("#[derive(clap::Parser)]\n", "#[derive(Default)]\n");
+        formatted_code =
+            formatted_code.replace("#[derive(clap :: Parser)]\n", "#[derive(Default)]\n");
+        formatted_code = formatted_code.replace(
+            "#[derive(clap::Parser, Debug)]\n",
+            "#[derive(Debug, Default)]\n",
+        );
+        formatted_code = formatted_code.replace(
+            "#[derive(clap::Parser, Debug, Clone)]\n",
+            "#[derive(Debug, Clone, Default)]\n",
+        );
         // DEPYLER-1052: Also handle inline patterns (no newline after derive)
         formatted_code = formatted_code.replace("#[derive(clap::Parser)] ", "#[derive(Default)] ");
-        formatted_code = formatted_code.replace("#[derive(clap :: Parser)] ", "#[derive(Default)] ");
+        formatted_code =
+            formatted_code.replace("#[derive(clap :: Parser)] ", "#[derive(Default)] ");
         // DEPYLER-1048: Fix Commands enum for subcommands
         // Add Default derive to Commands enum and add a default unit variant
-        formatted_code = formatted_code.replace("#[derive(clap::Subcommand)]\n", "#[derive(Default)]\n");
-        formatted_code = formatted_code.replace("#[derive(clap :: Subcommand)]\n", "#[derive(Default)]\n");
+        formatted_code =
+            formatted_code.replace("#[derive(clap::Subcommand)]\n", "#[derive(Default)]\n");
+        formatted_code =
+            formatted_code.replace("#[derive(clap :: Subcommand)]\n", "#[derive(Default)]\n");
         // DEPYLER-1088: Also handle inline patterns (no newline after derive)
-        formatted_code = formatted_code.replace("#[derive(clap::Subcommand)] ", "#[derive(Default)] ");
-        formatted_code = formatted_code.replace("#[derive(clap :: Subcommand)] ", "#[derive(Default)] ");
+        formatted_code =
+            formatted_code.replace("#[derive(clap::Subcommand)] ", "#[derive(Default)] ");
+        formatted_code =
+            formatted_code.replace("#[derive(clap :: Subcommand)] ", "#[derive(Default)] ");
         // Add a default unit variant to Commands enum
         // Pattern: "enum Commands {\n" -> "enum Commands {\n    #[default]\n    __DepylerNone,\n"
         formatted_code = formatted_code.replace(
             "enum Commands {\n",
-            "enum Commands {\n    #[default]\n    __DepylerNone,\n"
+            "enum Commands {\n    #[default]\n    __DepylerNone,\n",
         );
         // Add catch-all arm for the new variant in match statements
         // This is simpler than wrapping with Option
@@ -6011,21 +6559,21 @@ mod tests {
             needs_hmac: false,
             needs_crc32: false,
             needs_url_encoding: false,
-            needs_sha1: false,      // DEPYLER-1001: sha1 crate
-            needs_statrs: false,    // DEPYLER-1001: statrs crate
-            needs_url: false,       // DEPYLER-1001: url crate
-            needs_io_read: false,   // DEPYLER-0458
-            needs_io_write: false,  // DEPYLER-0458
-            needs_bufread: false,   // DEPYLER-0522
-            needs_once_cell: false, // DEPYLER-REARCH-001
-            needs_lazy_lock: false, // DEPYLER-1016
-            needs_trueno: false,    // Phase 3: NumPy→Trueno codegen
-            numpy_vars: HashSet::new(), // DEPYLER-0932: Track numpy array variables
-            needs_glob: false,      // DEPYLER-0829: glob crate for Path.glob()/rglob()
-            needs_tokio: false,     // DEPYLER-0747: asyncio→tokio async runtime mapping
+            needs_sha1: false,                // DEPYLER-1001: sha1 crate
+            needs_statrs: false,              // DEPYLER-1001: statrs crate
+            needs_url: false,                 // DEPYLER-1001: url crate
+            needs_io_read: false,             // DEPYLER-0458
+            needs_io_write: false,            // DEPYLER-0458
+            needs_bufread: false,             // DEPYLER-0522
+            needs_once_cell: false,           // DEPYLER-REARCH-001
+            needs_lazy_lock: false,           // DEPYLER-1016
+            needs_trueno: false,              // Phase 3: NumPy→Trueno codegen
+            numpy_vars: HashSet::new(),       // DEPYLER-0932: Track numpy array variables
+            needs_glob: false,                // DEPYLER-0829: glob crate for Path.glob()/rglob()
+            needs_tokio: false,               // DEPYLER-0747: asyncio→tokio async runtime mapping
             needs_completed_process: false, // DEPYLER-0627: subprocess.run returns CompletedProcess struct
             vararg_functions: HashSet::new(), // DEPYLER-0648: Track functions with *args
-            slice_params: HashSet::new(),     // DEPYLER-1150: Track slice params in current function
+            slice_params: HashSet::new(),   // DEPYLER-1150: Track slice params in current function
             declared_vars: vec![HashSet::new()],
             current_function_can_fail: false,
             current_return_type: None,
@@ -6062,7 +6610,7 @@ mod tests {
             function_param_muts: std::collections::HashMap::new(), // DEPYLER-0574: Track &mut parameters
             tuple_iter_vars: HashSet::new(), // DEPYLER-0307 Fix #9: Track tuple iteration variables
             iterator_vars: HashSet::new(), // DEPYLER-0520: Track variables assigned from iterators
-            ref_params: HashSet::new(),      // DEPYLER-0758: Track parameters passed by reference
+            ref_params: HashSet::new(),    // DEPYLER-0758: Track parameters passed by reference
             mut_ref_params: HashSet::new(), // DEPYLER-1217: Track parameters passed by mutable reference
             is_final_statement: false, // DEPYLER-0271: Track final statement for expression-based returns
             result_bool_functions: HashSet::new(), // DEPYLER-0308: Track functions returning Result<bool>
@@ -6084,7 +6632,7 @@ mod tests {
             nested_function_params: std::collections::HashMap::new(), // GH-70: Track inferred nested function params
             fn_str_params: HashSet::new(), // DEPYLER-0543: Track function params with str type
             needs_digest: false,           // DEPYLER-0558: Track digest crate dependency
-            in_cmd_handler: false, // DEPYLER-0608: Track if in cmd_* handler function
+            in_cmd_handler: false,         // DEPYLER-0608: Track if in cmd_* handler function
             cmd_handler_args_fields: Vec::new(), // DEPYLER-0608: Track extracted args.X fields
             in_subcommand_match_arm: false, // DEPYLER-0608: Track if in subcommand match arm
             subcommand_match_fields: Vec::new(), // DEPYLER-0608: Track subcommand fields in match arm
@@ -6092,34 +6640,34 @@ mod tests {
             is_main_function: false, // DEPYLER-0617: Track if in main() for exit code handling
             boxed_dyn_write_vars: HashSet::new(), // DEPYLER-0625: Track vars needing Box<dyn Write>
             function_returns_boxed_write: false, // DEPYLER-0626: Track functions returning Box<dyn Write>
-            option_unwrap_map: HashMap::new(), // DEPYLER-0627: Track Option unwrap substitutions
+            option_unwrap_map: HashMap::new(),   // DEPYLER-0627: Track Option unwrap substitutions
             narrowed_option_vars: HashSet::new(), // DEPYLER-1151: Track narrowed Options after None check
             function_param_defaults: HashMap::new(), // Track function parameter defaults
             class_field_defaults: HashMap::new(), // DEPYLER-0932: Dataclass field defaults
             function_param_optionals: HashMap::new(), // DEPYLER-0737: Track Optional params
-            class_field_types: HashMap::new(), // DEPYLER-0720: Track class field types
-            type_substitutions: HashMap::new(), // DEPYLER-0716: Track type substitutions
-            current_assign_type: None, // DEPYLER-0727: Track assignment target type
-            force_dict_value_option_wrap: false, // DEPYLER-0741
+            class_field_types: HashMap::new(),    // DEPYLER-0720: Track class field types
+            type_substitutions: HashMap::new(),   // DEPYLER-0716: Track type substitutions
+            current_assign_type: None,            // DEPYLER-0727: Track assignment target type
+            force_dict_value_option_wrap: false,  // DEPYLER-0741
             char_iter_vars: HashSet::new(), // DEPYLER-0795: Track loop vars iterating over string.chars()
             char_counter_vars: HashSet::new(), // DEPYLER-0821: Track Counter vars from strings
             adt_child_to_parent: HashMap::new(), // DEPYLER-0936: Track ADT child→parent mappings
             function_param_types: HashMap::new(), // DEPYLER-0950: Track param types for literal coercion
             mut_option_dict_params: HashSet::new(), // DEPYLER-0964: Track &mut Option<Dict> params
-            mut_option_params: HashSet::new(), // DEPYLER-1126: Track ALL &mut Option<T> params
-            needs_depyler_value_enum: false, // DEPYLER-1051: Track DepylerValue enum need
-            needs_python_string_ops: false, // DEPYLER-1202: Python string ops trait
-            needs_python_int_ops: false,    // DEPYLER-1202: Python int ops trait
+            mut_option_params: HashSet::new(),    // DEPYLER-1126: Track ALL &mut Option<T> params
+            needs_depyler_value_enum: false,      // DEPYLER-1051: Track DepylerValue enum need
+            needs_python_string_ops: false,       // DEPYLER-1202: Python string ops trait
+            needs_python_int_ops: false,          // DEPYLER-1202: Python int ops trait
             needs_depyler_date: false,
             needs_depyler_datetime: false,
-        needs_depyler_timedelta: false,
+            needs_depyler_timedelta: false,
             module_constant_types: HashMap::new(), // DEPYLER-1060: Track module-level constant types
             needs_depyler_regex_match: false, // DEPYLER-1070: Track DepylerRegexMatch struct need
             #[cfg(feature = "sovereign-types")]
             type_query: None, // DEPYLER-1112
             last_external_call_return_type: None, // DEPYLER-1113
-            type_overrides: HashMap::new(), // DEPYLER-1101: Oracle-learned type overrides
-            vars_used_later: HashSet::new(), // DEPYLER-1168: Call-site clone detection
+            type_overrides: HashMap::new(),   // DEPYLER-1101: Oracle-learned type overrides
+            vars_used_later: HashSet::new(),  // DEPYLER-1168: Call-site clone detection
         }
     }
 
@@ -7035,11 +7583,7 @@ mod tests {
     #[test]
     fn test_infer_unary_type_neg_int() {
         let mut ctx = create_test_context();
-        let result = infer_unary_type(
-            &UnaryOp::Neg,
-            &HirExpr::Literal(Literal::Int(42)),
-            &mut ctx,
-        );
+        let result = infer_unary_type(&UnaryOp::Neg, &HirExpr::Literal(Literal::Int(42)), &mut ctx);
         assert!(result.to_string().contains("i32"));
     }
 
@@ -7057,11 +7601,7 @@ mod tests {
     #[test]
     fn test_infer_unary_type_pos_int() {
         let mut ctx = create_test_context();
-        let result = infer_unary_type(
-            &UnaryOp::Pos,
-            &HirExpr::Literal(Literal::Int(10)),
-            &mut ctx,
-        );
+        let result = infer_unary_type(&UnaryOp::Pos, &HirExpr::Literal(Literal::Int(10)), &mut ctx);
         assert!(result.to_string().contains("i32"));
     }
 
@@ -7097,13 +7637,13 @@ mod tests {
     fn test_infer_unary_type_not_returns_bool() {
         // DEPYLER-1040b: Logical NOT always returns bool, not a fallback type
         let mut ctx = create_test_context();
-        let result = infer_unary_type(
-            &UnaryOp::Not,
-            &HirExpr::Var("x".to_string()),
-            &mut ctx,
-        );
+        let result = infer_unary_type(&UnaryOp::Not, &HirExpr::Var("x".to_string()), &mut ctx);
         let result_str = result.to_string();
-        assert!(result_str.contains("bool"), "Expected bool type for NOT, got: {}", result_str);
+        assert!(
+            result_str.contains("bool"),
+            "Expected bool type for NOT, got: {}",
+            result_str
+        );
     }
 
     #[test]
@@ -7142,9 +7682,10 @@ mod tests {
             object: Box::new(HirExpr::Var("parser".to_string())),
             method: "add_argument".to_string(),
             args: vec![HirExpr::Literal(Literal::String("--value".to_string()))],
-            kwargs: vec![
-                ("type".to_string(), HirExpr::Var("validate_positive".to_string())),
-            ],
+            kwargs: vec![(
+                "type".to_string(),
+                HirExpr::Var("validate_positive".to_string()),
+            )],
         };
         scan_expr_for_validators(&expr, &mut ctx);
         assert!(ctx.validator_functions.contains("validate_positive"));
@@ -7159,9 +7700,7 @@ mod tests {
                 object: Box::new(HirExpr::Var("parser".to_string())),
                 method: "add_argument".to_string(),
                 args: vec![],
-                kwargs: vec![
-                    ("type".to_string(), HirExpr::Var(builtin.to_string())),
-                ],
+                kwargs: vec![("type".to_string(), HirExpr::Var(builtin.to_string()))],
             };
             scan_expr_for_validators(&expr, &mut ctx);
         }
@@ -7175,9 +7714,7 @@ mod tests {
             object: Box::new(HirExpr::Var("parser".to_string())),
             method: "parse_args".to_string(),
             args: vec![],
-            kwargs: vec![
-                ("type".to_string(), HirExpr::Var("my_validator".to_string())),
-            ],
+            kwargs: vec![("type".to_string(), HirExpr::Var("my_validator".to_string()))],
         };
         scan_expr_for_validators(&expr, &mut ctx);
         // parse_args is not add_argument, so validator should not be tracked
@@ -7187,16 +7724,12 @@ mod tests {
     #[test]
     fn test_scan_stmts_for_validators_expr_stmt() {
         let mut ctx = create_test_context();
-        let stmts = vec![
-            HirStmt::Expr(HirExpr::MethodCall {
-                object: Box::new(HirExpr::Var("parser".to_string())),
-                method: "add_argument".to_string(),
-                args: vec![],
-                kwargs: vec![
-                    ("type".to_string(), HirExpr::Var("custom_type".to_string())),
-                ],
-            }),
-        ];
+        let stmts = vec![HirStmt::Expr(HirExpr::MethodCall {
+            object: Box::new(HirExpr::Var("parser".to_string())),
+            method: "add_argument".to_string(),
+            args: vec![],
+            kwargs: vec![("type".to_string(), HirExpr::Var("custom_type".to_string()))],
+        })];
         scan_stmts_for_validators(&stmts, &mut ctx);
         assert!(ctx.validator_functions.contains("custom_type"));
     }
@@ -7204,22 +7737,16 @@ mod tests {
     #[test]
     fn test_scan_stmts_for_validators_if_body() {
         let mut ctx = create_test_context();
-        let stmts = vec![
-            HirStmt::If {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![
-                    HirStmt::Expr(HirExpr::MethodCall {
-                        object: Box::new(HirExpr::Var("parser".to_string())),
-                        method: "add_argument".to_string(),
-                        args: vec![],
-                        kwargs: vec![
-                            ("type".to_string(), HirExpr::Var("if_validator".to_string())),
-                        ],
-                    }),
-                ],
-                else_body: None,
-            },
-        ];
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("parser".to_string())),
+                method: "add_argument".to_string(),
+                args: vec![],
+                kwargs: vec![("type".to_string(), HirExpr::Var("if_validator".to_string()))],
+            })],
+            else_body: None,
+        }];
         scan_stmts_for_validators(&stmts, &mut ctx);
         assert!(ctx.validator_functions.contains("if_validator"));
     }
@@ -7227,22 +7754,19 @@ mod tests {
     #[test]
     fn test_scan_stmts_for_validators_else_body() {
         let mut ctx = create_test_context();
-        let stmts = vec![
-            HirStmt::If {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                then_body: vec![HirStmt::Pass],
-                else_body: Some(vec![
-                    HirStmt::Expr(HirExpr::MethodCall {
-                        object: Box::new(HirExpr::Var("parser".to_string())),
-                        method: "add_argument".to_string(),
-                        args: vec![],
-                        kwargs: vec![
-                            ("type".to_string(), HirExpr::Var("else_validator".to_string())),
-                        ],
-                    }),
-                ]),
-            },
-        ];
+        let stmts = vec![HirStmt::If {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            then_body: vec![HirStmt::Pass],
+            else_body: Some(vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("parser".to_string())),
+                method: "add_argument".to_string(),
+                args: vec![],
+                kwargs: vec![(
+                    "type".to_string(),
+                    HirExpr::Var("else_validator".to_string()),
+                )],
+            })]),
+        }];
         scan_stmts_for_validators(&stmts, &mut ctx);
         assert!(ctx.validator_functions.contains("else_validator"));
     }
@@ -7250,21 +7774,18 @@ mod tests {
     #[test]
     fn test_scan_stmts_for_validators_while_body() {
         let mut ctx = create_test_context();
-        let stmts = vec![
-            HirStmt::While {
-                condition: HirExpr::Literal(Literal::Bool(true)),
-                body: vec![
-                    HirStmt::Expr(HirExpr::MethodCall {
-                        object: Box::new(HirExpr::Var("parser".to_string())),
-                        method: "add_argument".to_string(),
-                        args: vec![],
-                        kwargs: vec![
-                            ("type".to_string(), HirExpr::Var("while_validator".to_string())),
-                        ],
-                    }),
-                ],
-            },
-        ];
+        let stmts = vec![HirStmt::While {
+            condition: HirExpr::Literal(Literal::Bool(true)),
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("parser".to_string())),
+                method: "add_argument".to_string(),
+                args: vec![],
+                kwargs: vec![(
+                    "type".to_string(),
+                    HirExpr::Var("while_validator".to_string()),
+                )],
+            })],
+        }];
         scan_stmts_for_validators(&stmts, &mut ctx);
         assert!(ctx.validator_functions.contains("while_validator"));
     }
@@ -7272,22 +7793,19 @@ mod tests {
     #[test]
     fn test_scan_stmts_for_validators_for_body() {
         let mut ctx = create_test_context();
-        let stmts = vec![
-            HirStmt::For {
-                target: crate::hir::AssignTarget::Symbol("i".to_string()),
-                iter: HirExpr::Var("items".to_string()),
-                body: vec![
-                    HirStmt::Expr(HirExpr::MethodCall {
-                        object: Box::new(HirExpr::Var("parser".to_string())),
-                        method: "add_argument".to_string(),
-                        args: vec![],
-                        kwargs: vec![
-                            ("type".to_string(), HirExpr::Var("for_validator".to_string())),
-                        ],
-                    }),
-                ],
-            },
-        ];
+        let stmts = vec![HirStmt::For {
+            target: crate::hir::AssignTarget::Symbol("i".to_string()),
+            iter: HirExpr::Var("items".to_string()),
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("parser".to_string())),
+                method: "add_argument".to_string(),
+                args: vec![],
+                kwargs: vec![(
+                    "type".to_string(),
+                    HirExpr::Var("for_validator".to_string()),
+                )],
+            })],
+        }];
         scan_stmts_for_validators(&stmts, &mut ctx);
         assert!(ctx.validator_functions.contains("for_validator"));
     }
@@ -7311,7 +7829,10 @@ mod tests {
     #[test]
     fn test_infer_constant_type_string() {
         let mut ctx = create_test_context();
-        let result = infer_constant_type(&HirExpr::Literal(Literal::String("hello".to_string())), &mut ctx);
+        let result = infer_constant_type(
+            &HirExpr::Literal(Literal::String("hello".to_string())),
+            &mut ctx,
+        );
         assert!(result.to_string().contains("str"));
     }
 
@@ -7393,13 +7914,11 @@ mod tests {
     #[test]
     fn test_analyze_mutable_vars_param_reassignment() {
         let mut ctx = create_test_context();
-        let stmts = vec![
-            HirStmt::Assign {
-                target: crate::hir::AssignTarget::Symbol("a".to_string()),
-                value: HirExpr::Literal(Literal::Int(100)),
-                type_annotation: None,
-            },
-        ];
+        let stmts = vec![HirStmt::Assign {
+            target: crate::hir::AssignTarget::Symbol("a".to_string()),
+            value: HirExpr::Literal(Literal::Int(100)),
+            type_annotation: None,
+        }];
         let params = vec![HirParam::new("a".to_string(), Type::Int)];
         analyze_mutable_vars(&stmts, &mut ctx, &params);
         // Parameter 'a' is reassigned, so it should be marked mutable
@@ -7429,17 +7948,15 @@ mod tests {
 
     #[test]
     fn test_detect_adt_patterns_no_inheritance() {
-        let classes = vec![
-            HirClass {
-                name: "Point".to_string(),
-                base_classes: vec![],
-                type_params: vec![],
-                fields: vec![],
-                methods: vec![],
-                is_dataclass: true,
-                docstring: None,
-            },
-        ];
+        let classes = vec![HirClass {
+            name: "Point".to_string(),
+            base_classes: vec![],
+            type_params: vec![],
+            fields: vec![],
+            methods: vec![],
+            is_dataclass: true,
+            docstring: None,
+        }];
         let result = detect_adt_patterns(&classes);
         assert!(result.abc_to_children.is_empty());
     }
@@ -7486,8 +8003,14 @@ mod tests {
         assert!(children.contains(&"Some".to_string()));
         assert!(children.contains(&"Nothing".to_string()));
         // Check reverse mapping
-        assert_eq!(result.child_to_parent.get("Some"), Some(&"Option".to_string()));
-        assert_eq!(result.child_to_parent.get("Nothing"), Some(&"Option".to_string()));
+        assert_eq!(
+            result.child_to_parent.get("Some"),
+            Some(&"Option".to_string())
+        );
+        assert_eq!(
+            result.child_to_parent.get("Nothing"),
+            Some(&"Option".to_string())
+        );
     }
 
     // === Tests for generate_interned_string_tokens ===
@@ -7512,17 +8035,17 @@ mod tests {
     #[test]
     fn test_analyze_string_optimization_with_function() {
         let mut ctx = create_test_context();
-        let functions = vec![
-            HirFunction {
-                name: "greet".to_string(),
-                params: vec![HirParam::new("name".to_string(), Type::String)].into(),
-                ret_type: Type::String,
-                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String("Hello".to_string()))))],
-                properties: FunctionProperties::default(),
-                annotations: TranspilationAnnotations::default(),
-                docstring: None,
-            },
-        ];
+        let functions = vec![HirFunction {
+            name: "greet".to_string(),
+            params: vec![HirParam::new("name".to_string(), Type::String)].into(),
+            ret_type: Type::String,
+            body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::String(
+                "Hello".to_string(),
+            ))))],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        }];
         analyze_string_optimization(&mut ctx, &functions);
         // Should complete without error
     }
@@ -7532,26 +8055,20 @@ mod tests {
     #[test]
     fn test_analyze_validators_from_function() {
         let mut ctx = create_test_context();
-        let functions = vec![
-            HirFunction {
-                name: "setup_args".to_string(),
-                params: vec![].into(),
-                ret_type: Type::None,
-                body: vec![
-                    HirStmt::Expr(HirExpr::MethodCall {
-                        object: Box::new(HirExpr::Var("parser".to_string())),
-                        method: "add_argument".to_string(),
-                        args: vec![],
-                        kwargs: vec![
-                            ("type".to_string(), HirExpr::Var("my_validator".to_string())),
-                        ],
-                    }),
-                ],
-                properties: FunctionProperties::default(),
-                annotations: TranspilationAnnotations::default(),
-                docstring: None,
-            },
-        ];
+        let functions = vec![HirFunction {
+            name: "setup_args".to_string(),
+            params: vec![].into(),
+            ret_type: Type::None,
+            body: vec![HirStmt::Expr(HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("parser".to_string())),
+                method: "add_argument".to_string(),
+                args: vec![],
+                kwargs: vec![("type".to_string(), HirExpr::Var("my_validator".to_string()))],
+            })],
+            properties: FunctionProperties::default(),
+            annotations: TranspilationAnnotations::default(),
+            docstring: None,
+        }];
         let constants: Vec<HirConstant> = vec![];
         analyze_validators(&mut ctx, &functions, &constants);
         assert!(ctx.validator_functions.contains("my_validator"));
@@ -7561,20 +8078,19 @@ mod tests {
     fn test_analyze_validators_from_constant() {
         let mut ctx = create_test_context();
         let functions: Vec<HirFunction> = vec![];
-        let constants = vec![
-            HirConstant {
-                name: "PARSER_SETUP".to_string(),
-                value: HirExpr::MethodCall {
-                    object: Box::new(HirExpr::Var("parser".to_string())),
-                    method: "add_argument".to_string(),
-                    args: vec![],
-                    kwargs: vec![
-                        ("type".to_string(), HirExpr::Var("const_validator".to_string())),
-                    ],
-                },
-                type_annotation: None,
+        let constants = vec![HirConstant {
+            name: "PARSER_SETUP".to_string(),
+            value: HirExpr::MethodCall {
+                object: Box::new(HirExpr::Var("parser".to_string())),
+                method: "add_argument".to_string(),
+                args: vec![],
+                kwargs: vec![(
+                    "type".to_string(),
+                    HirExpr::Var("const_validator".to_string()),
+                )],
             },
-        ];
+            type_annotation: None,
+        }];
         analyze_validators(&mut ctx, &functions, &constants);
         assert!(ctx.validator_functions.contains("const_validator"));
     }
@@ -7589,22 +8105,21 @@ mod tests {
         use smallvec::smallvec;
 
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_func".to_string(),
-                    params: smallvec![],
-                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
-                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_func".to_string(),
+                params: smallvec![],
+                ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
         let type_mapper = TypeMapper::default();
         let result = generate_rust_file(&module, &type_mapper).unwrap();
@@ -7616,7 +8131,8 @@ mod tests {
             "Generated code should contain PyTruthy trait definition"
         );
         assert!(
-            code.contains("fn is_true(& self) -> bool") || code.contains("fn is_true(&self) -> bool"),
+            code.contains("fn is_true(& self) -> bool")
+                || code.contains("fn is_true(&self) -> bool"),
             "PyTruthy trait should define is_true method"
         );
 
@@ -7656,22 +8172,21 @@ mod tests {
         use smallvec::smallvec;
 
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_func".to_string(),
-                    params: smallvec![],
-                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
-                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_func".to_string(),
+                params: smallvec![],
+                ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
         let type_mapper = TypeMapper::default();
         let result = generate_rust_file(&module, &type_mapper).unwrap();
@@ -7679,19 +8194,23 @@ mod tests {
 
         // Verify collection implementations (check with both spacing options)
         assert!(
-            code.contains("impl < T > PyTruthy for Vec < T >") || code.contains("impl<T> PyTruthy for Vec<T>"),
+            code.contains("impl < T > PyTruthy for Vec < T >")
+                || code.contains("impl<T> PyTruthy for Vec<T>"),
             "Should implement PyTruthy for Vec<T>"
         );
         assert!(
-            code.contains("impl < T > PyTruthy for Option < T >") || code.contains("impl<T> PyTruthy for Option<T>"),
+            code.contains("impl < T > PyTruthy for Option < T >")
+                || code.contains("impl<T> PyTruthy for Option<T>"),
             "Should implement PyTruthy for Option<T>"
         );
         assert!(
-            code.contains("PyTruthy for std :: collections :: HashMap") || code.contains("PyTruthy for std::collections::HashMap"),
+            code.contains("PyTruthy for std :: collections :: HashMap")
+                || code.contains("PyTruthy for std::collections::HashMap"),
             "Should implement PyTruthy for HashMap"
         );
         assert!(
-            code.contains("PyTruthy for std :: collections :: HashSet") || code.contains("PyTruthy for std::collections::HashSet"),
+            code.contains("PyTruthy for std :: collections :: HashSet")
+                || code.contains("PyTruthy for std::collections::HashSet"),
             "Should implement PyTruthy for HashSet"
         );
     }
@@ -7704,29 +8223,28 @@ mod tests {
         use smallvec::smallvec;
 
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "simple_add".to_string(),
-                    params: smallvec![
-                        HirParam::new("a".to_string(), Type::Int),
-                        HirParam::new("b".to_string(), Type::Int),
-                    ],
-                    ret_type: Type::Int,
-                    body: vec![HirStmt::Return(Some(HirExpr::Binary {
-                        op: BinOp::Add,
-                        left: Box::new(HirExpr::Var("a".to_string())),
-                        right: Box::new(HirExpr::Var("b".to_string())),
-                    }))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "simple_add".to_string(),
+                params: smallvec![
+                    HirParam::new("a".to_string(), Type::Int),
+                    HirParam::new("b".to_string(), Type::Int),
+                ],
+                ret_type: Type::Int,
+                body: vec![HirStmt::Return(Some(HirExpr::Binary {
+                    op: BinOp::Add,
+                    left: Box::new(HirExpr::Var("a".to_string())),
+                    right: Box::new(HirExpr::Var("b".to_string())),
+                }))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
         let type_mapper = TypeMapper::default();
         let result = generate_rust_file(&module, &type_mapper).unwrap();
@@ -7751,22 +8269,21 @@ mod tests {
         use smallvec::smallvec;
 
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_func".to_string(),
-                    params: smallvec![],
-                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
-                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_func".to_string(),
+                params: smallvec![],
+                ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
         let type_mapper = TypeMapper::default();
         let result = generate_rust_file(&module, &type_mapper).unwrap();
@@ -7824,22 +8341,21 @@ mod tests {
         use smallvec::smallvec;
 
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_func".to_string(),
-                    params: smallvec![],
-                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
-                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_func".to_string(),
+                params: smallvec![],
+                ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
         let type_mapper = TypeMapper::default();
         let result = generate_rust_file(&module, &type_mapper).unwrap();
@@ -7875,22 +8391,21 @@ mod tests {
         use smallvec::smallvec;
 
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_func".to_string(),
-                    params: smallvec![],
-                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
-                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_func".to_string(),
+                params: smallvec![],
+                ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
         let type_mapper = TypeMapper::default();
         let result = generate_rust_file(&module, &type_mapper).unwrap();
@@ -7921,22 +8436,21 @@ mod tests {
         use smallvec::smallvec;
 
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_func".to_string(),
-                    params: smallvec![],
-                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
-                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_func".to_string(),
+                params: smallvec![],
+                ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![])))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
         let type_mapper = TypeMapper::default();
         let result = generate_rust_file(&module, &type_mapper).unwrap();
@@ -7976,28 +8490,31 @@ mod tests {
         // Create a module with a function that uses heterogeneous dict (triggers DepylerValue)
         // The function has Dict<String, Unknown> which forces NASA mode DepylerValue usage
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_add".to_string(),
-                    params: smallvec![],
-                    // Dict with mixed types - this triggers DepylerValue in NASA mode
-                    ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
-                    body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![
-                        (HirExpr::Literal(Literal::String("a".to_string())),
-                         HirExpr::Literal(Literal::Int(1))),
-                        (HirExpr::Literal(Literal::String("b".to_string())),
-                         HirExpr::Literal(Literal::Float(2.5))),
-                    ])))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_add".to_string(),
+                params: smallvec![],
+                // Dict with mixed types - this triggers DepylerValue in NASA mode
+                ret_type: Type::Dict(Box::new(Type::String), Box::new(Type::Unknown)),
+                body: vec![HirStmt::Return(Some(HirExpr::Dict(vec![
+                    (
+                        HirExpr::Literal(Literal::String("a".to_string())),
+                        HirExpr::Literal(Literal::Int(1)),
+                    ),
+                    (
+                        HirExpr::Literal(Literal::String("b".to_string())),
+                        HirExpr::Literal(Literal::Float(2.5)),
+                    ),
+                ])))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
 
         // Use NASA mode TypeMapper
@@ -8009,7 +8526,10 @@ mod tests {
 
         // Verify the function is generated and code contains PyOps traits
         assert!(code.contains("fn test_add"), "Should have the function");
-        assert!(code.contains("pub trait PyAdd"), "Should include PyAdd trait");
+        assert!(
+            code.contains("pub trait PyAdd"),
+            "Should include PyAdd trait"
+        );
     }
 
     /// DEPYLER-1106: Verify PyOps codegen includes DepylerValue trait implementations
@@ -8019,23 +8539,22 @@ mod tests {
         use smallvec::smallvec;
 
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_ops".to_string(),
-                    params: smallvec![],
-                    // Return Unknown type to trigger DepylerValue
-                    ret_type: Type::Unknown,
-                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_ops".to_string(),
+                params: smallvec![],
+                // Return Unknown type to trigger DepylerValue
+                ret_type: Type::Unknown,
+                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(42))))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
 
         let mut type_mapper = TypeMapper::default();
@@ -8064,22 +8583,23 @@ mod tests {
 
         // Create module that triggers PyOps trait generation
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_cross_type".to_string(),
-                    params: smallvec![],
-                    ret_type: Type::Unknown, // Triggers DepylerValue
-                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(3.15))))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_cross_type".to_string(),
+                params: smallvec![],
+                ret_type: Type::Unknown, // Triggers DepylerValue
+                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Float(
+                    3.15,
+                ))))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
 
         let mut type_mapper = TypeMapper::default();
@@ -8106,22 +8626,21 @@ mod tests {
         use smallvec::smallvec;
 
         let module = HirModule {
-            functions: vec![
-                HirFunction {
-                    name: "test_index".to_string(),
-                    params: smallvec![],
-                    ret_type: Type::Unknown,
-                    body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))],
-                    properties: FunctionProperties::default(),
-                    annotations: TranspilationAnnotations::default(),
-                    docstring: None,
-                },
-            ],
+            functions: vec![HirFunction {
+                name: "test_index".to_string(),
+                params: smallvec![],
+                ret_type: Type::Unknown,
+                body: vec![HirStmt::Return(Some(HirExpr::Literal(Literal::Int(0))))],
+                properties: FunctionProperties::default(),
+                annotations: TranspilationAnnotations::default(),
+                docstring: None,
+            }],
             classes: vec![],
             constants: vec![],
             imports: vec![],
             type_aliases: vec![],
             protocols: vec![],
+            top_level_stmts: vec![],
         };
 
         let mut type_mapper = TypeMapper::default();
@@ -8188,6 +8707,9 @@ mod tests {
         }
 
         // Unknown types fallback
-        assert!(matches!(rust_type_string_to_hir("CustomType"), Type::Unknown));
+        assert!(matches!(
+            rust_type_string_to_hir("CustomType"),
+            Type::Unknown
+        ));
     }
 }

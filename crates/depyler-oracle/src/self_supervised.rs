@@ -214,7 +214,13 @@ impl SyntheticGenerator for PythonExampleGenerator {
         }
 
         // Contains the target function
-        if generated.source.contains(generated.target_function.split('.').next_back().unwrap_or("")) {
+        if generated.source.contains(
+            generated
+                .target_function
+                .split('.')
+                .next_back()
+                .unwrap_or(""),
+        ) {
             score += 0.2;
         }
 
@@ -391,7 +397,12 @@ impl CorpusMetrics {
             return 0.0;
         }
         let max = *self.category_distribution.values().max().unwrap_or(&0) as f32;
-        let min = *self.category_distribution.values().min().unwrap_or(&1).max(&1) as f32;
+        let min = *self
+            .category_distribution
+            .values()
+            .min()
+            .unwrap_or(&1)
+            .max(&1) as f32;
         max / min
     }
 }
@@ -453,7 +464,11 @@ impl SelfSupervisedCorpusGenerator {
         // Process compile errors
         for error in &result.compile_errors {
             let category = auto_label(error);
-            *self.metrics.category_distribution.entry(category).or_insert(0) += 1;
+            *self
+                .metrics
+                .category_distribution
+                .entry(category)
+                .or_insert(0) += 1;
         }
 
         self.metrics.accepted += 1;
@@ -511,7 +526,12 @@ impl GenerationParams {
     /// Create from a parameter vector (DE solution).
     #[must_use]
     pub fn from_vec(params: &[f64]) -> Self {
-        assert!(params.len() >= Self::DIM, "Need {} params, got {}", Self::DIM, params.len());
+        assert!(
+            params.len() >= Self::DIM,
+            "Need {} params, got {}",
+            Self::DIM,
+            params.len()
+        );
 
         // Normalize strategy weights to sum to 1.0
         let weight_sum = params[0] + params[1] + params[2] + params[3] + params[4];
@@ -561,7 +581,10 @@ impl GenerationParams {
         weights.insert(GenerationStrategy::DocstringMining, self.weight_docstring);
         weights.insert(GenerationStrategy::TypeEnumeration, self.weight_type_enum);
         weights.insert(GenerationStrategy::EdgeCases, self.weight_edge_cases);
-        weights.insert(GenerationStrategy::ErrorInduction, self.weight_error_induction);
+        weights.insert(
+            GenerationStrategy::ErrorInduction,
+            self.weight_error_induction,
+        );
         weights.insert(GenerationStrategy::Composition, self.weight_composition);
         weights
     }
@@ -913,14 +936,12 @@ impl Evaluator {
     /// Find the best result by overall score.
     #[must_use]
     pub fn best_result(&self) -> Option<&BenchmarkResult> {
-        self.results
-            .iter()
-            .max_by(|a, b| {
-                a.metrics
-                    .overall_score()
-                    .partial_cmp(&b.metrics.overall_score())
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            })
+        self.results.iter().max_by(|a, b| {
+            a.metrics
+                .overall_score()
+                .partial_cmp(&b.metrics.overall_score())
+                .unwrap_or(std::cmp::Ordering::Equal)
+        })
     }
 
     /// Calculate baseline metrics for comparison.
@@ -1213,7 +1234,12 @@ pub fn run_optimization(
         .collect();
 
     optimizer.optimize(|params| {
-        evaluate_fitness_with_curriculum(params, &eval_funcs, config.eval_samples, config.use_curriculum)
+        evaluate_fitness_with_curriculum(
+            params,
+            &eval_funcs,
+            config.eval_samples,
+            config.use_curriculum,
+        )
     })
 }
 
@@ -1239,7 +1265,8 @@ fn evaluate_fitness_with_curriculum(
         let strategies = level.strategies();
 
         // Adjust params for current level's strategies
-        let level_fitness = evaluate_level_fitness(params, stdlib_funcs, &strategies, samples_per_level);
+        let level_fitness =
+            evaluate_level_fitness(params, stdlib_funcs, &strategies, samples_per_level);
         total_fitness += level_fitness * level.weight();
         level_count += 1;
 
@@ -1367,10 +1394,7 @@ impl CorpusFixPredictor {
 
     /// Add an extracted fix to the predictor.
     pub fn add_fix(&mut self, fix: ExtractedFix) {
-        self.patterns
-            .entry(fix.category)
-            .or_default()
-            .push(fix);
+        self.patterns.entry(fix.category).or_default().push(fix);
         self.pattern_count += 1;
     }
 
@@ -1485,10 +1509,16 @@ mod tests {
         let gen = PythonExampleGenerator::new(funcs.clone());
         let config = SyntheticConfig::default();
 
-        let examples = gen.generate(&funcs, &config).expect("generation should succeed");
+        let examples = gen
+            .generate(&funcs, &config)
+            .expect("generation should succeed");
 
         // Should generate at least docstring + type + error examples
-        assert!(examples.len() >= 2, "Expected at least 2 examples, got {}", examples.len());
+        assert!(
+            examples.len() >= 2,
+            "Expected at least 2 examples, got {}",
+            examples.len()
+        );
     }
 
     #[test]
@@ -1504,7 +1534,11 @@ mod tests {
         };
 
         let score = gen.quality_score(&good_example, &func);
-        assert!(score >= 0.7, "Good example should have high quality score: {}", score);
+        assert!(
+            score >= 0.7,
+            "Good example should have high quality score: {}",
+            score
+        );
     }
 
     #[test]
@@ -1534,7 +1568,11 @@ mod tests {
         ];
 
         let score = SyntheticGenerator::diversity_score(&gen, &examples);
-        assert!(score > 0.5, "Diverse examples should have high diversity: {:.2}", score);
+        assert!(
+            score > 0.5,
+            "Diverse examples should have high diversity: {:.2}",
+            score
+        );
     }
 
     // ========================================================================
@@ -1648,9 +1686,15 @@ mod tests {
     #[test]
     fn test_corpus_metrics_imbalance_ratio() {
         let mut metrics = CorpusMetrics::default();
-        metrics.category_distribution.insert(ErrorCategory::TypeMismatch, 100);
-        metrics.category_distribution.insert(ErrorCategory::BorrowChecker, 50);
-        metrics.category_distribution.insert(ErrorCategory::Other, 10);
+        metrics
+            .category_distribution
+            .insert(ErrorCategory::TypeMismatch, 100);
+        metrics
+            .category_distribution
+            .insert(ErrorCategory::BorrowChecker, 50);
+        metrics
+            .category_distribution
+            .insert(ErrorCategory::Other, 10);
 
         assert!((metrics.imbalance_ratio() - 10.0).abs() < f32::EPSILON);
     }
@@ -1687,7 +1731,12 @@ mod tests {
 
         assert!(gen.add_result(&result));
         assert_eq!(gen.metrics().accepted, 1);
-        assert_eq!(gen.metrics().category_distribution.get(&ErrorCategory::TypeMismatch), Some(&1));
+        assert_eq!(
+            gen.metrics()
+                .category_distribution
+                .get(&ErrorCategory::TypeMismatch),
+            Some(&1)
+        );
     }
 
     #[test]
@@ -1777,7 +1826,10 @@ mod tests {
             + params.weight_edge_cases
             + params.weight_error_induction
             + params.weight_composition;
-        assert!((weight_sum - 1.0).abs() < 0.001, "Weights should be normalized");
+        assert!(
+            (weight_sum - 1.0).abs() < 0.001,
+            "Weights should be normalized"
+        );
 
         // Quality threshold preserved
         assert!((params.quality_threshold - 0.75).abs() < 0.001);
@@ -1977,9 +2029,15 @@ mod tests {
             diversity_score: 0.8,
             ..Default::default()
         };
-        corpus_metrics.category_distribution.insert(ErrorCategory::TypeMismatch, 300);
-        corpus_metrics.category_distribution.insert(ErrorCategory::BorrowChecker, 200);
-        corpus_metrics.category_distribution.insert(ErrorCategory::Other, 500);
+        corpus_metrics
+            .category_distribution
+            .insert(ErrorCategory::TypeMismatch, 300);
+        corpus_metrics
+            .category_distribution
+            .insert(ErrorCategory::BorrowChecker, 200);
+        corpus_metrics
+            .category_distribution
+            .insert(ErrorCategory::Other, 500);
 
         let eval_metrics = EvaluationMetrics::from_corpus(&corpus_metrics, 0.92, 0.88);
 
@@ -2262,7 +2320,10 @@ mod tests {
             + DifficultyLevel::Advanced.weight()
             + DifficultyLevel::Expert.weight();
 
-        assert!((total_weight - 1.0).abs() < 0.001, "Weights should sum to 1.0");
+        assert!(
+            (total_weight - 1.0).abs() < 0.001,
+            "Weights should sum to 1.0"
+        );
     }
 
     #[test]

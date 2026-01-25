@@ -28,7 +28,10 @@ pub fn convert_functools_method(
 
     let result = match method {
         "reduce" => convert_reduce(&arg_exprs)?,
-        _ => bail!("functools.{} not implemented yet (available: reduce)", method),
+        _ => bail!(
+            "functools.{} not implemented yet (available: reduce)",
+            method
+        ),
     };
 
     Ok(Some(result))
@@ -155,7 +158,8 @@ mod tests {
 
     #[test]
     fn test_convert_reduce_direct_three_args() {
-        let arg_exprs: Vec<syn::Expr> = vec![parse_quote!(add), parse_quote!(nums), parse_quote!(0)];
+        let arg_exprs: Vec<syn::Expr> =
+            vec![parse_quote!(add), parse_quote!(nums), parse_quote!(0)];
         let result = convert_reduce(&arg_exprs);
         assert!(result.is_ok());
     }

@@ -162,7 +162,6 @@ pub fn parse_rustc_errors(stderr: &str, file: &Path) -> Vec<CompilationError> {
             //         "    |"
             //         "123 |     source_code_here"
             for next_line in lines.iter().skip(i + 1).take(9) {
-
                 // Extract line number from location
                 if next_line.trim().starts_with("-->") {
                     if let Some(loc) = parse_location(next_line) {
@@ -583,50 +582,44 @@ mod tests {
 
     #[test]
     fn test_with_display_mode() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"))
-            .with_display_mode(DisplayMode::Minimal);
+        let compiler =
+            BatchCompiler::new(Path::new("/tmp")).with_display_mode(DisplayMode::Minimal);
         assert!(matches!(compiler.display_mode, DisplayMode::Minimal));
     }
 
     #[test]
     fn test_with_display_mode_json() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"))
-            .with_display_mode(DisplayMode::Json);
+        let compiler = BatchCompiler::new(Path::new("/tmp")).with_display_mode(DisplayMode::Json);
         assert!(matches!(compiler.display_mode, DisplayMode::Json));
     }
 
     #[test]
     fn test_with_display_mode_silent() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"))
-            .with_display_mode(DisplayMode::Silent);
+        let compiler = BatchCompiler::new(Path::new("/tmp")).with_display_mode(DisplayMode::Silent);
         assert!(matches!(compiler.display_mode, DisplayMode::Silent));
     }
 
     #[test]
     fn test_with_display_mode_rich() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"))
-            .with_display_mode(DisplayMode::Rich);
+        let compiler = BatchCompiler::new(Path::new("/tmp")).with_display_mode(DisplayMode::Rich);
         assert!(matches!(compiler.display_mode, DisplayMode::Rich));
     }
 
     #[test]
     fn test_with_parallel_jobs() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"))
-            .with_parallel_jobs(8);
+        let compiler = BatchCompiler::new(Path::new("/tmp")).with_parallel_jobs(8);
         assert_eq!(compiler.parallel_jobs, 8);
     }
 
     #[test]
     fn test_with_parallel_jobs_single() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"))
-            .with_parallel_jobs(1);
+        let compiler = BatchCompiler::new(Path::new("/tmp")).with_parallel_jobs(1);
         assert_eq!(compiler.parallel_jobs, 1);
     }
 
     #[test]
     fn test_with_parallel_jobs_large() {
-        let compiler = BatchCompiler::new(Path::new("/tmp"))
-            .with_parallel_jobs(256);
+        let compiler = BatchCompiler::new(Path::new("/tmp")).with_parallel_jobs(256);
         assert_eq!(compiler.parallel_jobs, 256);
     }
 
