@@ -3,19 +3,28 @@
 //! Provides AST-to-vector embeddings for both Python HIR and Rust AST,
 //! enabling semantic structural comparison beyond text-based features.
 //!
-//! ## Architecture
+//! ## Architecture (Phase 2 Upgrade)
 //!
 //! ```text
-//! Python Source → HIR → Path Contexts → Code2Vec Embedding
-//!                                              │
-//!                                              ▼
-//!                                       Combined Features
-//!                                              ↑
-//! Rust Source → AST → Path Contexts → Code2Vec Embedding
+//! Python Source → rustpython-parser → AST → Path Contexts → Code2Vec Embedding
+//!                                                                  │
+//!                                                                  ▼
+//!                                                           Combined Features
+//!                                                                  ↑
+//! Rust Source → syn::parse_file → AST → Path Contexts → Code2Vec Embedding
 //! ```
+//!
+//! ## Phase 2 Features (GH-210)
+//!
+//! - Proper Python AST via `rustpython-parser` (not heuristic line parsing)
+//! - Proper Rust AST via `syn` crate
+//! - Enhanced path context extraction with AST node types
+//! - Function signature, parameter, and body analysis
 
 use aprender::primitives::Matrix;
+use rustpython_parser::{parse, Mode};
 use serde::{Deserialize, Serialize};
+use syn::visit::Visit;
 
 /// Configuration for AST embedding extraction
 #[derive(Debug, Clone)]
@@ -82,6 +91,498 @@ impl AstEmbedding {
     }
 }
 
+// =============================================================================
+// GH-210 Phase 2: Python AST Visitor using rustpython-parser
+// =============================================================================
+
+/// Visitor for extracting path contexts from Python AST
+struct PythonPathVisitor {
+    paths: Vec<PathContext>,
+    max_path_length: usize,
+    current_path: Vec<String>,
+}
+
+impl PythonPathVisitor {
+    fn new(max_path_length: usize) -> Self {
+        Self {
+            paths: Vec::new(),
+            max_path_length,
+            current_path: Vec::new(),
+        }
+    }
+
+    /// Visit a parsed Python module
+    fn visit_module(&mut self, module: &rustpython_parser::ast::Mod) {
+        use rustpython_parser::ast::*;
+
+        match module {
+            Mod::Module(ModModule { body, .. }) => {
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+            }
+            Mod::Interactive(ModInteractive { body, .. }) => {
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+            }
+            Mod::Expression(ModExpression { body, .. }) => {
+                self.visit_expr(body);
+            }
+            Mod::FunctionType(_) => {}
+        }
+    }
+
+    fn visit_stmt(&mut self, stmt: &rustpython_parser::ast::Stmt) {
+        use rustpython_parser::ast::*;
+
+        match stmt {
+            Stmt::FunctionDef(StmtFunctionDef { name, args, body, .. }) => {
+                self.current_path.push("FunctionDef".to_string());
+
+                // Path: FunctionDef -> name
+                self.paths.push(PathContext {
+                    start_terminal: "FunctionDef".to_string(),
+                    path: self.current_path.join("|"),
+                    end_terminal: name.to_string(),
+                });
+
+                // Extract parameter names
+                for arg in &args.args {
+                    self.paths.push(PathContext {
+                        start_terminal: name.to_string(),
+                        path: "FunctionDef|arguments|arg".to_string(),
+                        end_terminal: arg.def.arg.to_string(),
+                    });
+                }
+
+                // Visit body statements
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+
+                self.current_path.pop();
+            }
+            Stmt::AsyncFunctionDef(StmtAsyncFunctionDef { name, args, body, .. }) => {
+                self.current_path.push("AsyncFunctionDef".to_string());
+
+                self.paths.push(PathContext {
+                    start_terminal: "AsyncFunctionDef".to_string(),
+                    path: self.current_path.join("|"),
+                    end_terminal: name.to_string(),
+                });
+
+                for arg in &args.args {
+                    self.paths.push(PathContext {
+                        start_terminal: name.to_string(),
+                        path: "AsyncFunctionDef|arguments|arg".to_string(),
+                        end_terminal: arg.def.arg.to_string(),
+                    });
+                }
+
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+
+                self.current_path.pop();
+            }
+            Stmt::ClassDef(StmtClassDef { name, body, .. }) => {
+                self.current_path.push("ClassDef".to_string());
+
+                self.paths.push(PathContext {
+                    start_terminal: "ClassDef".to_string(),
+                    path: self.current_path.join("|"),
+                    end_terminal: name.to_string(),
+                });
+
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+
+                self.current_path.pop();
+            }
+            Stmt::Assign(StmtAssign { targets, value, .. }) => {
+                for target in targets {
+                    if let Expr::Name(ExprName { id, .. }) = target {
+                        let value_type = self.expr_type_name(value);
+                        self.paths.push(PathContext {
+                            start_terminal: id.to_string(),
+                            path: "Assign".to_string(),
+                            end_terminal: value_type,
+                        });
+                    }
+                }
+                self.visit_expr(value);
+            }
+            Stmt::AnnAssign(StmtAnnAssign { target, value, annotation, .. }) => {
+                if let Expr::Name(ExprName { id, .. }) = target.as_ref() {
+                    let ann_type = self.expr_type_name(annotation);
+                    self.paths.push(PathContext {
+                        start_terminal: id.to_string(),
+                        path: "AnnAssign".to_string(),
+                        end_terminal: ann_type,
+                    });
+                }
+                if let Some(val) = value {
+                    self.visit_expr(val);
+                }
+            }
+            Stmt::Return(StmtReturn { value, .. }) => {
+                if let Some(val) = value {
+                    let val_type = self.expr_type_name(val);
+                    self.paths.push(PathContext {
+                        start_terminal: "Return".to_string(),
+                        path: "return".to_string(),
+                        end_terminal: val_type,
+                    });
+                    self.visit_expr(val);
+                }
+            }
+            Stmt::For(StmtFor { target, iter, body, .. }) => {
+                self.current_path.push("For".to_string());
+
+                if let Expr::Name(ExprName { id, .. }) = target.as_ref() {
+                    self.paths.push(PathContext {
+                        start_terminal: id.to_string(),
+                        path: "For|target".to_string(),
+                        end_terminal: self.expr_type_name(iter),
+                    });
+                }
+
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+
+                self.current_path.pop();
+            }
+            Stmt::If(StmtIf { test, body, orelse, .. }) => {
+                self.current_path.push("If".to_string());
+                self.visit_expr(test);
+
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+                for stmt in orelse {
+                    self.visit_stmt(stmt);
+                }
+
+                self.current_path.pop();
+            }
+            Stmt::While(StmtWhile { test, body, .. }) => {
+                self.current_path.push("While".to_string());
+                self.visit_expr(test);
+
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+
+                self.current_path.pop();
+            }
+            Stmt::With(StmtWith { body, .. }) => {
+                self.current_path.push("With".to_string());
+
+                for stmt in body {
+                    self.visit_stmt(stmt);
+                }
+
+                self.current_path.pop();
+            }
+            Stmt::Expr(StmtExpr { value, .. }) => {
+                self.visit_expr(value);
+            }
+            _ => {}
+        }
+    }
+
+    fn visit_expr(&mut self, expr: &rustpython_parser::ast::Expr) {
+        use rustpython_parser::ast::*;
+
+        // Limit path depth
+        if self.current_path.len() >= self.max_path_length {
+            return;
+        }
+
+        match expr {
+            Expr::Call(ExprCall { func, args, .. }) => {
+                let func_name = self.expr_type_name(func);
+                self.paths.push(PathContext {
+                    start_terminal: "Call".to_string(),
+                    path: "call".to_string(),
+                    end_terminal: func_name,
+                });
+
+                for arg in args {
+                    self.visit_expr(arg);
+                }
+            }
+            Expr::BinOp(ExprBinOp { left, op, right, .. }) => {
+                let op_str = format!("{:?}", op);
+                self.paths.push(PathContext {
+                    start_terminal: self.expr_type_name(left),
+                    path: format!("BinOp|{}", op_str),
+                    end_terminal: self.expr_type_name(right),
+                });
+            }
+            Expr::Compare(ExprCompare { left, ops, comparators, .. }) => {
+                if !ops.is_empty() && !comparators.is_empty() {
+                    let op_str = format!("{:?}", ops[0]);
+                    self.paths.push(PathContext {
+                        start_terminal: self.expr_type_name(left),
+                        path: format!("Compare|{}", op_str),
+                        end_terminal: self.expr_type_name(&comparators[0]),
+                    });
+                }
+            }
+            Expr::Attribute(ExprAttribute { value, attr, .. }) => {
+                self.paths.push(PathContext {
+                    start_terminal: self.expr_type_name(value),
+                    path: "Attribute".to_string(),
+                    end_terminal: attr.to_string(),
+                });
+            }
+            Expr::Subscript(ExprSubscript { value, slice, .. }) => {
+                self.paths.push(PathContext {
+                    start_terminal: self.expr_type_name(value),
+                    path: "Subscript".to_string(),
+                    end_terminal: self.expr_type_name(slice),
+                });
+            }
+            Expr::List(ExprList { elts, .. }) | Expr::Tuple(ExprTuple { elts, .. }) => {
+                for elt in elts {
+                    self.visit_expr(elt);
+                }
+            }
+            Expr::Dict(ExprDict { keys, values, .. }) => {
+                for (key, val) in keys.iter().zip(values.iter()) {
+                    if let Some(k) = key {
+                        self.paths.push(PathContext {
+                            start_terminal: self.expr_type_name(k),
+                            path: "Dict".to_string(),
+                            end_terminal: self.expr_type_name(val),
+                        });
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Get a type name for an expression (for terminal nodes)
+    fn expr_type_name(&self, expr: &rustpython_parser::ast::Expr) -> String {
+        use rustpython_parser::ast::*;
+
+        match expr {
+            Expr::Name(ExprName { id, .. }) => id.to_string(),
+            Expr::Constant(ExprConstant { value, .. }) => match value {
+                Constant::Int(_) => "int".to_string(),
+                Constant::Float(_) => "float".to_string(),
+                Constant::Str(_) => "str".to_string(),
+                Constant::Bool(_) => "bool".to_string(),
+                Constant::None => "None".to_string(),
+                _ => "constant".to_string(),
+            },
+            Expr::List(_) => "list".to_string(),
+            Expr::Dict(_) => "dict".to_string(),
+            Expr::Tuple(_) => "tuple".to_string(),
+            Expr::Set(_) => "set".to_string(),
+            Expr::Call(ExprCall { func, .. }) => {
+                format!("{}()", self.expr_type_name(func))
+            }
+            Expr::Attribute(ExprAttribute { attr, .. }) => attr.to_string(),
+            _ => "expr".to_string(),
+        }
+    }
+}
+
+// =============================================================================
+// GH-210 Phase 2: Rust AST Visitor using syn
+// =============================================================================
+
+/// Visitor for extracting path contexts from Rust AST
+struct RustPathVisitor {
+    paths: Vec<PathContext>,
+    max_path_length: usize,
+    current_path: Vec<String>,
+}
+
+impl RustPathVisitor {
+    fn new(max_path_length: usize) -> Self {
+        Self {
+            paths: Vec::new(),
+            max_path_length,
+            current_path: Vec::new(),
+        }
+    }
+}
+
+impl<'ast> Visit<'ast> for RustPathVisitor {
+    fn visit_item_fn(&mut self, node: &'ast syn::ItemFn) {
+        self.current_path.push("ItemFn".to_string());
+
+        let func_name = node.sig.ident.to_string();
+        self.paths.push(PathContext {
+            start_terminal: "fn".to_string(),
+            path: self.current_path.join("|"),
+            end_terminal: func_name.clone(),
+        });
+
+        // Extract parameter names
+        for input in &node.sig.inputs {
+            if let syn::FnArg::Typed(pat_type) = input {
+                if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                    let param_name = pat_ident.ident.to_string();
+                    let type_str = quote::quote!(#pat_type.ty).to_string();
+                    self.paths.push(PathContext {
+                        start_terminal: func_name.clone(),
+                        path: "fn|param".to_string(),
+                        end_terminal: format!("{}:{}", param_name, type_str.chars().take(20).collect::<String>()),
+                    });
+                }
+            }
+        }
+
+        // Extract return type
+        if let syn::ReturnType::Type(_, ty) = &node.sig.output {
+            let ret_type = quote::quote!(#ty).to_string();
+            self.paths.push(PathContext {
+                start_terminal: func_name.clone(),
+                path: "fn|return".to_string(),
+                end_terminal: ret_type.chars().take(30).collect(),
+            });
+        }
+
+        syn::visit::visit_item_fn(self, node);
+        self.current_path.pop();
+    }
+
+    fn visit_impl_item_fn(&mut self, node: &'ast syn::ImplItemFn) {
+        self.current_path.push("ImplItemFn".to_string());
+
+        let method_name = node.sig.ident.to_string();
+        self.paths.push(PathContext {
+            start_terminal: "impl_fn".to_string(),
+            path: self.current_path.join("|"),
+            end_terminal: method_name.clone(),
+        });
+
+        // Extract parameter names
+        for input in &node.sig.inputs {
+            match input {
+                syn::FnArg::Receiver(_) => {
+                    self.paths.push(PathContext {
+                        start_terminal: method_name.clone(),
+                        path: "impl_fn|self".to_string(),
+                        end_terminal: "self".to_string(),
+                    });
+                }
+                syn::FnArg::Typed(pat_type) => {
+                    if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                        self.paths.push(PathContext {
+                            start_terminal: method_name.clone(),
+                            path: "impl_fn|param".to_string(),
+                            end_terminal: pat_ident.ident.to_string(),
+                        });
+                    }
+                }
+            }
+        }
+
+        syn::visit::visit_impl_item_fn(self, node);
+        self.current_path.pop();
+    }
+
+    fn visit_item_struct(&mut self, node: &'ast syn::ItemStruct) {
+        self.current_path.push("ItemStruct".to_string());
+
+        let struct_name = node.ident.to_string();
+        self.paths.push(PathContext {
+            start_terminal: "struct".to_string(),
+            path: self.current_path.join("|"),
+            end_terminal: struct_name.clone(),
+        });
+
+        // Extract field names
+        for field in &node.fields {
+            if let Some(ident) = &field.ident {
+                let field_name = ident.to_string();
+                let type_str = quote::quote!(#field.ty).to_string();
+                self.paths.push(PathContext {
+                    start_terminal: struct_name.clone(),
+                    path: "struct|field".to_string(),
+                    end_terminal: format!("{}:{}", field_name, type_str.chars().take(20).collect::<String>()),
+                });
+            }
+        }
+
+        syn::visit::visit_item_struct(self, node);
+        self.current_path.pop();
+    }
+
+    fn visit_item_impl(&mut self, node: &'ast syn::ItemImpl) {
+        self.current_path.push("ItemImpl".to_string());
+
+        let impl_type = quote::quote!(#node.self_ty).to_string();
+        self.paths.push(PathContext {
+            start_terminal: "impl".to_string(),
+            path: self.current_path.join("|"),
+            end_terminal: impl_type.chars().take(30).collect(),
+        });
+
+        syn::visit::visit_item_impl(self, node);
+        self.current_path.pop();
+    }
+
+    fn visit_local(&mut self, node: &'ast syn::Local) {
+        // Limit path depth
+        if self.current_path.len() >= self.max_path_length {
+            return;
+        }
+
+        if let syn::Pat::Ident(pat_ident) = &node.pat {
+            let var_name = pat_ident.ident.to_string();
+            let mutability = if pat_ident.mutability.is_some() { "mut " } else { "" };
+
+            self.paths.push(PathContext {
+                start_terminal: "let".to_string(),
+                path: "Local".to_string(),
+                end_terminal: format!("{}{}", mutability, var_name),
+            });
+        }
+
+        syn::visit::visit_local(self, node);
+    }
+
+    fn visit_expr_call(&mut self, node: &'ast syn::ExprCall) {
+        if self.current_path.len() >= self.max_path_length {
+            return;
+        }
+
+        let func_str = quote::quote!(#node.func).to_string();
+        self.paths.push(PathContext {
+            start_terminal: "call".to_string(),
+            path: "ExprCall".to_string(),
+            end_terminal: func_str.chars().take(30).collect(),
+        });
+
+        syn::visit::visit_expr_call(self, node);
+    }
+
+    fn visit_expr_method_call(&mut self, node: &'ast syn::ExprMethodCall) {
+        if self.current_path.len() >= self.max_path_length {
+            return;
+        }
+
+        let method_name = node.method.to_string();
+        self.paths.push(PathContext {
+            start_terminal: "method_call".to_string(),
+            path: "ExprMethodCall".to_string(),
+            end_terminal: method_name,
+        });
+
+        syn::visit::visit_expr_method_call(self, node);
+    }
+}
+
 /// AST Embedder for extracting Code2Vec-style embeddings
 pub struct AstEmbedder {
     config: AstEmbeddingConfig,
@@ -114,17 +615,36 @@ impl AstEmbedder {
         self.paths_to_embedding(&path_contexts, source)
     }
 
-    /// Extract path contexts from Python source
+    /// Extract path contexts from Python source using rustpython-parser (GH-210 Phase 2)
     fn extract_python_paths(&self, source: &str) -> Vec<PathContext> {
-        // Parse Python to HIR and extract paths
         let mut paths = Vec::new();
 
-        // Simple heuristic extraction for now - will use proper HIR later
-        // Look for function definitions and extract terminal pairs
+        // Parse Python source using rustpython-parser
+        let parsed = match parse(source, Mode::Module, "<embedded>") {
+            Ok(ast) => ast,
+            Err(_) => {
+                // Fall back to heuristic extraction on parse failure
+                return self.extract_python_paths_heuristic(source);
+            }
+        };
+
+        // Extract paths from the AST using visitor pattern
+        let mut visitor = PythonPathVisitor::new(self.config.max_path_length);
+        visitor.visit_module(&parsed);
+        paths.extend(visitor.paths);
+
+        // Limit to max contexts
+        paths.truncate(self.config.max_path_contexts);
+        paths
+    }
+
+    /// Fallback heuristic Python path extraction (when parser fails)
+    fn extract_python_paths_heuristic(&self, source: &str) -> Vec<PathContext> {
+        let mut paths = Vec::new();
+
         for line in source.lines() {
             let line = line.trim();
             if line.starts_with("def ") {
-                // Extract function name as a terminal
                 if let Some(name_end) = line.find('(') {
                     let func_name = line[4..name_end].trim();
                     paths.push(PathContext {
@@ -135,7 +655,6 @@ impl AstEmbedder {
                 }
             }
 
-            // Extract variable assignments
             if line.contains('=') && !line.contains("==") {
                 if let Some(eq_pos) = line.find('=') {
                     let lhs = line[..eq_pos].trim();
@@ -151,20 +670,40 @@ impl AstEmbedder {
             }
         }
 
+        paths.truncate(self.config.max_path_contexts);
+        paths
+    }
+
+    /// Extract path contexts from Rust source using syn (GH-210 Phase 2)
+    fn extract_rust_paths(&self, source: &str) -> Vec<PathContext> {
+        let mut paths = Vec::new();
+
+        // Parse Rust source using syn
+        let parsed = match syn::parse_file(source) {
+            Ok(file) => file,
+            Err(_) => {
+                // Fall back to heuristic extraction on parse failure
+                return self.extract_rust_paths_heuristic(source);
+            }
+        };
+
+        // Extract paths from the AST using visitor pattern
+        let mut visitor = RustPathVisitor::new(self.config.max_path_length);
+        visitor.visit_file(&parsed);
+        paths.extend(visitor.paths);
+
         // Limit to max contexts
         paths.truncate(self.config.max_path_contexts);
         paths
     }
 
-    /// Extract path contexts from Rust source
-    fn extract_rust_paths(&self, source: &str) -> Vec<PathContext> {
+    /// Fallback heuristic Rust path extraction (when syn fails)
+    fn extract_rust_paths_heuristic(&self, source: &str) -> Vec<PathContext> {
         let mut paths = Vec::new();
 
-        // Simple heuristic extraction - will use syn for proper AST
         for line in source.lines() {
             let line = line.trim();
 
-            // Function definitions
             if line.starts_with("fn ") || line.starts_with("pub fn ") {
                 let start = if line.starts_with("pub fn ") { 7 } else { 3 };
                 if let Some(paren) = line.find('(') {
@@ -177,7 +716,6 @@ impl AstEmbedder {
                 }
             }
 
-            // Let bindings
             if line.starts_with("let ") {
                 if let Some(eq_pos) = line.find('=') {
                     let binding = line[4..eq_pos].trim().trim_start_matches("mut ");
@@ -495,5 +1033,155 @@ def calculate(x, y):
             "Same source should produce same embedding"
         );
         assert_eq!(emb1.source_hash, emb2.source_hash);
+    }
+
+    // ==========================================================================
+    // GH-210 Phase 2: Proper AST Parsing Tests
+    // ==========================================================================
+
+    #[test]
+    fn test_phase2_python_proper_ast_parsing() {
+        // This tests that rustpython-parser is being used for proper AST extraction
+        let embedder = AstEmbedder::with_defaults();
+        let source = r#"
+def fibonacci(n: int) -> int:
+    if n <= 1:
+        return n
+    return fibonacci(n - 1) + fibonacci(n - 2)
+
+class Calculator:
+    def __init__(self, value: int = 0):
+        self.value = value
+
+    def add(self, x: int) -> int:
+        self.value += x
+        return self.value
+"#;
+        let embedding = embedder.embed_python(source);
+
+        // Should extract many path contexts with proper AST parsing
+        // Function defs, class def, method defs, parameters, returns, etc.
+        assert!(
+            embedding.path_count >= 8,
+            "Proper AST should extract many paths: got {}",
+            embedding.path_count
+        );
+    }
+
+    #[test]
+    fn test_phase2_rust_proper_ast_parsing() {
+        // This tests that syn is being used for proper Rust AST extraction
+        let embedder = AstEmbedder::with_defaults();
+        let source = r#"
+pub struct Calculator {
+    value: i32,
+}
+
+impl Calculator {
+    pub fn new(value: i32) -> Self {
+        Self { value }
+    }
+
+    pub fn add(&mut self, x: i32) -> i32 {
+        self.value += x;
+        self.value
+    }
+}
+
+fn fibonacci(n: i32) -> i32 {
+    if n <= 1 {
+        return n;
+    }
+    fibonacci(n - 1) + fibonacci(n - 2)
+}
+"#;
+        let embedding = embedder.embed_rust(source);
+
+        // Should extract struct, impl, methods, function, parameters, etc.
+        assert!(
+            embedding.path_count >= 8,
+            "Proper AST should extract many paths: got {}",
+            embedding.path_count
+        );
+    }
+
+    #[test]
+    fn test_phase2_python_async_function() {
+        let embedder = AstEmbedder::with_defaults();
+        let source = r#"
+async def fetch_data(url: str) -> dict:
+    response = await client.get(url)
+    return response.json()
+"#;
+        let embedding = embedder.embed_python(source);
+
+        // Should extract async function def, parameters, etc.
+        assert!(
+            embedding.path_count >= 2,
+            "Should extract async function paths: got {}",
+            embedding.path_count
+        );
+    }
+
+    #[test]
+    fn test_phase2_rust_struct_fields() {
+        let embedder = AstEmbedder::with_defaults();
+        let source = r#"
+struct Point {
+    x: f64,
+    y: f64,
+    label: String,
+}
+"#;
+        let embedding = embedder.embed_rust(source);
+
+        // Should extract struct + 3 fields
+        assert!(
+            embedding.path_count >= 4,
+            "Should extract struct fields: got {}",
+            embedding.path_count
+        );
+    }
+
+    #[test]
+    fn test_phase2_heuristic_fallback_on_parse_error() {
+        let embedder = AstEmbedder::with_defaults();
+        // Invalid Python syntax - should fall back to heuristic extraction
+        let source = r#"
+def broken(
+    # This has syntax error
+def another(): pass
+"#;
+        // Should not panic, uses heuristic fallback
+        let embedding = embedder.embed_python(source);
+        assert_eq!(embedding.vector.len(), 128);
+    }
+
+    #[test]
+    fn test_phase2_python_class_extraction() {
+        let embedder = AstEmbedder::with_defaults();
+        let source = r#"
+class DataProcessor:
+    def __init__(self, name: str):
+        self.name = name
+        self.items = []
+
+    def process(self, data: list) -> list:
+        results = []
+        for item in data:
+            results.append(self.transform(item))
+        return results
+
+    def transform(self, item):
+        return item.upper()
+"#;
+        let embedding = embedder.embed_python(source);
+
+        // Class + 3 methods + parameters + assignments
+        assert!(
+            embedding.path_count >= 6,
+            "Should extract class structure: got {}",
+            embedding.path_count
+        );
     }
 }
