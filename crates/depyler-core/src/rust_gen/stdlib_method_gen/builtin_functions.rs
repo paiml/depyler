@@ -1190,4 +1190,97 @@ mod tests {
         let result = convert_setattr_builtin(&args);
         assert!(result.is_err());
     }
+
+    // ============================================
+    // GH-204: Additional builtin tests
+    // ============================================
+
+    #[test]
+    fn test_convert_callable_builtin() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(func)];
+        let result = convert_callable_builtin(&args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_callable_builtin_wrong_args() {
+        let args: Vec<syn::Expr> = vec![];
+        let result = convert_callable_builtin(&args);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_convert_id_builtin() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(obj)];
+        let result = convert_id_builtin(&args);
+        assert!(result.is_ok());
+        let expr = result.unwrap();
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("usize"), "Should cast to usize: {}", code);
+    }
+
+    #[test]
+    fn test_convert_ascii_builtin() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(text)];
+        let result = convert_ascii_builtin(&args);
+        assert!(result.is_ok());
+        let expr = result.unwrap();
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("escape_default"), "Should use escape_default: {}", code);
+    }
+
+    #[test]
+    fn test_convert_vars_builtin() {
+        let args: Vec<syn::Expr> = vec![];
+        let result = convert_vars_builtin(&args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_dir_builtin() {
+        let args: Vec<syn::Expr> = vec![];
+        let result = convert_dir_builtin(&args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_globals_builtin() {
+        let args: Vec<syn::Expr> = vec![];
+        let result = convert_globals_builtin(&args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_locals_builtin() {
+        let args: Vec<syn::Expr> = vec![];
+        let result = convert_locals_builtin(&args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_exit_builtin() {
+        let args: Vec<syn::Expr> = vec![parse_quote!(0)];
+        let result = convert_exit_builtin(&args);
+        assert!(result.is_ok());
+        let expr = result.unwrap();
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("exit"), "Should call exit: {}", code);
+    }
+
+    #[test]
+    fn test_convert_exit_builtin_no_args() {
+        let args: Vec<syn::Expr> = vec![];
+        let result = convert_exit_builtin(&args);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_breakpoint_builtin() {
+        let args: Vec<syn::Expr> = vec![];
+        let result = convert_breakpoint_builtin(&args);
+        assert!(result.is_ok());
+        let expr = result.unwrap();
+        let code = quote::quote!(#expr).to_string();
+        assert!(code.contains("panic"), "Should use panic: {}", code);
+    }
 }
