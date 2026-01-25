@@ -10,13 +10,13 @@ use crate::hir::*;
 use crate::rust_gen::array_initialization; // DEPYLER-REFACTOR-001: Extracted array/range
 use crate::rust_gen::builtin_conversions; // DEPYLER-REFACTOR-001: Extracted conversions
 use crate::rust_gen::collection_constructors; // DEPYLER-REFACTOR-001: Extracted constructors
+use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
 use crate::rust_gen::expr_analysis; // DEPYLER-COVERAGE-95: Use extracted helpers
+use crate::rust_gen::keywords; // DEPYLER-COVERAGE-95: Use centralized keywords module
 use crate::rust_gen::numpy_gen; // Phase 3: NumPy→Trueno codegen
 use crate::rust_gen::precedence; // DEPYLER-COVERAGE-95: Use extracted helpers
-use crate::rust_gen::stdlib_method_gen; // DEPYLER-COVERAGE-95: Extracted stdlib handlers
-use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
-use crate::rust_gen::keywords; // DEPYLER-COVERAGE-95: Use centralized keywords module
 use crate::rust_gen::return_type_expects_float;
+use crate::rust_gen::stdlib_method_gen; // DEPYLER-COVERAGE-95: Extracted stdlib handlers
 use crate::rust_gen::type_gen::convert_binop;
 use crate::string_optimization::{StringContext, StringOptimizer};
 use crate::trace_decision;
@@ -39,7 +39,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0792: Generate let bindings for walrus expressions in a condition
     /// Extracts `(length := len(w))` as `let length = w.len() as i32;`
-    pub(crate) fn generate_walrus_bindings(cond: &HirExpr, ctx: &mut CodeGenContext) -> Result<proc_macro2::TokenStream> {
+    pub(crate) fn generate_walrus_bindings(
+        cond: &HirExpr,
+        ctx: &mut CodeGenContext,
+    ) -> Result<proc_macro2::TokenStream> {
         let mut bindings = proc_macro2::TokenStream::new();
         Self::collect_walrus_bindings_from_expr(cond, ctx, &mut bindings)?;
         Ok(bindings)
@@ -85,7 +88,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-0758: Check if HirExpr is a variable that's a borrowed parameter
     /// If so, return the dereferenced version of the syn::Expr
     /// Used to fix E0369 errors when doing arithmetic with reference types (e.g., date subtraction)
-    pub(crate) fn deref_if_borrowed_param(&self, hir_expr: &HirExpr, rust_expr: syn::Expr) -> syn::Expr {
+    pub(crate) fn deref_if_borrowed_param(
+        &self,
+        hir_expr: &HirExpr,
+        rust_expr: syn::Expr,
+    ) -> syn::Expr {
         if let HirExpr::Var(name) = hir_expr {
             if self.ctx.ref_params.contains(name.as_str()) {
                 // Dereference the expression: `*target` instead of `target`
@@ -164,7 +171,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 // Arithmetic operations between integers return integers
                 // (Add, Sub, Mul produce Int if both operands are Int)
                 // Division in Python returns Float, so we don't include Div
-                if matches!(op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv) {
+                if matches!(
+                    op,
+                    BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Mod | BinOp::FloorDiv
+                ) {
                     self.is_int_expr(left) && self.is_int_expr(right)
                 } else {
                     false
@@ -296,16 +306,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     /// DEPYLER-0541: Handle borrowing for potentially Option-typed path variables
     /// When path variable is Option<String>, use .as_ref().unwrap() for file operations
-    pub(crate) fn borrow_path_with_option_check(&self, path_expr: &syn::Expr, hir_arg: &HirExpr) -> syn::Expr {
+    pub(crate) fn borrow_path_with_option_check(
+        &self,
+        path_expr: &syn::Expr,
+        hir_arg: &HirExpr,
+    ) -> syn::Expr {
         // Check if the HIR arg is a variable that might be Option-typed
         if let HirExpr::Var(var_name) = hir_arg {
             // DEPYLER-0644: Check if variable is already unwrapped (inside if-let body)
             // If so, the variable is already a concrete String, not Option<String>
             // DEPYLER-0666: Also check if var_name is an UNWRAPPED name (value in map)
             // e.g., hash_algorithm_val from `if let Some(ref hash_algorithm_val) = hash_algorithm`
-            let is_unwrapped =
-                self.ctx.option_unwrap_map.contains_key(var_name)
-                    || self.ctx.option_unwrap_map.values().any(|v| v == var_name);
+            let is_unwrapped = self.ctx.option_unwrap_map.contains_key(var_name)
+                || self.ctx.option_unwrap_map.values().any(|v| v == var_name);
             if is_unwrapped {
                 // Variable was already unwrapped, just borrow it
                 return Self::borrow_if_needed(path_expr);
@@ -428,7 +441,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
     }
 
-    pub(crate) fn convert_binary(&mut self, op: BinOp, left: &HirExpr, right: &HirExpr) -> Result<syn::Expr> {
+    pub(crate) fn convert_binary(
+        &mut self,
+        op: BinOp,
+        left: &HirExpr,
+        right: &HirExpr,
+    ) -> Result<syn::Expr> {
         // CITL: Trace binary operation type mapping decision
         trace_decision!(
             category = DecisionCategory::TypeMapping,
@@ -562,8 +580,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 left_expr = parse_quote! { #left_expr.as_str().map(|s| s.to_string()) };
             }
 
-
-
             // DEPYLER-0575: Coerce integer literal to float when comparing with float expression
             // DEPYLER-0720: Extended to ALL integer literals, not just 0
             // DEPYLER-0828: Extended to ALL integer expressions (variables, not just literals)
@@ -620,15 +636,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // String >= &str doesn't work (PartialOrd not implemented)
             // String == &String doesn't work directly
             // Convert String operands to &str for comparison
-            let is_ordering_compare = matches!(
-                op,
-                BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq
-            );
+            let is_ordering_compare =
+                matches!(op, BinOp::Lt | BinOp::LtEq | BinOp::Gt | BinOp::GtEq);
 
             // Check if left is string index (produces String) and needs .as_str()
-            let left_is_string_index = matches!(left, HirExpr::Index { base, .. } if self.is_string_base(base));
+            let left_is_string_index =
+                matches!(left, HirExpr::Index { base, .. } if self.is_string_base(base));
             // Check if right is string index (produces String) and needs .as_str()
-            let right_is_string_index = matches!(right, HirExpr::Index { base, .. } if self.is_string_base(base));
+            let right_is_string_index =
+                matches!(right, HirExpr::Index { base, .. } if self.is_string_base(base));
 
             // Check if left is a String-typed variable
             // First check var_types, then fall back to heuristics
@@ -656,9 +672,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // If comparing a variable with a single-char string literal in ordering comparison,
             // the variable is likely a String that needs .as_str() conversion
-            let left_needs_as_str = is_ordering_compare
-                && matches!(left, HirExpr::Var(_))
-                && right_is_char_literal;
+            let left_needs_as_str =
+                is_ordering_compare && matches!(left, HirExpr::Var(_)) && right_is_char_literal;
 
             // For ordering comparisons with string expressions, convert to &str
             // because String doesn't implement PartialOrd<&str>
@@ -676,8 +691,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // Right side could be:
             // - A variable (HirExpr::Var)
             // - An attribute like args.target (HirExpr::Attribute)
-            let right_is_ref_pattern = matches!(right, HirExpr::Var(_))
-                || matches!(right, HirExpr::Attribute { .. });
+            let right_is_ref_pattern =
+                matches!(right, HirExpr::Var(_)) || matches!(right, HirExpr::Attribute { .. });
             if matches!(op, BinOp::Eq | BinOp::NotEq)
                 && left_is_string_index
                 && right_is_ref_pattern
@@ -717,9 +732,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             BinOp::NotIn => self.convert_containment_op(true, left, right, left_expr, right_expr),
             // DEPYLER-0926: Vector-Vector addition for trueno
             // trueno Vector doesn't implement Add trait, use method call instead
-            BinOp::Add
-                if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) =>
-            {
+            BinOp::Add if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
                 Ok(parse_quote! { #left_expr.add(&#right_expr).unwrap() })
             }
             // DEPYLER-0928: Vector + scalar - element-wise addition
@@ -789,9 +802,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // DEPYLER-0926: Vector-Vector subtraction for trueno
             // trueno Vector doesn't implement Sub trait, use method call instead
-            BinOp::Sub
-                if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) =>
-            {
+            BinOp::Sub if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
                 Ok(parse_quote! { #left_expr.sub(&#right_expr).unwrap() })
             }
             BinOp::Sub => {
@@ -809,7 +820,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                     // DEPYLER-0582: Coerce int to float if operating with float
                     let left_coerced = self.coerce_int_to_float_if_needed(left_deref, left, right);
-                    let right_coerced = self.coerce_int_to_float_if_needed(right_deref, right, left);
+                    let right_coerced =
+                        self.coerce_int_to_float_if_needed(right_deref, right, left);
 
                     // DEPYLER-1109: Universal PyOps Dispatch for subtraction
                     if self.ctx.type_mapper.nasa_mode {
@@ -831,9 +843,7 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
             // DEPYLER-0926: Vector-Vector division for trueno
             // trueno Vector doesn't implement Div trait, use method call instead
-            BinOp::Div
-                if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) =>
-            {
+            BinOp::Div if self.is_numpy_array_expr(left) && self.is_numpy_array_expr(right) => {
                 Ok(parse_quote! { #left_expr.div(&#right_expr).unwrap() })
             }
             BinOp::Div => {
@@ -878,7 +888,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     let rust_op = convert_binop(op)?;
                     // DEPYLER-0582: Wrap operands in parens if they have lower precedence
                     let left_wrapped = precedence::parenthesize_if_lower_precedence(left_expr, op);
-                    let right_wrapped = precedence::parenthesize_if_lower_precedence(right_expr, op);
+                    let right_wrapped =
+                        precedence::parenthesize_if_lower_precedence(right_expr, op);
                     Ok(syn::Expr::Binary(syn::ExprBinary {
                         attrs: vec![],
                         left: Box::new(left_wrapped),
@@ -1075,7 +1086,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
                 // DEPYLER-0576: Parenthesize right side when it's a unary negation
                 // Prevents "<-" tokenization issue: x < -20.0 becomes x<- 20.0 without parens
-                let right_expr_final = if matches!(right, HirExpr::Unary { op: UnaryOp::Neg, .. }) {
+                let right_expr_final = if matches!(
+                    right,
+                    HirExpr::Unary {
+                        op: UnaryOp::Neg,
+                        ..
+                    }
+                ) {
                     parse_quote! { (#right_coerced) }
                 } else {
                     right_coerced
@@ -1240,18 +1257,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0950: String literal * int variable (e.g., "=" * width)
         // Safe because string literal is definite, and we verify int variable type
         let right_is_int_var_from_type = if let HirExpr::Var(sym) = right {
-            matches!(
-                self.ctx.var_types.get(sym),
-                Some(crate::hir::Type::Int)
-            )
+            matches!(self.ctx.var_types.get(sym), Some(crate::hir::Type::Int))
         } else {
             false
         };
         let left_is_int_var_from_type = if let HirExpr::Var(sym) = left {
-            matches!(
-                self.ctx.var_types.get(sym),
-                Some(crate::hir::Type::Int)
-            )
+            matches!(self.ctx.var_types.get(sym), Some(crate::hir::Type::Int))
         } else {
             false
         };
@@ -1289,18 +1300,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // DEPYLER-0950: String var * int var - use explicit type annotations from context
         // This is safer than arbitrary inference because param types come from annotations
         let right_is_int_var = if let HirExpr::Var(sym) = right {
-            matches!(
-                self.ctx.var_types.get(sym),
-                Some(crate::hir::Type::Int)
-            )
+            matches!(self.ctx.var_types.get(sym), Some(crate::hir::Type::Int))
         } else {
             false
         };
         let left_is_int_var = if let HirExpr::Var(sym) = left {
-            matches!(
-                self.ctx.var_types.get(sym),
-                Some(crate::hir::Type::Int)
-            )
+            matches!(self.ctx.var_types.get(sym), Some(crate::hir::Type::Int))
         } else {
             false
         };
@@ -1567,18 +1572,20 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             }
 
             // If one side is DepylerValue and other is int literal, type annotate the literal
-            let final_left = if is_right_depyler && matches!(left, HirExpr::Literal(Literal::Int(_))) {
-                // Annotate left as i64 for DepylerValue's Add<i64>
-                parse_quote! { #left_coerced as i64 }
-            } else {
-                left_coerced
-            };
-            let final_right = if is_left_depyler && matches!(right, HirExpr::Literal(Literal::Int(_))) {
-                // Annotate right as i64 for DepylerValue's Add<i64>
-                parse_quote! { #right_coerced as i64 }
-            } else {
-                right_coerced
-            };
+            let final_left =
+                if is_right_depyler && matches!(left, HirExpr::Literal(Literal::Int(_))) {
+                    // Annotate left as i64 for DepylerValue's Add<i64>
+                    parse_quote! { #left_coerced as i64 }
+                } else {
+                    left_coerced
+                };
+            let final_right =
+                if is_left_depyler && matches!(right, HirExpr::Literal(Literal::Int(_))) {
+                    // Annotate right as i64 for DepylerValue's Add<i64>
+                    parse_quote! { #right_coerced as i64 }
+                } else {
+                    right_coerced
+                };
 
             Ok(parse_quote! { #final_left #rust_op #final_right })
         }
@@ -1634,14 +1641,22 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 };
                 if negate {
                     if needs_borrow {
-                        return Ok(parse_quote! { #right_expr.as_ref().unwrap().get(&#left_expr).is_none() });
+                        return Ok(
+                            parse_quote! { #right_expr.as_ref().unwrap().get(&#left_expr).is_none() },
+                        );
                     } else {
-                        return Ok(parse_quote! { #right_expr.as_ref().unwrap().get(#left_expr).is_none() });
+                        return Ok(
+                            parse_quote! { #right_expr.as_ref().unwrap().get(#left_expr).is_none() },
+                        );
                     }
                 } else if needs_borrow {
-                    return Ok(parse_quote! { #right_expr.as_ref().unwrap().get(&#left_expr).is_some() });
+                    return Ok(
+                        parse_quote! { #right_expr.as_ref().unwrap().get(&#left_expr).is_some() },
+                    );
                 } else {
-                    return Ok(parse_quote! { #right_expr.as_ref().unwrap().get(#left_expr).is_some() });
+                    return Ok(
+                        parse_quote! { #right_expr.as_ref().unwrap().get(#left_expr).is_some() },
+                    );
                 }
             }
         }
@@ -1928,7 +1943,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if nasa_mode {
                         // DEPYLER-1067: NASA mode - use DepylerDateTime::new()
                         self.ctx.needs_depyler_datetime = true;
-                        Some(Ok(parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, 0, 0, 0, 0) }))
+                        Some(Ok(
+                            parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, 0, 0, 0, 0) },
+                        ))
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
@@ -1962,7 +1979,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                     if nasa_mode {
                         // DEPYLER-1067: NASA mode - use DepylerDateTime::new()
                         self.ctx.needs_depyler_datetime = true;
-                        Some(Ok(parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, #hour as u32, #minute as u32, #second as u32, #microsecond as u32) }))
+                        Some(Ok(
+                            parse_quote! { DepylerDateTime::new(#year as u32, #month as u32, #day as u32, #hour as u32, #minute as u32, #second as u32, #microsecond as u32) },
+                        ))
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
@@ -2004,7 +2023,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 };
                 if nasa_mode {
                     // DEPYLER-1066: Use DepylerDate::new() instead of raw tuple
-                    Some(Ok(parse_quote! { DepylerDate::new(#year as u32, #month as u32, #day as u32) }))
+                    Some(Ok(
+                        parse_quote! { DepylerDate::new(#year as u32, #month as u32, #day as u32) },
+                    ))
                 } else {
                     Some(Ok(parse_quote! {
                         chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32).unwrap()
@@ -2075,7 +2096,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Err(e) => return Some(Err(e)),
                     };
                     if nasa_mode {
-                        Some(Ok(parse_quote! { (#hour as u32, #minute as u32, #second as u32) }))
+                        Some(Ok(
+                            parse_quote! { (#hour as u32, #minute as u32, #second as u32) },
+                        ))
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::NaiveTime::from_hms_opt(#hour as u32, #minute as u32, #second as u32).unwrap()
@@ -2104,7 +2127,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Err(e) => return Some(Err(e)),
                     };
                     if nasa_mode {
-                        Some(Ok(parse_quote! { DepylerTimeDelta::new(#days as i64, 0, 0) }))
+                        Some(Ok(
+                            parse_quote! { DepylerTimeDelta::new(#days as i64, 0, 0) },
+                        ))
                     } else {
                         Some(Ok(parse_quote! { chrono::Duration::days(#days as i64) }))
                     }
@@ -2118,7 +2143,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         Err(e) => return Some(Err(e)),
                     };
                     if nasa_mode {
-                        Some(Ok(parse_quote! { DepylerTimeDelta::new(#days as i64, #seconds as i64, 0) }))
+                        Some(Ok(
+                            parse_quote! { DepylerTimeDelta::new(#days as i64, #seconds as i64, 0) },
+                        ))
                     } else {
                         Some(Ok(parse_quote! {
                             chrono::Duration::days(#days as i64) + chrono::Duration::seconds(#seconds as i64)
@@ -2286,7 +2313,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             }))
                         } else {
                             // DEPYLER-0692: Convert usize index to i32 for Python compatibility
-                            Some(Ok(parse_quote! { #items_expr.iter().cloned().enumerate().map(|(i, x)| (i as i32, x)) }))
+                            Some(Ok(
+                                parse_quote! { #items_expr.iter().cloned().enumerate().map(|(i, x)| (i as i32, x)) },
+                            ))
                         }
                     }
                     Err(e) => Some(Err(e)),
@@ -2504,13 +2533,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         // DEPYLER-0945: Process arguments to handle PathBuf.display() correctly
         // This handles both single and multiple arguments uniformly
-        let processed_args: Vec<syn::Expr> = args.iter().zip(arg_exprs.iter()).map(|(hir, syn)| {
-            if self.is_pathbuf_expr(hir) {
-                parse_quote! { #syn.display() }
-            } else {
-                syn.clone()
-            }
-        }).collect();
+        let processed_args: Vec<syn::Expr> = args
+            .iter()
+            .zip(arg_exprs.iter())
+            .map(|(hir, syn)| {
+                if self.is_pathbuf_expr(hir) {
+                    parse_quote! { #syn.display() }
+                } else {
+                    syn.clone()
+                }
+            })
+            .collect();
 
         let result = if args.is_empty() {
             // print() with no arguments
@@ -2571,7 +2604,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// Returns Some(Ok(expr)) if handled, None if not a sum call.
     ///
     /// # Complexity: 6
-    pub(crate) fn try_convert_sum_call(&mut self, func: &str, args: &[HirExpr]) -> Option<Result<syn::Expr>> {
+    pub(crate) fn try_convert_sum_call(
+        &mut self,
+        func: &str,
+        args: &[HirExpr],
+    ) -> Option<Result<syn::Expr>> {
         if func != "sum" || args.len() != 1 {
             return None;
         }
@@ -2703,9 +2740,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // These handle PartialOrd correctly and work with f64/DepylerValue
             // Parenthesize arguments to handle casts safely
             return if is_max {
-                Some(Ok(parse_quote! { depyler_max((#arg1).clone(), (#arg2).clone()) }))
+                Some(Ok(
+                    parse_quote! { depyler_max((#arg1).clone(), (#arg2).clone()) },
+                ))
             } else {
-                Some(Ok(parse_quote! { depyler_min((#arg1).clone(), (#arg2).clone()) }))
+                Some(Ok(
+                    parse_quote! { depyler_min((#arg1).clone(), (#arg2).clone()) },
+                ))
             };
         }
 
@@ -2908,7 +2949,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             && matches!(&args[0], HirExpr::Var(v) if v == "args")
         {
             let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
-            let field_args: Vec<syn::Expr> = self.ctx.subcommand_match_fields
+            let field_args: Vec<syn::Expr> = self
+                .ctx
+                .subcommand_match_fields
                 .iter()
                 .map(|f| {
                     let field_ident = syn::Ident::new(f, proc_macro2::Span::call_site());
@@ -2999,7 +3042,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 let elem_type = self.infer_iterable_element_type(&args[1]);
                 let param_name = params[0].clone();
                 if let Some(ref elem_t) = elem_type {
-                    self.ctx.var_types.insert(param_name.clone(), elem_t.clone());
+                    self.ctx
+                        .var_types
+                        .insert(param_name.clone(), elem_t.clone());
                 }
 
                 let body_expr = body.to_rust_expr(self.ctx)?;
@@ -3156,9 +3201,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         // This fixes "expected String, found &str" errors when calling constructors
         // DEPYLER-1144: Also coerce list literals when class has Vec<f64> field
         // DEPYLER-1207: Fixed pattern matching bug - use **elem to dereference Box
-        let class_has_vec_f64_field = self.ctx.class_field_types.values().any(|t| {
-            matches!(t, Type::List(elem) if matches!(**elem, Type::Float))
-        });
+        let class_has_vec_f64_field = self
+            .ctx
+            .class_field_types
+            .values()
+            .any(|t| matches!(t, Type::List(elem) if matches!(**elem, Type::Float)));
         let arg_exprs: Vec<syn::Expr> = if is_user_class {
             args.iter()
                 .map(|arg| {
@@ -3320,7 +3367,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0935: bytes() builtin - convert to Vec<u8>
             "bytes" if !is_user_class => self.convert_bytes_builtin(&all_hir_args, &arg_exprs),
             // DEPYLER-0936: bytearray() builtin - convert to Vec<u8>
-            "bytearray" if !is_user_class => self.convert_bytearray_builtin(&all_hir_args, &arg_exprs),
+            "bytearray" if !is_user_class => {
+                self.convert_bytearray_builtin(&all_hir_args, &arg_exprs)
+            }
             // DEPYLER-0937: tuple() builtin - convert iterable to collected tuple-like Vec
             "tuple" if !is_user_class => self.convert_tuple_builtin(&all_hir_args, &arg_exprs),
             // DEPYLER-STDLIB-BUILTINS: Pure builtin functions delegated to extracted module
@@ -3328,9 +3377,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "all" => stdlib_method_gen::builtin_functions::convert_all_builtin(&arg_exprs),
             "any" => stdlib_method_gen::builtin_functions::convert_any_builtin(&arg_exprs),
             "divmod" => stdlib_method_gen::builtin_functions::convert_divmod_builtin(&arg_exprs),
-            "enumerate" => stdlib_method_gen::builtin_functions::convert_enumerate_builtin(&arg_exprs),
+            "enumerate" => {
+                stdlib_method_gen::builtin_functions::convert_enumerate_builtin(&arg_exprs)
+            }
             "zip" => stdlib_method_gen::builtin_functions::convert_zip_builtin(&arg_exprs),
-            "reversed" => stdlib_method_gen::builtin_functions::convert_reversed_builtin(&arg_exprs),
+            "reversed" => {
+                stdlib_method_gen::builtin_functions::convert_reversed_builtin(&arg_exprs)
+            }
             "sorted" => stdlib_method_gen::builtin_functions::convert_sorted_builtin(&arg_exprs),
             "filter" => self.convert_filter_builtin(&all_hir_args, &arg_exprs),
             "sum" => stdlib_method_gen::builtin_functions::convert_sum_builtin(&arg_exprs),
@@ -3364,7 +3417,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "hasattr" => stdlib_method_gen::builtin_functions::convert_hasattr_builtin(&arg_exprs),
             "setattr" => stdlib_method_gen::builtin_functions::convert_setattr_builtin(&arg_exprs),
             // GH-204: Additional E0425 Vocabulary Expansion
-            "callable" => stdlib_method_gen::builtin_functions::convert_callable_builtin(&arg_exprs),
+            "callable" => {
+                stdlib_method_gen::builtin_functions::convert_callable_builtin(&arg_exprs)
+            }
             "id" => stdlib_method_gen::builtin_functions::convert_id_builtin(&arg_exprs),
             "ascii" => stdlib_method_gen::builtin_functions::convert_ascii_builtin(&arg_exprs),
             "vars" => stdlib_method_gen::builtin_functions::convert_vars_builtin(&arg_exprs),
@@ -3372,17 +3427,28 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "globals" => stdlib_method_gen::builtin_functions::convert_globals_builtin(&arg_exprs),
             "locals" => stdlib_method_gen::builtin_functions::convert_locals_builtin(&arg_exprs),
             "delattr" => stdlib_method_gen::builtin_functions::convert_delattr_builtin(&arg_exprs),
-            "staticmethod" => stdlib_method_gen::builtin_functions::convert_staticmethod_builtin(&arg_exprs),
-            "classmethod" => stdlib_method_gen::builtin_functions::convert_classmethod_builtin(&arg_exprs),
-            "property" => stdlib_method_gen::builtin_functions::convert_property_builtin(&arg_exprs),
-            "breakpoint" => stdlib_method_gen::builtin_functions::convert_breakpoint_builtin(&arg_exprs),
+            "staticmethod" => {
+                stdlib_method_gen::builtin_functions::convert_staticmethod_builtin(&arg_exprs)
+            }
+            "classmethod" => {
+                stdlib_method_gen::builtin_functions::convert_classmethod_builtin(&arg_exprs)
+            }
+            "property" => {
+                stdlib_method_gen::builtin_functions::convert_property_builtin(&arg_exprs)
+            }
+            "breakpoint" => {
+                stdlib_method_gen::builtin_functions::convert_breakpoint_builtin(&arg_exprs)
+            }
             "exit" => stdlib_method_gen::builtin_functions::convert_exit_builtin(&arg_exprs),
             "quit" => stdlib_method_gen::builtin_functions::convert_quit_builtin(&arg_exprs),
             _ => self.convert_generic_call(func, &all_hir_args, &all_args),
         }
     }
 
-    pub(crate) fn try_convert_map_with_zip(&mut self, args: &[HirExpr]) -> Result<Option<syn::Expr>> {
+    pub(crate) fn try_convert_map_with_zip(
+        &mut self,
+        args: &[HirExpr],
+    ) -> Result<Option<syn::Expr>> {
         // DEPYLER-0793: Handle map(str, iterable) → iterable.iter().map(|x| x.to_string())
         // Python's str builtin converts elements to strings, in Rust use .to_string()
         if args.len() == 2 {
@@ -3543,7 +3609,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
-    pub(crate) fn convert_int_cast(&self, hir_args: &[HirExpr], arg_exprs: &[syn::Expr]) -> Result<syn::Expr> {
+    pub(crate) fn convert_int_cast(
+        &self,
+        hir_args: &[HirExpr],
+        arg_exprs: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         builtin_conversions::convert_int_cast(
             self.ctx,
             hir_args,
@@ -3567,7 +3637,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// DEPYLER-REFACTOR-001: Delegated to builtin_conversions module
     /// DEPYLER-0188: Pass HirExpr to detect PathBuf for .display().to_string()
     /// DEPYLER-0722: Handle Option<T> types - use .unwrap().to_string()
-    pub(crate) fn convert_str_conversion(&self, hir_args: &[HirExpr], args: &[syn::Expr]) -> Result<syn::Expr> {
+    /// GH-207: Don't add .unwrap() if expression already has .unwrap_or()
+    pub(crate) fn convert_str_conversion(
+        &self,
+        hir_args: &[HirExpr],
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         // DEPYLER-0722: Check if argument is an Optional type
         if !hir_args.is_empty() && args.len() == 1 {
             let var_name = match &hir_args[0] {
@@ -3578,6 +3653,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             if let Some(name) = var_name {
                 if let Some(Type::Optional(_)) = self.ctx.var_types.get(name) {
                     let arg = &args[0];
+                    // GH-207: Check if the arg already contains unwrap_or - if so, it's already
+                    // unwrapped and we shouldn't add another .unwrap()
+                    let arg_str = quote::quote!(#arg).to_string();
+                    if arg_str.contains("unwrap_or") {
+                        // Already unwrapped via unwrap_or - just call .to_string()
+                        return Ok(parse_quote! { (#arg).to_string() });
+                    }
                     return Ok(parse_quote! { (#arg).unwrap().to_string() });
                 }
             }
@@ -3615,7 +3697,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     }
 
     /// DEPYLER-REFACTOR-001: Delegated to collection_constructors module
-    pub(crate) fn convert_frozenset_constructor(&mut self, args: &[syn::Expr]) -> Result<syn::Expr> {
+    pub(crate) fn convert_frozenset_constructor(
+        &mut self,
+        args: &[syn::Expr],
+    ) -> Result<syn::Expr> {
         collection_constructors::convert_frozenset_constructor(self.ctx, args)
     }
 
@@ -3719,7 +3804,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // bytes(bytearray_or_bytes) → just return the bytes/bytearray variable
             // Check if arg is a variable with list type (bytearray is Vec<u8> = List)
             if let HirExpr::Var(name) = hir_arg {
-                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::List(_))) {
+                if self
+                    .ctx
+                    .var_types
+                    .get(name)
+                    .is_some_and(|t| matches!(t, Type::List(_)))
+                {
                     return Ok(parse_quote! { #arg });
                 }
             }
@@ -3732,7 +3822,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Check for int variable
             if let HirExpr::Var(name) = hir_arg {
-                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::Int)) {
+                if self
+                    .ctx
+                    .var_types
+                    .get(name)
+                    .is_some_and(|t| matches!(t, Type::Int))
+                {
                     return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
                 }
             }
@@ -3793,7 +3888,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // bytearray(bytes) → copy the bytes into a new vec
             if let HirExpr::Var(name) = hir_arg {
-                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::List(_))) {
+                if self
+                    .ctx
+                    .var_types
+                    .get(name)
+                    .is_some_and(|t| matches!(t, Type::List(_)))
+                {
                     return Ok(parse_quote! { #arg.to_vec() });
                 }
             }
@@ -3806,7 +3906,12 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Check for int variable
             if let HirExpr::Var(name) = hir_arg {
-                if self.ctx.var_types.get(name).is_some_and(|t| matches!(t, Type::Int)) {
+                if self
+                    .ctx
+                    .var_types
+                    .get(name)
+                    .is_some_and(|t| matches!(t, Type::Int))
+                {
                     return Ok(parse_quote! { vec![0u8; (#arg) as usize] });
                 }
             }
@@ -3889,7 +3994,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             let elem_type = self.infer_iterable_element_type(&hir_args[1]);
             let param_name = params[0].clone();
             if let Some(ref elem_t) = elem_type {
-                self.ctx.var_types.insert(param_name.clone(), elem_t.clone());
+                self.ctx
+                    .var_types
+                    .insert(param_name.clone(), elem_t.clone());
             }
 
             let body_expr = body.to_rust_expr(self.ctx)?;
@@ -3922,7 +4029,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// format(num, "o") → octal string
     /// format(num, "x") → hex string
     /// format(num, "d") → decimal string
-    pub(crate) fn convert_format_builtin(&self, args: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+    pub(crate) fn convert_format_builtin(
+        &self,
+        args: &[syn::Expr],
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         if args.len() != 2 {
             bail!("format() requires exactly 2 arguments (value, spec)");
         }
@@ -3953,7 +4064,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
     // DEPYLER-COVERAGE-95: chr moved to stdlib_method_gen::builtin_functions
 
-    pub(crate) fn convert_ord_builtin(&self, args: &[syn::Expr], hir_args: &[HirExpr]) -> Result<syn::Expr> {
+    pub(crate) fn convert_ord_builtin(
+        &self,
+        args: &[syn::Expr],
+        hir_args: &[HirExpr],
+    ) -> Result<syn::Expr> {
         if args.len() != 1 {
             bail!("ord() requires exactly 1 argument");
         }
@@ -4122,7 +4237,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 }
                 let first = &args[0];
                 if args.len() == 1 {
-                    return Ok(parse_quote! { std::path::PathBuf::from(#first).to_string_lossy().to_string() });
+                    return Ok(
+                        parse_quote! { std::path::PathBuf::from(#first).to_string_lossy().to_string() },
+                    );
                 }
                 // DEPYLER-0814: Check if any arg (after first) is a List/Vec type (varargs)
                 // If so, generate iteration code instead of chaining .join()
@@ -4985,13 +5102,21 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // Attribute access to plural-named field (likely Vec)
                         HirExpr::Attribute { value, attr } => {
                             if let HirExpr::Var(v) = value.as_ref() {
-                                v == "args" && (attr.ends_with('s') || attr == "parts" || attr == "items" || attr == "values" || attr == "keys" || attr == "args")
+                                v == "args"
+                                    && (attr.ends_with('s')
+                                        || attr == "parts"
+                                        || attr == "items"
+                                        || attr == "values"
+                                        || attr == "keys"
+                                        || attr == "args")
                             } else {
                                 false
                             }
                         }
                         // Variable that's known to be a list
-                        HirExpr::Var(v) => v.ends_with('s') || v == "parts" || v == "items" || v == "args",
+                        HirExpr::Var(v) => {
+                            v.ends_with('s') || v == "parts" || v == "items" || v == "args"
+                        }
                         // List literal
                         HirExpr::List(_) => true,
                         _ => false,
@@ -5023,7 +5148,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             //
             // DEPYLER-0588: Use try_parse to avoid panics on invalid expressions
             let args_tokens: Vec<_> = borrowed_args.iter().map(|a| quote::quote! { #a }).collect();
-            let call_str = format!("{}({})", func_ident, args_tokens.iter().map(|t| t.to_string()).collect::<Vec<_>>().join(", "));
+            let call_str = format!(
+                "{}({})",
+                func_ident,
+                args_tokens
+                    .iter()
+                    .map(|t| t.to_string())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
             let call_expr: syn::Expr = match syn::parse_str(&call_str) {
                 Ok(expr) => expr,
                 Err(_) => {
@@ -5341,9 +5474,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // DEPYLER-0644: Check if variable is already unwrapped (inside if-let body)
                         // If so, the key is already a concrete String, not Option<String>
                         // DEPYLER-0666: Also check if var_name is an UNWRAPPED name (value in map)
-                        let is_unwrapped =
-                            self.ctx.option_unwrap_map.contains_key(var_name)
-                                || self.ctx.option_unwrap_map.values().any(|v| v == var_name);
+                        let is_unwrapped = self.ctx.option_unwrap_map.contains_key(var_name)
+                            || self.ctx.option_unwrap_map.values().any(|v| v == var_name);
                         if is_unwrapped {
                             // Variable was already unwrapped, don't add .as_ref().unwrap()
                             key.clone()
@@ -7259,7 +7391,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "isleap" => {
                 // calendar.isleap(year) → check if year is a leap year
                 // Leap year: divisible by 4, except century years unless divisible by 400
-                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 0 });
+                let year = arg_exprs
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 0 });
                 parse_quote! {
                     (#year % 4 == 0 && (#year % 100 != 0 || #year % 400 == 0))
                 }
@@ -7268,9 +7403,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "weekday" => {
                 // calendar.weekday(year, month, day) → day of week (0=Monday, 6=Sunday)
                 // Uses chrono crate for accurate calculation
-                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 2000 });
-                let month = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 1 });
-                let day = arg_exprs.get(2).cloned().unwrap_or_else(|| parse_quote! { 1 });
+                let year = arg_exprs
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 2000 });
+                let month = arg_exprs
+                    .get(1)
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 1 });
+                let day = arg_exprs
+                    .get(2)
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 1 });
                 parse_quote! {
                     chrono::NaiveDate::from_ymd_opt(#year as i32, #month as u32, #day as u32)
                         .map(|d| d.weekday().num_days_from_monday() as i32)
@@ -7280,8 +7424,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             "monthrange" => {
                 // calendar.monthrange(year, month) → (first_weekday, days_in_month)
-                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 2000 });
-                let month = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 1 });
+                let year = arg_exprs
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 2000 });
+                let month = arg_exprs
+                    .get(1)
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 1 });
                 parse_quote! {
                     {
                         let y = #year as i32;
@@ -7304,8 +7454,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             "leapdays" => {
                 // calendar.leapdays(y1, y2) → number of leap years in range [y1, y2)
-                let y1 = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 0 });
-                let y2 = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 0 });
+                let y1 = arg_exprs
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 0 });
+                let y2 = arg_exprs
+                    .get(1)
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 0 });
                 parse_quote! {
                     {
                         let start = #y1 as i32;
@@ -7318,8 +7474,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "month" | "prmonth" => {
                 // calendar.month(year, month) → string calendar for month
                 // Simplified - returns formatted string
-                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 2000 });
-                let month = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 1 });
+                let year = arg_exprs
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 2000 });
+                let month = arg_exprs
+                    .get(1)
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 1 });
                 parse_quote! {
                     format!("Calendar for {}-{:02}", #year, #month)
                 }
@@ -7328,8 +7490,14 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             "monthcalendar" => {
                 // calendar.monthcalendar(year, month) → list of weeks (list of days)
                 // Each week is a list of 7 ints (0 = day not in month)
-                let year = arg_exprs.first().cloned().unwrap_or_else(|| parse_quote! { 2000 });
-                let month = arg_exprs.get(1).cloned().unwrap_or_else(|| parse_quote! { 1 });
+                let year = arg_exprs
+                    .first()
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 2000 });
+                let month = arg_exprs
+                    .get(1)
+                    .cloned()
+                    .unwrap_or_else(|| parse_quote! { 1 });
                 parse_quote! {
                     {
                         let _ = (#year, #month); // Use variables
@@ -9347,7 +9515,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // Note: min/max are handled in the caller where we know the module name
             // to differentiate between date.min and datetime.min
-
             _ => return Ok(None), // Not a recognized datetime method
         };
 
@@ -9786,6 +9953,38 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             .map(|arg| arg.to_rust_expr(self.ctx))
                             .collect::<Result<Vec<_>>>()?;
 
+                        // GH-204: Handle collections module constructors specially
+                        // Counter, deque, and defaultdict need custom conversion, not generic new()
+                        if module_name == "collections" {
+                            match method {
+                                "Counter" => {
+                                    return Ok(Some(
+                                        crate::rust_gen::collection_constructors::convert_counter_builtin(
+                                            self.ctx,
+                                            &arg_exprs,
+                                        )?,
+                                    ));
+                                }
+                                "deque" => {
+                                    return Ok(Some(
+                                        crate::rust_gen::collection_constructors::convert_deque_builtin(
+                                            self.ctx,
+                                            &arg_exprs,
+                                        )?,
+                                    ));
+                                }
+                                "defaultdict" => {
+                                    return Ok(Some(
+                                        crate::rust_gen::collection_constructors::convert_defaultdict_builtin(
+                                            self.ctx,
+                                            &arg_exprs,
+                                        )?,
+                                    ));
+                                }
+                                _ => {} // Fall through to generic pattern handling
+                            }
+                        }
+
                         // Generate call based on constructor pattern
                         let result = match constructor_pattern_owned {
                             ConstructorPattern::New => {
@@ -9918,7 +10117,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-1069: Handle date.min/max vs datetime.min/max specially
             // date.min → DepylerDate(1, 1, 1), datetime.min → DepylerDateTime::new(1, 1, 1, 0, 0, 0, 0)
-            if (module_name == "datetime" || module_name == "date") && (method == "min" || method == "max") {
+            if (module_name == "datetime" || module_name == "date")
+                && (method == "min" || method == "max")
+            {
                 let nasa_mode = self.ctx.type_mapper.nasa_mode;
                 if module_name == "date" {
                     // date.min / date.max
@@ -9959,7 +10160,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
             // DEPYLER-1069: Handle date.today() vs datetime.today() separately
             // date.today() → DepylerDate::today(), datetime.today() → DepylerDateTime::today()
-            if (module_name == "datetime" || module_name == "date") && method == "today" && args.is_empty() {
+            if (module_name == "datetime" || module_name == "date")
+                && method == "today"
+                && args.is_empty()
+            {
                 let nasa_mode = self.ctx.type_mapper.nasa_mode;
                 if module_name == "date" {
                     if nasa_mode {
@@ -10066,7 +10270,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // DEPYLER-0380: os module operations (getenv, etc.)
             // Must be checked before os.path to handle non-path os functions
             if module_name == "os" {
-                if let Some(result) = stdlib_method_gen::convert_os_method(method, args, self.ctx)? {
+                if let Some(result) = stdlib_method_gen::convert_os_method(method, args, self.ctx)?
+                {
                     return Ok(Some(result));
                 }
                 // Fall through to os.path handler if method not recognized
@@ -10266,7 +10471,6 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
         }
         Ok(None)
     }
-
 }
 
 impl ToRustExpr for HirExpr {
@@ -10294,10 +10498,8 @@ impl ToRustExpr for HirExpr {
                 // DEPYLER-1015: Skip in NASA mode - use std-only types
                 if ctx.in_json_context && !ctx.type_mapper.nasa_mode {
                     // Only wrap numeric and boolean literals, not strings
-                    let should_wrap = matches!(
-                        lit,
-                        Literal::Int(_) | Literal::Float(_) | Literal::Bool(_)
-                    );
+                    let should_wrap =
+                        matches!(lit, Literal::Int(_) | Literal::Float(_) | Literal::Bool(_));
                     if should_wrap {
                         ctx.needs_serde_json = true;
                         return Ok(parse_quote! { serde_json::json!(#expr) });
@@ -10361,7 +10563,9 @@ impl ToRustExpr for HirExpr {
                         // DEPYLER-0593: Handle os.path.join(), os.path.exists(), etc.
                         // Pattern: os.path.join(a, b) where object is Attribute { value: os, attr: path }
                         if module_name == "os" && attr == "path" {
-                            if let Some(result) = converter.try_convert_os_path_method(method, args)? {
+                            if let Some(result) =
+                                converter.try_convert_os_path_method(method, args)?
+                            {
                                 return Ok(result);
                             }
                         }
@@ -10372,7 +10576,10 @@ impl ToRustExpr for HirExpr {
                 // When we encounter a call like requests.get(url), look up the return type
                 // from the TypeDB to enable downstream type propagation.
                 if let HirExpr::Var(module_name) = &**object {
-                    if let Some(return_type) = converter.ctx.lookup_external_return_type(module_name, method) {
+                    if let Some(return_type) = converter
+                        .ctx
+                        .lookup_external_return_type(module_name, method)
+                    {
                         // Store the return type for assignment handling in stmt_gen
                         // This enables: resp = requests.get(url) → resp: Response
                         converter.ctx.last_external_call_return_type = Some(return_type);
@@ -10381,7 +10588,8 @@ impl ToRustExpr for HirExpr {
                     // DEPYLER-1136: Handle module alias calls (e.g., ET.fromstring() → ET::fromstring())
                     // When the object is a module alias, generate path notation instead of method notation
                     if converter.ctx.module_aliases.contains_key(module_name) {
-                        let module_ident = syn::Ident::new(module_name, proc_macro2::Span::call_site());
+                        let module_ident =
+                            syn::Ident::new(module_name, proc_macro2::Span::call_site());
                         let method_ident = syn::Ident::new(method, proc_macro2::Span::call_site());
                         let arg_exprs: Vec<syn::Expr> = args
                             .iter()
@@ -10890,10 +11098,7 @@ mod tests {
     pub(crate) fn test_get_python_op_precedence_mul() {
         assert_eq!(precedence::get_python_op_precedence(BinOp::Mul), 13);
         assert_eq!(precedence::get_python_op_precedence(BinOp::Div), 13);
-        assert_eq!(
-            precedence::get_python_op_precedence(BinOp::FloorDiv),
-            13
-        );
+        assert_eq!(precedence::get_python_op_precedence(BinOp::FloorDiv), 13);
         assert_eq!(precedence::get_python_op_precedence(BinOp::Mod), 13);
     }
 
@@ -10905,30 +11110,15 @@ mod tests {
 
     #[test]
     pub(crate) fn test_get_python_op_precedence_shift() {
-        assert_eq!(
-            precedence::get_python_op_precedence(BinOp::LShift),
-            11
-        );
-        assert_eq!(
-            precedence::get_python_op_precedence(BinOp::RShift),
-            11
-        );
+        assert_eq!(precedence::get_python_op_precedence(BinOp::LShift), 11);
+        assert_eq!(precedence::get_python_op_precedence(BinOp::RShift), 11);
     }
 
     #[test]
     pub(crate) fn test_get_python_op_precedence_bitwise() {
-        assert_eq!(
-            precedence::get_python_op_precedence(BinOp::BitAnd),
-            10
-        );
-        assert_eq!(
-            precedence::get_python_op_precedence(BinOp::BitXor),
-            9
-        );
-        assert_eq!(
-            precedence::get_python_op_precedence(BinOp::BitOr),
-            8
-        );
+        assert_eq!(precedence::get_python_op_precedence(BinOp::BitAnd), 10);
+        assert_eq!(precedence::get_python_op_precedence(BinOp::BitXor), 9);
+        assert_eq!(precedence::get_python_op_precedence(BinOp::BitOr), 8);
     }
 
     #[test]
@@ -11335,10 +11525,13 @@ mod tests {
             object: Box::new(HirExpr::Var("obj".to_string())),
             method: "method".to_string(),
             args: vec![],
-            kwargs: vec![("key".to_string(), HirExpr::NamedExpr {
-                target: "kwarg_var".to_string(),
-                value: Box::new(HirExpr::Literal(Literal::Int(1))),
-            })],
+            kwargs: vec![(
+                "key".to_string(),
+                HirExpr::NamedExpr {
+                    target: "kwarg_var".to_string(),
+                    value: Box::new(HirExpr::Literal(Literal::Int(1))),
+                },
+            )],
         }];
         let vars = walrus_helpers::collect_walrus_vars_from_conditions(&conditions);
         assert!(vars.contains("kwarg_var"));
@@ -11430,7 +11623,8 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Float(3.15), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Float(3.15), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         assert!(code.contains("3.15"));
     }
@@ -11440,7 +11634,8 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         // Should have decimal point
         assert!(code.contains("0.0") || code.contains("."));
@@ -11451,7 +11646,8 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Bool(true), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Bool(true), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         assert_eq!(code, "true");
     }
@@ -11461,7 +11657,8 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Bool(false), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Bool(false), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         assert_eq!(code, "false");
     }
@@ -11482,7 +11679,8 @@ mod tests {
         let needs_cow = false;
         let ctx = CodeGenContext::default();
         let bytes = vec![72, 101, 108, 108, 111]; // "Hello"
-        let result = literal_to_rust_expr(&Literal::Bytes(bytes), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Bytes(bytes), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         assert!(code.contains("b\""));
     }
@@ -11492,7 +11690,12 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::String("hello".to_string()), &string_optimizer, &needs_cow, &ctx);
+        let result = literal_to_rust_expr(
+            &Literal::String("hello".to_string()),
+            &string_optimizer,
+            &needs_cow,
+            &ctx,
+        );
         let code = result.to_token_stream().to_string();
         assert!(code.contains("hello"));
     }
@@ -11502,7 +11705,12 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::String("hello\nworld".to_string()), &string_optimizer, &needs_cow, &ctx);
+        let result = literal_to_rust_expr(
+            &Literal::String("hello\nworld".to_string()),
+            &string_optimizer,
+            &needs_cow,
+            &ctx,
+        );
         let code = result.to_token_stream().to_string();
         assert!(code.contains("hello") && code.contains("world"));
     }
@@ -11572,7 +11780,8 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Int(i64::MAX), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Int(i64::MAX), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         assert!(code.contains(&i64::MAX.to_string()));
     }
@@ -11582,7 +11791,8 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Float(1.5e10), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Float(1.5e10), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         // Should handle scientific notation
         assert!(code.contains("e") || code.contains("E") || code.contains("15000000000"));
@@ -11593,7 +11803,12 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::String("".to_string()), &string_optimizer, &needs_cow, &ctx);
+        let result = literal_to_rust_expr(
+            &Literal::String("".to_string()),
+            &string_optimizer,
+            &needs_cow,
+            &ctx,
+        );
         let code = result.to_token_stream().to_string();
         assert!(code.contains("\"\""));
     }
@@ -11603,7 +11818,8 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Bytes(vec![]), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Bytes(vec![]), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         assert!(code.contains("b\"\""));
     }
@@ -11620,7 +11836,11 @@ mod tests {
         let result = literal_to_rust_expr(&Literal::Int(42), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         // Should be unsuffixed to allow Rust type inference
-        assert_eq!(code, "42", "Integer literal should be unsuffixed, got: {}", code);
+        assert_eq!(
+            code, "42",
+            "Integer literal should be unsuffixed, got: {}",
+            code
+        );
     }
 
     #[test]
@@ -11628,10 +11848,15 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Float(3.14), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Float(1.234), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         // Should be unsuffixed (decimal point ensures float parsing)
-        assert!(code.contains("3.14"), "Float literal should contain 3.14, got: {}", code);
+        assert!(
+            code.contains("1.234"),
+            "Float literal should contain 1.234, got: {}",
+            code
+        );
     }
 
     #[test]
@@ -11642,7 +11867,11 @@ mod tests {
         let result = literal_to_rust_expr(&Literal::Int(-100), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         // Should be unsuffixed
-        assert!(code.contains("-100") || code.contains("- 100"), "Negative int should be unsuffixed, got: {}", code);
+        assert!(
+            code.contains("-100") || code.contains("- 100"),
+            "Negative int should be unsuffixed, got: {}",
+            code
+        );
     }
 
     #[test]
@@ -11650,10 +11879,15 @@ mod tests {
         let string_optimizer = StringOptimizer::new();
         let needs_cow = false;
         let ctx = CodeGenContext::default();
-        let result = literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
+        let result =
+            literal_to_rust_expr(&Literal::Float(0.0), &string_optimizer, &needs_cow, &ctx);
         let code = result.to_token_stream().to_string();
         // Should have decimal point to ensure float parsing
-        assert!(code.contains("."), "Float zero should have decimal point, got: {}", code);
+        assert!(
+            code.contains("."),
+            "Float zero should have decimal point, got: {}",
+            code
+        );
     }
 
     // DEPYLER-1053: Tests for lambda parameter type inference in filter/map
@@ -11662,7 +11896,8 @@ mod tests {
         // Test that infer_iterable_element_type correctly extracts Float from List(Float)
         let mut ctx = CodeGenContext::default();
         // Register a variable as List(Float)
-        ctx.var_types.insert("data".to_string(), Type::List(Box::new(Type::Float)));
+        ctx.var_types
+            .insert("data".to_string(), Type::List(Box::new(Type::Float)));
 
         let converter = ExpressionConverter::new(&mut ctx);
         let iterable = HirExpr::Var("data".to_string());

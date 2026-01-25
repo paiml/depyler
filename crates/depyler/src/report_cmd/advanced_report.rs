@@ -365,7 +365,10 @@ pub fn format_text(report: &AdvancedReport) -> String {
     lines.push(String::new());
 
     // Summary
-    lines.push(format!("Status: {} [{:.1}%]", report.summary.status, report.summary.pass_rate));
+    lines.push(format!(
+        "Status: {} [{:.1}%]",
+        report.summary.status, report.summary.pass_rate
+    ));
     lines.push(format!(
         "Files: {} total, {} passed, {} failed",
         report.summary.total_files, report.summary.passed, report.summary.failed
@@ -407,7 +410,10 @@ pub fn format_text(report: &AdvancedReport) -> String {
         lines.push("ERROR CLUSTERS".to_string());
         lines.push("──────────────".to_string());
         for cluster in clusters.iter().take(3) {
-            lines.push(format!("  • {} ({} files)", cluster.label, cluster.file_count));
+            lines.push(format!(
+                "  • {} ({} files)",
+                cluster.label, cluster.file_count
+            ));
         }
         lines.push(String::new());
     }
@@ -536,11 +542,13 @@ mod tests {
 
     #[test]
     fn test_build_domain_stats() {
-        let mut breakdown = DomainBreakdown::default();
-        breakdown.core_lang_pass = 8;
-        breakdown.core_lang_fail = 2;
-        breakdown.external_pass = 4;
-        breakdown.external_fail = 6;
+        let breakdown = DomainBreakdown {
+            core_lang_pass: 8,
+            core_lang_fail: 2,
+            external_pass: 4,
+            external_fail: 6,
+            ..Default::default()
+        };
 
         let stats = build_domain_stats(&breakdown);
 
@@ -549,7 +557,10 @@ mod tests {
         assert_eq!(core.failed, 2);
         assert!((core.pass_rate - 80.0).abs() < 0.01);
 
-        let external = stats.iter().find(|s| s.name == "External Packages").unwrap();
+        let external = stats
+            .iter()
+            .find(|s| s.name == "External Packages")
+            .unwrap();
         assert_eq!(external.passed, 4);
         assert_eq!(external.failed, 6);
     }

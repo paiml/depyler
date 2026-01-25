@@ -29,10 +29,9 @@ use std::collections::HashMap;
 
 // Use public exports from aprender::citl
 use aprender::citl::{
-    CodeReplacement, CompilerDiagnostic, CompilerSuggestion, DiagnosticSeverity,
-    SourceSpan, SuggestionApplicability, TypeInfo,
-    GNNErrorEncoder, ProgramFeedbackGraph,
-    Difficulty, ErrorCategory as AprenderErrorCategory, ErrorCode as AprenderErrorCode,
+    CodeReplacement, CompilerDiagnostic, CompilerSuggestion, DiagnosticSeverity, Difficulty,
+    ErrorCategory as AprenderErrorCategory, ErrorCode as AprenderErrorCode, GNNErrorEncoder,
+    ProgramFeedbackGraph, SourceSpan, SuggestionApplicability, TypeInfo,
 };
 
 // GH-210 Phase 3: HNSW index for O(log n) similarity search
@@ -75,9 +74,9 @@ impl Default for GnnEncoderConfig {
             similarity_threshold: 0.7,
             max_similar: 5,
             use_hnsw: true,
-            use_ast_embeddings: true,  // Issue #210: Enable by default
+            use_ast_embeddings: true, // Issue #210: Enable by default
             ast_embedding_dim: 128,
-            hnsw_m: 16,               // GH-210 Phase 3: Good default for recall
+            hnsw_m: 16,                // GH-210 Phase 3: Good default for recall
             hnsw_ef_construction: 200, // GH-210 Phase 3: Higher = better recall, slower build
         }
     }
@@ -252,8 +251,9 @@ impl DepylerGnnEncoder {
             self.stats.successful_matches += 1;
             let total_sim: f64 = results.iter().map(|r| f64::from(r.similarity)).sum();
             let count = self.stats.successful_matches as f64;
-            self.stats.avg_similarity =
-                (self.stats.avg_similarity * (count - 1.0) + total_sim / results.len() as f64) / count;
+            self.stats.avg_similarity = (self.stats.avg_similarity * (count - 1.0)
+                + total_sim / results.len() as f64)
+                / count;
         }
 
         results
@@ -437,7 +437,8 @@ impl DepylerGnnEncoder {
             if let Some(pattern) = self.patterns.get(&pattern_id) {
                 if let Some(ref mut hnsw) = self.hnsw_index {
                     // Convert f32 embedding to f64 Vector for HNSW
-                    let vector_f64: Vec<f64> = pattern.embedding.iter().map(|&x| x as f64).collect();
+                    let vector_f64: Vec<f64> =
+                        pattern.embedding.iter().map(|&x| x as f64).collect();
                     hnsw.add(pattern_id.clone(), Vector::from_slice(&vector_f64));
                     self.hnsw_id_map.push(pattern_id);
                 }
@@ -636,11 +637,7 @@ mod tests {
     fn test_find_similar_empty() {
         let mut encoder = DepylerGnnEncoder::with_defaults();
 
-        let results = encoder.find_similar(
-            "E0308",
-            "type mismatch",
-            "let x = 5;",
-        );
+        let results = encoder.find_similar("E0308", "type mismatch", "let x = 5;");
 
         assert!(results.is_empty());
         assert_eq!(encoder.stats().queries_performed, 1);
@@ -659,11 +656,7 @@ mod tests {
         encoder.index_pattern(&pattern, "let x: i32 = \"hello\";");
 
         // Query with similar error
-        let results = encoder.find_similar(
-            "E0308",
-            "mismatched types",
-            "let y: i32 = \"world\";",
-        );
+        let results = encoder.find_similar("E0308", "mismatched types", "let y: i32 = \"world\";");
 
         // Should find at least some similarity
         assert!(!results.is_empty());
@@ -707,11 +700,7 @@ mod tests {
     #[test]
     fn test_build_graph() {
         let encoder = DepylerGnnEncoder::with_defaults();
-        let graph = encoder.build_graph(
-            "E0308",
-            "mismatched types",
-            "let x: i32 = \"hello\";",
-        );
+        let graph = encoder.build_graph("E0308", "mismatched types", "let x: i32 = \"hello\";");
 
         // Graph should have at least one node (diagnostic)
         assert!(graph.num_nodes() > 0);
@@ -811,11 +800,7 @@ mod tests {
         let encoder = DepylerGnnEncoder::with_defaults();
 
         // Type mismatch vs ownership error
-        let e1 = encoder.encode_error(
-            "E0308",
-            "mismatched types",
-            "let x: i32 = \"hello\";",
-        );
+        let e1 = encoder.encode_error("E0308", "mismatched types", "let x: i32 = \"hello\";");
         let e2 = encoder.encode_error(
             "E0382",
             "borrow of moved value",
@@ -863,12 +848,8 @@ fn add(a: i32, b: i32) -> i32 {
 }
 "#;
 
-        let combined = encoder.encode_combined(
-            "E0308",
-            "mismatched types",
-            python_source,
-            rust_source,
-        );
+        let combined =
+            encoder.encode_combined("E0308", "mismatched types", python_source, rust_source);
 
         // Should have correct total dimension
         assert_eq!(combined.len(), encoder.combined_dim());
@@ -997,11 +978,7 @@ fn add(a: i32, b: i32) -> i32 {
         encoder.index_pattern(&pattern, "let x: i32 = \"hello\";");
 
         // Search should use HNSW
-        let results = encoder.find_similar(
-            "E0308",
-            "mismatched types",
-            "let y: i32 = \"world\";",
-        );
+        let results = encoder.find_similar("E0308", "mismatched types", "let y: i32 = \"world\";");
 
         // Verify HNSW was used
         assert_eq!(encoder.stats().hnsw_queries, 1);
@@ -1035,7 +1012,7 @@ fn add(a: i32, b: i32) -> i32 {
 
         // Index some patterns
         for i in 0..5 {
-            let pattern = ErrorPattern::new("E0308", &format!("error {}", i), "+fix");
+            let pattern = ErrorPattern::new("E0308", format!("error {}", i), "+fix");
             encoder.index_pattern(&pattern, "source");
         }
 

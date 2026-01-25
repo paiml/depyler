@@ -151,25 +151,75 @@ impl ExtendedAnalysisResult {
 
 /// Common stdlib modules (tier 1 - very common)
 const STDLIB_COMMON: &[&str] = &[
-    "sys", "os", "re", "collections", "json", "io", "pathlib",
-    "time", "datetime", "math", "random", "copy", "itertools",
-    "functools", "operator", "string", "textwrap", "struct",
+    "sys",
+    "os",
+    "re",
+    "collections",
+    "json",
+    "io",
+    "pathlib",
+    "time",
+    "datetime",
+    "math",
+    "random",
+    "copy",
+    "itertools",
+    "functools",
+    "operator",
+    "string",
+    "textwrap",
+    "struct",
 ];
 
 /// Advanced stdlib modules (tier 2 - complex features)
 const STDLIB_ADVANCED: &[&str] = &[
-    "asyncio", "multiprocessing", "threading", "concurrent",
-    "typing", "dataclasses", "abc", "contextlib", "inspect",
-    "unittest", "logging", "argparse", "configparser", "pickle",
-    "sqlite3", "socket", "http", "urllib", "email", "xml",
+    "asyncio",
+    "multiprocessing",
+    "threading",
+    "concurrent",
+    "typing",
+    "dataclasses",
+    "abc",
+    "contextlib",
+    "inspect",
+    "unittest",
+    "logging",
+    "argparse",
+    "configparser",
+    "pickle",
+    "sqlite3",
+    "socket",
+    "http",
+    "urllib",
+    "email",
+    "xml",
 ];
 
 /// External packages (non-stdlib)
 const EXTERNAL_PACKAGES: &[&str] = &[
-    "numpy", "pandas", "scipy", "sklearn", "tensorflow", "torch",
-    "requests", "httpx", "aiohttp", "flask", "django", "fastapi",
-    "matplotlib", "seaborn", "plotly", "pillow", "cv2",
-    "boto3", "google", "azure", "aws", "pydantic", "sqlalchemy",
+    "numpy",
+    "pandas",
+    "scipy",
+    "sklearn",
+    "tensorflow",
+    "torch",
+    "requests",
+    "httpx",
+    "aiohttp",
+    "flask",
+    "django",
+    "fastapi",
+    "matplotlib",
+    "seaborn",
+    "plotly",
+    "pillow",
+    "cv2",
+    "boto3",
+    "google",
+    "azure",
+    "aws",
+    "pydantic",
+    "sqlalchemy",
 ];
 
 /// Extract imports from Python source code
@@ -182,7 +232,7 @@ pub fn extract_imports(python_source: &str) -> Vec<String> {
         // Handle "import x" and "import x, y, z"
         if let Some(rest) = trimmed.strip_prefix("import ") {
             for part in rest.split(',') {
-                let module = part.trim().split_whitespace().next().unwrap_or("");
+                let module = part.split_whitespace().next().unwrap_or("");
                 let base_module = module.split('.').next().unwrap_or("");
                 if !base_module.is_empty() && !imports.contains(&base_module.to_string()) {
                     imports.push(base_module.to_string());
@@ -236,6 +286,7 @@ pub fn classify_domain(imports: &[String]) -> SemanticDomain {
 }
 
 /// Extract AST features from Python source (heuristic - fast)
+#[allow(clippy::field_reassign_with_default)]
 pub fn extract_ast_features(python_source: &str) -> AstFeatures {
     let mut features = AstFeatures::default();
     features.line_count = python_source.lines().count();
@@ -299,7 +350,9 @@ impl DomainBreakdown {
         let (pass, fail) = match domain {
             SemanticDomain::CoreLanguage => (self.core_lang_pass, self.core_lang_fail),
             SemanticDomain::StdlibCommon => (self.stdlib_common_pass, self.stdlib_common_fail),
-            SemanticDomain::StdlibAdvanced => (self.stdlib_advanced_pass, self.stdlib_advanced_fail),
+            SemanticDomain::StdlibAdvanced => {
+                (self.stdlib_advanced_pass, self.stdlib_advanced_fail)
+            }
             SemanticDomain::External => (self.external_pass, self.external_fail),
             SemanticDomain::Unknown => (self.unknown_pass, self.unknown_fail),
         };
@@ -339,7 +392,11 @@ pub fn analyze_extended_results(
             pass += 1;
         } else {
             fail += 1;
-            let code = result.base.error_code.clone().unwrap_or_else(|| "UNKNOWN".to_string());
+            let code = result
+                .base
+                .error_code
+                .clone()
+                .unwrap_or_else(|| "UNKNOWN".to_string());
             let entry = taxonomy.entry(code).or_default();
             entry.count += 1;
 
@@ -368,7 +425,8 @@ pub fn extract_error(stderr: &str) -> (String, String) {
     }
 
     // Check for transpiler errors
-    if clean.contains("Failed to transpile") || clean.contains("Unsupported")
+    if clean.contains("Failed to transpile")
+        || clean.contains("Unsupported")
         || clean.contains("not yet supported")
     {
         let message = extract_transpile_message(&clean);
@@ -377,11 +435,17 @@ pub fn extract_error(stderr: &str) -> (String, String) {
 
     // Check for depyler errors
     if clean.contains("Error:") {
-        return ("DEPYLER".to_string(), clean.lines().next().unwrap_or("").to_string());
+        return (
+            "DEPYLER".to_string(),
+            clean.lines().next().unwrap_or("").to_string(),
+        );
     }
 
     // Unknown error
-    ("UNKNOWN".to_string(), clean.lines().next().unwrap_or("").to_string())
+    (
+        "UNKNOWN".to_string(),
+        clean.lines().next().unwrap_or("").to_string(),
+    )
 }
 
 /// Strip ANSI escape codes from string
@@ -469,7 +533,10 @@ pub fn analyze_results(results: &[AnalysisResult]) -> (usize, usize, HashMap<Str
             pass += 1;
         } else {
             fail += 1;
-            let code = result.error_code.clone().unwrap_or_else(|| "UNKNOWN".to_string());
+            let code = result
+                .error_code
+                .clone()
+                .unwrap_or_else(|| "UNKNOWN".to_string());
             let entry = taxonomy.entry(code).or_default();
             entry.count += 1;
 
@@ -667,7 +734,8 @@ mod tests {
 
     #[test]
     fn test_extract_error_e0277() {
-        let (code, msg) = extract_error("error[E0277]: the trait bound `T: Clone` is not satisfied");
+        let (code, msg) =
+            extract_error("error[E0277]: the trait bound `T: Clone` is not satisfied");
         assert_eq!(code, "E0277");
         assert!(msg.contains("trait bound"));
     }
@@ -692,7 +760,8 @@ mod tests {
 
     #[test]
     fn test_extract_error_transpile_failed() {
-        let (code, msg) = extract_error("Error: Failed to transpile\nCaused by:\n  Lambda not supported");
+        let (code, msg) =
+            extract_error("Error: Failed to transpile\nCaused by:\n  Lambda not supported");
         assert_eq!(code, "TRANSPILE");
         assert!(msg.contains("Lambda") || msg.contains("not supported"));
     }
@@ -730,7 +799,8 @@ mod tests {
 
     #[test]
     fn test_extract_error_multiline() {
-        let stderr = "error[E0308]: mismatched types\n  --> src/main.rs:5:5\n   |\n5  |     return x;";
+        let stderr =
+            "error[E0308]: mismatched types\n  --> src/main.rs:5:5\n   |\n5  |     return x;";
         let (code, msg) = extract_error(stderr);
         assert_eq!(code, "E0308");
         assert!(msg.contains("mismatched"));
@@ -802,8 +872,18 @@ mod tests {
     #[test]
     fn test_analyze_results_all_pass() {
         let results = vec![
-            AnalysisResult { name: "a".into(), success: true, error_code: None, error_message: None },
-            AnalysisResult { name: "b".into(), success: true, error_code: None, error_message: None },
+            AnalysisResult {
+                name: "a".into(),
+                success: true,
+                error_code: None,
+                error_message: None,
+            },
+            AnalysisResult {
+                name: "b".into(),
+                success: true,
+                error_code: None,
+                error_message: None,
+            },
         ];
         let (pass, fail, taxonomy) = analyze_results(&results);
         assert_eq!(pass, 2);
@@ -814,8 +894,18 @@ mod tests {
     #[test]
     fn test_analyze_results_all_fail() {
         let results = vec![
-            AnalysisResult { name: "a".into(), success: false, error_code: Some("E0308".into()), error_message: Some("type".into()) },
-            AnalysisResult { name: "b".into(), success: false, error_code: Some("E0308".into()), error_message: Some("type".into()) },
+            AnalysisResult {
+                name: "a".into(),
+                success: false,
+                error_code: Some("E0308".into()),
+                error_message: Some("type".into()),
+            },
+            AnalysisResult {
+                name: "b".into(),
+                success: false,
+                error_code: Some("E0308".into()),
+                error_message: Some("type".into()),
+            },
         ];
         let (pass, fail, taxonomy) = analyze_results(&results);
         assert_eq!(pass, 0);
@@ -826,10 +916,30 @@ mod tests {
     #[test]
     fn test_analyze_results_mixed() {
         let results = vec![
-            AnalysisResult { name: "a".into(), success: true, error_code: None, error_message: None },
-            AnalysisResult { name: "b".into(), success: false, error_code: Some("E0425".into()), error_message: None },
-            AnalysisResult { name: "c".into(), success: false, error_code: Some("E0308".into()), error_message: None },
-            AnalysisResult { name: "d".into(), success: false, error_code: Some("E0425".into()), error_message: None },
+            AnalysisResult {
+                name: "a".into(),
+                success: true,
+                error_code: None,
+                error_message: None,
+            },
+            AnalysisResult {
+                name: "b".into(),
+                success: false,
+                error_code: Some("E0425".into()),
+                error_message: None,
+            },
+            AnalysisResult {
+                name: "c".into(),
+                success: false,
+                error_code: Some("E0308".into()),
+                error_message: None,
+            },
+            AnalysisResult {
+                name: "d".into(),
+                success: false,
+                error_code: Some("E0425".into()),
+                error_message: None,
+            },
         ];
         let (pass, fail, taxonomy) = analyze_results(&results);
         assert_eq!(pass, 1);
@@ -855,9 +965,12 @@ mod tests {
 
     #[test]
     fn test_analyze_results_no_error_code() {
-        let results = vec![
-            AnalysisResult { name: "a".into(), success: false, error_code: None, error_message: None },
-        ];
+        let results = vec![AnalysisResult {
+            name: "a".into(),
+            success: false,
+            error_code: None,
+            error_message: None,
+        }];
         let (_, fail, taxonomy) = analyze_results(&results);
         assert_eq!(fail, 1);
         assert!(taxonomy.contains_key("UNKNOWN"));
@@ -867,7 +980,10 @@ mod tests {
 
     #[test]
     fn test_error_description_e0425() {
-        assert!(error_description("E0425").contains("undefined") || error_description("E0425").contains("find value"));
+        assert!(
+            error_description("E0425").contains("undefined")
+                || error_description("E0425").contains("find value")
+        );
     }
 
     #[test]
@@ -877,17 +993,26 @@ mod tests {
 
     #[test]
     fn test_error_description_e0277() {
-        assert!(error_description("E0277").contains("Trait") || error_description("E0277").contains("impl"));
+        assert!(
+            error_description("E0277").contains("Trait")
+                || error_description("E0277").contains("impl")
+        );
     }
 
     #[test]
     fn test_error_description_e0382() {
-        assert!(error_description("E0382").contains("moved") || error_description("E0382").contains("ownership"));
+        assert!(
+            error_description("E0382").contains("moved")
+                || error_description("E0382").contains("ownership")
+        );
     }
 
     #[test]
     fn test_error_description_transpile() {
-        assert!(error_description("TRANSPILE").contains("transpiler") || error_description("TRANSPILE").contains("Unsupported"));
+        assert!(
+            error_description("TRANSPILE").contains("transpiler")
+                || error_description("TRANSPILE").contains("Unsupported")
+        );
     }
 
     #[test]
@@ -902,11 +1027,22 @@ mod tests {
 
     #[test]
     fn test_error_description_all_known_codes() {
-        let codes = ["E0425", "E0412", "E0308", "E0277", "E0432", "E0599", "E0433", "E0423", "E0369", "E0382", "E0507"];
+        let codes = [
+            "E0425", "E0412", "E0308", "E0277", "E0432", "E0599", "E0433", "E0423", "E0369",
+            "E0382", "E0507",
+        ];
         for code in codes {
             let desc = error_description(code);
-            assert!(!desc.is_empty(), "Description for {} should not be empty", code);
-            assert!(!desc.contains("explain"), "Known code {} should have specific description", code);
+            assert!(
+                !desc.is_empty(),
+                "Description for {} should not be empty",
+                code
+            );
+            assert!(
+                !desc.contains("explain"),
+                "Known code {} should have specific description",
+                code
+            );
         }
     }
 
@@ -934,10 +1070,22 @@ mod tests {
 
     #[test]
     fn test_fix_recommendation_all_known_codes() {
-        let codes = ["E0425", "E0308", "E0277", "E0599", "E0433", "TRANSPILE", "DEPYLER"];
+        let codes = [
+            "E0425",
+            "E0308",
+            "E0277",
+            "E0599",
+            "E0433",
+            "TRANSPILE",
+            "DEPYLER",
+        ];
         for code in codes {
             let rec = fix_recommendation(code);
-            assert!(!rec.is_empty(), "Recommendation for {} should not be empty", code);
+            assert!(
+                !rec.is_empty(),
+                "Recommendation for {} should not be empty",
+                code
+            );
         }
     }
 
@@ -1098,7 +1246,13 @@ mod tests {
     #[test]
     fn test_sort_by_count_single() {
         let mut taxonomy = HashMap::new();
-        taxonomy.insert("E0308".to_string(), ErrorEntry { count: 5, samples: vec![] });
+        taxonomy.insert(
+            "E0308".to_string(),
+            ErrorEntry {
+                count: 5,
+                samples: vec![],
+            },
+        );
         let sorted = sort_by_count(&taxonomy);
         assert_eq!(sorted.len(), 1);
         assert_eq!(sorted[0].0, "E0308");
@@ -1107,9 +1261,27 @@ mod tests {
     #[test]
     fn test_sort_by_count_descending() {
         let mut taxonomy = HashMap::new();
-        taxonomy.insert("E0308".to_string(), ErrorEntry { count: 5, samples: vec![] });
-        taxonomy.insert("E0425".to_string(), ErrorEntry { count: 10, samples: vec![] });
-        taxonomy.insert("E0277".to_string(), ErrorEntry { count: 3, samples: vec![] });
+        taxonomy.insert(
+            "E0308".to_string(),
+            ErrorEntry {
+                count: 5,
+                samples: vec![],
+            },
+        );
+        taxonomy.insert(
+            "E0425".to_string(),
+            ErrorEntry {
+                count: 10,
+                samples: vec![],
+            },
+        );
+        taxonomy.insert(
+            "E0277".to_string(),
+            ErrorEntry {
+                count: 3,
+                samples: vec![],
+            },
+        );
 
         let sorted = sort_by_count(&taxonomy);
         assert_eq!(sorted[0].0, "E0425"); // Highest count first
@@ -1128,18 +1300,24 @@ mod tests {
 
     #[test]
     fn test_build_co_occurrence_map_all_pass() {
-        let results = vec![
-            AnalysisResult { name: "a".into(), success: true, error_code: None, error_message: None },
-        ];
+        let results = vec![AnalysisResult {
+            name: "a".into(),
+            success: true,
+            error_code: None,
+            error_message: None,
+        }];
         let map = build_co_occurrence_map(&results);
         assert!(map.is_empty());
     }
 
     #[test]
     fn test_build_co_occurrence_map_single_error() {
-        let results = vec![
-            AnalysisResult { name: "a".into(), success: false, error_code: Some("E0308".into()), error_message: None },
-        ];
+        let results = vec![AnalysisResult {
+            name: "a".into(),
+            success: false,
+            error_code: Some("E0308".into()),
+            error_message: None,
+        }];
         let map = build_co_occurrence_map(&results);
         // Single error in a file, no co-occurrence
         assert!(map.is_empty());
@@ -1148,8 +1326,18 @@ mod tests {
     #[test]
     fn test_build_co_occurrence_map_no_overlap() {
         let results = vec![
-            AnalysisResult { name: "a".into(), success: false, error_code: Some("E0308".into()), error_message: None },
-            AnalysisResult { name: "b".into(), success: false, error_code: Some("E0425".into()), error_message: None },
+            AnalysisResult {
+                name: "a".into(),
+                success: false,
+                error_code: Some("E0308".into()),
+                error_message: None,
+            },
+            AnalysisResult {
+                name: "b".into(),
+                success: false,
+                error_code: Some("E0425".into()),
+                error_message: None,
+            },
         ];
         let map = build_co_occurrence_map(&results);
         // Different files, no co-occurrence
@@ -1206,9 +1394,18 @@ mod tests {
 
     #[test]
     fn test_error_entry_equality() {
-        let e1 = ErrorEntry { count: 5, samples: vec![] };
-        let e2 = ErrorEntry { count: 5, samples: vec![] };
-        let e3 = ErrorEntry { count: 3, samples: vec![] };
+        let e1 = ErrorEntry {
+            count: 5,
+            samples: vec![],
+        };
+        let e2 = ErrorEntry {
+            count: 5,
+            samples: vec![],
+        };
+        let e3 = ErrorEntry {
+            count: 3,
+            samples: vec![],
+        };
         assert_eq!(e1, e2);
         assert_ne!(e1, e3);
     }
@@ -1434,9 +1631,11 @@ mod tests {
 
     #[test]
     fn test_domain_breakdown_pass_rate() {
-        let mut b = DomainBreakdown::default();
-        b.core_lang_pass = 8;
-        b.core_lang_fail = 2;
+        let b = DomainBreakdown {
+            core_lang_pass: 8,
+            core_lang_fail: 2,
+            ..Default::default()
+        };
         let rate = b.pass_rate(SemanticDomain::CoreLanguage);
         assert!((rate - 80.0).abs() < 0.01);
     }

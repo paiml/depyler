@@ -6,7 +6,9 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::analysis::{AstFeatures, ExtendedAnalysisResult, SemanticDomain};
+#[cfg(test)]
+use super::analysis::AstFeatures;
+use super::analysis::{ExtendedAnalysisResult, SemanticDomain};
 
 /// Error feature vector for ML clustering (GH-209)
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -24,9 +26,8 @@ pub struct ErrorFeatureVector {
 impl ErrorFeatureVector {
     /// Create from extended analysis result
     pub fn from_result(result: &ExtendedAnalysisResult) -> Self {
-        let error_code_idx = error_code_to_idx(
-            result.base.error_code.as_deref().unwrap_or("UNKNOWN"),
-        );
+        let error_code_idx =
+            error_code_to_idx(result.base.error_code.as_deref().unwrap_or("UNKNOWN"));
         let domain_idx = domain_to_idx(result.semantic_domain);
         let ast_features = result.ast_features.to_feature_vector();
 
@@ -61,10 +62,9 @@ impl ErrorFeatureVector {
 /// Map error code to index
 fn error_code_to_idx(code: &str) -> usize {
     const ERROR_CODES: &[&str] = &[
-        "E0308", "E0425", "E0433", "E0277", "E0599", "E0382", "E0502",
-        "E0503", "E0505", "E0506", "E0507", "E0106", "E0495", "E0621",
-        "E0282", "E0283", "E0412", "E0432", "E0603", "E0609", "E0614",
-        "E0615", "E0616", "E0618", "E0620",
+        "E0308", "E0425", "E0433", "E0277", "E0599", "E0382", "E0502", "E0503", "E0505", "E0506",
+        "E0507", "E0106", "E0495", "E0621", "E0282", "E0283", "E0412", "E0432", "E0603", "E0609",
+        "E0614", "E0615", "E0616", "E0618", "E0620",
     ];
 
     ERROR_CODES.iter().position(|&c| c == code).unwrap_or(25)
@@ -154,7 +154,7 @@ pub struct ClusterConfig {
 impl Default for ClusterConfig {
     fn default() -> Self {
         Self {
-            n_clusters: 0,       // Auto-detect
+            n_clusters: 0, // Auto-detect
             max_iterations: 100,
             tolerance: 1e-4,
             min_samples: 2,
@@ -207,10 +207,7 @@ impl ErrorClusterAnalyzer {
             .map(|(_, r)| ErrorFeatureVector::from_result(r))
             .collect();
 
-        let feature_matrix: Vec<Vec<f64>> = features
-            .iter()
-            .map(|f| f.to_flat_vector())
-            .collect();
+        let feature_matrix: Vec<Vec<f64>> = features.iter().map(|f| f.to_flat_vector()).collect();
 
         // Determine optimal k (simple heuristic: sqrt(n) / 2, min 2, max 10)
         let n = failed.len();
@@ -227,7 +224,7 @@ impl ErrorClusterAnalyzer {
 
         // Build clusters
         let mut clusters = Vec::new();
-        for cluster_id in 0..k {
+        for (cluster_id, centroid) in centroids.iter().enumerate() {
             let member_indices: Vec<usize> = labels
                 .iter()
                 .enumerate()
@@ -240,23 +237,22 @@ impl ErrorClusterAnalyzer {
             }
 
             // Find dominant error code
-            let dominant_error_code = find_dominant_error_code(
-                &member_indices,
-                results,
-            );
+            let dominant_error_code = find_dominant_error_code(&member_indices, results);
 
             // Find dominant domain
             let dominant_domain = find_dominant_domain(&member_indices, results);
 
             // Generate label
-            let label = generate_cluster_label(&dominant_error_code, dominant_domain, member_indices.len());
+            let label =
+                generate_cluster_label(&dominant_error_code, dominant_domain, member_indices.len());
 
             // Calculate cohesion
-            let cohesion = calculate_cohesion(&member_indices, &feature_matrix, &labels, cluster_id);
+            let cohesion =
+                calculate_cohesion(&member_indices, &feature_matrix, &labels, cluster_id);
 
             clusters.push(ErrorCluster {
                 id: cluster_id,
-                centroid: centroids[cluster_id].clone(),
+                centroid: centroid.clone(),
                 member_indices,
                 dominant_error_code,
                 dominant_domain,
@@ -266,7 +262,7 @@ impl ErrorClusterAnalyzer {
         }
 
         // Sort by member count descending
-        clusters.sort_by(|a, b| b.member_count().cmp(&a.member_count()));
+        clusters.sort_by_key(|c| std::cmp::Reverse(c.member_count()));
 
         // Calculate silhouette score
         let silhouette_score = calculate_silhouette(&feature_matrix, &labels);
@@ -287,11 +283,7 @@ impl Default for ErrorClusterAnalyzer {
 }
 
 /// Simple KMeans implementation (no external deps)
-fn simple_kmeans(
-    data: &[Vec<f64>],
-    k: usize,
-    max_iter: usize,
-) -> (Vec<usize>, Vec<Vec<f64>>) {
+fn simple_kmeans(data: &[Vec<f64>], k: usize, max_iter: usize) -> (Vec<usize>, Vec<Vec<f64>>) {
     if data.is_empty() || k == 0 {
         return (vec![], vec![]);
     }
@@ -346,10 +338,10 @@ fn simple_kmeans(
             }
         }
 
-        for c in 0..k {
+        for (c, centroid) in new_centroids.iter_mut().enumerate() {
             if counts[c] > 0 {
-                for j in 0..d {
-                    new_centroids[c][j] /= counts[c] as f64;
+                for coord in centroid.iter_mut() {
+                    *coord /= counts[c] as f64;
                 }
             }
         }
@@ -370,10 +362,7 @@ fn euclidean_distance(a: &[f64], b: &[f64]) -> f64 {
 }
 
 /// Find most common error code in cluster
-fn find_dominant_error_code(
-    indices: &[usize],
-    results: &[ExtendedAnalysisResult],
-) -> String {
+fn find_dominant_error_code(indices: &[usize], results: &[ExtendedAnalysisResult]) -> String {
     let mut counts: HashMap<String, usize> = HashMap::new();
 
     for &idx in indices {
@@ -390,10 +379,7 @@ fn find_dominant_error_code(
 }
 
 /// Find most common semantic domain in cluster
-fn find_dominant_domain(
-    indices: &[usize],
-    results: &[ExtendedAnalysisResult],
-) -> SemanticDomain {
+fn find_dominant_domain(indices: &[usize], results: &[ExtendedAnalysisResult]) -> SemanticDomain {
     let mut counts: HashMap<SemanticDomain, usize> = HashMap::new();
 
     for &idx in indices {
@@ -408,11 +394,7 @@ fn find_dominant_domain(
 }
 
 /// Generate human-readable cluster label
-fn generate_cluster_label(
-    error_code: &str,
-    domain: SemanticDomain,
-    count: usize,
-) -> String {
+fn generate_cluster_label(error_code: &str, domain: SemanticDomain, count: usize) -> String {
     let error_desc = match error_code {
         "E0308" => "Type Mismatch",
         "E0425" => "Undefined Value",
@@ -491,7 +473,8 @@ fn calculate_silhouette(data: &[Vec<f64>], labels: &[usize]) -> f64 {
             same_cluster
                 .iter()
                 .map(|&j| euclidean_distance(&data[i], &data[j]))
-                .sum::<f64>() / same_cluster.len() as f64
+                .sum::<f64>()
+                / same_cluster.len() as f64
         };
 
         // Calculate b(i) - min mean distance to other clusters
@@ -522,7 +505,8 @@ fn calculate_silhouette(data: &[Vec<f64>], labels: &[usize]) -> f64 {
                         cluster_points
                             .iter()
                             .map(|&j| euclidean_distance(&data[i], &data[j]))
-                            .sum::<f64>() / cluster_points.len() as f64
+                            .sum::<f64>()
+                            / cluster_points.len() as f64
                     }
                 })
                 .fold(f64::MAX, |a, b| a.min(b))
@@ -549,7 +533,11 @@ mod tests {
     use super::*;
     use crate::report_cmd::analysis::AnalysisResult;
 
-    fn make_failed_result(name: &str, error_code: &str, domain: SemanticDomain) -> ExtendedAnalysisResult {
+    fn make_failed_result(
+        name: &str,
+        error_code: &str,
+        domain: SemanticDomain,
+    ) -> ExtendedAnalysisResult {
         ExtendedAnalysisResult {
             base: AnalysisResult {
                 name: name.to_string(),
@@ -599,7 +587,7 @@ mod tests {
         let vec = ErrorFeatureVector::from_result(&result);
 
         assert_eq!(vec.error_code_idx, 0); // E0308 is index 0
-        assert_eq!(vec.domain_idx, 3);     // External is index 3
+        assert_eq!(vec.domain_idx, 3); // External is index 3
         assert_eq!(vec.ast_features.len(), 8);
         assert_eq!(vec.total_dims, 10);
     }
