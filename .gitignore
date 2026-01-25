@@ -126,3 +126,12 @@ SESSION-*.md
 
 # Orphan outputs
 None
+
+# PMAT
+.pmat/backup/
+.pmat-qa/
+
+# Nix
+result
+result-*
+.direnv/
