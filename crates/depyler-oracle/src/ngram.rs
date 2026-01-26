@@ -312,6 +312,56 @@ impl NgramFixPredictor {
     pub fn is_fitted(&self) -> bool {
         self.is_fitted
     }
+
+    /// Save learned patterns to a file.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if serialization or file write fails.
+    pub fn save(&self, path: &std::path::Path) -> Result<(), crate::OracleError> {
+        // Ensure parent directory exists
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let data = serde_json::to_string_pretty(&self.patterns)
+            .map_err(|e| crate::OracleError::Model(format!("serialize: {e}")))?;
+        std::fs::write(path, data)?;
+        Ok(())
+    }
+
+    /// Load patterns from a file, merging with existing patterns.
+    ///
+    /// # Errors
+    ///
+    /// Returns error if file read or deserialization fails.
+    pub fn load(&mut self, path: &std::path::Path) -> Result<(), crate::OracleError> {
+        if !path.exists() {
+            return Ok(()); // No file yet, that's fine
+        }
+        let data = std::fs::read_to_string(path)?;
+        let loaded: HashMap<ErrorCategory, Vec<FixPattern>> = serde_json::from_str(&data)
+            .map_err(|e| crate::OracleError::Model(format!("deserialize: {e}")))?;
+
+        // Merge loaded patterns with existing
+        for (category, patterns) in loaded {
+            let existing = self.patterns.entry(category).or_default();
+            for pattern in patterns {
+                if !existing.iter().any(|p| p.error_pattern == pattern.error_pattern) {
+                    existing.push(pattern);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Get default user model path (~/.depyler/oracle_user.bin)
+    #[must_use]
+    pub fn default_user_model_path() -> std::path::PathBuf {
+        dirs::home_dir()
+            .unwrap_or_else(|| std::path::PathBuf::from("."))
+            .join(".depyler")
+            .join("oracle_user.bin")
+    }
 }
 
 impl Default for NgramFixPredictor {

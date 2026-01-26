@@ -72,6 +72,59 @@ async fn handle_converge_command(
     }
 }
 
+/// Handle Train command - train Oracle on user corpus (DEPYLER-ORACLE-TRAIN)
+async fn handle_train_command(
+    corpus: PathBuf,
+    output: Option<PathBuf>,
+    target_rate: f64,
+    max_iterations: usize,
+) -> Result<()> {
+    use depyler_oracle::NgramFixPredictor;
+
+    let model_path = output.unwrap_or_else(NgramFixPredictor::default_user_model_path);
+
+    println!("DEPYLER-ORACLE-TRAIN: Training on corpus {}", corpus.display());
+    println!("Model will be saved to: {}", model_path.display());
+
+    // Run converge with auto_fix to learn patterns
+    let config = converge::ConvergenceConfig {
+        input_dir: corpus,
+        target_rate,
+        max_iterations,
+        auto_fix: true,
+        dry_run: false,
+        verbose: true,
+        fix_confidence_threshold: 0.7,
+        checkpoint_dir: None,
+        parallel_jobs: 4,
+        display_mode: converge::DisplayMode::Minimal,
+        oracle: true,
+        explain: false,
+        use_cache: true,
+        patch_transpiler: false,
+        apr_file: None,
+    };
+
+    config.validate()?;
+
+    let state = converge::run_convergence_loop(config).await?;
+
+    // Load and display the saved model stats
+    let mut predictor = NgramFixPredictor::new();
+    if let Err(e) = predictor.load(&model_path) {
+        println!("Warning: Could not load saved model: {}", e);
+    } else {
+        println!("\nTraining complete!");
+        println!("  Patterns learned: {}", predictor.pattern_count());
+        println!("  Final compilation rate: {:.1}%", state.compilation_rate);
+        println!("  Fixes applied: {}", state.fixes_applied.len());
+        println!("\nModel saved to: {}", model_path.display());
+        println!("\nSubsequent `depyler converge` commands will use these learned patterns.");
+    }
+
+    Ok(())
+}
+
 /// Handle Cache subcommands
 fn handle_cache_command(cache_cmd: CacheCommands) -> Result<()> {
     use depyler::converge::{CacheConfig, SqliteCache};
@@ -276,6 +329,14 @@ async fn handle_command(command: Commands) -> Result<()> {
                 apr_file,
             )
             .await
+        }
+        Commands::Train {
+            corpus,
+            output,
+            target_rate,
+            max_iterations,
+        } => {
+            handle_train_command(corpus, output, target_rate, max_iterations).await
         }
         Commands::Report {
             input_dir,

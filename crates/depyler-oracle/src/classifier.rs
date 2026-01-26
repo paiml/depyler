@@ -77,6 +77,19 @@ impl ErrorCategory {
             Self::Other,
         ]
     }
+
+    /// Create from Rust error code (e.g., "E0308").
+    #[must_use]
+    pub fn from_code(code: &str) -> Self {
+        match code {
+            "E0308" | "E0282" => Self::TypeMismatch,
+            "E0382" | "E0502" | "E0499" | "E0503" => Self::BorrowChecker,
+            "E0425" | "E0433" | "E0412" => Self::MissingImport,
+            "E0597" | "E0716" | "E0621" => Self::LifetimeError,
+            "E0277" | "E0599" => Self::TraitBound,
+            _ => Self::Other,
+        }
+    }
 }
 
 /// Error classifier using rule-based and ML approaches.

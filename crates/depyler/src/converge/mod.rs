@@ -57,6 +57,7 @@ pub use type_constraint_learner::{
 };
 
 use anyhow::Result;
+use depyler_oracle::NgramFixPredictor;
 
 /// Run the convergence loop to improve compilation rate
 pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<ConvergenceState> {
@@ -65,6 +66,13 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     let classifier = ErrorClassifier::new();
     let clusterer = ErrorClusterer::new();
     let reporter = ConvergenceReporter::with_display_mode(config.display_mode);
+
+    // DEPYLER-ORACLE-TRAIN: Initialize user pattern predictor for feedback learning
+    let mut user_predictor = NgramFixPredictor::new();
+    let user_model_path = NgramFixPredictor::default_user_model_path();
+    if let Err(e) = user_predictor.load(&user_model_path) {
+        tracing::debug!("No user model loaded: {e}");
+    }
 
     // DEPYLER-1305: Initialize fix applicator if auto_fix is enabled
     let fix_applicator = if config.auto_fix {
@@ -165,6 +173,13 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
                             );
                         }
                     }
+
+                    // DEPYLER-ORACLE-TRAIN: Record successful fix for user model learning
+                    user_predictor.learn_pattern(
+                        &classification.error.message,
+                        &result.description,
+                        depyler_oracle::ErrorCategory::from_code(&classification.error.code),
+                    );
                 }
             }
 
@@ -326,6 +341,19 @@ pub async fn run_convergence_loop(config: ConvergenceConfig) -> Result<Convergen
     );
     if let Err(e) = roi_metrics.write_to_docs() {
         tracing::warn!("Failed to write Oracle ROI metrics: {}", e);
+    }
+
+    // DEPYLER-ORACLE-TRAIN: Save user-learned patterns
+    if user_predictor.pattern_count() > 0 {
+        if let Err(e) = user_predictor.save(&user_model_path) {
+            tracing::warn!("Failed to save user model: {}", e);
+        } else {
+            tracing::info!(
+                "DEPYLER-ORACLE-TRAIN: Saved {} patterns to {}",
+                user_predictor.pattern_count(),
+                user_model_path.display()
+            );
+        }
     }
 
     Ok(state)
