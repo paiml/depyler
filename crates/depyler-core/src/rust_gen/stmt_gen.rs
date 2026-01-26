@@ -11,10 +11,10 @@ use crate::rust_gen::exception_helpers::extract_exception_type;
 use crate::rust_gen::expr_analysis::{
     expr_infers_float, expr_produces_depyler_value, extract_kwarg_bool, extract_kwarg_string,
     extract_string_literal, get_depyler_extraction_for_type, get_inner_optional_type,
-    get_wrapped_chained_pyops, handler_ends_with_exit, has_chained_pyops,
-    is_dict_augassign_pattern, is_dict_index_access, is_dict_with_value_type,
-    is_iterator_producing_expr, is_native_depyler_tuple, is_numpy_value_expr, is_pure_expression,
-    looks_like_option_expr, needs_type_conversion, to_pascal_case,
+    handler_ends_with_exit, has_chained_pyops, is_dict_augassign_pattern, is_dict_index_access,
+    is_dict_with_value_type, is_iterator_producing_expr, is_native_depyler_tuple,
+    is_numpy_value_expr, is_pure_expression, looks_like_option_expr, needs_type_conversion,
+    to_pascal_case,
 };
 use crate::rust_gen::keywords::safe_ident; // DEPYLER-0023: Keyword escaping
 use crate::rust_gen::stmt_gen_complex::{is_subcommand_check, try_generate_subcommand_match}; // DEPYLER-COVERAGE-95: Split from stmt_gen

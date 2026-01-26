@@ -528,21 +528,19 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             // add explicit type cast to help Rust infer intermediate types in chains.
             // Pattern: ((a).py_add(b)).py_add(c) fails type inference
             // Fix: ((a).py_add(b) as i32).py_add(c) provides type anchor for intermediate result
-            let left_is_chain = matches!(left, HirExpr::Binary { op: inner_op, .. }
-                if matches!(inner_op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
-            let return_expects_float = self
-                .ctx
-                .current_return_type
-                .as_ref()
-                .map(crate::rust_gen::func_gen::return_type_expects_float)
-                .unwrap_or(false);
-            let left_typed = if left_is_chain && return_expects_int {
-                parse_quote! { (#left_pyops as i32) }
-            } else if left_is_chain && return_expects_float {
-                parse_quote! { (#left_pyops as f64) }
+            //
+            // DEPYLER-E0282-DEBUG: Always add type cast to verify code path is triggered
+            let _left_is_chain = if let HirExpr::Binary { op: inner_op, .. } = left {
+                matches!(
+                    inner_op,
+                    BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod
+                )
             } else {
-                left_pyops
+                false
             };
+
+            // Always add i32 cast for now to verify the path works
+            let left_typed: syn::Expr = parse_quote! { (#left_pyops as i32) };
 
             match op {
                 BinOp::Add => return Ok(parse_quote! { (#left_typed).py_add(#right_pyops) }),
