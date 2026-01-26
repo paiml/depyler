@@ -3131,7 +3131,10 @@ pub fn power_examples(base: i32, exponent: i32) -> i32 {
         }
     };
     let result3 = _cse_temp_2;
-    ((result1).py_add(result2)).py_add(result3)
+    {
+        let _r: i32 = ((result1).py_add(result2)).py_add(result3);
+        _r
+    }
 }
 #[doc = "Demonstrate floor division with Python semantics"]
 #[doc = " Depyler: proven to terminate"]
@@ -3224,7 +3227,11 @@ pub fn floor_division_examples(
         }
     };
     let result5 = _cse_temp_4;
-    Ok(((((result1).py_add(result2)).py_add(result3)).py_add(result4)).py_add(result5))
+    Ok({
+        let _r: i32 =
+            ((((result1).py_add(result2)).py_add(result3)).py_add(result4)).py_add(result5);
+        _r
+    })
 }
 #[doc = "Combine power and floor division"]
 #[doc = " Depyler: proven to terminate"]

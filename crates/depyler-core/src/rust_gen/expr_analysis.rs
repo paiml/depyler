@@ -369,9 +369,7 @@ pub fn has_chained_pyops(expr: &HirExpr) -> bool {
             left_is_binary || right_is_binary
         }
         // Look through Call wrappers like Ok(...), Some(...), Result::Ok(...)
-        HirExpr::Call { args, .. } => {
-            args.iter().any(has_chained_pyops)
-        }
+        HirExpr::Call { args, .. } => args.iter().any(has_chained_pyops),
         // Look through tuples
         HirExpr::Tuple(elements) => elements.iter().any(has_chained_pyops),
         _ => false,

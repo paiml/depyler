@@ -11,7 +11,7 @@ use crate::rust_gen::array_initialization; // DEPYLER-REFACTOR-001: Extracted ar
 use crate::rust_gen::builtin_conversions; // DEPYLER-REFACTOR-001: Extracted conversions
 use crate::rust_gen::collection_constructors; // DEPYLER-REFACTOR-001: Extracted constructors
 use crate::rust_gen::context::{CodeGenContext, ToRustExpr};
-use crate::rust_gen::expr_analysis; // DEPYLER-COVERAGE-95: Use extracted helpers
+use crate::rust_gen::expr_analysis::{self, get_wrapped_chained_pyops}; // DEPYLER-COVERAGE-95: Use extracted helpers
 use crate::rust_gen::keywords; // DEPYLER-COVERAGE-95: Use centralized keywords module
 use crate::rust_gen::numpy_gen; // Phase 3: NumPy→Trueno codegen
 use crate::rust_gen::precedence; // DEPYLER-COVERAGE-95: Use extracted helpers
@@ -524,19 +524,39 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 right_expr.clone()
             };
 
+            // DEPYLER-E0282-FIX: When left operand is also a binary arithmetic expression,
+            // add explicit type cast to help Rust infer intermediate types in chains.
+            // Pattern: ((a).py_add(b)).py_add(c) fails type inference
+            // Fix: ((a).py_add(b) as i32).py_add(c) provides type anchor for intermediate result
+            let left_is_chain = matches!(left, HirExpr::Binary { op: inner_op, .. }
+                if matches!(inner_op, BinOp::Add | BinOp::Sub | BinOp::Mul | BinOp::Div | BinOp::Mod));
+            let return_expects_float = self
+                .ctx
+                .current_return_type
+                .as_ref()
+                .map(crate::rust_gen::func_gen::return_type_expects_float)
+                .unwrap_or(false);
+            let left_typed = if left_is_chain && return_expects_int {
+                parse_quote! { (#left_pyops as i32) }
+            } else if left_is_chain && return_expects_float {
+                parse_quote! { (#left_pyops as f64) }
+            } else {
+                left_pyops
+            };
+
             match op {
-                BinOp::Add => return Ok(parse_quote! { (#left_pyops).py_add(#right_pyops) }),
-                BinOp::Sub => return Ok(parse_quote! { (#left_pyops).py_sub(#right_pyops) }),
-                BinOp::Mul => return Ok(parse_quote! { (#left_pyops).py_mul(#right_pyops) }),
+                BinOp::Add => return Ok(parse_quote! { (#left_typed).py_add(#right_pyops) }),
+                BinOp::Sub => return Ok(parse_quote! { (#left_typed).py_sub(#right_pyops) }),
+                BinOp::Mul => return Ok(parse_quote! { (#left_typed).py_mul(#right_pyops) }),
                 BinOp::Div => {
                     // DEPYLER-1163: Cast py_div result to i32 when return type expects int
                     if return_expects_int {
-                        return Ok(parse_quote! { ((#left_pyops).py_div(#right_pyops) as i32) });
+                        return Ok(parse_quote! { ((#left_typed).py_div(#right_pyops) as i32) });
                     } else {
-                        return Ok(parse_quote! { (#left_pyops).py_div(#right_pyops) });
+                        return Ok(parse_quote! { (#left_typed).py_div(#right_pyops) });
                     }
                 }
-                BinOp::Mod => return Ok(parse_quote! { (#left_pyops).py_mod(#right_pyops) }),
+                BinOp::Mod => return Ok(parse_quote! { (#left_typed).py_mod(#right_pyops) }),
                 _ => {}
             }
         }
@@ -2997,6 +3017,47 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             alternatives = ["builtin", "stdlib", "user_defined", "constructor"],
             confidence = 0.90
         );
+
+        // DEPYLER-E0282-FIX: Handle Ok(chained_pyops) and Some(chained_pyops) type inference
+        // When generating Ok(expr) or Some(expr) where expr contains chained arithmetic operations
+        // like ((a).py_add(b)).py_add(c), Rust can't infer the intermediate types.
+        // Fix: Generate Ok({ let _r: T = expr; _r }) to provide explicit type annotation.
+        if self.ctx.type_mapper.nasa_mode && (func == "Ok" || func == "Some") && args.len() == 1 {
+            // Check if the argument has chained PyOps
+            if let Some(inner_expr) = get_wrapped_chained_pyops(&HirExpr::Call {
+                func: func.to_string(),
+                args: args.to_vec(),
+                kwargs: vec![],
+            }) {
+                // Determine the expected type from the return type context
+                let inner_type = self
+                    .ctx
+                    .current_return_type
+                    .as_ref()
+                    .and_then(|rt| match rt {
+                        Type::Optional(inner) => Some(inner.as_ref()),
+                        _ => None,
+                    });
+                // Also check for explicit type hints on the inner expression
+                let ty_tokens: Option<syn::Type> = match inner_type {
+                    Some(Type::Int) => Some(parse_quote! { i32 }),
+                    Some(Type::Float) => Some(parse_quote! { f64 }),
+                    _ => {
+                        // Fallback: check if inner expr is arithmetic, use i32 as default
+                        if matches!(inner_expr, HirExpr::Binary { .. }) {
+                            Some(parse_quote! { i32 })
+                        } else {
+                            None
+                        }
+                    }
+                };
+                if let Some(ty) = ty_tokens {
+                    let inner_tokens = inner_expr.to_rust_expr(self.ctx)?;
+                    let func_ident = syn::Ident::new(func, proc_macro2::Span::call_site());
+                    return Ok(parse_quote! { #func_ident({ let _r: #ty = #inner_tokens; _r }) });
+                }
+            }
+        }
 
         // DEPYLER-0608: Transform calls to cmd_*/handle_* handlers in subcommand match arms
         // When calling a handler with `args`, pass the extracted subcommand fields instead
