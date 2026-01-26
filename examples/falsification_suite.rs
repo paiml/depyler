@@ -3184,7 +3184,7 @@ pub fn rc3_string_index_exploit(s: &str) -> Result<String, Box<dyn std::error::E
             return Ok(_result);
         }
         Err(_) => {
-            return Ok("");
+            return Ok("".to_string());
         }
     }
 }

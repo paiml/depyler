@@ -2038,12 +2038,18 @@ pub(crate) fn return_type_expects_float(ty: &Type) -> bool {
 
 /// DEPYLER-1163: Check if a type expects int values (recursively checks Option, Result, etc.)
 /// Used to determine when py_div result should be cast from f64 to i32
+/// DEPYLER-E0282-FIX: Also handle wrapped types like Result<Int>, Custom("Result<i32, _>")
 pub(crate) fn return_type_expects_int(ty: &Type) -> bool {
     match ty {
         Type::Int => true,
         Type::Optional(inner) => return_type_expects_int(inner),
         Type::List(inner) => return_type_expects_int(inner),
         Type::Tuple(types) => types.iter().any(return_type_expects_int),
+        // DEPYLER-E0282-FIX: Handle Custom Result types
+        Type::Custom(s) => {
+            // Check for Result<i32, ...> or Result<int, ...> patterns
+            s.contains("Result<i32") || s.contains("Result<int")
+        }
         _ => false,
     }
 }

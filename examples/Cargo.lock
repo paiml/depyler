@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "semantic_test_count_divisible"
+name = "power_and_floor_division"
 version = "0.1.0"

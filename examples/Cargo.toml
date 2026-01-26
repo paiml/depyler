@@ -1,9 +1,9 @@
 [package]
-name = "semantic_test_nested_loop"
+name = "power_and_floor_division"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "semantic_test_nested_loop"
-path = "semantic_test_nested_loop.rs"
+name = "power_and_floor_division"
+path = "power_and_floor_division.rs"
 
