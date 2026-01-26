@@ -10,10 +10,12 @@ use crate::rust_gen::context::{CodeGenContext, RustCodeGen, ToRustExpr};
 use crate::rust_gen::exception_helpers::extract_exception_type;
 use crate::rust_gen::expr_analysis::{
     expr_infers_float, expr_produces_depyler_value, extract_kwarg_bool, extract_kwarg_string,
-    extract_string_literal, get_depyler_extraction_for_type, handler_ends_with_exit,
-    has_chained_pyops, is_dict_augassign_pattern, is_dict_index_access, is_dict_with_value_type,
-    is_iterator_producing_expr, is_native_depyler_tuple, is_numpy_value_expr, is_pure_expression,
-    looks_like_option_expr, needs_type_conversion, to_pascal_case,
+    extract_string_literal, get_depyler_extraction_for_type, get_inner_optional_type,
+    get_wrapped_chained_pyops,
+    handler_ends_with_exit, has_chained_pyops, is_dict_augassign_pattern, is_dict_index_access,
+    is_dict_with_value_type, is_iterator_producing_expr, is_native_depyler_tuple,
+    is_numpy_value_expr, is_pure_expression, looks_like_option_expr, needs_type_conversion,
+    to_pascal_case,
 };
 use crate::rust_gen::keywords::safe_ident; // DEPYLER-0023: Keyword escaping
 use crate::rust_gen::stmt_gen_complex::{is_subcommand_check, try_generate_subcommand_match}; // DEPYLER-COVERAGE-95: Split from stmt_gen
@@ -866,12 +868,24 @@ pub(crate) fn codegen_return_stmt(
                 expr_tokens = apply_type_conversion(expr_tokens, target_type);
             }
 
+            // DEPYLER-E0308-FIX: String literal to String conversion in return statements
+            // When returning a string literal and the return type is String, add .to_string()
+            // Example: `return ""` should become `"".to_string()` when return type is String
+            if matches!(e, HirExpr::Literal(Literal::String(_)))
+                && matches!(target_type, Type::String)
+            {
+                expr_tokens = parse_quote! { #expr_tokens.to_string() };
+            }
+
             // DEPYLER-E0282-FIX: Add type hint for chained PyOps expressions in return statements
             // When returning expressions like ((a).py_add(b)).py_add(c), Rust can't infer the
             // intermediate types because PyOps traits have multiple impls (i32+i32, i32+f64, etc.)
+            // Also handles Ok(...) wrapped expressions where inner type is Int/Float.
             // Fix: Wrap in type assertion block { let _r: <type> = expr; _r }
             if ctx.type_mapper.nasa_mode && has_chained_pyops(e) {
-                let type_tokens: Option<syn::Type> = match target_type {
+                // Check if target_type is Result/Option and extract inner type
+                let effective_type = get_inner_optional_type(target_type).unwrap_or(target_type);
+                let type_tokens: Option<syn::Type> = match effective_type {
                     Type::Int => Some(parse_quote! { i32 }),
                     Type::Float => Some(parse_quote! { f64 }),
                     _ => None,
