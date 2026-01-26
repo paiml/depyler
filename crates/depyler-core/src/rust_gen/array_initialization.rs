@@ -183,9 +183,11 @@ pub fn convert_array_small_literal(
     size: i64,
 ) -> Result<syn::Expr> {
     let size_lit = syn::LitInt::new(&size.to_string(), proc_macro2::Span::call_site());
+    // DEPYLER-E0282-FIX: Use i32 suffix to avoid type inference ambiguity
+    // when used with py_add/py_sub/etc. which have multiple impl overloads
     match func {
-        "zeros" => Ok(parse_quote! { vec![0; #size_lit] }),
-        "ones" => Ok(parse_quote! { vec![1; #size_lit] }),
+        "zeros" => Ok(parse_quote! { vec![0i32; #size_lit] }),
+        "ones" => Ok(parse_quote! { vec![1i32; #size_lit] }),
         "full" => {
             if args.len() >= 2 {
                 let value = args[1].to_rust_expr(ctx)?;
@@ -200,8 +202,8 @@ pub fn convert_array_small_literal(
 
 /// Convert large array literals (>32 elements) to Vec
 ///
-/// - `zeros(100)` → `vec![0; 100]`
-/// - `ones(100)` → `vec![1; 100]`
+/// - `zeros(100)` → `vec![0i32; 100]`
+/// - `ones(100)` → `vec![1i32; 100]`
 /// - `full(100, 42)` → `vec![42; 100]`
 ///
 /// # Complexity: 4
@@ -211,9 +213,10 @@ pub fn convert_array_large_literal(
     args: &[HirExpr],
 ) -> Result<syn::Expr> {
     let size_expr = args[0].to_rust_expr(ctx)?;
+    // DEPYLER-E0282-FIX: Use i32 suffix to avoid type inference ambiguity
     match func {
-        "zeros" => Ok(parse_quote! { vec![0; #size_expr as usize] }),
-        "ones" => Ok(parse_quote! { vec![1; #size_expr as usize] }),
+        "zeros" => Ok(parse_quote! { vec![0i32; #size_expr as usize] }),
+        "ones" => Ok(parse_quote! { vec![1i32; #size_expr as usize] }),
         "full" => {
             if args.len() >= 2 {
                 let value = args[1].to_rust_expr(ctx)?;
@@ -230,8 +233,8 @@ pub fn convert_array_large_literal(
 ///
 /// When size is a variable/expression, always use Vec.
 ///
-/// - `zeros(n)` → `vec![0; n as usize]`
-/// - `ones(n)` → `vec![1; n as usize]`
+/// - `zeros(n)` → `vec![0i32; n as usize]`
+/// - `ones(n)` → `vec![1i32; n as usize]`
 /// - `full(n, val)` → `vec![val; n as usize]`
 ///
 /// # Complexity: 4
@@ -241,9 +244,10 @@ pub fn convert_array_dynamic_size(
     args: &[HirExpr],
 ) -> Result<syn::Expr> {
     let size_expr = args[0].to_rust_expr(ctx)?;
+    // DEPYLER-E0282-FIX: Use i32 suffix to avoid type inference ambiguity
     match func {
-        "zeros" => Ok(parse_quote! { vec![0; #size_expr as usize] }),
-        "ones" => Ok(parse_quote! { vec![1; #size_expr as usize] }),
+        "zeros" => Ok(parse_quote! { vec![0i32; #size_expr as usize] }),
+        "ones" => Ok(parse_quote! { vec![1i32; #size_expr as usize] }),
         "full" => {
             if args.len() >= 2 {
                 let value = args[1].to_rust_expr(ctx)?;

@@ -728,7 +728,12 @@ pub fn expr_produces_depyler_value(
             ) {
                 return false;
             }
-            expr_produces_depyler_value(left, ctx) || expr_produces_depyler_value(right, ctx)
+            // DEPYLER-E0599-FIX: Only check LEFT operand's type
+            // The result type depends on which type the trait is implemented on:
+            // - DepylerValue.py_add(anything) -> DepylerValue
+            // - i32.py_add(DepylerValue) -> i64 (NOT DepylerValue!)
+            // So result is DepylerValue IFF left operand produces DepylerValue
+            expr_produces_depyler_value(left, ctx)
         }
         HirExpr::Unary { operand, .. } => expr_produces_depyler_value(operand, ctx),
         // DEPYLER-1064: Function call returning Unknown/Any produces DepylerValue

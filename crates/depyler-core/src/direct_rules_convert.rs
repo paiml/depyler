@@ -8,6 +8,7 @@ use crate::direct_rules::{
 };
 use crate::hir::*;
 use crate::rust_gen::keywords::safe_ident;
+use crate::rust_gen::precedence;
 use crate::type_mapper::TypeMapper;
 use anyhow::{bail, Result};
 use quote::quote;
@@ -301,8 +302,19 @@ pub(crate) fn convert_index_assignment(
         // Nested assignment: build chain of get_mut calls
         let mut chain = base_expr;
         for idx in &indices {
-            chain = parse_quote! {
-                #chain.get_mut(&#idx).unwrap()
+            // DEPYLER-E0277-FIX: String literals are already &str, don't add &
+            // For HashMap<String, V>, get_mut expects &Q where String: Borrow<Q>
+            // - "key" is &str, String: Borrow<str> ✓ → pass "key" directly
+            // - var is String, &String auto-derefs to &str ✓ → pass &var
+            // Check for both bare literals AND literals with .to_string() wrapping
+            // quote! adds spaces around tokens, so check first non-space char is quote
+            let idx_str = quote::quote! { #idx }.to_string();
+            let first_char = idx_str.trim_start().chars().next();
+            let is_str_lit = first_char == Some('"');
+            chain = if is_str_lit {
+                parse_quote! { #chain.get_mut(#idx).unwrap() }
+            } else {
+                parse_quote! { #chain.get_mut(&#idx).unwrap() }
             };
         }
 
@@ -2129,7 +2141,13 @@ impl<'a> ExprConverter<'a> {
                         } else {
                             right_expr
                         };
-                        Ok(parse_quote! { #final_left #rust_op #final_right })
+                        // DEPYLER-CLASS-001: Preserve parentheses for operator precedence
+                        // 2 * (a + b) must become 2 * (a + b), not 2 * a + b
+                        let left_wrapped =
+                            precedence::parenthesize_if_lower_precedence(final_left, op);
+                        let right_wrapped =
+                            precedence::parenthesize_if_lower_precedence(final_right, op);
+                        Ok(parse_quote! { #left_wrapped #rust_op #right_wrapped })
                     }
                 }
             }
@@ -2279,6 +2297,12 @@ impl<'a> ExprConverter<'a> {
 
                 // No coercion needed (both same type)
                 Ok(parse_quote! { #safe_left #rust_op #safe_right })
+            }
+            // DEPYLER-E0308-001: Handle string concatenation with format!()
+            // Python: "a" + "b" → Rust: format!("{}{}", a, b)
+            // The Rust + operator on strings requires &str on the right side
+            BinOp::Add if self.is_string_expr(left) || self.is_string_expr(right) => {
+                Ok(parse_quote! { format!("{}{}", #left_expr, #right_expr) })
             }
             _ => {
                 let rust_op = convert_binop(op)?;
@@ -7651,6 +7675,62 @@ mod tests {
         };
         let result = convert_expr(&expr, &type_mapper);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_convert_mul_with_add_preserves_precedence() {
+        // DEPYLER-CLASS-001: Test that 2 * (a + b) preserves parentheses
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::Literal(Literal::Int(2))),
+            right: Box::new(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Var("width".to_string())),
+                right: Box::new(HirExpr::Var("height".to_string())),
+            }),
+        };
+        let result = convert_expr(&expr, &type_mapper).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        eprintln!("[DEBUG] Generated code: {}", result_str);
+        // The addition should be wrapped in parentheses
+        assert!(
+            result_str.contains("(width + height)"),
+            "Expected parentheses around addition: {}",
+            result_str
+        );
+    }
+
+    #[test]
+    fn test_convert_mul_with_self_field_add_preserves_precedence() {
+        // DEPYLER-CLASS-001: Test with self.field pattern (method body)
+        let type_mapper = TypeMapper::default();
+        let expr = HirExpr::Binary {
+            op: BinOp::Mul,
+            left: Box::new(HirExpr::Literal(Literal::Int(2))),
+            right: Box::new(HirExpr::Binary {
+                op: BinOp::Add,
+                left: Box::new(HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("self".to_string())),
+                    attr: "width".to_string(),
+                }),
+                right: Box::new(HirExpr::Attribute {
+                    value: Box::new(HirExpr::Var("self".to_string())),
+                    attr: "height".to_string(),
+                }),
+            }),
+        };
+        let result = convert_expr(&expr, &type_mapper).unwrap();
+        let result_str = quote::quote!(#result).to_string();
+        eprintln!("[DEBUG] Generated code with self.field: {}", result_str);
+        // The addition should be wrapped in parentheses even with self.field
+        // Note: self.width becomes self.width.clone() in the converter
+        assert!(
+            result_str.contains("(self . width . clone () + self . height . clone ())")
+                || result_str.contains("(self.width.clone() + self.height.clone())"),
+            "Expected parentheses around addition: {}",
+            result_str
+        );
     }
 
     #[test]

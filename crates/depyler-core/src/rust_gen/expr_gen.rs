@@ -498,19 +498,45 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .map(crate::rust_gen::func_gen::return_type_expects_int)
                 .unwrap_or(false);
 
+            // DEPYLER-E0282-FIX: Add i32 suffix to integer literals to resolve
+            // type inference ambiguity with PyOps traits that have multiple impls
+            let left_pyops = if let HirExpr::Literal(Literal::Int(n)) = left {
+                // Only add suffix for small integers that fit in i32
+                if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
+                    let lit_str = format!("{}i32", n);
+                    let lit = syn::LitInt::new(&lit_str, proc_macro2::Span::call_site());
+                    parse_quote! { #lit }
+                } else {
+                    left_expr.clone()
+                }
+            } else {
+                left_expr.clone()
+            };
+            let right_pyops = if let HirExpr::Literal(Literal::Int(n)) = right {
+                if *n >= i32::MIN as i64 && *n <= i32::MAX as i64 {
+                    let lit_str = format!("{}i32", n);
+                    let lit = syn::LitInt::new(&lit_str, proc_macro2::Span::call_site());
+                    parse_quote! { #lit }
+                } else {
+                    right_expr.clone()
+                }
+            } else {
+                right_expr.clone()
+            };
+
             match op {
-                BinOp::Add => return Ok(parse_quote! { (#left_expr).py_add(#right_expr) }),
-                BinOp::Sub => return Ok(parse_quote! { (#left_expr).py_sub(#right_expr) }),
-                BinOp::Mul => return Ok(parse_quote! { (#left_expr).py_mul(#right_expr) }),
+                BinOp::Add => return Ok(parse_quote! { (#left_pyops).py_add(#right_pyops) }),
+                BinOp::Sub => return Ok(parse_quote! { (#left_pyops).py_sub(#right_pyops) }),
+                BinOp::Mul => return Ok(parse_quote! { (#left_pyops).py_mul(#right_pyops) }),
                 BinOp::Div => {
                     // DEPYLER-1163: Cast py_div result to i32 when return type expects int
                     if return_expects_int {
-                        return Ok(parse_quote! { ((#left_expr).py_div(#right_expr) as i32) });
+                        return Ok(parse_quote! { ((#left_pyops).py_div(#right_pyops) as i32) });
                     } else {
-                        return Ok(parse_quote! { (#left_expr).py_div(#right_expr) });
+                        return Ok(parse_quote! { (#left_pyops).py_div(#right_pyops) });
                     }
                 }
-                BinOp::Mod => return Ok(parse_quote! { (#left_expr).py_mod(#right_expr) }),
+                BinOp::Mod => return Ok(parse_quote! { (#left_pyops).py_mod(#right_pyops) }),
                 _ => {}
             }
         }
@@ -2406,8 +2432,9 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             | HirExpr::ListComp { .. }
             | HirExpr::DictComp { .. }
             | HirExpr::SetComp { .. } => true,
-            // DEPYLER-0497: Function calls that return Result need {:?}
-            HirExpr::Call { func, .. } => self.ctx.result_returning_functions.contains(func),
+            // DEPYLER-1365: Result-returning calls should be unwrapped, not debug-formatted
+            // See try_convert_print_call for unwrap handling
+            HirExpr::Call { .. } => false,
             _ => false,
         }
     }
@@ -2558,17 +2585,34 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .first()
                 .map(|a| self.needs_debug_format(a))
                 .unwrap_or(false);
+
+            // DEPYLER-1365: Check if argument is a Result-returning call that needs unwrapping
+            let is_result_call = matches!(&args[0], HirExpr::Call { func, .. }
+                if self.ctx.result_returning_functions.contains(func));
+
             let arg = &processed_args[0];
 
-            let format_str = if needs_debug { "{:?}" } else { "{}" };
-
-            if use_stderr {
-                Ok(parse_quote! { eprintln!(#format_str, #arg) })
+            if is_result_call {
+                // DEPYLER-1365: Unwrap Result types for semantic parity with Python
+                // Python: print(divide(17, 5)) → "3"
+                // Rust:   println!("{}", divide(17, 5).unwrap()) → "3"
+                if use_stderr {
+                    Ok(parse_quote! { eprintln!("{}", #arg.unwrap()) })
+                } else {
+                    Ok(parse_quote! { println!("{}", #arg.unwrap()) })
+                }
             } else {
-                Ok(parse_quote! { println!(#format_str, #arg) })
+                let format_str = if needs_debug { "{:?}" } else { "{}" };
+
+                if use_stderr {
+                    Ok(parse_quote! { eprintln!(#format_str, #arg) })
+                } else {
+                    Ok(parse_quote! { println!(#format_str, #arg) })
+                }
             }
         } else {
             // Multiple arguments - build format string with per-arg detection
+            // DEPYLER-1365: Also handle Result-returning calls by unwrapping
             let format_specs: Vec<&str> = args
                 .iter()
                 .map(|hir_arg| {
@@ -2581,10 +2625,24 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                 .collect();
             let format_str = format_specs.join(" ");
 
+            // DEPYLER-1365: Process args to unwrap Result-returning calls
+            let final_args: Vec<syn::Expr> = args
+                .iter()
+                .zip(processed_args.iter())
+                .map(|(hir_arg, syn_arg)| {
+                    if let HirExpr::Call { func, .. } = hir_arg {
+                        if self.ctx.result_returning_functions.contains(func) {
+                            return parse_quote! { #syn_arg.unwrap() };
+                        }
+                    }
+                    syn_arg.clone()
+                })
+                .collect();
+
             if use_stderr {
-                Ok(parse_quote! { eprintln!(#format_str, #(#processed_args),*) })
+                Ok(parse_quote! { eprintln!(#format_str, #(#final_args),*) })
             } else {
-                Ok(parse_quote! { println!(#format_str, #(#processed_args),*) })
+                Ok(parse_quote! { println!(#format_str, #(#final_args),*) })
             }
         };
 
@@ -3215,13 +3273,11 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             return self.convert_list_with_float_coercion(elems);
                         }
                     }
-                    let expr = arg.to_rust_expr(self.ctx)?;
-                    // Wrap string literals with .to_string()
-                    if matches!(arg, HirExpr::Literal(Literal::String(_))) {
-                        Ok(parse_quote! { #expr.to_string() })
-                    } else {
-                        Ok(expr)
-                    }
+                    // DEPYLER-TYPE-001: Don't unconditionally add .to_string() to string literals
+                    // The expression generator already handles string type correctly based on
+                    // StringOptimizer analysis. Adding .to_string() here causes E0308 errors
+                    // when class fields expect &str instead of String.
+                    arg.to_rust_expr(self.ctx)
                 })
                 .collect::<Result<Vec<_>>>()?
         } else {
@@ -3579,6 +3635,10 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
     /// - Arrays: use .as_array().map(|a| a.len()).unwrap_or(0)
     /// - Objects: use .as_object().map(|o| o.len()).unwrap_or(0)
     /// - Strings: use .as_str().map(|s| s.len()).unwrap_or(0)
+    ///
+    /// DEPYLER-DAY2-BUG-002: Handle len() on tuples
+    /// Rust tuples don't have .len() method - size is known at compile time
+    /// - Tuples: return compile-time constant (e.g., 4 for (i32, i32, i32, i32))
     pub(crate) fn convert_len_call_with_type(
         &self,
         hir_args: &[HirExpr],
@@ -3590,6 +3650,15 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
 
         let arg = &arg_exprs[0];
         let hir_arg = &hir_args[0];
+
+        // DEPYLER-DAY2-BUG-002: Check if argument is a tuple type
+        // Rust tuples don't have .len() - return compile-time constant
+        if let HirExpr::Var(name) = hir_arg {
+            if let Some(Type::Tuple(types)) = self.ctx.var_types.get(name) {
+                let len = types.len() as i32;
+                return Ok(parse_quote! { #len });
+            }
+        }
 
         // Check if the argument is a JSON Value (NOT a typed HashMap)
         // DEPYLER-0689: Only use as_array/as_object for serde_json::Value, not typed dicts
@@ -4942,6 +5011,8 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                         // - If function param expects &str (borrowed), pass literal directly
                         // - If function param expects String (owned), add .to_string()
                         // Check function_param_borrows to determine expected type
+                        // DEPYLER-TYPE-001: Default to true (borrowed) because Type::String params
+                        // become &str in generated Rust code, not String. String literals ARE &str.
                         if matches!(hir_arg, HirExpr::Literal(Literal::String(_))) {
                             // Check if function expects borrowed string (&str) at this position
                             let param_expects_borrowed = self.ctx
@@ -4949,17 +5020,18 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                                 .get(func)
                                 .and_then(|borrows| borrows.get(param_idx))
                                 .copied()
-                                .unwrap_or(false);
+                                .unwrap_or(true);
 
                             if param_expects_borrowed {
                                 // Param is &str - string literal works directly
                                 // DEPYLER-0779: But wrap in Some if optional param
+                                // DEPYLER-TYPE-001: Don't add .to_string() when param expects borrowed
                                 if needs_some_wrap {
-                                    let converted: syn::Expr = parse_quote! { #arg_expr.to_string() };
+                                    // For Option<&str>, wrap the literal directly without .to_string()
                                     if optional_is_borrowed {
-                                        return parse_quote! { &Some(#converted) };
+                                        return parse_quote! { &Some(#arg_expr) };
                                     } else {
-                                        return parse_quote! { Some(#converted) };
+                                        return parse_quote! { Some(#arg_expr) };
                                     }
                                 }
                                 return arg_expr.clone();
@@ -5037,12 +5109,13 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
                             use crate::hir::{HirExpr, Literal};
                             // DEPYLER-0629: Check if parameter needs borrowing
                             // If the parameter type is &Option<T>, we need &None instead of None
+                            // DEPYLER-TYPE-001: Default to true for string params (Type::String → &str)
                             let param_needs_borrow = self
                                 .ctx
                                 .function_param_borrows
                                 .get(func)
                                 .and_then(|borrows| borrows.get(i).copied())
-                                .unwrap_or(false);
+                                .unwrap_or(true);
 
                             let default_syn: syn::Expr = match default_expr {
                                 HirExpr::Literal(Literal::None) => {

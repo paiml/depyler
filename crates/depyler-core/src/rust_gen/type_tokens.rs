@@ -103,11 +103,13 @@ pub fn hir_type_to_tokens_with_mode(ty: &Type, nasa_mode: bool) -> proc_macro2::
         }
         Type::Custom(name) => {
             // DEPYLER-169: Map special Python types to their Rust equivalents
-            // DEPYLER-1022: In NASA mode, use String instead of serde_json::Value
+            // DEPYLER-E0308-002: In NASA mode, Any/object should map to DepylerValue, not String
+            // This is critical for heterogeneous dicts: Dict[str, Any] must use DepylerValue values
+            // Using String would cause E0308 when dicts contain int/bool/other types
             let mapped_name = match name.as_str() {
                 "object" | "builtins.object" | "Any" | "typing.Any" | "any" => {
                     if nasa_mode {
-                        "String"
+                        "DepylerValue"
                     } else {
                         "serde_json::Value"
                     }
