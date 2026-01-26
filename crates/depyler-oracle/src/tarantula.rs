@@ -523,14 +523,14 @@ mod tests {
 
         // With no failures, the score should be 0.0 or not present
         let score = result.score(TranspilerDecision::TypeInference);
-        match score {
-            Some(s) => assert!(
+        if let Some(s) = score {
+            assert!(
                 s <= 0.01,
                 "Expected near-zero suspiciousness for all-pass, got {}",
                 s
-            ),
-            None => {} // Also acceptable - decision not tracked as suspicious
+            );
         }
+        // None is also acceptable - decision not tracked as suspicious
     }
 
     #[test]
@@ -679,7 +679,7 @@ mod tests {
 
         // Equal distribution should yield ~0.5 suspiciousness
         assert!(
-            score >= 0.4 && score <= 0.6,
+            (0.4..=0.6).contains(&score),
             "Expected neutral suspiciousness (~0.5) for equal distribution, got {}",
             score
         );
