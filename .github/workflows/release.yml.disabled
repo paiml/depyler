@@ -8,230 +8,50 @@ on:
 env:
   CARGO_TERM_COLOR: always
 
-permissions:
-  contents: write
-
 jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
     outputs:
-      release_id: ${{ steps.create_release.outputs.id }}
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
           draft: false
           prerelease: false
-          generate_release_notes: true
 
   build-release:
-    name: Build Release Binary
+    name: Build Release
     needs: create-release
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            name: linux-amd64
-          - target: x86_64-apple-darwin
-            os: macos-latest
-            name: darwin-amd64
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            name: darwin-arm64
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            name: windows-amd64
-    runs-on: ${{ matrix.os }}
+        os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-      
-      - name: Install Linux build tools
-        if: matrix.os == 'ubuntu-latest'
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build
+        run: cargo build --release --all-features
+      - name: Package
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential
-      
-      - name: Build release binary
-        run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            cargo build --release --bin depyler
+          if [ "${{ runner.os }}" = "Windows" ]; then
+            7z a depyler-windows.zip target/release/depyler.exe
           else
-            cargo build --release --target ${{ matrix.target }} --bin depyler
+            tar czf depyler-${{ runner.os }}.tar.gz -C target/release depyler
           fi
         shell: bash
-      
-      - name: Package binary
-        shell: bash
-        run: |
-          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            cd target/release
-          else
-            cd target/${{ matrix.target }}/release
-          fi
-          
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-              7z a ../../depyler-${{ matrix.name }}.zip depyler.exe
-            else
-              7z a ../../../depyler-${{ matrix.name }}.zip depyler.exe
-            fi
-            echo "ASSET_PATH=depyler-${{ matrix.name }}.zip" >> $GITHUB_ENV
-          else
-            if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-              tar czf ../../depyler-${{ matrix.name }}.tar.gz depyler
-            else
-              tar czf ../../../depyler-${{ matrix.name }}.tar.gz depyler
-            fi
-            echo "ASSET_PATH=depyler-${{ matrix.name }}.tar.gz" >> $GITHUB_ENV
-          fi
-      
-      - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
+      - name: Upload
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: ${{ env.ASSET_PATH }}
-
-  build-installer:
-    name: Build Installer Script
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      
-      - name: Create installer script
-        run: |
-          cat > install.sh << 'EOF'
-          #!/bin/sh
-          # Depyler installer script
-          set -euf
-          
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
-          GITHUB_REPO="paiml/depyler"
-          
-          echo "Depyler installer v${VERSION}"
-          echo "==========================="
-          echo "Python-to-Rust transpiler"
-          echo ""
-          
-          # Detect platform
-          OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-          ARCH="$(uname -m)"
-          
-          case "${OS}" in
-              linux) OS="linux" ;;
-              darwin) OS="darwin" ;;
-              *) echo "Error: Unsupported OS: ${OS}"; exit 1 ;;
-          esac
-          
-          case "${ARCH}" in
-              x86_64) ARCH="amd64" ;;
-              aarch64|arm64) ARCH="arm64" ;;
-              *) echo "Error: Unsupported architecture: ${ARCH}"; exit 1 ;;
-          esac
-          
-          PLATFORM="${OS}-${ARCH}"
-          echo "Detected platform: ${PLATFORM}"
-          
-          # Installation directory
-          PREFIX="${PREFIX:-${HOME}/.local}"
-          BIN_DIR="${PREFIX}/bin"
-          echo "Installing to: ${BIN_DIR}"
-          
-          # Create directory
-          mkdir -p "${BIN_DIR}"
-          
-          # Download URL
-          URL="https://github.com/${GITHUB_REPO}/releases/download/v${VERSION}/depyler-${PLATFORM}.tar.gz"
-          echo "Downloading from: ${URL}"
-          
-          # Download
-          TEMP_FILE="$(mktemp)"
-          if command -v curl >/dev/null 2>&1; then
-              curl -sSfL "${URL}" -o "${TEMP_FILE}" || {
-                  echo "Error: Failed to download depyler"
-                  rm -f "${TEMP_FILE}"
-                  exit 1
-              }
-          elif command -v wget >/dev/null 2>&1; then
-              wget -q "${URL}" -O "${TEMP_FILE}" || {
-                  echo "Error: Failed to download depyler"
-                  rm -f "${TEMP_FILE}"
-                  exit 1
-              }
-          else
-              echo "Error: Neither curl nor wget found. Please install one of them."
-              exit 1
-          fi
-          
-          # Extract
-          tar xzf "${TEMP_FILE}" -C "${BIN_DIR}" || {
-              echo "Error: Failed to extract depyler"
-              rm -f "${TEMP_FILE}"
-              exit 1
-          }
-          rm -f "${TEMP_FILE}"
-          
-          # Make executable
-          chmod +x "${BIN_DIR}/depyler"
-          
-          # Verify installation
-          if [ -x "${BIN_DIR}/depyler" ]; then
-              echo ""
-              echo "✓ Depyler installed successfully!"
-              echo ""
-              echo "To get started, add this to your PATH if not already present:"
-              echo "  export PATH=\"${BIN_DIR}:\$PATH\""
-              echo ""
-              echo "Then run:"
-              echo "  depyler --help"
-              echo ""
-              echo "Example usage:"
-              echo "  depyler transpile script.py -o script.rs"
-          else
-              echo "Error: Installation verification failed"
-              exit 1
-          fi
-          EOF
-          
-          chmod +x install.sh
-      
-      - name: Upload installer
-        uses: softprops/action-gh-release@v1
-        with:
-          files: install.sh
-
-  generate-checksums:
-    name: Generate Checksums
-    needs: [build-release, build-installer]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download release assets
-        uses: robinraju/release-downloader@v1.8
-        with:
-          latest: true
-          fileName: "*"
-          out-file-path: "assets"
-      
-      - name: Generate checksums
-        run: |
-          cd assets
-          sha256sum * > SHA256SUMS
-          echo "Generated checksums:"
-          cat SHA256SUMS
-      
-      - name: Upload checksums
-        uses: softprops/action-gh-release@v1
-        with:
-          files: assets/SHA256SUMS
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: depyler-${{ runner.os }}.*
+          asset_name: depyler-${{ runner.os }}.tar.gz
+          asset_content_type: application/gzip
