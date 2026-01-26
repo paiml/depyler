@@ -18,6 +18,14 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
 
+    - name: Free disk space
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf /usr/local/share/boost
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        df -h
+
     - name: Install build dependencies
       run: |
         sudo apt-get update
@@ -49,8 +57,3 @@ jobs:
       run: |
         export RUSTFLAGS="-C linker=gcc"
         cargo test --workspace --all-features
-
-    - name: Build
-      run: |
-        export RUSTFLAGS="-C linker=gcc"
-        cargo build --workspace --all-targets
