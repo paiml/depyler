@@ -152,6 +152,25 @@ pub enum Commands {
         apr_file: Option<PathBuf>,
     },
 
+    /// Train Oracle on user corpus (DEPYLER-ORACLE-TRAIN)
+    Train {
+        /// Directory containing Python corpus to train on
+        #[arg(long)]
+        corpus: PathBuf,
+
+        /// Output model path (default: ~/.depyler/oracle_user.bin)
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Target compilation rate to achieve during training
+        #[arg(long, default_value = "80")]
+        target_rate: f64,
+
+        /// Maximum training iterations
+        #[arg(long, default_value = "10")]
+        max_iterations: usize,
+    },
+
     /// Generate deterministic corpus analysis report
     Report {
         /// Directory containing Python examples
