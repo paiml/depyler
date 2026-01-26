@@ -5547,7 +5547,17 @@ impl<'a, 'b> ExpressionConverter<'a, 'b> {
             return Ok(parse_quote! { vec![#(#elt_exprs),*] });
         }
 
-        if has_mixed_types {
+        // DEPYLER-0270: Check if return type explicitly specifies a concrete list element type
+        // If so, trust the annotation and skip mixed-type fallback
+        let has_concrete_return_type = matches!(
+            &self.ctx.current_return_type,
+            Some(Type::List(elem_type)) if matches!(
+                elem_type.as_ref(),
+                Type::Int | Type::Float | Type::String | Type::Bool
+            )
+        );
+
+        if has_mixed_types && !has_concrete_return_type {
             // DEPYLER-1033: In NASA mode, convert all elements to String instead of using serde_json
             if nasa_mode {
                 let elt_exprs: Vec<syn::Expr> = elts

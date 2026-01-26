@@ -1369,7 +1369,7 @@ class ComplexProcessor:
     fn test_cosine_similarity_range() {
         let embedder = AstEmbedder::with_defaults();
 
-        let sources = vec![
+        let sources = [
             "def foo(): pass",
             "def bar(x): return x",
             "class Baz: pass",
@@ -1386,7 +1386,7 @@ class ComplexProcessor:
             for (j, emb2) in embeddings.iter().enumerate() {
                 let sim = emb1.cosine_similarity(emb2);
                 assert!(
-                    sim >= -1.001 && sim <= 1.001,
+                    (-1.001..=1.001).contains(&sim),
                     "Similarity at ({}, {}) out of range: {}",
                     i, j, sim
                 );
