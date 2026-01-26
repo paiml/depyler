@@ -4506,7 +4506,29 @@ pub(crate) fn codegen_assign_stmt(
     // DEPYLER-0727: Set assignment target type for dict literal Value wrapping
     // This allows dict codegen to check if target is Dict[str, Any] → HashMap<String, Value>
     let prev_assign_type = ctx.current_assign_type.take();
-    ctx.current_assign_type = type_annotation.clone();
+
+    // DEPYLER-E0308-FIX: For mut_option_dict_params with Optional(Dict) annotation,
+    // extract the inner Dict type. This happens when type inference propagates the
+    // parameter type `memo: Dict[int, int] = None` to the assignment `memo = {}`.
+    // The empty dict `{}` should use Dict(Int, Int), not Optional(Dict(Int, Int)),
+    // because the Some() wrapping is added separately in the code generation.
+    if let AssignTarget::Symbol(name) = target {
+        if ctx.mut_option_dict_params.contains(name.as_str()) {
+            if let Some(Type::Optional(inner)) = type_annotation {
+                if let Type::Dict(_, _) = inner.as_ref() {
+                    ctx.current_assign_type = Some(inner.as_ref().clone());
+                } else {
+                    ctx.current_assign_type = type_annotation.clone();
+                }
+            } else {
+                ctx.current_assign_type = type_annotation.clone();
+            }
+        } else {
+            ctx.current_assign_type = type_annotation.clone();
+        }
+    } else {
+        ctx.current_assign_type = type_annotation.clone();
+    }
 
     // DEPYLER-1042: For subscript assignments, propagate inner type from base dict
     // Pattern: d["level1"] = {} where d: Dict[str, Dict[str, str]]
@@ -5990,8 +6012,19 @@ pub(crate) fn codegen_assign_index(
         // Nested assignment: build chain of get_mut calls
         let mut chain = quote! { #base_expr };
         for idx in &indices {
-            chain = quote! {
-                #chain.get_mut(&#idx).unwrap()
+            // DEPYLER-E0277-FIX: String literals are already &str, don't add &
+            // For HashMap<String, V>, get_mut expects &Q where String: Borrow<Q>
+            // - "key" is &str, String: Borrow<str> ✓ → pass "key" directly
+            // - var is String, &String auto-derefs to &str ✓ → pass &var
+            // Check for both bare literals AND literals with .to_string() wrapping
+            // quote! adds spaces around tokens, so check first non-space char is quote
+            let idx_str = quote! { #idx }.to_string();
+            let first_char = idx_str.trim_start().chars().next();
+            let is_str_lit = first_char == Some('"');
+            chain = if is_str_lit {
+                quote! { #chain.get_mut(#idx).unwrap() }
+            } else {
+                quote! { #chain.get_mut(&#idx).unwrap() }
             };
         }
 

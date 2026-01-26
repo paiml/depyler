@@ -6891,10 +6891,9 @@ mod tests {
         let exc = Some(HirExpr::Literal(Literal::String("Error".to_string())));
 
         let result = codegen_raise_stmt(&exc, &mut ctx).unwrap();
-        assert_eq!(
-            result.to_string(),
-            "return Err (\"Error\" . to_string ()) ;"
-        );
+        // DEPYLER-E0308-001: String optimizer now determines if .to_string() is needed
+        // For error messages in Result, static str is sufficient
+        assert_eq!(result.to_string(), "return Err (\"Error\") ;");
     }
 
     #[test]

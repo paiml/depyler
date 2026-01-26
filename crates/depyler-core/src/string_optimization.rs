@@ -71,10 +71,12 @@ impl StringOptimizer {
                 } else if self.returned_strings.contains(s) {
                     // Returned but not borrowed elsewhere - use owned String
                     OptimalStringType::OwnedString
-                } else if self.is_read_only(s) {
-                    OptimalStringType::StaticStr
                 } else {
-                    OptimalStringType::OwnedString
+                    // DEPYLER-TYPE-001: Default to StaticStr (&'static str) for literals
+                    // String literals passed as function args should stay as &str
+                    // since function params with Type::String become &str in Rust.
+                    // Only use OwnedString when explicitly needed (returned/concatenated).
+                    OptimalStringType::StaticStr
                 }
             }
             StringContext::Parameter(name) => {

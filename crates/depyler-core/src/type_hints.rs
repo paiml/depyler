@@ -576,13 +576,33 @@ impl TypeHintProvider {
         // Get key type from first item
         let key_type = self.infer_expr_type(&items[0].0);
 
-        // Get value type from first non-None value
-        let base_val_type = items
+        // DEPYLER-E0308-002: Get ALL value types to detect heterogeneous dicts
+        // Dicts with mixed value types (str, int, bool) must use DepylerValue
+        let value_types: Vec<Type> = items
             .iter()
             .filter(|(_, v)| !matches!(v, HirExpr::Literal(crate::hir::Literal::None)))
             .map(|(_, v)| self.infer_expr_type(v))
-            .find(|t| !matches!(t, Type::None | Type::Unknown))
-            .unwrap_or_else(|| self.infer_expr_type(&items[0].1));
+            .filter(|t| !matches!(t, Type::None | Type::Unknown))
+            .collect();
+
+        // Check if all values have the same type
+        let base_val_type = if value_types.is_empty() {
+            // All None or unknown - use DepylerValue (Type::Unknown)
+            Type::Unknown
+        } else if value_types.len() == 1 {
+            // Single value type
+            value_types[0].clone()
+        } else {
+            // Check if all types are the same
+            let first = &value_types[0];
+            if value_types.iter().all(|t| t == first) {
+                // All same type
+                first.clone()
+            } else {
+                // Heterogeneous values - use DepylerValue (Type::Unknown)
+                Type::Unknown
+            }
+        };
 
         // If any value is None, wrap value type in Option
         let val_type = if has_none_value && !matches!(base_val_type, Type::None) {
