@@ -294,6 +294,7 @@ impl StringOptimizer {
         }
     }
 
+    #[allow(dead_code)]
     fn is_read_only(&self, s: &str) -> bool {
         self.read_only_strings.contains(s) && !self.returned_strings.contains(s)
     }
