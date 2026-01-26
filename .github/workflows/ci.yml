@@ -57,9 +57,9 @@ jobs:
     - name: Run clippy
       run: |
         export RUSTFLAGS="-C linker=gcc"
-        cargo clippy --all-targets --all-features -- -D warnings
+        cargo clippy --all-targets --all-features --release -- -D warnings
 
     - name: Run tests
       run: |
         export RUSTFLAGS="-C linker=gcc"
-        cargo test --workspace --all-features
+        cargo test --workspace --all-features --release -- --test-threads=2
