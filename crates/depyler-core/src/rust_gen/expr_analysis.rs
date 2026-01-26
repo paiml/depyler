@@ -735,7 +735,7 @@ pub fn expr_produces_depyler_value(
         // Variable with Unknown/Any type is DepylerValue
         HirExpr::Var(name) => ctx.var_types.get(name).is_some_and(is_depyler_value_type),
         // Arithmetic on DepylerValue produces DepylerValue
-        HirExpr::Binary { left, right, op } => {
+        HirExpr::Binary { left, right: _, op } => {
             use crate::hir::BinOp;
             // Skip comparison operators - they return bool
             if matches!(
