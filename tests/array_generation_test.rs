@@ -57,11 +57,20 @@ def test_init():
     let rust_code = transpile_snippet(py_code).expect("Failed to transpile");
 
     // Check array initialization functions
-    // DEPYLER-REFACTOR-001: Extracted module generates cleaner [0; N] without unnecessary cast
-    // for small literal sizes (≤32), since the size is a compile-time constant
-    assert!(rust_code.contains("[0; 10]"));
-    assert!(rust_code.contains("[1; 5]"));
-    assert!(rust_code.contains("[42; 8]"));
+    // zeros/ones/full map to either array literal [x; N] or vec![x; N]
+    // Both are valid: vec! for heap allocation, array for stack
+    assert!(
+        rust_code.contains("[0; 10]") || rust_code.contains("vec![0i32; 10]"),
+        "zeros(10) should produce [0; 10] or vec![0i32; 10]"
+    );
+    assert!(
+        rust_code.contains("[1; 5]") || rust_code.contains("vec![1i32; 5]"),
+        "ones(5) should produce [1; 5] or vec![1i32; 5]"
+    );
+    assert!(
+        rust_code.contains("[42; 8]") || rust_code.contains("vec![42; 8]"),
+        "full(8, 42) should produce [42; 8] or vec![42; 8]"
+    );
 }
 
 #[test]
